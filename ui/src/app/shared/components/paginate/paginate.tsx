@@ -2,6 +2,7 @@ import {DataLoader, DropDownMenu} from 'argo-ui';
 
 import * as React from 'react';
 import ReactPaginate from 'react-paginate';
+import {t} from 'i18next';
 import {services} from '../../services';
 
 require('./paginate.scss');
@@ -55,7 +56,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                             anchor={() => (
                                                 <>
                                                     <a>
-                                                        Sort: {sortOption.toLowerCase()} <i className='fa fa-caret-down' />
+                                                        {t('paginate.sort', 'Sort')}: {sortOption.toLowerCase()} <i className='fa fa-caret-down' />
                                                     </a>
                                                     &nbsp;
                                                 </>
@@ -76,11 +77,12 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                     <DropDownMenu
                                         anchor={() => (
                                             <a>
-                                                Items per page: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />
+                                                {t('paginate.items-per-page', 'Items per page')}: {pageSize === -1 ? t('paginate.items-per-page.all', 'all') : pageSize}{' '}
+                                                <i className='fa fa-caret-down' />
                                             </a>
                                         )}
                                         items={[5, 10, 15, 20, -1].map(count => ({
-                                            title: count === -1 ? 'all' : count.toString(),
+                                            title: count === -1 ? t('paginate.items-per-page.all', 'all') : count.toString(),
                                             action: () => {
                                                 pref.pageSizes[preferencesKey] = count;
                                                 services.viewPreferences.updatePreferences(pref);

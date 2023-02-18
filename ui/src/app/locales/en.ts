@@ -37,5 +37,8 @@ export default {
     'applications-filter.namespaces': 'NAMESPACES',
     'applications-filter.auto-sync': 'Auto Sync',
     'applications-filter.auto-sync.enabled': 'Enabled',
-    'applications-filter.auto-sync.disabled': 'Disabled'
+    'applications-filter.auto-sync.disabled': 'Disabled',
+    'paginate.sort': 'Sort',
+    'paginate.items-per-page': 'Items per page',
+    'paginate.items-per-page.all': 'all'
 };
