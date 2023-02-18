@@ -56,7 +56,7 @@ export const Sidebar = (props: SidebarProps) => {
                         <div className='sidebar__logo-container'>
                             <img src='assets/images/argologo.svg' alt='Argo' className='sidebar__logo__text-logo' />
                             <div className='sidebar__version' onClick={props.onVersionClick}>
-                                {loading ? t('sidebar.loading') : error?.state ? t('sidebar.unknown') : version?.Version || t('sidebar.unknown')}
+                                {loading ? t('sidebar.loading', 'Loading...') : error?.state ? t('sidebar.unknown', 'Unknown') : version?.Version || t('sidebar.unknown')}
                             </div>
                         </div>
                     )}
