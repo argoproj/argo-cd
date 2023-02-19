@@ -1,0 +1,62 @@
+apiVersion: kit/v1
+kind: Tasks
+metadata:
+  name: argo-cd
+spec:
+  tasks:
+    - name: kubens
+      command: kubens argocd
+    - name: install
+      command: kubectl apply -k test/manifests/base
+      dependencies: kubens
+    - name: redis
+      ports: 6379
+      image: redis:7.0.7-alpine
+    - name: repo-server
+      command: go run ./cmd  --loglevel debug --port 8081 --redis localhost:6379
+      env:
+        - FORCE_LOG_COLORS=1
+        - ARGOCD_FAKE_IN_CLUSTER=true
+        - ARGOCD_GNUPGHOME=/tmp/argocd-local/gpg/keys
+        - ARGOCD_PLUGINSOCKFILEPATH=./test/cmp
+        - ARGOCD_GPG_DATA_PATH=/tmp/argocd-local/gpg/source
+        - ARGOCD_TLS_DATA_PATH=$/tmp/argocd-local/tls
+        - ARGOCD_SSH_DATA_PATH=/tmp/argocd-local/ssh
+        - ARGOCD_BINARY_NAME=argocd-repo-server
+        - ARGOCD_GPG_ENABLED=false
+      dependencies: install
+      ports: 8081 8081
+    - name: controller
+      command: go run ./cmd  --loglevel debug --redis localhost:6379 --repo-server localhost:8081
+      env:
+        - ARGOCD_BINARY_NAME=argocd-application-controller
+        - FORCE_LOG_COLORS=1
+        - ARGOCD_FAKE_IN_CLUSTER=true
+        - ARGOCD_TLS_DATA_PATH=/tmp/argocd-local/tls
+        - ARGOCD_SSH_DATA_PATH=/tmp/argocd-local/ssh
+        - ARGOCD_BINARY_NAME=argocd-application-controller
+      dependencies: install redis repo-server
+      ports: 8082
+    - name: api-server
+      command: go run ./cmd --loglevel debug --redis localhost:6379 --disable-auth --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --port 8080
+      env:
+        - ARGOCD_BINARY_NAME=argocd-server
+        - FORCE_LOG_COLORS=1
+        - ARGOCD_FAKE_IN_CLUSTER=true
+        - ARGOCD_TLS_DATA_PATH=/tmp/argocd-local/tls
+        - ARGOCD_SSH_DATA_PATH=/tmp/argocd-local/ssh
+      ports: 8080 8083
+      dependencies: install redis
+    - name: ui-deps
+      command: yarn install
+      workingDir: ui
+    - name: ui
+      command: yarn start
+      workingDir: ui
+      dependencies: ui-deps api-server
+      ports: 4000
+    - name: up
+      dependencies:
+        - controller
+        - api-server
+        - ui
