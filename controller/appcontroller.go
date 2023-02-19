@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
@@ -335,7 +336,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 		}
 
 		if !ctrl.canProcessApp(obj) {
-			// Don't force refresh app if app belongs to a different controller shard
+			// Don't force refresh app if app belongs to a different controller shard or is outside the allowed namespaces.
 			continue
 		}
 
@@ -941,7 +942,7 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 
 // shouldBeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
 func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
-	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj))
+	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj)) && !resourceutil.HasAnnotationOption(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDisableDeletion)
 }
 
 func (ctrl *ApplicationController) getPermittedAppLiveObjects(app *appv1.Application, proj *appv1.AppProject, projectClusters func(project string) ([]*appv1.Cluster, error)) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
@@ -1777,18 +1778,19 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 	if !ok {
 		return false
 	}
+
+	// Only process given app if it exists in a watched namespace, or in the
+	// control plane's namespace.
+	if app.Namespace != ctrl.namespace && !glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
+		return false
+	}
+
 	if ctrl.clusterFilter != nil {
 		cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 		if err != nil {
 			return ctrl.clusterFilter(nil)
 		}
 		return ctrl.clusterFilter(cluster)
-	}
-
-	// Only process given app if it exists in a watched namespace, or in the
-	// control plane's namespace.
-	if app.Namespace != ctrl.namespace && !glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
-		return false
 	}
 
 	return true

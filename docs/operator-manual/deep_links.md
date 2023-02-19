@@ -19,7 +19,7 @@ The configuration for Deep Links is present in `argocd-cm` as `<location>.links`
 Each link in the list has five subfields :
 1. `title` : title/tag that will be displayed in the UI corresponding to that link
 2. `url` : the actual URL where the deep link will redirect to, this field can be templated to use data from the
-   corresponing application, project or resource objects (depending on where it is located). This uses [text/template](pkg.go.dev/text/template) pkg for templating
+   corresponding application, project or resource objects (depending on where it is located). This uses [text/template](pkg.go.dev/text/template) pkg for templating
 3. `description` (optional) : a description for what the deep link is about
 4. `icon.class` (optional) : a font-awesome icon class to be used when displaying the links in dropdown menus
 5. `if` (optional) : a conditional statement that results in either `true` or `false`, it also has access to the same

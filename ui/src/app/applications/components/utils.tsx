@@ -243,10 +243,10 @@ export const ComparisonStatusIcon = ({
             break;
         case appModels.SyncStatuses.OutOfSync:
             const requiresPruning = resource && resource.requiresPruning;
-            className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-arrow-alt-circle-up';
+            className = requiresPruning ? 'fa fa-trash' : 'fa fa-arrow-alt-circle-up';
             title = 'OutOfSync';
             if (requiresPruning) {
-                title = `${title} (requires pruning)`;
+                title = `${title} (This resource is not present in the application's source. It will be deleted from Kubernetes if the prune option is enabled during sync.)`;
             }
             color = COLORS.sync.out_of_sync;
             break;
@@ -491,17 +491,20 @@ function getActionItems(
 
     const resourceActions = getResourceActionsMenuItems(resource, application.metadata, appContext);
 
-    const links = services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, resource).then(data => {
-        return (data.items || []).map(
-            link =>
-                ({
-                    title: link.title,
-                    iconClassName: `fa ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
-                    action: () => window.open(link.url, '_blank'),
-                    tooltip: link.description
-                } as MenuItem)
-        );
-    });
+    const links = services.applications
+        .getResourceLinks(application.metadata.name, application.metadata.namespace, resource)
+        .then(data => {
+            return (data.items || []).map(
+                link =>
+                    ({
+                        title: link.title,
+                        iconClassName: `fa ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                        action: () => window.open(link.url, '_blank'),
+                        tooltip: link.description
+                    } as MenuItem)
+            );
+        })
+        .catch(() => [] as MenuItem[]);
 
     return combineLatest(
         from([items]), // this resolves immediately
@@ -642,7 +645,7 @@ export function syncStatusMessage(app: appModels.Application) {
         case appModels.SyncStatuses.Synced:
             return (
                 <span>
-                    To{' '}
+                    to{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
@@ -651,7 +654,7 @@ export function syncStatusMessage(app: appModels.Application) {
         case appModels.SyncStatuses.OutOfSync:
             return (
                 <span>
-                    From{' '}
+                    from{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
