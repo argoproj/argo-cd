@@ -5,7 +5,7 @@ metadata:
 spec:
   tasks:
     - name: kubens
-      command: kubens argocd
+      command: kubectl config set-context -current --namespace argocd
     - name: install
       command: kubectl apply -k test/manifests/base
       dependencies: kubens
