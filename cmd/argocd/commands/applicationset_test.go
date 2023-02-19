@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 
@@ -185,7 +185,7 @@ SyncPolicy:         Automated
 			printAppSetSummaryTable(tt.appSet)
 			w.Close()
 
-			out, err := ioutil.ReadAll(r)
+			out, err := io.ReadAll(r)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedOutput, string(out))
 		})
