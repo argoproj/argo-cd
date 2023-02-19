@@ -4,14 +4,20 @@ metadata:
   name: argo-cd
 spec:
   tasks:
+    - name: docker-ps
+      command: docker ps
+    - name: cluster-info
+      command: kubectl cluster-info
     - name: kubens
       command: kubectl config set-context --current --namespace argocd
+      dependencies: cluster-info
     - name: install
       command: kubectl apply -k test/manifests/base
       dependencies: kubens
     - name: redis
       ports: 6379
       image: redis:7.0.7-alpine
+      dependencies: docker-ps
     - name: repo-server
       command: go run ./cmd  --loglevel debug --port 8081 --redis localhost:6379
       env:
