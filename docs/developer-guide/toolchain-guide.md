@@ -178,7 +178,7 @@ you should edit your `~/.kube/config` and modify the `server` option to point to
 
 ### Using k3d
 
-[k3d](https://github.com/rancher/k3d) is a lightweight wrapper to run [k3s](https://github.com/rancher/k3s), a minimal Kubernetes distribution, in docker. Because it's running in a docker container, you're dealing with docker's internal networking rules when using k3d. A typical Kubernetes cluster running on your local machine is part of the same network that you're on so you can access it using **kubectl**. However, a Kubernetes cluster running within a docker container (in this case, the one launched by make) cannot access 0.0.0.0 from inside the container itself, when 0.0.0.0 is a network resource outside the container itself (and/or the container's network). This is the cost of a fully self-contained, disposable Kubernetes cluster. The following steps should help with a successful `make verify-kube-connect` execution.
+[k3d](https://github.com/rancher/k3d) is a lightweight wrapper to run [k3s](https://github.com/rancher/k3s), a minimal Kubernetes distribution, in docker. Because it's running in a docker container, you're dealing with docker's internal networking rules when using k3d. A typical Kubernetes cluster running on your local machine is part of the same network that you're on, so you can access it using **kubectl**. However, a Kubernetes cluster running within a docker container (in this case, the one launched by make) cannot access 0.0.0.0 from inside the container itself, when 0.0.0.0 is a network resource outside the container itself (and/or the container's network). This is the cost of a fully self-contained, disposable Kubernetes cluster. The following steps should help with a successful `make verify-kube-connect` execution.
 
 1. Find your host IP by executing `ifconfig` on Mac/Linux and `ipconfig` on Windows. For most users, the following command works to find the IP address.
 
@@ -335,7 +335,7 @@ The next thing is to make sure that unit tests are running correctly on your sys
 
 ### Run end-to-end tests
 
-The final step is running the End-to-End testsuite, which makes sure that your Kubernetes dependencies are working properly. This will involve starting all of the Argo CD components locally on your computer. The end-to-end tests consists of two parts: a server component, and a client component.
+The final step is running the End-to-End testsuite, which makes sure that your Kubernetes dependencies are working properly. This will involve starting all the Argo CD components locally on your computer. The end-to-end tests consists of two parts: a server component, and a client component.
 
 * First, start the End-to-End server: `make start-e2e-local`. This will spawn a number of processes and services on your system.
 * When all components have started, run `make test-e2e-local` to run the end-to-end tests against your local services.
