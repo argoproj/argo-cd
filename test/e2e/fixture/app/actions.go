@@ -310,6 +310,9 @@ func (a *Actions) Sync(args ...string) *Actions {
 	}
 
 	if a.context.resource != "" {
+		// Waiting for the app to be successfully created.
+		// Else the sync would fail to retrieve the app resources.
+		a.context.Sleep(5)
 		args = append(args, "--resource", a.context.resource)
 	}
 

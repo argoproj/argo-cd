@@ -4,6 +4,7 @@ import (
 	"context"
 	netCtx "context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	goio "io"
 	"io/fs"
@@ -60,8 +61,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-
-	"github.com/pkg/errors"
 
 	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
@@ -680,6 +679,8 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		"/repocreds.RepoCredsService/CreateRepositoryCredentials": true,
 		"/repocreds.RepoCredsService/UpdateRepositoryCredentials": true,
 		"/application.ApplicationService/PatchResource":           true,
+		// Remove from logs both because the contents are sensitive and because they may be very large.
+		"/application.ApplicationService/GetManifestsWithFiles":   true,
 	}
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
@@ -752,7 +753,7 @@ type ArgoCDServiceSet struct {
 func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
-	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projLister, a.settingsMgr)
+	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, a.db, a.enf, a.settingsMgr)
 	var loginRateLimiter func() (io.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
@@ -906,50 +907,19 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/api/", handler)
 
-	terminalHandler := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells)
-	mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
-		argocdSettings, err := a.settingsMgr.GetSettings()
-		if err != nil {
-			http.Error(writer, fmt.Sprintf("Failed to get settings: %v", err), http.StatusBadRequest)
-			return
-		}
-		if !argocdSettings.ExecEnabled {
-			writer.WriteHeader(http.StatusNotFound)
-			return
-		}
+	terminal := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells).
+		WithFeatureFlagMiddleware(a.settingsMgr.GetSettings)
+	th := util_session.WithAuthMiddleware(a.DisableAuth, a.sessionMgr, terminal)
+	mux.Handle("/terminal", th)
 
-		if !a.DisableAuth {
-			ctx := request.Context()
-			cookies := request.Cookies()
-			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
-			if err == nil && jwtutil.IsValid(tokenString) {
-				claims, _, err := a.sessionMgr.VerifyToken(tokenString)
-				if err != nil {
-					// nolint:staticcheck
-					ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, err)
-				} else if claims != nil {
-					// Add claims to the context to inspect for RBAC
-					// nolint:staticcheck
-					ctx = context.WithValue(ctx, "claims", claims)
-				}
-				request = request.WithContext(ctx)
-			} else {
-				writer.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-		}
-		terminalHandler.ServeHTTP(writer, request)
-	})
-
-	// Dead code for now
-	// Proxy extension is currently an experimental feature and is disabled
+	// Proxy extension is currently an alpha feature and is disabled
 	// by default.
-	// if a.EnableProxyExtension {
-	// // API server won't panic if extensions fail to register. In
-	// // this case an error log will be sent and no extension route
-	// // will be added in mux.
-	// registerExtensions(mux, a)
-	// }
+	if a.EnableProxyExtension {
+		// API server won't panic if extensions fail to register. In
+		// this case an error log will be sent and no extension route
+		// will be added in mux.
+		registerExtensions(mux, a)
+	}
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandler, ctx, gwmux, conn)
@@ -998,12 +968,15 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 // registerExtensions will try to register all configured extensions
 // in the given mux. If any error is returned while registering
 // extensions handlers, no route will be added in the given mux.
-// nolint:deadcode,unused,staticcheck
 func registerExtensions(mux *http.ServeMux, a *ArgoCDServer) {
 	sg := extension.NewDefaultSettingsGetter(a.settingsMgr)
-	ag := extension.NewDefaultApplicationGetter(a.serviceSet.ApplicationService)
-	em := extension.NewManager(sg, ag, a.log)
+	ag := extension.NewDefaultApplicationGetter(a.appLister)
+	pg := extension.NewDefaultProjectGetter(a.projLister, a.db)
+	em := extension.NewManager(a.log, sg, ag, pg, a.enf)
 	r := gmux.NewRouter()
+	// register an Auth middleware to ensure all requests to
+	// extensions are authenticated first.
+	r.Use(a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth))
 
 	err := em.RegisterHandlers(r)
 	if err != nil {

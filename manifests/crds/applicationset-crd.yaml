@@ -1540,7 +1540,6 @@ spec:
                           - spec
                           type: object
                       required:
-                      - pathParamPrefix
                       - repoURL
                       - revision
                       type: object
@@ -3535,7 +3534,6 @@ spec:
                                     - spec
                                     type: object
                                 required:
-                                - pathParamPrefix
                                 - repoURL
                                 - revision
                                 type: object
@@ -7266,7 +7264,6 @@ spec:
                                     - spec
                                     type: object
                                 required:
-                                - pathParamPrefix
                                 - repoURL
                                 - revision
                                 type: object
@@ -11274,10 +11271,13 @@ spec:
                       type: string
                     status:
                       type: string
+                    step:
+                      type: string
                   required:
                   - application
                   - message
                   - status
+                  - step
                   type: object
                 type: array
               conditions:
