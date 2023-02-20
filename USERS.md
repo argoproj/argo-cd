@@ -46,6 +46,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Chime](https://www.chime.com)
 1. [Cisco ET&I](https://eti.cisco.com/)
 1. [Cloud Scale](https://cloudscaleinc.com/)
+1. [Cloudmate](https://cloudmt.co.kr/)
 1. [Cobalt](https://www.cobalt.io/)
 1. [Codefresh](https://www.codefresh.io/)
 1. [Codility](https://www.codility.com/)
