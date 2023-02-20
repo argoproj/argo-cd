@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
@@ -441,10 +442,24 @@ type KustomizeReplica struct {
 	// Name of Deployment or StatefulSet
 	Name string `json:"name" protobuf:"bytes,1,name=name"`
 	// Number of replicas
-	Count int64 `json:"count" protobuf:"bytes,2,name=count"`
+	Count intstr.IntOrString `json:"count" protobuf:"bytes,2,name=count"`
 }
 
 type KustomizeReplicas []KustomizeReplica
+
+// GetIntCount returns Count converted to int.
+// If parsing error occurs, returns 0 and error.
+func (kr KustomizeReplica) GetIntCount() (int, error) {
+	if kr.Count.Type == intstr.String {
+		if count, err := strconv.Atoi(kr.Count.StrVal); err != nil {
+			return 0, fmt.Errorf("expected integer value for count. Received: %s", kr.Count.StrVal)
+		} else {
+			return count, nil
+		}
+	} else {
+		return kr.Count.IntValue(), nil
+	}
+}
 
 // NewKustomizeReplica parses a string in format name=count into a KustomizeReplica object and returns it
 func NewKustomizeReplica(text string) (*KustomizeReplica, error) {
@@ -452,14 +467,17 @@ func NewKustomizeReplica(text string) (*KustomizeReplica, error) {
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("expected parameter of the form: name=count. Received: %s", text)
 	}
-	count, err := strconv.ParseInt(parts[1], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("expected integer value for count. Received: %s", parts[1])
-	}
-	return &KustomizeReplica{
+
+	kr := &KustomizeReplica{
 		Name:  parts[0],
-		Count: count,
-	}, nil
+		Count: intstr.Parse(parts[1]),
+	}
+
+	if _, err := kr.GetIntCount(); err != nil {
+		return nil, err
+	}
+
+	return kr, nil
 }
 
 // AllowsConcurrentProcessing returns true if multiple processes can run Kustomize builds on the same source at the same time

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/git"
@@ -52,11 +53,11 @@ func TestKustomizeBuild(t *testing.T) {
 		Replicas: []v1alpha1.KustomizeReplica{
 			{
 				Name:  "nginx-deployment",
-				Count: 2,
+				Count: intstr.FromInt(2),
 			},
 			{
 				Name:  "web",
-				Count: 4,
+				Count: intstr.FromString("4"),
 			},
 		},
 	}
@@ -107,6 +108,22 @@ func TestKustomizeBuild(t *testing.T) {
 			assert.Equal(t, "1.15.5", image)
 		}
 	}
+}
+
+func TestFailKustomizeBuild(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization1)
+	assert.Nil(t, err)
+	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Replicas: []v1alpha1.KustomizeReplica{
+			{
+				Name:  "nginx-deployment",
+				Count: intstr.Parse("garbage"),
+			},
+		},
+	}
+	_, _, err = kustomize.Build(&kustomizeSource, nil, nil)
+	assert.EqualError(t, err, "expected integer value for count. Received: garbage")
 }
 
 func TestFindKustomization(t *testing.T) {

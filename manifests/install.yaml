@@ -340,9 +340,11 @@ spec:
                             items:
                               properties:
                                 count:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
                                   description: Number of replicas
-                                  format: int64
-                                  type: integer
+                                  x-kubernetes-int-or-string: true
                                 name:
                                   description: Name of Deployment or StatefulSet
                                   type: string
@@ -620,9 +622,11 @@ spec:
                               items:
                                 properties:
                                   count:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
                                     description: Number of replicas
-                                    format: int64
-                                    type: integer
+                                    x-kubernetes-int-or-string: true
                                   name:
                                     description: Name of Deployment or StatefulSet
                                     type: string
@@ -1013,9 +1017,11 @@ spec:
                         items:
                           properties:
                             count:
+                              anyOf:
+                              - type: integer
+                              - type: string
                               description: Number of replicas
-                              format: int64
-                              type: integer
+                              x-kubernetes-int-or-string: true
                             name:
                               description: Name of Deployment or StatefulSet
                               type: string
@@ -1284,9 +1290,11 @@ spec:
                           items:
                             properties:
                               count:
+                                anyOf:
+                                - type: integer
+                                - type: string
                                 description: Number of replicas
-                                format: int64
-                                type: integer
+                                x-kubernetes-int-or-string: true
                               name:
                                 description: Name of Deployment or StatefulSet
                                 type: string
@@ -1703,9 +1711,11 @@ spec:
                               items:
                                 properties:
                                   count:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
                                     description: Number of replicas
-                                    format: int64
-                                    type: integer
+                                    x-kubernetes-int-or-string: true
                                   name:
                                     description: Name of Deployment or StatefulSet
                                     type: string
@@ -1985,9 +1995,11 @@ spec:
                                 items:
                                   properties:
                                     count:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
                                       description: Number of replicas
-                                      format: int64
-                                      type: integer
+                                      x-kubernetes-int-or-string: true
                                     name:
                                       description: Name of Deployment or StatefulSet
                                       type: string
@@ -2412,9 +2424,11 @@ spec:
                                     items:
                                       properties:
                                         count:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
                                           description: Number of replicas
-                                          format: int64
-                                          type: integer
+                                          x-kubernetes-int-or-string: true
                                         name:
                                           description: Name of Deployment or StatefulSet
                                           type: string
@@ -2712,9 +2726,11 @@ spec:
                                       items:
                                         properties:
                                           count:
+                                            anyOf:
+                                            - type: integer
+                                            - type: string
                                             description: Number of replicas
-                                            format: int64
-                                            type: integer
+                                            x-kubernetes-int-or-string: true
                                           name:
                                             description: Name of Deployment or StatefulSet
                                             type: string
@@ -3112,9 +3128,11 @@ spec:
                                 items:
                                   properties:
                                     count:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
                                       description: Number of replicas
-                                      format: int64
-                                      type: integer
+                                      x-kubernetes-int-or-string: true
                                     name:
                                       description: Name of Deployment or StatefulSet
                                       type: string
@@ -3405,9 +3423,11 @@ spec:
                                   items:
                                     properties:
                                       count:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
                                         description: Number of replicas
-                                        format: int64
-                                        type: integer
+                                        x-kubernetes-int-or-string: true
                                       name:
                                         description: Name of Deployment or StatefulSet
                                         type: string
@@ -3803,9 +3823,11 @@ spec:
                                 items:
                                   properties:
                                     count:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
                                       description: Number of replicas
-                                      format: int64
-                                      type: integer
+                                      x-kubernetes-int-or-string: true
                                     name:
                                       description: Name of Deployment or StatefulSet
                                       type: string
@@ -4096,9 +4118,11 @@ spec:
                                   items:
                                     properties:
                                       count:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
                                         description: Number of replicas
-                                        format: int64
-                                        type: integer
+                                        x-kubernetes-int-or-string: true
                                       name:
                                         description: Name of Deployment or StatefulSet
                                         type: string
@@ -4471,8 +4495,10 @@ spec:
                                           items:
                                             properties:
                                               count:
-                                                format: int64
-                                                type: integer
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
                                               name:
                                                 type: string
                                             required:
@@ -4642,8 +4668,10 @@ spec:
                                             items:
                                               properties:
                                                 count:
-                                                  format: int64
-                                                  type: integer
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
                                                 name:
                                                   type: string
                                               required:
@@ -4972,8 +5000,10 @@ spec:
                                           items:
                                             properties:
                                               count:
-                                                format: int64
-                                                type: integer
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
                                               name:
                                                 type: string
                                             required:
@@ -5143,8 +5173,10 @@ spec:
                                             items:
                                               properties:
                                                 count:
-                                                  format: int64
-                                                  type: integer
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
                                                 name:
                                                   type: string
                                               required:
@@ -5477,8 +5509,10 @@ spec:
                                           items:
                                             properties:
                                               count:
-                                                format: int64
-                                                type: integer
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
                                               name:
                                                 type: string
                                             required:
@@ -5648,8 +5682,10 @@ spec:
                                             items:
                                               properties:
                                                 count:
-                                                  format: int64
-                                                  type: integer
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
                                                 name:
                                                   type: string
                                               required:
@@ -5956,8 +5992,10 @@ spec:
                                           items:
                                             properties:
                                               count:
-                                                format: int64
-                                                type: integer
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
                                               name:
                                                 type: string
                                             required:
@@ -6127,8 +6165,10 @@ spec:
                                             items:
                                               properties:
                                                 count:
-                                                  format: int64
-                                                  type: integer
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
                                                 name:
                                                   type: string
                                               required:
@@ -6465,8 +6505,10 @@ spec:
                                                     items:
                                                       properties:
                                                         count:
-                                                          format: int64
-                                                          type: integer
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
                                                         name:
                                                           type: string
                                                       required:
@@ -6636,8 +6678,10 @@ spec:
                                                       items:
                                                         properties:
                                                           count:
-                                                            format: int64
-                                                            type: integer
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
                                                           name:
                                                             type: string
                                                         required:
@@ -6966,8 +7010,10 @@ spec:
                                                     items:
                                                       properties:
                                                         count:
-                                                          format: int64
-                                                          type: integer
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
                                                         name:
                                                           type: string
                                                       required:
@@ -7137,8 +7183,10 @@ spec:
                                                       items:
                                                         properties:
                                                           count:
-                                                            format: int64
-                                                            type: integer
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
                                                           name:
                                                             type: string
                                                         required:
@@ -7471,8 +7519,10 @@ spec:
                                                     items:
                                                       properties:
                                                         count:
-                                                          format: int64
-                                                          type: integer
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
                                                         name:
                                                           type: string
                                                       required:
@@ -7642,8 +7692,10 @@ spec:
                                                       items:
                                                         properties:
                                                           count:
-                                                            format: int64
-                                                            type: integer
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
                                                           name:
                                                             type: string
                                                         required:
@@ -7950,8 +8002,10 @@ spec:
                                                     items:
                                                       properties:
                                                         count:
-                                                          format: int64
-                                                          type: integer
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
                                                         name:
                                                           type: string
                                                       required:
@@ -8121,8 +8175,10 @@ spec:
                                                       items:
                                                         properties:
                                                           count:
-                                                            format: int64
-                                                            type: integer
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
                                                           name:
                                                             type: string
                                                         required:
@@ -8547,8 +8603,10 @@ spec:
                                                     items:
                                                       properties:
                                                         count:
-                                                          format: int64
-                                                          type: integer
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
                                                         name:
                                                           type: string
                                                       required:
@@ -8718,8 +8776,10 @@ spec:
                                                       items:
                                                         properties:
                                                           count:
-                                                            format: int64
-                                                            type: integer
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
                                                           name:
                                                             type: string
                                                         required:
@@ -9191,8 +9251,10 @@ spec:
                                                     items:
                                                       properties:
                                                         count:
-                                                          format: int64
-                                                          type: integer
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
                                                         name:
                                                           type: string
                                                       required:
@@ -9362,8 +9424,10 @@ spec:
                                                       items:
                                                         properties:
                                                           count:
-                                                            format: int64
-                                                            type: integer
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
                                                           name:
                                                             type: string
                                                         required:
@@ -9686,8 +9750,10 @@ spec:
                                           items:
                                             properties:
                                               count:
-                                                format: int64
-                                                type: integer
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
                                               name:
                                                 type: string
                                             required:
@@ -9857,8 +9923,10 @@ spec:
                                             items:
                                               properties:
                                                 count:
-                                                  format: int64
-                                                  type: integer
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
                                                 name:
                                                   type: string
                                               required:
@@ -10195,8 +10263,10 @@ spec:
                                                     items:
                                                       properties:
                                                         count:
-                                                          format: int64
-                                                          type: integer
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
                                                         name:
                                                           type: string
                                                       required:
@@ -10366,8 +10436,10 @@ spec:
                                                       items:
                                                         properties:
                                                           count:
-                                                            format: int64
-                                                            type: integer
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
                                                           name:
                                                             type: string
                                                         required:
@@ -10696,8 +10768,10 @@ spec:
                                                     items:
                                                       properties:
                                                         count:
-                                                          format: int64
-                                                          type: integer
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
                                                         name:
                                                           type: string
                                                       required:
@@ -10867,8 +10941,10 @@ spec:
                                                       items:
                                                         properties:
                                                           count:
-                                                            format: int64
-                                                            type: integer
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
                                                           name:
                                                             type: string
                                                         required:
@@ -11201,8 +11277,10 @@ spec:
                                                     items:
                                                       properties:
                                                         count:
-                                                          format: int64
-                                                          type: integer
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
                                                         name:
                                                           type: string
                                                       required:
@@ -11372,8 +11450,10 @@ spec:
                                                       items:
                                                         properties:
                                                           count:
-                                                            format: int64
-                                                            type: integer
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
                                                           name:
                                                             type: string
                                                         required:
@@ -11680,8 +11760,10 @@ spec:
                                                     items:
                                                       properties:
                                                         count:
-                                                          format: int64
-                                                          type: integer
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
                                                         name:
                                                           type: string
                                                       required:
@@ -11851,8 +11933,10 @@ spec:
                                                       items:
                                                         properties:
                                                           count:
-                                                            format: int64
-                                                            type: integer
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
                                                           name:
                                                             type: string
                                                         required:
@@ -12277,8 +12361,10 @@ spec:
                                                     items:
                                                       properties:
                                                         count:
-                                                          format: int64
-                                                          type: integer
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
                                                         name:
                                                           type: string
                                                       required:
@@ -12448,8 +12534,10 @@ spec:
                                                       items:
                                                         properties:
                                                           count:
-                                                            format: int64
-                                                            type: integer
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
                                                           name:
                                                             type: string
                                                         required:
@@ -12921,8 +13009,10 @@ spec:
                                                     items:
                                                       properties:
                                                         count:
-                                                          format: int64
-                                                          type: integer
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
                                                         name:
                                                           type: string
                                                       required:
@@ -13092,8 +13182,10 @@ spec:
                                                       items:
                                                         properties:
                                                           count:
-                                                            format: int64
-                                                            type: integer
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
                                                           name:
                                                             type: string
                                                         required:
@@ -13420,8 +13512,10 @@ spec:
                                           items:
                                             properties:
                                               count:
-                                                format: int64
-                                                type: integer
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
                                               name:
                                                 type: string
                                             required:
@@ -13591,8 +13685,10 @@ spec:
                                             items:
                                               properties:
                                                 count:
-                                                  format: int64
-                                                  type: integer
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
                                                 name:
                                                   type: string
                                               required:
@@ -14014,8 +14110,10 @@ spec:
                                           items:
                                             properties:
                                               count:
-                                                format: int64
-                                                type: integer
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
                                               name:
                                                 type: string
                                             required:
@@ -14185,8 +14283,10 @@ spec:
                                             items:
                                               properties:
                                                 count:
-                                                  format: int64
-                                                  type: integer
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
                                                 name:
                                                   type: string
                                               required:
@@ -14658,8 +14758,10 @@ spec:
                                           items:
                                             properties:
                                               count:
-                                                format: int64
-                                                type: integer
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
                                               name:
                                                 type: string
                                             required:
@@ -14829,8 +14931,10 @@ spec:
                                             items:
                                               properties:
                                                 count:
-                                                  format: int64
-                                                  type: integer
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
                                                 name:
                                                   type: string
                                               required:
@@ -15191,8 +15295,10 @@ spec:
                                 items:
                                   properties:
                                     count:
-                                      format: int64
-                                      type: integer
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      x-kubernetes-int-or-string: true
                                     name:
                                       type: string
                                   required:
@@ -15362,8 +15468,10 @@ spec:
                                   items:
                                     properties:
                                       count:
-                                        format: int64
-                                        type: integer
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        x-kubernetes-int-or-string: true
                                       name:
                                         type: string
                                     required:

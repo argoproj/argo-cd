@@ -339,9 +339,11 @@ spec:
                             items:
                               properties:
                                 count:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
                                   description: Number of replicas
-                                  format: int64
-                                  type: integer
+                                  x-kubernetes-int-or-string: true
                                 name:
                                   description: Name of Deployment or StatefulSet
                                   type: string
@@ -619,9 +621,11 @@ spec:
                               items:
                                 properties:
                                   count:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
                                     description: Number of replicas
-                                    format: int64
-                                    type: integer
+                                    x-kubernetes-int-or-string: true
                                   name:
                                     description: Name of Deployment or StatefulSet
                                     type: string
@@ -1012,9 +1016,11 @@ spec:
                         items:
                           properties:
                             count:
+                              anyOf:
+                              - type: integer
+                              - type: string
                               description: Number of replicas
-                              format: int64
-                              type: integer
+                              x-kubernetes-int-or-string: true
                             name:
                               description: Name of Deployment or StatefulSet
                               type: string
@@ -1283,9 +1289,11 @@ spec:
                           items:
                             properties:
                               count:
+                                anyOf:
+                                - type: integer
+                                - type: string
                                 description: Number of replicas
-                                format: int64
-                                type: integer
+                                x-kubernetes-int-or-string: true
                               name:
                                 description: Name of Deployment or StatefulSet
                                 type: string
@@ -1702,9 +1710,11 @@ spec:
                               items:
                                 properties:
                                   count:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
                                     description: Number of replicas
-                                    format: int64
-                                    type: integer
+                                    x-kubernetes-int-or-string: true
                                   name:
                                     description: Name of Deployment or StatefulSet
                                     type: string
@@ -1984,9 +1994,11 @@ spec:
                                 items:
                                   properties:
                                     count:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
                                       description: Number of replicas
-                                      format: int64
-                                      type: integer
+                                      x-kubernetes-int-or-string: true
                                     name:
                                       description: Name of Deployment or StatefulSet
                                       type: string
@@ -2411,9 +2423,11 @@ spec:
                                     items:
                                       properties:
                                         count:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
                                           description: Number of replicas
-                                          format: int64
-                                          type: integer
+                                          x-kubernetes-int-or-string: true
                                         name:
                                           description: Name of Deployment or StatefulSet
                                           type: string
@@ -2711,9 +2725,11 @@ spec:
                                       items:
                                         properties:
                                           count:
+                                            anyOf:
+                                            - type: integer
+                                            - type: string
                                             description: Number of replicas
-                                            format: int64
-                                            type: integer
+                                            x-kubernetes-int-or-string: true
                                           name:
                                             description: Name of Deployment or StatefulSet
                                             type: string
@@ -3111,9 +3127,11 @@ spec:
                                 items:
                                   properties:
                                     count:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
                                       description: Number of replicas
-                                      format: int64
-                                      type: integer
+                                      x-kubernetes-int-or-string: true
                                     name:
                                       description: Name of Deployment or StatefulSet
                                       type: string
@@ -3404,9 +3422,11 @@ spec:
                                   items:
                                     properties:
                                       count:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
                                         description: Number of replicas
-                                        format: int64
-                                        type: integer
+                                        x-kubernetes-int-or-string: true
                                       name:
                                         description: Name of Deployment or StatefulSet
                                         type: string
@@ -3802,9 +3822,11 @@ spec:
                                 items:
                                   properties:
                                     count:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
                                       description: Number of replicas
-                                      format: int64
-                                      type: integer
+                                      x-kubernetes-int-or-string: true
                                     name:
                                       description: Name of Deployment or StatefulSet
                                       type: string
@@ -4095,9 +4117,11 @@ spec:
                                   items:
                                     properties:
                                       count:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
                                         description: Number of replicas
-                                        format: int64
-                                        type: integer
+                                        x-kubernetes-int-or-string: true
                                       name:
                                         description: Name of Deployment or StatefulSet
                                         type: string

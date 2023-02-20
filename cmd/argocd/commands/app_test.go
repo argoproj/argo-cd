@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func Test_getInfos(t *testing.T) {
@@ -753,11 +754,11 @@ func Test_unset(t *testing.T) {
 			Replicas: []v1alpha1.KustomizeReplica{
 				{
 					Name:  "my-deployment",
-					Count: 2,
+					Count: intstr.FromInt(2),
 				},
 				{
 					Name:  "my-statefulset",
-					Count: 4,
+					Count: intstr.FromInt(4),
 				},
 			},
 		},

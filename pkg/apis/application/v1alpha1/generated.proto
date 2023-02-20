@@ -1005,7 +1005,7 @@ message KustomizeReplica {
   optional string name = 1;
 
   // Number of replicas
-  optional int64 count = 2;
+  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString count = 2;
 }
 
 // ListGenerator include items info

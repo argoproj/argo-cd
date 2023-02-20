@@ -6974,9 +6974,7 @@
       "type": "object",
       "properties": {
         "count": {
-          "type": "string",
-          "format": "int64",
-          "title": "Number of replicas"
+          "$ref": "#/definitions/intstrIntOrString"
         },
         "name": {
           "type": "string",

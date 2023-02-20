@@ -10,6 +10,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func Test_setHelmOpt(t *testing.T) {
@@ -92,11 +94,11 @@ func Test_setKustomizeOpt(t *testing.T) {
 		testReplicas := v1alpha1.KustomizeReplicas{
 			{
 				Name:  "my-deployment",
-				Count: 2,
+				Count: intstr.FromInt(2),
 			},
 			{
 				Name:  "my-statefulset",
-				Count: 4,
+				Count: intstr.FromInt(4),
 			},
 		}
 		setKustomizeOpt(&src, kustomizeOpts{replicas: testReplicasString})
@@ -210,7 +212,7 @@ func Test_setAppSpecOptions(t *testing.T) {
 	t.Run("Kustomize", func(t *testing.T) {
 		assert.NoError(t, f.SetFlag("kustomize-replica", "my-deployment=2"))
 		assert.NoError(t, f.SetFlag("kustomize-replica", "my-statefulset=4"))
-		assert.Equal(t, f.spec.Source.Kustomize.Replicas, argoappv1.KustomizeReplicas{{Name: "my-deployment", Count: 2}, {Name: "my-statefulset", Count: 4}})
+		assert.Equal(t, f.spec.Source.Kustomize.Replicas, argoappv1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}, {Name: "my-statefulset", Count: intstr.FromInt(4)}})
 	})
 }
 

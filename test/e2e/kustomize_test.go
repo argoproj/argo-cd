@@ -183,7 +183,7 @@ func TestKustomizeImages(t *testing.T) {
 // make sure we we can invoke the CLI to replace replicas and actual deployment is set to correct value
 func TestKustomizeReplicas2AppSource(t *testing.T) {
 	deploymentName := "guestbook-ui"
-	deploymentReplicas := int64(2)
+	deploymentReplicas := 2
 	checkReplicasFor := func(kind string) func(app *Application) {
 		return func(app *Application) {
 			name := deploymentName
@@ -192,7 +192,7 @@ func TestKustomizeReplicas2AppSource(t *testing.T) {
 				"get", kind, name,
 				"-ojsonpath={.spec.replicas}")
 			assert.NoError(t, err)
-			assert.Equal(t, strconv.FormatInt(deploymentReplicas, 10), replicas, "wrong value of replicas %s %s", kind, name)
+			assert.Equal(t, strconv.Itoa(deploymentReplicas), replicas, "wrong value of replicas %s %s", kind, name)
 		}
 	}
 
@@ -206,7 +206,7 @@ func TestKustomizeReplicas2AppSource(t *testing.T) {
 			assert.Equal(t, deploymentName, app.Spec.Source.Kustomize.Replicas[0].Name)
 		}).
 		And(func(app *Application) {
-			assert.Equal(t, deploymentReplicas, app.Spec.Source.Kustomize.Replicas[0].Count)
+			assert.Equal(t, deploymentReplicas, int(app.Spec.Source.Kustomize.Replicas[0].Count.IntVal))
 		}). // check Kustomize CLI
 		Expect(Success("")).
 		When().
@@ -267,7 +267,7 @@ func TestKustomizeUnsetOverride(t *testing.T) {
 // make sure we we can invoke the CLI to set and unset Deployment
 func TestKustomizeUnsetOverrideDeployment(t *testing.T) {
 	deploymentName := "guestbook-ui"
-	deploymentReplicas := int64(2)
+	deploymentReplicas := int32(2)
 	Given(t).
 		Path("guestbook").
 		When(). // Replicas
@@ -278,7 +278,7 @@ func TestKustomizeUnsetOverrideDeployment(t *testing.T) {
 			assert.Equal(t, deploymentName, app.Spec.Source.Kustomize.Replicas[0].Name)
 		}).
 		And(func(app *Application) {
-			assert.Equal(t, deploymentReplicas, app.Spec.Source.Kustomize.Replicas[0].Count)
+			assert.Equal(t, deploymentReplicas, app.Spec.Source.Kustomize.Replicas[0].Count.IntVal)
 		}).
 		When().
 		AppUnSet("--kustomize-replica", deploymentName).

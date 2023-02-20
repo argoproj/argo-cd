@@ -122,7 +122,11 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			// set replicas my-development=2 my-statefulset=4
 			args := []string{"edit", "set", "replicas"}
 			for _, replica := range opts.Replicas {
-				arg := fmt.Sprintf("%s=%d", replica.Name, replica.Count)
+				count, err := replica.GetIntCount()
+				if err != nil {
+					return nil, nil, err
+				}
+				arg := fmt.Sprintf("%s=%d", replica.Name, count)
 				args = append(args, arg)
 			}
 
