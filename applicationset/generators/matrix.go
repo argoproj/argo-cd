@@ -80,30 +80,6 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 }
 
 func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, params map[string]interface{}) ([]map[string]interface{}, error) {
-	var matrix *argoprojiov1alpha1.MatrixGenerator
-	if appSetBaseGenerator.Matrix != nil {
-		// Since nested matrix generator is represented as a JSON object in the CRD, we unmarshall it back to a Go struct here.
-		nestedMatrix, err := argoprojiov1alpha1.ToNestedMatrixGenerator(appSetBaseGenerator.Matrix)
-		if err != nil {
-			return nil, fmt.Errorf("unable to unmarshall nested matrix generator: %v", err)
-		}
-		if nestedMatrix != nil {
-			matrix = nestedMatrix.ToMatrixGenerator()
-		}
-	}
-
-	var mergeGenerator *argoprojiov1alpha1.MergeGenerator
-	if appSetBaseGenerator.Merge != nil {
-		// Since nested merge generator is represented as a JSON object in the CRD, we unmarshall it back to a Go struct here.
-		nestedMerge, err := argoprojiov1alpha1.ToNestedMergeGenerator(appSetBaseGenerator.Merge)
-		if err != nil {
-			return nil, fmt.Errorf("unable to unmarshall nested merge generator: %v", err)
-		}
-		if nestedMerge != nil {
-			mergeGenerator = nestedMerge.ToMergeGenerator()
-		}
-	}
-
 	t, err := Transform(
 		argoprojiov1alpha1.ApplicationSetGenerator{
 			List:                    appSetBaseGenerator.List,
@@ -112,8 +88,8 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 			SCMProvider:             appSetBaseGenerator.SCMProvider,
 			ClusterDecisionResource: appSetBaseGenerator.ClusterDecisionResource,
 			PullRequest:             appSetBaseGenerator.PullRequest,
-			Matrix:                  matrix,
-			Merge:                   mergeGenerator,
+			Matrix:                  getMatrixGenerator(appSetBaseGenerator),
+			Merge:                   getMergeGenerator(appSetBaseGenerator),
 			Selector:                appSetBaseGenerator.Selector,
 		},
 		m.supportedGenerators,
