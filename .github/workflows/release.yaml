@@ -12,7 +12,7 @@ on:
       - "!release-v0*"
 
 env:
-  GOLANG_VERSION: '1.18'
+  GOLANG_VERSION: '1.20'
 
 permissions:
   contents: read
@@ -177,6 +177,10 @@ jobs:
         run: |
           set -ue
           make install-codegen-tools-local
+          
+          # We install kustomize in the dist directory
+          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
+          
           make manifests-local VERSION=${TARGET_VERSION}
           git diff
           git commit manifests/ -m "Bump version to ${TARGET_VERSION}"
@@ -201,7 +205,7 @@ jobs:
         if: ${{ env.DRY_RUN != 'true' }}
 
       - uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18 # v2.1.0
-      - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325 # v2.2.1
+      - uses: docker/setup-buildx-action@f03ac48505955848960e80bbb68046aa35c7b9e7 # v2.4.1
       - name: Build and push Docker image for release
         run: |
           set -ue
@@ -220,7 +224,7 @@ jobs:
           cosign-release: 'v1.13.1'
 
       - name: Install crane to get digest of image
-        uses: imjasonh/setup-crane@e82f1b9a8007d399333baba4d75915558e9fb6a4
+        uses: imjasonh/setup-crane@00c9e93efa4e1138c9a7a5c594acd6c75a2fbf0c
 
       - name: Get digest of image
         run: |
