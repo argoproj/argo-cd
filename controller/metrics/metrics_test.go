@@ -207,7 +207,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 		metricsServ.registry.MustRegister(collector)
 	}
 
-	req, err := http.NewRequest("GET", "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -337,7 +337,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationSucceeded})
 	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationSucceeded})
 
-	req, err := http.NewRequest("GET", "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -391,7 +391,7 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	fakeApp := newFakeApp(fakeApp)
 	metricsServ.IncReconcile(fakeApp, 5*time.Second)
 
-	req, err := http.NewRequest("GET", "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -415,7 +415,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Succeeded",project="important-project"} 2
 `
 
-	req, err := http.NewRequest("GET", "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -426,7 +426,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	err = metricsServ.SetExpiration(time.Second)
 	assert.NoError(t, err)
 	time.Sleep(2 * time.Second)
-	req, err = http.NewRequest("GET", "/metrics", nil)
+	req, err = http.NewRequest(http.MethodGet, "/metrics", nil)
 	assert.NoError(t, err)
 	rr = httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)

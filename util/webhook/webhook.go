@@ -36,6 +36,10 @@ type settingsSource interface {
 	GetTrackingMethod() (string, error)
 }
 
+// https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
+// https://github.com/shadow-maint/shadow/blob/master/libmisc/chkname.c#L36
+const usernameRegex = `[a-zA-Z0-9_\.][a-zA-Z0-9_\.-]{0,30}[a-zA-Z0-9_\.\$-]?`
+
 var _ settingsSource = &settings.SettingsManager{}
 
 type ArgoCDWebhookHandler struct {
@@ -268,7 +272,8 @@ func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
 
 	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
 	regexEscapedPath := regexp.QuoteMeta(urlObj.Path[1:])
-	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|\w+@|ssh://(\w+@)?)%s(:[0-9]+|)[:/]%s(\.git)?$`, regexEscapedHostname, regexEscapedPath)
+	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|%s@|ssh://(%s@)?)%s(:[0-9]+|)[:/]%s(\.git)?$`,
+		usernameRegex, usernameRegex, regexEscapedHostname, regexEscapedPath)
 	repoRegexp, err := regexp.Compile(regexpStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile regexp for repoURL '%s'", webURL)
@@ -439,7 +444,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Infof("Webhook processing failed: %s", err)
 		status := http.StatusBadRequest
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			status = http.StatusMethodNotAllowed
 		}
 		http.Error(w, fmt.Sprintf("Webhook processing failed: %s", html.EscapeString(err.Error())), status)
