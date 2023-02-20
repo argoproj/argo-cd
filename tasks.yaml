@@ -8,9 +8,12 @@ spec:
       command: docker ps
     - name: cluster-info
       command: kubectl cluster-info
+    - name: create-ns
+      command: sh -c "kubectl create ns argocd --dry-run=client -oyaml|kubectl apply -f -"
+      dependencies: cluster-info
     - name: kubens
       command: kubectl config set-context --current --namespace argocd
-      dependencies: cluster-info
+      dependencies: create-ns
     - name: install
       command: kubectl apply -k test/manifests/base
       dependencies: kubens
@@ -18,6 +21,12 @@ spec:
       ports: 6379
       image: redis:7.0.7-alpine
       dependencies: docker-ps
+    - name: deps
+      command: go mod download
+      mutex: deps
+    - name: build
+      command: go build ./...
+      dependencies: build
     - name: repo-server
       command: go run ./cmd  --loglevel debug --port 8081 --redis localhost:6379
       env:
@@ -30,7 +39,7 @@ spec:
         - ARGOCD_SSH_DATA_PATH=/tmp/argocd-local/ssh
         - ARGOCD_BINARY_NAME=argocd-repo-server
         - ARGOCD_GPG_ENABLED=false
-      dependencies: install
+      dependencies: install build
       ports: 8081 8081
     - name: controller
       command: go run ./cmd  --loglevel debug --redis localhost:6379 --repo-server localhost:8081
@@ -41,7 +50,7 @@ spec:
         - ARGOCD_TLS_DATA_PATH=/tmp/argocd-local/tls
         - ARGOCD_SSH_DATA_PATH=/tmp/argocd-local/ssh
         - ARGOCD_BINARY_NAME=argocd-application-controller
-      dependencies: install redis repo-server
+      dependencies: install redis repo-server build
       ports: 8082
     - name: api-server
       command: go run ./cmd --loglevel debug --redis localhost:6379 --disable-auth --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --port 8080
@@ -52,10 +61,11 @@ spec:
         - ARGOCD_TLS_DATA_PATH=/tmp/argocd-local/tls
         - ARGOCD_SSH_DATA_PATH=/tmp/argocd-local/ssh
       ports: 8080 8083
-      dependencies: install redis
+      dependencies: install redis build
     - name: ui-deps
       command: yarn install
       workingDir: ui
+      mutex: deps
     - name: ui
       command: yarn start
       workingDir: ui

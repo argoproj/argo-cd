@@ -3,6 +3,8 @@
 .DS_Store
 vendor/
 dist/*
+/logs
+/kit.tar.gz
 ui/dist/app/*
 !ui/dist/app/gitkeep
 site/
