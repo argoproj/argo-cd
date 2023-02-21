@@ -115,7 +115,10 @@ spec:
           # (optional) specify alias for helm/kustomize parameter names
           alias: someImage
 
-          # (optional) specify list of regex/wildcard patterns to dictate which tags should be considered for updates
+          # (optional) Specify Semver constraint for allowed tags 
+          constraint: 1.17.x
+
+          # (optional) specify list of regex/wildcard patterns to further filter which tags should be considered for updates
           allowTags: 
             matchType: regex/wildcard
             matchList:
@@ -143,7 +146,7 @@ spec:
           # (optional) pull secret for image 
           pullSecret: 
             namespace: argocd
-            secretName: image-updater-pull-secret
+            name: image-updater-pull-secret
             field: pull-secret-creds
             
             # alternatively, if using an env var instead of secrets
@@ -178,7 +181,7 @@ spec:
       updateStrategy: semver/digest/lexical/most-recently-built      
       pullSecret: 
         namespace: <ns_name>
-        secretName: <secret_name>
+        name: <secret_name>
         field: <secret_field>
         env: <VARIABLE_NAME>
         ext: <path/to/script>
@@ -203,7 +206,7 @@ spec:
 
         # (optional) By default, git write-back will create or update .argocd-source-<appName>.yaml
         # setting target to kustomization will have a similar effect to running `kustomize edit set image`
-        target: kustomization
+        target: kustomization/default
         # (optional) Specify the kustomization directory (not file path) to edit with relative or absolute path
         kustomization:
           path: "../../base"
@@ -212,6 +215,7 @@ spec:
         secret:
           namespace: argocd
           name: git-creds
+          field: data
     
 status:
 ...
@@ -225,6 +229,7 @@ status:
     lastTransitionTime: <update_timestamp>
     oldTag: v1.0.0
     newTag: v1.1.0
+    digest: 9315cd9d987b2ec50be5529c18efaa64ebae17f72ae4b292525ca7ee2ab98318
      
 ```
 
