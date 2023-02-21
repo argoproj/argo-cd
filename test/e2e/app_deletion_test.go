@@ -11,10 +11,6 @@ import (
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 )
 
-const (
-	guestbookPath = "guestbook"
-)
-
 // when a app gets stuck in sync, and we try to delete it, it won't delete, instead we must then terminate it
 // and deletion will then just happen
 func TestDeletingAppStuckInSync(t *testing.T) {

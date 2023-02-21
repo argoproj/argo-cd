@@ -134,9 +134,10 @@ message ApplicationValidationRequest {
 
 message ApplicationRolloutRollbackRequest {
 	required string name = 1;
-	required string rolloutName = 2;
-	required string rolloutNamespace = 3;
-	required int64 rolloutRevision = 4;
+	required string namespace = 2;
+	required string rolloutName = 3;
+	required string rolloutNamespace = 4;
+	required int64 rolloutRevision = 5;
 }
 
 

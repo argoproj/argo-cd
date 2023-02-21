@@ -228,7 +228,7 @@ func fakeServer() *Server {
 		},
 		Spec: appsv1.ApplicationSpec{
 			Project: "default",
-			Source: appsv1.ApplicationSource{
+			Source: &appsv1.ApplicationSource{
 				RepoURL:        "https://test",
 				TargetRevision: "HEAD",
 				Helm: &appsv1.ApplicationSourceHelm{

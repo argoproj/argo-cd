@@ -18,7 +18,7 @@ import (
 )
 
 func (s *Server) RollbackApplicationRollout(ctx context.Context, q *application.ApplicationRolloutRollbackRequest) (*application.ApplicationRolloutRollbackResponse, error) {
-	a, err := s.appLister.Applications(*q.RolloutNamespace).Get(q.GetName())
+	a, err := s.appLister.Applications(*q.Namespace).Get(q.GetName())
 	if err != nil {
 		return nil, fmt.Errorf("error getting application by name: %w", err)
 	}
