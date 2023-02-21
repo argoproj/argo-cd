@@ -103,7 +103,7 @@ const config = {
             disableDotRule: true
         },
         port: 4000,
-        host: process.env.ARGOCD_E2E_YARN_HOST || 'localhost',
+        host: process.env.ARGOCD_E2E_YARN_HOST || '0.0.0.0',
         proxy: {
             '/extensions': proxyConf,
             '/api': proxyConf,

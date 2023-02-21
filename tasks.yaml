@@ -25,8 +25,8 @@ spec:
       command: go mod download
       mutex: deps
     - name: build
-      command: go build ./...
-      dependencies: build
+      command: go build -v ./...
+      dependencies: deps
     - name: repo-server
       command: go run ./cmd  --loglevel debug --port 8081 --redis localhost:6379
       env:
@@ -41,6 +41,7 @@ spec:
         - ARGOCD_GPG_ENABLED=false
       dependencies: install build
       ports: 8081 8081
+      watch: cmd reposerver pkg util
     - name: controller
       command: go run ./cmd  --loglevel debug --redis localhost:6379 --repo-server localhost:8081
       env:
@@ -52,6 +53,7 @@ spec:
         - ARGOCD_BINARY_NAME=argocd-application-controller
       dependencies: install redis repo-server build
       ports: 8082
+      watch: cmd controller pkg util
     - name: api-server
       command: go run ./cmd --loglevel debug --redis localhost:6379 --disable-auth --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --port 8080
       env:
@@ -62,6 +64,7 @@ spec:
         - ARGOCD_SSH_DATA_PATH=/tmp/argocd-local/ssh
       ports: 8080 8083
       dependencies: install redis build
+      watch: cmd server pkg util
     - name: ui-deps
       command: yarn install
       workingDir: ui
@@ -71,8 +74,12 @@ spec:
       workingDir: ui
       dependencies: ui-deps api-server
       ports: 4000
+    - name: example
+      command: kubectl apply -f examples/guestbook-app.yaml
+      dependencies: controller
     - name: up
       dependencies:
         - controller
         - api-server
         - ui
+        - example
