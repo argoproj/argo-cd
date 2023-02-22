@@ -183,6 +183,18 @@ type ApplicationSource struct {
 // ApplicationSources contains list of required information about the sources of an application
 type ApplicationSources []ApplicationSource
 
+func (s ApplicationSources) Equals(other ApplicationSources) bool {
+	if len(s) != len(other) {
+		return false
+	}
+	for i := range s {
+		if !s[i].Equals((other)[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 func (a *ApplicationSpec) GetSource() ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
