@@ -7,7 +7,7 @@ RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 FROM docker.io/library/node:12.18.4-buster as node
 
-FROM docker.io/library/golang:1.20 as golang
+FROM docker.io/library/golang:1.19 as golang
 
 FROM docker.io/library/registry:2.8 as registry
 
@@ -17,24 +17,24 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
-        ca-certificates \
-        curl \
-        openssh-server \
-        nginx \
-        fcgiwrap \
-        git \
-        git-lfs \
-        gpg \
-        jq \
-        make \
-        wget \
-        gcc \
-        g++ \
-        sudo \
-        tini \
-        zip && \
-        apt-get clean && \
-        rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    ca-certificates \
+    curl \
+    openssh-server \
+    nginx \
+    fcgiwrap \
+    git \
+    git-lfs \
+    gpg \
+    jq \
+    make \
+    wget \
+    gcc \
+    g++ \
+    sudo \
+    tini \
+    zip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY --from=golang /usr/local/go /usr/local/go
 
