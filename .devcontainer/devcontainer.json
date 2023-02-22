@@ -1,5 +1,7 @@
 {
     "build": { "dockerfile": "Dockerfile" },
+    "hostRequirements": {"cpus": 4},
+    "onCreateCommand": ".devcontainer/post-create.sh",
     "postCreateCommand": ".devcontainer/post-create.sh",
     "postStartCommand": ".devcontainer/post-start.sh"
 }

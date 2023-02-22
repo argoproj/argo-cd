@@ -6,3 +6,5 @@ k3d cluster get k3s-default || k3d cluster create --wait
 k3d kubeconfig merge --kubeconfig-merge-default
 
 curl -q https://raw.githubusercontent.com/alexec/kit/main/install.sh | sh
+
+kit deps build ui-deps
