@@ -11,7 +11,7 @@ approvers:
   - TBD
 
 creation-date: 2022-12-01
-last-updated: 2023-02-13
+last-updated: 2023-02-22
 ---
 
 # Provide first class status to Image Updater within Argo CD
@@ -64,11 +64,11 @@ This section highlights some of the key aspects of Image Updater's present desig
 
 - Image Updater can only update container images for applications whose manifests are rendered using either Kustomize or Helm and - especially in the case of Helm - the templates need to support specifying the image's tag (and possibly name) using a parameter (i.e. image.tag).
 - Image Updater only considers those applications that specify a certain set of annotations as candidates for image updates
-- Image Updater never manipulates live cluster resources directly. It only determines which images are suitable upgrade targets, finds the appropriate updated image version, and injects the changes into the application's source manifest, allowing Argo CD to take over and pull the new image into the live workloads. It supports 2 kinds of write back methods (Details can be found at https://argocd-image-updater.readthedocs.io/en/stable/basics/update-methods/):
-  - Argo CD method: Pseudo persistent. Updates are written into application manifest stored in application controller cache and then applied during the next sync cycle. Invalidation of application controller cache will cause loss of all changes
+- Image Updater can be configured to either communicate directly with the kubernetes api of the cluster it is running on, or it can be configured to communicate with the Argo CD API instead. It determines which images are suitable upgrade targets, finds the appropriate updated image version, and injects the changes into the application's source manifest (on the cluster if communicating with k8s, or through the `argocd-server` in configured to talk to Argo CD API), allowing Argo CD to take over and pull the new image into the live workloads. It supports 2 kinds of write back methods (Details can be found at https://argocd-image-updater.readthedocs.io/en/stable/basics/update-methods/):
+  - Argo CD method: Pseudo persistent. Updates are written into application manifest (on cluster or through the argocd-server) and then depending on your Automatic Sync Policy for the Application, Argo CD will either automatically deploy the new image version or mark the Application as Out Of Sync. Invalidation of application controller cache will cause loss of all changes
   - Git method: Persistent. Updates are committed directly into the git repo branch specified in configuration. Changes are applied to the cluster by Argo CD on next sync cycle. 
 - When performing git write-back, Image Updater does not duplicate all the git handling done by repo-server or write back to any manifests directly. By default it simply creates a file titled 
-  `.argocd-source-<appName>.yaml` containing the updated information. As such, information written back is minimal. 
+  `.argocd-source-<appName>.yaml` containing the updated information (or alternatively a specified kustomization file). As such, information written back is minimal. 
 - When Image Updater is configured to write back to a different branch than the one being tracked by the application, it is the user's responsibility to make sure changes are propogated to the tracked branch in order for Argo CD to pick up the changes and deploy them on the cluster
 - Image Updater currently stores no state for actions performed, and is therefore incapable of honoring rollbacks  
 
@@ -82,7 +82,7 @@ This section highlights some of the key aspects of Image Updater's present desig
 
 - If application is configured with multiple source repositories, users will have to explicitly specify which source should be used for git write back. Care would need to be taken to ensure image updates are not accidentally overwritten when the application is being compiled together from all the different source repositories.  
 
-- Image Updater controller would need to be able to modify fields in the status of the Application CR in order to maintain state, as described in the following section. This would also mean there would be fields in the Application CR that would not be used by Argo CD itself, but by a different component (Image Updater). 
+- Image Updater controller would need to be able to update fields in the status of the Application CR in order to maintain state, as described in the following section. This would also mean there would be fields in the Application CR that would not be used by Argo CD itself, but by a different component (Image Updater). 
 
 - There could be a case made for separating Image Updater configuration into its own dedicated CRD, however since the application resource is central to the image update configurations, it would be a lot more intuitive for this configuration to belong within the application CR itself. Secondly, having a dedicated CR would mean that the number of required resources on the cluster would double since we would need to have a dedicated image update CR for each application.
 
@@ -111,9 +111,6 @@ spec:
       # ImageList contains list of image specific configuration for each image that is to be considered as a candidate for updation 
       imageList:
         - image: quay.io/some/image 
-          
-          # (optional) specify alias for helm/kustomize parameter names
-          alias: someImage
 
           # (optional) Specify Semver constraint for allowed tags 
           constraint: 1.17.x
@@ -155,16 +152,16 @@ spec:
             # or use an external script mounted to image-updater FS to generate credentials
             ext: <path/to/script>
 
-          # (optional) specify helm parameter names/locations to be used for image update write back
+          # (optional) specify helm parameter names to be used for image update write back
           helm:
-            imageName: alias.Name  
-            imageTag: alias.Tag
-            imageSpec: alias.Spec
+            imageName: someImage.image  
+            imageTag:  someImage.version
+            imageSpec: someImage.Spec
           
-          # (optional) specify kustomize parameter name to override 
+          # (optional) specify original image name for kustomize to override with updated image + tag
           # see https://argocd-image-updater.readthedocs.io/en/stable/configuration/images/#custom-images-with-kustomize for details
           kustomize:
-            imageName: alias.Name
+            imageName: quay.io/original/image
       
       # (optional) Application wide configuration
       allowTags: 
@@ -225,7 +222,6 @@ status:
   # application rollbacks and avoid repeat update attempts
   imageUpdates:
   - image: quay.io/some/image
-    alias:  someImage
     lastTransitionTime: <update_timestamp>
     oldTag: v1.0.0
     newTag: v1.1.0
@@ -233,7 +229,8 @@ status:
      
 ```
 
-**NOTE:** The ApplicationSet CRD would similarly need to be updated to accommodate these fields in order to allow users to automate image updates across all their applications that may be managed by applicationSets. 
+**NOTE:** At first glance it may seem redundant to have helm and kustomize configuration in `imageList` while we already have `.spec.source.helm.parameters` and `.spec.source.kustomize.images`, however, these fields are required in order to allow image updater to automate the step of specifying helm/kustomize image overrides through the application CR.
+For e.g, specifying `helm.imageTag: someImage.version` allows image updater to know that the updated image tag should be written as the value to `someImage.version` under `spec.source.helm.parameters` in the application manifest (either directly on the cluster via "argocd" write-back method or to the target write-back file via "git" write-back method) 
 
 There is a need to introduce state by tracking the status of image Updates in the application CR. This is mainly important to honor application rollbacks, avoid repeated image updates in case of failure, as well as to support future use cases such as enabling image-updater to create pull requests against the source repositories. The above detailed `.status.imageUpdates` field could be extended to store metadata regarding pull request creation that would serve to avoid duplicate/excessive number of pull requests being opened, for example.
 
@@ -245,7 +242,7 @@ There could be a few different options in terms of placement for this block of i
 
 ## Open Questions [optional]
 
-Based on this proposal, the Image Updater controller would need to write to the application status fields in order to track the state of image updates for various images. This would mean we could potentially have 2 controllers writing to the application resource. Since the introduction of server side apply in Argo CD, it is not uncommon to have multiple field managers controlling different fields in a resource, however it may be the case that this does not extend to the status fields. In such an event, should just the responsibility of updating the application status field for image updates be shifted to the application-controller? 
+Based on this proposal, if utilizing the "argocd" write back method, the Image Updater controller would need to write updates to some application spec fields (`spec.source.helm`, `.spec.source.kustomize`) and the application status fields in order to track the state of image updates for various images. This would mean we could potentially have 2 controllers writing to the application resource. While it is not unusual to have multiple controllers writing to different fields on the same resource, would this be better delegated to the argo-cd server since it already has use cases to write to the application resource on the cluster? 
 
 
 ### Security Considerations
