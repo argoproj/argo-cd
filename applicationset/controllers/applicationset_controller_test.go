@@ -4866,6 +4866,42 @@ func TestOwnsHandler(t *testing.T) {
 				ResourceVersion: "bar",
 			}},
 		}}, want: false},
+		{name: "ApplicationHealthStatusDiff", args: args{e: event.UpdateEvent{
+			ObjectOld: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
+				Health: argov1alpha1.HealthStatus{
+					Status: "Unknown",
+				},
+			}},
+			ObjectNew: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
+				Health: argov1alpha1.HealthStatus{
+					Status: "Healthy",
+				},
+			}},
+		}}, want: true},
+		{name: "ApplicationSyncStatusDiff", args: args{e: event.UpdateEvent{
+			ObjectOld: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
+				Sync: argov1alpha1.SyncStatus{
+					Status: "OutOfSync",
+				},
+			}},
+			ObjectNew: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
+				Sync: argov1alpha1.SyncStatus{
+					Status: "Synced",
+				},
+			}},
+		}}, want: true},
+		{name: "ApplicationOperationStateDiff", args: args{e: event.UpdateEvent{
+			ObjectOld: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
+				OperationState: &argov1alpha1.OperationState{
+					Phase: "foo",
+				},
+			}},
+			ObjectNew: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
+				OperationState: &argov1alpha1.OperationState{
+					Phase: "bar",
+				},
+			}},
+		}}, want: true},
 		{name: "SameApplicationGeneration", args: args{e: event.UpdateEvent{
 			ObjectOld: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{
 				Generation: 1,
