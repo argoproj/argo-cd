@@ -110,7 +110,6 @@ require (
 	go.opentelemetry.io/otel v1.11.1
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.11.1
 	go.opentelemetry.io/otel/sdk v1.11.1
-	k8s.io/kubernetes v1.24.2
 )
 
 require (
@@ -253,6 +252,7 @@ require (
 	k8s.io/component-helpers v0.24.2 // indirect
 	k8s.io/gengo v0.0.0-20211129171323-c02415ce4185 // indirect
 	k8s.io/kube-aggregator v0.24.2 // indirect
+	k8s.io/kubernetes v1.24.2 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/kustomize/api v0.11.4 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.6 // indirect
