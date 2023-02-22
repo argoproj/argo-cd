@@ -22,7 +22,6 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
     const syncStrategy = {} as models.SyncStrategy;
     const [isPending, setPending] = React.useState(false);
     const source = getAppDefaultSource(application);
-    const query = new URLSearchParams(window.location.search);
 
     return (
         <Consumer>
@@ -30,7 +29,14 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                 <SlidingPanel
                     isMiddle={true}
                     isShown={isVisible}
-                    onClose={() => hide()}
+                    onClose={() => {
+                        const search = new URLSearchParams(ctx.history.location.search);
+                        if (search.get('revision')) {
+                            search.delete('revision');
+                            ctx.history.push({search: search.toString()});
+                        }
+                        hide();
+                    }}
                     header={
                         <div>
                             <button
@@ -49,7 +55,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                     {isVisible && (
                         <Form
                             defaultValues={{
-                                revision: query.get("revision") || source.targetRevision || 'HEAD',
+                                revision: new URLSearchParams(ctx.history.location.search).get('revision') || source.targetRevision || 'HEAD',
                                 resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
                                 syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : []
                             }}
