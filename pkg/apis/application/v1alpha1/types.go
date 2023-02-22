@@ -188,7 +188,7 @@ func (s ApplicationSources) Equals(other ApplicationSources) bool {
 		return false
 	}
 	for i := range s {
-		if !s[i].Equals((other)[i]) {
+		if !s[i].Equals(other[i]) {
 			return false
 		}
 	}
