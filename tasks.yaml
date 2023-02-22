@@ -21,12 +21,12 @@ spec:
       ports: 6379
       image: redis:7.0.7-alpine
       dependencies: docker-ps
-    - name: deps
+    - name: go-deps
       command: go mod download
       mutex: deps
-    - name: build
-      command: go build -v ./...
-      dependencies: deps
+    - name: go-build
+      command: go build -v ./cmd/...
+      dependencies: go-deps
     - name: repo-server
       command: go run ./cmd  --loglevel debug --port 8081 --redis localhost:6379
       env:
@@ -39,7 +39,7 @@ spec:
         - ARGOCD_SSH_DATA_PATH=/tmp/argocd-local/ssh
         - ARGOCD_BINARY_NAME=argocd-repo-server
         - ARGOCD_GPG_ENABLED=false
-      dependencies: install build
+      dependencies: install go-build
       ports: 8081 8081
       watch: cmd reposerver pkg util
     - name: controller
@@ -51,7 +51,7 @@ spec:
         - ARGOCD_TLS_DATA_PATH=/tmp/argocd-local/tls
         - ARGOCD_SSH_DATA_PATH=/tmp/argocd-local/ssh
         - ARGOCD_BINARY_NAME=argocd-application-controller
-      dependencies: install redis repo-server build
+      dependencies: install redis repo-server go-build
       ports: 8082
       watch: cmd controller pkg util
     - name: api-server
@@ -63,12 +63,16 @@ spec:
         - ARGOCD_TLS_DATA_PATH=/tmp/argocd-local/tls
         - ARGOCD_SSH_DATA_PATH=/tmp/argocd-local/ssh
       ports: 8080 8083
-      dependencies: install redis build
+      dependencies: install redis go-build
       watch: cmd server pkg util
     - name: ui-deps
       command: yarn install
       workingDir: ui
       mutex: deps
+    - name: ui-build
+      command: yarn build
+      workingDir: ui
+      dependencies: ui-deps
     - name: ui
       command: yarn start
       workingDir: ui
@@ -77,9 +81,7 @@ spec:
     - name: example
       command: kubectl apply -f examples/guestbook-app.yaml
       dependencies: controller
+    - name: build
+      dependencies: go-build ui-build
     - name: up
-      dependencies:
-        - controller
-        - api-server
-        - ui
-        - example
+      dependencies: controller api-server ui example
