@@ -1337,19 +1337,14 @@ var ownsHandler = predicate.Funcs{
 		if !isApp {
 			return false
 		}
-		// don't change the event objects
-		appOld = appOld.DeepCopy()
-		appNew = appNew.DeepCopy()
 		// the applicationset controller only owns Application.Spec and Application.Metadata.
 		// we do not need to re-reconcile if parts of the application changes outside the applicationset's control.
 		// an example being, Application.ApplicationStatus.ReconciledAt which gets updated by the application controller.
 		// Application.ObjectMeta.ResourceVersion and Application.ObjectMeta.Generation are set by K8s.
-		appOld.ObjectMeta.ResourceVersion = ""
-		appOld.ObjectMeta.Generation = 0
-		appNew.ObjectMeta.ResourceVersion = ""
-		appNew.ObjectMeta.Generation = 0
 		requeue := !reflect.DeepEqual(appOld.Spec, appNew.Spec) ||
-			!reflect.DeepEqual(appOld.ObjectMeta, appNew.ObjectMeta)
+			!reflect.DeepEqual(appOld.ObjectMeta.GetAnnotations(), appNew.ObjectMeta.GetAnnotations()) ||
+			!reflect.DeepEqual(appOld.ObjectMeta.GetLabels(), appNew.ObjectMeta.GetLabels()) ||
+			!reflect.DeepEqual(appOld.ObjectMeta.GetFinalizers(), appNew.ObjectMeta.GetFinalizers())
 		log.Debugf("requeue: %t caused by application %s\n", requeue, appNew.Name)
 		return requeue
 	},

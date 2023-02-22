@@ -4878,9 +4878,17 @@ func TestOwnsHandler(t *testing.T) {
 			ObjectOld: &argov1alpha1.Application{Spec: argov1alpha1.ApplicationSpec{Project: "default"}},
 			ObjectNew: &argov1alpha1.Application{Spec: argov1alpha1.ApplicationSpec{Project: "not-default"}},
 		}}, want: true},
-		{name: "DifferentApplicationMetadata", args: args{e: event.UpdateEvent{
+		{name: "DifferentApplicationLabels", args: args{e: event.UpdateEvent{
 			ObjectOld: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}},
 			ObjectNew: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"bar": "foo"}}},
+		}}, want: true},
+		{name: "DifferentApplicationAnnotations", args: args{e: event.UpdateEvent{
+			ObjectOld: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"foo": "bar"}}},
+			ObjectNew: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"bar": "foo"}}},
+		}}, want: true},
+		{name: "DifferentApplicationFinalizers", args: args{e: event.UpdateEvent{
+			ObjectOld: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{"argo"}}},
+			ObjectNew: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{"none"}}},
 		}}, want: true},
 		{name: "NotAnAppOld", args: args{e: event.UpdateEvent{
 			ObjectOld: &argov1alpha1.AppProject{},
