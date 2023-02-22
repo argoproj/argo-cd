@@ -2,5 +2,6 @@
     "build": { "dockerfile": "Dockerfile" },
     "hostRequirements": {"cpus": 4},
     "onCreateCommand": ".devcontainer/pre-build.sh",
-    "postCreateCommand": "kit build"
+    "workspaceMount": "source=${localWorkspaceFolder},target=${localEnv:HOME}/go/src/github.com/argoproj/argo-cd,type=bind",
+    "workspaceFolder": "${localEnv:HOME}/go/src/github.com/argoproj/argo-cd"
 }

@@ -7,7 +7,7 @@ k3d cluster get k3s-default || k3d cluster create --wait
 k3d kubeconfig merge --kubeconfig-merge-default
 
 # install kit
-curl -q https://raw.githubusercontent.com/alexec/kit/main/install.sh | sh
+curl -q https://raw.githubusercontent.com/kitproj/kit/main/install.sh | sh
 
 # build is slow first time, so pre-build
 kit build
