@@ -166,6 +166,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [openEuler](https://openeuler.org)
 1. [openGauss](https://opengauss.org/)
 1. [openLooKeng](https://openlookeng.io)
+1. [OpenGov](https://opengov.com)
 1. [OpenSaaS Studio](https://opensaas.studio)
 1. [Opensurvey](https://www.opensurvey.co.kr/)
 1. [OpsMx](https://opsmx.io)
