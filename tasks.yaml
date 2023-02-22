@@ -70,8 +70,7 @@ spec:
       workingDir: ui
       mutex: deps
     - name: ui-build
-      command: yarn build
-      workingDir: ui
+      # noop
       dependencies: ui-deps
     - name: ui
       command: yarn start
