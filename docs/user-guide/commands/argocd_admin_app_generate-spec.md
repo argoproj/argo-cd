@@ -64,7 +64,7 @@ argocd admin app generate-spec APPNAME [flags]
       --kustomize-common-label stringArray         Set common labels in Kustomize
       --kustomize-force-common-annotation          Force common annotations in Kustomize
       --kustomize-force-common-label               Force common labels in Kustomize
-      --kustomize-image stringArray                Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)
+      --kustomize-image stringArray                Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb --kustomize-image alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)
       --kustomize-version string                   Kustomize version
   -l, --label stringArray                          Labels to apply to the app
       --name string                                A name for the app, ignored if a file is set (DEPRECATED)
