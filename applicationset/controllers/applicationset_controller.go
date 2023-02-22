@@ -1371,9 +1371,11 @@ func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov
 		return true
 	}
 
-	if appOld.Status.OperationState != nil && appNew.Status.OperationState != nil &&
-		appOld.Status.OperationState.Phase != appNew.Status.OperationState.Phase {
-		return true
+	if appOld.Status.OperationState != nil && appNew.Status.OperationState != nil {
+		if appOld.Status.OperationState.Phase != appNew.Status.OperationState.Phase ||
+			appOld.Status.OperationState.StartedAt != appNew.Status.OperationState.StartedAt {
+			return true
+		}
 	}
 
 	return false

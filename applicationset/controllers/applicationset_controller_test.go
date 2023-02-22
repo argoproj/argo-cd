@@ -4902,6 +4902,18 @@ func TestOwnsHandler(t *testing.T) {
 				},
 			}},
 		}}, want: true},
+		{name: "ApplicationOperationStartedAtDiff", args: args{e: event.UpdateEvent{
+			ObjectOld: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
+				OperationState: &argov1alpha1.OperationState{
+					StartedAt: now,
+				},
+			}},
+			ObjectNew: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
+				OperationState: &argov1alpha1.OperationState{
+					StartedAt: metav1.NewTime(now.Add(time.Minute * 1)),
+				},
+			}},
+		}}, want: true},
 		{name: "SameApplicationGeneration", args: args{e: event.UpdateEvent{
 			ObjectOld: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{
 				Generation: 1,
