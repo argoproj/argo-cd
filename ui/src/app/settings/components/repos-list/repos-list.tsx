@@ -35,6 +35,7 @@ export interface NewHTTPSRepoParams {
     enableLfs: boolean;
     proxy: string;
     project?: string;
+    forceHttpBasicAuth: boolean;
 }
 
 interface NewGitHubAppRepoParams {
@@ -74,6 +75,7 @@ interface NewHTTPSRepoCredsParams {
     tlsClientCertData: string;
     tlsClientCertKey: string;
     proxy: string;
+    forceHttpBasicAuth: boolean;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -484,6 +486,9 @@ export class ReposList extends React.Component<
                                                                 <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                             </div>
                                                             <div className='argo-form-row'>
+                                                                <FormField formApi={formApi} label='Force HTTP basic auth' field='forceHttpBasicAuth' component={CheckboxField} />
+                                                            </div>
+                                                            <div className='argo-form-row'>
                                                                 <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
                                                                 <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                             </div>
@@ -679,7 +684,8 @@ export class ReposList extends React.Component<
                 password: params.password,
                 tlsClientCertData: params.tlsClientCertData,
                 tlsClientCertKey: params.tlsClientCertKey,
-                proxy: params.proxy
+                proxy: params.proxy,
+                forceHttpBasicAuth: params.forceHttpBasicAuth
             });
         } else {
             this.setState({connecting: true});

@@ -3,8 +3,8 @@ kind: Deployment
 metadata:
   labels:
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: applicationset-controller
   name: argocd-applicationset-controller
 spec:
   selector:
@@ -86,10 +86,10 @@ spec:
                 key: applicationsetcontroller.enable.git.submodule
                 name: argocd-cmd-params-cm
                 optional: true
-          - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_ROLLOUTS
+          - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS
             valueFrom:
               configMapKeyRef:
-                key: applicationsetcontroller.enable.progressive.rollouts
+                key: applicationsetcontroller.enable.progressive.syncs
                 name: argocd-cmd-params-cm
                 optional: true
           volumeMounts:
