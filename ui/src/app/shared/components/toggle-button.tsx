@@ -2,6 +2,7 @@ import * as React from 'react';
 import {ReactNode} from 'react';
 import {Button} from './button';
 import {Icon} from './icon';
+import {ARGO_WARNING_COLOR} from './colors';
 
 export const ToggleButton = ({
     title,
@@ -25,8 +26,8 @@ export const ToggleButton = ({
         disabled={disabled}
         style={{
             // these are the argo-button color swapped
-            backgroundColor: toggled && '#F8FBFB',
-            color: toggled && '#495763'
+            backgroundColor: toggled && ARGO_WARNING_COLOR,
+            color: toggled && 'black'
         }}>
         {children}
     </Button>
