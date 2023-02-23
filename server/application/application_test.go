@@ -22,9 +22,12 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 	kubetesting "k8s.io/client-go/testing"
 	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
@@ -78,14 +81,14 @@ func fakeAppList() *apiclient.AppList {
 	}
 }
 
-func fakeResolveRevesionResponse() *apiclient.ResolveRevisionResponse {
+func fakeResolveRevisionResponse() *apiclient.ResolveRevisionResponse {
 	return &apiclient.ResolveRevisionResponse{
 		Revision:          "f9ba9e98119bf8c1176fbd65dbae26a71d044add",
 		AmbiguousRevision: "HEAD (f9ba9e98119bf8c1176fbd65dbae26a71d044add)",
 	}
 }
 
-func fakeResolveRevesionResponseHelm() *apiclient.ResolveRevisionResponse {
+func fakeResolveRevisionResponseHelm() *apiclient.ResolveRevisionResponse {
 	return &apiclient.ResolveRevisionResponse{
 		Revision:          "0.7.*",
 		AmbiguousRevision: "0.7.* (0.7.2)",
@@ -100,9 +103,9 @@ func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
 	mockRepoServiceClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
 
 	if isHelm {
-		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevesionResponseHelm(), nil)
+		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevisionResponseHelm(), nil)
 	} else {
-		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevesionResponse(), nil)
+		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevisionResponse(), nil)
 	}
 
 	return &mockRepoServiceClient
@@ -114,10 +117,18 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
 	}
-	return newTestAppServerWithEnforcerConfigure(f, objects...)
+	return newTestAppServerWithEnforcerConfigure(nil, f, objects...)
 }
 
-func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...runtime.Object) *Server {
+func newTestAppServerWithResourceFunc(getResourceFunc *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error), objects ...runtime.Object) *Server {
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	return newTestAppServerWithEnforcerConfigure(getResourceFunc, f, objects...)
+}
+
+func newTestAppServerWithEnforcerConfigure(getResourceFunc *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error), f func(*rbac.Enforcer), objects ...runtime.Object) *Server {
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -202,6 +213,10 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...ru
 		panic("Timed out waiting for caches to sync")
 	}
 
+	mockKubectlCmd := &kubetest.MockKubectlCmd{}
+	if getResourceFunc != nil {
+		mockKubectlCmd.WithGetResourceFunc(*getResourceFunc)
+	}
 	server, _ := NewServer(
 		testNamespace,
 		kubeclientset,
@@ -210,7 +225,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...ru
 		appInformer,
 		mockRepoClient,
 		nil,
-		&kubetest.MockKubectlCmd{},
+		mockKubectlCmd,
 		db,
 		enforcer,
 		sync.NewKeyLock(),
@@ -450,7 +465,7 @@ g, group-49, role:test3
 `
 		_ = enf.SetUserPolicy(policy)
 	}
-	appServer := newTestAppServerWithEnforcerConfigure(f, objects...)
+	appServer := newTestAppServerWithEnforcerConfigure(nil, f, objects...)
 
 	res, err := appServer.List(ctx, &application.ApplicationQuery{})
 
@@ -1146,39 +1161,85 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 	assert.Nil(t, testApp.Status.Resources[1].Health)
 }
 
-func TestRunResourceAction_WithCreateOperationPermitted(t *testing.T) {
-	testApp := newTestApp()
-	appServer := newTestAppServer(testApp)
+func returnCronJob() *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "batch/v1",
+		"kind":       "CronJob",
+		"metadata": map[string]interface{}{
+			"name":      "my-cron-job",
+			"namespace": testNamespace,
+		},
+		"spec": map[string]interface{}{
+			"jobTemplate": map[string]interface{}{
+				"spec": map[string]interface{}{
+					"template": map[string]interface{}{
+						"spec": map[string]interface{}{},
+					},
+				},
+			},
+		},
+	}}
+}
+
+func TestRunResourceAction(t *testing.T) {
+	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
 
 	group := "batch"
 	kind := "CronJob"
 	version := "v1"
 	resourceName := "my-cron-job"
-	namespace := "kuku"
+	namespace := testNamespace
 	action := "create-from"
+	uid := "1"
 
-	_, err := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
-		Name:         &testApp.Name,
-		Namespace:    &namespace,
-		Action:       &action,
-		AppNamespace: &testApp.Namespace,
-		ResourceName: &resourceName,
-		Version:      &version,
-		Group:        &group,
-		Kind:         &kind,
+	resources := []appsv1.ResourceStatus{{
+		Group:     group,
+		Kind:      kind,
+		Name:      resourceName,
+		Namespace: testNamespace,
+		Version:   version,
+	}}
+
+	getResourceFunc := func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+		return returnCronJob(), nil
+	}
+
+	appStateCache := appstate.NewCache(cacheClient, time.Minute)
+
+	nodes := []appsv1.ResourceNode{{
+		ResourceRef: appsv1.ResourceRef{
+			Group:     group,
+			Kind:      kind,
+			Version:   version,
+			Name:      resourceName,
+			Namespace: testNamespace,
+			UID:       uid,
+		},
+	}}
+
+	t.Run("CreateOperationNotPermitted", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+		testApp.Status.Resources = resources
+
+		appServer := newTestAppServerWithResourceFunc(&getResourceFunc, testApp)
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
+
+		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		require.NoError(t, err)
+
+		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
+			Name:         &testApp.Name,
+			Namespace:    &namespace,
+			Action:       &action,
+			AppNamespace: &testApp.Namespace,
+			ResourceName: &resourceName,
+			Version:      &version,
+			Group:        &group,
+			Kind:         &kind,
+		})
+
+		assert.Contains(t, runErr.Error(), "creation not permitted in project")
+		assert.Nil(t, appResponse)
 	})
-
-	assert.NoError(t, err)
-}
-
-func TestRunResourceAction_WithCreateOperationDenied(t *testing.T) {
-
-}
-
-func TestRunResourceAction_WithUpdateOperationPermitted(t *testing.T) {
-
-}
-
-func TestRunResourceAction_WithUpdateOperationDenied(t *testing.T) {
-
 }

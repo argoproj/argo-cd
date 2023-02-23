@@ -1,12 +1,8 @@
 apiVersion: batch/v1
-kind: CronJob
+kind: Job
 metadata:
-  name: hello
-  namespace:
+  name: hello-123
 spec:
-  schedule: "* * * * *"
-  jobTemplate:
-    spec:
       template:
         spec:
           containers:

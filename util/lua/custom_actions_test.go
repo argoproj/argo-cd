@@ -92,8 +92,11 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					if impactedResource.K8SOperation == "patch" {
 						// Patching is only allowed for the source resource, so the result must have exactly 1 resource
 						assert.EqualValues(t, 1, len(results))
-						// Patching is only allowed for the source resource, so the kind must be the same
-						assert.EqualValues(t, obj.GetKind(), impactedResource.UnstructuredObj.GetKind())
+						// Patching is only allowed for the source resource, so the GVK + name + ns must be the same as the impacted resource
+						assert.EqualValues(t, obj.GetKind(), result.GetKind())
+						assert.EqualValues(t, obj.GetAPIVersion(), result.GetAPIVersion())
+						assert.EqualValues(t, obj.GetName(), result.GetName())
+						assert.EqualValues(t, obj.GetNamespace(), result.GetNamespace())
 
 						expectedObj := getObj(filepath.Join(dir, test.ExpectedOutputPath))
 						// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
@@ -106,7 +109,8 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						}
 					} else {
 						if impactedResource.K8SOperation == "create" {
-							t.Error("There is a create action - hooray! But I don't know ho to test it yet")
+							t.Log("There is a create action - hooray! But I don't know how to test it yet")
+							t.Log(result.GetKind(), result.GetName(), result.GetNamespace())
 						}
 
 					}

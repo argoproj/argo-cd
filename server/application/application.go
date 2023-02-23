@@ -2238,6 +2238,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 					return nil, fmt.Errorf("%s named %s's creation not permitted in project: %s", newObj.GetKind(), newObj.GetName(), proj.Name)
 				}
 				// Create the resource
+				// s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj)
 			}
 		}
 	}

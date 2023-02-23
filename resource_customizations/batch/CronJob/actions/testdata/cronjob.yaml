@@ -2,9 +2,6 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: hello
-  annotations:
-    gu: gu
-    kuku: ttt
 spec:
   schedule: "* * * * *"
   jobTemplate:
