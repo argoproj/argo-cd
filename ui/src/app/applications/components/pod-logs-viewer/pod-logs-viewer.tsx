@@ -127,6 +127,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             <span>
                                 <FollowToggleButton follow={follow} setFollow={setFollow} />
                                 <Spacer />
+                                <ShowPreviousLogsToggleButton loader={loader} setPreviousLogs={setPreviousLogs} showPreviousLogs={previous} />
+                                <Spacer />
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
                                 <Spacer />
                                 {!follow && (
@@ -135,10 +137,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                         <Spacer />
                                         <SinceSelector since={since} setSince={setSince} />
                                         <Spacer />
-                                        <ShowPreviousLogsToggleButton loader={loader} setPreviousLogs={setPreviousLogs} showPreviousLogs={previous} />
                                     </>
                                 )}
-                                <Spacer />
                                 <LogMessageFilter filterText={filter} setFilterText={setFilter} />
                             </span>
                             <Spacer />

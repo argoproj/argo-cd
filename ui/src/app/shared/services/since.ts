@@ -1,16 +1,16 @@
-export type Since = 'min' | '1m' | '5m' | '30m' | '1h' | '4h';
+export type Since = 'forever' | '1m ago' | '5m ago' | '30m ago' | '1h ago' | '4h ago';
 
 const sinceToMins = (value: Since) => {
     switch (value) {
-        case '1m':
+        case '1m ago':
             return 1;
-        case '5m':
+        case '5m ago':
             return 5;
-        case '30m':
+        case '30m ago':
             return 30;
-        case '1h':
+        case '1h ago':
             return 60;
-        case '4h':
+        case '4h ago':
             return 4 * 60;
         default:
             return 0;

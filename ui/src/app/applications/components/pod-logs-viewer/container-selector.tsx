@@ -1,6 +1,5 @@
-import {Select} from 'argo-ui';
 import * as React from 'react';
-import {Spacer} from '../../../shared/components/spacer';
+import {Tooltip} from 'argo-ui';
 
 export type ContainerGroup = {offset: number; containers: string[]};
 
@@ -25,11 +24,16 @@ export const ContainerSelector = ({
     const containerIndex = (n: string) => {
         return containerGroup(n).containers.findIndex(container => container === n);
     };
+    if (containerNames.length <= 1) return <></>;
     return (
-        <>
-            <label>For</label>
-            <Spacer />
-            <Select value={containerName} onChange={option => onClickContainer(containerGroup(option.value), containerIndex(option.value), 'logs')} options={containerNames} />
-        </>
+        <Tooltip content='Select a container to view logs'>
+            <select className='argo-field' onChange={e => onClickContainer(containerGroup(e.target.value), containerIndex(e.target.value), 'logs')}>
+                {containerNames.map(n => (
+                    <option key={n} value={n}>
+                        {n}
+                    </option>
+                ))}
+            </select>
+        </Tooltip>
     );
 };
