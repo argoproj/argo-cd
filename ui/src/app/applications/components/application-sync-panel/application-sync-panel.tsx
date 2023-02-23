@@ -29,14 +29,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                 <SlidingPanel
                     isMiddle={true}
                     isShown={isVisible}
-                    onClose={() => {
-                        const search = new URLSearchParams(ctx.history.location.search);
-                        if (search.get('revision')) {
-                            search.delete('revision');
-                            ctx.history.push({search: search.toString()});
-                        }
-                        hide();
-                    }}
+                    onClose={() => hide()}
                     header={
                         <div>
                             <button

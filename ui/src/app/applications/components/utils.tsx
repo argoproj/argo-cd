@@ -261,8 +261,8 @@ export const ComparisonStatusIcon = ({
     );
 };
 
-export function showDeploy(resource: string, appContext: AppContext) {
-    appContext.apis.navigation.goto('.', {deploy: resource}, {replace: true});
+export function showDeploy(resource: string, revision: string, appContext: AppContext) {
+    appContext.apis.navigation.goto('.', {deploy: resource, revision}, {replace: true});
 }
 
 export function findChildPod(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode {
@@ -440,7 +440,7 @@ function getActionItems(
             {
                 title: 'Sync',
                 iconClassName: 'fa fa-sync',
-                action: () => showDeploy(nodeKey(resource), appContext)
+                action: () => showDeploy(nodeKey(resource), null, appContext)
             }
         ]) ||
             []),
