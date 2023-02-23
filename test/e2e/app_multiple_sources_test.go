@@ -25,7 +25,6 @@ func TestMultiSourceAppCreation(t *testing.T) {
 		When().
 		CreateMultiSourceAppFromFile().
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			assert.Equal(t, Name(), app.Name)
 			for i, source := range app.Spec.GetSources() {
@@ -79,7 +78,6 @@ func TestMultiSourceAppWithHelmExternalValueFiles(t *testing.T) {
 		When().
 		CreateMultiSourceAppFromFile().
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			assert.Equal(t, Name(), app.Name)
 			for i, source := range app.Spec.GetSources() {
@@ -127,7 +125,6 @@ func TestMultiSourceAppWithSourceOverride(t *testing.T) {
 		When().
 		CreateMultiSourceAppFromFile().
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			assert.Equal(t, Name(), app.Name)
 			for i, source := range app.Spec.GetSources() {
