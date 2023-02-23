@@ -1471,7 +1471,7 @@ spec:
                           items:
                             x-kubernetes-preserve-unknown-fields: true
                           type: array
-                        elementsjson:
+                        elementsyaml:
                           type: string
                         template:
                           properties:
@@ -3363,7 +3363,7 @@ spec:
                                     items:
                                       x-kubernetes-preserve-unknown-fields: true
                                     type: array
-                                  elementsjson:
+                                  elementsyaml:
                                     type: string
                                   template:
                                     properties:
@@ -6913,7 +6913,7 @@ spec:
                                     items:
                                       x-kubernetes-preserve-unknown-fields: true
                                     type: array
-                                  elementsjson:
+                                  elementsyaml:
                                     type: string
                                   template:
                                     properties:

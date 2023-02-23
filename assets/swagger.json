@@ -6973,7 +6973,7 @@
             "$ref": "#/definitions/v1JSON"
           }
         },
-        "elementsjson": {
+        "elementsyaml": {
           "type": "string"
         },
         "template": {

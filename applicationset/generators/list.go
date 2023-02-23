@@ -6,6 +6,7 @@ import (
 	"time"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"sigs.k8s.io/yaml"
 )
 
 var _ Generator = (*ListGenerator)(nil)
@@ -73,15 +74,15 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 		}
 	}
 
-	// Append elements from ElementsJson to the response
-	if len(appSetGenerator.List.ElementsJson) > 0 {
+	// Append elements from ElementsYaml to the response
+	if len(appSetGenerator.List.ElementsYaml) > 0 {
 
-		var jsonElements []map[string]interface{}
-		err := json.Unmarshal([]byte(appSetGenerator.List.ElementsJson), &jsonElements)
+		var yamlElements []map[string]interface{}
+		err := yaml.Unmarshal([]byte(appSetGenerator.List.ElementsYaml), &yamlElements)
 		if err != nil {
-			return nil, fmt.Errorf("error unmarshling decoded ElementsJson %v", err)
+			return nil, fmt.Errorf("error unmarshling decoded ElementsYaml %v", err)
 		}
-		res = append(res, jsonElements...)	
+		res = append(res, yamlElements...)	
 	}
 
 	return res, nil

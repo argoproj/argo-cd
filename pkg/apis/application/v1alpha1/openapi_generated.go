@@ -3595,7 +3595,7 @@ func schema_pkg_apis_application_v1alpha1_ListGenerator(ref common.ReferenceCall
 							},
 						},
 					},
-					"elementsjson": {
+					"elementsyaml": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",

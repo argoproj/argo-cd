@@ -835,7 +835,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 	}
 }
 
-func TestMatrixGenerateListElementsJson(t *testing.T) {
+func TestMatrixGenerateListElementsYaml(t *testing.T) {
 
 	gitGenerator := &argoprojiov1alpha1.GitGenerator{
 		RepoURL:  "RepoURL",
@@ -847,7 +847,7 @@ func TestMatrixGenerateListElementsJson(t *testing.T) {
 
 	listGenerator := &argoprojiov1alpha1.ListGenerator{
 		Elements: []apiextensionsv1.JSON{},
-		ElementsJson: "{{ .foo.bar | toJson }}",
+		ElementsYaml: "{{ .foo.bar | toJson }}",
 	}
 
 	testCases := []struct {

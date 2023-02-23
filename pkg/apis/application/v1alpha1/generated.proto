@@ -1001,7 +1001,7 @@ message KustomizeOptions {
 message ListGenerator {
   repeated k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
 
-  optional string elementsjson = 2;
+  optional string elementsyaml = 2;
 
   optional ApplicationSetTemplate template = 3;
 }
