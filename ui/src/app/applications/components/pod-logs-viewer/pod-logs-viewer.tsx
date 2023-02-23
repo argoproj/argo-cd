@@ -69,6 +69,9 @@ function podColor(podName: string) {
     return colors[stringHashCode(podName) % colors.length];
 }
 
+// https://2ality.com/2012/09/empty-regexp.html
+const matchNothing = /.^/;
+
 export const PodsLogsViewer = (props: PodLogsProps) => {
     const {containerName, onClickContainer, timestamp, containerGroups, applicationName, applicationNamespace, namespace, podName, group, kind, name} = props;
     if (!containerName || containerName === '') {
@@ -81,9 +84,9 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [viewTimestamps, setViewTimestamps] = useState(queryParams.get('viewTimestamps') === 'true');
     const [previous, setPreviousLogs] = useState(queryParams.get('showPreviousLogs') === 'true');
     const [tail, setTail] = useState<number>(parseInt(queryParams.get('tail'), 10) || 100);
-    const [since, setSince] = useState<Since>('1m');
+    const [since, setSince] = useState<Since>('1m ago');
     const [filter, setFilter] = useState(queryParams.get('filterText') || '');
-    const [highlight, setHighlight] = useState('');
+    const [highlight, setHighlight] = useState<RegExp>(matchNothing);
 
     const list = useRef();
     const loaderRef = useRef();
@@ -113,7 +116,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     useEffect(() => {
         const to = setTimeout(() => {
             loader?.reload();
-            setHighlight(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')); // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+            // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+            setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'));
         }, 250);
         return () => clearTimeout(to);
     }, [applicationName, applicationNamespace, namespace, podName, group, kind, name, containerName, tail, follow, since, filter, previous]);
@@ -197,24 +201,20 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                     {(logs: {content: string; podName: string; timeStampStr: string}[]) => {
                                         logs = logs || [];
 
-                                        const renderLog = (log: {content: string; podName: string; timeStampStr: string}, lineNum: number) => {
-                                            return (
-                                                // show the pod name if there are multiple pods, pad with spaces to align
-                                                (viewPodNames
-                                                    ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName
-                                                          ? podColor(podName) + log.podName + reset
-                                                          : ' '.repeat(log.podName.length)) + ' '
-                                                    : '') +
-                                                // show the timestamp if requested, pad with spaces to align
-                                                (viewTimestamps
-                                                    ? (lineNum === 0 || logs[lineNum - 1].timeStampStr !== log.timeStampStr
-                                                          ? log.timeStampStr
-                                                          : ' '.repeat(log.timeStampStr.length)) + ' '
-                                                    : '') +
-                                                // show the log content, highlight the filter text
-                                                log.content.replace(new RegExp(highlight, 'g'), (substring: string) => whiteOnYellow + substring + reset)
-                                            );
-                                        };
+                                        const renderLog = (log: {content: string; podName: string; timeStampStr: string}, lineNum: number) =>
+                                            // show the pod name if there are multiple pods, pad with spaces to align
+                                            (viewPodNames
+                                                ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName
+                                                      ? podColor(podName) + log.podName + reset
+                                                      : ' '.repeat(log.podName.length)) + ' '
+                                                : '') +
+                                            // show the timestamp if requested, pad with spaces to align
+                                            (viewTimestamps
+                                                ? (lineNum === 0 || logs[lineNum - 1].timeStampStr !== log.timeStampStr ? log.timeStampStr : ' '.repeat(log.timeStampStr.length)) +
+                                                  ' '
+                                                : '') +
+                                            // show the log content, highlight the filter text
+                                            log.content.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
 
                                         const rowRenderer = ({index, key, style}: {index: number; key: string; style: React.CSSProperties}) => {
                                             return (
@@ -233,7 +233,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                             <>
                                                 <AutoSizer>
                                                     {({height}: {width: number; height: number}) => (
-                                                        <List ref={list} rowCount={logs.length} rowRenderer={rowRenderer} width={4096} height={height - 16} rowHeight={16} />
+                                                        <List ref={list} rowCount={logs.length} rowRenderer={rowRenderer} width={4096} height={height - 20} rowHeight={20} />
                                                     )}
                                                 </AutoSizer>
                                             </>
