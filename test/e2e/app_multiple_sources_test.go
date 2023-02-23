@@ -43,7 +43,8 @@ func TestMultiSourceAppCreation(t *testing.T) {
 			assert.Contains(t, output, Name())
 		}).
 		Expect(Success("")).
-		// Since it's auto-synced, we shouldn't have to manually refresh to see that things are synced.
+		When().Sync().Then().
+		Expect(Success("")).
 		When().Wait().Then().
 		Expect(Success("")).
 		And(func(app *Application) {
@@ -98,7 +99,9 @@ func TestMultiSourceAppWithHelmExternalValueFiles(t *testing.T) {
 			assert.Contains(t, output, Name())
 		}).
 		Expect(Success("")).
-		When().Refresh(RefreshTypeNormal).Then().
+		When().Sync().Then().
+		Expect(Success("")).
+		When().Wait().Then().
 		Expect(Success("")).
 		And(func(app *Application) {
 			statusByName := map[string]SyncStatusCode{}
@@ -146,7 +149,9 @@ func TestMultiSourceAppWithSourceOverride(t *testing.T) {
 			assert.Contains(t, output, Name())
 		}).
 		Expect(Success("")).
-		When().Refresh(RefreshTypeNormal).Then().
+		When().Sync().Then().
+		Expect(Success("")).
+		When().Wait().Then().
 		Expect(Success("")).
 		And(func(app *Application) {
 			statusByName := map[string]SyncStatusCode{}

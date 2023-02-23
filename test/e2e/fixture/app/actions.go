@@ -157,11 +157,6 @@ func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 				Server:    a.context.destServer,
 				Namespace: fixture.DeploymentNamespace(),
 			},
-			SyncPolicy: &SyncPolicy{
-				Automated: &SyncPolicyAutomated{
-					SelfHeal: true,
-				},
-			},
 		},
 	}
 
