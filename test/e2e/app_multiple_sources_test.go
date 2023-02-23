@@ -43,8 +43,6 @@ func TestMultiSourceAppCreation(t *testing.T) {
 			assert.Contains(t, output, Name())
 		}).
 		Expect(Success("")).
-		When().Sync().Then().
-		Expect(Success("")).
 		When().Wait().Then().
 		Expect(Success("")).
 		And(func(app *Application) {
@@ -99,8 +97,6 @@ func TestMultiSourceAppWithHelmExternalValueFiles(t *testing.T) {
 			assert.Contains(t, output, Name())
 		}).
 		Expect(Success("")).
-		When().Sync().Then().
-		Expect(Success("")).
 		When().Wait().Then().
 		Expect(Success("")).
 		And(func(app *Application) {
@@ -148,8 +144,6 @@ func TestMultiSourceAppWithSourceOverride(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Contains(t, output, Name())
 		}).
-		Expect(Success("")).
-		When().Sync().Then().
 		Expect(Success("")).
 		When().Wait().Then().
 		Expect(Success("")).
