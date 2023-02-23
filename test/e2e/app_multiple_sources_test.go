@@ -3,11 +3,12 @@ package e2e
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	. "github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestMultiSourceAppCreation(t *testing.T) {
@@ -42,7 +43,8 @@ func TestMultiSourceAppCreation(t *testing.T) {
 			assert.Contains(t, output, Name())
 		}).
 		Expect(Success("")).
-		When().Refresh(RefreshTypeNormal).Then().
+		// Since it's auto-synced, we shouldn't have to manually refresh to see that things are synced.
+		When().Wait().Then().
 		Expect(Success("")).
 		And(func(app *Application) {
 			statusByName := map[string]SyncStatusCode{}
