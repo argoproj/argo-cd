@@ -334,9 +334,11 @@ func TestExecuteResourceAction(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	expectedObj := StrToUnstructured(expectedUpdatedObj)
 	vm := VM{}
-	newObj, err := vm.ExecuteResourceAction(testObj, validActionLua)
+	newObjects, err := vm.ExecuteResourceAction(testObj, validActionLua)
 	assert.Nil(t, err)
-	assert.Equal(t, expectedObj, newObj)
+	assert.Equal(t, len(newObjects), 1)
+	assert.Equal(t, newObjects[0].K8SOperation, "patch")
+	assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
 }
 
 func TestExecuteResourceActionNonTableReturn(t *testing.T) {
@@ -409,10 +411,11 @@ func TestCleanPatch(t *testing.T) {
 	testObj := StrToUnstructured(objWithEmptyStruct)
 	expectedObj := StrToUnstructured(expectedUpdatedObjWithEmptyStruct)
 	vm := VM{}
-	newObj, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua)
+	newObjects, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua)
 	assert.Nil(t, err)
-	assert.Equal(t, expectedObj, newObj)
-
+	assert.Equal(t, len(newObjects), 1)
+	assert.Equal(t, newObjects[0].K8SOperation, "patch")
+	assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
 }
 
 func TestGetResourceHealth(t *testing.T) {

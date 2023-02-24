@@ -19,6 +19,36 @@ import (
 type testNormalizer struct{}
 
 func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
+	if un == nil {
+		return nil
+	}
+	switch un.GetKind() {
+	case "DaemonSet", "Deployment", "StatefulSet":
+		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"kubectl.kubernetes.io/restartedAt": "0001-01-01T00:00:00Z"}, "spec", "template", "metadata", "annotations")
+		if err != nil {
+			return fmt.Errorf("failed to normalize DaemonSet: %w", err)
+		}
+	}
+	switch un.GetKind() {
+	case "Deployment":
+		err := unstructured.SetNestedField(un.Object, nil, "status")
+		if err != nil {
+			return fmt.Errorf("failed to normalize DaemonSet: %w", err)
+		}
+		err = unstructured.SetNestedField(un.Object, nil, "metadata", "creationTimestamp")
+		if err != nil {
+			return fmt.Errorf("failed to normalize DaemonSet: %w", err)
+		}
+		err = unstructured.SetNestedField(un.Object, nil, "metadata", "generation")
+		if err != nil {
+			return fmt.Errorf("failed to normalize DaemonSet: %w", err)
+		}
+	case "Rollout":
+		err := unstructured.SetNestedField(un.Object, nil, "spec", "restartAt")
+		if err != nil {
+			return fmt.Errorf("failed to normalize Rollout: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -90,8 +120,6 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				for _, impactedResource := range results {
 					result := impactedResource.UnstructuredObj
 					if impactedResource.K8SOperation == "patch" {
-						// Patching is only allowed for the source resource, so the result must have exactly 1 resource
-						assert.EqualValues(t, 1, len(results))
 						// Patching is only allowed for the source resource, so the GVK + name + ns must be the same as the impacted resource
 						assert.EqualValues(t, obj.GetKind(), result.GetKind())
 						assert.EqualValues(t, obj.GetAPIVersion(), result.GetAPIVersion())

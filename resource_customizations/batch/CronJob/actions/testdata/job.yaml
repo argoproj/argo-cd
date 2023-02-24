@@ -2,6 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: hello-123
+  namespace: test-ns
 spec:
       template:
         spec:

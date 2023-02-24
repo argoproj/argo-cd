@@ -170,6 +170,7 @@ func newTestAppServerWithEnforcerConfigure(getResourceFunc *func(ctx context.Con
 			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
+
 	projWithSyncWindows := &appsv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "proj-maint", Namespace: "default"},
 		Spec: appsv1.AppProjectSpec{
@@ -1217,7 +1218,43 @@ func TestRunResourceAction(t *testing.T) {
 		},
 	}}
 
+	createJobDenyingProj := &appsv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "createJobDenyingProj", Namespace: "default"},
+		Spec: appsv1.AppProjectSpec{
+			SourceRepos:                []string{"*"},
+			Destinations:               []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "kuku", Kind: "muku"}},
+		},
+	}
+
 	t.Run("CreateOperationNotPermitted", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Spec.Project = "createJobDenyingProj"
+		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+		testApp.Status.Resources = resources
+
+		appServer := newTestAppServerWithResourceFunc(&getResourceFunc, testApp, createJobDenyingProj)
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
+
+		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		require.NoError(t, err)
+
+		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
+			Name:         &testApp.Name,
+			Namespace:    &namespace,
+			Action:       &action,
+			AppNamespace: &testApp.Namespace,
+			ResourceName: &resourceName,
+			Version:      &version,
+			Group:        &group,
+			Kind:         &kind,
+		})
+
+		assert.Contains(t, runErr.Error(), "creation not permitted in project")
+		assert.Nil(t, appResponse)
+	})
+
+	t.Run("CreateOperationPermitted", func(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
 		testApp.Status.Resources = resources
@@ -1239,7 +1276,7 @@ func TestRunResourceAction(t *testing.T) {
 			Kind:         &kind,
 		})
 
-		assert.Contains(t, runErr.Error(), "creation not permitted in project")
-		assert.Nil(t, appResponse)
+		require.NoError(t, runErr)
+		assert.NotNil(t, appResponse)
 	})
 }
