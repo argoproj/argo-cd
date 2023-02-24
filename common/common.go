@@ -159,6 +159,10 @@ const (
 	// Ex: "http://grafana.example.com/d/yu5UH4MMz/deployments"
 	// Ex: "Go to Dashboard|http://grafana.example.com/d/yu5UH4MMz/deployments"
 	AnnotationKeyLinkPrefix = "link.argocd.argoproj.io/"
+
+	// AnnotationKeyAppSkipReconcile tells the Application to skip the Application controller reconcile.
+	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
+	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
 )
 
 // Environment variables for tuning and debugging Argo CD

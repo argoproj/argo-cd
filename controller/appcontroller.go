@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -1783,6 +1784,20 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 	// control plane's namespace.
 	if app.Namespace != ctrl.namespace && !glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
 		return false
+	}
+
+	if annotations := app.GetAnnotations(); annotations != nil {
+		if skipVal, ok := annotations[common.AnnotationKeyAppSkipReconcile]; ok {
+			logCtx := log.WithFields(log.Fields{"application": app.QualifiedName()})
+			if skipReconcile, err := strconv.ParseBool(skipVal); err == nil {
+				if skipReconcile {
+					logCtx.Debugf("Skipping Application reconcile based on annotation %s", common.AnnotationKeyAppSkipReconcile)
+					return false
+				}
+			} else {
+				logCtx.Debugf("Unable to determine if Application should skip reconcile based on annotation %s: %v", common.AnnotationKeyAppSkipReconcile, err)
+			}
+		}
 	}
 
 	if ctrl.clusterFilter != nil {
