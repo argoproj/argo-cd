@@ -1516,6 +1516,8 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 			}
 		} else if !app.Spec.Destination.Equals(app.Status.Sync.ComparedTo.Destination) {
 			reason = "spec.destination differs"
+		} else if !app.Spec.IgnoreDifferences.Equals(app.Status.Sync.ComparedTo.IgnoreDifferences) {
+			reason = "spec.ignoreDifferences differs"
 		} else if requested, level := ctrl.isRefreshRequested(app.QualifiedName()); requested {
 			compareWith = level
 			reason = "controller refresh requested"

@@ -6577,6 +6577,13 @@
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
         },
+        "ignoreDifferences": {
+          "type": "array",
+          "title": "IgnoreDifferences is a reference to the application's ignored differences used for comparison",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
+          }
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },

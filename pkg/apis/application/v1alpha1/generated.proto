@@ -748,6 +748,9 @@ message ComparedTo {
 
   // Sources is a reference to the application's multiple sources used for comparison
   repeated ApplicationSource sources = 3;
+
+  // IgnoreDifferences is a reference to the application's ignored differences used for comparison
+  repeated ResourceIgnoreDifferences ignoreDifferences = 4;
 }
 
 // ComponentParameter contains information about component parameter value

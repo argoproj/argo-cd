@@ -3440,6 +3440,42 @@ spec:
                               and must be set to the Kubernetes control plane API
                             type: string
                         type: object
+                      ignoreDifferences:
+                        description: IgnoreDifferences is a reference to the application's
+                          ignored differences used for comparison
+                        items:
+                          description: ResourceIgnoreDifferences contains resource
+                            filter and list of json paths which should be ignored
+                            during comparison with live state.
+                          properties:
+                            group:
+                              type: string
+                            jqPathExpressions:
+                              items:
+                                type: string
+                              type: array
+                            jsonPointers:
+                              items:
+                                type: string
+                              type: array
+                            kind:
+                              type: string
+                            managedFieldsManagers:
+                              description: ManagedFieldsManagers is a list of trusted
+                                managers. Fields mutated by those managers will take
+                                precedence over the desired state defined in the SCM
+                                and won't be displayed in diffs
+                              items:
+                                type: string
+                              type: array
+                            name:
+                              type: string
+                            namespace:
+                              type: string
+                          required:
+                          - kind
+                          type: object
+                        type: array
                       source:
                         description: Source is a reference to the application's source
                           used for comparison
