@@ -25,8 +25,6 @@ func TestRequeueAfter(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
-	err = argov1alpha1.AddToScheme(scheme)
-	assert.Nil(t, err)
 	gvrToListKind := map[schema.GroupVersionResource]string{{
 		Group:    "mallard.io",
 		Version:  "v1",
