@@ -1,17 +1,17 @@
 import * as React from 'react';
-import {Since} from '../../../shared/services/since';
 import {Tooltip} from 'argo-ui';
 
 // SinceSelector is a component that renders a dropdown menu of time ranges
-export const SinceSelector = ({since, setSince}: {since: Since; setSince: (value: Since) => void}) => (
+export const SinceSecondsSelector = ({sinceSeconds, setSinceSeconds}: {sinceSeconds: number; setSinceSeconds: (value: number) => void}) => (
     <Tooltip content='Show logs since a given time'>
-        <select className='argo-field' value={since} onChange={e => setSince(e.target.value as Since)}>
-            <option value='1m ago'>1m ago</option>
-            <option value='5m ago'>5m ago</option>
-            <option value='30m ago'>30m ago</option>
-            <option value='1h ago'>1h ago</option>
-            <option value='4h ago'>4h ago</option>
-            <option value='forever'>forever</option>
+        <select className='argo-field' style={{marginRight: '1em'}} value={sinceSeconds} onChange={e => setSinceSeconds(parseInt(e.target.value, 10))}>
+            <option value='60'>1m ago</option>
+            <option value='300'>5m ago</option>
+            <option value='600'>10m ago</option>
+            <option value='1800'>30m ago</option>
+            <option value='3600'>1h ago</option>
+            <option value='14400'>4h ago</option>
+            <option>forever</option>
         </select>
     </Tooltip>
 );

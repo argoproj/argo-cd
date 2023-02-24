@@ -22,11 +22,13 @@ import {DarkModeToggleButton} from './dark-mode-toggle-button';
 import {FullscreenButton} from './fullscreen-button';
 import {Spacer} from '../../../shared/components/spacer';
 import {LogMessageFilter} from './log-message-filter';
-import {SinceSelector} from './since-selector';
+import {SinceSecondsSelector} from './since-seconds-selector';
 import {TailSelector} from './tail-selector';
 import {Since} from '../../../shared/services/since';
 import {PodNamesToggleButton} from './pod-names-toggle-button';
 import Ansi from 'ansi-to-react';
+import {TimeSelector} from './time-selector';
+import {LogEntry} from '../../../shared/models';
 
 export interface PodLogsProps {
     namespace: string;
@@ -83,8 +85,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [follow, setFollow] = useState(queryParams.get('follow') !== 'false');
     const [viewTimestamps, setViewTimestamps] = useState(queryParams.get('viewTimestamps') === 'true');
     const [previous, setPreviousLogs] = useState(queryParams.get('showPreviousLogs') === 'true');
-    const [tail, setTail] = useState<number>(parseInt(queryParams.get('tail'), 10) || 100);
-    const [since, setSince] = useState<Since>('1m ago');
+    const [tail, setTail] = useState<number>(parseInt(queryParams.get('tail'), 10) || 1000);
+    const [sinceSeconds, setSinceSeconds] = useState(0);
     const [filter, setFilter] = useState(queryParams.get('filterText') || '');
     const [highlight, setHighlight] = useState<RegExp>(matchNothing);
 
@@ -102,7 +104,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         containerName,
         tail,
         follow,
-        since,
+        sinceSeconds,
         filter,
         previous
     };
@@ -117,10 +119,11 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         const to = setTimeout(() => {
             loader?.reload();
             // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+            // matchNothing this is chosen instead of empty regexp, because that would match everything and break colored logs
             setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'));
         }, 250);
         return () => clearTimeout(to);
-    }, [applicationName, applicationNamespace, namespace, podName, group, kind, name, containerName, tail, follow, since, filter, previous]);
+    }, [applicationName, applicationNamespace, namespace, podName, group, kind, name, containerName, tail, follow, sinceSeconds, filter, previous]);
 
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -130,17 +133,14 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                         <div className='pod-logs-viewer__settings'>
                             <span>
                                 <FollowToggleButton follow={follow} setFollow={setFollow} />
-                                <Spacer />
                                 <ShowPreviousLogsToggleButton loader={loader} setPreviousLogs={setPreviousLogs} showPreviousLogs={previous} />
                                 <Spacer />
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
                                 <Spacer />
                                 {!follow && (
                                     <>
+                                        <SinceSecondsSelector sinceSeconds={sinceSeconds} setSinceSeconds={n => setSinceSeconds(n)} />
                                         <TailSelector tail={tail} setTail={setTail} />
-                                        <Spacer />
-                                        <SinceSelector since={since} setSince={setSince} />
-                                        <Spacer />
                                     </>
                                 )}
                                 <LogMessageFilter filterText={filter} setFilterText={setFilter} />
@@ -198,10 +198,10 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                         }
                                         return logsSource;
                                     }}>
-                                    {(logs: {content: string; podName: string; timeStampStr: string}[]) => {
+                                    {(logs: LogEntry[]) => {
                                         logs = logs || [];
 
-                                        const renderLog = (log: {content: string; podName: string; timeStampStr: string}, lineNum: number) =>
+                                        const renderLog = (log: LogEntry, lineNum: number) =>
                                             // show the pod name if there are multiple pods, pad with spaces to align
                                             (viewPodNames
                                                 ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName
@@ -210,8 +210,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                                 : '') +
                                             // show the timestamp if requested, pad with spaces to align
                                             (viewTimestamps
-                                                ? (lineNum === 0 || logs[lineNum - 1].timeStampStr !== log.timeStampStr ? log.timeStampStr : ' '.repeat(log.timeStampStr.length)) +
-                                                  ' '
+                                                ? (lineNum === 0 || logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : ' '.repeat(log.timeStampStr.length)) + ' '
                                                 : '') +
                                             // show the log content, highlight the filter text
                                             log.content.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
