@@ -217,7 +217,7 @@ func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, 
 	copy := reflect.New(original.Type()).Elem()
 
 	if err := r.deeplyReplace(copy, original, params, useGoTemplate); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to replace parameters in generator: %w", err)
 	}
 
 	replacedGen := copy.Interface().(*argoappsv1.ApplicationSetGenerator)
