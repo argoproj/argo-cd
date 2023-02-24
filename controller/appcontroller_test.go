@@ -1402,6 +1402,32 @@ func Test_canProcessApp(t *testing.T) {
 	})
 }
 
+func Test_canProcessAppSkipReconcileAnnotation(t *testing.T) {
+	appSkipReconcileInvalid := newFakeApp()
+	appSkipReconcileInvalid.Annotations = map[string]string{common.AnnotationKeyAppSkipReconcile: "invalid-value"}
+	appSkipReconcileFalse := newFakeApp()
+	appSkipReconcileFalse.Annotations = map[string]string{common.AnnotationKeyAppSkipReconcile: "false"}
+	appSkipReconcileTrue := newFakeApp()
+	appSkipReconcileTrue.Annotations = map[string]string{common.AnnotationKeyAppSkipReconcile: "true"}
+	ctrl := newFakeController(&fakeData{})
+	tests := []struct {
+		name     string
+		input    interface{}
+		expected bool
+	}{
+		{"No skip reconcile annotation", newFakeApp(), true},
+		{"Contains skip reconcile annotation ", appSkipReconcileInvalid, true},
+		{"Contains skip reconcile annotation value false", appSkipReconcileFalse, true},
+		{"Contains skip reconcile annotation value true", appSkipReconcileTrue, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, ctrl.canProcessApp(tt.input))
+		})
+	}
+}
+
 func Test_syncDeleteOption(t *testing.T) {
 	app := newFakeApp()
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
