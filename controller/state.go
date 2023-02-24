@@ -471,7 +471,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		failedToLoadObjs = true
 	}
 
-	logCtx.Debugf("Retrieved lived manifests")
+	logCtx.Debugf("Retrieved live manifests")
 
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
