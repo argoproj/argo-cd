@@ -1,4 +1,4 @@
-import {DropDownMenu, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
+import {DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -30,7 +30,7 @@ import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
-import {AppViewExtension, ExtensionComponentProps} from '../../../shared/services/extensions-service';
+import {AppViewExtension} from '../../../shared/services/extensions-service';
 
 interface ApplicationDetailsState {
     page: number;
@@ -683,11 +683,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 iconClassName: 'fa fa-history',
                 title: hasMultipleSources ? (
                     <React.Fragment>
-                        <ActionMenuItem actionLabel=' History and rollback' />
+                        <ActionMenuItem actionLabel=' History and Rollback' />
                         {helpTip('Rollback is not supported for apps with multiple sources')}
                     </React.Fragment>
                 ) : (
-                    <ActionMenuItem actionLabel='History and rollback' />
+                    <ActionMenuItem actionLabel='History and Rollback' />
                 ),
                 action: () => {
                     this.setRollbackPanelVisible(0);
