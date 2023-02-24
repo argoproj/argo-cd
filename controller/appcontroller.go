@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -1474,6 +1475,13 @@ func resourceStatusKey(res appv1.ResourceStatus) string {
 	return strings.Join([]string{res.Group, res.Kind, res.Namespace, res.Name}, "/")
 }
 
+func currentSourceEqualsSyncedSource(app *appv1.Application) bool {
+	if app.Spec.HasMultipleSources() {
+		return app.Spec.Sources.Equals(app.Status.Sync.ComparedTo.Sources)
+	}
+	return app.Spec.Source.Equals(app.Status.Sync.ComparedTo.Source)
+}
+
 // needRefreshAppStatus answers if application status needs to be refreshed.
 // Returns true if application never been compared, has changed or comparison result has expired.
 // Additionally returns whether full refresh was requested or not.
@@ -1492,14 +1500,12 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		refreshType = requestedType
 		reason = fmt.Sprintf("%s refresh requested", refreshType)
 	} else {
-		if app.Spec.HasMultipleSources() {
-			if (len(app.Spec.Sources) != len(app.Status.Sync.ComparedTo.Sources)) || !reflect.DeepEqual(app.Spec.Sources, app.Status.Sync.ComparedTo.Sources) {
-				reason = "atleast one of the spec.sources differs"
-				compareWith = CompareWithLatestForceResolve
-			}
-		} else if !app.Spec.Source.Equals(app.Status.Sync.ComparedTo.Source) {
+		if !currentSourceEqualsSyncedSource(app) {
 			reason = "spec.source differs"
 			compareWith = CompareWithLatestForceResolve
+			if app.Spec.HasMultipleSources() {
+				reason = "at least one of the spec.sources differs"
+			}
 		} else if hardExpired || softExpired {
 			// The commented line below mysteriously crashes if app.Status.ReconciledAt is nil
 			// reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
@@ -1783,6 +1789,20 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 	// control plane's namespace.
 	if app.Namespace != ctrl.namespace && !glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
 		return false
+	}
+
+	if annotations := app.GetAnnotations(); annotations != nil {
+		if skipVal, ok := annotations[common.AnnotationKeyAppSkipReconcile]; ok {
+			logCtx := log.WithFields(log.Fields{"application": app.QualifiedName()})
+			if skipReconcile, err := strconv.ParseBool(skipVal); err == nil {
+				if skipReconcile {
+					logCtx.Debugf("Skipping Application reconcile based on annotation %s", common.AnnotationKeyAppSkipReconcile)
+					return false
+				}
+			} else {
+				logCtx.Debugf("Unable to determine if Application should skip reconcile based on annotation %s: %v", common.AnnotationKeyAppSkipReconcile, err)
+			}
+		}
 	}
 
 	if ctrl.clusterFilter != nil {
