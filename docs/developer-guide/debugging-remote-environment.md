@@ -28,7 +28,7 @@ telepresence intercept argocd-server --port 8080:http --env-file .envrc.remote #
 * `--port` forwards traffic of remote port http to 8080 locally (use `--port 8080:https` if argocd-server terminates TLS)
 * `--env-file` writes all the environment variables of the remote pod into a local file, the variables are also set on the subprocess of the `--run` command
 
-With this, any traffic that hits your argocd-server service in the cluster (e.g through a LB / ingress) will be forwarded to your laptop on port 8080. So that you can now start argocd-server locally to debug or test new code. If you launch argocd-server using the environment variables in `.envrc.remote`, he is able to fetch all the configmaps, secrets and so one from the cluster and transparently connect to the other microservices so that no further configuration should be neccesary and he behaves exactly the same as in the cluster.
+With this, any traffic that hits your argocd-server service in the cluster (e.g. through a LB / ingress) will be forwarded to your laptop on port 8080. So that you can now start argocd-server locally to debug or test new code. If you launch argocd-server using the environment variables in `.envrc.remote`, it is able to fetch all the configmaps, secrets and so on from the cluster and transparently connect to the other microservices so that no further configuration should be necessary, and it behaves exactly the same as in the cluster.
 
 List current status of Telepresence using:
 ```shell
