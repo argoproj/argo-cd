@@ -40,5 +40,19 @@ export default {
     'applications-filter.auto-sync.disabled': 'Disabled',
     'paginate.sort': 'Sort',
     'paginate.items-per-page': 'Items per page',
-    'paginate.items-per-page.all': 'all'
+    'paginate.items-per-page.all': 'all',
+    'settings-overview.repositories.title': 'Repositories',
+    'settings-overview.repositories.description': 'Configure connected repositories',
+    'settings-overview.repository-certificates-and-known-hosts.title': 'Repository certificates and known hosts',
+    'settings-overview.repository-certificates-and-known-hosts.description': 'Configure repository certificates and known hosts for connecting Git repositories',
+    'settings-overview.gnupg-keys.title': 'GnuPG keys',
+    'settings-overview.gnupg-keys.description': 'Configure GnuPG public keys for commit verification',
+    'settings-overview.clusters.title': 'Clusters',
+    'settings-overview.clusters.description': 'Configure connected Kubernetes clusters',
+    'settings-overview.projects.title': 'Projects',
+    'settings-overview.projects.description': 'Configure Argo CD projects',
+    'settings-overview.accounts.title': 'Accounts',
+    'settings-overview.accounts.description': 'Configure Accounts',
+    'settings-overview.appearance.title': 'Appearance',
+    'settings-overview.appearance.description': 'Configure themes in UI'
 };

@@ -1,45 +1,47 @@
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import {t} from 'i18next';
 
 import {Page} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
+import en from '../../../locales/en';
 
 require('./settings-overview.scss');
 
 const settings = [
     {
-        title: 'Repositories',
-        description: 'Configure connected repositories',
+        title: t('settings-overview.repositories.title', en['settings-overview.repositories.title']),
+        description: t('settings-overview.repositories.description', en['settings-overview.repositories.description']),
         path: './repos'
     },
     {
-        title: 'Repository certificates and known hosts',
-        description: 'Configure repository certificates and known hosts for connecting Git repositories',
+        title: t('settings-overview.repository-certificates-and-known-hosts.title', en['settings-overview.repository-certificates-and-known-hosts.title']),
+        description: t('settings-overview.repository-certificates-and-known-hosts.description', en['settings-overview.repository-certificates-and-known-hosts.description']),
         path: './certs'
     },
     {
-        title: 'GnuPG keys',
-        description: 'Configure GnuPG public keys for commit verification',
+        title: t('settings-overview.gnupg-keys.title', en['settings-overview.gnupg-keys.title']),
+        description: t('settings-overview.gnupg-keys.description', en['settings-overview.gnupg-keys.description']),
         path: './gpgkeys'
     },
     {
-        title: 'Clusters',
-        description: 'Configure connected Kubernetes clusters',
+        title: t('settings-overview.clusters.title', en['settings-overview.clusters.title']),
+        description: t('settings-overview.clusters.description', en['settings-overview.clusters.description']),
         path: './clusters'
     },
     {
-        title: 'Projects',
-        description: 'Configure Argo CD projects',
+        title: t('settings-overview.projects.title', en['settings-overview.projects.title']),
+        description: t('settings-overview.projects.description', en['settings-overview.projects.description']),
         path: './projects'
     },
     {
-        title: 'Accounts',
-        description: 'Configure Accounts',
+        title: t('settings-overview.accounts.title', en['settings-overview.accounts.title']),
+        description: t('settings-overview.accounts.description', en['settings-overview.accounts.description']),
         path: './accounts'
     },
     {
-        title: 'Appearance',
-        description: 'Configure themes in UI',
+        title: t('settings-overview.appearance.title', en['settings-overview.appearance.title']),
+        description: t('settings-overview.appearance.description', en['settings-overview.appearance.description']),
         path: './appearance'
     }
 ];

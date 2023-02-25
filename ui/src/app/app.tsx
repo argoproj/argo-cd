@@ -18,7 +18,6 @@ import {hashCode} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
-import './i18n';
 import en from './locales/en';
 
 services.viewPreferences.init();

@@ -40,5 +40,19 @@ export default {
     'applications-filter.auto-sync.disabled': '비활성화',
     'paginate.sort': '정렬',
     'paginate.items-per-page': '페이지 당 항목 수',
-    'paginate.items-per-page.all': '전체'
+    'paginate.items-per-page.all': '전체',
+    'settings-overview.repositories.title': '레포지토리',
+    'settings-overview.repositories.description': '레포지토리를 관리하고, 애플리케이션을 생성할 수 있습니다.',
+    'settings-overview.repository-certificates-and-known-hosts.title': '레포지토리 인증서 및 알려진 호스트',
+    'settings-overview.repository-certificates-and-known-hosts.description': 'Git 레포지토리에 연결하기 위한 인증서와 known hosts를 관리합니다.',
+    'settings-overview.gnupg-keys.title': 'GnuPG 키',
+    'settings-overview.gnupg-keys.description': '커밋 승인을 위한 GnuPG 퍼블릭 키를 관리합니다',
+    'settings-overview.clusters.title': '클러스터',
+    'settings-overview.clusters.description': '연결된 쿠버네티스 클러스터를 관리합니다.',
+    'settings-overview.projects.title': '프로젝트',
+    'settings-overview.projects.description': 'Argo CD 프로젝트를 관리합니다.',
+    'settings-overview.accounts.title': '계정',
+    'settings-overview.accounts.description': '계정을 관리합니다.',
+    'settings-overview.appearance.title': '테마',
+    'settings-overview.appearance.description': '테마를 관리합니다.'
 };
