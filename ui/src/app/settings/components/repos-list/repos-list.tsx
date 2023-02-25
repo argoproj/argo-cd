@@ -3,12 +3,14 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Form, FormValues, FormApi, Text, TextArea, FormErrors} from 'react-form';
 import {RouteComponentProps} from 'react-router';
+import {t} from 'i18next';
 
 import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, NumberField, Page, Repo, Spinner} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {RepoDetails} from '../repo-details/repo-details';
+import en from '../../../locales/en';
 
 require('./repos-list.scss');
 
@@ -134,7 +136,7 @@ export class ReposList extends React.Component<
     private ConnectRepoFormButton(method: string, onSelection: (method: string) => void) {
         return (
             <div className='white-box'>
-                <p>Choose your connection method:</p>
+                <p>{t('repos-list.connect.choose-your-connection-method', en['repos-list.connect.choose-your-connection-method'])}</p>
                 <DropDownMenu
                     anchor={() => (
                         <p>
@@ -168,30 +170,58 @@ export class ReposList extends React.Component<
             case ConnectionMethod.SSH:
                 const sshValues = params as NewSSHRepoParams;
                 return {
-                    url: !sshValues.url && 'Repository URL is required'
+                    url: !sshValues.url && t('repos-list.connect.ssh.repository-url-is-required', en['repos-list.connect.ssh.repository-url-is-required'])
                 };
             case ConnectionMethod.HTTPS:
                 const httpsValues = params as NewHTTPSRepoParams;
                 return {
-                    url: (!httpsValues.url && 'Repository URL is required') || (this.credsTemplate && !this.isHTTPSUrl(httpsValues.url) && 'Not a valid HTTPS URL'),
-                    name: httpsValues.type === 'helm' && !httpsValues.name && 'Name is required',
-                    username: !httpsValues.username && httpsValues.password && 'Username is required if password is given.',
-                    password: !httpsValues.password && httpsValues.username && 'Password is required if username is given.',
-                    tlsClientCertKey: !httpsValues.tlsClientCertKey && httpsValues.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.'
+                    url:
+                        (!httpsValues.url && t('repos-list.connect.https.repository-url-is-required', en['repos-list.connect.https.repository-url-is-required'])) ||
+                        (this.credsTemplate &&
+                            !this.isHTTPSUrl(httpsValues.url) &&
+                            t('repos-list.connect.https.not-a-valid-https-url', en['repos-list.connect.https.not-a-valid-https-url'])),
+                    name: httpsValues.type === 'helm' && !httpsValues.name && t('repos-list.connect.https.name-is-required', en['repos-list.connect.https.name-is-required']),
+                    username:
+                        !httpsValues.username &&
+                        httpsValues.password &&
+                        t('repos-list.connect.https.username-is-required-if-password-is-given', en['repos-list.connect.https.username-is-required-if-password-is-given']),
+                    password:
+                        !httpsValues.password &&
+                        httpsValues.username &&
+                        t('repos-list.connect.https.username-is-required-if-username-is-given', en['repos-list.connect.https.username-is-required-if-username-is-given']),
+                    tlsClientCertKey:
+                        !httpsValues.tlsClientCertKey &&
+                        httpsValues.tlsClientCertData &&
+                        t('repos-list.connect.https.tls-client-cert-key-is-required', en['repos-list.connect.https.tls-client-cert-key-is-required'])
                 };
             case ConnectionMethod.GITHUBAPP:
                 const githubAppValues = params as NewGitHubAppRepoParams;
                 return {
-                    url: (!githubAppValues.url && 'Repository URL is required') || (this.credsTemplate && !this.isHTTPSUrl(githubAppValues.url) && 'Not a valid HTTPS URL'),
-                    githubAppId: !githubAppValues.githubAppId && 'GitHub App ID is required',
-                    githubAppInstallationId: !githubAppValues.githubAppInstallationId && 'GitHub App installation ID is required',
-                    githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required'
+                    url:
+                        (!githubAppValues.url && t('repos-list.connect.github-app.repository-url-is-required', en['repos-list.connect.github-app.repository-url-is-required'])) ||
+                        (this.credsTemplate &&
+                            !this.isHTTPSUrl(githubAppValues.url) &&
+                            t('repos-list.connect.github-app.not-a-valid-https-url', en['repos-list.connect.github-app.not-a-valid-https-url'])),
+                    githubAppId:
+                        !githubAppValues.githubAppId && t('repos-list.connect.github-app.github-app-id-is-required', en['repos-list.connect.github-app.github-app-id-is-required']),
+                    githubAppInstallationId:
+                        !githubAppValues.githubAppInstallationId &&
+                        t('repos-list.connect.github-app.github-app-installation-id-is-required', en['repos-list.connect.github-app.github-app-installation-id-is-required']),
+                    githubAppPrivateKey:
+                        !githubAppValues.githubAppPrivateKey &&
+                        t('repos-list.connect.github-app.github-app-private-key-is-required', en['repos-list.connect.github-app.github-app-private-key-is-required'])
                 };
             case ConnectionMethod.GOOGLECLOUD:
                 const googleCloudValues = params as NewGoogleCloudSourceRepoParams;
                 return {
-                    url: (!googleCloudValues.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPSUrl(googleCloudValues.url) && 'Not a valid HTTPS URL'),
-                    gcpServiceAccountKey: !googleCloudValues.gcpServiceAccountKey && 'GCP service account key is required'
+                    url:
+                        (!googleCloudValues.url && t('repos-list.connect.google-cloud.repo-url-is-required', en['repos-list.connect.google-cloud.repo-url-is-required'])) ||
+                        (this.credsTemplate &&
+                            !this.isHTTPSUrl(googleCloudValues.url) &&
+                            t('repos-list.connect.google-cloud.not-a-valid-https-url', en['repos-list.connect.google-cloud.not-a-valid-https-url'])),
+                    gcpServiceAccountKey:
+                        !googleCloudValues.gcpServiceAccountKey &&
+                        t('repos-list.connect.google-cloud.gcp-service-account-key-is-required', en['repos-list.connect.google-cloud.gcp-service-account-key-is-required'])
                 };
         }
     }
@@ -208,7 +238,7 @@ export class ReposList extends React.Component<
                                 this.formApi.submitForm(null);
                             }}>
                             <Spinner show={this.state.connecting} style={{marginRight: '5px'}} />
-                            Connect
+                            {t('repos-list.sliding-panel.header.connect', en['repos-list.sliding-panel.header.connect'])}
                         </button>{' '}
                         <button
                             className='argo-button argo-button--base'
@@ -216,16 +246,16 @@ export class ReposList extends React.Component<
                                 this.credsTemplate = true;
                                 this.formApi.submitForm(null);
                             }}>
-                            Save as credentials template
+                            {t('repos-list.sliding-panel.header.save-as-credentials-template', en['repos-list.sliding-panel.header.save-as-credentials-template'])}
                         </button>{' '}
                         <button onClick={() => (this.showConnectRepo = false)} className='argo-button argo-button--base-o'>
-                            Cancel
+                            {t('repos-list.sliding-panel.header.cancel', en['repos-list.sliding-panel.header.cancel'])}
                         </button>
                     </>
                 )}
                 {this.state.displayEditPanel && (
                     <button onClick={() => this.setState({displayEditPanel: false})} className='argo-button argo-button--base-o'>
-                        Cancel
+                        {t('repos-list.sliding-panel.header.cancel', en['repos-list.sliding-panel.header.cancel'])}
                     </button>
                 )}
             </>
@@ -250,17 +280,20 @@ export class ReposList extends React.Component<
             <Page
                 title='Repositories'
                 toolbar={{
-                    breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repositories'}],
+                    breadcrumbs: [
+                        {title: t('repos-list.toolbar.breadcrumbs.0', en['repos-list.toolbar.breadcrumbs.0']), path: '/settings'},
+                        {title: t('repos-list.toolbar.breadcrumbs.1', en['repos-list.toolbar.breadcrumbs.1'])}
+                    ],
                     actionMenu: {
                         items: [
                             {
                                 iconClassName: 'fa fa-plus',
-                                title: 'Connect Repo',
+                                title: t('repos-list.toolbar.action-menu.connect-repo', en['repos-list.toolbar.action-menu.connect-repo']),
                                 action: () => (this.showConnectRepo = true)
                             },
                             {
                                 iconClassName: 'fa fa-redo',
-                                title: 'Refresh list',
+                                title: t('repos-list.toolbar.action-menu.refresh-list', en['repos-list.toolbar.action-menu.refresh-list']),
                                 action: () => {
                                     this.refreshRepoList();
                                 }
@@ -277,10 +310,10 @@ export class ReposList extends React.Component<
                                         <div className='argo-table-list__head'>
                                             <div className='row'>
                                                 <div className='columns small-1' />
-                                                <div className='columns small-1'>TYPE</div>
-                                                <div className='columns small-2'>NAME</div>
-                                                <div className='columns small-5'>REPOSITORY</div>
-                                                <div className='columns small-3'>CONNECTION STATUS</div>
+                                                <div className='columns small-1'>{t('repos-list.head.type', en['repos-list.head.type'])}</div>
+                                                <div className='columns small-2'>{t('repos-list.head.name', en['repos-list.head.name'])}</div>
+                                                <div className='columns small-5'>{t('repos-list.head.repository', en['repos-list.head.repository'])}</div>
+                                                <div className='columns small-3'>{t('repos-list.head.connection-state', en['repos-list.head.connection-state'])}</div>
                                             </div>
                                         </div>
                                         {repos.map(repo => (
@@ -334,8 +367,8 @@ export class ReposList extends React.Component<
                                     </div>
                                 )) || (
                                     <EmptyState icon='argo-icon-git'>
-                                        <h4>No repositories connected</h4>
-                                        <h5>Connect your repo to deploy apps.</h5>
+                                        <h4>{t('repos-list.empty.title', en['repos-list.empty.title'])}</h4>
+                                        <h5>{t('repos-list.empty.description', en['repos-list.empty.description'])}</h5>
                                     </EmptyState>
                                 )
                             }
@@ -348,8 +381,8 @@ export class ReposList extends React.Component<
                                     <div className='argo-table-list'>
                                         <div className='argo-table-list__head'>
                                             <div className='row'>
-                                                <div className='columns small-9'>CREDENTIALS TEMPLATE URL</div>
-                                                <div className='columns small-3'>CREDS</div>
+                                                <div className='columns small-9'>{t('repos-list.credentials-template-url', en['repos-list.credentials-template-url'])}</div>
+                                                <div className='columns small-3'>{t('repos-list.creds', en['repos-list.creds'])}</div>
                                             </div>
                                         </div>
                                         {creds.map(repo => (
@@ -366,7 +399,7 @@ export class ReposList extends React.Component<
                                                                     <i className='fa fa-ellipsis-v' />
                                                                 </button>
                                                             )}
-                                                            items={[{title: 'Remove', action: () => this.removeRepoCreds(repo.url)}]}
+                                                            items={[{title: t('repos-list.remove', en['repos-list.remove']), action: () => this.removeRepoCreds(repo.url)}]}
                                                         />
                                                     </div>
                                                 </div>
@@ -406,106 +439,207 @@ export class ReposList extends React.Component<
                                         <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
                                             {this.state.method === ConnectionMethod.SSH && (
                                                 <div className='white-box'>
-                                                    <p>CONNECT REPO USING SSH</p>
+                                                    <p>{t('repos-list.create.ssh.title', en['repos-list.create.ssh.title'])}</p>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.ssh.name-mandatory-for-helm', en['repos-list.create.ssh.name-mandatory-for-helm'])}
+                                                            field='name'
+                                                            component={Text}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
                                                         <FormField
                                                             formApi={formApi}
-                                                            label='Project'
+                                                            label={t('repos-list.create.fields.project', en['repos-list.create.fields.project'])}
                                                             field='project'
                                                             component={AutocompleteField}
                                                             componentProps={{items: projects}}
                                                         />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.fields.repository-url', en['repos-list.create.fields.repository-url'])}
+                                                            field='url'
+                                                            component={Text}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='SSH private key data' field='sshPrivateKey' component={TextArea} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.ssh.ssh-private-key-data', en['repos-list.create.ssh.ssh-private-key-data'])}
+                                                            field='sshPrivateKey'
+                                                            component={TextArea}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
-                                                        <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.fields.skip-server-verification', en['repos-list.create.fields.skip-server-verification'])}
+                                                            field='insecure'
+                                                            component={CheckboxField}
+                                                        />
+                                                        <HelpIcon
+                                                            title={t(
+                                                                'repos-list.create.fields.ignore-create-credential-template',
+                                                                en['repos-list.create.fields.ignore-create-credential-template']
+                                                            )}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
-                                                        <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.fields.enable-lfs', en['repos-list.create.fields.enable-lfs'])}
+                                                            field='enableLfs'
+                                                            component={CheckboxField}
+                                                        />
+                                                        <HelpIcon
+                                                            title={t(
+                                                                'repos-list.create.fields.ignore-create-credential-template',
+                                                                en['repos-list.create.fields.ignore-create-credential-template']
+                                                            )}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.fields.proxy', en['repos-list.create.fields.proxy'])}
+                                                            field='proxy'
+                                                            component={Text}
+                                                        />
                                                     </div>
                                                 </div>
                                             )}
                                             {this.state.method === ConnectionMethod.HTTPS && (
                                                 <div className='white-box'>
-                                                    <p>CONNECT REPO USING HTTPS</p>
+                                                    <p>{t('repos-list.create.https.title', en['repos-list.create.https.title'])}</p>
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}} />
                                                     </div>
                                                     {formApi.getFormState().values.type === 'helm' && (
                                                         <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='Name' field='name' component={Text} />
+                                                            <FormField
+                                                                formApi={formApi}
+                                                                label={t('repos-list.create.https.name', en['repos-list.create.https.name'])}
+                                                                field='name'
+                                                                component={Text}
+                                                            />
                                                         </div>
                                                     )}
                                                     <div className='argo-form-row'>
                                                         <FormField
                                                             formApi={formApi}
-                                                            label='Project'
+                                                            label={t('repos-list.create.fields.project', en['repos-list.create.fields.project'])}
                                                             field='project'
                                                             component={AutocompleteField}
                                                             componentProps={{items: projects}}
                                                         />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
-                                                    </div>
-                                                    <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Username (optional)' field='username' component={Text} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.fields.repository-url', en['repos-list.create.fields.repository-url'])}
+                                                            field='url'
+                                                            component={Text}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
                                                         <FormField
                                                             formApi={formApi}
-                                                            label='Password (optional)'
+                                                            label={t('repos-list.create.https.username', en['repos-list.create.https.username'])}
+                                                            field='username'
+                                                            component={Text}
+                                                        />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.https.password', en['repos-list.create.https.password'])}
                                                             field='password'
                                                             component={Text}
                                                             componentProps={{type: 'password'}}
                                                         />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='TLS client certificate (optional)' field='tlsClientCertData' component={TextArea} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.fields.tls-client-certificate', en['repos-list.create.fields.tls-client-certificate'])}
+                                                            field='tlsClientCertData'
+                                                            component={TextArea}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='TLS client certificate key (optional)' field='tlsClientCertKey' component={TextArea} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t(
+                                                                'repos-list.create.fields.tls-client-certificate-key',
+                                                                en['repos-list.create.fields.tls-client-certificate-key']
+                                                            )}
+                                                            field='tlsClientCertKey'
+                                                            component={TextArea}
+                                                        />
                                                     </div>
                                                     {formApi.getFormState().values.type === 'git' && (
                                                         <React.Fragment>
                                                             <div className='argo-form-row'>
-                                                                <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
-                                                                <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                                                <FormField
+                                                                    formApi={formApi}
+                                                                    label={t(
+                                                                        'repos-list.create.fields.skip-server-verification',
+                                                                        en['repos-list.create.fields.skip-server-verification']
+                                                                    )}
+                                                                    field='insecure'
+                                                                    component={CheckboxField}
+                                                                />
+                                                                <HelpIcon
+                                                                    title={t(
+                                                                        'repos-list.create.fields.ignore-create-credential-template',
+                                                                        en['repos-list.create.fields.ignore-create-credential-template']
+                                                                    )}
+                                                                />
                                                             </div>
                                                             <div className='argo-form-row'>
-                                                                <FormField formApi={formApi} label='Force HTTP basic auth' field='forceHttpBasicAuth' component={CheckboxField} />
+                                                                <FormField
+                                                                    formApi={formApi}
+                                                                    label={t('repos-list.create.https.force-http-basic-auth', en['repos-list.create.https.force-http-basic-auth'])}
+                                                                    field='forceHttpBasicAuth'
+                                                                    component={CheckboxField}
+                                                                />
                                                             </div>
                                                             <div className='argo-form-row'>
-                                                                <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
-                                                                <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                                                <FormField
+                                                                    formApi={formApi}
+                                                                    label={t('repos-list.create.fields.enable-lfs', en['repos-list.create.fields.enable-lfs'])}
+                                                                    field='enableLfs'
+                                                                    component={CheckboxField}
+                                                                />
+                                                                <HelpIcon
+                                                                    title={t(
+                                                                        'repos-list.create.fields.ignore-create-credential-template',
+                                                                        en['repos-list.create.fields.ignore-create-credential-template']
+                                                                    )}
+                                                                />
                                                             </div>
                                                         </React.Fragment>
                                                     )}
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.fields.proxy', en['repos-list.create.fields.proxy'])}
+                                                            field='proxy'
+                                                            component={Text}
+                                                        />
                                                     </div>
                                                 </div>
                                             )}
                                             {this.state.method === ConnectionMethod.GITHUBAPP && (
                                                 <div className='white-box'>
-                                                    <p>CONNECT REPO USING GITHUB APP</p>
+                                                    <p>{t('repos-list.create.github-app.title', en['repos-list.create.github-app.title'])}</p>
                                                     <div className='argo-form-row'>
                                                         <FormField
                                                             formApi={formApi}
-                                                            label='Type'
+                                                            label={t('repos-list.create.github-app.type', en['repos-list.create.github-app.type'])}
                                                             field='ghType'
                                                             component={FormSelect}
                                                             componentProps={{options: ['GitHub', 'GitHub Enterprise']}}
@@ -516,7 +650,10 @@ export class ReposList extends React.Component<
                                                             <div className='argo-form-row'>
                                                                 <FormField
                                                                     formApi={formApi}
-                                                                    label='GitHub Enterprise Base URL (e.g. https://ghe.example.com/api/v3)'
+                                                                    label={t(
+                                                                        'repos-list.create.github-app.github-enterprise-base-url',
+                                                                        en['repos-list.create.github-app.github-enterprise-base-url']
+                                                                    )}
                                                                     field='githubAppEnterpriseBaseURL'
                                                                     component={Text}
                                                                 />
@@ -526,38 +663,87 @@ export class ReposList extends React.Component<
                                                     <div className='argo-form-row'>
                                                         <FormField
                                                             formApi={formApi}
-                                                            label='Project'
+                                                            label={t('repos-list.create.fields.project', en['repos-list.create.fields.project'])}
                                                             field='project'
                                                             component={AutocompleteField}
                                                             componentProps={{items: projects}}
                                                         />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.fields.repository-url', en['repos-list.create.fields.repository-url'])}
+                                                            field='url'
+                                                            component={Text}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='GitHub App ID' field='githubAppId' component={NumberField} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.github-app.github-app-id', en['repos-list.create.github-app.github-app-id'])}
+                                                            field='githubAppId'
+                                                            component={NumberField}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='GitHub App Installation ID' field='githubAppInstallationId' component={NumberField} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t(
+                                                                'repos-list.create.github-app.github-app-installation-id',
+                                                                en['repos-list.create.github-app.github-app-installation-id']
+                                                            )}
+                                                            field='githubAppInstallationId'
+                                                            component={NumberField}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='GitHub App private key' field='githubAppPrivateKey' component={TextArea} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t(
+                                                                'repos-list.create.github-app.github-app-installation-id',
+                                                                en['repos-list.create.github-app.github-app-installation-id']
+                                                            )}
+                                                            field='githubAppPrivateKey'
+                                                            component={TextArea}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
-                                                        <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.fields.skip-server-verification', en['repos-list.create.fields.skip-server-verification'])}
+                                                            field='insecure'
+                                                            component={CheckboxField}
+                                                        />
+                                                        <HelpIcon
+                                                            title={t(
+                                                                'repos-list.create.fields.ignore-create-credential-template',
+                                                                en['repos-list.create.fields.ignore-create-credential-template']
+                                                            )}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
-                                                        <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.fields.enable-lfs', en['repos-list.create.fields.enable-lfs'])}
+                                                            field='enableLfs'
+                                                            component={CheckboxField}
+                                                        />
+                                                        <HelpIcon
+                                                            title={t(
+                                                                'repos-list.create.fields.ignore-create-credential-template',
+                                                                en['repos-list.create.fields.ignore-create-credential-template']
+                                                            )}
+                                                        />
                                                     </div>
                                                     {formApi.getFormState().values.ghType === 'GitHub Enterprise' && (
                                                         <React.Fragment>
                                                             <div className='argo-form-row'>
                                                                 <FormField
                                                                     formApi={formApi}
-                                                                    label='TLS client certificate (optional)'
+                                                                    label={t(
+                                                                        'repos-list.create.fields.tls-client-certificate',
+                                                                        en['repos-list.create.fields.tls-client-certificate']
+                                                                    )}
                                                                     field='tlsClientCertData'
                                                                     component={TextArea}
                                                                 />
@@ -565,7 +751,10 @@ export class ReposList extends React.Component<
                                                             <div className='argo-form-row'>
                                                                 <FormField
                                                                     formApi={formApi}
-                                                                    label='TLS client certificate key (optional)'
+                                                                    label={t(
+                                                                        'repos-list.create.fields.tls-client-certificate-key',
+                                                                        en['repos-list.create.fields.tls-client-certificate-key']
+                                                                    )}
                                                                     field='tlsClientCertKey'
                                                                     component={TextArea}
                                                                 />
@@ -573,30 +762,53 @@ export class ReposList extends React.Component<
                                                         </React.Fragment>
                                                     )}
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.fields.proxy', en['repos-list.create.fields.proxy'])}
+                                                            field='proxy'
+                                                            component={Text}
+                                                        />
                                                     </div>
                                                 </div>
                                             )}
                                             {this.state.method === ConnectionMethod.GOOGLECLOUD && (
                                                 <div className='white-box'>
-                                                    <p>CONNECT REPO USING GOOGLE CLOUD</p>
+                                                    <p>{t('repos-list.create.google-cloud.title', en['repos-list.create.google-cloud.title'])}</p>
                                                     <div className='argo-form-row'>
                                                         <FormField
                                                             formApi={formApi}
-                                                            label='Project'
+                                                            label={t('repos-list.create.fields.project', en['repos-list.create.fields.project'])}
                                                             field='project'
                                                             component={AutocompleteField}
                                                             componentProps={{items: projects}}
                                                         />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.fields.repository-url', en['repos-list.create.fields.repository-url'])}
+                                                            field='url'
+                                                            component={Text}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='GCP service account key' field='gcpServiceAccountKey' component={TextArea} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t(
+                                                                'repos-list.create.google-cloud.gcp-service-account-key',
+                                                                en['repos-list.create.google-cloud.gcp-service-account-key']
+                                                            )}
+                                                            field='gcpServiceAccountKey'
+                                                            component={TextArea}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label={t('repos-list.create.fields.proxy', en['repos-list.create.fields.proxy'])}
+                                                            field='proxy'
+                                                            component={Text}
+                                                        />
                                                     </div>
                                                 </div>
                                             )}
@@ -637,12 +849,14 @@ export class ReposList extends React.Component<
             await services.repocreds.list();
             this.repoLoader.reload();
             this.appContext.apis.notifications.show({
-                content: updatedRepo ? `Successfully updated ${updatedRepo} repository` : 'Successfully reloaded list of repositories',
+                content: updatedRepo
+                    ? t('repos-list.refresh.updated', en['repos-list.refresh.updated'], {updatedRepo})
+                    : t('repos-list.refresh.reloaded', en['repos-list.refresh.reloaded']),
                 type: NotificationType.Success
             });
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Could not refresh list of repositories' e={e} />,
+                content: <ErrorNotification title={t('repos-list.refresh.failed', en['repos-list.refresh.failed'])} e={e} />,
                 type: NotificationType.Error
             });
         }
@@ -666,7 +880,7 @@ export class ReposList extends React.Component<
                 this.showConnectRepo = false;
             } catch (e) {
                 this.appContext.apis.notifications.show({
-                    content: <ErrorNotification title='Unable to connect SSH repository' e={e} />,
+                    content: <ErrorNotification title={t('repos-list.connect.ssh.failed', en['repos-list.connect.ssh.failed'])} e={e} />,
                     type: NotificationType.Error
                 });
             } finally {
@@ -695,7 +909,7 @@ export class ReposList extends React.Component<
                 this.showConnectRepo = false;
             } catch (e) {
                 this.appContext.apis.notifications.show({
-                    content: <ErrorNotification title='Unable to connect HTTPS repository' e={e} />,
+                    content: <ErrorNotification title={t('repos-list.connect.https.failed', en['repos-list.connect.https.failed'])} e={e} />,
                     type: NotificationType.Error
                 });
             } finally {
@@ -713,7 +927,7 @@ export class ReposList extends React.Component<
             this.refreshRepoList(params.url);
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to update HTTPS repository' e={e} />,
+                content: <ErrorNotification title={t('repos-list.update.https.failed', en['repos-list.update.https.failed'])} e={e} />,
                 type: NotificationType.Error
             });
         } finally {
@@ -742,7 +956,7 @@ export class ReposList extends React.Component<
                 this.showConnectRepo = false;
             } catch (e) {
                 this.appContext.apis.notifications.show({
-                    content: <ErrorNotification title='Unable to connect GitHub App repository' e={e} />,
+                    content: <ErrorNotification title={t('repos-list.connect.github-app.failed', en['repos-list.connect.github-app.failed'])} e={e} />,
                     type: NotificationType.Error
                 });
             } finally {
@@ -766,7 +980,7 @@ export class ReposList extends React.Component<
                 this.showConnectRepo = false;
             } catch (e) {
                 this.appContext.apis.notifications.show({
-                    content: <ErrorNotification title='Unable to connect Google Cloud Source repository' e={e} />,
+                    content: <ErrorNotification title={t('repos-list.connect.google-cloud.failed', en['repos-list.connect.google-cloud.failed'])} e={e} />,
                     type: NotificationType.Error
                 });
             } finally {
@@ -782,7 +996,7 @@ export class ReposList extends React.Component<
             this.showConnectRepo = false;
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to create HTTPS credentials' e={e} />,
+                content: <ErrorNotification title={t('repos-list.create.https.credentials.failed', en['repos-list.create.https.credentials.failed'])} e={e} />,
                 type: NotificationType.Error
             });
         }
@@ -795,7 +1009,7 @@ export class ReposList extends React.Component<
             this.showConnectRepo = false;
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to create SSH credentials' e={e} />,
+                content: <ErrorNotification title={t('repos-list.create.ssh.credentials.failed', en['repos-list.create.ssh.credentials.failed'])} e={e} />,
                 type: NotificationType.Error
             });
         }
@@ -808,7 +1022,7 @@ export class ReposList extends React.Component<
             this.showConnectRepo = false;
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to create GitHub App credentials' e={e} />,
+                content: <ErrorNotification title={t('repos-list.create.github-app.credentials.failed', en['repos-list.create.github-app.credentials.failed'])} e={e} />,
                 type: NotificationType.Error
             });
         }
@@ -821,7 +1035,7 @@ export class ReposList extends React.Component<
             this.showConnectRepo = false;
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to create Google Cloud Source credentials' e={e} />,
+                content: <ErrorNotification title={t('repos-list.create.google-cloud.credentials.failed', en['repos-list.create.google-cloud.credentials.failed'])} e={e} />,
                 type: NotificationType.Error
             });
         }
@@ -829,7 +1043,10 @@ export class ReposList extends React.Component<
 
     // Remove a repository from the configuration
     private async disconnectRepo(repo: string) {
-        const confirmed = await this.appContext.apis.popup.confirm('Disconnect repository', `Are you sure you want to disconnect '${repo}'?`);
+        const confirmed = await this.appContext.apis.popup.confirm(
+            t('repos-list.disconnect.repo.title', en['repos-list.disconnect.repo.title']),
+            t('repos-list.disconnect.repo.description', en['repos-list.disconnect.repo.description'], {repo})
+        );
         if (confirmed) {
             await services.repos.delete(repo);
             this.repoLoader.reload();
@@ -838,7 +1055,10 @@ export class ReposList extends React.Component<
 
     // Remove repository credentials from the configuration
     private async removeRepoCreds(url: string) {
-        const confirmed = await this.appContext.apis.popup.confirm('Remove repository credentials', `Are you sure you want to remove credentials for URL prefix '${url}'?`);
+        const confirmed = await this.appContext.apis.popup.confirm(
+            t('repos-list.remove-repo-credentials.title', en['repos-list.remove-repo-credentials.title']),
+            t('repos-list.remove-repo-credentials.description', en['repos-list.remove-repo-credentials.description'], {url})
+        );
         if (confirmed) {
             await services.repocreds.delete(url);
             this.credsLoader.reload();
