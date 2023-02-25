@@ -194,7 +194,7 @@ export const ApplicationNodeInfo = (props: {
                                     .map(t => `"${t}"`)
                                     .join(', ')
                                     .trim()}{' '}
-                                do{selectPostfix(readinessGatesState.nonExistConditions, '', 'es')} not exist.
+                                do{selectPostfix(readinessGatesState.nonExistConditions, 'es', '')} not exist.
                             </li>
                         )}
                     </ul>
