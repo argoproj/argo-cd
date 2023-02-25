@@ -46,25 +46,25 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     {
-        title: t('nav.applications.title', en['nav.applications.title']),
-        tooltip: t('nav.applications.tooltip', en['nav.applications.tooltip']),
+        title: t('app.nav.applications.title', en['app.nav.applications.title']),
+        tooltip: t('app.nav.applications.tooltip', en['app.nav.applications.tooltip']),
         path: '/applications',
         iconClassName: 'argo-icon argo-icon-application'
     },
     {
-        title: t('nav.settings.title', en['nav.settings.title']),
-        tooltip: t('nav.settings.tooltip', en['nav.settings.tooltip']),
+        title: t('app.nav.settings.title', en['app.nav.settings.title']),
+        tooltip: t('app.nav.settings.tooltip', en['app.nav.settings.tooltip']),
         path: '/settings',
         iconClassName: 'argo-icon argo-icon-settings'
     },
     {
-        title: t('nav.user-info.title', en['nav.user-info.title']),
+        title: t('app.nav.user-info.title', en['app.nav.user-info.title']),
         path: '/user-info',
         iconClassName: 'fa fa-user-circle'
     },
     {
-        title: t('nav.documentation.title', en['nav.documentation.title']),
-        tooltip: t('nav.documentation.tooltip', en['nav.documentation.tooltip']),
+        title: t('app.nav.documentation.title', en['app.nav.documentation.title']),
+        tooltip: t('app.nav.documentation.tooltip', en['app.nav.documentation.tooltip']),
         path: '/help',
         iconClassName: 'argo-icon argo-icon-docs'
     }
