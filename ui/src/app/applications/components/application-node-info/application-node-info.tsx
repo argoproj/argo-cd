@@ -166,7 +166,7 @@ export const ApplicationNodeInfo = (props: {
         });
     }
 
-    const getPodReadinessGatesState = React.useCallback(_getPodReadinessGatesState, [props.live])
+    const getPodReadinessGatesState = React.useCallback(_getPodReadinessGatesState, [props.live]);
 
     let ReadinessGatesFailedWarning: React.ReactNode = null;
     if (props.live && props.node.kind === 'Pod') {
