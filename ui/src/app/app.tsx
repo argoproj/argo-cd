@@ -19,6 +19,7 @@ import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
 import './i18n';
+import en from './locales/en';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -45,25 +46,25 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     {
-        title: t('nav.applications.title', 'Applications'),
-        tooltip: t('nav.applications.tooltip', 'Manage your applications, and diagnose health problems.'),
+        title: t('nav.applications.title', en['nav.applications.title']),
+        tooltip: t('nav.applications.tooltip', en['nav.applications.tooltip']),
         path: '/applications',
         iconClassName: 'argo-icon argo-icon-application'
     },
     {
-        title: t('nav.settings.title', 'Settings'),
-        tooltip: t('nav.settings.tooltip', 'Manage your repositories, projects, settings'),
+        title: t('nav.settings.title', en['nav.settings.title']),
+        tooltip: t('nav.settings.tooltip', en['nav.settings.tooltip']),
         path: '/settings',
         iconClassName: 'argo-icon argo-icon-settings'
     },
     {
-        title: t('nav.user-info.title', 'User Info'),
+        title: t('nav.user-info.title', en['nav.user-info.title']),
         path: '/user-info',
         iconClassName: 'fa fa-user-circle'
     },
     {
-        title: t('nav.documentation.title', 'Documentation'),
-        tooltip: t('nav.documentation.tooltip', 'Read the documentation, and get help and assistance.'),
+        title: t('nav.documentation.title', en['nav.documentation.title']),
+        tooltip: t('nav.documentation.tooltip', en['nav.documentation.tooltip']),
         path: '/help',
         iconClassName: 'argo-icon argo-icon-docs'
     }

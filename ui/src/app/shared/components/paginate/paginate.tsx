@@ -4,6 +4,7 @@ import * as React from 'react';
 import ReactPaginate from 'react-paginate';
 import {t} from 'i18next';
 import {services} from '../../services';
+import en from '../../../locales/en';
 
 require('./paginate.scss');
 
@@ -56,7 +57,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                             anchor={() => (
                                                 <>
                                                     <a>
-                                                        {t('paginate.sort', 'Sort')}: {sortOption.toLowerCase()} <i className='fa fa-caret-down' />
+                                                        {t('paginate.sort', en['paginate.sort'])}: {sortOption.toLowerCase()} <i className='fa fa-caret-down' />
                                                     </a>
                                                     &nbsp;
                                                 </>
@@ -77,12 +78,13 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                     <DropDownMenu
                                         anchor={() => (
                                             <a>
-                                                {t('paginate.items-per-page', 'Items per page')}: {pageSize === -1 ? t('paginate.items-per-page.all', 'all') : pageSize}{' '}
+                                                {t('paginate.items-per-page', en['paginate.items-per-page'])}:{' '}
+                                                {pageSize === -1 ? t('paginate.items-per-page.all', en['paginate.items-per-page.all']) : pageSize}{' '}
                                                 <i className='fa fa-caret-down' />
                                             </a>
                                         )}
                                         items={[5, 10, 15, 20, -1].map(count => ({
-                                            title: count === -1 ? t('paginate.items-per-page.all', 'all') : count.toString(),
+                                            title: count === -1 ? t('paginate.items-per-page.all', en['paginate.items-per-page.all']) : count.toString(),
                                             action: () => {
                                                 pref.pageSizes[preferencesKey] = count;
                                                 services.viewPreferences.updatePreferences(pref);

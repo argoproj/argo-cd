@@ -25,6 +25,7 @@ import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './applications-list.scss';
 import './flex-top-bar.scss';
+import en from '../../../locales/en';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -249,7 +250,7 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
                         }}
                         style={{fontSize: '14px'}}
                         className='argo-field'
-                        placeholder={t('applications-list.toolbar.search-input.placeholder', 'Search applications...')}
+                        placeholder={t('applications-list.toolbar.search-input.placeholder', en['applications-list.toolbar.search-input.placeholder'])}
                     />
                     <div className='keyboard-hint'>/</div>
                     {content && (
@@ -355,11 +356,11 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     function getPageTitle(view: string) {
         switch (view) {
             case List:
-                return t('applications-list.toolbar.list.title', 'Applications List');
+                return t('applications-list.toolbar.list.title', en['applications-list.toolbar.list.title']);
             case Tiles:
-                return t('applications-list.toolbar.tiles.title', 'Applications Tiles');
+                return t('applications-list.toolbar.tiles.title', en['applications-list.toolbar.tiles.title']);
             case Summary:
-                return t('applications-list.toolbar.summary-title', 'Applications Summary');
+                return t('applications-list.toolbar.summary-title', en['applications-list.toolbar.summary-title']);
         }
         return '';
     }
@@ -377,7 +378,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     key={pref.view}
                                     title={getPageTitle(pref.view)}
                                     useTitleOnly={true}
-                                    toolbar={{breadcrumbs: [{title: t('applications-list.toolbar.title', 'Applications'), path: '/applications'}]}}
+                                    toolbar={{breadcrumbs: [{title: t('applications-list.toolbar.title', en['applications-list.toolbar.title']), path: '/applications'}]}}
                                     hideAuth={true}>
                                     <DataLoader
                                         input={pref.projectsFilter?.join(',')}
@@ -398,7 +399,11 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                             tools: (
                                                                 <React.Fragment key='app-list-tools'>
                                                                     <Query>{q => <SearchBar content={q.get('search')} apps={applications} ctx={ctx} />}</Query>
-                                                                    <Tooltip content={t('applications-list.toolbar.toggle-health-status-bar.tooltip', 'Toggle Health Status Bar')}>
+                                                                    <Tooltip
+                                                                        content={t(
+                                                                            'applications-list.toolbar.toggle-health-status-bar.tooltip',
+                                                                            en['applications-list.toolbar.toggle-health-status-bar.tooltip']
+                                                                        )}>
                                                                         <button
                                                                             className={`applications-list__accordion argo-button argo-button--base${
                                                                                 healthBarPrefs.showHealthStatusBar ? '-o' : ''
@@ -422,7 +427,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                     <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
                                                                         <i
                                                                             className={classNames('fa fa-th', {selected: pref.view === Tiles}, 'menu_icon')}
-                                                                            title={t('applications-list.toolbar.tiles.tooltip', 'Tiles')}
+                                                                            title={t('applications-list.toolbar.tiles.tooltip', en['applications-list.toolbar.tiles.tooltip'])}
                                                                             onClick={() => {
                                                                                 ctx.navigation.goto('.', {view: Tiles});
                                                                                 services.viewPreferences.updatePreferences({appList: {...pref, view: Tiles}});
@@ -430,7 +435,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         />
                                                                         <i
                                                                             className={classNames('fa fa-th-list', {selected: pref.view === List}, 'menu_icon')}
-                                                                            title={t('applications-list.toolbar.list.tooltip', 'List')}
+                                                                            title={t('applications-list.toolbar.list.tooltip', en['applications-list.toolbar.list.tooltip'])}
                                                                             onClick={() => {
                                                                                 ctx.navigation.goto('.', {view: List});
                                                                                 services.viewPreferences.updatePreferences({appList: {...pref, view: List}});
@@ -438,7 +443,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         />
                                                                         <i
                                                                             className={classNames('fa fa-chart-pie', {selected: pref.view === Summary}, 'menu_icon')}
-                                                                            title={t('applications-list.toolbar.summary.tooltip', 'Summary')}
+                                                                            title={t('applications-list.toolbar.summary.tooltip', en['applications-list.toolbar.summary.tooltip'])}
                                                                             onClick={() => {
                                                                                 ctx.navigation.goto('.', {view: Summary});
                                                                                 services.viewPreferences.updatePreferences({appList: {...pref, view: Summary}});
@@ -450,18 +455,18 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                             actionMenu: {
                                                                 items: [
                                                                     {
-                                                                        title: t('applications-list.toolbar.new-app', 'New App'),
+                                                                        title: t('applications-list.toolbar.new-app', en['applications-list.toolbar.new-app']),
                                                                         iconClassName: 'fa fa-plus',
                                                                         qeId: 'applications-list-button-new-app',
                                                                         action: () => ctx.navigation.goto('.', {new: '{}'}, {replace: true})
                                                                     },
                                                                     {
-                                                                        title: t('applications-list.toolbar.sync-apps', 'Sync Apps'),
+                                                                        title: t('applications-list.toolbar.sync-apps', en['applications-list.toolbar.sync-apps']),
                                                                         iconClassName: 'fa fa-sync',
                                                                         action: () => ctx.navigation.goto('.', {syncApps: true}, {replace: true})
                                                                     },
                                                                     {
-                                                                        title: t('applications-list.toolbar.refresh', 'Refresh Apps'),
+                                                                        title: t('applications-list.toolbar.refresh', en['applications-list.toolbar.refresh']),
                                                                         iconClassName: 'fa fa-redo',
                                                                         action: () => ctx.navigation.goto('.', {refreshApps: true}, {replace: true})
                                                                     }
@@ -472,18 +477,13 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     <div className='applications-list'>
                                                         {applications.length === 0 && pref.projectsFilter?.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                             <EmptyState icon='argo-icon-application'>
-                                                                <h4>{t('applications-list.no-applications.title', 'No applications available to you just yet')}</h4>
-                                                                <h5>
-                                                                    {t(
-                                                                        'applications.no-applications.description',
-                                                                        'Create new application to start managing resources in your cluster'
-                                                                    )}
-                                                                </h5>
+                                                                <h4>{t('applications-list.no-applications.title', en['applications-list.no-applications.title'])}</h4>
+                                                                <h5>{t('applications-list.no-applications.description', en['applications-list.no-applications.description'])}</h5>
                                                                 <button
                                                                     qe-id='applications-list-button-create-application'
                                                                     className='argo-button argo-button--base'
                                                                     onClick={() => ctx.navigation.goto('.', {new: JSON.stringify({})}, {replace: true})}>
-                                                                    {t('applications-list.create-application.button', 'Create application')}
+                                                                    {t('applications-list.create-application.button', en['applications-list.create-application.button'])}
                                                                 </button>
                                                             </EmptyState>
                                                         ) : (
@@ -510,30 +510,47 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         page={pref.page}
                                                                         emptyState={() => (
                                                                             <EmptyState icon='fa fa-search'>
-                                                                                <h4>{t('applications-list.no-matching-applications.title', 'No matching applications found')}</h4>
+                                                                                <h4>
+                                                                                    {t(
+                                                                                        'applications-list.no-matching-applications.title',
+                                                                                        en['applications-list.no-matching-applications.title']
+                                                                                    )}
+                                                                                </h4>
                                                                                 <h5>
-                                                                                    {t('applications-list.no-matching-applications.description', 'Change filter criteria or ')}
+                                                                                    {t(
+                                                                                        'applications-list.no-matching-applications.description',
+                                                                                        en['applications-list.no-matching-applications.description']
+                                                                                    )}
                                                                                     <a
                                                                                         onClick={() => {
                                                                                             AppsListPreferences.clearFilters(pref);
                                                                                             onFilterPrefChanged(ctx, pref);
                                                                                         }}>
-                                                                                        {t('applications-list.no-matching-applications.description.clear-filter', 'clear filters')}
+                                                                                        {t(
+                                                                                            'applications-list.no-matching-applications.description.clear-filter',
+                                                                                            en['applications-list.no-matching-applications.description.clear-filter']
+                                                                                        )}
                                                                                     </a>
                                                                                 </h5>
                                                                             </EmptyState>
                                                                         )}
                                                                         sortOptions={[
                                                                             {
-                                                                                title: t('applications-list.sort-options.name', 'Name'),
+                                                                                title: t('applications-list.sort-options.name', en['applications-list.sort-options.name']),
                                                                                 compare: (a, b) => a.metadata.name.localeCompare(b.metadata.name)
                                                                             },
                                                                             {
-                                                                                title: t('applications-list.sort-options.created-at', 'Created At'),
+                                                                                title: t(
+                                                                                    'applications-list.sort-options.created-at',
+                                                                                    en['applications-list.sort-options.created-at']
+                                                                                ),
                                                                                 compare: (a, b) => a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp)
                                                                             },
                                                                             {
-                                                                                title: t('applications-list.sort-options.synchronized', 'Synchronized'),
+                                                                                title: t(
+                                                                                    'applications-list.sort-options.synchronized',
+                                                                                    en['applications-list.sort-options.synchronized']
+                                                                                ),
                                                                                 compare: (a, b) =>
                                                                                     a.status.operationState?.finishedAt?.localeCompare(b.status.operationState?.finishedAt)
                                                                             }
@@ -640,7 +657,10 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         ctx.notifications.show({
                                                                             content: (
                                                                                 <ErrorNotification
-                                                                                    title={t('applications-list.unable-to-create-application', 'Unable to create application')}
+                                                                                    title={t(
+                                                                                        'applications-list.unable-to-create-application',
+                                                                                        en['applications-list.unable-to-create-application']
+                                                                                    )}
                                                                                     e={e}
                                                                                 />
                                                                             ),
