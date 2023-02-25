@@ -945,6 +945,53 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     return {reason, message};
 }
 
+export const getPodReadinessGatesState = (pod: appModels.State): {nonExistConditions: string[]; failedConditions: string[]} => {
+    if (!pod.spec?.readinessGates?.length) {
+        return {
+            nonExistConditions: [],
+            failedConditions: []
+        };
+    }
+
+    const existentConditions = new Map<string, boolean>();
+    const podConditions = new Map<string, boolean>();
+
+    const podStatusConditions = pod.status?.conditions || [];
+
+    for (const condition of podStatusConditions) {
+        existentConditions.set(condition.type, true);
+        // priority order of conditions
+        // eg. if there are multiple conditions set with same name then the one which comes first is evaluated
+        if (podConditions.has(condition.type)) {
+            continue;
+        }
+
+        if (condition.status === 'False') {
+            podConditions.set(condition.type, false);
+        } else if (condition.status === 'True') {
+            podConditions.set(condition.type, true);
+        }
+    }
+
+    const nonExistConditions: string[] = [];
+    const failedConditions: string[] = [];
+
+    const readinessGates: appModels.ReadinessGate[] = pod.spec?.readinessGates || [];
+
+    for (const readinessGate of readinessGates) {
+        if (!existentConditions.has(readinessGate.conditionType)) {
+            nonExistConditions.push(readinessGate.conditionType);
+        } else if (podConditions.get(readinessGate.conditionType) === false) {
+            failedConditions.push(readinessGate.conditionType);
+        }
+    }
+
+    return {
+        nonExistConditions,
+        failedConditions
+    };
+};
+
 export function getConditionCategory(condition: appModels.ApplicationCondition): 'error' | 'warning' | 'info' {
     if (condition.type.endsWith('Error')) {
         return 'error';
@@ -1200,3 +1247,5 @@ export function formatCreationTimestamp(creationTimestamp: string) {
         </span>
     );
 }
+
+export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);

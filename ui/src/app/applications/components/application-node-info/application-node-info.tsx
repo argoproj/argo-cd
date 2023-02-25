@@ -1,6 +1,5 @@
 import {Checkbox, DataLoader, Tab, Tabs} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
-import * as moment from 'moment';
 import * as React from 'react';
 
 import {YamlEditor, ClipboardText} from '../../../shared/components';
@@ -9,7 +8,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
-import {ComparisonStatusIcon, formatCreationTimestamp, getPodStateReason, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, formatCreationTimestamp, getPodReadinessGatesState as _getPodReadinessGatesState, getPodStateReason, HealthStatusIcon, selectPostfix} from '../utils';
 
 import './application-node-info.scss';
 
@@ -167,8 +166,46 @@ export const ApplicationNodeInfo = (props: {
         });
     }
 
+    const getPodReadinessGatesState = React.useCallback(_getPodReadinessGatesState, [props.live])
+
+    let ReadinessGatesFailedWarning: React.ReactNode = null;
+    if (props.live && props.node.kind === 'Pod') {
+        const readinessGatesState = getPodReadinessGatesState(props.live);
+
+        if (readinessGatesState.failedConditions.length > 0 || readinessGatesState.nonExistConditions.length > 0) {
+            ReadinessGatesFailedWarning = (
+                <div className='white-box white-box__readiness-gates-alert'>
+                    <h5>Readiness Gates Failing: </h5>
+                    <ul>
+                        {readinessGatesState.failedConditions.length > 0 && (
+                            <li>
+                                the status of pod readiness gate{selectPostfix(readinessGatesState.failedConditions, '', 's')}{' '}
+                                {readinessGatesState.failedConditions
+                                    .map(t => `"${t}"`)
+                                    .join(', ')
+                                    .trim()}{' '}
+                                {selectPostfix(readinessGatesState.failedConditions, 'is', 'are')} False.
+                            </li>
+                        )}
+                        {readinessGatesState.nonExistConditions.length > 0 && (
+                            <li>
+                                corresponding condition{selectPostfix(readinessGatesState.nonExistConditions, '', 's')} of pod readiness gate{' '}
+                                {readinessGatesState.nonExistConditions
+                                    .map(t => `"${t}"`)
+                                    .join(', ')
+                                    .trim()}{' '}
+                                do{selectPostfix(readinessGatesState.nonExistConditions, '', 'es')} not exist.
+                            </li>
+                        )}
+                    </ul>
+                </div>
+            );
+        }
+    }
+
     return (
         <div>
+            {ReadinessGatesFailedWarning}
             <div className='white-box'>
                 <div className='white-box__details'>
                     {attributes.map(attr => (
