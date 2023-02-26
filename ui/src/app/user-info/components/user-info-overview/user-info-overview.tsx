@@ -9,8 +9,10 @@ import {AppContext} from '../../../shared/context';
 import {services} from '../../../shared/services';
 
 import './user-info-overview.scss';
+import {withTranslation} from 'react-i18next';
+import en from '../../../locales/en';
 
-export class UserInfoOverview extends React.Component<RouteComponentProps<any>, {connecting: boolean}> {
+class UserInfoOverviewComponent extends React.Component<RouteComponentProps<any>, {connecting: boolean}> {
     public static contextTypes = {
         router: PropTypes.object,
         apis: PropTypes.object,
@@ -29,16 +31,16 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
             <DataLoader key='userInfo' load={() => services.users.get()}>
                 {userInfo => (
                     <Page
-                        title='User Info'
+                        title={this.props.t('user-info-overview.breadcrumbs.0', en['user-info-overview.breadcrumbs.0'])}
                         toolbar={{
-                            breadcrumbs: [{title: 'User Info'}],
+                            breadcrumbs: [{title: this.props.t('user-info-overview.breadcrumbs.0', en['user-info-overview.breadcrumbs.0'])}],
                             actionMenu:
                                 userInfo.loggedIn && userInfo.iss === 'argocd'
                                     ? {
                                           items: [
                                               {
                                                   iconClassName: 'fa fa-lock',
-                                                  title: 'Update Password',
+                                                  title: this.props.t('user-info-overview.toolbar.update-password', en['user-info-overview.toolbar.update-password']),
                                                   action: () => (this.showChangePassword = true)
                                               }
                                           ]
@@ -51,11 +53,17 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
                                     <div className='user-info-overview__panel white-box'>
                                         {userInfo.loggedIn ? (
                                             <React.Fragment key='userInfoInner'>
-                                                <p key='username'>Username: {userInfo.username}</p>
-                                                <p key='iss'>Issuer: {userInfo.iss}</p>
+                                                <p key='username'>
+                                                    {this.props.t('user-info-overview.user-info.username', en['user-info-overview.user-info.username'], {
+                                                        username: userInfo.username
+                                                    })}
+                                                </p>
+                                                <p key='iss'>
+                                                    {this.props.t('user-info-overview.user-info.issuer', en['user-info-overview.user-info.issuer'], {issuer: userInfo.iss})}
+                                                </p>
                                                 {userInfo.groups && (
                                                     <React.Fragment key='userInfo4'>
-                                                        <p>Groups:</p>
+                                                        <p>{this.props.t('user-info-overview.user-info.groups', en['user-info-overview.user-info.groups'])}</p>
                                                         <ul>
                                                             {userInfo.groups.map(group => (
                                                                 <li key={group}>{group}</li>
@@ -65,7 +73,7 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
                                                 )}
                                             </React.Fragment>
                                         ) : (
-                                            <p key='loggedOutMessage'>You are not logged in</p>
+                                            <p key='loggedOutMessage'>{this.props.t('user-info-overview.user-info.logged-out', en['user-info-overview.user-info.logged-out'])}</p>
                                         )}
                                     </div>
                                 </div>
@@ -82,43 +90,73 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
                                                     this.formApiPassword.submitForm(null);
                                                 }}>
                                                 <Spinner show={this.state.connecting} style={{marginRight: '5px'}} />
-                                                Save New Password
+                                                {this.props.t('user-info-overview.sliding-panel.save-new-password', en['user-info-overview.sliding-panel.save-new-password'])}
                                             </button>{' '}
                                             <button onClick={() => (this.showChangePassword = false)} className='argo-button argo-button--base-o'>
-                                                Cancel
+                                                {this.props.t('cancel', en.cancel)}
                                             </button>
                                         </div>
                                     }>
-                                    <h4>Update account password</h4>
+                                    <h4>{this.props.t('user-info-overview.sliding-panel.title', en['user-info-overview.sliding-panel.title'])}</h4>
                                     <Form
                                         onSubmit={params => this.changePassword(userInfo.username, params.currentPassword, params.newPassword)}
                                         getApi={api => (this.formApiPassword = api)}
                                         defaultValues={{type: 'git'}}
                                         validateError={(params: {currentPassword: string; newPassword: string; confirmNewPassword: string}) => ({
-                                            currentPassword: !params.currentPassword && 'Current password is required.',
+                                            currentPassword:
+                                                !params.currentPassword &&
+                                                this.props.t(
+                                                    'user-info-overview.sliding-panel.current-password-required',
+                                                    en['user-info-overview.sliding-panel.current-password-required']
+                                                ),
                                             newPassword:
-                                                (!params.newPassword && 'New password is required.') ||
-                                                (params.newPassword !== params.confirmNewPassword && 'Confirm your new password.'),
-                                            confirmNewPassword: (!params.confirmNewPassword || params.confirmNewPassword !== params.newPassword) && 'Confirm your new password.'
+                                                (!params.newPassword &&
+                                                    this.props.t(
+                                                        'user-info-overview.sliding-panel.new-password-required',
+                                                        en['user-info-overview.sliding-panel.new-password-required']
+                                                    )) ||
+                                                (params.newPassword !== params.confirmNewPassword &&
+                                                    this.props.t(
+                                                        'user-info-overview.sliding-panel.confirm-new-password',
+                                                        en['user-info-overview.sliding-panel.confirm-new-password']
+                                                    )),
+                                            confirmNewPassword:
+                                                (!params.confirmNewPassword || params.confirmNewPassword !== params.newPassword) &&
+                                                this.props.t('user-info-overview.sliding-panel.confirm-new-password', en['user-info-overview.sliding-panel.confirm-new-password'])
                                         })}>
                                         {formApi => (
                                             <form onSubmit={formApi.submitForm} role='form' className='change-password width-control'>
                                                 <div className='argo-form-row'>
                                                     <FormField
                                                         formApi={formApi}
-                                                        label='Current Password'
+                                                        label={this.props.t(
+                                                            'user-info-overview.sliding-panel.current-password.label',
+                                                            en['user-info-overview.sliding-panel.current-password.label']
+                                                        )}
                                                         field='currentPassword'
                                                         component={Text}
                                                         componentProps={{type: 'password'}}
                                                     />
                                                 </div>
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='New Password' field='newPassword' component={Text} componentProps={{type: 'password'}} />
+                                                    <FormField
+                                                        formApi={formApi}
+                                                        label={this.props.t(
+                                                            'user-info-overview.sliding-panel.new-password.label',
+                                                            en['user-info-overview.sliding-panel.new-password.label']
+                                                        )}
+                                                        field='newPassword'
+                                                        component={Text}
+                                                        componentProps={{type: 'password'}}
+                                                    />
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <FormField
                                                         formApi={formApi}
-                                                        label='Confirm New Password'
+                                                        label={this.props.t(
+                                                            'user-info-overview.sliding-panel.confirm-new-password.label',
+                                                            en['user-info-overview.sliding-panel.confirm-new-password.label']
+                                                        )}
                                                         field='confirmNewPassword'
                                                         component={Text}
                                                         componentProps={{type: 'password'}}
@@ -141,11 +179,14 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
     private async changePassword(username: string, currentPassword: Nested<FormValue> | FormValue, newPassword: Nested<FormValue> | FormValue) {
         try {
             await services.accounts.changePassword(username, currentPassword, newPassword);
-            this.appContext.apis.notifications.show({type: NotificationType.Success, content: 'Your password has been successfully updated.'});
+            this.appContext.apis.notifications.show({
+                type: NotificationType.Success,
+                content: this.props.t('user-info-overview.change-password.success', en['user-info-overview.change-password.success'])
+            });
             this.showChangePassword = false;
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to update your password.' e={e} />,
+                content: <ErrorNotification title={this.props.t('user-info-overview.change-password.failed', en['user-info-overview.change-password.failed'])} e={e} />,
                 type: NotificationType.Error
             });
         }
@@ -170,3 +211,5 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
         return this.context as AppContext;
     }
 }
+
+export const UserInfoOverview = withTranslation()(UserInfoOverviewComponent);
