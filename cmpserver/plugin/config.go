@@ -22,11 +22,11 @@ type PluginConfig struct {
 }
 
 type PluginConfigSpec struct {
-	Version          string     `json:"version"`
-	Init             Command    `json:"init,omitempty"`
-	Generate         Command    `json:"generate"`
-	Discover         Discover   `json:"discover"`
-	Parameters       Parameters `yaml:"parameters"`
+	Version    string     `json:"version"`
+	Init       Command    `json:"init,omitempty"`
+	Generate   Command    `json:"generate"`
+	Discover   Discover   `json:"discover"`
+	Parameters Parameters `yaml:"parameters"`
 }
 
 //Discover holds find and fileName
@@ -84,9 +84,7 @@ func ValidatePluginConfig(config PluginConfig) error {
 	if len(config.Spec.Generate.Command) == 0 {
 		return fmt.Errorf("invalid plugin configuration file. spec.generate command should be non-empty")
 	}
-	if config.Spec.Discover.Find.Glob == "" && len(config.Spec.Discover.Find.Command.Command) == 0 && config.Spec.Discover.FileName == "" {
-		return fmt.Errorf("invalid plugin configuration file. atleast one of discover.find.command or discover.find.glob or discover.fineName should be non-empty")
-	}
+	// discovery field is optional as apps can now specify plugin names directly
 	return nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	netCtx "context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	goio "io"
 	"io/fs"
@@ -30,6 +31,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/handlers"
+	gmux "github.com/gorilla/mux"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -60,8 +62,6 @@ import (
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 
-	"github.com/pkg/errors"
-
 	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
@@ -86,6 +86,7 @@ import (
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/certificate"
 	"github.com/argoproj/argo-cd/v2/server/cluster"
+	"github.com/argoproj/argo-cd/v2/server/extension"
 	"github.com/argoproj/argo-cd/v2/server/gpgkey"
 	"github.com/argoproj/argo-cd/v2/server/logout"
 	"github.com/argoproj/argo-cd/v2/server/metrics"
@@ -192,6 +193,7 @@ type ArgoCDServer struct {
 	apiFactory        api.Factory
 	secretInformer    cache.SharedIndexInformer
 	configMapInformer cache.SharedIndexInformer
+	serviceSet        *ArgoCDServiceSet
 }
 
 type ArgoCDServerOpts struct {
@@ -216,6 +218,7 @@ type ArgoCDServerOpts struct {
 	ContentSecurityPolicy string
 	ListenHost            string
 	ApplicationNamespaces []string
+	EnableProxyExtension  bool
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -420,7 +423,8 @@ func (a *ArgoCDServer) Init(ctx context.Context) {
 // golang/protobuf).
 func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	a.userStateStorage.Init(ctx)
-
+	svcSet := newArgoCDServiceSet(a)
+	a.serviceSet = svcSet
 	grpcS, appResourceTreeFn := a.newGRPCServer()
 	grpcWebS := grpcweb.WrapServer(grpcS)
 	var httpS *http.Server
@@ -457,6 +461,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	if !a.useTLS() {
 		httpL = tcpm.Match(cmux.HTTP1Fast())
 		grpcL = tcpm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
+
 	} else {
 		// We first match on HTTP 1.1 methods.
 		httpL = tcpm.Match(cmux.HTTP1Fast())
@@ -674,6 +679,8 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		"/repocreds.RepoCredsService/CreateRepositoryCredentials": true,
 		"/repocreds.RepoCredsService/UpdateRepositoryCredentials": true,
 		"/application.ApplicationService/PatchResource":           true,
+		// Remove from logs both because the contents are sensitive and because they may be very large.
+		"/application.ApplicationService/GetManifestsWithFiles":   true,
 	}
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
@@ -705,9 +712,48 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
 	)))
 	grpcS := grpc.NewServer(sOpts...)
+
+	versionpkg.RegisterVersionServiceServer(grpcS, a.serviceSet.VersionService)
+	clusterpkg.RegisterClusterServiceServer(grpcS, a.serviceSet.ClusterService)
+	applicationpkg.RegisterApplicationServiceServer(grpcS, a.serviceSet.ApplicationService)
+	applicationsetpkg.RegisterApplicationSetServiceServer(grpcS, a.serviceSet.ApplicationSetService)
+	notificationpkg.RegisterNotificationServiceServer(grpcS, a.serviceSet.NotificationService)
+	repositorypkg.RegisterRepositoryServiceServer(grpcS, a.serviceSet.RepoService)
+	repocredspkg.RegisterRepoCredsServiceServer(grpcS, a.serviceSet.RepoCredsService)
+	sessionpkg.RegisterSessionServiceServer(grpcS, a.serviceSet.SessionService)
+	settingspkg.RegisterSettingsServiceServer(grpcS, a.serviceSet.SettingsService)
+	projectpkg.RegisterProjectServiceServer(grpcS, a.serviceSet.ProjectService)
+	accountpkg.RegisterAccountServiceServer(grpcS, a.serviceSet.AccountService)
+	certificatepkg.RegisterCertificateServiceServer(grpcS, a.serviceSet.CertificateService)
+	gpgkeypkg.RegisterGPGKeyServiceServer(grpcS, a.serviceSet.GpgkeyService)
+	// Register reflection service on gRPC server.
+	reflection.Register(grpcS)
+	grpc_prometheus.Register(grpcS)
+	errorsutil.CheckError(a.serviceSet.ProjectService.NormalizeProjs())
+	return grpcS, a.serviceSet.AppResourceTreeFn
+}
+
+type ArgoCDServiceSet struct {
+	ClusterService        *cluster.Server
+	RepoService           *repository.Server
+	RepoCredsService      *repocreds.Server
+	SessionService        *session.Server
+	ApplicationService    applicationpkg.ApplicationServiceServer
+	AppResourceTreeFn     application.AppResourceTreeFn
+	ApplicationSetService applicationsetpkg.ApplicationSetServiceServer
+	ProjectService        *project.Server
+	SettingsService       *settings.Server
+	AccountService        *account.Server
+	NotificationService   notificationpkg.NotificationServiceServer
+	CertificateService    *certificate.Server
+	GpgkeyService         *gpgkey.Server
+	VersionService        *version.Server
+}
+
+func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
-	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projLister, a.settingsMgr)
+	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, a.db, a.enf, a.settingsMgr)
 	var loginRateLimiter func() (io.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
@@ -734,13 +780,13 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	applicationSetService := applicationset.NewServer(a.db, a.KubeClientset, a.enf, a.Cache, a.AppClientset, a.appLister, a.appsetInformer, a.appsetLister, a.projLister, a.settingsMgr, a.Namespace, projectLock)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db)
 	appsInAnyNamespaceEnabled := len(a.ArgoCDServerOpts.ApplicationNamespaces) > 0
-	settingsService := settings.NewServer(a.settingsMgr, a, a.DisableAuth, appsInAnyNamespaceEnabled)
+	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 
 	notificationService := notification.NewServer(a.apiFactory)
 	certificateService := certificate.NewServer(a.RepoClientset, a.db, a.enf)
 	gpgkeyService := gpgkey.NewServer(a.RepoClientset, a.db, a.enf)
-	versionpkg.RegisterVersionServiceServer(grpcS, version.NewServer(a, func() (bool, error) {
+	versionService := version.NewServer(a, func() (bool, error) {
 		if a.DisableAuth {
 			return true, nil
 		}
@@ -749,24 +795,24 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 			return false, err
 		}
 		return sett.AnonymousUserEnabled, err
-	}))
-	clusterpkg.RegisterClusterServiceServer(grpcS, clusterService)
-	applicationpkg.RegisterApplicationServiceServer(grpcS, applicationService)
-	applicationsetpkg.RegisterApplicationSetServiceServer(grpcS, applicationSetService)
-	notificationpkg.RegisterNotificationServiceServer(grpcS, notificationService)
-	repositorypkg.RegisterRepositoryServiceServer(grpcS, repoService)
-	repocredspkg.RegisterRepoCredsServiceServer(grpcS, repoCredsService)
-	sessionpkg.RegisterSessionServiceServer(grpcS, sessionService)
-	settingspkg.RegisterSettingsServiceServer(grpcS, settingsService)
-	projectpkg.RegisterProjectServiceServer(grpcS, projectService)
-	accountpkg.RegisterAccountServiceServer(grpcS, accountService)
-	certificatepkg.RegisterCertificateServiceServer(grpcS, certificateService)
-	gpgkeypkg.RegisterGPGKeyServiceServer(grpcS, gpgkeyService)
-	// Register reflection service on gRPC server.
-	reflection.Register(grpcS)
-	grpc_prometheus.Register(grpcS)
-	errorsutil.CheckError(projectService.NormalizeProjs())
-	return grpcS, appResourceTreeFn
+	})
+
+	return &ArgoCDServiceSet{
+		ClusterService:        clusterService,
+		RepoService:           repoService,
+		RepoCredsService:      repoCredsService,
+		SessionService:        sessionService,
+		ApplicationService:    applicationService,
+		AppResourceTreeFn:     appResourceTreeFn,
+		ApplicationSetService: applicationSetService,
+		ProjectService:        projectService,
+		SettingsService:       settingsService,
+		AccountService:        accountService,
+		NotificationService:   notificationService,
+		CertificateService:    certificateService,
+		GpgkeyService:         gpgkeyService,
+		VersionService:        versionService,
+	}
 }
 
 // translateGrpcCookieHeader conditionally sets a cookie on the response.
@@ -861,41 +907,19 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/api/", handler)
 
-	terminalHandler := application.NewHandler(a.appLister, a.Namespace, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells)
-	mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
-		argocdSettings, err := a.settingsMgr.GetSettings()
-		if err != nil {
-			http.Error(writer, fmt.Sprintf("Failed to get settings: %v", err), http.StatusBadRequest)
-			return
-		}
-		if !argocdSettings.ExecEnabled {
-			writer.WriteHeader(http.StatusNotFound)
-			return
-		}
+	terminal := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells).
+		WithFeatureFlagMiddleware(a.settingsMgr.GetSettings)
+	th := util_session.WithAuthMiddleware(a.DisableAuth, a.sessionMgr, terminal)
+	mux.Handle("/terminal", th)
 
-		if !a.DisableAuth {
-			ctx := request.Context()
-			cookies := request.Cookies()
-			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
-			if err == nil && jwtutil.IsValid(tokenString) {
-				claims, _, err := a.sessionMgr.VerifyToken(tokenString)
-				if err != nil {
-					// nolint:staticcheck
-					ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, err)
-				} else if claims != nil {
-					// Add claims to the context to inspect for RBAC
-					// nolint:staticcheck
-					ctx = context.WithValue(ctx, "claims", claims)
-				}
-				request = request.WithContext(ctx)
-			} else {
-				writer.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-		}
-		terminalHandler.ServeHTTP(writer, request)
-	})
-
+	// Proxy extension is currently an alpha feature and is disabled
+	// by default.
+	if a.EnableProxyExtension {
+		// API server won't panic if extensions fail to register. In
+		// this case an error log will be sent and no extension route
+		// will be added in mux.
+		registerExtensions(mux, a)
+	}
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandler, ctx, gwmux, conn)
@@ -939,6 +963,27 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/", assetsHandler)
 	return &httpS
+}
+
+// registerExtensions will try to register all configured extensions
+// in the given mux. If any error is returned while registering
+// extensions handlers, no route will be added in the given mux.
+func registerExtensions(mux *http.ServeMux, a *ArgoCDServer) {
+	sg := extension.NewDefaultSettingsGetter(a.settingsMgr)
+	ag := extension.NewDefaultApplicationGetter(a.appLister)
+	pg := extension.NewDefaultProjectGetter(a.projLister, a.db)
+	em := extension.NewManager(a.log, sg, ag, pg, a.enf)
+	r := gmux.NewRouter()
+	// register an Auth middleware to ensure all requests to
+	// extensions are authenticated first.
+	r.Use(a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth))
+
+	err := em.RegisterHandlers(r)
+	if err != nil {
+		a.log.Errorf("error registering extension handlers: %s", err)
+		return
+	}
+	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), r)
 }
 
 var extensionsPattern = regexp.MustCompile(`^extension(.*)\.js$`)

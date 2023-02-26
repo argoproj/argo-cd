@@ -425,7 +425,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		defer server.Close()
 		rt := NewDexRewriteURLRoundTripper(server.URL, http.DefaultTransport)
 		assert.NotNil(t, rt)
-		req, err := http.NewRequest("GET", "/", bytes.NewBuffer([]byte("")))
+		req, err := http.NewRequest(http.MethodGet, "/", bytes.NewBuffer([]byte("")))
 		assert.NoError(t, err)
 		_, err = rt.RoundTrip(req)
 		assert.NoError(t, err)
