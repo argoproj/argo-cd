@@ -134,7 +134,7 @@ class AppComponent extends React.Component<
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
-        this.navItems = navItems.map(value => ({...value, title: this.props.t(value.title, en[value.title]), tooltip: this.props.t(value.tooltip, en[value.tooltip])}));
+        this.navItems = navItems;
         this.routes = routes;
     }
 
@@ -237,7 +237,11 @@ class AppComponent extends React.Component<
                                                             {pref => (
                                                                 <Layout
                                                                     onVersionClick={() => this.setState({showVersionPanel: true})}
-                                                                    navItems={this.navItems}
+                                                                    navItems={this.navItems.map(value => ({
+                                                                        ...value,
+                                                                        title: this.props.t(value.title, en[value.title]),
+                                                                        tooltip: this.props.t(value.tooltip, en[value.tooltip])
+                                                                    }))}
                                                                     pref={pref}
                                                                     isExtension={route.extension}>
                                                                     <Banner>
