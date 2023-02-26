@@ -249,13 +249,13 @@ export class ReposList extends React.Component<
                             {t('repos-list.sliding-panel.header.save-as-credentials-template', en['repos-list.sliding-panel.header.save-as-credentials-template'])}
                         </button>{' '}
                         <button onClick={() => (this.showConnectRepo = false)} className='argo-button argo-button--base-o'>
-                            {t('repos-list.sliding-panel.header.cancel', en['repos-list.sliding-panel.header.cancel'])}
+                            {t('cancel', en['cancel'])}
                         </button>
                     </>
                 )}
                 {this.state.displayEditPanel && (
                     <button onClick={() => this.setState({displayEditPanel: false})} className='argo-button argo-button--base-o'>
-                        {t('repos-list.sliding-panel.header.cancel', en['repos-list.sliding-panel.header.cancel'])}
+                        {t('cancel', en['cancel'])}
                     </button>
                 )}
             </>
@@ -399,7 +399,7 @@ export class ReposList extends React.Component<
                                                                     <i className='fa fa-ellipsis-v' />
                                                                 </button>
                                                             )}
-                                                            items={[{title: t('repos-list.remove', en['repos-list.remove']), action: () => this.removeRepoCreds(repo.url)}]}
+                                                            items={[{title: t('remove', en['remove']), action: () => this.removeRepoCreds(repo.url)}]}
                                                         />
                                                     </div>
                                                 </div>

@@ -3,11 +3,14 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Form, FormApi, Text, TextArea} from 'react-form';
 import {RouteComponentProps} from 'react-router';
+import {t} from 'i18next';
+import {Trans} from 'react-i18next';
 
 import {DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import en from '../../../locales/en';
 
 require('./certs-list.scss');
 
@@ -35,19 +38,22 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
     public render() {
         return (
             <Page
-                title='Repository certificates and known hosts'
+                title={t('certs-list.breadcrumbs.1', en['certs-list.breadcrumbs.1'])}
                 toolbar={{
-                    breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repository certificates and known hosts'}],
+                    breadcrumbs: [
+                        {title: t('certs-list.breadcrumbs.0', en['certs-list.breadcrumbs.0']), path: '/settings'},
+                        {title: t('certs-list.breadcrumbs.1', en['certs-list.breadcrumbs.1'])}
+                    ],
                     actionMenu: {
                         className: 'fa fa-plus',
                         items: [
                             {
-                                title: 'Add TLS certificate',
+                                title: t('certs-list.toolbar.add-tls-certificate', en['certs-list.toolbar.add-tls-certificate']),
                                 iconClassName: 'fa fa-plus',
                                 action: () => (this.showAddTLSCertificate = true)
                             },
                             {
-                                title: 'Add SSH known hosts',
+                                title: t('certs-list.toolbar.add-ssh-known-hosts', en['certs-list.toolbar.add-ssh-known-hosts']),
                                 iconClassName: 'fa fa-plus',
                                 action: () => (this.showAddSSHKnownHosts = true)
                             }
@@ -62,9 +68,9 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                     <div className='argo-table-list'>
                                         <div className='argo-table-list__head'>
                                             <div className='row'>
-                                                <div className='columns small-3'>SERVER NAME</div>
-                                                <div className='columns small-3'>CERT TYPE</div>
-                                                <div className='columns small-6'>CERT INFO</div>
+                                                <div className='columns small-3'>{t('certs-list.head.server-name', en['certs-list.head.server-name'])}</div>
+                                                <div className='columns small-3'>{t('certs-list.head.cert-type', en['certs-list.head.cert-type'])}</div>
+                                                <div className='columns small-6'>{t('certs-list.head.cert-info', en['certs-list.head.cert-info'])}</div>
                                             </div>
                                         </div>
                                         {certs.map(cert => (
@@ -86,7 +92,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                                             )}
                                                             items={[
                                                                 {
-                                                                    title: 'Remove',
+                                                                    title: t('remove', en['remove']),
                                                                     action: () => this.removeCert(cert.serverName, cert.certType, cert.certSubType)
                                                                 }
                                                             ]}
@@ -98,13 +104,13 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                     </div>
                                 )) || (
                                     <EmptyState icon='argo-icon-git'>
-                                        <h4>No certificates configured</h4>
-                                        <h5>You can add further certificates below..</h5>
+                                        <h4>{t('certs-list.empty.title', en['certs-list.empty.title'])}</h4>
+                                        <h5>{t('certs-list.empty.description', en['certs-list.empty.description'])}</h5>
                                         <button className='argo-button argo-button--base' onClick={() => (this.showAddTLSCertificate = true)}>
-                                            Add TLS certificates
+                                            {t('certs-list.empty.add-tls-certificates', en['certs-list.empty.add-tls-certificates'])}
                                         </button>{' '}
                                         <button className='argo-button argo-button--base' onClick={() => (this.showAddSSHKnownHosts = true)}>
-                                            Add SSH known hosts
+                                            {t('certs-list.empty.add-ssh-known-hosts', en['certs-list.empty.add-ssh-known-hosts'])}
                                         </button>
                                     </EmptyState>
                                 )
@@ -118,10 +124,10 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                     header={
                         <div>
                             <button className='argo-button argo-button--base' onClick={() => this.formApiTLS.submitForm(null)}>
-                                Create
+                                {t('create', en['create'])}
                             </button>{' '}
                             <button onClick={() => (this.showAddTLSCertificate = false)} className='argo-button argo-button--base-o'>
-                                Cancel
+                                {t('cancel', en['cancel'])}
                             </button>
                         </div>
                     }>
@@ -139,12 +145,22 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         {formApiTLS => (
                             <form onSubmit={formApiTLS.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
                                 <div className='white-box'>
-                                    <p>CREATE TLS REPOSITORY CERTIFICATE</p>
+                                    <p>{t('certs-list.add-tls-certificate.title', en['certs-list.add-tls-certificate.title'])}</p>
                                     <div className='argo-form-row'>
-                                        <FormField formApi={formApiTLS} label='Repository Server Name' field='serverName' component={Text} />
+                                        <FormField
+                                            formApi={formApiTLS}
+                                            label={t('certs-list.add-tls-certificate.repository-server-name', en['certs-list.add-tls-certificate.repository-server-name'])}
+                                            field='serverName'
+                                            component={Text}
+                                        />
                                     </div>
                                     <div className='argo-form-row'>
-                                        <FormField formApi={formApiTLS} label='TLS Certificate (PEM format)' field='certData' component={TextArea} />
+                                        <FormField
+                                            formApi={formApiTLS}
+                                            label={t('certs-list.add-tls-certificate.tls-certificate', en['certs-list.add-tls-certificate.tls-certificate'])}
+                                            field='certData'
+                                            component={TextArea}
+                                        />
                                     </div>
                                 </div>
                             </form>
@@ -157,10 +173,10 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                     header={
                         <div>
                             <button className='argo-button argo-button--base' onClick={() => this.formApiSSH.submitForm(null)}>
-                                Create
+                                {t('create', en['create'])}
                             </button>{' '}
                             <button onClick={() => (this.showAddSSHKnownHosts = false)} className='argo-button argo-button--base-o'>
-                                Cancel
+                                {t('cancel', en['cancel'])}
                             </button>
                         </div>
                     }>
@@ -176,16 +192,24 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         {formApiSSH => (
                             <form onSubmit={formApiSSH.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
                                 <div className='white-box'>
-                                    <p>CREATE SSH KNOWN HOST ENTRIES</p>
+                                    <p>{t('certs-list.add-ssh-known-hosts.title', en['certs-list.add-ssh-known-hosts.title'])}</p>
                                     <p>
-                                        Paste SSH known hosts data in the text area below, one entry per line. You can use output from <code>ssh-keyscan</code> or the contents on
-                                        an <code>ssh_known_hosts</code> file verbatim. Lines starting with <code>#</code> will be treated as comments and ignored.
+                                        <Trans
+                                            i18nKey='certs-list.add-ssh-known-hosts.description'
+                                            defaults={en['certs-list.add-ssh-known-hosts.description']}
+                                            components={{code: <code />}}
+                                        />
                                     </p>
                                     <p>
-                                        <strong>Make sure there are no linebreaks in the keys.</strong>
+                                        <strong>{t('certs-list.add-ssh-known-hosts.notice', en['certs-list.add-ssh-known-hosts.notice'])}</strong>
                                     </p>
                                     <div className='argo-form-row'>
-                                        <FormField formApi={formApiSSH} label='SSH known hosts data' field='certData' component={TextArea} />
+                                        <FormField
+                                            formApi={formApiSSH}
+                                            label={t('certs-list.add-ssh-known-hosts.ssh-known-hosts-data', en['certs-list.add-ssh-known-hosts.ssh-known-hosts-data'])}
+                                            field='certData'
+                                            component={TextArea}
+                                        />
                                     </div>
                                 </div>
                             </form>
@@ -208,7 +232,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
             this.loader.reload();
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to add TLS certificate' e={e} />,
+                content: <ErrorNotification title={t('certs-list.add-tls-certificate.failed', en['certs-list.add-tls-certificate.failed'])} e={e} />,
                 type: NotificationType.Error
             });
         }
@@ -241,27 +265,30 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                     });
                                 }
                             } else {
-                                throw new Error('Invalid SSH subtype: ' + subType);
+                                throw new Error(t('certs-list.add-ssh-known-hosts.invalid-ssh-subtype', en['certs-list.add-ssh-known-hosts.invalid-ssh-subtype']) + subType);
                             }
                         }
                     }
                 });
             if (knownHostEntries.length === 0) {
-                throw new Error('No valid known hosts data entered');
+                throw new Error(t('certs-list.add-ssh-known-hosts.invalid-known-hosts-data', en['certs-list.add-ssh-known-hosts.invalid-known-hosts-data']));
             }
             await services.certs.create({items: knownHostEntries, metadata: null});
             this.showAddSSHKnownHosts = false;
             this.loader.reload();
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to add SSH known hosts data' e={e} />,
+                content: <ErrorNotification title={t('certs-list.add-ssh-known-hosts.failed', en['certs-list.add-ssh-known-hosts.failed'])} e={e} />,
                 type: NotificationType.Error
             });
         }
     }
 
     private async removeCert(serverName: string, certType: string, certSubType: string) {
-        const confirmed = await this.appContext.apis.popup.confirm('Remove certificate', 'Are you sure you want to remove ' + certType + ' certificate for ' + serverName + '?');
+        const confirmed = await this.appContext.apis.popup.confirm(
+            t('certs-list.remove-cert.popup.title', en['certs-list.remove-cert.popup.title']),
+            t('certs-list.remove-cert.popup.description', en['certs-list.remove-cert.popup.description'], {certType, serverName})
+        );
         if (confirmed) {
             await services.certs.delete(serverName, certType, certSubType);
             this.loader.reload();
