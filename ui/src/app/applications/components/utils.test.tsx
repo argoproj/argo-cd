@@ -3,6 +3,15 @@ import * as renderer from 'react-test-renderer';
 import {Application, HealthStatus, HealthStatuses, OperationPhases, ResourceResult, ResultCodes, SyncStatuses} from '../../shared/models';
 import {ComparisonStatusIcon, getAppOperationState, getOperationType, HealthStatusIcon, OperationState, ResourceResultIcon} from './utils';
 
+jest.mock('../../i18n', () => ({
+    __esModule: true,
+    use: () => {},
+    init: () => {},
+    default: {
+        t: k => k
+    }
+}));
+
 const zero = new Date(0).toISOString();
 
 test('getAppOperationState.DeletionTimestamp', () => {
