@@ -153,5 +153,10 @@ export default {
     'certs-list.add-ssh-known-hosts.invalid-known-hosts-data': 'No valid known hosts data entered',
     'certs-list.add-ssh-known-hosts.failed': 'Unable to add SSH known hosts data',
     'certs-list.remove-cert.popup.title': 'Remove certificate',
-    'certs-list.remove-cert.popup.description': 'Are you sure you want to remove {{- certType}} certificate for {{- serverName}}?'
+    'certs-list.remove-cert.popup.description': 'Are you sure you want to remove {{- certType}} certificate for {{- serverName}}?',
+    'help.new-to-argo-cd.title': 'New to Argo CD?',
+    'help.new-to-argo-cd.button': 'Read the docs',
+    'help.want-to-download-cli.title': 'Want to download the CLI tool?',
+    'help.api.title': `You want to develop against Argo CD's API?`,
+    'help.api.button': 'Open the API docs'
 };

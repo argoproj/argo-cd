@@ -154,5 +154,10 @@ export default {
     'certs-list.add-ssh-known-hosts.invalid-known-hosts-data': '유효하지 않은 알려진 호스트 데이터가 입력되었습니다',
     'certs-list.add-ssh-known-hosts.failed': 'SSH 알려진 호스트 데이터 추가에 실패했습니다',
     'certs-list.remove-cert.popup.title': '인증서 삭제',
-    'certs-list.remove-cert.popup.description': '정말로 {{- certType}} 인증서를 {{- serverName}}에서 삭제하시겠습니까?'
+    'certs-list.remove-cert.popup.description': '정말로 {{- certType}} 인증서를 {{- serverName}}에서 삭제하시겠습니까?',
+    'help.new-to-argo-cd.title': 'Argo CD를 처음 사용하시나요?',
+    'help.new-to-argo-cd.button': '문서 읽기',
+    'help.want-to-download-cli.title': 'CLI 도구를 다운로드하시겠습니까?',
+    'help.api.title': 'Argo CD API를 개발하시겠습니까?',
+    'help.api.button': 'API 문서 열기'
 };
