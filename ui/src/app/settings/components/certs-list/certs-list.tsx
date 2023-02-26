@@ -3,8 +3,7 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Form, FormApi, Text, TextArea} from 'react-form';
 import {RouteComponentProps} from 'react-router';
-import {t} from 'i18next';
-import {Trans} from 'react-i18next';
+import {Trans, withTranslation} from 'react-i18next';
 
 import {DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
@@ -24,7 +23,7 @@ interface NewSSHKnownHostParams {
     certData: string;
 }
 
-export class CertsList extends React.Component<RouteComponentProps<any>> {
+class CertsListComponent extends React.Component<RouteComponentProps<any>> {
     public static contextTypes = {
         router: PropTypes.object,
         apis: PropTypes.object,
@@ -38,22 +37,22 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
     public render() {
         return (
             <Page
-                title={t('certs-list.breadcrumbs.1', en['certs-list.breadcrumbs.1'])}
+                title={this.props.t('certs-list.breadcrumbs.1', en['certs-list.breadcrumbs.1'])}
                 toolbar={{
                     breadcrumbs: [
-                        {title: t('certs-list.breadcrumbs.0', en['certs-list.breadcrumbs.0']), path: '/settings'},
-                        {title: t('certs-list.breadcrumbs.1', en['certs-list.breadcrumbs.1'])}
+                        {title: this.props.t('certs-list.breadcrumbs.0', en['certs-list.breadcrumbs.0']), path: '/settings'},
+                        {title: this.props.t('certs-list.breadcrumbs.1', en['certs-list.breadcrumbs.1'])}
                     ],
                     actionMenu: {
                         className: 'fa fa-plus',
                         items: [
                             {
-                                title: t('certs-list.toolbar.add-tls-certificate', en['certs-list.toolbar.add-tls-certificate']),
+                                title: this.props.t('certs-list.toolbar.add-tls-certificate', en['certs-list.toolbar.add-tls-certificate']),
                                 iconClassName: 'fa fa-plus',
                                 action: () => (this.showAddTLSCertificate = true)
                             },
                             {
-                                title: t('certs-list.toolbar.add-ssh-known-hosts', en['certs-list.toolbar.add-ssh-known-hosts']),
+                                title: this.props.t('certs-list.toolbar.add-ssh-known-hosts', en['certs-list.toolbar.add-ssh-known-hosts']),
                                 iconClassName: 'fa fa-plus',
                                 action: () => (this.showAddSSHKnownHosts = true)
                             }
@@ -68,9 +67,9 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                     <div className='argo-table-list'>
                                         <div className='argo-table-list__head'>
                                             <div className='row'>
-                                                <div className='columns small-3'>{t('certs-list.head.server-name', en['certs-list.head.server-name'])}</div>
-                                                <div className='columns small-3'>{t('certs-list.head.cert-type', en['certs-list.head.cert-type'])}</div>
-                                                <div className='columns small-6'>{t('certs-list.head.cert-info', en['certs-list.head.cert-info'])}</div>
+                                                <div className='columns small-3'>{this.props.t('certs-list.head.server-name', en['certs-list.head.server-name'])}</div>
+                                                <div className='columns small-3'>{this.props.t('certs-list.head.cert-type', en['certs-list.head.cert-type'])}</div>
+                                                <div className='columns small-6'>{this.props.t('certs-list.head.cert-info', en['certs-list.head.cert-info'])}</div>
                                             </div>
                                         </div>
                                         {certs.map(cert => (
@@ -92,7 +91,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                                             )}
                                                             items={[
                                                                 {
-                                                                    title: t('remove', en['remove']),
+                                                                    title: this.props.t('remove', en['remove']),
                                                                     action: () => this.removeCert(cert.serverName, cert.certType, cert.certSubType)
                                                                 }
                                                             ]}
@@ -104,13 +103,13 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                     </div>
                                 )) || (
                                     <EmptyState icon='argo-icon-git'>
-                                        <h4>{t('certs-list.empty.title', en['certs-list.empty.title'])}</h4>
-                                        <h5>{t('certs-list.empty.description', en['certs-list.empty.description'])}</h5>
+                                        <h4>{this.props.t('certs-list.empty.title', en['certs-list.empty.title'])}</h4>
+                                        <h5>{this.props.t('certs-list.empty.description', en['certs-list.empty.description'])}</h5>
                                         <button className='argo-button argo-button--base' onClick={() => (this.showAddTLSCertificate = true)}>
-                                            {t('certs-list.empty.add-tls-certificates', en['certs-list.empty.add-tls-certificates'])}
+                                            {this.props.t('certs-list.empty.add-tls-certificates', en['certs-list.empty.add-tls-certificates'])}
                                         </button>{' '}
                                         <button className='argo-button argo-button--base' onClick={() => (this.showAddSSHKnownHosts = true)}>
-                                            {t('certs-list.empty.add-ssh-known-hosts', en['certs-list.empty.add-ssh-known-hosts'])}
+                                            {this.props.t('certs-list.empty.add-ssh-known-hosts', en['certs-list.empty.add-ssh-known-hosts'])}
                                         </button>
                                     </EmptyState>
                                 )
@@ -124,10 +123,10 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                     header={
                         <div>
                             <button className='argo-button argo-button--base' onClick={() => this.formApiTLS.submitForm(null)}>
-                                {t('create', en['create'])}
+                                {this.props.t('create', en['create'])}
                             </button>{' '}
                             <button onClick={() => (this.showAddTLSCertificate = false)} className='argo-button argo-button--base-o'>
-                                {t('cancel', en['cancel'])}
+                                {this.props.t('cancel', en['cancel'])}
                             </button>
                         </div>
                     }>
@@ -145,11 +144,14 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         {formApiTLS => (
                             <form onSubmit={formApiTLS.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
                                 <div className='white-box'>
-                                    <p>{t('certs-list.add-tls-certificate.title', en['certs-list.add-tls-certificate.title'])}</p>
+                                    <p>{this.props.t('certs-list.add-tls-certificate.title', en['certs-list.add-tls-certificate.title'])}</p>
                                     <div className='argo-form-row'>
                                         <FormField
                                             formApi={formApiTLS}
-                                            label={t('certs-list.add-tls-certificate.repository-server-name', en['certs-list.add-tls-certificate.repository-server-name'])}
+                                            label={this.props.t(
+                                                'certs-list.add-tls-certificate.repository-server-name',
+                                                en['certs-list.add-tls-certificate.repository-server-name']
+                                            )}
                                             field='serverName'
                                             component={Text}
                                         />
@@ -157,7 +159,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                     <div className='argo-form-row'>
                                         <FormField
                                             formApi={formApiTLS}
-                                            label={t('certs-list.add-tls-certificate.tls-certificate', en['certs-list.add-tls-certificate.tls-certificate'])}
+                                            label={this.props.t('certs-list.add-tls-certificate.tls-certificate', en['certs-list.add-tls-certificate.tls-certificate'])}
                                             field='certData'
                                             component={TextArea}
                                         />
@@ -173,10 +175,10 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                     header={
                         <div>
                             <button className='argo-button argo-button--base' onClick={() => this.formApiSSH.submitForm(null)}>
-                                {t('create', en['create'])}
+                                {this.props.t('create', en['create'])}
                             </button>{' '}
                             <button onClick={() => (this.showAddSSHKnownHosts = false)} className='argo-button argo-button--base-o'>
-                                {t('cancel', en['cancel'])}
+                                {this.props.t('cancel', en['cancel'])}
                             </button>
                         </div>
                     }>
@@ -192,7 +194,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         {formApiSSH => (
                             <form onSubmit={formApiSSH.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
                                 <div className='white-box'>
-                                    <p>{t('certs-list.add-ssh-known-hosts.title', en['certs-list.add-ssh-known-hosts.title'])}</p>
+                                    <p>{this.props.t('certs-list.add-ssh-known-hosts.title', en['certs-list.add-ssh-known-hosts.title'])}</p>
                                     <p>
                                         <Trans
                                             i18nKey='certs-list.add-ssh-known-hosts.description'
@@ -201,12 +203,12 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                         />
                                     </p>
                                     <p>
-                                        <strong>{t('certs-list.add-ssh-known-hosts.notice', en['certs-list.add-ssh-known-hosts.notice'])}</strong>
+                                        <strong>{this.props.t('certs-list.add-ssh-known-hosts.notice', en['certs-list.add-ssh-known-hosts.notice'])}</strong>
                                     </p>
                                     <div className='argo-form-row'>
                                         <FormField
                                             formApi={formApiSSH}
-                                            label={t('certs-list.add-ssh-known-hosts.ssh-known-hosts-data', en['certs-list.add-ssh-known-hosts.ssh-known-hosts-data'])}
+                                            label={this.props.t('certs-list.add-ssh-known-hosts.ssh-known-hosts-data', en['certs-list.add-ssh-known-hosts.ssh-known-hosts-data'])}
                                             field='certData'
                                             component={TextArea}
                                         />
@@ -232,7 +234,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
             this.loader.reload();
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: <ErrorNotification title={t('certs-list.add-tls-certificate.failed', en['certs-list.add-tls-certificate.failed'])} e={e} />,
+                content: <ErrorNotification title={this.props.t('certs-list.add-tls-certificate.failed', en['certs-list.add-tls-certificate.failed'])} e={e} />,
                 type: NotificationType.Error
             });
         }
@@ -265,20 +267,22 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                                     });
                                 }
                             } else {
-                                throw new Error(t('certs-list.add-ssh-known-hosts.invalid-ssh-subtype', en['certs-list.add-ssh-known-hosts.invalid-ssh-subtype']) + subType);
+                                throw new Error(
+                                    this.props.t('certs-list.add-ssh-known-hosts.invalid-ssh-subtype', en['certs-list.add-ssh-known-hosts.invalid-ssh-subtype']) + subType
+                                );
                             }
                         }
                     }
                 });
             if (knownHostEntries.length === 0) {
-                throw new Error(t('certs-list.add-ssh-known-hosts.invalid-known-hosts-data', en['certs-list.add-ssh-known-hosts.invalid-known-hosts-data']));
+                throw new Error(this.props.t('certs-list.add-ssh-known-hosts.invalid-known-hosts-data', en['certs-list.add-ssh-known-hosts.invalid-known-hosts-data']));
             }
             await services.certs.create({items: knownHostEntries, metadata: null});
             this.showAddSSHKnownHosts = false;
             this.loader.reload();
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: <ErrorNotification title={t('certs-list.add-ssh-known-hosts.failed', en['certs-list.add-ssh-known-hosts.failed'])} e={e} />,
+                content: <ErrorNotification title={this.props.t('certs-list.add-ssh-known-hosts.failed', en['certs-list.add-ssh-known-hosts.failed'])} e={e} />,
                 type: NotificationType.Error
             });
         }
@@ -286,8 +290,8 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
 
     private async removeCert(serverName: string, certType: string, certSubType: string) {
         const confirmed = await this.appContext.apis.popup.confirm(
-            t('certs-list.remove-cert.popup.title', en['certs-list.remove-cert.popup.title']),
-            t('certs-list.remove-cert.popup.description', en['certs-list.remove-cert.popup.description'], {certType, serverName})
+            this.props.t('certs-list.remove-cert.popup.title', en['certs-list.remove-cert.popup.title']),
+            this.props.t('certs-list.remove-cert.popup.description', en['certs-list.remove-cert.popup.description'], {certType, serverName})
         );
         if (confirmed) {
             await services.certs.delete(serverName, certType, certSubType);
@@ -317,3 +321,5 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
         return this.context as AppContext;
     }
 }
+
+export const CertsList = withTranslation()(CertsListComponent);

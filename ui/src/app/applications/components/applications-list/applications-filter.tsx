@@ -1,7 +1,6 @@
 import {useData, Checkbox} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
-import {t} from 'i18next';
 import {Context} from '../../../shared/context';
 import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncPolicy, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
@@ -9,6 +8,8 @@ import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
 import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
 import en from '../../../locales/en';
+import {useTranslation} from 'react-i18next';
+import {TFunction} from 'i18next';
 
 export interface FilterResult {
     repos: boolean;
@@ -73,6 +74,7 @@ interface AppFilterProps {
     onChange: (newPrefs: AppsListPreferences) => void;
     children?: React.ReactNode;
     collapsed?: boolean;
+    t: TFunction<'translation', undefined, 'translation'>;
 }
 
 const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, init?: string[]) => {
@@ -157,7 +159,7 @@ const LabelsFilter = (props: AppFilterProps) => {
 
     return (
         <Filter
-            label={t('applications-filter.labels', en['applications-filter.labels'])}
+            label={props.t('applications-filter.labels', en['applications-filter.labels'])}
             selected={props.pref.labelsFilter}
             setSelected={s => props.onChange({...props.pref, labelsFilter: s})}
             field={true}
@@ -177,7 +179,7 @@ const ProjectFilter = (props: AppFilterProps) => {
     });
     return (
         <Filter
-            label={t('applications-filter.projects', en['applications-filter.projects'])}
+            label={props.t('applications-filter.projects', en['applications-filter.projects'])}
             selected={props.pref.projectsFilter}
             setSelected={s => props.onChange({...props.pref, projectsFilter: s})}
             field={true}
@@ -209,7 +211,7 @@ const ClusterFilter = (props: AppFilterProps) => {
 
     return (
         <Filter
-            label={t('applications-filter.clusters', en['applications-filter.clusters'])}
+            label={props.t('applications-filter.clusters', en['applications-filter.clusters'])}
             selected={props.pref.clustersFilter}
             setSelected={s => props.onChange({...props.pref, clustersFilter: s})}
             field={true}
@@ -225,7 +227,7 @@ const NamespaceFilter = (props: AppFilterProps) => {
     const namespaceOptions = optionsFrom(Array.from(new Set(props.apps.map(app => app.spec.destination.namespace).filter(item => !!item))), props.pref.namespacesFilter);
     return (
         <Filter
-            label={t('applications-filter.namespaces', en['applications-filter.namespaces'])}
+            label={props.t('applications-filter.namespaces', en['applications-filter.namespaces'])}
             selected={props.pref.namespacesFilter}
             setSelected={s => props.onChange({...props.pref, namespacesFilter: s})}
             field={true}
@@ -255,12 +257,12 @@ const FavoriteFilter = (props: AppFilterProps) => {
             <div style={{marginRight: '5px', textAlign: 'center', width: '25px'}}>
                 <i style={{color: '#FFCE25'}} className='fas fa-star' />
             </div>
-            <div className='filter__item__label'>{t('applications-filter.favorites-only', en['applications-filter.favorites-only'])}</div>
+            <div className='filter__item__label'>{props.t('applications-filter.favorites-only', en['applications-filter.favorites-only'])}</div>
         </div>
     );
 };
 
-function getAutoSyncOptions(apps: FilteredApp[]) {
+function getAutoSyncOptions(apps: FilteredApp[], t: TFunction<'translation', undefined, 'translation'>) {
     const counts = getCounts(apps, 'autosync', app => getAutoSyncStatus(app.spec.syncPolicy), ['Enabled', 'Disabled']);
     return [
         {
@@ -278,25 +280,27 @@ function getAutoSyncOptions(apps: FilteredApp[]) {
 
 const AutoSyncFilter = (props: AppFilterProps) => (
     <Filter
-        label={t('applications-filter.auto-sync', en['applications-filter.auto-sync'])}
+        label={props.t('applications-filter.auto-sync', en['applications-filter.auto-sync'])}
         selected={props.pref.autoSyncFilter}
         setSelected={s => props.onChange({...props.pref, autoSyncFilter: s})}
-        options={getAutoSyncOptions(props.apps)}
+        options={getAutoSyncOptions(props.apps, props.t)}
         collapsed={props.collapsed || false}
     />
 );
 
 export const ApplicationsFilter = (props: AppFilterProps) => {
+    const {t} = useTranslation();
+
     return (
         <FiltersGroup content={props.children} collapsed={props.collapsed}>
-            <FavoriteFilter {...props} />
-            <SyncFilter {...props} />
-            <HealthFilter {...props} />
-            <LabelsFilter {...props} />
-            <ProjectFilter {...props} />
-            <ClusterFilter {...props} />
-            <NamespaceFilter {...props} />
-            <AutoSyncFilter {...props} collapsed={true} />
+            <FavoriteFilter {...props} t={t} />
+            <SyncFilter {...props} t={t} />
+            <HealthFilter {...props} t={t} />
+            <LabelsFilter {...props} t={t} />
+            <ProjectFilter {...props} t={t} />
+            <ClusterFilter {...props} t={t} />
+            <NamespaceFilter {...props} t={t} />
+            <AutoSyncFilter {...props} t={t} collapsed={true} />
         </FiltersGroup>
     );
 };

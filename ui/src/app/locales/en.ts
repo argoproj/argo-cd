@@ -2,6 +2,7 @@ export default {
     'remove': 'Remove',
     'cancel': 'Cancel',
     'create': 'Create',
+    'languages': 'Languages',
     'app.nav.applications.title': 'Applications',
     'app.nav.applications.tooltip': 'Manage your applications, and diagnose health problems.',
     'app.nav.settings.title': 'Settings',

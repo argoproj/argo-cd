@@ -4,7 +4,6 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
-import {t} from 'i18next';
 import applications from './applications';
 import help from './help';
 import login from './login';
@@ -19,6 +18,7 @@ import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
 import en from './locales/en';
+import {withTranslation} from 'react-i18next';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -45,25 +45,25 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     {
-        title: t('app.nav.applications.title', en['app.nav.applications.title']),
-        tooltip: t('app.nav.applications.tooltip', en['app.nav.applications.tooltip']),
+        title: 'app.nav.applications.title',
+        tooltip: 'app.nav.applications.tooltip',
         path: '/applications',
         iconClassName: 'argo-icon argo-icon-application'
     },
     {
-        title: t('app.nav.settings.title', en['app.nav.settings.title']),
-        tooltip: t('app.nav.settings.tooltip', en['app.nav.settings.tooltip']),
+        title: 'app.nav.settings.title',
+        tooltip: 'app.nav.settings.tooltip',
         path: '/settings',
         iconClassName: 'argo-icon argo-icon-settings'
     },
     {
-        title: t('app.nav.user-info.title', en['app.nav.user-info.title']),
+        title: 'app.nav.user-info.title',
         path: '/user-info',
         iconClassName: 'fa fa-user-circle'
     },
     {
-        title: t('app.nav.documentation.title', en['app.nav.documentation.title']),
-        tooltip: t('app.nav.documentation.tooltip', en['app.nav.documentation.tooltip']),
+        title: 'app.nav.documentation.title',
+        tooltip: 'app.nav.documentation.tooltip',
         path: '/help',
         iconClassName: 'argo-icon argo-icon-docs'
     }
@@ -109,7 +109,7 @@ requests.onError.subscribe(async err => {
     }
 });
 
-export class App extends React.Component<
+class AppComponent extends React.Component<
     {},
     {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; extensionsLoaded: boolean; authSettings: AuthSettings}
 > {
@@ -134,7 +134,7 @@ export class App extends React.Component<
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
-        this.navItems = navItems;
+        this.navItems = navItems.map(value => ({...value, title: this.props.t(value.title, en[value.title]), tooltip: this.props.t(value.tooltip, en[value.tooltip])}));
         this.routes = routes;
     }
 
@@ -267,3 +267,5 @@ export class App extends React.Component<
         return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}};
     }
 }
+
+export const App = withTranslation()(AppComponent);

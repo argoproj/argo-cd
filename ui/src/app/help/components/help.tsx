@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {t} from 'i18next';
+import {useTranslation} from 'react-i18next';
 import {DataLoader, Page} from '../../shared/components';
 import {Consumer} from '../../shared/context';
 import {combineLatest} from 'rxjs';
@@ -11,6 +11,8 @@ import en from '../../locales/en';
 require('./help.scss');
 
 export const Help = () => {
+    const {t} = useTranslation();
+
     return (
         <DataLoader
             load={() =>

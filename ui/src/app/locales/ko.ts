@@ -2,6 +2,7 @@ export default {
     'remove': '제거',
     'cancel': '취소',
     'create': '생성',
+    'languages': '언어',
     'app.nav.applications.title': '애플리케이션',
     'app.nav.applications.tooltip': '애플리케이션을 관리하고, health 문제를 진단합니다.',
     'app.nav.settings.title': '설정',

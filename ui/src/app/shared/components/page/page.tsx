@@ -6,6 +6,7 @@ import {map} from 'rxjs/operators';
 import {Context, ContextApis} from '../../context';
 import {services} from '../../services';
 import requests from '../../services/requests';
+import {LanguageSelector} from '../../../applications/components/language-selector';
 
 const mostRecentLoggedIn = new BehaviorSubject<boolean>(false);
 
@@ -58,7 +59,7 @@ export const Page = (props: PageProps) => {
                     <ArgoPage
                         title={props.title}
                         children={props.children}
-                        topBarTitle={props.topBarTitle}
+                        topBarTitle={<LanguageSelector title={props.topBarTitle || props.title} />}
                         useTitleOnly={props.useTitleOnly}
                         toolbar={!props.hideAuth ? AddAuthToToolbar(props.toolbar, ctx) : props.toolbar}
                     />

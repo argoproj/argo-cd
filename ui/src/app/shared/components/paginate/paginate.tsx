@@ -2,7 +2,7 @@ import {DataLoader, DropDownMenu} from 'argo-ui';
 
 import * as React from 'react';
 import ReactPaginate from 'react-paginate';
-import {t} from 'i18next';
+import {useTranslation} from 'react-i18next';
 import {services} from '../../services';
 import en from '../../../locales/en';
 
@@ -26,6 +26,7 @@ export interface PaginateProps<T> {
 }
 
 export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header, showHeader, sortOptions}: PaginateProps<T>) {
+    const {t} = useTranslation();
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => {

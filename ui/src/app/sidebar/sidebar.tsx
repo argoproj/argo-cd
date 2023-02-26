@@ -1,7 +1,7 @@
 import {Tooltip} from 'argo-ui';
 import {useData} from 'argo-ui/v2';
 import * as React from 'react';
-import {t} from 'i18next';
+import {useTranslation} from 'react-i18next';
 import {Context} from '../shared/context';
 import {services, ViewPreferences} from '../shared/services';
 import en from '../locales/en';
@@ -31,6 +31,7 @@ export const useSidebarTarget = () => {
 };
 
 export const Sidebar = (props: SidebarProps) => {
+    const {t} = useTranslation();
     const context = React.useContext(Context);
     const [version, loading, error] = useData(() => services.version.version());
     const locationPath = context.history.location.pathname;

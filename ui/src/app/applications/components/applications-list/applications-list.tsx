@@ -6,7 +6,7 @@ import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-import {t} from 'i18next';
+import {useTranslation} from 'react-i18next';
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -191,6 +191,7 @@ function tryJsonParse(input: string) {
 }
 
 const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Application[]}) => {
+    const {t} = useTranslation();
     const {content, ctx, apps} = {...props};
 
     const searchBar = React.useRef<HTMLDivElement>(null);
@@ -312,6 +313,7 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
 };
 
 export const ApplicationsList = (props: RouteComponentProps<{}>) => {
+    const {t} = useTranslation();
     const query = new URLSearchParams(props.location.search);
     const appInput = tryJsonParse(query.get('new'));
     const syncAppsInput = tryJsonParse(query.get('syncApps'));
