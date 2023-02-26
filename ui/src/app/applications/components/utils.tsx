@@ -945,21 +945,21 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     return {reason, message};
 }
 
-export const getPodReadinessGatesState = (pod: appModels.State): {nonExistConditions: string[]; failedConditions: string[]} => {
+export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingConditions: string[]; failedConditions: string[]} => {
     if (!pod.spec?.readinessGates?.length) {
         return {
-            nonExistConditions: [],
+            nonExistingConditions: [],
             failedConditions: []
         };
     }
 
-    const existentConditions = new Map<string, boolean>();
+    const existingConditions = new Map<string, boolean>();
     const podConditions = new Map<string, boolean>();
 
     const podStatusConditions = pod.status?.conditions || [];
 
     for (const condition of podStatusConditions) {
-        existentConditions.set(condition.type, true);
+        existingConditions.set(condition.type, true);
         // priority order of conditions
         // eg. if there are multiple conditions set with same name then the one which comes first is evaluated
         if (podConditions.has(condition.type)) {
@@ -973,21 +973,21 @@ export const getPodReadinessGatesState = (pod: appModels.State): {nonExistCondit
         }
     }
 
-    const nonExistConditions: string[] = [];
+    const nonExistingConditions: string[] = [];
     const failedConditions: string[] = [];
 
     const readinessGates: appModels.ReadinessGate[] = pod.spec?.readinessGates || [];
 
     for (const readinessGate of readinessGates) {
-        if (!existentConditions.has(readinessGate.conditionType)) {
-            nonExistConditions.push(readinessGate.conditionType);
+        if (!existingConditions.has(readinessGate.conditionType)) {
+            nonExistingConditions.push(readinessGate.conditionType);
         } else if (podConditions.get(readinessGate.conditionType) === false) {
             failedConditions.push(readinessGate.conditionType);
         }
     }
 
     return {
-        nonExistConditions,
+        nonExistingConditions,
         failedConditions
     };
 };

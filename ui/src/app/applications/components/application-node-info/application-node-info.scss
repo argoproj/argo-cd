@@ -40,14 +40,3 @@
         }
     }
 }
-
-.white-box {
-    &__readiness-gates-alert {
-        padding: 20px;
-        border-left: 6px solid $argo-status-failed-color !important;
-
-        ul {
-            margin-bottom: 0;
-        }
-    }
-}

@@ -8,9 +8,17 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
-import {ComparisonStatusIcon, formatCreationTimestamp, getPodReadinessGatesState as _getPodReadinessGatesState, getPodStateReason, HealthStatusIcon, selectPostfix} from '../utils';
+import {
+    ComparisonStatusIcon,
+    formatCreationTimestamp,
+    getPodReadinessGatesState,
+    getPodReadinessGatesState as _getPodReadinessGatesState,
+    getPodStateReason,
+    HealthStatusIcon
+} from '../utils';
 
 import './application-node-info.scss';
+import {ReadinessGatesFailedWarning} from './readiness-gates-failed-warning';
 
 export const ApplicationNodeInfo = (props: {
     application: models.Application;
@@ -166,46 +174,17 @@ export const ApplicationNodeInfo = (props: {
         });
     }
 
-    const getPodReadinessGatesState = React.useCallback(_getPodReadinessGatesState, [props.live]);
-
-    let ReadinessGatesFailedWarning: React.ReactNode = null;
-    if (props.live && props.node.kind === 'Pod') {
-        const readinessGatesState = getPodReadinessGatesState(props.live);
-
-        if (readinessGatesState.failedConditions.length > 0 || readinessGatesState.nonExistConditions.length > 0) {
-            ReadinessGatesFailedWarning = (
-                <div className='white-box white-box__readiness-gates-alert'>
-                    <h5>Readiness Gates Failing: </h5>
-                    <ul>
-                        {readinessGatesState.failedConditions.length > 0 && (
-                            <li>
-                                the status of pod readiness gate{selectPostfix(readinessGatesState.failedConditions, '', 's')}{' '}
-                                {readinessGatesState.failedConditions
-                                    .map(t => `"${t}"`)
-                                    .join(', ')
-                                    .trim()}{' '}
-                                {selectPostfix(readinessGatesState.failedConditions, 'is', 'are')} False.
-                            </li>
-                        )}
-                        {readinessGatesState.nonExistConditions.length > 0 && (
-                            <li>
-                                corresponding condition{selectPostfix(readinessGatesState.nonExistConditions, '', 's')} of pod readiness gate{' '}
-                                {readinessGatesState.nonExistConditions
-                                    .map(t => `"${t}"`)
-                                    .join(', ')
-                                    .trim()}{' '}
-                                do{selectPostfix(readinessGatesState.nonExistConditions, 'es', '')} not exist.
-                            </li>
-                        )}
-                    </ul>
-                </div>
-            );
+    const readinessGatesState = React.useMemo(() => {
+        if (props.live && props.node?.kind === 'Pod') {
+            return getPodReadinessGatesState(props.live);
         }
-    }
+
+        return null;
+    }, [props.live, props.node]);
 
     return (
         <div>
-            {ReadinessGatesFailedWarning}
+            {Boolean(readinessGatesState) && <ReadinessGatesFailedWarning readinessGatesState={readinessGatesState} />}
             <div className='white-box'>
                 <div className='white-box__details'>
                     {attributes.map(attr => (
