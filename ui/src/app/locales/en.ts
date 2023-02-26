@@ -158,5 +158,8 @@ export default {
     'help.new-to-argo-cd.button': 'Read the docs',
     'help.want-to-download-cli.title': 'Want to download the CLI tool?',
     'help.api.title': `You want to develop against Argo CD's API?`,
-    'help.api.button': 'Open the API docs'
+    'help.api.button': 'Open the API docs',
+    'ui-banner.dismiss-for-now': 'Dismiss for now',
+    'ui-banner.dont-show-again': `Don't show again`,
+    'ui-banner.tooltip.invalid-url': 'Invalid URL provided'
 };

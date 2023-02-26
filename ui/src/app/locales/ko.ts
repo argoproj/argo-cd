@@ -159,5 +159,8 @@ export default {
     'help.new-to-argo-cd.button': '문서 읽기',
     'help.want-to-download-cli.title': 'CLI 도구를 다운로드하시겠습니까?',
     'help.api.title': 'Argo CD API를 개발하시겠습니까?',
-    'help.api.button': 'API 문서 열기'
+    'help.api.button': 'API 문서 열기',
+    'ui-banner.dismiss-for-now': '지금은 숨기기',
+    'ui-banner.dont-show-again': `다시 표시하지 않기`,
+    'ui-banner.tooltip.invalid-url': '유효하지 않은 URL입니다'
 };

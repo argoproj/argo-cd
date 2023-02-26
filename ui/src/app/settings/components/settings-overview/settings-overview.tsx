@@ -47,7 +47,9 @@ const settings = [
 ];
 
 export const SettingsOverview: React.StatelessComponent = (props: any, context: AppContext) => (
-    <Page title={t('settings-overview.title', en['settings-overview.title'])} toolbar={{breadcrumbs: [{title: t('settings-overview.breadcrumbs.0', en['settings-overview.breadcrumbs.0'])}]}}>
+    <Page
+        title={t('settings-overview.title', en['settings-overview.title'])}
+        toolbar={{breadcrumbs: [{title: t('settings-overview.breadcrumbs.0', en['settings-overview.breadcrumbs.0'])}]}}>
         <div className='settings-overview'>
             <div className='argo-container'>
                 {settings.map(item => (

@@ -7,6 +7,8 @@ import {ExternalLink} from '../applications/components/application-urls';
 import {DataLoader} from '../shared/components';
 import {services, ViewPreferences} from '../shared/services';
 import './ui-banner.scss';
+import {t} from 'i18next';
+import en from '../locales/en';
 
 export const Banner = (props: React.Props<any>) => {
     const [visible, setVisible] = React.useState(true);
@@ -90,12 +92,12 @@ export const Banner = (props: React.Props<any>) => {
                             {!permanent ? (
                                 <>
                                     <button className='ui-banner-button argo-button argo-button--base' style={{marginRight: '5px'}} onClick={() => setVisible(false)}>
-                                        Dismiss for now
+                                        {t('ui-banner.dismiss-for-now', en['ui-banner.dismiss-for-now'])}
                                     </button>
                                     <button
                                         className='ui-banner-button argo-button argo-button--base'
                                         onClick={() => services.viewPreferences.updatePreferences({...prefs, hideBannerContent: content})}>
-                                        Don't show again
+                                        {t('ui-banner.dont-show-again', en['ui-banner.dont-show-again'])}
                                     </button>
                                 </>
                             ) : (
@@ -106,7 +108,7 @@ export const Banner = (props: React.Props<any>) => {
                         {chatUrl && (
                             <div style={{position: 'fixed', right: 10, bottom: chatBottomPosition}}>
                                 {chatUrl === 'invalid-url' ? (
-                                    <Tooltip content='Invalid URL provided'>
+                                    <Tooltip content={t('ui-banner.tooltip.invalid-url', en['ui-banner.tooltip.invalid-url'])}>
                                         <a className='argo-button disabled argo-button--special'>
                                             <i className='fas fa-comment-alt' /> {chatText}
                                         </a>
