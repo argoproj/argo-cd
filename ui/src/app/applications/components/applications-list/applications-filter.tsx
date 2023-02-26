@@ -266,12 +266,12 @@ function getAutoSyncOptions(apps: FilteredApp[], t: TFunction<'translation', und
     const counts = getCounts(apps, 'autosync', app => getAutoSyncStatus(app.spec.syncPolicy), ['Enabled', 'Disabled']);
     return [
         {
-            label: t('applications-filter.auto-sync.enabled', en['applications-filter.auto-sync.enabled']),
+            label: 'Enabled',
             icon: <i className='fa fa-circle-play' />,
             count: counts.get('Enabled')
         },
         {
-            label: t('applications-filter.auto-sync.disabled', en['applications-filter.auto-sync.disabled']),
+            label: 'Disabled',
             icon: <i className='fa fa-ban' />,
             count: counts.get('Disabled')
         }

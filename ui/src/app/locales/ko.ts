@@ -40,8 +40,6 @@ export default {
     'applications-filter.clusters': '클러스터',
     'applications-filter.namespaces': '네임스페이스',
     'applications-filter.auto-sync': '자동 싱크',
-    'applications-filter.auto-sync.enabled': '활성화',
-    'applications-filter.auto-sync.disabled': '비활성화',
     'paginate.sort': '정렬',
     'paginate.items-per-page': '페이지 당 항목 수',
     'paginate.items-per-page.all': '전체',
