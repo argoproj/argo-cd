@@ -84,11 +84,17 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	}
 
 	var shortSHALength int
+	var short7SHALength int
 	for _, pull := range pulls {
 		shortSHALength = 8
-		if len(pull.HeadSHA) < 8 {
-			shortSHALength = len(pull.HeadSHA)
+		short7SHALength = 7
+		lenPullHeadSha := len(pull.HeadSHA)
+
+		if lenPullHeadSha < 8 {
+			shortSHALength = lenPullHeadSha
+			short7SHALength = lenPullHeadSha
 		}
+		
 
 		paramMap := map[string]interface{}{
 			"number":         strconv.Itoa(pull.Number),
@@ -96,7 +102,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"branch_slug":    slug.Make(pull.Branch),
 			"head_sha":       pull.HeadSHA,
 			"head_short_sha": pull.HeadSHA[:shortSHALength],
-			"head_short_sha_7": pull.HeadSHA[:7],
+			"head_short_sha_7": pull.HeadSHA[:short7SHALength],
 
 		}
 
