@@ -15,7 +15,7 @@ export const LanguageSelector = ({title}: Props) => {
             {title}
 
             <label>
-                {t('languages', en['languages'])}
+                {t('languages', en.languages)}
                 <select
                     value={localStorage.getItem('language') || navigator.language}
                     className='argo-select'

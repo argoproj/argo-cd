@@ -91,7 +91,7 @@ class CertsListComponent extends React.Component<RouteComponentProps<any>> {
                                                             )}
                                                             items={[
                                                                 {
-                                                                    title: this.props.t('remove', en['remove']),
+                                                                    title: this.props.t('remove', en.remove),
                                                                     action: () => this.removeCert(cert.serverName, cert.certType, cert.certSubType)
                                                                 }
                                                             ]}
@@ -123,10 +123,10 @@ class CertsListComponent extends React.Component<RouteComponentProps<any>> {
                     header={
                         <div>
                             <button className='argo-button argo-button--base' onClick={() => this.formApiTLS.submitForm(null)}>
-                                {this.props.t('create', en['create'])}
+                                {this.props.t('create', en.create)}
                             </button>{' '}
                             <button onClick={() => (this.showAddTLSCertificate = false)} className='argo-button argo-button--base-o'>
-                                {this.props.t('cancel', en['cancel'])}
+                                {this.props.t('cancel', en.cancel)}
                             </button>
                         </div>
                     }>
@@ -175,10 +175,10 @@ class CertsListComponent extends React.Component<RouteComponentProps<any>> {
                     header={
                         <div>
                             <button className='argo-button argo-button--base' onClick={() => this.formApiSSH.submitForm(null)}>
-                                {this.props.t('create', en['create'])}
+                                {this.props.t('create', en.create)}
                             </button>{' '}
                             <button onClick={() => (this.showAddSSHKnownHosts = false)} className='argo-button argo-button--base-o'>
-                                {this.props.t('cancel', en['cancel'])}
+                                {this.props.t('cancel', en.cancel)}
                             </button>
                         </div>
                     }>
