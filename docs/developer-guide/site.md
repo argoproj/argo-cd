@@ -2,7 +2,7 @@
 
 ## Developing And Testing
 
-The web site is build using `mkdocs` and `mkdocs-material`. 
+The website is build using `mkdocs` and `mkdocs-material`. 
 
 To test:
 
