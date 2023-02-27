@@ -18,6 +18,7 @@ hack/
 docs/
 examples/
 .github/
+!test/fixture
 !hack/installers
 !hack/gpg-wrapper.sh
 !hack/git-verify-wrapper.sh
