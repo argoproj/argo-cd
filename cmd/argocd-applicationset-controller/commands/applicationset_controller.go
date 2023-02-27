@@ -2,10 +2,13 @@ package command
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/pkg/stats"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -46,17 +49,20 @@ func getSubmoduleEnabled() bool {
 
 func NewCommand() *cobra.Command {
 	var (
-		clientConfig           clientcmd.ClientConfig
-		metricsAddr            string
-		probeBindAddr          string
-		webhookAddr            string
-		enableLeaderElection   bool
-		namespace              string
-		argocdRepoServer       string
-		policy                 string
-		debugLog               bool
-		dryRun                 bool
-		enableProgressiveSyncs bool
+		clientConfig             clientcmd.ClientConfig
+		metricsAddr              string
+		probeBindAddr            string
+		webhookAddr              string
+		enableLeaderElection     bool
+		namespace                string
+		argocdRepoServer         string
+		policy                   string
+		debugLog                 bool
+		dryRun                   bool
+		enableProgressiveSyncs   bool
+		repoServerPlaintext      bool
+		repoServerStrictTLS      bool
+		repoServerTimeoutSeconds int
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -82,9 +88,7 @@ func NewCommand() *cobra.Command {
 			cli.SetLogLevel(cmdutil.LogLevel)
 
 			restConfig, err := clientConfig.ClientConfig()
-			if err != nil {
-				return err
-			}
+			errors.CheckError(err)
 
 			restConfig.UserAgent = fmt.Sprintf("argocd-applicationset-controller/%s (%s)", vers.Version, vers.Platform)
 
@@ -112,13 +116,10 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 			dynamicClient, err := dynamic.NewForConfig(mgr.GetConfig())
-			if err != nil {
-				return err
-			}
+			errors.CheckError(err)
 			k8sClient, err := kubernetes.NewForConfig(mgr.GetConfig())
-			if err != nil {
-				return err
-			}
+			errors.CheckError(err)
+
 			argoSettingsMgr := argosettings.NewSettingsManager(ctx, k8sClient, namespace)
 			appSetConfig := appclientset.NewForConfigOrDie(mgr.GetConfig())
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
@@ -127,10 +128,29 @@ func NewCommand() *cobra.Command {
 			scmAuth := generators.SCMAuthProviders{
 				GitHubApps: github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)),
 			}
+
+			tlsConfig := apiclient.TLSConfiguration{
+				DisableTLS:       repoServerPlaintext,
+				StrictValidation: repoServerPlaintext,
+			}
+
+			if !repoServerPlaintext && repoServerStrictTLS {
+				pool, err := tls.LoadX509CertPool(
+					fmt.Sprintf("%s/reposerver/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					fmt.Sprintf("%s/reposerver/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+				)
+				errors.CheckError(err)
+				tlsConfig.Certificates = pool
+			}
+
+			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
+			argoCDService, err := services.NewArgoCDService(argoCDDB, askPassServer, getSubmoduleEnabled(), repoClientset)
+			errors.CheckError(err)
+
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
 				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
-				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, getSubmoduleEnabled())),
+				"Git":                     generators.NewGitGenerator(argoCDService),
 				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth),
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
 				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth),
@@ -208,6 +228,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&dryRun, "dry-run", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN", false), "Enable dry run mode")
 	command.Flags().BoolVar(&enableProgressiveSyncs, "enable-progressive-syncs", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS", false), "Enable use of the experimental progressive syncs feature.")
+	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
+	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
+	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	return &command
 }
 
