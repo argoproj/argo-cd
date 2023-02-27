@@ -14,7 +14,7 @@ skaffold dev
 ```
 
 That's it. Once it's up and running, you can access Argo CD on (http://localhost:4000)[http://localhost:4000] (the user is
-`admin` and the password is simply (the super-secure) `password`. If you need to make any adjustments to the k8s 
+`admin` and the password is simply `password`. If you need to make any adjustments to the k8s 
 configuration(s), the `kustomization.yaml` for Skaffold can be found under the `skaffold` directory. 
 
 ## Run Argo CD outside of Kubernetes
