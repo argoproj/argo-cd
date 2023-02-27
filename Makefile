@@ -484,6 +484,11 @@ start: test-tools-image
 	$(DOCKER) version
 	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-local ARGOCD_START=${ARGOCD_START})
 
+.PHONY: skaffold
+skaffold:
+	kubectl create ns argocd || true
+	skaffold dev
+
 # Starts a local instance of ArgoCD
 .PHONY: start-local
 start-local: mod-vendor-local dep-ui-local cli-local

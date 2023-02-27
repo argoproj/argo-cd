@@ -10,12 +10,14 @@ If you followed the [Toolchain Guide](toolchain-guide.md) in setting up your too
 sure you're on the right kube context first) by running
 
 ```shell
-skaffold dev
+make skaffold
 ```
 
-That's it. Once it's up and running, you can access Argo CD on (http://localhost:4000)[http://localhost:4000] (the user is
-`admin` and the password is simply `password`. If you need to make any adjustments to the k8s 
-configuration(s), the `kustomization.yaml` for Skaffold can be found under the `skaffold` directory. 
+Alternatively, you can also run the command `skaffold dev` if you're certain that you have a preexisting `argocd` namespace 
+(`make skaffold` will create the `argocd` namespace if it doesn't already exist, otherwise the two commands are equivalent).  
+Once Argo CD's up and running, you can access it on (http://localhost:4000)[http://localhost:4000] (the user is `admin` 
+and the password is simply `password`. If you need to make any adjustments to the k8s configuration(s), the 
+`kustomization.yaml` for Skaffold can be found under the `skaffold` directory. 
 
 ## Run Argo CD outside of Kubernetes
 
