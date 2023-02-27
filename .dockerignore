@@ -19,6 +19,7 @@ docs/
 examples/
 .github/
 !test/fixture
+!test/container
 !hack/installers
 !hack/gpg-wrapper.sh
 !hack/git-verify-wrapper.sh
