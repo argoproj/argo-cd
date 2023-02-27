@@ -319,6 +319,10 @@ export interface HealthStatus {
 
 export type State = models.TypeMeta & {metadata: models.ObjectMeta} & {status: any; spec: any};
 
+export type ReadinessGate = {
+    conditionType: string;
+};
+
 export interface ResourceStatus {
     group: string;
     version: string;

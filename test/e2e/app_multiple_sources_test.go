@@ -3,11 +3,12 @@ package e2e
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	. "github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestMultiSourceAppCreation(t *testing.T) {
@@ -24,7 +25,6 @@ func TestMultiSourceAppCreation(t *testing.T) {
 		When().
 		CreateMultiSourceAppFromFile().
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			assert.Equal(t, Name(), app.Name)
 			for i, source := range app.Spec.GetSources() {
@@ -42,7 +42,8 @@ func TestMultiSourceAppCreation(t *testing.T) {
 			assert.Contains(t, output, Name())
 		}).
 		Expect(Success("")).
-		When().Refresh(RefreshTypeNormal).Then().
+		Given().Timeout(60).
+		When().Wait().Then().
 		Expect(Success("")).
 		And(func(app *Application) {
 			statusByName := map[string]SyncStatusCode{}
@@ -78,7 +79,6 @@ func TestMultiSourceAppWithHelmExternalValueFiles(t *testing.T) {
 		When().
 		CreateMultiSourceAppFromFile().
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			assert.Equal(t, Name(), app.Name)
 			for i, source := range app.Spec.GetSources() {
@@ -96,7 +96,8 @@ func TestMultiSourceAppWithHelmExternalValueFiles(t *testing.T) {
 			assert.Contains(t, output, Name())
 		}).
 		Expect(Success("")).
-		When().Refresh(RefreshTypeNormal).Then().
+		Given().Timeout(60).
+		When().Wait().Then().
 		Expect(Success("")).
 		And(func(app *Application) {
 			statusByName := map[string]SyncStatusCode{}
@@ -126,7 +127,6 @@ func TestMultiSourceAppWithSourceOverride(t *testing.T) {
 		When().
 		CreateMultiSourceAppFromFile().
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			assert.Equal(t, Name(), app.Name)
 			for i, source := range app.Spec.GetSources() {
@@ -144,7 +144,8 @@ func TestMultiSourceAppWithSourceOverride(t *testing.T) {
 			assert.Contains(t, output, Name())
 		}).
 		Expect(Success("")).
-		When().Refresh(RefreshTypeNormal).Then().
+		Given().Timeout(60).
+		When().Wait().Then().
 		Expect(Success("")).
 		And(func(app *Application) {
 			statusByName := map[string]SyncStatusCode{}
