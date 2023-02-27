@@ -11,7 +11,7 @@ FROM docker.io/library/golang:1.19 as golang
 
 FROM docker.io/library/registry:2.8 as registry
 
-FROM docker.io/bitnami/kubectl:1.24.8 as kubectl
+FROM docker.io/bitnami/kubectl:1.26@sha256:625467eb8c3a3d60232923404941c32e787eb9003e644d0fa8258b0efa7f6a7f as kubectl
 
 FROM ubuntu:22.04
 
