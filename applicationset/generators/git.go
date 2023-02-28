@@ -81,8 +81,6 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 	}
 
 	log.WithFields(log.Fields{
-		"allPaths":        allPaths,
-		"total":           len(allPaths),
 		"repoURL":         appSetGenerator.Git.RepoURL,
 		"revision":        appSetGenerator.Git.Revision,
 		"pathParamPrefix": appSetGenerator.Git.PathParamPrefix,

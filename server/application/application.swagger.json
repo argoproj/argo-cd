@@ -597,6 +597,43 @@
         ]
       }
     },
+    "/api/v1/applications/{name}/links": {
+      "get": {
+        "summary": "ListLinks returns the list of all application deep links",
+        "operationId": "ApplicationService_ListLinks",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationLinksResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      }
+    },
     "/api/v1/applications/{name}/logs": {
       "get": {
         "summary": "PodLogs returns stream of log entries for the specified pod. Pod",
@@ -1874,6 +1911,9 @@
       "type": "object",
       "properties": {
         "name": {
+          "type": "string"
+        },
+        "namespace": {
           "type": "string"
         },
         "rolloutName": {
@@ -3990,6 +4030,13 @@
         "revision": {
           "type": "string",
           "title": "Revision contains information about the revision the comparison has been performed to"
+        },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Revisions contains information about the revisions of multiple sources the comparison has been performed to"
         }
       },
       "title": "SyncStatus contains information about the currently observed live and desired states of an application"

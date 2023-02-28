@@ -398,15 +398,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 // generated applications.
 func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet, namespace string) (map[int]error, error) {
 	errorsByIndex := map[int]error{}
-	namesSet := map[string]bool{}
 	for i, app := range desiredApplications {
-
-		if !namesSet[app.Name] {
-			namesSet[app.Name] = true
-		} else {
-			errorsByIndex[i] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
-			continue
-		}
 
 		proj, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
 		if err != nil {
@@ -474,7 +466,7 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 	var firstError error
 	var applicationSetReason argov1alpha1.ApplicationSetReasonType
 
-	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
+	for i, requestedGenerator := range applicationSetInfo.Spec.Generators {
 		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{})
 		if err != nil {
 			log.WithError(err).WithField("generator", requestedGenerator).
@@ -505,11 +497,45 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 			}
 		}
 
-		log.WithField("generator", requestedGenerator).Infof("generated %d applications", len(res))
+		log.WithField("generator-index", i).Infof("generated %d applications", len(res))
 		log.WithField("generator", requestedGenerator).Debugf("apps from generator: %+v", res)
 	}
 
+	// apps with the same name will be overridden by different generators
+	// depending on the oreder of the generator that produced them
+	res = dedupApps(res)
+
+	log.Infof("generated %d unique applications from %d different generators", len(res), len(applicationSetInfo.Spec.Generators))
+
 	return res, applicationSetReason, firstError
+}
+
+func dedupApps(apps []argov1alpha1.Application) []argov1alpha1.Application {
+	appIdx := map[string]int{}
+	var res []argov1alpha1.Application
+
+	for i, a := range apps {
+		name := a.Name
+		namespace := "default"
+		if a.Namespace != "" {
+			namespace = a.Namespace
+		}
+		if a.GenerateName != "" {
+			name = a.GenerateName
+		}
+
+		key := fmt.Sprintf("%s/%s", namespace, name)
+
+		if idx, ok := appIdx[key]; ok {
+			res[idx] = a // override previous app with same name
+			continue
+		}
+
+		res = append(res, a)
+		appIdx[key] = i
+	}
+
+	return res
 }
 
 func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
