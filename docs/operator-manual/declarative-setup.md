@@ -512,6 +512,8 @@ execProviderConfig:
     }
     apiVersion: string
     installHint: string
+# Proxy URL for the kubernetes client to use when connecting to the cluster api server
+proxyUrl: string
 # Transport layer security configuration settings
 tlsClientConfig:
     # Base64 encoded PEM-encoded bytes (typically read from a client certificate file).
