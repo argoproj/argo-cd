@@ -7,13 +7,13 @@ RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 FROM docker.io/library/node:12.18.4-buster@sha256:7f4090a3fea631e703f4afe5cc5504143970d669a2c13b4e5edf3f830c9b4c96 as node
 
-FROM docker.io/library/golang:1.20@sha256:2edf6aab2d57644f3fe7407132a0d1770846867465a39c2083770cf62734b05d as golang
+FROM docker.io/library/golang:1.19.6@sha256:7ce31d15a3a4dbf20446cccffa4020d3a2974ad2287d96123f55caf22c7adb71 as golang
 
 FROM docker.io/library/registry:2.8@sha256:3f71055ad7c41728e381190fee5c4cf9b8f7725839dcf5c0fe3e5e20dc5db1fa as registry
 
-FROM docker.io/bitnami/kubectl:1.24.8@sha256:9c1bd1fe7bf4a0c19b4b38e596f355c5172805e14e6a3f71433472e3456e86d8 as kubectl
+FROM docker.io/bitnami/docker.io/bitnami/kubectl:1.26@sha256:625467eb8c3a3d60232923404941c32e787eb9003e644d0fa8258b0efa7f6a7f as kubectl
 
-FROM ubuntu@sha256:9a0bdde4188b896a372804be2384015e90e3f84906b750c1a53539b585fbbe7f
+FROM docker.io/library/ubuntu:22.04@sha256:9a0bdde4188b896a372804be2384015e90e3f84906b750c1a53539b585fbbe7f
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
