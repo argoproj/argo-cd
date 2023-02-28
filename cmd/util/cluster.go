@@ -1,15 +1,20 @@
 package util
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
 	"text/tabwriter"
 
+	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -102,6 +107,38 @@ func NewCluster(name string, namespaces []string, clusterResources bool, conf *r
 	return &clst
 }
 
+// GetKubePublicEndpoint returns the kubernetes apiserver endpoint as published
+// in the kube-public.
+func GetKubePublicEndpoint(client kubernetes.Interface) (string, error) {
+	clusterInfo, err := client.CoreV1().ConfigMaps("kube-public").Get(context.TODO(), "cluster-info", metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	kubeconfig, exists := clusterInfo.Data["kubeconfig"]
+	if !exists {
+		return "", fmt.Errorf("cluster-info does not contain a public kubeconfig")
+	}
+	// Parse Kubeconfig and get server address
+	config := &clientcmdapiv1.Config{}
+	err = yaml.Unmarshal([]byte(kubeconfig), config)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse cluster-info kubeconfig: %v", err)
+	}
+	if len(config.Clusters) == 0 {
+		return "", fmt.Errorf("cluster-info kubeconfig does not have any clusters")
+	}
+
+	return config.Clusters[0].Cluster.Server, nil
+}
+
+type ClusterEndpoint string
+
+const (
+	KubeConfigEndpoint   ClusterEndpoint = "kubeconfig"
+	KubePublicEndpoint   ClusterEndpoint = "kube-public"
+	KubeInternalEndpoint ClusterEndpoint = "internal"
+)
+
 type ClusterOptions struct {
 	InCluster               bool
 	Upsert                  bool
@@ -119,6 +156,7 @@ type ClusterOptions struct {
 	ExecProviderEnv         map[string]string
 	ExecProviderAPIVersion  string
 	ExecProviderInstallHint string
+	ClusterEndpoint         string
 }
 
 func AddClusterFlags(command *cobra.Command, opts *ClusterOptions) {
@@ -135,4 +173,5 @@ func AddClusterFlags(command *cobra.Command, opts *ClusterOptions) {
 	command.Flags().StringToStringVar(&opts.ExecProviderEnv, "exec-command-env", nil, "Environment vars to set when running the --exec-command executable")
 	command.Flags().StringVar(&opts.ExecProviderAPIVersion, "exec-command-api-version", "", "Preferred input version of the ExecInfo for the --exec-command executable")
 	command.Flags().StringVar(&opts.ExecProviderInstallHint, "exec-command-install-hint", "", "Text shown to the user when the --exec-command executable doesn't seem to be present")
+	command.Flags().StringVar(&opts.ClusterEndpoint, "cluster-endpoint", "", "Cluster endpoint to use. Can be one of the following: 'kubeconfig', 'kube-public', or 'internal'.")
 }
