@@ -16758,6 +16758,18 @@ spec:
               key: applicationsetcontroller.enable.progressive.syncs
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.server.plaintext
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.server.strict.tls
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -16786,6 +16798,8 @@ spec:
           name: gpg-keyring
         - mountPath: /tmp
           name: tmp
+        - mountPath: /app/config/reposerver/tls
+          name: argocd-repo-server-tls
       serviceAccountName: argocd-applicationset-controller
       volumes:
       - configMap:
@@ -16801,6 +16815,17 @@ spec:
         name: gpg-keyring
       - emptyDir: {}
         name: tmp
+      - name: argocd-repo-server-tls
+        secret:
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: argocd-repo-server-tls
 ---
 apiVersion: apps/v1
 kind: Deployment
