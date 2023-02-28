@@ -272,43 +272,6 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
     );
 };
 
-// export const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
-//     const ctx = React.useContext(Context);
-//     const loadToolbar = AddAuthToToolbar(props.toolbar, ctx);
-//     return (
-//         <React.Fragment>
-//             <div className='top-bar row flex-top-bar' key='tool-bar'>
-//                 <DataLoader load={() => loadToolbar}>
-//                     {toolbar => (
-//                         <React.Fragment>
-//                             <div className='flex-top-bar__actions'>
-//                                 {toolbar.actionMenu && (
-//                                     <React.Fragment>
-//                                         {toolbar.actionMenu.items.map((item, i) => (
-//                                             <button
-//                                                 disabled={!!item.disabled}
-//                                                 qe-id={item.qeId}
-//                                                 className='argo-button argo-button--base'
-//                                                 onClick={() => item.action()}
-//                                                 style={{marginRight: 2}}
-//                                                 key={i}>
-//                                                 {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
-//                                                 <span className='show-for-large'>{item.title}</span>
-//                                             </button>
-//                                         ))}
-//                                     </React.Fragment>
-//                                 )}
-//                             </div>
-//                             <div className='flex-top-bar__tools'>{toolbar.tools}</div>
-//                         </React.Fragment>
-//                     )}
-//                 </DataLoader>
-//             </div>
-//             <div className='flex-top-bar__padder' />
-//         </React.Fragment>
-//     );
-// };
-
 export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
     const appInput = tryJsonParse(query.get('new'));
