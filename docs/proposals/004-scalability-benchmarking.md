@@ -1,6 +1,7 @@
 ---
 title: Argo CD Scalability Benchmarking
 authors:
+  - "@andklee"
   - "@csantanapr"
   - "@morey-tech"
   - "@nimakaviani"
