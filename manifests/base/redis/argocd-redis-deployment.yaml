@@ -21,7 +21,7 @@ spec:
       serviceAccountName: argocd-redis        
       containers:
       - name: redis
-        image: redis:7.0.7-alpine
+        image: redis:7.0.8-alpine
         imagePullPolicy: Always
         args:
         - "--save"
