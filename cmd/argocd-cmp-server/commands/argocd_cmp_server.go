@@ -44,7 +44,7 @@ func NewCommand() *cobra.Command {
 			config, err := plugin.ReadPluginConfig(configFilePath)
 			errors.CheckError(err)
 
-			if config.Spec.Discover.FileName == "" && config.Spec.Discover.Find.Glob == "" && len(config.Spec.Discover.Find.Command.Command) == 0 {
+			if !config.Spec.Discover.IsDefined() {
 				name := config.Metadata.Name
 				if config.Spec.Version != "" {
 					name = name + "-" + config.Spec.Version
