@@ -26,9 +26,9 @@ last-updated: 2023-02-28
 ## Summary
 
 ## Motivation
-Users of Argo CD are interested to know how to scale Argo CD, what configuration knobs and deployment options they have, and how far they can push resources (in terms of the number of supported applications, Git repositories, managing clusters, etc.).
+Users of Argo CD are interested to know how to scale Argo CD, what configuration tweaks and deployment options they have, and how far they can push resources (in terms of the number of supported applications, Git repositories, managing clusters, etc.).
 
-While the Argo CD documentation [discusses options](https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/#scaling-up)to scale up, the actual process is not clear and, as articulated [in this thread](https://github.com/argoproj/argo-cd/issues/9633), oftentimes a point of confusion for users.
+While the Argo CD documentation [discusses options](https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/#scaling-up) to scale up, the actual process is not clear and, as articulated [in this thread](https://github.com/argoproj/argo-cd/issues/9633), oftentimes a point of confusion for users.
 
 By running large-scale benchmarking, we aim at helping the Argo CD community with the following:
 
@@ -57,18 +57,19 @@ By running large-scale benchmarking, we aim at helping the Argo CD community wit
     1. Number of Applications.
     2. Number of resources managed by an Application.
     3. Number of resources in a cluster.
-    4. Churn rate for resources in the cluster (how often resources change).
-    5. Number of clusters.
-    6. Number of repositories being monitored.
-    7. Size of the repositories.
+    4. The size of the resources in a cluster and managed by an Application.
+    5. Churn rate for resources in the cluster (how often resources change).
+    6. Number of clusters.
+    7. Number of repositories being monitored.
+    8. Size of the repositories.
 3. Determine the metrics that reflect limitations in scalability factors.
-    8. Application sync time for x number of apps
-    9. Emptying the queues (app_reconciliation_queue, app_operation_processing_queue)
-    10. Contribute back grafana thresholds and alerts for prometheus
+    1. Application sync time for x number of apps
+    2.. Emptying the queues (app_reconciliation_queue, app_operation_processing_queue)
 4. Create automated testing procedures for Argo CD that take the key scalability factors as testing parameters.
 5. Test the default installation of Argo CD to determine the limit based on the key scalability factors.
 6. Create test scenarios that reflect the common topologies (Argo CD 1-1 with clusters, Argo CD 1-many with clusters).
 7. Determine the thresholds for the metrics identified earlier to capture when performance is being impacted.
+    1. Contribute back grafana thresholds and alerts for prometheus
 
 ### Use cases
 Each use case will cover a specific topology with N permutations based on the key scalability factors. They will be measured using the metrics given in the proposal.
