@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:7.0.8-alpine as redis
+FROM docker.io/library/redis:7.0.8@sha256:6a59f1cbb8d28ac484176d52c473494859a512ddba3ea62a547258cf16c9b3ae as redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
