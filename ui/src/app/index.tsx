@@ -13,3 +13,4 @@ if (mdl.hot) {
 }
 
 (window as any).React = React;
+(window as any).ReactDOM = ReactDOM;
