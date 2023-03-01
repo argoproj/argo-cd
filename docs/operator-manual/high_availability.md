@@ -4,7 +4,7 @@ Argo CD is largely stateless, all data is persisted as Kubernetes objects, which
 
 A set of HA manifests are provided for users who wish to run Argo CD in a highly available manner. This runs more containers, and runs Redis in HA mode.
 
-[Manifests ⧉](https://github.com/argoproj/argo-cd/tree/master/manifests) 
+[HA Manifests ⧉](https://github.com/argoproj/argo-cd/tree/master/manifests#high-availability) 
 
 !!! note
     The HA installation will require at least three different nodes due to pod anti-affinity roles in the specs.
