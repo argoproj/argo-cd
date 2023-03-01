@@ -28,7 +28,9 @@ Breaking down the permissions definition differs slightly between applications a
 
 ### RBAC Resources and Actions
 
-Resources: `clusters`, `projects`, `applications`, `applicationsets`, `repositories`, `certificates`, `accounts`, `gpgkeys`, `logs`, `exec`
+Resources: `clusters`, `projects`, `applications`, `applicationsets`,
+`repositories`, `certificates`, `accounts`, `gpgkeys`, `logs`, `exec`,
+`extensions`
 
 Actions: `get`, `create`, `update`, `delete`, `sync`, `override`,`action/<group/kind/action-name>`
 
@@ -78,6 +80,40 @@ p, dev-group, applicationsets, *, dev-project/*, allow
 
 With this rule in place, a `dev-group` user will be unable to create an ApplicationSet capable of creating Applications
 outside the `dev-project` project.
+
+#### The `extensions` resource
+
+With the `extensions` resource it is possible configure permissions to
+invoke [proxy
+extensions](../developer-guide/extensions/proxy-extensions.md). The
+`extensions` RBAC validation works in conjunction with the
+`applications` resource. A user logged in Argo CD (UI or CLI), needs
+to have at least read permission on the project, namespace and
+application where the request is originated from.
+
+Consider the example below:
+
+```csv
+g, ext, role:extension
+p, role:extension, applications, get, default/httpbin-app, allow
+p, role:extension, extensions, invoke, httpbin, allow
+```
+
+Explanation:
+
+- *line1*: defines the group `role:extension` associated with the
+  subject `ext`.
+- *line2*: defines a policy allowing this role to read (`get`) the
+  `httpbin-app` application in the `default` project.
+- *line3*: defines another policy allowing this role to `invoke` the
+  `httpbin` extension.
+
+**Note 1**: that for extensions requests to be allowed, the policy defined
+in the *line2* is also required. 
+
+**Note 2**: `invoke` is a new action introduced specifically to be used
+with the `extensions` resource. The current actions for `extensions`
+are `*` or `invoke`. 
 
 ## Tying It All Together
 
