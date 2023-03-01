@@ -287,7 +287,8 @@ func isRootAppNode(r *clustercache.Resource) bool {
 }
 
 func getApp(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource) string {
-	return getAppRecursive(r, ns, map[kube.ResourceKey]bool{})
+	name, _ := getAppRecursive(r, ns, map[kube.ResourceKey]bool{})
+	return name
 }
 
 func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
@@ -298,27 +299,31 @@ func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
 	return gv
 }
 
-func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource, visited map[kube.ResourceKey]bool) string {
+func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource, visited map[kube.ResourceKey]bool) (string, bool) {
 	if !visited[r.ResourceKey()] {
 		visited[r.ResourceKey()] = true
 	} else {
 		log.Warnf("Circular dependency detected: %v.", visited)
-		return resInfo(r).AppName
+		return resInfo(r).AppName, false
 	}
 
 	if resInfo(r).AppName != "" {
-		return resInfo(r).AppName
+		return resInfo(r).AppName, true
 	}
 	for _, ownerRef := range r.OwnerRefs {
 		gv := ownerRefGV(ownerRef)
 		if parent, ok := ns[kube.NewResourceKey(gv.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)]; ok {
-			app := getAppRecursive(parent, ns, visited)
-			if app != "" {
-				return app
+			visited_branch := make(map[kube.ResourceKey]bool, len(visited))
+			for k, v := range visited {
+				visited_branch[k] = v
+			}
+			app, ok := getAppRecursive(parent, ns, visited_branch)
+			if app != "" || !ok {
+				return app, ok
 			}
 		}
 	}
-	return ""
+	return "", true
 }
 
 var (
