@@ -2068,6 +2068,10 @@ func (w *SyncWindows) CanSync(isManual bool) bool {
 		}
 	}
 
+	if active.hasAllow() {
+		return true
+	}
+
 	inactiveAllows := w.InactiveAllows()
 	if inactiveAllows.HasWindows() {
 		if isManual && inactiveAllows.manualEnabled() {
