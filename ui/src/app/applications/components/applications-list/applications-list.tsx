@@ -114,7 +114,7 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                     .filter(item => !!item);
                             }
                             if (params.get('autoSync') != null) {
-                                viewPref.autosyncFilter = params
+                                viewPref.autoSyncFilter = params
                                     .get('autoSync')
                                     .split(',')
                                     .filter(item => !!item);
