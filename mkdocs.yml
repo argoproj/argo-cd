@@ -48,6 +48,7 @@ nav:
   - operator-manual/resource_actions.md
   - operator-manual/custom_tools.md
   - operator-manual/custom-styles.md
+  - operator-manual/ui-customization.md
   - operator-manual/metrics.md
   - operator-manual/web_based_terminal.md
   - operator-manual/config-management-plugins.md
@@ -103,7 +104,7 @@ nav:
       - operator-manual/applicationset/GoTemplate.md
     - Controlling Resource Modification: operator-manual/applicationset/Controlling-Resource-Modification.md
     - Application Pruning & Resource Deletion: operator-manual/applicationset/Application-Deletion.md
-    - Progressive Rollouts: operator-manual/applicationset/Progressive-Rollouts.md
+    - Progressive Syncs: operator-manual/applicationset/Progressive-Syncs.md
   - Server Configuration Parameters:
     - operator-manual/server-commands/argocd-server.md
     - operator-manual/server-commands/argocd-application-controller.md
@@ -112,6 +113,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.5-2.6.md
     - operator-manual/upgrading/2.4-2.5.md
     - operator-manual/upgrading/2.3-2.4.md
     - operator-manual/upgrading/2.2-2.3.md
@@ -153,6 +155,7 @@ nav:
   - user-guide/selective_sync.md
   - user-guide/sync-waves.md
   - user-guide/sync_windows.md
+  - user-guide/skip_reconcile.md
   - Generating Applications with ApplicationSet: user-guide/application-set.md
   - user-guide/ci_automation.md
   - user-guide/app_deletion.md
@@ -163,6 +166,8 @@ nav:
   - Command Reference: user-guide/commands/argocd.md
 - Developer Guide:
   - developer-guide/index.md
+  - Architecture:
+    - developer-guide/architecture/authz-authn.md
   - Code Contribution Guide: developer-guide/code-contributions.md
   - Toolchain Guide: developer-guide/toolchain-guide.md
   - developer-guide/contributors-quickstart.md
@@ -177,7 +182,9 @@ nav:
   - developer-guide/releasing.md
   - developer-guide/site.md
   - developer-guide/static-code-analysis.md
-  - developer-guide/ui-extensions.md
+  - Extensions:
+    - developer-guide/extensions/ui-extensions.md
+    - developer-guide/extensions/proxy-extensions.md
   - developer-guide/faq.md
 - faq.md
 - security_considerations.md
