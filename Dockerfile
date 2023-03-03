@@ -132,3 +132,4 @@ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-k8s-auth
 
 USER $ARGOCD_USER_ID
+ENTRYPOINT ["/usr/bin/tini", "--"]

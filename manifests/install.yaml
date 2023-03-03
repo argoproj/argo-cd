@@ -15809,9 +15809,8 @@ spec:
         app.kubernetes.io/name: argocd-applicationset-controller
     spec:
       containers:
-      - command:
-        - entrypoint.sh
-        - argocd-applicationset-controller
+      - args:
+        - /usr/local/bin/argocd-applicationset-controller
         env:
         - name: NAMESPACE
           valueFrom:
@@ -16038,8 +16037,8 @@ spec:
         app.kubernetes.io/name: argocd-notifications-controller
     spec:
       containers:
-      - command:
-        - argocd-notifications
+      - args:
+        - /usr/local/bin/argocd-notifications
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -16168,10 +16167,10 @@ spec:
             weight: 5
       automountServiceAccountToken: false
       containers:
-      - command:
-        - sh
-        - -c
-        - entrypoint.sh argocd-repo-server --redis argocd-redis:6379
+      - args:
+        - /usr/local/bin/argocd-repo-server
+        - --redis
+        - argocd-redis:6379
         env:
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
@@ -16431,8 +16430,8 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 5
       containers:
-      - command:
-        - argocd-server
+      - args:
+        - /usr/local/bin/argocd-server
         env:
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
@@ -16735,8 +16734,8 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 5
       containers:
-      - command:
-        - argocd-application-controller
+      - args:
+        - /usr/local/bin/argocd-application-controller
         env:
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "1"

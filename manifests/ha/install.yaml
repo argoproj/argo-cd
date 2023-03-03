@@ -16690,9 +16690,8 @@ spec:
         app.kubernetes.io/name: argocd-applicationset-controller
     spec:
       containers:
-      - command:
-        - entrypoint.sh
-        - argocd-applicationset-controller
+      - args:
+        - /usr/local/bin/argocd-applicationset-controller
         env:
         - name: NAMESPACE
           valueFrom:
@@ -16919,8 +16918,8 @@ spec:
         app.kubernetes.io/name: argocd-notifications-controller
     spec:
       containers:
-      - command:
-        - argocd-notifications
+      - args:
+        - /usr/local/bin/argocd-notifications
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -17092,9 +17091,8 @@ spec:
             topologyKey: kubernetes.io/hostname
       automountServiceAccountToken: false
       containers:
-      - command:
-        - entrypoint.sh
-        - argocd-repo-server
+      - args:
+        - /usr/local/bin/argocd-repo-server
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:
@@ -17356,8 +17354,8 @@ spec:
                 app.kubernetes.io/name: argocd-server
             topologyKey: kubernetes.io/hostname
       containers:
-      - command:
-        - argocd-server
+      - args:
+        - /usr/local/bin/argocd-server
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:
@@ -17664,8 +17662,8 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 5
       containers:
-      - command:
-        - argocd-application-controller
+      - args:
+        - /usr/local/bin/argocd-application-controller
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:
