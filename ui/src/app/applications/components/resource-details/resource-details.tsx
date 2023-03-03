@@ -319,7 +319,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                             <i className='fa fa-ellipsis-v' />
                                         </button>
                                     )}>
-                                    {() => AppUtils.renderResourceActionMenu(selectedNode, application, tree, {apis: appContext})}
+                                    {() => AppUtils.renderResourceActionMenu(selectedNode, application, appContext)}
                                 </DropDown>
                             </div>
                             <Tabs

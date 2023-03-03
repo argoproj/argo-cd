@@ -1071,7 +1071,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       initContainers:
       - name: config-init
-        image: haproxy:2.6.2-alpine
+        image: haproxy:2.6.9-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1089,7 +1089,7 @@ spec:
           mountPath: /data
       containers:
       - name: haproxy
-        image: haproxy:2.6.2-alpine
+        image: haproxy:2.6.9-alpine
         imagePullPolicy: IfNotPresent
         securityContext: 
           null
@@ -1179,7 +1179,7 @@ spec:
       automountServiceAccountToken: false
       initContainers:
       - name: config-init
-        image: redis:7.0.7-alpine
+        image: redis:7.0.8-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1206,7 +1206,7 @@ spec:
 
       containers:
       - name: redis
-        image: redis:7.0.7-alpine
+        image: redis:7.0.8-alpine
         imagePullPolicy: IfNotPresent
         command:
         - redis-server
@@ -1256,7 +1256,7 @@ spec:
               - /bin/sh
               - /readonly-config/trigger-failover-if-master.sh
       - name: sentinel
-        image: redis:7.0.7-alpine
+        image: redis:7.0.8-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-sentinel
@@ -1300,7 +1300,7 @@ spec:
           {}
 
       - name: split-brain-fix
-        image: redis:7.0.7-alpine
+        image: redis:7.0.8-alpine
         imagePullPolicy: IfNotPresent
         command:
           - sh
