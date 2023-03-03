@@ -299,3 +299,5 @@ replace (
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.24.2
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.24.2
 )
+
+replace github.com/argoproj/gitops-engine v0.7.1-0.20230214165351-ed70eac8b7bd => github.com/reggie-k/gitops-engine v0.0.0-20230302155252-99968ef41994

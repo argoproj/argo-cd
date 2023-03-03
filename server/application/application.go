@@ -2139,7 +2139,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 				}
 
 				// Create the resource
-				// s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj)
+				s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj)
 			}
 		}
 	}

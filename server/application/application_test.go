@@ -1190,7 +1190,7 @@ func TestRunResourceAction(t *testing.T) {
 	version := "v1"
 	resourceName := "my-cron-job"
 	namespace := testNamespace
-	action := "create-from"
+	action := "create-job"
 	uid := "1"
 
 	resources := []appsv1.ResourceStatus{{

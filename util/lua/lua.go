@@ -177,8 +177,7 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 		// Meanwhile, just wrapping Job resource with a "create" operation, and wrapping everything else with a "patch" operation.
 		// The "everything else" are traditional outputs from a ResourceAction - the update to the same resource the action is invoked on.
 		// The logic, that goes over the array returned from Lua, and makes sure that:
-		// - there is at most 1 patch operation
-		// - if such patch operation exists, it is being invoked only on the source resource
+		// - if a patch operation exists, it is being invoked only on the source resource
 		// will be somewhere here, and if one those is violated, an error will be thrown
 		impactedResources := make([]ImpactedResource, 0)
 		if newObj.GetKind() == "Job" {
