@@ -304,6 +304,28 @@ func (c *Cache) SetRevisionMetadata(repoURL, revision string, item *appv1.Revisi
 	return c.cache.SetItem(revisionMetadataKey(repoURL, revision), item, c.repoCacheExpiration, false)
 }
 
+func gitDataKey(gitObject, repoURL, revision string) string {
+	return fmt.Sprintf("%s|%s|%s", gitObject, repoURL, revision)
+}
+
+func (c *Cache) SetGitFiles(repoURL, revision string, files map[string][]byte) error {
+	return c.cache.SetItem(gitDataKey("gitfiles", repoURL, revision), &files, c.repoCacheExpiration, false)
+}
+
+func (c *Cache) GetGitFiles(repoURL, revision string) (map[string][]byte, error) {
+	var item map[string][]byte
+	return item, c.cache.GetItem(gitDataKey("gitfiles", repoURL, revision), &item)
+}
+
+func (c *Cache) SetGitDirectories(repoURL, revision string, directories []string) error {
+	return c.cache.SetItem(gitDataKey("gitdirs", repoURL, revision), &directories, c.repoCacheExpiration, false)
+}
+
+func (c *Cache) GetGitDirectories(repoURL, revision string) ([]string, error) {
+	var item []string
+	return item, c.cache.GetItem(gitDataKey("gitdirs", repoURL, revision), &item)
+}
+
 func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {
 	if cmr == nil {
 		return nil

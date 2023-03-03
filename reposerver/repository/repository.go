@@ -2493,7 +2493,14 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
-	// TODO: check cache/cache the files here?
+	// check the cache and return the results if present
+	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision); err == nil {
+		return &apiclient.GitFilesResponse{
+			Map: cachedFiles,
+		}, nil
+	}
+
+	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
 	})
@@ -2515,6 +2522,12 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 		}
 		res[filePath] = fileContents
 	}
+
+	err = s.cache.SetGitFiles(repo.Repo, revision, res)
+	if err != nil {
+		log.Warnf("cannot cache git files for repo %s with revision %s: %v", repo.Repo, revision, err)
+	}
+
 	return &apiclient.GitFilesResponse{
 		Map: res,
 	}, nil
@@ -2533,7 +2546,14 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
-	// TODO: check cache/cache the directory paths here?
+	// check the cache and return the results if present
+	if cachedPaths, err := s.cache.GetGitDirectories(repo.Repo, revision); err == nil {
+		return &apiclient.GitDirectoriesResponse{
+			Paths: cachedPaths,
+		}, nil
+	}
+
+	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
 	})
@@ -2571,6 +2591,11 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 		return nil
 	}); err != nil {
 		return nil, err
+	}
+
+	err = s.cache.SetGitDirectories(repo.Repo, revision, paths)
+	if err != nil {
+		log.Warnf("cannot cache git files for repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 
 	return &apiclient.GitDirectoriesResponse{
