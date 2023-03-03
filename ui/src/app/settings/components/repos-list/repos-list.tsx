@@ -37,7 +37,7 @@ export interface NewHTTPSRepoParams {
     enableLfs: boolean;
     proxy: string;
     project?: string;
-    forceHttpBasicAuth: boolean;
+    forceHttpBasicAuth?: boolean;
 }
 
 interface NewGitHubAppRepoParams {
