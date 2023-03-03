@@ -146,6 +146,7 @@ func NewCommand() *cobra.Command {
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
 			argoCDService, err := services.NewArgoCDService(argoCDDB, askPassServer, getSubmoduleEnabled(), repoClientset)
 			errors.CheckError(err)
+			defer argoCDService.Close()
 
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),

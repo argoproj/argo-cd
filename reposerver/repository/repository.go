@@ -2446,12 +2446,14 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevisionRequest) (*apiclient.ResolveRevisionResponse, error) {
 
 	repo := q.Repo
-	app := q.App
 	ambiguousRevision := q.AmbiguousRevision
 	var revision string
-	var source = app.Spec.GetSource()
-	if source.IsHelm() {
-		_, revision, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, source.Chart, true)
+	isHelm := false
+	if q.App != nil {
+		isHelm = q.App.Spec.Source.IsHelm()
+	}
+	if isHelm {
+		_, revision, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, q.App.Spec.Source.Chart, true)
 
 		if err != nil {
 			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
@@ -2474,4 +2476,106 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 			AmbiguousRevision: fmt.Sprintf("%s (%s)", ambiguousRevision, revision),
 		}, nil
 	}
+}
+
+func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+	repo := request.GetRepo()
+	revision := request.GetRevision()
+	gitPath := request.GetPath()
+	if gitPath == "" {
+		gitPath = "."
+	}
+
+	if repo == nil || revision == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must pass a valid repo and revision (%s)", revision)
+	}
+
+	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
+	}
+
+	// TODO: check cache/cache the files here?
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", revision, err)
+	}
+	defer io.Close(closer)
+
+	gitFiles, err := gitClient.LsFiles(gitPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to list files. repo %s with revision %s: %v", revision, err)
+	}
+
+	res := make(map[string][]byte)
+	for _, filePath := range gitFiles {
+		fileContents, err := os.ReadFile(filepath.Join(gitClient.Root(), filePath))
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "unable to read files. repo %s with revision %s: %v", revision, err)
+		}
+		res[filePath] = fileContents
+	}
+	return &apiclient.GitFilesResponse{
+		Map: res,
+	}, nil
+}
+
+func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+	repo := request.GetRepo()
+	revision := request.GetRevision()
+
+	if repo == nil || revision == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must pass a valid repo and revision (%s)", revision)
+	}
+
+	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
+	}
+
+	// TODO: check cache/cache the directory paths here?
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", revision, err)
+	}
+	defer io.Close(closer)
+
+	repoRoot := gitClient.Root()
+	var paths []string
+	if err := filepath.Walk(repoRoot, func(path string, info os.FileInfo, fnErr error) error {
+		if fnErr != nil {
+			return fmt.Errorf("error walking the file tree: %w", fnErr)
+		}
+		if !info.IsDir() { // Skip files: directories only
+			return nil
+		}
+
+		fname := info.Name()
+		if strings.HasPrefix(fname, ".") { // Skip all folders starts with "."
+			return filepath.SkipDir
+		}
+
+		relativePath, err := filepath.Rel(repoRoot, path)
+		if err != nil {
+			return fmt.Errorf("error constructing relative repo path: %w", err)
+		}
+
+		if relativePath == "." { // Exclude '.' from results
+			return nil
+		}
+
+		paths = append(paths, relativePath)
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return &apiclient.GitDirectoriesResponse{
+		Paths: paths,
+	}, nil
 }

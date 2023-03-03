@@ -3,9 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -61,32 +58,18 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision s
 		return nil, fmt.Errorf("Error in GetRepository: %w", err)
 	}
 
-	gitRepoClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(a.storecreds), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
+	fileRequest := &apiclient.GitFilesRequest{
+		Repo:             repo,
+		SubmoduleEnabled: a.submoduleEnabled,
+		Revision:         revision,
+		Path:             pattern,
+	}
 
+	fileResponse, err := a.repoServerClient.GetGitFiles(ctx, fileRequest)
 	if err != nil {
 		return nil, err
 	}
-
-	err = checkoutRepo(gitRepoClient, revision, a.submoduleEnabled)
-	if err != nil {
-		return nil, err
-	}
-
-	paths, err := gitRepoClient.LsFiles(pattern)
-	if err != nil {
-		return nil, fmt.Errorf("Error during listing files of local repo: %w", err)
-	}
-
-	res := map[string][]byte{}
-	for _, filePath := range paths {
-		bytes, err := os.ReadFile(filepath.Join(gitRepoClient.Root(), filePath))
-		if err != nil {
-			return nil, err
-		}
-		res[filePath] = bytes
-	}
-
-	return res, nil
+	return fileResponse.GetMap(), nil
 }
 
 func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revision string) ([]string, error) {
@@ -96,50 +79,17 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revi
 		return nil, fmt.Errorf("Error in GetRepository: %w", err)
 	}
 
-	gitRepoClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(a.storecreds), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
-	if err != nil {
-		return nil, fmt.Errorf("error creating a new git client: %w", err)
+	dirRequest := &apiclient.GitDirectoriesRequest{
+		Repo:             repo,
+		SubmoduleEnabled: a.submoduleEnabled,
+		Revision:         revision,
 	}
 
-	err = checkoutRepo(gitRepoClient, revision, a.submoduleEnabled)
+	dirResponse, err := a.repoServerClient.GetGitDirectories(ctx, dirRequest)
 	if err != nil {
-		return nil, fmt.Errorf("error while checking out repo: %w", err)
-	}
-
-	filteredPaths := []string{}
-
-	repoRoot := gitRepoClient.Root()
-
-	if err := filepath.Walk(repoRoot, func(path string, info os.FileInfo, fnErr error) error {
-		if fnErr != nil {
-			return fmt.Errorf("error walking the file tree: %w", fnErr)
-		}
-		if !info.IsDir() { // Skip files: directories only
-			return nil
-		}
-
-		fname := info.Name()
-		if strings.HasPrefix(fname, ".") { // Skip all folders starts with "."
-			return filepath.SkipDir
-		}
-
-		relativePath, err := filepath.Rel(repoRoot, path)
-		if err != nil {
-			return fmt.Errorf("error constructing relative repo path: %w", err)
-		}
-
-		if relativePath == "." { // Exclude '.' from results
-			return nil
-		}
-
-		filteredPaths = append(filteredPaths, relativePath)
-
-		return nil
-	}); err != nil {
 		return nil, err
 	}
-
-	return filteredPaths, nil
+	return dirResponse.GetPaths(), nil
 
 }
 
