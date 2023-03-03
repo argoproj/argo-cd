@@ -2446,14 +2446,12 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevisionRequest) (*apiclient.ResolveRevisionResponse, error) {
 
 	repo := q.Repo
+	app := q.App
 	ambiguousRevision := q.AmbiguousRevision
 	var revision string
-	isHelm := false
-	if q.App != nil {
-		isHelm = q.App.Spec.Source.IsHelm()
-	}
-	if isHelm {
-		_, revision, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, q.App.Spec.Source.Chart, true)
+	var source = app.Spec.GetSource()
+	if source.IsHelm() {
+		_, revision, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, source.Chart, true)
 
 		if err != nil {
 			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
