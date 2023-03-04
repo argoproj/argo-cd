@@ -470,7 +470,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                                     )}
                                                     <div className='pod-logs-viewer__line__number'>{lineNum}</div>
                                                     <div className={`pod-logs-viewer__line ${selectedLine === i ? 'pod-logs-viewer__line--selected' : ''}`}>
-                                                        <Ansi>{l}</Ansi>
+                                                        <Ansi>{renderLine(l, selectedLine === i)}</Ansi>
                                                     </div>
                                                 </div>
                                             );
@@ -544,4 +544,13 @@ const logNavigators = (actions: NavActions, darkMode: boolean, info?: PageInfo) 
             </NavButton>
         </div>
     );
+};
+
+const renderLine = (line: string, isSelected: boolean) => {
+    if (!isSelected) return line;
+    try {
+        return JSON.stringify(JSON.parse(line), null, 2);
+    } catch {
+        return line;
+    }
 };
