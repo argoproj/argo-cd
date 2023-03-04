@@ -2139,7 +2139,10 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 				}
 
 				// Create the resource
-				s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj)
+				_, err = s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj)
+				if err != nil {
+					return nil, fmt.Errorf("error creating resource: %w", err)
+				}
 			}
 		}
 	}
