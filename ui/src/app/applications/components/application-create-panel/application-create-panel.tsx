@@ -137,6 +137,11 @@ export const ApplicationCreatePanel = (props: {
                     if (repoInfo) {
                         normalizeAppSource(app, repoInfo.type || 'git');
                     }
+                    if (app?.spec?.destination?.name && app.spec.destination.name !== '') {
+                        setDestFormat('NAME');
+                    } else {
+                        setDestFormat('URL');
+                    }
                     return (
                         <div className='application-create-panel'>
                             {(yamlMode && (

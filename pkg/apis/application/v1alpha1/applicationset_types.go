@@ -313,7 +313,7 @@ type GitGenerator struct {
 	Revision            string                      `json:"revision" protobuf:"bytes,4,name=revision"`
 	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
 	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
-	PathParamPrefix     string                      `json:"pathParamPrefix" protobuf:"bytes,7,name=pathParamPrefix"`
+	PathParamPrefix     string                      `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
 }
 
 type GitDirectoryGeneratorItem struct {
@@ -602,7 +602,9 @@ type ApplicationSetApplicationStatus struct {
 	// Message contains human-readable message indicating details about the status
 	Message string `json:"message" protobuf:"bytes,3,opt,name=message"`
 	// Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
-	Status string `json:"status" protobuf:"bytes,5,opt,name=status"`
+	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
+	// Step tracks which step this Application should be updated in
+	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
 }
 
 // ApplicationSetList contains a list of ApplicationSet

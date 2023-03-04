@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -288,7 +289,7 @@ func validateRepo(ctx context.Context,
 			return nil, err
 		}
 		if err := TestRepoWithKnownType(ctx, repoClient, repo, source.IsHelm(), source.IsHelmOci()); err != nil {
-			errMessage = fmt.Sprintf("repositories not accessible: %v", repo)
+			errMessage = fmt.Sprintf("repositories not accessible: %v: %v", repo.StringForLogging(), err)
 		}
 		repoAccessible := false
 
@@ -732,6 +733,21 @@ func ContainsSyncResource(name string, namespace string, gvk schema.GroupVersion
 	return false
 }
 
+// IncludeResource checks if an app resource matches atleast one of the filters, then it returns true.
+func IncludeResource(resourceName string, resourceNamespace string, gvk schema.GroupVersionKind,
+	syncOperationResources []*argoappv1.SyncOperationResource) bool {
+	for _, syncOperationResource := range syncOperationResources {
+		includeResource := syncOperationResource.Compare(resourceName, resourceNamespace, gvk)
+		if syncOperationResource.Exclude {
+			includeResource = !includeResource
+		}
+		if includeResource {
+			return true
+		}
+	}
+	return false
+}
+
 // NormalizeApplicationSpec will normalize an application spec to a preferred state. This is used
 // for migrating application objects which are using deprecated legacy fields into the new fields,
 // and defaulting fields in the spec (e.g. spec.project)
@@ -953,4 +969,37 @@ func AppInstanceNameFromQualified(name string, defaultNs string) string {
 // identified by projName.
 func ErrProjectNotPermitted(appName, appNamespace, projName string) error {
 	return fmt.Errorf("application '%s' in namespace '%s' is not permitted to use project '%s'", appName, appNamespace, projName)
+}
+
+// IsValidPodName checks that a podName is valid
+func IsValidPodName(name string) bool {
+	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L241
+	validationErrors := apimachineryvalidation.NameIsDNSSubdomain(name, false)
+	return len(validationErrors) == 0
+}
+
+// IsValidAppName checks if the name can be used as application name
+func IsValidAppName(name string) bool {
+	// app names have the same rules as pods.
+	return IsValidPodName(name)
+}
+
+// IsValidProjectName checks if the name can be used as project name
+func IsValidProjectName(name string) bool {
+	// project names have the same rules as pods.
+	return IsValidPodName(name)
+}
+
+// IsValidNamespaceName checks that a namespace name is valid
+func IsValidNamespaceName(name string) bool {
+	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L262
+	validationErrors := apimachineryvalidation.ValidateNamespaceName(name, false)
+	return len(validationErrors) == 0
+}
+
+// IsValidContainerName checks that a containerName is valid
+func IsValidContainerName(name string) bool {
+	// https://github.com/kubernetes/kubernetes/blob/53a9d106c4aabcd550cc32ae4e8004f32fb0ae7b/pkg/api/validation/validation.go#L280
+	validationErrors := apimachineryvalidation.NameIsDNSLabel(name, false)
+	return len(validationErrors) == 0
 }

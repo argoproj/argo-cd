@@ -209,6 +209,55 @@ status:
         repoURL: https://github.com/argoproj/argocd-example-apps.git
 `
 
+var fakeMultiSourceApp = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  uid: "123"
+  name: my-app
+  namespace: ` + test.FakeArgoCDNamespace + `
+spec:
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    server: https://localhost:6443
+  project: default
+  sources:
+  - path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+  - path: some/other/path
+    repoURL: https://github.com/argoproj/argocd-example-apps-fake.git
+  syncPolicy:
+    automated: {}
+status:
+  operationState:
+    finishedAt: 2018-09-21T23:50:29Z
+    message: successfully synced
+    operation:
+      sync:
+        revisions:
+        - HEAD
+        - HEAD
+    phase: Succeeded
+    startedAt: 2018-09-21T23:50:25Z
+    syncResult:
+      resources:
+      - kind: RoleBinding
+        message: |-
+          rolebinding.rbac.authorization.k8s.io/always-outofsync reconciled
+          rolebinding.rbac.authorization.k8s.io/always-outofsync configured
+        name: always-outofsync
+        namespace: default
+        status: Synced
+      revisions: 
+      - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      - bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+      sources:
+      - path: some/path
+        repoURL: https://github.com/argoproj/argocd-example-apps.git
+      - path: some/other/path
+        repoURL: https://github.com/argoproj/argocd-example-apps-fake.git
+`
+
 var fakeAppWithDestName = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -261,6 +310,10 @@ data:
 
 func newFakeApp() *argoappv1.Application {
 	return createFakeApp(fakeApp)
+}
+
+func newFakeMultiSourceApp() *argoappv1.Application {
+	return createFakeApp(fakeMultiSourceApp)
 }
 
 func newFakeAppWithDestMismatch() *argoappv1.Application {
@@ -857,101 +910,133 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 }
 
 func TestNeedRefreshAppStatus(t *testing.T) {
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
-
-	app := newFakeApp()
-	now := metav1.Now()
-	app.Status.ReconciledAt = &now
-	app.Status.Sync = argoappv1.SyncStatus{
-		Status: argoappv1.SyncStatusCodeSynced,
-		ComparedTo: argoappv1.ComparedTo{
-			Source:      app.Spec.GetSource(),
-			Destination: app.Spec.Destination,
+	testCases := []struct {
+		name string
+		app  *argoappv1.Application
+	}{
+		{
+			name: "single-source app",
+			app:  newFakeApp(),
+		},
+		{
+			name: "multi-source app",
+			app:  newFakeMultiSourceApp(),
 		},
 	}
 
-	// no need to refresh just reconciled application
-	needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
-	assert.False(t, needRefresh)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+			app := tc.app
+			now := metav1.Now()
+			app.Status.ReconciledAt = &now
 
-	// refresh app using the 'deepest' requested comparison level
-	ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
-	ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
+			app.Status.Sync = argoappv1.SyncStatus{
+				Status: argoappv1.SyncStatusCodeSynced,
+				ComparedTo: argoappv1.ComparedTo{
+					Destination: app.Spec.Destination,
+				},
+			}
 
-	needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
-	assert.True(t, needRefresh)
-	assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
-	assert.Equal(t, CompareWithRecent, compareWith)
+			if app.Spec.HasMultipleSources() {
+				app.Status.Sync.ComparedTo.Sources = app.Spec.Sources
+			} else {
+				app.Status.Sync.ComparedTo.Source = app.Spec.GetSource()
+			}
 
-	// refresh application which status is not reconciled using latest commit
-	app.Status.Sync = argoappv1.SyncStatus{Status: argoappv1.SyncStatusCodeUnknown}
+			// no need to refresh just reconciled application
+			needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+			assert.False(t, needRefresh)
 
-	needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
-	assert.True(t, needRefresh)
-	assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
-	assert.Equal(t, CompareWithLatestForceResolve, compareWith)
+			// refresh app using the 'deepest' requested comparison level
+			ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
+			ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
 
-	{
-		// refresh app using the 'latest' level if comparison expired
-		app := app.DeepCopy()
-		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
-		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
-		app.Status.ReconciledAt = &reconciledAt
-		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Minute, 2*time.Hour)
-		assert.True(t, needRefresh)
-		assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
-		assert.Equal(t, CompareWithLatestForceResolve, compareWith)
-	}
+			needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+			assert.True(t, needRefresh)
+			assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
+			assert.Equal(t, CompareWithRecent, compareWith)
 
-	{
-		// refresh app using the 'latest' level if comparison expired for hard refresh
-		app := app.DeepCopy()
-		app.Status.Sync = argoappv1.SyncStatus{
-			Status: argoappv1.SyncStatusCodeSynced,
-			ComparedTo: argoappv1.ComparedTo{
-				Source:      app.Spec.GetSource(),
-				Destination: app.Spec.Destination,
-			},
-		}
-		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
-		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
-		app.Status.ReconciledAt = &reconciledAt
-		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 2*time.Hour, 1*time.Minute)
-		assert.True(t, needRefresh)
-		assert.Equal(t, argoappv1.RefreshTypeHard, refreshType)
-		assert.Equal(t, CompareWithLatest, compareWith)
-	}
+			// refresh application which status is not reconciled using latest commit
+			app.Status.Sync = argoappv1.SyncStatus{Status: argoappv1.SyncStatusCodeUnknown}
 
-	{
-		app := app.DeepCopy()
-		// execute hard refresh if app has refresh annotation
-		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
-		app.Status.ReconciledAt = &reconciledAt
-		app.Annotations = map[string]string{
-			v1alpha1.AnnotationKeyRefresh: string(argoappv1.RefreshTypeHard),
-		}
-		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
-		assert.True(t, needRefresh)
-		assert.Equal(t, argoappv1.RefreshTypeHard, refreshType)
-		assert.Equal(t, CompareWithLatestForceResolve, compareWith)
-	}
+			needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+			assert.True(t, needRefresh)
+			assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
+			assert.Equal(t, CompareWithLatestForceResolve, compareWith)
 
-	{
-		app := app.DeepCopy()
-		// ensure that CompareWithLatest level is used if application source has changed
-		ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
-		// sample app source change
-		app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{
-			Parameters: []argoappv1.HelmParameter{{
-				Name:  "foo",
-				Value: "bar",
-			}},
-		}
+			t.Run("refresh app using the 'latest' level if comparison expired", func(t *testing.T) {
+				app := app.DeepCopy()
+				ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
+				reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
+				app.Status.ReconciledAt = &reconciledAt
+				needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Minute, 2*time.Hour)
+				assert.True(t, needRefresh)
+				assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
+				assert.Equal(t, CompareWithLatestForceResolve, compareWith)
+			})
 
-		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
-		assert.True(t, needRefresh)
-		assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
-		assert.Equal(t, CompareWithLatestForceResolve, compareWith)
+			t.Run("refresh app using the 'latest' level if comparison expired for hard refresh", func(t *testing.T) {
+				app := app.DeepCopy()
+				app.Status.Sync = argoappv1.SyncStatus{
+					Status: argoappv1.SyncStatusCodeSynced,
+					ComparedTo: argoappv1.ComparedTo{
+						Destination: app.Spec.Destination,
+					},
+				}
+				if app.Spec.HasMultipleSources() {
+					app.Status.Sync.ComparedTo.Sources = app.Spec.Sources
+				} else {
+					app.Status.Sync.ComparedTo.Source = app.Spec.GetSource()
+				}
+				ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
+				reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
+				app.Status.ReconciledAt = &reconciledAt
+				needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 2*time.Hour, 1*time.Minute)
+				assert.True(t, needRefresh)
+				assert.Equal(t, argoappv1.RefreshTypeHard, refreshType)
+				assert.Equal(t, CompareWithLatest, compareWith)
+			})
+
+			t.Run("execute hard refresh if app has refresh annotation", func(t *testing.T) {
+				app := app.DeepCopy()
+				reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
+				app.Status.ReconciledAt = &reconciledAt
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyRefresh: string(argoappv1.RefreshTypeHard),
+				}
+				needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.True(t, needRefresh)
+				assert.Equal(t, argoappv1.RefreshTypeHard, refreshType)
+				assert.Equal(t, CompareWithLatestForceResolve, compareWith)
+			})
+
+			t.Run("ensure that CompareWithLatest level is used if application source has changed", func(t *testing.T) {
+				app := app.DeepCopy()
+				ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
+				// sample app source change
+				if app.Spec.HasMultipleSources() {
+					app.Spec.Sources[0].Helm = &argoappv1.ApplicationSourceHelm{
+						Parameters: []argoappv1.HelmParameter{{
+							Name:  "foo",
+							Value: "bar",
+						}},
+					}
+				} else {
+					app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{
+						Parameters: []argoappv1.HelmParameter{{
+							Name:  "foo",
+							Value: "bar",
+						}},
+					}
+				}
+
+				needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.True(t, needRefresh)
+				assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
+				assert.Equal(t, CompareWithLatestForceResolve, compareWith)
+			})
+		})
 	}
 }
 
@@ -1372,4 +1457,75 @@ func TestToAppKey(t *testing.T) {
 			assert.Equal(t, tt.expected, ctrl.toAppKey(tt.input))
 		})
 	}
+}
+
+func Test_canProcessApp(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	ctrl.applicationNamespaces = []string{"good"}
+	t.Run("without cluster filter, good namespace", func(t *testing.T) {
+		app.Namespace = "good"
+		canProcess := ctrl.canProcessApp(app)
+		assert.True(t, canProcess)
+	})
+	t.Run("without cluster filter, bad namespace", func(t *testing.T) {
+		app.Namespace = "bad"
+		canProcess := ctrl.canProcessApp(app)
+		assert.False(t, canProcess)
+	})
+	t.Run("with cluster filter, good namespace", func(t *testing.T) {
+		app.Namespace = "good"
+		ctrl.clusterFilter = func(_ *argoappv1.Cluster) bool { return true }
+		canProcess := ctrl.canProcessApp(app)
+		assert.True(t, canProcess)
+	})
+	t.Run("with cluster filter, bad namespace", func(t *testing.T) {
+		app.Namespace = "bad"
+		ctrl.clusterFilter = func(_ *argoappv1.Cluster) bool { return true }
+		canProcess := ctrl.canProcessApp(app)
+		assert.False(t, canProcess)
+	})
+}
+
+func Test_canProcessAppSkipReconcileAnnotation(t *testing.T) {
+	appSkipReconcileInvalid := newFakeApp()
+	appSkipReconcileInvalid.Annotations = map[string]string{common.AnnotationKeyAppSkipReconcile: "invalid-value"}
+	appSkipReconcileFalse := newFakeApp()
+	appSkipReconcileFalse.Annotations = map[string]string{common.AnnotationKeyAppSkipReconcile: "false"}
+	appSkipReconcileTrue := newFakeApp()
+	appSkipReconcileTrue.Annotations = map[string]string{common.AnnotationKeyAppSkipReconcile: "true"}
+	ctrl := newFakeController(&fakeData{})
+	tests := []struct {
+		name     string
+		input    interface{}
+		expected bool
+	}{
+		{"No skip reconcile annotation", newFakeApp(), true},
+		{"Contains skip reconcile annotation ", appSkipReconcileInvalid, true},
+		{"Contains skip reconcile annotation value false", appSkipReconcileFalse, true},
+		{"Contains skip reconcile annotation value true", appSkipReconcileTrue, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, ctrl.canProcessApp(tt.input))
+		})
+	}
+}
+
+func Test_syncDeleteOption(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	cm := newFakeCM()
+	t.Run("without delete option object is deleted", func(t *testing.T) {
+		cmObj := kube.MustToUnstructured(&cm)
+		delete := ctrl.shouldBeDeleted(app, cmObj)
+		assert.True(t, delete)
+	})
+	t.Run("with delete set to false object is retained", func(t *testing.T) {
+		cmObj := kube.MustToUnstructured(&cm)
+		cmObj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=false"})
+		delete := ctrl.shouldBeDeleted(app, cmObj)
+		assert.False(t, delete)
+	})
 }
