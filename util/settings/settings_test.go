@@ -308,7 +308,7 @@ func TestGetResourceOverrides(t *testing.T) {
 
 }
 
-func TestGetResourceOverridesHealthWithAsterisk(t *testing.T) {
+func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
 	data := map[string]string{
 		"resource.customizations": `
     "*.aws.crossplane.io/*":
@@ -316,7 +316,7 @@ func TestGetResourceOverridesHealthWithAsterisk(t *testing.T) {
         foo`,
 	}
 
-	t.Run("TestResourceHealthOverrideWithAsterisk", func(t *testing.T) {
+	t.Run("TestResourceHealthOverrideWithWildcard", func(t *testing.T) {
 		_, settingsManager := fixtures(data)
 
 		overrides, err := settingsManager.GetResourceOverrides()
