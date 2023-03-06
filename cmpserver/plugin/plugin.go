@@ -358,7 +358,7 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 		return fmt.Errorf("illegal appPath: out of workDir bound")
 	}
 
-	repoResponse, err := getParametersAnnouncement(bufferedCtx, appPath, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic, metadata.Env)
+	repoResponse, err := getParametersAnnouncement(bufferedCtx, appPath, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic, metadata.GetEnv())
 	if err != nil {
 		return fmt.Errorf("get parameters announcement error: %w", err)
 	}
