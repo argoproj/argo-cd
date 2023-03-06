@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
@@ -394,6 +395,20 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("error getting custom label: %w", err)
 	}
 
+	clusterCacheConfig := cluster.RESTConfig()
+	// Controller dynamically fetches all resource types available on the cluster
+	// using a discovery API that may contain deprecated APIs.
+	// This causes log flooding when managing a large number of clusters.
+	// https://github.com/argoproj/argo-cd/issues/11973
+	// However, we can safely suppress deprecation warnings
+	// because we do not rely on resources with a particular API group or version.
+	// https://kubernetes.io/blog/2020/09/03/warnings/#customize-client-handling
+	//
+	// Completely suppress warning logs only for log levels that are less than Debug.
+	if log.GetLevel() < log.DebugLevel {
+		clusterCacheConfig.WarningHandler = rest.NoWarnings{}
+	}
+
 	clusterCacheOpts := []clustercache.UpdateSettingsFunc{
 		clustercache.SetListSemaphore(semaphore.NewWeighted(clusterCacheListSemaphoreSize)),
 		clustercache.SetListPageSize(clusterCacheListPageSize),
@@ -425,7 +440,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 	}
 
-	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(), clusterCacheOpts...)
+	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
 		toNotify := make(map[string]bool)
