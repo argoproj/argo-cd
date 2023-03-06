@@ -45,7 +45,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/hashicorp/go-retryablehttp v0.7.0
+	github.com/hashicorp/go-retryablehttp v0.7.1
 	github.com/imdario/mergo v0.3.13
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 	github.com/itchyny/gojq v0.12.10
@@ -69,11 +69,11 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0
-	github.com/xanzy/go-gitlab v0.60.0
+	github.com/xanzy/go-gitlab v0.80.2
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
 	golang.org/x/crypto v0.3.0
 	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094
+	golang.org/x/oauth2 v0.3.0
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	golang.org/x/term v0.5.0
 	google.golang.org/genproto v0.0.0-20220616135557-88e70c0c3a90
@@ -234,7 +234,7 @@ require (
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
-	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
+	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.1.12 // indirect
 	gomodules.xyz/envconfig v1.3.1-0.20190308184047-426f31af0d45 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
