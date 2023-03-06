@@ -58,15 +58,19 @@ metadata:
 
 ![](https://user-images.githubusercontent.com/18019529/108520497-168ce180-730e-11eb-93cb-b0b91f99bdc5.png)
 
-If the message is set to 140 characters or more, it will be truncate.
-
 ```yaml
 template.app-deployed: |
   message: |
     Application {{.app.metadata.name}} is now running new version of deployments manifests.
   github:
+    repoURLPath: "{{.app.spec.source.repoURL}}"
+    revisionPath: "{{.app.status.operationState.syncResult.revision}}"
     status:
       state: success
       label: "continuous-delivery/{{.app.metadata.name}}"
       targetURL: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
 ```
+
+**Notes**:
+- If the message is set to 140 characters or more, it will be truncated.
+- If `github.repoURLPath` and `github.revisionPath` are same as above, they can be omitted.
