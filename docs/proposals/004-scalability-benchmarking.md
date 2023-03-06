@@ -92,6 +92,9 @@ There is already some [tooling in the Argo CD repository](https://github.com/arg
     * The simulated clusters and nodes are intended to make the testing accessible, but ultimately the infrastructure should be easily changed to test more realistic scenarios. Once the benchmarking tooling is functional, we can determine if the simulated components skew the results.
 
 Once we have the benchmarking tooling, we can determine if the simulated components skew the results compared to the real world.
+
+AWS intends to provide the infrastructure required to benchmark large-scale scenarios.
+
 ### Security Considerations
 There is no intention to change the security model of Argo CD and therefore this project has no direct security considerations.
 
