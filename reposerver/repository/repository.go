@@ -2558,7 +2558,7 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", revision, err)
+		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 	defer io.Close(closer)
 

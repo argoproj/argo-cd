@@ -6,6 +6,7 @@ import (
 	"sort"
 	"testing"
 
+	utils "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -84,7 +85,9 @@ func TestGetDirectories(t *testing.T) {
 			argocdRepositoryMock.mock.On("GetRepository", mock.Anything, cc.repoURL).Return(cc.repoRes, cc.repoErr)
 
 			argocd := argoCDService{
-				repositoriesDB: argocdRepositoryMock,
+				repositoriesDB:   argocdRepositoryMock,
+				closer:           utils.NopCloser,
+				repoServerClient: nil,
 			}
 
 			got, err := argocd.GetDirectories(context.TODO(), cc.repoURL, cc.revision)

@@ -76,7 +76,7 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revi
 
 	repo, err := a.repositoriesDB.GetRepository(ctx, repoURL)
 	if err != nil {
-		return nil, fmt.Errorf("Error in GetRepository: %w", err)
+		return nil, fmt.Errorf("error in GetRepository: %w", err)
 	}
 
 	dirRequest := &apiclient.GitDirectoriesRequest{
@@ -95,26 +95,4 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revi
 
 func (a *argoCDService) Close() {
 	io.Close(a.closer)
-}
-
-func checkoutRepo(gitRepoClient git.Client, revision string, submoduleEnabled bool) error {
-	err := gitRepoClient.Init()
-	if err != nil {
-		return fmt.Errorf("Error during initializing repo: %w", err)
-	}
-
-	err = gitRepoClient.Fetch(revision)
-	if err != nil {
-		return fmt.Errorf("Error during fetching repo: %w", err)
-	}
-
-	commitSHA, err := gitRepoClient.LsRemote(revision)
-	if err != nil {
-		return fmt.Errorf("Error during fetching commitSHA: %w", err)
-	}
-	err = gitRepoClient.Checkout(commitSHA, submoduleEnabled)
-	if err != nil {
-		return fmt.Errorf("Error during repo checkout: %w", err)
-	}
-	return nil
 }
