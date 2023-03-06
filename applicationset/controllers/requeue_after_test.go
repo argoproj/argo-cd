@@ -155,6 +155,8 @@ type argoCDServiceMock struct {
 	mock *mock.Mock
 }
 
+func (a argoCDServiceMock) Close() {}
+
 func (a argoCDServiceMock) GetApps(ctx context.Context, repoURL string, revision string) ([]string, error) {
 	args := a.mock.Called(ctx, repoURL, revision)
 

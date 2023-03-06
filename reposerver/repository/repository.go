@@ -2505,20 +2505,20 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", revision, err)
+		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 	defer io.Close(closer)
 
 	gitFiles, err := gitClient.LsFiles(gitPath)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to list files. repo %s with revision %s: %v", revision, err)
+		return nil, status.Errorf(codes.Internal, "unable to list files. repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 
 	res := make(map[string][]byte)
 	for _, filePath := range gitFiles {
 		fileContents, err := os.ReadFile(filepath.Join(gitClient.Root(), filePath))
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "unable to read files. repo %s with revision %s: %v", revision, err)
+			return nil, status.Errorf(codes.Internal, "unable to read files. repo %s with revision %s: %v", repo.Repo, revision, err)
 		}
 		res[filePath] = fileContents
 	}
