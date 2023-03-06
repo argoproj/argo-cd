@@ -1,6 +1,6 @@
 # Security Policy for Argo CD
 
-Version: **v1.4 (2022-01-23)**
+Version: **v1.5 (2023-03-06)**
 
 ## Preface
 
