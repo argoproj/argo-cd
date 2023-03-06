@@ -320,6 +320,8 @@ type Repository struct {
 	Proxy string `json:"proxy,omitempty"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
+	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -350,6 +352,8 @@ type RepositoryCredentials struct {
 	Type string `json:"type,omitempty"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
+	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
 }
 
 // DeepLink structure
@@ -1164,8 +1168,12 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	if !ok {
 		chatText = "Chat now!"
 	}
+	chatURL, ok := argoCDCM.Data[helpChatURL]
+	if !ok {
+		chatText = ""
+	}
 	return &Help{
-		ChatURL:    argoCDCM.Data[helpChatURL],
+		ChatURL:    chatURL,
 		ChatText:   chatText,
 		BinaryURLs: getDownloadBinaryUrlsFromConfigMap(argoCDCM),
 	}, nil

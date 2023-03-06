@@ -35,9 +35,11 @@ flag. The flag can be repeated to support multiple values files:
 argocd app set helm-guestbook --values values-production.yaml
 ```
 !!! note
-    Values files must be in the same git repository as the Helm chart. The files can be in a different
-    location in which case it can be accessed using a relative path relative to the root directory of
-    the Helm chart.
+    Before `v2.6` of Argo CD, Values files must be in the same git repository as the Helm
+    chart. The files can be in a different location in which case it can be accessed using
+    a relative path relative to the root directory of the Helm chart.
+    As of `v2.6`, values files can be sourced from a separate repository than the Helm chart
+    by taking advantage of [multiple sources for Applications](./multiple_sources.md#helm-value-files-from-external-git-repository).
 
 In the declarative syntax:
 
@@ -293,7 +295,7 @@ Helm, [starting with v3.6.1](https://github.com/helm/helm/releases/tag/v3.6.1),
 prevents sending repository credentials to download charts that are being served
 from a different domain than the repository.
 
-If needed, it is possible to specifically set the Helm version to template with by setting the `helm-pass-credentials` flag on the cli:
+If needed, it is possible to opt into passing credentials for all domains by setting the `helm-pass-credentials` flag on the cli:
 
 ```bash
 argocd app set helm-guestbook --helm-pass-credentials
