@@ -24,10 +24,8 @@ import {Spacer} from '../../../shared/components/spacer';
 import {LogMessageFilter} from './log-message-filter';
 import {SinceSecondsSelector} from './since-seconds-selector';
 import {TailSelector} from './tail-selector';
-import {Since} from '../../../shared/services/since';
 import {PodNamesToggleButton} from './pod-names-toggle-button';
 import Ansi from 'ansi-to-react';
-import {TimeSelector} from './time-selector';
 import {LogEntry} from '../../../shared/models';
 
 export interface PodLogsProps {
@@ -41,7 +39,6 @@ export interface PodLogsProps {
     name?: string;
     timestamp?: string;
     containerGroups?: any[];
-    containerStates: models.PodSpec[];
     onClickContainer?: (group: any, i: number, tab: string) => void;
 }
 
