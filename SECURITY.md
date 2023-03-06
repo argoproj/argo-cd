@@ -69,6 +69,19 @@ Please report vulnerabilities by e-mail to the following address:
 
 * cncf-argo-security@lists.cncf.io
 
+## Internet Bug Bounty partnership
+
+We're happy to announce that the Argo project has partnered up with the great
+folks over at
+[Hacker One](https://hackerone.com/) and their
+[Internet Bug Bounty program](https://hackerone.com/ibb)
+to reward the awesome people who find security vulnerabilities in Argo CD and
+then work with us to fix and disclose them in a responsible manner.
+
+If you report a vulnerability to us as outlined in this security policy, we
+will work together with you to find out whether your finding is eligible for
+claiming a bounty, and also on how to claim it.
+
 ## Securing your Argo CD Instance
 
 See the [operator manual security page](docs/operator-manual/security.md) for
