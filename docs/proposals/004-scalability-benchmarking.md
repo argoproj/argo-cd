@@ -62,6 +62,7 @@ By running large-scale benchmarking, we aim at helping the Argo CD community wit
     6. Number of clusters.
     7. Number of repositories being monitored.
     8. Size of the repositories.
+    9. The tooling (e.g., directory/raw manifests, Helm, Kustomize).
 3. Determine the metrics that reflect limitations in scalability factors.
     1. Application sync time for x number of apps
     2.. Emptying the queues (app_reconciliation_queue, app_operation_processing_queue)
