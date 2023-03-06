@@ -2452,12 +2452,11 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command := cobra.Command{
 		Use:   "patch APPNAME",
 		Short: "Patch application",
-		Long: `Examples:
-	# Update an application's source path using json patch
-	argocd app patch myapplication --patch='[{"op": "replace", "path": "/spec/source/path", "value": "newPath"}]' --type json
+		Example: `  # Update an application's source path using json patch
+  argocd app patch myapplication --patch='[{"op": "replace", "path": "/spec/source/path", "value": "newPath"}]' --type json
 
-	# Update an application's repository target revision using merge patch
-	argocd app patch myapplication --patch '{"spec": { "source": { "targetRevision": "master" } }}' --type merge`,
+  # Update an application's repository target revision using merge patch
+  argocd app patch myapplication --patch '{"spec": { "source": { "targetRevision": "master" } }}' --type merge`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
