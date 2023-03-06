@@ -69,9 +69,9 @@ Please report vulnerabilities by e-mail to the following address:
 
 * cncf-argo-security@lists.cncf.io
 
-## Internet Bug Bounty partnership
+## Internet Bug Bounty collaboration
 
-We're happy to announce that the Argo project has partnered up with the great
+We're happy to announce that the Argo project is collaborating with the great
 folks over at
 [Hacker One](https://hackerone.com/) and their
 [Internet Bug Bounty program](https://hackerone.com/ibb)
