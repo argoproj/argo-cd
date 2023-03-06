@@ -6,7 +6,7 @@
     "start": "webpack-dev-server --config ./src/app/webpack.config.js --mode development",
     "docker": "./scripts/build_docker.sh",
     "build": "find ./dist -type f -not -name gitkeep -delete && webpack --config ./src/app/webpack.config.js --mode production",
-    "lint": "tslint -p ./src/app",
+    "lint": "tsc --noEmit --project ./src/app && tslint -p ./src/app",
     "test": "jest"
   },
   "dependencies": {
@@ -43,7 +43,7 @@
     "react-svg-piechart": "^2.4.2",
     "redoc": "^2.0.0-rc.64",
     "rxjs": "^6.6.6",
-    "superagent": "^7.1.6",
+    "superagent": "^8.0.9",
     "timezones-list": "3.0.1",
     "tsx": "^3.4.0",
     "unidiff": "^1.0.2",
@@ -54,7 +54,8 @@
   "resolutions": {
     "@types/react": "^16.9.3",
     "@types/react-dom": "^16.8.2",
-    "normalize-url": "4.3.0"
+    "normalize-url": "4.3.0",
+    "rxjs": "6.6.7"
   },
   "devDependencies": {
     "@babel/core": "^7.7.2",
