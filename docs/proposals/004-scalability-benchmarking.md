@@ -88,7 +88,9 @@ There is already some [tooling in the Argo CD repository](https://github.com/arg
 * Automatically set up supporting tooling for capturing metrics (grafana, prometheus)
 * Use a local Gittea in cluster to support many repos used in testing, and avoid performance variance by depending on the performance of a external git SaaS (ie GitHub)
 * Simulate the cluster and nodes using vcluster or kwok, in addition of using a cloud provider with a real cluster fleet.
+    * The simulated clusters and nodes are intended to make the testing accessible, but ultimately the infrastructure should be easily changed to test more realistic scenarios. Once the benchmarking tooling is functional, we can determine if the simulated components skew the results.
 
+Once we have the benchmarking tooling, we can determine if the simulated components skew the results compared to the real world.
 ### Security Considerations
 There is no intention to change the security model of Argo CD and therefore this project has no direct security considerations.
 
