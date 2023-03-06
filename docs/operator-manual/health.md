@@ -119,7 +119,8 @@ In order to prevent duplication of the custom health check for potentially multi
         ...
 ```
 
-Please note the required quotes if the resource customization health section, if starting with ```*```
+!!!important
+    Please note the required quotes in the resource customization health section, if the wildcard starts with `*`.
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 The custom health check might return one of the following health statuses:
