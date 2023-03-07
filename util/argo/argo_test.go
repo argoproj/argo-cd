@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"os"
+	"hash/fnv"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
@@ -1327,4 +1329,49 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, conditions, 0)
 	})
+}
+
+func TestCopyFile(t *testing.T) {
+
+	// check the testdir first
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Unable to get cwd: %v", err)
+	}
+
+	testdir := filepath.Join(cwd, "testdata")
+	_, err = os.Lstat(testdir)
+	if err != nil {
+		t.Fatalf("Unable to stat testdir: %v", err)
+	}
+
+	srcFile := filepath.Join(testdir, "copyfile.src")
+	// calculate the src file's checksum
+	srcdata, err := os.ReadFile(srcFile)
+	if err != nil {
+		t.Fatalf("Unable to read testfile: %v", err)
+	}
+	srch := fnv.New32a()
+	_, _ = srch.Write(srcdata)
+	srchash := srch.Sum32()
+
+	// copy it over
+	dstFile := fmt.Sprintf("%s-dstcheck", srcFile)
+	err = CopyFile(srcFile, dstFile, 0644)
+	defer os.Remove(dstFile)
+	if err != nil {
+		t.Fatalf("CopyFile failed: %v", err)
+	}
+
+	// calculate the dst checksum
+	// calculate the src file's checksum
+	dstdata, err := os.ReadFile(dstFile)
+	if err != nil {
+		t.Fatalf("Unable to read testfile dest: %v", err)
+	}
+	dsth := fnv.New32a()
+	_, _ = dsth.Write(dstdata)
+	dsthash := dsth.Sum32()
+
+	assert.Equal(t, srchash, dsthash)
 }
