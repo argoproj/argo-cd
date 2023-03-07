@@ -206,7 +206,7 @@ var validatorsByGroup = map[string]settingValidator{
 			}
 			ssoProvider = "Dex"
 		} else if general.OIDCConfigRAW != "" {
-			if _, err := settings.UnmarshalOIDCConfig(general.OIDCConfigRAW); err != nil {
+			if err := settings.ValidateOIDCConfig(general.OIDCConfigRAW); err != nil {
 				return "", fmt.Errorf("invalid oidc.config: %v", err)
 			}
 			ssoProvider = "OIDC"

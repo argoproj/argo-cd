@@ -75,7 +75,7 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTL
 	}
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		if resp.StatusCode == 500 {
+		if resp.StatusCode == http.StatusInternalServerError {
 			b, err := io.ReadAll(resp.Body)
 			if err != nil {
 				return err
