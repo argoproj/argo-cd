@@ -12,7 +12,7 @@ import (
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 
 	rediscache "github.com/go-redis/cache/v8"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 type RedisCompressionType string
@@ -181,6 +181,18 @@ func (redisHook) BeforeProcessPipeline(ctx context.Context, _ []redis.Cmder) (co
 }
 
 func (redisHook) AfterProcessPipeline(_ context.Context, _ []redis.Cmder) error {
+	return nil
+}
+
+func (redisHook) DialHook(next redis.DialHook) redis.DialHook {
+	return nil
+}
+
+func (redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return nil
+}
+
+func (redisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
 	return nil
 }
 
