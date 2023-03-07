@@ -747,4 +747,11 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 		require.ErrorContains(t, err, "illegal appPath")
 		require.Nil(t, s.response)
 	})
+	t.Run("fails when script fails", func(t *testing.T) {
+		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", []string{"WRONG_ENV_VAR=oops"})
+		require.NoError(t, err)
+		err = service.GetParametersAnnouncement(s)
+		require.ErrorContains(t, err, "error executing dynamic parameter output command")
+		require.Nil(t, s.response)
+	})
 }
