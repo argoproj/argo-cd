@@ -585,7 +585,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			errors.CheckError(err)
 
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, bearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
-			if clusterOpts.InCluster || clusterOpts.ClusterEndpoint == string(cmdutil.KubeInternalEndpoint) {
+			if clusterOpts.InClusterEndpoint() {
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
 			}
 			if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {

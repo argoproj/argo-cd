@@ -20,6 +20,14 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
+type ClusterEndpoint string
+
+const (
+	KubeConfigEndpoint   ClusterEndpoint = "kubeconfig"
+	KubePublicEndpoint   ClusterEndpoint = "kube-public"
+	KubeInternalEndpoint ClusterEndpoint = "internal"
+)
+
 func PrintKubeContexts(ca clientcmd.ConfigAccess) {
 	config, err := ca.GetStartingConfig()
 	errors.CheckError(err)
@@ -114,8 +122,8 @@ func GetKubePublicEndpoint(client kubernetes.Interface) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	kubeconfig, exists := clusterInfo.Data["kubeconfig"]
-	if !exists {
+	kubeconfig, ok := clusterInfo.Data["kubeconfig"]
+	if !ok {
 		return "", fmt.Errorf("cluster-info does not contain a public kubeconfig")
 	}
 	// Parse Kubeconfig and get server address
@@ -130,14 +138,6 @@ func GetKubePublicEndpoint(client kubernetes.Interface) (string, error) {
 
 	return config.Clusters[0].Cluster.Server, nil
 }
-
-type ClusterEndpoint string
-
-const (
-	KubeConfigEndpoint   ClusterEndpoint = "kubeconfig"
-	KubePublicEndpoint   ClusterEndpoint = "kube-public"
-	KubeInternalEndpoint ClusterEndpoint = "internal"
-)
 
 type ClusterOptions struct {
 	InCluster               bool
@@ -157,6 +157,12 @@ type ClusterOptions struct {
 	ExecProviderAPIVersion  string
 	ExecProviderInstallHint string
 	ClusterEndpoint         string
+}
+
+// InClusterEndpoint returns true if ArgoCD should reference the in-cluster
+// endpoint when registering the target cluster.
+func (o ClusterOptions) InClusterEndpoint() bool {
+	return o.InCluster || o.ClusterEndpoint == string(KubeInternalEndpoint)
 }
 
 func AddClusterFlags(command *cobra.Command, opts *ClusterOptions) {

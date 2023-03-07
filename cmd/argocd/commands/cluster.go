@@ -152,7 +152,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				contextName = clusterOpts.Name
 			}
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, managerBearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
-			if clusterOpts.InCluster || clusterOpts.ClusterEndpoint == string(cmdutil.KubeInternalEndpoint) {
+			if clusterOpts.InClusterEndpoint() {
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
 			} else if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {
 				endpoint, err := cmdutil.GetKubePublicEndpoint(clientset)
