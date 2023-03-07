@@ -69,11 +69,14 @@ export const Banner = (props: React.Props<any>) => {
                         chatBottomPosition = 85;
                     }
                 }
-                try {
-                    const externalLink = new ExternalLink(chatUrl);
-                    chatUrl = externalLink.ref;
-                } catch (InvalidExternalLinkError) {
-                    chatUrl = 'invalid-url';
+                if(chatUrl)
+                {
+                    try {
+                        const externalLink = new ExternalLink(chatUrl);
+                        chatUrl = externalLink.ref;
+                    } catch (InvalidExternalLinkError) {
+                        chatUrl = 'invalid-url';
+                    }
                 }
                 return (
                     <React.Fragment>
