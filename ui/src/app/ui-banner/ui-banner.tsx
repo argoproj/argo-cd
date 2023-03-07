@@ -69,7 +69,7 @@ export const Banner = (props: React.Props<any>) => {
                         chatBottomPosition = 85;
                     }
                 }
-                if(chatUrl)
+                if (chatUrl)
                 {
                     try {
                         const externalLink = new ExternalLink(chatUrl);
