@@ -82,6 +82,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [IITS-Consulting](https://iits-consulting.de)
 1. [imaware](https://imaware.health)
 1. [Index Exchange](https://www.indexexchange.com/)
+1. [Info Support](https://www.infosupport.com/)
 1. [InsideBoard](https://www.insideboard.com)
 1. [Intuit](https://www.intuit.com/)
 1. [Joblift](https://joblift.com/)
