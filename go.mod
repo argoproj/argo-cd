@@ -59,7 +59,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0
 	github.com/r3labs/diff v1.1.0
-	github.com/redis/go-redis/v9 v9.0.1
+	github.com/redis/go-redis/v9 v9.0.2
 	github.com/rs/cors v1.8.0 // indirect
 	github.com/sirupsen/logrus v1.9.0
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
