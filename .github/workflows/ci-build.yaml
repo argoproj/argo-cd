@@ -51,7 +51,7 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Restore go build cache
-        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3.2.3
+        uses: actions/cache@627f0f41f6904a5b1efbaed9f96d9eb58e92e920 # v3.2.4
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -116,13 +116,17 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
-        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3.2.3
+        uses: actions/cache@627f0f41f6904a5b1efbaed9f96d9eb58e92e920 # v3.2.4
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
       - name: Install all tools required for building & testing
         run: |
           make install-test-tools-local
+        # We install kustomize in the dist directory
+      - name: Add dist to PATH
+        run: |
+          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
       - name: Setup git username and email
         run: |
           git config --global user.name "John Doe"
@@ -179,13 +183,17 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
-        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3.2.3
+        uses: actions/cache@627f0f41f6904a5b1efbaed9f96d9eb58e92e920 # v3.2.4
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
       - name: Install all tools required for building & testing
         run: |
           make install-test-tools-local
+        # We install kustomize in the dist directory
+      - name: Add dist to PATH
+        run: |
+          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
       - name: Setup git username and email
         run: |
           git config --global user.name "John Doe"
@@ -232,6 +240,10 @@ jobs:
           make install-codegen-tools-local
           make install-go-tools-local
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        # We install kustomize in the dist directory
+      - name: Add dist to PATH
+        run: |
+          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
       - name: Run codegen
         run: |
           set -x
@@ -257,7 +269,7 @@ jobs:
           node-version: '12.18.4'
       - name: Restore node dependency cache
         id: cache-dependencies
-        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3.2.3
+        uses: actions/cache@627f0f41f6904a5b1efbaed9f96d9eb58e92e920 # v3.2.4
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
@@ -292,7 +304,7 @@ jobs:
           fetch-depth: 0
       - name: Restore node dependency cache
         id: cache-dependencies
-        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3.2.3
+        uses: actions/cache@627f0f41f6904a5b1efbaed9f96d9eb58e92e920 # v3.2.4
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
@@ -386,7 +398,7 @@ jobs:
           sudo chown runner $HOME/.kube/config
           kubectl version
       - name: Restore go build cache
-        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3.2.3
+        uses: actions/cache@627f0f41f6904a5b1efbaed9f96d9eb58e92e920 # v3.2.4
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}

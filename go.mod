@@ -8,9 +8,9 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.0
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.23.1
-	github.com/argoproj/gitops-engine v0.7.1-0.20221208230615-917f5a0f16d5
+	github.com/argoproj/gitops-engine v0.7.1-0.20230214165351-ed70eac8b7bd
 	github.com/argoproj/notifications-engine v0.3.1-0.20221203221941-490d98afd1d6
-	github.com/argoproj/pkg v0.13.7-0.20221115212233-27bd8ce31415
+	github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d
 	github.com/aws/aws-sdk-go v1.44.164
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.1.0
@@ -261,6 +261,9 @@ replace (
 	github.com/golang/protobuf => github.com/golang/protobuf v1.4.2
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
+
+	// Avoid CVE-2022-3064
+	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
 
 	// Avoid CVE-2022-28948
 	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
