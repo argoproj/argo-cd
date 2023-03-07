@@ -1,6 +1,6 @@
 module github.com/argoproj/argo-cd/v2
 
-go 1.18
+go 1.19
 
 require (
 	code.gitea.io/sdk/gitea v0.15.1
@@ -9,7 +9,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.23.1
 	github.com/argoproj/gitops-engine v0.7.1-0.20230214165351-ed70eac8b7bd
-	github.com/argoproj/notifications-engine v0.3.1-0.20221203221941-490d98afd1d6
+	github.com/argoproj/notifications-engine v0.4.1-0.20230228182525-f754726f03da
 	github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d
 	github.com/aws/aws-sdk-go v1.44.164
 	github.com/bombsimon/logrusr/v2 v2.0.1
@@ -71,11 +71,11 @@ require (
 	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0
 	github.com/xanzy/go-gitlab v0.60.0
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
-	golang.org/x/crypto v0.1.0
-	golang.org/x/net v0.5.0 // indirect
+	golang.org/x/crypto v0.3.0
+	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094
-	golang.org/x/sync v0.1.0
-	golang.org/x/term v0.4.0
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
+	golang.org/x/term v0.5.0
 	google.golang.org/genproto v0.0.0-20220616135557-88e70c0c3a90
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
@@ -104,16 +104,19 @@ require (
 )
 
 require (
-	github.com/Masterminds/sprig/v3 v3.2.2
-	github.com/antonmedv/expr v1.9.0
-	github.com/coreos/go-oidc/v3 v3.4.0
 	github.com/gosimple/slug v1.13.1
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
-	github.com/robfig/cron/v3 v3.0.1
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.31.0
 	go.opentelemetry.io/otel v1.11.1
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.11.1
 	go.opentelemetry.io/otel/sdk v1.11.1
+)
+
+require (
+	github.com/Masterminds/sprig/v3 v3.2.3
+	github.com/antonmedv/expr v1.9.0
+	github.com/coreos/go-oidc/v3 v3.4.0
+	github.com/robfig/cron/v3 v3.0.1
 )
 
 require (
@@ -135,8 +138,6 @@ require (
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
-	github.com/Masterminds/semver v1.5.0 // indirect
-	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.4.17 // indirect
 	github.com/PagerDuty/go-pagerduty v1.6.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
@@ -180,7 +181,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-version v1.2.1 // indirect
-	github.com/huandu/xstrings v1.3.1 // indirect
+	github.com/huandu/xstrings v1.3.3 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/itchyny/timefmt-go v0.1.5 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
@@ -216,7 +217,7 @@ require (
 	github.com/russross/blackfriday v1.5.2 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
-	github.com/slack-go/slack v0.10.1 // indirect
+	github.com/slack-go/slack v0.12.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/go-tinylfu v0.2.2 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
@@ -230,8 +231,9 @@ require (
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	golang.org/x/mod v0.7.0 // indirect
-	golang.org/x/sys v0.4.0 // indirect
-	golang.org/x/text v0.6.0 // indirect
+	golang.org/x/exp v0.0.0-20210901193431-a062eea981d2 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	golang.org/x/tools v0.4.0 // indirect
 	gomodules.xyz/envconfig v1.3.1-0.20190308184047-426f31af0d45 // indirect

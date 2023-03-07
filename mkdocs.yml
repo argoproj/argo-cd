@@ -113,6 +113,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.5-2.6.md
     - operator-manual/upgrading/2.4-2.5.md
     - operator-manual/upgrading/2.3-2.4.md
     - operator-manual/upgrading/2.2-2.3.md
@@ -154,6 +155,7 @@ nav:
   - user-guide/selective_sync.md
   - user-guide/sync-waves.md
   - user-guide/sync_windows.md
+  - user-guide/skip_reconcile.md
   - Generating Applications with ApplicationSet: user-guide/application-set.md
   - user-guide/ci_automation.md
   - user-guide/app_deletion.md
