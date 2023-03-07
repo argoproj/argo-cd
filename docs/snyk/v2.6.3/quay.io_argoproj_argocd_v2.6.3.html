@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="23 known vulnerabilities found in 106 vulnerable dependency paths.">
+  <meta name="description" content="24 known vulnerabilities found in 107 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">February 28th 2023, 3:13:15 pm</p>
+                <p class="timestamp">March 5th 2023, 12:20:53 am</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>23</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>106 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>24</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>107 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2063</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -796,6 +796,76 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTTP2-3028257">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Out-of-bounds Read</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            tar
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v2.6.3, meta-common-packages@meta and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.6.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        meta-common-packages@meta
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        tar@1.34+dfsg-1build3
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>tar</code> package and not the <code>tar</code> package as distributed by <code>Ubuntu:22.04</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
+        <p>GNU Tar through 1.34 has a one-byte out-of-bounds read that results in use of uninitialized memory for a conditional jump. Exploitation to change the flow of control has not been demonstrated. The issue occurs in from_header in list.c via a V7 archive in which mtime has approximately 11 whitespace characters.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>tar</code> to version 1.34+dfsg-1ubuntu0.1.22.04.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-48303">ADVISORY</a></li>
+        <li><a href="https://savannah.gnu.org/bugs/?62387">cve@mitre.org</a></li>
+        <li><a href="https://savannah.gnu.org/patch/?10307">cve@mitre.org</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-TAR-3261138">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1311,7 +1381,7 @@
         <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
         <p>A timing side-channel in the handling of RSA ClientKeyExchange messages was discovered in GnuTLS. This side-channel can be sufficient to recover the key encrypted in the RSA ciphertext across a network in a Bleichenbacher style attack. To achieve a successful decryption the attacker would need to send a large amount of specially crafted messages to the vulnerable server. By recovering the secret from the ClientKeyExchange message, the attacker would be able to decrypt the application data exchanged over that connection.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>gnutls28</code>.</p>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>gnutls28</code> to version 3.7.3-4ubuntu1.2 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-0361">ADVISORY</a></li>
@@ -1319,6 +1389,7 @@
         <li><a href="https://github.com/tlsfuzzer/tlsfuzzer/pull/679">secalert@redhat.com</a></li>
         <li><a href="https://gitlab.com/gnutls/gnutls/-/issues/1050">secalert@redhat.com</a></li>
         <li><a href="https://lists.debian.org/debian-lts-announce/2023/02/msg00015.html">secalert@redhat.com</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/UFIA3X4IZ3CW7SRQ2UHNHNPMRIAWF2FI/">secalert@redhat.com</a></li>
         </ul>
         
               <hr/>
@@ -2430,7 +2501,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2022-3219</h2>
+            <h2 class="card__title">Out-of-bounds Write</h2>
             <div class="card__section">
         
                 <div class="label label--low">
