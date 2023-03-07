@@ -6,23 +6,13 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
 	utils "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
-
-type ArgocdRepositoryMock struct {
-	mock *mock.Mock
-}
-
-func (a ArgocdRepositoryMock) GetRepository(ctx context.Context, url string) (*v1alpha1.Repository, error) {
-	args := a.mock.Called(ctx, url)
-
-	return args.Get(0).(*v1alpha1.Repository), args.Error(1)
-
-}
 
 func TestGetDirectories(t *testing.T) {
 
@@ -80,9 +70,9 @@ func TestGetDirectories(t *testing.T) {
 	} {
 		cc := c
 		t.Run(cc.name, func(t *testing.T) {
-			argocdRepositoryMock := ArgocdRepositoryMock{mock: &mock.Mock{}}
+			argocdRepositoryMock := &mocks.RepositoryDB{}
 
-			argocdRepositoryMock.mock.On("GetRepository", mock.Anything, cc.repoURL).Return(cc.repoRes, cc.repoErr)
+			argocdRepositoryMock.On("GetRepository", mock.Anything, cc.repoURL).Return(cc.repoRes, cc.repoErr)
 
 			argocd := argoCDService{
 				repositoriesDB:   argocdRepositoryMock,
@@ -207,9 +197,9 @@ func TestGetFiles(t *testing.T) {
 
 		// Get all the paths for a repository, and confirm that the expected subset of paths is found (or the expected error is returned)
 		t.Run(cc.name, func(t *testing.T) {
-			argocdRepositoryMock := ArgocdRepositoryMock{mock: &mock.Mock{}}
+			argocdRepositoryMock := &mocks.RepositoryDB{}
 
-			argocdRepositoryMock.mock.On("GetRepository", mock.Anything, cc.repoURL).Return(cc.repoRes, cc.repoErr)
+			argocdRepositoryMock.On("GetRepository", mock.Anything, cc.repoURL).Return(cc.repoRes, cc.repoErr)
 
 			argocd := argoCDService{
 				repositoriesDB: argocdRepositoryMock,
