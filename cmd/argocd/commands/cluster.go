@@ -157,8 +157,8 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			} else if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {
 				endpoint, err := cmdutil.GetKubePublicEndpoint(clientset)
 				if err != nil || len(endpoint) == 0 {
-					log.Warn("Failed to find the cluster endpoint from kube-public data. Falling back to the endpoint listed in the kubconfig context.")
-					log.Debugf("Get kube-public endpoint error: %v", err)
+					log.Warnf("Failed to find the cluster endpoint from kube-public data: %v", err)
+					log.Infof("Falling back to the endpoint '%s' as listed in the kubeconfig context", clst.Server)
 					endpoint = clst.Server
 				}
 				clst.Server = endpoint
