@@ -45,7 +45,7 @@ By running large-scale benchmarking, we aim at helping the Argo CD community wit
     1. One cluster, Applications in In-cluster, default resource allocations.
 3. Quantify how tweaking of existing parameters (replicas, sharding, parallelism, etc) impacts the performance of Argo CD.
 4. Provide a set of metrics and thresholds that will provide a basis for automatically scaling the Argo CD components and alerting for when performance is being impacted by limitations.
-
+5. All tooling, recommendations, examples, and scenarios will be vendor-agnostic.
 ### Non-Goals
 * This proposal does not intend to cover implementation of any auto-scaling based on the metrics and thresholds determined by the scalability benchmarking. A separate proposal will be used for any auto-scaling enhancements.
 * This proposal does not intend to add testing that determines how a change impacts the scalability of Argo CD based on the benchmarks.
