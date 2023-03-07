@@ -115,7 +115,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/antonmedv/expr v1.9.0
 	github.com/coreos/go-oidc/v3 v3.4.0
-	github.com/go-redis/cache/v8 v8.4.4
+	github.com/go-redis/cache/v9 v9.0.0
 	github.com/robfig/cron/v3 v3.0.1
 )
 
@@ -168,7 +168,6 @@ require (
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
 	github.com/go-openapi/strfmt v0.21.3 // indirect
 	github.com/go-openapi/swag v0.21.1 // indirect
-	github.com/go-redis/redis/v8 v8.11.3 // indirect
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1 // indirect
 	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
@@ -208,8 +207,6 @@ require (
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
-	github.com/onsi/ginkgo/v2 v2.7.0 // indirect
-	github.com/onsi/gomega v1.25.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opsgenie/opsgenie-go-sdk-v2 v1.0.5 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
