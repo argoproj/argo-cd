@@ -203,4 +203,15 @@ theme:
   logo: assets/logo.png
   name: material
   palette:
+  - media: '(prefers-color-scheme: light)'
     primary: teal
+    scheme: default
+    toggle:
+      icon: material/brightness-7
+      name: Switch to dark mode
+  - media: '(prefers-color-scheme: dark)'
+    primary: teal
+    scheme: slate
+    toggle:
+      icon: material/brightness-4
+      name: Switch to light mode
