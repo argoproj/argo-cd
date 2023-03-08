@@ -13,8 +13,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/go-redis/redis/v8"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/runtime"
