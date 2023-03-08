@@ -22,7 +22,7 @@ spec:
   destinations:
   - namespace: '*'
     server: '*'
-  clusterResourceWhitelist:
+  clusterResourceAllowlist:
   - group: '*'
     kind: '*'
 ```
@@ -243,10 +243,10 @@ Global projects can be configured to provide configurations that other projects 
 
 Projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inherit the following fields from the global project:
 
-* namespaceResourceBlacklist
-* namespaceResourceWhitelist
-* clusterResourceBlacklist
-* clusterResourceWhitelist
+* namespaceResourceDenylist
+* namespaceResourceAllowlist
+* clusterResourceDenylist
+* clusterResourceAllowlist
 * SyncWindows
 * SourceRepos
 * Destinations

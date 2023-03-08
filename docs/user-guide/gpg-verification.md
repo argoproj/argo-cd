@@ -257,14 +257,14 @@ metadata:
   name: gpg
   namespace: argocd
 spec:
-  clusterResourceWhitelist:
+  clusterResourceAllowlist:
   - group: '*'
     kind: '*'
   description: GnuPG verification
   destinations:
   - namespace: '*'
     server: '*'
-  namespaceResourceWhitelist:
+  namespaceResourceAllowlist:
   - group: '*'
     kind: '*'
   signatureKeys:

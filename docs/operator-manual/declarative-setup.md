@@ -128,11 +128,11 @@ spec:
   - namespace: guestbook
     server: https://kubernetes.default.svc
   # Deny all cluster-scoped resources from being created, except for Namespace
-  clusterResourceWhitelist:
+  clusterResourceAllowlist:
   - group: ''
     kind: Namespace
   # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
-  namespaceResourceBlacklist:
+  namespaceResourceDenylist:
   - group: ''
     kind: ResourceQuota
   - group: ''
@@ -140,7 +140,7 @@ spec:
   - group: ''
     kind: NetworkPolicy
   # Deny all namespaced-scoped resources from being created, except for Deployment and StatefulSet
-  namespaceResourceWhitelist:
+  namespaceResourceAllowlist:
   - group: 'apps'
     kind: Deployment
   - group: 'apps'
