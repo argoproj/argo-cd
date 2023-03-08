@@ -11,7 +11,7 @@ Sure thing! You can either open an Enhancement Proposal in our GitHub issue trac
 
 ### No one has looked at my PR yet. Why?
 
-As we have limited manpower, it can sometimes take a while for someone to respond to your PR. Especially, when your PR contains complex or non-obvious changes. Please bear with us, we try to look at every PR that we receive. Kindly ensure all applicable requirements have been met in your PR checklist.
+As we have limited resources, it can sometimes take a while for someone to respond to your PR. Especially, when your PR contains complex or non-obvious changes. Please bear with us, we try to look at every PR that we receive. Kindly ensure all applicable requirements have been met in your PR checklist.
 
 ### How do I get my PR labeled `ready-for-review` ?
 
