@@ -13,6 +13,33 @@ import {ComparisonStatusIcon, formatCreationTimestamp, getPodStateReason, Health
 
 import './application-node-info.scss';
 
+function getContainerFailure(container: any) {
+    if (container.lastState?.terminated) {
+        return `Failed with exitcode ${container.lastState.terminated.exitCode}`;
+    }
+    if (
+        container.state.waiting &&
+        (String(container.state.waiting.reason).startsWith('Err') || String(container.state.waiting.reason).startsWith('Invalid')||
+            String(container.state.waiting.reason).endsWith('Error') ||
+            String(container.state.waiting.reason).endsWith('BackOff'))
+    ) {
+        return container.state.waiting.reason;
+    }
+
+    if (container.state.terminating) {
+        if (container.state.terminating.message != '') {
+            return container.state.terminating.message;
+        }
+        if (container.state.terminating.reason == 'OOMKilled') {
+            return container.state.terminating.reason;
+        }
+        if (container.state.terminating.exitCode != 0) {
+            return `Failed with exitcode ${container.state.terminating.exitCode} `;
+        }
+    }
+    return '';
+}
+
 export const ApplicationNodeInfo = (props: {
     application: models.Application;
     node: models.ResourceNode;
@@ -48,6 +75,7 @@ export const ApplicationNodeInfo = (props: {
     if (props.live) {
         if (props.node.kind === 'Pod') {
             const {reason, message, netContainerStatuses} = getPodStateReason(props.live);
+            // console.log("netContainerStatuses is ",netContainerStatuses);
             attributes.push({title: 'STATE', value: reason});
             if (message) {
                 attributes.push({title: 'STATE DETAILS', value: message});
@@ -58,23 +86,17 @@ export const ApplicationNodeInfo = (props: {
                     value: (
                         <div className='application-node-info__labels' style={{marginTop: 5, overflowY: 'auto', maxHeight: 50}}>
                             {netContainerStatuses.map((container, i) => {
-                                const failurereason =
-                                    container.state.waiting?.reason ||
-                                    (container.state.terminated && container.state.terminated.exitCode !== 0 && container.state.terminated.reason);
+                                let failureReason = getContainerFailure(container);
                                 return (
                                     <div className='boxcolumns small-9' key={i}>
                                         <span>
                                             <HealthStatusIcon
                                                 state={{
-                                                    status: container.ready
-                                                        ? 'Healthy'
-                                                        : container.started
-                                                        ? ('Progressing' as HealthStatusCode)
-                                                        : ('Degraded' as HealthStatusCode),
+                                                    status: failureReason ? ('Degraded' as HealthStatusCode) : container.ready ? 'Healthy' : ('Progressing' as HealthStatusCode),
                                                     message: ''
                                                 }}
                                             />{' '}
-                                            {container.name} {failurereason && `-- container is failing because of ${failurereason}`}
+                                            {container.name} {failureReason && `-- ${failureReason}`}
                                         </span>
                                     </div>
                                 );

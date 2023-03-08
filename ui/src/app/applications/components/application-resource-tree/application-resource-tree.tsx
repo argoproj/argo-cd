@@ -610,7 +610,7 @@ function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: st
         if (val === 'Status Reason') {
             if (`${tag.value}` !== 'ImagePullBackOff')
                 return (
-                    <span className='application-resource-tree__node-label' title={`${kind} is in ${tag.value} state`}>
+                    <span className='application-resource-tree__node-label' title={`Status: ${tag.value}`}>
                         {tag.value}
                     </span>
                 );
