@@ -14,4 +14,6 @@ Checklist:
 * [ ] I have signed off all my commits as required by [DCO](https://github.com/argoproj/argoproj/tree/master/community#contributing-to-argo)
 * [ ] I have written unit and/or e2e tests for my change. PRs without these are unlikely to be merged.
 * [ ] My build is green ([troubleshooting builds](https://argo-cd.readthedocs.io/en/latest/developer-guide/ci/)). 
+* [ ] My new feature complies with the [feature status](https://github.com/argoproj/argoproj/blob/master/community/feature-status.md) guidelines.
 
+Please see [Contribution FAQs](https://argo-cd.readthedocs.io/en/latest/developer-guide/faq/) if you have questions about your pull-request.
