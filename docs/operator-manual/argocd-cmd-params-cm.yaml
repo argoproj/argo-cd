@@ -166,3 +166,10 @@ data:
   applicationsetcontroller.enable.git.submodule: "true"
   # Enables use of the Progressive Syncs capability
   applicationsetcontroller.enable.progressive.syncs: "false"
+  # Sets the left delimiter used for the ApplicationSet Template
+  applicationsetcontroller.template.left.delimiter: "{{"
+  # Sets the right delimiter used for the ApplicationSet Template
+  applicationsetcontroller.template.right.delimiter: "}}"
+
+
+

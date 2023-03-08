@@ -63,7 +63,7 @@ func (g *generatorMock) GetRequeueAfter(appSetGenerator *argov1alpha1.Applicatio
 	return args.Get(0).(time.Duration)
 }
 
-func (r *rendererMock) RenderTemplateParams(tmpl *argov1alpha1.Application, syncPolicy *argov1alpha1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argov1alpha1.Application, error) {
+func (r *rendererMock) RenderTemplateParams(tmpl *argov1alpha1.Application, syncPolicy *argov1alpha1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool, templateLeftDelim string, templateRightDelim string) (*argov1alpha1.Application, error) {
 	args := r.Called(tmpl, params, useGoTemplate)
 
 	if args.Error(1) != nil {
@@ -4837,4 +4837,84 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 			assert.Equal(t, cc.expectedAppStatus, appStatuses, "expected appStatuses did not match actual")
 		})
 	}
+}
+
+func TestReconcilerWithCustomDelimiters(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+	err = argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+	defaultProject := argov1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
+		Spec:       argov1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []argov1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://a-cluster"}}},
+	}
+	appSet := argov1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "argocd",
+		},
+		Spec: argov1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Generators: []argov1alpha1.ApplicationSetGenerator{
+				{
+					List: &argov1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"cluster": "a-cluster","url": "https://a-cluster"}`),
+						}},
+					},
+				},
+			},
+			Template: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{{.cluster}}}",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSpec{
+					Source:      &argov1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+					Project:     "default",
+					Destination: argov1alpha1.ApplicationDestination{Server: "{{{.url}}}"},
+				},
+			},
+		},
+	}
+	kubeclientset := kubefake.NewSimpleClientset()
+	argoDBMock := dbmocks.ArgoDB{}
+	argoObjs := []runtime.Object{&defaultProject}
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	aCluster := argov1alpha1.Cluster{Server: "https://a-cluster", Name: "a-cluster"}
+	argoDBMock.On("GetCluster", mock.Anything, "https://a-cluster").Return(&aCluster, nil)
+	argoDBMock.On("ListClusters", mock.Anything).Return(&argov1alpha1.ClusterList{Items: []argov1alpha1.Cluster{aCluster}}, nil)
+	r := ApplicationSetReconciler{
+		Client:   client,
+		Scheme:   scheme,
+		Renderer: &utils.Render{},
+		Recorder: record.NewFakeRecorder(1),
+		Generators: map[string]generators.Generator{
+			"List": generators.NewListGenerator(),
+		},
+		ArgoDB:                 &argoDBMock,
+		ArgoAppClientset:       appclientset.NewSimpleClientset(argoObjs...),
+		KubeClientset:          kubeclientset,
+		Policy:                 &utils.SyncPolicy{},
+		TemplateLeftDelimiter:  "{{{",
+		TemplateRightDelimiter: "}}}",
+	}
+
+	var app argov1alpha1.Application
+	req := ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: "argocd",
+			Name:      "name",
+		},
+	}
+	// Check if Application is created
+	res, err := r.Reconcile(context.Background(), req)
+	assert.Nil(t, err)
+	assert.True(t, res.RequeueAfter == 0)
+
+	// Ensure that the app name is the name we passed via the List Generator
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "a-cluster"}, &app)
+	assert.NoError(t, err)
+	assert.Equal(t, app.Name, "a-cluster")
 }

@@ -171,6 +171,8 @@ func TestMatrixGenerate(t *testing.T) {
 					"Git":  genMock,
 					"List": &ListGenerator{},
 				},
+				"{{",
+				"}}",
 			)
 
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -366,6 +368,8 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 					"Git":  genMock,
 					"List": &ListGenerator{},
 				},
+				"{{",
+				"}}",
 			)
 
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -481,6 +485,8 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 					"List":        &ListGenerator{},
 					"PullRequest": &PullRequestGenerator{},
 				},
+				"{{",
+				"}}",
 			)
 
 			got := matrixGenerator.GetRequeueAfter(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -598,7 +604,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 				fakeClient,
 				testCase.clientError,
 			}
-			var clusterGenerator = NewClusterGenerator(cl, context.Background(), appClientset, "namespace")
+			var clusterGenerator = NewClusterGenerator(cl, context.Background(), appClientset, "namespace", "{{", "}}")
 
 			for _, g := range testCaseCopy.baseGenerators {
 
@@ -626,6 +632,8 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 					"Git":      genMock,
 					"Clusters": clusterGenerator,
 				},
+				"{{",
+				"}}",
 			)
 
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -781,7 +789,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 				fakeClient,
 				testCase.clientError,
 			}
-			var clusterGenerator = NewClusterGenerator(cl, context.Background(), appClientset, "namespace")
+			var clusterGenerator = NewClusterGenerator(cl, context.Background(), appClientset, "namespace", "{{", "}}")
 
 			for _, g := range testCaseCopy.baseGenerators {
 
@@ -814,6 +822,8 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 					"Git":      genMock,
 					"Clusters": clusterGenerator,
 				},
+				"{{",
+				"}}",
 			)
 
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{

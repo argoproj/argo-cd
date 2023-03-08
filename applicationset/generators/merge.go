@@ -21,13 +21,17 @@ var (
 
 type MergeGenerator struct {
 	// The inner generators supported by the merge generator (cluster, git, list...)
-	supportedGenerators map[string]Generator
+	supportedGenerators    map[string]Generator
+	templateLeftDelimiter  string
+	templateRightDelimiter string
 }
 
 // NewMergeGenerator returns a MergeGenerator which allows the given supportedGenerators as child generators.
-func NewMergeGenerator(supportedGenerators map[string]Generator) Generator {
+func NewMergeGenerator(supportedGenerators map[string]Generator, templateLeftDelimiter string, templateRightDelimiter string) Generator {
 	m := &MergeGenerator{
-		supportedGenerators: supportedGenerators,
+		supportedGenerators:    supportedGenerators,
+		templateLeftDelimiter:  templateLeftDelimiter,
+		templateRightDelimiter: templateRightDelimiter,
 	}
 	return m
 }
@@ -161,7 +165,10 @@ func (m *MergeGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Applic
 		m.supportedGenerators,
 		argoprojiov1alpha1.ApplicationSetTemplate{},
 		appSet,
-		map[string]interface{}{})
+		map[string]interface{}{},
+		m.templateLeftDelimiter,
+		m.templateRightDelimiter,
+	)
 
 	if err != nil {
 		return nil, fmt.Errorf("child generator returned an error on parameter generation: %v", err)

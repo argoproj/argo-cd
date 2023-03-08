@@ -72,6 +72,8 @@ type ApplicationSetReconciler struct {
 	utils.Renderer
 
 	EnableProgressiveSyncs bool
+	TemplateLeftDelimiter  string
+	TemplateRightDelimiter string
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -475,7 +477,7 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 	var applicationSetReason argov1alpha1.ApplicationSetReasonType
 
 	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
-		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{})
+		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{}, r.TemplateLeftDelimiter, r.TemplateRightDelimiter)
 		if err != nil {
 			log.WithError(err).WithField("generator", requestedGenerator).
 				Error("error generating application from params")
@@ -490,7 +492,7 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 			tmplApplication := getTempApplication(a.Template)
 
 			for _, p := range a.Params {
-				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate)
+				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate, r.TemplateLeftDelimiter, r.TemplateRightDelimiter)
 				if err != nil {
 					log.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
 						Error("error generating application from params")

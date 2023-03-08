@@ -174,7 +174,7 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithMergeAndNestedGitGenerator("merge-nested-git-github", namespace, "https://github.com/org/repo"),
 			).Build()
 			set := argosettings.NewSettingsManager(context.TODO(), fakeClient, namespace)
-			h, err := NewWebhookHandler(namespace, set, fc, mockGenerators())
+			h, err := NewWebhookHandler(namespace, set, fc, mockGenerators(), "{{", "}}")
 			assert.Nil(t, err)
 
 			req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
@@ -248,8 +248,8 @@ func mockGenerators() map[string]generators.Generator {
 		"Git":         terminalMockGenerators["Git"],
 		"SCMProvider": terminalMockGenerators["SCMProvider"],
 		"PullRequest": terminalMockGenerators["PullRequest"],
-		"Matrix":      generators.NewMatrixGenerator(terminalMockGenerators),
-		"Merge":       generators.NewMergeGenerator(terminalMockGenerators),
+		"Matrix":      generators.NewMatrixGenerator(terminalMockGenerators, "{{", "}}"),
+		"Merge":       generators.NewMergeGenerator(terminalMockGenerators, "{{", "}}"),
 	}
 
 	return map[string]generators.Generator{
@@ -257,8 +257,8 @@ func mockGenerators() map[string]generators.Generator {
 		"Git":         terminalMockGenerators["Git"],
 		"SCMProvider": terminalMockGenerators["SCMProvider"],
 		"PullRequest": terminalMockGenerators["PullRequest"],
-		"Matrix":      generators.NewMatrixGenerator(nestedGenerators),
-		"Merge":       generators.NewMergeGenerator(nestedGenerators),
+		"Matrix":      generators.NewMatrixGenerator(nestedGenerators, "{{", "}}"),
+		"Merge":       generators.NewMergeGenerator(nestedGenerators, "{{", "}}"),
 	}
 }
 

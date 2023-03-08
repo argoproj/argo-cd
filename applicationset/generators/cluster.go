@@ -31,22 +31,26 @@ type ClusterGenerator struct {
 	ctx       context.Context
 	clientset kubernetes.Interface
 	// namespace is the Argo CD namespace
-	namespace       string
-	settingsManager *settings.SettingsManager
+	namespace              string
+	settingsManager        *settings.SettingsManager
+	templateLeftDelimiter  string
+	templateRightDelimiter string
 }
 
 var render = &utils.Render{}
 
-func NewClusterGenerator(c client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string) Generator {
+func NewClusterGenerator(c client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string, templateLeftDelimiter string, templateRightDelimiter string) Generator {
 
 	settingsManager := settings.NewSettingsManager(ctx, clientset, namespace)
 
 	g := &ClusterGenerator{
-		Client:          c,
-		ctx:             ctx,
-		clientset:       clientset,
-		namespace:       namespace,
-		settingsManager: settingsManager,
+		Client:                 c,
+		ctx:                    ctx,
+		clientset:              clientset,
+		namespace:              namespace,
+		settingsManager:        settingsManager,
+		templateLeftDelimiter:  templateLeftDelimiter,
+		templateRightDelimiter: templateRightDelimiter,
 	}
 	return g
 }
@@ -109,7 +113,7 @@ func (g *ClusterGenerator) GenerateParams(
 			params["nameNormalized"] = cluster.Name
 			params["server"] = cluster.Server
 
-			err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet)
+			err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet, g.templateLeftDelimiter, g.templateRightDelimiter)
 			if err != nil {
 				return nil, err
 			}
@@ -149,7 +153,7 @@ func (g *ClusterGenerator) GenerateParams(
 			}
 		}
 
-		err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet)
+		err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet, g.templateLeftDelimiter, g.templateRightDelimiter)
 		if err != nil {
 			return nil, err
 		}
@@ -162,14 +166,14 @@ func (g *ClusterGenerator) GenerateParams(
 	return res, nil
 }
 
-func appendTemplatedValues(clusterValues map[string]string, params map[string]interface{}, appSet *argoappsetv1alpha1.ApplicationSet) error {
+func appendTemplatedValues(clusterValues map[string]string, params map[string]interface{}, appSet *argoappsetv1alpha1.ApplicationSet, templateLeftDelimiter string, templateRightDelimiter string) error {
 	// We create a local map to ensure that we do not fall victim to a billion-laughs attack. We iterate through the
 	// cluster values map and only replace values in said map if it has already been whitelisted in the params map.
 	// Once we iterate through all the cluster values we can then safely merge the `tmp` map into the main params map.
 	tmp := map[string]interface{}{}
 
 	for key, value := range clusterValues {
-		result, err := replaceTemplatedString(value, params, appSet)
+		result, err := replaceTemplatedString(value, params, appSet, templateLeftDelimiter, templateRightDelimiter)
 
 		if err != nil {
 			return fmt.Errorf("error replacing templated String: %w", err)
@@ -192,8 +196,8 @@ func appendTemplatedValues(clusterValues map[string]string, params map[string]in
 	return nil
 }
 
-func replaceTemplatedString(value string, params map[string]interface{}, appSet *argoappsetv1alpha1.ApplicationSet) (string, error) {
-	replacedTmplStr, err := render.Replace(value, params, appSet.Spec.GoTemplate)
+func replaceTemplatedString(value string, params map[string]interface{}, appSet *argoappsetv1alpha1.ApplicationSet, templateLeftDelimiter string, templateRightDelimiter string) (string, error) {
+	replacedTmplStr, err := render.Replace(value, params, appSet.Spec.GoTemplate, templateLeftDelimiter, templateRightDelimiter)
 	if err != nil {
 		return "", err
 	}
