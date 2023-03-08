@@ -1,4 +1,4 @@
-import {DropDownMenu, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
+import {DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -30,7 +30,7 @@ import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
-import {AppViewExtension, ExtensionComponentProps} from '../../../shared/services/extensions-service';
+import {AppViewExtension} from '../../../shared/services/extensions-service';
 
 interface ApplicationDetailsState {
     page: number;
@@ -463,7 +463,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         selectedNodeFullName={this.selectedNodeKey}
                                                         onNodeClick={fullName => this.selectNode(fullName)}
                                                         nodeMenu={node =>
-                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
+                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
                                                                 this.getApplicationActionMenu(application, false)
                                                             )
                                                         }
@@ -490,11 +490,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         app={application}
                                                         onItemClick={fullName => this.selectNode(fullName)}
                                                         nodeMenu={node =>
-                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
+                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
                                                                 this.getApplicationActionMenu(application, false)
                                                             )
                                                         }
-                                                        quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext, this.appChanged)}
+                                                        quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext.apis, this.appChanged)}
                                                     />
                                                 )) ||
                                                 (this.state.extensionsMap[pref.view] != null && (
@@ -528,7 +528,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                                 {...node, root: node},
                                                                                 application,
                                                                                 tree,
-                                                                                this.appContext,
+                                                                                this.appContext.apis,
                                                                                 this.appChanged,
                                                                                 () => this.getApplicationActionMenu(application, false)
                                                                             )
@@ -557,7 +557,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             onNodeClick={fullName => this.selectNode(fullName)}
                                                             resources={data}
                                                             nodeMenu={node =>
-                                                                AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext, this.appChanged, () =>
+                                                                AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext.apis, this.appChanged, () =>
                                                                     this.getApplicationActionMenu(application, false)
                                                                 )
                                                             }
@@ -578,7 +578,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         </SlidingPanel>
                                         <ApplicationSyncPanel
                                             application={application}
-                                            hide={() => AppUtils.showDeploy(null, this.appContext)}
+                                            hide={() => AppUtils.showDeploy(null, this.appContext.apis)}
                                             selectedResource={syncResourceKey}
                                         />
                                         <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
@@ -678,7 +678,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             {
                 iconClassName: 'fa fa-sync',
                 title: <ActionMenuItem actionLabel='Sync' />,
-                action: () => AppUtils.showDeploy('all', this.appContext)
+                action: () => AppUtils.showDeploy('all', this.appContext.apis)
             },
             {
                 iconClassName: 'fa fa-info-circle',

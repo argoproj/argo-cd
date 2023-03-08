@@ -1,20 +1,7 @@
 import {AutocompleteField, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
-import {
-    ARGO_WARNING_COLOR,
-    ClipboardText,
-    Cluster,
-    DataLoader,
-    EditablePanel,
-    EditablePanelItem,
-    Expandable,
-    MapInputField,
-    NumberField,
-    Repo,
-    Revision,
-    RevisionHelpIcon
-} from '../../../shared/components';
+import {ClipboardText, Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, NumberField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
 import {BadgePanel, Spinner} from '../../../shared/components';
 import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';

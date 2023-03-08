@@ -225,7 +225,12 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                 </React.Fragment>
                                                                             ),
                                                                             action: () => {
-                                                                                deletePodAction(pod, this.appContext, this.props.app.metadata.name);
+                                                                                deletePodAction(
+                                                                                    pod,
+                                                                                    this.appContext,
+                                                                                    this.props.app.metadata.name,
+                                                                                    this.props.app.metadata.namespace
+                                                                                );
                                                                             }
                                                                         }
                                                                     ]}
