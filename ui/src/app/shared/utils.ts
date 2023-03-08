@@ -1,4 +1,4 @@
-import {GroupKind, ProjectSpec} from "./models";
+import {GroupKind, ProjectSpec} from './models';
 
 export function hashCode(str: string) {
     let hash = 0;
