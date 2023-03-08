@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:7.0.5@sha256:dfeb5451fce377ab47c5bb6b6826592eea534279354bbfc3890c0b5e9b57c763 as redis
+FROM docker.io/library/redis:7.0.8@sha256:6a59f1cbb8d28ac484176d52c473494859a512ddba3ea62a547258cf16c9b3ae as redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -17,24 +17,24 @@ FROM docker.io/library/ubuntu:22.04@sha256:9a0bdde4188b896a372804be2384015e90e3f
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
-        ca-certificates \
-        curl \
-        openssh-server \
-        nginx \
-        fcgiwrap \
-        git \
-        git-lfs \
-        gpg \
-        jq \
-        make \
-        wget \
-        gcc \
-        g++ \
-        sudo \
-        tini \
-        zip && \
-        apt-get clean && \
-        rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    ca-certificates \
+    curl \
+    openssh-server \
+    nginx \
+    fcgiwrap \
+    git \
+    git-lfs \
+    gpg \
+    jq \
+    make \
+    wget \
+    gcc \
+    g++ \
+    sudo \
+    tini \
+    zip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY --from=golang /usr/local/go /usr/local/go
 
@@ -95,6 +95,7 @@ ARG UID
 RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
     mkdir -p /home/user/.kube && \
+    mkdir -p /home/user/.cache && \
     chown -R user /home/user && \
     chgrp -R user /home/user && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
@@ -106,7 +107,6 @@ RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     chown root /etc/ssh/ssh_host_*_key* && \
     chmod 0600 /etc/ssh/ssh_host_*_key && \
     mkdir -p /tmp/go-build-cache && \
-    mkdir -p /home/user/.cache && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
