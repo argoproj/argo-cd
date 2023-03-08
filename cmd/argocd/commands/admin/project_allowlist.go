@@ -157,6 +157,6 @@ func generateProjectAllowList(serverResources []*metav1.APIResourceList, cluster
 		ObjectMeta: metav1.ObjectMeta{Name: projName},
 		Spec:       v1alpha1.AppProjectSpec{},
 	}
-	globalProj.Spec.NamespaceResourceWhitelist = resourceList
+	globalProj.Spec.NamespaceResourceAllowlist = resourceList
 	return &globalProj, nil
 }

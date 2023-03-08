@@ -228,7 +228,7 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:              []string{"*"},
 			Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-			ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceAllowlist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
 		},
 	}
 

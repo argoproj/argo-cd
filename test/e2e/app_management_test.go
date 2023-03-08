@@ -1193,7 +1193,7 @@ func TestPermissions(t *testing.T) {
 				AddDestination("*", "*").
 				AddSource("*").
 				UpdateProject(func(proj *AppProject) {
-					proj.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{{Group: "*", Kind: "Deployment"}}
+					proj.Spec.NamespaceResourceDenylist = []metav1.GroupKind{{Group: "*", Kind: "Deployment"}}
 				})
 		}).
 		Refresh(RefreshTypeNormal).
@@ -1618,7 +1618,7 @@ func TestNotPermittedResources(t *testing.T) {
 	ctx.ProjectSpec(AppProjectSpec{
 		SourceRepos:  []string{"*"},
 		Destinations: []ApplicationDestination{{Namespace: DeploymentNamespace(), Server: "*"}},
-		NamespaceResourceBlacklist: []metav1.GroupKind{
+		NamespaceResourceDenylist: []metav1.GroupKind{
 			{Group: "", Kind: "Service"},
 		}}).
 		And(func() {

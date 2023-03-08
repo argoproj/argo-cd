@@ -131,7 +131,7 @@ func TestProjectServer(t *testing.T) {
 		assert.Equal(t, status.Error(codes.PermissionDenied, "permission denied: repositories, update, https://github.com/argoproj/argo-cd.git"), err)
 	})
 
-	t.Run("TestClusterResourceWhitelistUpdateDenied", func(t *testing.T) {
+	t.Run("TestClusterResourceAllowlistUpdateDenied", func(t *testing.T) {
 
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
@@ -139,14 +139,14 @@ func TestProjectServer(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB)
 
 		updatedProj := existingProj.DeepCopy()
-		updatedProj.Spec.ClusterResourceWhitelist = []metav1.GroupKind{{}}
+		updatedProj.Spec.ClusterResourceAllowlist = []metav1.GroupKind{{}}
 
 		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
 		assert.Equal(t, status.Error(codes.PermissionDenied, "permission denied: clusters, update, https://server1"), err)
 	})
 
-	t.Run("TestNamespaceResourceBlacklistUpdateDenied", func(t *testing.T) {
+	t.Run("TestNamespaceResourceAllowlistUpdateDenied", func(t *testing.T) {
 
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
@@ -154,7 +154,7 @@ func TestProjectServer(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB)
 
 		updatedProj := existingProj.DeepCopy()
-		updatedProj.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{{}}
+		updatedProj.Spec.NamespaceResourceDenylist = []metav1.GroupKind{{}}
 
 		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 

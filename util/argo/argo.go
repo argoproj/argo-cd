@@ -883,11 +883,11 @@ func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppPr
 	if globalProj == nil {
 		return proj
 	}
-	proj.Spec.ClusterResourceWhitelist = append(proj.Spec.ClusterResourceWhitelist, globalProj.Spec.ClusterResourceWhitelist...)
-	proj.Spec.ClusterResourceBlacklist = append(proj.Spec.ClusterResourceBlacklist, globalProj.Spec.ClusterResourceBlacklist...)
+	proj.Spec.ClusterResourceAllowlist = append(proj.Spec.GetClusterResourceAllowlist(), globalProj.Spec.GetClusterResourceAllowlist()...)
+	proj.Spec.ClusterResourceDenylist = append(proj.Spec.GetClusterResourceDenylist(), globalProj.Spec.GetClusterResourceDenylist()...)
 
-	proj.Spec.NamespaceResourceWhitelist = append(proj.Spec.NamespaceResourceWhitelist, globalProj.Spec.NamespaceResourceWhitelist...)
-	proj.Spec.NamespaceResourceBlacklist = append(proj.Spec.NamespaceResourceBlacklist, globalProj.Spec.NamespaceResourceBlacklist...)
+	proj.Spec.NamespaceResourceAllowlist = append(proj.Spec.GetNamespaceResourceAllowlist(), globalProj.Spec.GetNamespaceResourceAllowlist()...)
+	proj.Spec.NamespaceResourceDenylist = append(proj.Spec.GetNamespaceResourceDenylist(), globalProj.Spec.GetNamespaceResourceDenylist()...)
 
 	proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, globalProj.Spec.SyncWindows...)
 

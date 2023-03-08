@@ -116,6 +116,7 @@ require (
 	github.com/antonmedv/expr v1.9.0
 	github.com/coreos/go-oidc/v3 v3.4.0
 	github.com/go-redis/cache/v9 v9.0.0
+	github.com/robfig/cron v1.2.0
 	github.com/robfig/cron/v3 v3.0.1
 )
 

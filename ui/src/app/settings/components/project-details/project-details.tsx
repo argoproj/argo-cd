@@ -17,6 +17,7 @@ import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit
 import {ProjectSyncWindowsEditPanel} from '../project-sync-windows-edit-panel/project-sync-windows-edit-panel';
 import {ResourceListsPanel} from './resource-lists-panel';
 import {DeepLinks} from '../../../shared/components/deep-links';
+import {getClusterResourceAllowlist, getClusterResourceDenylist, getNamespaceResourceAllowlist, getNamespaceResourceDenylist} from '../../../shared/utils';
 
 require('./project-details.scss');
 
@@ -46,10 +47,10 @@ function emptyMessage(title: string) {
 function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
     return (projs || []).reduce(
         (merged, proj) => {
-            merged.clusterResourceBlacklist = merged.clusterResourceBlacklist.concat(proj.spec.clusterResourceBlacklist || []);
-            merged.clusterResourceWhitelist = merged.clusterResourceWhitelist.concat(proj.spec.clusterResourceWhitelist || []);
-            merged.namespaceResourceBlacklist = merged.namespaceResourceBlacklist.concat(proj.spec.namespaceResourceBlacklist || []);
-            merged.namespaceResourceWhitelist = merged.namespaceResourceWhitelist.concat(proj.spec.namespaceResourceWhitelist || []);
+            merged.clusterResourceDenylist = getClusterResourceDenylist(merged).concat(getClusterResourceDenylist(proj.spec));
+            merged.clusterResourceAllowlist = getClusterResourceAllowlist(merged).concat(getClusterResourceAllowlist(proj.spec));
+            merged.namespaceResourceDenylist = getNamespaceResourceDenylist(merged).concat(getNamespaceResourceDenylist(proj.spec));
+            merged.namespaceResourceAllowlist = getNamespaceResourceAllowlist(merged).concat(getNamespaceResourceAllowlist(proj.spec));
             merged.sourceRepos = merged.sourceRepos.concat(proj.spec.sourceRepos || []);
             merged.destinations = merged.destinations.concat(proj.spec.destinations || []);
 
@@ -71,37 +72,37 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
                 );
             });
 
-            merged.clusterResourceBlacklist = merged.clusterResourceBlacklist.filter((item, index) => {
+            merged.clusterResourceDenylist = getClusterResourceDenylist(merged).filter((item, index) => {
                 return (
                     index ===
-                    merged.clusterResourceBlacklist.findIndex(obj => {
+                    getClusterResourceDenylist(merged).findIndex(obj => {
                         return obj.kind === item.kind && obj.group === item.group;
                     })
                 );
             });
 
-            merged.clusterResourceWhitelist = merged.clusterResourceWhitelist.filter((item, index) => {
+            merged.clusterResourceAllowlist = getClusterResourceAllowlist(merged).filter((item, index) => {
                 return (
                     index ===
-                    merged.clusterResourceWhitelist.findIndex(obj => {
+                    getClusterResourceAllowlist(merged).findIndex(obj => {
                         return obj.kind === item.kind && obj.group === item.group;
                     })
                 );
             });
 
-            merged.namespaceResourceBlacklist = merged.namespaceResourceBlacklist.filter((item, index) => {
+            merged.namespaceResourceDenylist = getNamespaceResourceDenylist(merged).filter((item, index) => {
                 return (
                     index ===
-                    merged.namespaceResourceBlacklist.findIndex(obj => {
+                    getNamespaceResourceDenylist(merged).findIndex(obj => {
                         return obj.kind === item.kind && obj.group === item.group;
                     })
                 );
             });
 
-            merged.namespaceResourceWhitelist = merged.namespaceResourceWhitelist.filter((item, index) => {
+            merged.namespaceResourceAllowlist = getNamespaceResourceAllowlist(merged).filter((item, index) => {
                 return (
                     index ===
-                    merged.namespaceResourceWhitelist.findIndex(obj => {
+                    getNamespaceResourceAllowlist(merged).findIndex(obj => {
                         return obj.kind === item.kind && obj.group === item.group;
                     })
                 );
@@ -115,6 +116,10 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             namespaceResourceBlacklist: new Array<GroupKind>(),
             namespaceResourceWhitelist: new Array<GroupKind>(),
             clusterResourceWhitelist: new Array<GroupKind>(),
+            clusterResourceDenylist: new Array<GroupKind>(),
+            namespaceResourceDenylist: new Array<GroupKind>(),
+            namespaceResourceAllowlist: new Array<GroupKind>(),
+            clusterResourceAllowlist: new Array<GroupKind>(),
             sourceRepos: [],
             signatureKeys: [],
             destinations: [],

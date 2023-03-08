@@ -164,7 +164,7 @@ func (g *ClusterGenerator) GenerateParams(
 
 func appendTemplatedValues(clusterValues map[string]string, params map[string]interface{}, appSet *argoappsetv1alpha1.ApplicationSet) error {
 	// We create a local map to ensure that we do not fall victim to a billion-laughs attack. We iterate through the
-	// cluster values map and only replace values in said map if it has already been whitelisted in the params map.
+	// cluster values map and only replace values in said map if it has already been allow-listed in the params map.
 	// Once we iterate through all the cluster values we can then safely merge the `tmp` map into the main params map.
 	tmp := map[string]interface{}{}
 

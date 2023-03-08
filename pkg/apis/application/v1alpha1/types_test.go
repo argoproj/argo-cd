@@ -3,7 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"errors"
-	fmt "fmt"
+	"fmt"
 	"os"
 	"path"
 	"reflect"
@@ -11,9 +11,10 @@ import (
 	"testing"
 	"time"
 
-	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/pointer"
+
+	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -433,8 +434,8 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 	proj := AppProject{
 		Spec: AppProjectSpec{
-			NamespaceResourceWhitelist: []metav1.GroupKind{},
-			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
+			NamespaceResourceAllowlist: []metav1.GroupKind{},
+			NamespaceResourceDenylist:  []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
 		},
 	}
 	assert.False(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
@@ -442,8 +443,8 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 
 	proj2 := AppProject{
 		Spec: AppProjectSpec{
-			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "apps", Kind: "ReplicaSet"}},
-			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
+			NamespaceResourceAllowlist: []metav1.GroupKind{{Group: "apps", Kind: "ReplicaSet"}},
+			NamespaceResourceDenylist:  []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
 		},
 	}
 	assert.True(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
@@ -451,15 +452,15 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 
 	proj3 := AppProject{
 		Spec: AppProjectSpec{
-			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
+			ClusterResourceDenylist: []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
 		},
 	}
 	assert.False(t, proj3.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
 
 	proj4 := AppProject{
 		Spec: AppProjectSpec{
-			ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
-			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceAllowlist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceDenylist:  []metav1.GroupKind{{Group: "*", Kind: "*"}},
 		},
 	}
 	assert.False(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
@@ -467,8 +468,8 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 
 	proj5 := AppProject{
 		Spec: AppProjectSpec{
-			ClusterResourceWhitelist:   []metav1.GroupKind{},
-			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceAllowlist:   []metav1.GroupKind{},
+			NamespaceResourceAllowlist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
 		},
 	}
 	assert.False(t, proj5.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))

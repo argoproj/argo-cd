@@ -14802,11 +14802,11 @@ spec:
     schema:
       openAPIV3Schema:
         description: 'AppProject provides a logical grouping of applications, providing
-          controls for: * where the apps may deploy to (cluster whitelist) * what
-          may be deployed (repository whitelist, resource whitelist/blacklist) * who
-          can access these applications (roles, OIDC group claims bindings) * and
-          what they can do (RBAC policies) * automation access to these roles (JWT
-          tokens)'
+          controls for: * where the apps may deploy to (cluster allow-list) * what
+          may be deployed (repository allow-list, resource allow-list/deny-list) *
+          who can access these applications (roles, OIDC group claims bindings) *
+          and what they can do (RBAC policies) * automation access to these roles
+          (JWT tokens)'
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -14823,9 +14823,44 @@ spec:
           spec:
             description: AppProjectSpec is the specification of an AppProject
             properties:
+              clusterResourceAllowlist:
+                description: ClusterResourceAllowlist contains list of allowed cluster
+                  level resources
+                items:
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
+                  properties:
+                    group:
+                      type: string
+                    kind:
+                      type: string
+                  required:
+                  - group
+                  - kind
+                  type: object
+                type: array
               clusterResourceBlacklist:
-                description: ClusterResourceBlacklist contains list of blacklisted
-                  cluster level resources
+                description: "ClusterResourceBlacklist contains list of blacklisted
+                  cluster level resources \n Deprecated: use ClusterResourceDenylist
+                  instead."
+                items:
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
+                  properties:
+                    group:
+                      type: string
+                    kind:
+                      type: string
+                  required:
+                  - group
+                  - kind
+                  type: object
+                type: array
+              clusterResourceDenylist:
+                description: ClusterResourceDenylist contains list of denied cluster
+                  level resources
                 items:
                   description: GroupKind specifies a Group and a Kind, but does not
                     force a version.  This is useful for identifying concepts during
@@ -14841,8 +14876,9 @@ spec:
                   type: object
                 type: array
               clusterResourceWhitelist:
-                description: ClusterResourceWhitelist contains list of whitelisted
-                  cluster level resources
+                description: "ClusterResourceWhitelist contains list of whitelisted
+                  cluster level resources \n Deprecated: use ClusterResourceAllowlist
+                  instead."
                 items:
                   description: GroupKind specifies a Group and a Kind, but does not
                     force a version.  This is useful for identifying concepts during
@@ -14882,9 +14918,44 @@ spec:
                       type: string
                   type: object
                 type: array
+              namespaceResourceAllowlist:
+                description: NamespaceResourceAllowlist contains list of allowed namespace
+                  level resources
+                items:
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
+                  properties:
+                    group:
+                      type: string
+                    kind:
+                      type: string
+                  required:
+                  - group
+                  - kind
+                  type: object
+                type: array
               namespaceResourceBlacklist:
-                description: NamespaceResourceBlacklist contains list of blacklisted
-                  namespace level resources
+                description: "NamespaceResourceBlacklist contains list of blacklisted
+                  namespace level resources \n Deprecated: use NamespaceResourceDenylist
+                  instead."
+                items:
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
+                  properties:
+                    group:
+                      type: string
+                    kind:
+                      type: string
+                  required:
+                  - group
+                  - kind
+                  type: object
+                type: array
+              namespaceResourceDenylist:
+                description: NamespaceResourceDenylist contains list of denied namespace
+                  level resources
                 items:
                   description: GroupKind specifies a Group and a Kind, but does not
                     force a version.  This is useful for identifying concepts during
@@ -14900,8 +14971,9 @@ spec:
                   type: object
                 type: array
               namespaceResourceWhitelist:
-                description: NamespaceResourceWhitelist contains list of whitelisted
-                  namespace level resources
+                description: "NamespaceResourceWhitelist contains list of whitelisted
+                  namespace level resources \n Deprecated: use NamespaceResourceAllowlist
+                  instead."
                 items:
                   description: GroupKind specifies a Group and a Kind, but does not
                     force a version.  This is useful for identifying concepts during

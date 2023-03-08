@@ -155,13 +155,13 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 		case "signature-keys":
 			spec.SignatureKeys = projOpts.GetSignatureKeys()
 		case "allow-cluster-resource":
-			spec.ClusterResourceWhitelist = projOpts.GetAllowedClusterResources()
+			spec.ClusterResourceAllowlist = projOpts.GetAllowedClusterResources()
 		case "deny-cluster-resource":
-			spec.ClusterResourceBlacklist = projOpts.GetDeniedClusterResources()
+			spec.ClusterResourceDenylist = projOpts.GetDeniedClusterResources()
 		case "allow-namespaced-resource":
-			spec.NamespaceResourceWhitelist = projOpts.GetAllowedNamespacedResources()
+			spec.NamespaceResourceAllowlist = projOpts.GetAllowedNamespacedResources()
 		case "deny-namespaced-resource":
-			spec.NamespaceResourceBlacklist = projOpts.GetDeniedNamespacedResources()
+			spec.NamespaceResourceDenylist = projOpts.GetDeniedNamespacedResources()
 		case "source-namespaces":
 			spec.SourceNamespaces = projOpts.GetSourceNamespaces()
 		}

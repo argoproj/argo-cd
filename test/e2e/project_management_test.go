@@ -494,19 +494,19 @@ func createAndConfigGlobalProject() error {
 		return err
 	}
 
-	projGlobal.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{
+	projGlobal.Spec.NamespaceResourceDenylist = []metav1.GroupKind{
 		{Group: "", Kind: "Service"},
 	}
 
-	projGlobal.Spec.NamespaceResourceWhitelist = []metav1.GroupKind{
+	projGlobal.Spec.NamespaceResourceAllowlist = []metav1.GroupKind{
 		{Group: "", Kind: "Deployment"},
 	}
 
-	projGlobal.Spec.ClusterResourceWhitelist = []metav1.GroupKind{
+	projGlobal.Spec.ClusterResourceAllowlist = []metav1.GroupKind{
 		{Group: "", Kind: "Job"},
 	}
 
-	projGlobal.Spec.ClusterResourceBlacklist = []metav1.GroupKind{
+	projGlobal.Spec.ClusterResourceDenylist = []metav1.GroupKind{
 		{Group: "", Kind: "Pod"},
 	}
 

@@ -9,7 +9,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	humanize "github.com/dustin/go-humanize"
+	"github.com/dustin/go-humanize"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -503,10 +503,10 @@ func modifyResourceListCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.Clie
 			var listAction, listDesc string
 			var add bool
 			if namespacedList {
-				allowList, denyList = &proj.Spec.NamespaceResourceWhitelist, &proj.Spec.NamespaceResourceBlacklist
+				allowList, denyList = proj.Spec.GetNamespaceResourceAllowlistPointer(), proj.Spec.GetNamespaceResourceDenylistPointer()
 				listDesc = "namespaced"
 			} else {
-				allowList, denyList = &proj.Spec.ClusterResourceWhitelist, &proj.Spec.ClusterResourceBlacklist
+				allowList, denyList = proj.Spec.GetClusterResourceAllowlistPointer(), proj.Spec.GetClusterResourceDenylistPointer()
 				listDesc = "cluster"
 			}
 
@@ -631,7 +631,7 @@ func printProjectNames(projects []v1alpha1.AppProject) {
 // Print table of project info
 func printProjectTable(projects []v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\n")
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-ALLOWLIST\tNAMESPACE-RESOURCE-DENYLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\n")
 	for _, p := range projects {
 		printProjectLine(w, &p)
 	}
@@ -682,7 +682,7 @@ func formatOrphanedResources(p *v1alpha1.AppProject) string {
 }
 
 func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
-	var destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys string
+	var destinations, sourceRepos, clusterAllowlist, namespaceDenylist, signatureKeys string
 	switch len(p.Spec.Destinations) {
 	case 0:
 		destinations = "<none>"
@@ -699,19 +699,19 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	default:
 		sourceRepos = fmt.Sprintf("%d repos", len(p.Spec.SourceRepos))
 	}
-	switch len(p.Spec.ClusterResourceWhitelist) {
+	switch len(p.Spec.GetClusterResourceAllowlist()) {
 	case 0:
-		clusterWhitelist = "<none>"
+		clusterAllowlist = "<none>"
 	case 1:
-		clusterWhitelist = fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[0].Group, p.Spec.ClusterResourceWhitelist[0].Kind)
+		clusterAllowlist = fmt.Sprintf("%s/%s", p.Spec.GetClusterResourceAllowlist()[0].Group, p.Spec.GetClusterResourceAllowlist()[0].Kind)
 	default:
-		clusterWhitelist = fmt.Sprintf("%d resources", len(p.Spec.ClusterResourceWhitelist))
+		clusterAllowlist = fmt.Sprintf("%d resources", len(p.Spec.GetClusterResourceAllowlist()))
 	}
-	switch len(p.Spec.NamespaceResourceBlacklist) {
+	switch len(p.Spec.GetNamespaceResourceDenylist()) {
 	case 0:
-		namespaceBlacklist = "<none>"
+		namespaceDenylist = "<none>"
 	default:
-		namespaceBlacklist = fmt.Sprintf("%d resources", len(p.Spec.NamespaceResourceBlacklist))
+		namespaceDenylist = fmt.Sprintf("%d resources", len(p.Spec.GetNamespaceResourceDenylist()))
 	}
 	switch len(p.Spec.SignatureKeys) {
 	case 0:
@@ -719,7 +719,7 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	default:
 		signatureKeys = fmt.Sprintf("%d key(s)", len(p.Spec.SignatureKeys))
 	}
-	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatOrphanedResources(p))
+	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterAllowlist, namespaceDenylist, signatureKeys, formatOrphanedResources(p))
 }
 
 func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Repository, scopedClusters []*v1alpha1.Cluster) {
@@ -760,12 +760,12 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 
 	// Print allowed cluster resources
 	cwl0 := "<none>"
-	if len(p.Spec.ClusterResourceWhitelist) > 0 {
-		cwl0 = fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[0].Group, p.Spec.ClusterResourceWhitelist[0].Kind)
+	if len(p.Spec.GetClusterResourceAllowlist()) > 0 {
+		cwl0 = fmt.Sprintf("%s/%s", p.Spec.GetClusterResourceAllowlist()[0].Group, p.Spec.GetClusterResourceAllowlist()[0].Kind)
 	}
 	fmt.Printf(printProjFmtStr, "Allowed Cluster Resources:", cwl0)
-	for i := 1; i < len(p.Spec.ClusterResourceWhitelist); i++ {
-		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[i].Group, p.Spec.ClusterResourceWhitelist[i].Kind))
+	for i := 1; i < len(p.Spec.GetClusterResourceAllowlist()); i++ {
+		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.GetClusterResourceAllowlist()[i].Group, p.Spec.GetClusterResourceAllowlist()[i].Kind))
 	}
 
 	//Print scoped clusters
@@ -780,12 +780,12 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 
 	// Print denied namespaced resources
 	rbl0 := "<none>"
-	if len(p.Spec.NamespaceResourceBlacklist) > 0 {
-		rbl0 = fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[0].Group, p.Spec.NamespaceResourceBlacklist[0].Kind)
+	if len(p.Spec.GetNamespaceResourceDenylist()) > 0 {
+		rbl0 = fmt.Sprintf("%s/%s", p.Spec.GetNamespaceResourceDenylist()[0].Group, p.Spec.GetNamespaceResourceDenylist()[0].Kind)
 	}
 	fmt.Printf(printProjFmtStr, "Denied Namespaced Resources:", rbl0)
-	for i := 1; i < len(p.Spec.NamespaceResourceBlacklist); i++ {
-		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[i].Group, p.Spec.NamespaceResourceBlacklist[i].Kind))
+	for i := 1; i < len(p.Spec.GetNamespaceResourceDenylist()); i++ {
+		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.GetNamespaceResourceDenylist()[i].Group, p.Spec.GetNamespaceResourceDenylist()[i].Kind))
 	}
 
 	// Print required signature keys

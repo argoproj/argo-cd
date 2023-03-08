@@ -156,6 +156,26 @@ func (in *AppProjectSpec) DeepCopyInto(out *AppProjectSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ClusterResourceAllowlist != nil {
+		in, out := &in.ClusterResourceAllowlist, &out.ClusterResourceAllowlist
+		*out = make([]v1.GroupKind, len(*in))
+		copy(*out, *in)
+	}
+	if in.ClusterResourceDenylist != nil {
+		in, out := &in.ClusterResourceDenylist, &out.ClusterResourceDenylist
+		*out = make([]v1.GroupKind, len(*in))
+		copy(*out, *in)
+	}
+	if in.NamespaceResourceAllowlist != nil {
+		in, out := &in.NamespaceResourceAllowlist, &out.NamespaceResourceAllowlist
+		*out = make([]v1.GroupKind, len(*in))
+		copy(*out, *in)
+	}
+	if in.NamespaceResourceDenylist != nil {
+		in, out := &in.NamespaceResourceDenylist, &out.NamespaceResourceDenylist
+		*out = make([]v1.GroupKind, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

@@ -19,7 +19,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/ghodss/yaml"
-	"github.com/robfig/cron/v3"
+	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -1834,23 +1834,103 @@ type AppProjectSpec struct {
 	// Roles are user defined RBAC roles associated with this project
 	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
 	// ClusterResourceWhitelist contains list of whitelisted cluster level resources
+	//
+	// Deprecated: use ClusterResourceAllowlist instead.
 	ClusterResourceWhitelist []metav1.GroupKind `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
 	// NamespaceResourceBlacklist contains list of blacklisted namespace level resources
+	//
+	// Deprecated: use NamespaceResourceDenylist instead.
 	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
 	// OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
 	OrphanedResources *OrphanedResourcesMonitorSettings `json:"orphanedResources,omitempty" protobuf:"bytes,7,opt,name=orphanedResources"`
 	// SyncWindows controls when syncs can be run for apps in this project
 	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
 	// NamespaceResourceWhitelist contains list of whitelisted namespace level resources
+	//
+	// Deprecated: use NamespaceResourceAllowlist instead.
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
 	// SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
+	//
+	// Deprecated: use ClusterResourceDenylist instead.
 	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
 	// SourceNamespaces defines the namespaces application resources are allowed to be created in
 	SourceNamespaces []string `json:"sourceNamespaces,omitempty" protobuf:"bytes,12,opt,name=sourceNamespaces"`
 	// PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped
 	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
+	// ClusterResourceAllowlist contains list of allowed cluster level resources
+	ClusterResourceAllowlist []metav1.GroupKind `json:"clusterResourceAllowlist,omitempty" protobuf:"bytes,14,opt,name=clusterResourceAllowlist"`
+	// ClusterResourceDenylist contains list of denied cluster level resources
+	ClusterResourceDenylist []metav1.GroupKind `json:"clusterResourceDenylist,omitempty" protobuf:"bytes,15,opt,name=clusterResourceDenylist"`
+	// NamespaceResourceAllowlist contains list of allowed namespace level resources
+	NamespaceResourceAllowlist []metav1.GroupKind `json:"namespaceResourceAllowlist,omitempty" protobuf:"bytes,16,opt,name=namespaceResourceAllowlist"`
+	// NamespaceResourceDenylist contains list of denied namespace level resources
+	NamespaceResourceDenylist []metav1.GroupKind `json:"namespaceResourceDenylist,omitempty" protobuf:"bytes,17,opt,name=namespaceResourceDenylist"`
+}
+
+// GetClusterResourceAllowlist returns the cluster resource allow list, falling back to the deprecated field.
+func (p *AppProjectSpec) GetClusterResourceAllowlist() []metav1.GroupKind {
+	if p.ClusterResourceAllowlist != nil {
+		return p.ClusterResourceAllowlist
+	}
+	return p.ClusterResourceWhitelist
+}
+
+// GetClusterResourceAllowlistPointer returns the cluster resource allow list pointer, falling back to the deprecated field.
+func (p *AppProjectSpec) GetClusterResourceAllowlistPointer() *[]metav1.GroupKind {
+	if p.ClusterResourceAllowlist != nil {
+		return &p.ClusterResourceAllowlist
+	}
+	return &p.ClusterResourceWhitelist
+}
+
+// GetClusterResourceDenylist returns the cluster resource deny list, falling back to the deprecated field.
+func (p *AppProjectSpec) GetClusterResourceDenylist() []metav1.GroupKind {
+	if p.ClusterResourceDenylist != nil {
+		return p.ClusterResourceDenylist
+	}
+	return p.ClusterResourceBlacklist
+}
+
+// GetClusterResourceDenylistPointer returns the cluster resource deny list pointer, falling back to the deprecated field.
+func (p *AppProjectSpec) GetClusterResourceDenylistPointer() *[]metav1.GroupKind {
+	if p.ClusterResourceDenylist != nil {
+		return &p.ClusterResourceDenylist
+	}
+	return &p.ClusterResourceBlacklist
+}
+
+// GetNamespaceResourceAllowlist returns the namespace resource allow list, falling back to the deprecated field.
+func (p *AppProjectSpec) GetNamespaceResourceAllowlist() []metav1.GroupKind {
+	if p.NamespaceResourceAllowlist != nil {
+		return p.NamespaceResourceAllowlist
+	}
+	return p.NamespaceResourceWhitelist
+}
+
+// GetNamespaceResourceAllowlistPointer returns the namespace resource allow list pointer, falling back to the deprecated field.
+func (p *AppProjectSpec) GetNamespaceResourceAllowlistPointer() *[]metav1.GroupKind {
+	if p.NamespaceResourceAllowlist != nil {
+		return &p.NamespaceResourceAllowlist
+	}
+	return &p.NamespaceResourceWhitelist
+}
+
+// GetNamespaceResourceDenylist returns the namespace resource deny list, falling back to the deprecated field.
+func (p *AppProjectSpec) GetNamespaceResourceDenylist() []metav1.GroupKind {
+	if p.NamespaceResourceDenylist != nil {
+		return p.NamespaceResourceDenylist
+	}
+	return p.NamespaceResourceBlacklist
+}
+
+// GetNamespaceResourceDenylistPointer returns the namespace resource deny list pointer, falling back to the deprecated field.
+func (p *AppProjectSpec) GetNamespaceResourceDenylistPointer() *[]metav1.GroupKind {
+	if p.NamespaceResourceDenylist != nil {
+		return &p.NamespaceResourceDenylist
+	}
+	return &p.NamespaceResourceBlacklist
 }
 
 // SyncWindows is a collection of sync windows in this project

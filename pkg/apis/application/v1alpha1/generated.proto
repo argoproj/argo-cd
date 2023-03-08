@@ -25,8 +25,8 @@ message AWSAuthConfig {
 }
 
 // AppProject provides a logical grouping of applications, providing controls for:
-// * where the apps may deploy to (cluster whitelist)
-// * what may be deployed (repository whitelist, resource whitelist/blacklist)
+// * where the apps may deploy to (cluster allow-list)
+// * what may be deployed (repository allow-list, resource allow-list/deny-list)
 // * who can access these applications (roles, OIDC group claims bindings)
 // * and what they can do (RBAC policies)
 // * automation access to these roles (JWT tokens)
@@ -65,9 +65,13 @@ message AppProjectSpec {
   repeated ProjectRole roles = 4;
 
   // ClusterResourceWhitelist contains list of whitelisted cluster level resources
+  //
+  // Deprecated: use ClusterResourceAllowlist instead.
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceWhitelist = 5;
 
   // NamespaceResourceBlacklist contains list of blacklisted namespace level resources
+  //
+  // Deprecated: use NamespaceResourceDenylist instead.
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceBlacklist = 6;
 
   // OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
@@ -77,12 +81,16 @@ message AppProjectSpec {
   repeated SyncWindow syncWindows = 8;
 
   // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
+  //
+  // Deprecated: use NamespaceResourceAllowlist instead.
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
 
   // SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
   repeated SignatureKey signatureKeys = 10;
 
   // ClusterResourceBlacklist contains list of blacklisted cluster level resources
+  //
+  // Deprecated: use ClusterResourceDenylist instead.
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
 
   // SourceNamespaces defines the namespaces application resources are allowed to be created in
@@ -90,6 +98,18 @@ message AppProjectSpec {
 
   // PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped
   optional bool permitOnlyProjectScopedClusters = 13;
+
+  // ClusterResourceAllowlist contains list of allowed cluster level resources
+  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceAllowlist = 14;
+
+  // ClusterResourceDenylist contains list of denied cluster level resources
+  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceDenylist = 15;
+
+  // NamespaceResourceAllowlist contains list of allowed namespace level resources
+  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceAllowlist = 16;
+
+  // NamespaceResourceDenylist contains list of denied namespace level resources
+  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceDenylist = 17;
 }
 
 // AppProjectStatus contains status information for AppProject CRs

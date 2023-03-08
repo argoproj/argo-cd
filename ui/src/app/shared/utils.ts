@@ -1,3 +1,5 @@
+import {GroupKind, ProjectSpec} from "./models";
+
 export function hashCode(str: string) {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -33,4 +35,28 @@ export function isValidURL(url: string): boolean {
             return false;
         }
     }
+}
+
+// getClusterResourceAllowList returns the cluster resource allow list from the project spec. If the project spec does not
+// use the new field, it returns the deprecated field.
+export function getClusterResourceAllowlist(spec: ProjectSpec): GroupKind[] {
+    return spec.clusterResourceAllowlist || spec.clusterResourceWhitelist || [];
+}
+
+// getClusterResourceDenyList returns the cluster resource deny list from the project spec. If the project spec does not
+// use the new field, it returns the deprecated field.
+export function getClusterResourceDenylist(spec: ProjectSpec): GroupKind[] {
+    return spec.clusterResourceDenylist || spec.clusterResourceBlacklist || [];
+}
+
+// getNamespaceResourceAllowList returns the namespace resource allow list from the project spec. If the project spec does not
+// use the new field, it returns the deprecated field.
+export function getNamespaceResourceAllowlist(spec: ProjectSpec): GroupKind[] {
+    return spec.namespaceResourceAllowlist || spec.namespaceResourceWhitelist || [];
+}
+
+// getNamespaceResourceDenyList returns the namespace resource deny list from the project spec. If the project spec does not
+// use the new field, it returns the deprecated field.
+export function getNamespaceResourceDenylist(spec: ProjectSpec): GroupKind[] {
+    return spec.namespaceResourceDenylist || spec.namespaceResourceBlacklist || [];
 }

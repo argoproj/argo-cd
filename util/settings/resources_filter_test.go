@@ -15,48 +15,48 @@ func TestIsExcludedResource(t *testing.T) {
 
 func TestResourceInclusions(t *testing.T) {
 	filter := ResourcesFilter{
-		ResourceInclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}}},
+		ResourceInclusions: []FilteredResource{{APIGroups: []string{"allowlisted-resource"}}},
 	}
 
-	assert.True(t, filter.IsExcludedResource("non-whitelisted-resource", "", ""))
-	assert.False(t, filter.IsExcludedResource("whitelisted-resource", "", ""))
+	assert.True(t, filter.IsExcludedResource("non-allowlisted-resource", "", ""))
+	assert.False(t, filter.IsExcludedResource("allowlisted-resource", "", ""))
 }
 
 func TestResourceInclusionsExclusionNonMutex(t *testing.T) {
 	filter := ResourcesFilter{
-		ResourceInclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}}},
-		ResourceExclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}, Kinds: []string{"blacklisted-kind"}}},
+		ResourceInclusions: []FilteredResource{{APIGroups: []string{"allowlisted-resource"}}},
+		ResourceExclusions: []FilteredResource{{APIGroups: []string{"allowlisted-resource"}, Kinds: []string{"denylisted-resource"}}},
 	}
 
-	assert.True(t, filter.IsExcludedResource("whitelisted-resource", "blacklisted-kind", ""))
-	assert.False(t, filter.IsExcludedResource("whitelisted-resource", "", ""))
-	assert.False(t, filter.IsExcludedResource("whitelisted-resource", "non-blacklisted-kind", ""))
+	assert.True(t, filter.IsExcludedResource("allowlisted-resource", "denylisted-resource", ""))
+	assert.False(t, filter.IsExcludedResource("allowlisted-resource", "", ""))
+	assert.False(t, filter.IsExcludedResource("allowlisted-resource", "non-denylisted-resource", ""))
 
 	filter = ResourcesFilter{
-		ResourceInclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}, Kinds: []string{"whitelisted-kind"}}},
-		ResourceExclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}}},
+		ResourceInclusions: []FilteredResource{{APIGroups: []string{"allowlisted-resource"}, Kinds: []string{"allowlisted-kind"}}},
+		ResourceExclusions: []FilteredResource{{APIGroups: []string{"allowlisted-resource"}}},
 	}
 
-	assert.True(t, filter.IsExcludedResource("whitelisted-resource", "whitelisted-kind", ""))
-	assert.True(t, filter.IsExcludedResource("whitelisted-resource", "", ""))
-	assert.True(t, filter.IsExcludedResource("whitelisted-resource", "non-whitelisted-kind", ""))
+	assert.True(t, filter.IsExcludedResource("allowlisted-resource", "allowlisted-kind", ""))
+	assert.True(t, filter.IsExcludedResource("allowlisted-resource", "", ""))
+	assert.True(t, filter.IsExcludedResource("allowlisted-resource", "non-allowlisted-kind", ""))
 
 	filter = ResourcesFilter{
-		ResourceInclusions: []FilteredResource{{APIGroups: []string{"foo-bar"}, Kinds: []string{"whitelisted-kind"}}},
-		ResourceExclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}}},
+		ResourceInclusions: []FilteredResource{{APIGroups: []string{"foo-bar"}, Kinds: []string{"allowlisted-kind"}}},
+		ResourceExclusions: []FilteredResource{{APIGroups: []string{"allowlisted-resource"}}},
 	}
 
-	assert.True(t, filter.IsExcludedResource("not-whitelisted-resource", "whitelisted-kind", ""))
-	assert.True(t, filter.IsExcludedResource("not-whitelisted-resource", "", ""))
+	assert.True(t, filter.IsExcludedResource("not-allowlisted-resource", "allowlisted-kind", ""))
+	assert.True(t, filter.IsExcludedResource("not-allowlisted-resource", "", ""))
 }
 
 func TestResourceInclusionsExclusionMultiCluster(t *testing.T) {
 	filter := ResourcesFilter{
-		ResourceInclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}, Clusters: []string{"cluster-one"}}},
-		ResourceExclusions: []FilteredResource{{APIGroups: []string{"whitelisted-resource"}, Clusters: []string{"cluster-two"}}},
+		ResourceInclusions: []FilteredResource{{APIGroups: []string{"allowlisted-resource"}, Clusters: []string{"cluster-one"}}},
+		ResourceExclusions: []FilteredResource{{APIGroups: []string{"allowlisted-resource"}, Clusters: []string{"cluster-two"}}},
 	}
 
-	assert.False(t, filter.IsExcludedResource("whitelisted-resource", "", "cluster-one"))
-	assert.True(t, filter.IsExcludedResource("whitelisted-resource", "", "cluster-two"))
-	assert.False(t, filter.IsExcludedResource("whitelisted-resource", "", "cluster-three"))
+	assert.False(t, filter.IsExcludedResource("allowlisted-resource", "", "cluster-one"))
+	assert.True(t, filter.IsExcludedResource("allowlisted-resource", "", "cluster-two"))
+	assert.False(t, filter.IsExcludedResource("allowlisted-resource", "", "cluster-three"))
 }

@@ -228,9 +228,9 @@ A possible mitigation to this would be to enforce the number of external sources
 
 #### Unauthorised access to external resources
 
-The users might reference the source that has not been whitelisted in the project. This might lead to access issues and failure to sync the Application.
+The users might reference the source that has not been allow-listed in the project. This might lead to access issues and failure to sync the Application.
 
-A possible solution would be to check for the source repository to be whitelisted in the project before syncing and report appropriate error messages in respective scenarios.
+A possible solution would be to check for the source repository to be allow-listed in the project before syncing and report appropriate error messages in respective scenarios.
 
 
 ### Upgrade / Downgrade Strategy

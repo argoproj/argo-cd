@@ -26,8 +26,8 @@ type AppProjectList struct {
 }
 
 // AppProject provides a logical grouping of applications, providing controls for:
-// * where the apps may deploy to (cluster whitelist)
-// * what may be deployed (repository whitelist, resource whitelist/blacklist)
+// * where the apps may deploy to (cluster allow-list)
+// * what may be deployed (repository allow-list, resource allow-list/deny-list)
 // * who can access these applications (roles, OIDC group claims bindings)
 // * and what they can do (RBAC policies)
 // * automation access to these roles (JWT tokens)
@@ -323,24 +323,24 @@ func (proj *AppProject) ProjectPoliciesString() string {
 
 // IsGroupKindPermitted validates if the given resource group/kind is permitted to be deployed in the project
 func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
-	var isWhiteListed, isBlackListed bool
+	var isAllowListed, isDenyListed bool
 	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 
 	if namespaced {
-		namespaceWhitelist := proj.Spec.NamespaceResourceWhitelist
-		namespaceBlacklist := proj.Spec.NamespaceResourceBlacklist
+		namespaceAllowlist := proj.Spec.GetNamespaceResourceAllowlist()
+		namespaceDenylist := proj.Spec.GetNamespaceResourceDenylist()
 
-		isWhiteListed = namespaceWhitelist == nil || len(namespaceWhitelist) != 0 && isResourceInList(res, namespaceWhitelist)
-		isBlackListed = len(namespaceBlacklist) != 0 && isResourceInList(res, namespaceBlacklist)
-		return isWhiteListed && !isBlackListed
+		isAllowListed = namespaceAllowlist == nil || len(namespaceAllowlist) != 0 && isResourceInList(res, namespaceAllowlist)
+		isDenyListed = len(namespaceDenylist) != 0 && isResourceInList(res, namespaceDenylist)
+		return isAllowListed && !isDenyListed
 	}
 
-	clusterWhitelist := proj.Spec.ClusterResourceWhitelist
-	clusterBlacklist := proj.Spec.ClusterResourceBlacklist
+	clusterAllowlist := proj.Spec.GetClusterResourceAllowlist()
+	clusterDenylist := proj.Spec.GetClusterResourceDenylist()
 
-	isWhiteListed = len(clusterWhitelist) != 0 && isResourceInList(res, clusterWhitelist)
-	isBlackListed = len(clusterBlacklist) != 0 && isResourceInList(res, clusterBlacklist)
-	return isWhiteListed && !isBlackListed
+	isAllowListed = len(clusterAllowlist) != 0 && isResourceInList(res, clusterAllowlist)
+	isDenyListed = len(clusterDenylist) != 0 && isResourceInList(res, clusterDenylist)
+	return isAllowListed && !isDenyListed
 }
 
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject

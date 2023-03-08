@@ -579,7 +579,7 @@ func EnsureCleanState(t *testing.T) {
 		OrphanedResources:        nil,
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		ClusterResourceAllowlist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 		SourceNamespaces:         []string{AppNamespace()},
 	})
 
@@ -589,7 +589,7 @@ func EnsureCleanState(t *testing.T) {
 		OrphanedResources:        nil,
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		ClusterResourceAllowlist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 		SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
 		SourceNamespaces:         []string{AppNamespace()},
 	})

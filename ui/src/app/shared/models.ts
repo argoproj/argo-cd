@@ -702,13 +702,29 @@ export interface ProjectSpec {
     destinations: ApplicationDestination[];
     description: string;
     roles: ProjectRole[];
+    /**
+     * @deprecated use {@link getClusterResourceAllowlist} instead
+     */
     clusterResourceWhitelist: GroupKind[];
+    /**
+     * @deprecated use {@link getClusterResourceDenylist} instead
+     */
     clusterResourceBlacklist: GroupKind[];
+    /**
+     * @deprecated use {@link getNamespaceResourceDenylist} instead
+     */
     namespaceResourceBlacklist: GroupKind[];
+    /**
+     * @deprecated use {@link getNamespaceResourceAllowlist} instead
+     */
     namespaceResourceWhitelist: GroupKind[];
     signatureKeys: ProjectSignatureKey[];
     orphanedResources?: {warn?: boolean; ignore: OrphanedResource[]};
     syncWindows?: SyncWindows;
+    clusterResourceAllowlist: GroupKind[];
+    clusterResourceDenylist: GroupKind[];
+    namespaceResourceDenylist: GroupKind[];
+    namespaceResourceAllowlist: GroupKind[];
 }
 
 export type SyncWindows = SyncWindow[];
