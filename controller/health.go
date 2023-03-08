@@ -1,10 +1,13 @@
 package controller
 
 import (
+	"fmt"
+
 	"github.com/argoproj/gitops-engine/pkg/health"
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -15,6 +18,7 @@ import (
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
 func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (*appv1.HealthStatus, error) {
 	var savedErr error
+	var errCount uint
 	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
 	for i, res := range resources {
 		if res.Target != nil && hookutil.Skip(res.Target) {
@@ -38,7 +42,10 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			}
 			healthStatus, err = health.GetResourceHealth(res.Live, healthOverrides)
 			if err != nil && savedErr == nil {
-				savedErr = err
+				errCount++
+				savedErr = fmt.Errorf("failed to get resource health for %q with name %q in namespace %q: %w", res.Live.GetKind(), res.Live.GetName(), res.Live.GetNamespace(), err)
+				// also log so we don't lose the message
+				log.WithField("application", app.QualifiedName()).Warn(savedErr)
 			}
 		}
 
@@ -71,6 +78,9 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationInline
 	} else {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree
+	}
+	if savedErr != nil && errCount > 1 {
+		savedErr = fmt.Errorf("see applicaton-controller logs for %d other errors; most recent error was: %w", errCount-1, savedErr)
 	}
 	return &appHealth, savedErr
 }

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -157,6 +159,10 @@ const (
 	// Ex: "http://grafana.example.com/d/yu5UH4MMz/deployments"
 	// Ex: "Go to Dashboard|http://grafana.example.com/d/yu5UH4MMz/deployments"
 	AnnotationKeyLinkPrefix = "link.argocd.argoproj.io/"
+
+	// AnnotationKeyAppSkipReconcile tells the Application to skip the Application controller reconcile.
+	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
+	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
 )
 
 // Environment variables for tuning and debugging Argo CD
@@ -316,3 +322,5 @@ const (
 const TokenVerificationError = "failed to verify the token"
 
 var TokenVerificationErr = errors.New(TokenVerificationError)
+
+var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
