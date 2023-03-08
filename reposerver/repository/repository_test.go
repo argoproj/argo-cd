@@ -2772,3 +2772,191 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		})
 	}
 }
+
+func TestErrorGetGitDirectories(t *testing.T) {
+	type fields struct {
+		service *Service
+	}
+	type args struct {
+		ctx     context.Context
+		request *apiclient.GitDirectoriesRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *apiclient.GitDirectoriesResponse
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{name: "InvalidRepo", fields: fields{service: newService(".")}, args: args{
+			ctx: context.TODO(),
+			request: &apiclient.GitDirectoriesRequest{
+				Repo:             nil,
+				SubmoduleEnabled: false,
+				Revision:         "HEAD",
+			},
+		}, want: nil, wantErr: assert.Error},
+		{name: "InvalidRevision", fields: fields{service: newService(".")}, args: args{
+			ctx: context.TODO(),
+			request: &apiclient.GitDirectoriesRequest{
+				Repo:             &argoappv1.Repository{},
+				SubmoduleEnabled: false,
+				Revision:         "",
+			},
+		}, want: nil, wantErr: assert.Error},
+		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
+			s, _ := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
+				paths.On("GetPath", mock.Anything).Return(".", nil)
+				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+			}, ".")
+			return s
+		}()}, args: args{
+			ctx: context.TODO(),
+			request: &apiclient.GitDirectoriesRequest{
+				Repo:             &argoappv1.Repository{Repo: "not-a-valid-url"},
+				SubmoduleEnabled: false,
+				Revision:         "sadfsadf",
+			},
+		}, want: nil, wantErr: assert.Error},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := tt.fields.service
+			got, err := s.GetGitDirectories(tt.args.ctx, tt.args.request)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetGitDirectories(%v, %v)", tt.args.ctx, tt.args.request)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetGitDirectories(%v, %v)", tt.args.ctx, tt.args.request)
+		})
+	}
+}
+
+func TestGetGitDirectories(t *testing.T) {
+	// test not using the cache
+	root := "./testdata/git-files-dirs"
+	s, _ := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+		gitClient.On("Init").Return(nil)
+		gitClient.On("Fetch", mock.Anything).Return(nil)
+		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return(nil)
+		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.On("Root").Return(root)
+		paths.On("GetPath", mock.Anything).Return(root, nil)
+		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
+	}, root)
+	dirRequest := &apiclient.GitDirectoriesRequest{
+		Repo:             &argoappv1.Repository{Repo: "a-url.com"},
+		SubmoduleEnabled: false,
+		Revision:         "HEAD",
+	}
+	directories, err := s.GetGitDirectories(context.TODO(), dirRequest)
+	assert.Nil(t, err)
+	assert.ElementsMatch(t, directories.GetPaths(), []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo"})
+
+	// do the same request again to use the cache
+	// we only allow CheckOut to be called once in the mock
+	directories, err = s.GetGitDirectories(context.TODO(), dirRequest)
+	assert.Nil(t, err)
+	assert.ElementsMatch(t, []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo"}, directories.GetPaths())
+}
+
+func TestErrorGetGitFiles(t *testing.T) {
+	type fields struct {
+		service *Service
+	}
+	type args struct {
+		ctx     context.Context
+		request *apiclient.GitFilesRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *apiclient.GitFilesResponse
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{name: "InvalidRepo", fields: fields{service: newService(".")}, args: args{
+			ctx: context.TODO(),
+			request: &apiclient.GitFilesRequest{
+				Repo:             nil,
+				SubmoduleEnabled: false,
+				Revision:         "HEAD",
+			},
+		}, want: nil, wantErr: assert.Error},
+		{name: "InvalidRevision", fields: fields{service: newService(".")}, args: args{
+			ctx: context.TODO(),
+			request: &apiclient.GitFilesRequest{
+				Repo:             &argoappv1.Repository{},
+				SubmoduleEnabled: false,
+				Revision:         "",
+			},
+		}, want: nil, wantErr: assert.Error},
+		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
+			s, _ := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
+				paths.On("GetPath", mock.Anything).Return(".", nil)
+				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+			}, ".")
+			return s
+		}()}, args: args{
+			ctx: context.TODO(),
+			request: &apiclient.GitFilesRequest{
+				Repo:             &argoappv1.Repository{Repo: "not-a-valid-url"},
+				SubmoduleEnabled: false,
+				Revision:         "sadfsadf",
+			},
+		}, want: nil, wantErr: assert.Error},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := tt.fields.service
+			got, err := s.GetGitFiles(tt.args.ctx, tt.args.request)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetGitFiles(%v, %v)", tt.args.ctx, tt.args.request)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetGitFiles(%v, %v)", tt.args.ctx, tt.args.request)
+		})
+	}
+}
+
+func TestGetGitFiles(t *testing.T) {
+	// test not using the cache
+	files := []string{"./testdata/git-files-dirs/somedir/config.yaml",
+		"./testdata/git-files-dirs/config.yaml", "./testdata/git-files-dirs/config.yaml", "./testdata/git-files-dirs/app/foo/bar/config.yaml"}
+	root := ""
+	s, _ := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+		gitClient.On("Init").Return(nil)
+		gitClient.On("Fetch", mock.Anything).Return(nil)
+		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return(nil)
+		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.On("Root").Return(root)
+		gitClient.On("LsFiles", mock.Anything).Once().Return(files, nil)
+		paths.On("GetPath", mock.Anything).Return(root, nil)
+		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
+	}, root)
+	filesRequest := &apiclient.GitFilesRequest{
+		Repo:             &argoappv1.Repository{Repo: "a-url.com"},
+		SubmoduleEnabled: false,
+		Revision:         "HEAD",
+	}
+
+	// expected map
+	expected := make(map[string][]byte)
+	for _, filePath := range files {
+		fileContents, err := os.ReadFile(filePath)
+		assert.Nil(t, err)
+		expected[filePath] = fileContents
+	}
+
+	fileResponse, err := s.GetGitFiles(context.TODO(), filesRequest)
+	assert.Nil(t, err)
+	assert.Equal(t, fileResponse.GetMap(), expected)
+
+	// do the same request again to use the cache
+	// we only allow LsFiles to be called once in the mock
+	fileResponse, err = s.GetGitFiles(context.TODO(), filesRequest)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, fileResponse.GetMap())
+}
