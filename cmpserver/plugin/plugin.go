@@ -9,8 +9,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/argoproj/pkg/rand"
 
@@ -117,15 +119,16 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 func getCommandArgsToLog(cmd *exec.Cmd) string {
 	var argsToLog []string
 	for _, arg := range cmd.Args {
-		if strings.ContainsRune(arg, ' ') {
-			// json-encode to add quotes and escape any internal quotes
-			encodedArg, err := json.Marshal(arg)
-			if err != nil {
-				// Not worth bothering with. Just print without escaping.
-				argsToLog = cmd.Args
+		containsSpace := false
+		for _, r := range arg {
+			if unicode.IsSpace(r) {
+				containsSpace = true
 				break
 			}
-			argsToLog = append(argsToLog, string(encodedArg))
+		}
+		if containsSpace {
+			// add quotes and escape any internal quotes
+			argsToLog = append(argsToLog, strconv.Quote(arg))
 		} else {
 			argsToLog = append(argsToLog, arg)
 		}
