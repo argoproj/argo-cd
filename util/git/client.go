@@ -307,7 +307,7 @@ func (m *nativeGitClient) Init() error {
 		return err
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
-	_, err = executil.Run(exec.Command("rm", "-rf", m.root))
+	err = os.RemoveAll(m.root)
 	if err != nil {
 		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
 	}
