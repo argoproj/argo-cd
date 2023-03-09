@@ -7,7 +7,7 @@ RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 FROM docker.io/library/node:12.18.4-buster@sha256:7f4090a3fea631e703f4afe5cc5504143970d669a2c13b4e5edf3f830c9b4c96 as node
 
-FROM docker.io/library/golang:1.19.6@sha256:7ce31d15a3a4dbf20446cccffa4020d3a2974ad2287d96123f55caf22c7adb71 as golang
+FROM docker.io/library/golang:1.20.2@sha256:74a382917f6eaa7cc2d000dc2cd412a7f823f343b3b6268b20d84d057bc56718 as golang
 
 FROM docker.io/library/registry:2.8@sha256:3f71055ad7c41728e381190fee5c4cf9b8f7725839dcf5c0fe3e5e20dc5db1fa as registry
 
