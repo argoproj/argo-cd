@@ -1,8 +1,9 @@
 import * as React from 'react';
 import Moment from 'react-moment';
+import { Pod } from '../../../shared/models';
 import {isYoungerThanXMinutes} from '../utils';
 
-export const PodTooltip = (props: {pod: any}) => {
+export const PodTooltip = (props: {pod: Pod}) => {
     const pod = props.pod;
 
     return (
