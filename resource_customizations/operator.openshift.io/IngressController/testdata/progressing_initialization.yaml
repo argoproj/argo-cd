@@ -1,0 +1,36 @@
+---
+apiVersion: operator.openshift.io/v1
+kind: IngressController
+metadata:
+  name: apps-shard-2
+  namespace: openshift-ingress-operator
+spec:
+  domain: openshift-apps-shard-2.example.com
+  endpointPublishingStrategy:
+    hostNetwork:
+      httpPort: 80
+      httpsPort: 443
+      statsPort: 1936
+    type: HostNetwork
+  nodePlacement:
+    nodeSelector:
+      matchLabels:
+        node-role.kubernetes.io/worker: ""
+  replicas: 1
+status:
+  availableReplicas: 0
+  conditions:
+  - lastTransitionTime: "2023-01-28T09:34:36Z"
+    reason: Valid
+    status: "True"
+    type: Admitted
+  domain: openshift-apps-shard-2.example.com
+  endpointPublishingStrategy:
+    hostNetwork:
+      httpPort: 80
+      httpsPort: 443
+      protocol: TCP
+      statsPort: 1936
+    type: HostNetwork
+  observedGeneration: 1
+  selector: ""
