@@ -2484,8 +2484,8 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 		gitPath = "."
 	}
 
-	if repo == nil || revision == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "must pass a valid repo and revision (%s)", revision)
+	if repo == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
 	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))
@@ -2537,8 +2537,8 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 	repo := request.GetRepo()
 	revision := request.GetRevision()
 
-	if repo == nil || revision == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "must pass a valid repo and revision (%s)", revision)
+	if repo == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
 	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))

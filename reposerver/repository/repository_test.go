@@ -2796,14 +2796,6 @@ func TestErrorGetGitDirectories(t *testing.T) {
 				Revision:         "HEAD",
 			},
 		}, want: nil, wantErr: assert.Error},
-		{name: "InvalidRevision", fields: fields{service: newService(".")}, args: args{
-			ctx: context.TODO(),
-			request: &apiclient.GitDirectoriesRequest{
-				Repo:             &argoappv1.Repository{},
-				SubmoduleEnabled: false,
-				Revision:         "",
-			},
-		}, want: nil, wantErr: assert.Error},
 		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
 			s, _ := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
@@ -2882,14 +2874,6 @@ func TestErrorGetGitFiles(t *testing.T) {
 				Repo:             nil,
 				SubmoduleEnabled: false,
 				Revision:         "HEAD",
-			},
-		}, want: nil, wantErr: assert.Error},
-		{name: "InvalidRevision", fields: fields{service: newService(".")}, args: args{
-			ctx: context.TODO(),
-			request: &apiclient.GitFilesRequest{
-				Repo:             &argoappv1.Repository{},
-				SubmoduleEnabled: false,
-				Revision:         "",
 			},
 		}, want: nil, wantErr: assert.Error},
 		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
