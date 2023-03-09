@@ -5,7 +5,7 @@ FROM docker.io/library/redis:7.0.8@sha256:6a59f1cbb8d28ac484176d52c473494859a512
 # architecture, so we create a symlink here to facilitate copying.
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu 
 
-FROM docker.io/library/node:12.18.4-buster@sha256:7f4090a3fea631e703f4afe5cc5504143970d669a2c13b4e5edf3f830c9b4c96 as node
+FROM docker.io/library/node:19.7.0-buster@sha256:b22b44ff9721f9a9f24e656ba7f0d1a2dd4dd1e45303d72eacbf3f9c0f9984a1 as node
 
 FROM docker.io/library/golang:1.19.6@sha256:7ce31d15a3a4dbf20446cccffa4020d3a2974ad2287d96123f55caf22c7adb71 as golang
 
