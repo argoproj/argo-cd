@@ -13,8 +13,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/go-redis/redis/v8"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -202,17 +202,18 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 	}
 	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
-		EnableGZip:    false,
-		Namespace:     namespace,
-		ListenPort:    *port,
-		AppClientset:  appClientset,
-		DisableAuth:   true,
-		RedisClient:   redis.NewClient(&redis.Options{Addr: mr.Addr()}),
-		Cache:         servercache.NewCache(appstateCache, 0, 0, 0),
-		KubeClientset: kubeClientset,
-		Insecure:      true,
-		ListenHost:    *address,
-		RepoClientset: &forwardRepoClientset{namespace: namespace, context: ctxStr},
+		EnableGZip:           false,
+		Namespace:            namespace,
+		ListenPort:           *port,
+		AppClientset:         appClientset,
+		DisableAuth:          true,
+		RedisClient:          redis.NewClient(&redis.Options{Addr: mr.Addr()}),
+		Cache:                servercache.NewCache(appstateCache, 0, 0, 0),
+		KubeClientset:        kubeClientset,
+		Insecure:             true,
+		ListenHost:           *address,
+		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr},
+		EnableProxyExtension: false,
 	})
 	srv.Init(ctx)
 

@@ -13,8 +13,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
+	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -167,12 +169,12 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
-// - If insecure is true, always returns a client with certificate verification
-//   turned off.
-// - If one or more custom certificates are stored for the repository, returns
-//   a client with those certificates in the list of root CAs used to verify
-//   the server's certificate.
-// - Otherwise (and on non-fatal errors), a default HTTP client is returned.
+//   - If insecure is true, always returns a client with certificate verification
+//     turned off.
+//   - If one or more custom certificates are stored for the repository, returns
+//     a client with those certificates in the list of root CAs used to verify
+//     the server's certificate.
+//   - Otherwise (and on non-fatal errors), a default HTTP client is returned.
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
 	var customHTTPClient = &http.Client{
@@ -275,6 +277,18 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		}
 		auth := githttp.BasicAuth{Username: "x-access-token", Password: token}
 		return &auth, nil
+	case GoogleCloudCreds:
+		username, err := creds.getUsername()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get username from creds: %w", err)
+		}
+		token, err := creds.getAccessToken()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get access token from creds: %w", err)
+		}
+
+		auth := githttp.BasicAuth{Username: username, Password: token}
+		return &auth, nil
 	}
 	return nil, nil
 }
@@ -293,7 +307,7 @@ func (m *nativeGitClient) Init() error {
 		return err
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
-	_, err = executil.Run(exec.Command("rm", "-rf", m.root))
+	err = os.RemoveAll(m.root)
 	if err != nil {
 		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
 	}
@@ -320,9 +334,9 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 func (m *nativeGitClient) fetch(revision string) error {
 	var err error
 	if revision != "" {
-		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
+		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force", "--prune")
 	} else {
-		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force", "--prune")
 	}
 	return err
 }
@@ -334,19 +348,7 @@ func (m *nativeGitClient) Fetch(revision string) error {
 		defer done()
 	}
 
-	var err error
-
-	err = m.fetch(revision)
-	if err != nil {
-		errMsg := strings.ReplaceAll(err.Error(), "\n", "")
-		if strings.Contains(errMsg, "try running 'git remote prune origin'") {
-			// Prune any deleted refs, then try fetching again
-			if err := m.runCredentialedCmd("git", "remote", "prune", "origin"); err != nil {
-				return err
-			}
-			err = m.fetch(revision)
-		}
-	}
+	err := m.fetch(revision)
 
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
@@ -631,12 +633,21 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
 // nolint:unparam
 func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) error {
-	cmd := exec.Command(command, args...)
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = closer.Close() }()
+
+	// If a basic auth header is explicitly set, tell Git to send it to the
+	// server to force use of basic auth instead of negotiating the auth scheme
+	for _, e := range environ {
+		if strings.HasPrefix(e, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+			args = append([]string{"--config-env", fmt.Sprintf("http.extraHeader=%s", forceBasicAuthHeaderEnv)}, args...)
+		}
+	}
+
+	cmd := exec.Command(command, args...)
 	cmd.Env = append(cmd.Env, environ...)
 	_, err = m.runCmdOutput(cmd)
 	return err
@@ -651,6 +662,8 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
 	// Skip LFS for most Git operations except when explicitly requested
 	cmd.Env = append(cmd.Env, "GIT_LFS_SKIP_SMUDGE=1")
+	// Disable Git terminal prompts in case we're running with a tty
+	cmd.Env = append(cmd.Env, "GIT_TERMINAL_PROMPT=false")
 
 	// For HTTPS repositories, we need to consider insecure repositories as well
 	// as custom CA bundles from the cert database.
@@ -673,6 +686,11 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	}
 
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
-
-	return executil.Run(cmd)
+	opts := executil.ExecRunOpts{
+		TimeoutBehavior: argoexec.TimeoutBehavior{
+			Signal:     syscall.SIGTERM,
+			ShouldWait: true,
+		},
+	}
+	return executil.RunWithExecRunOpts(cmd, opts)
 }

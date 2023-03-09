@@ -13,7 +13,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
 	pullrequest "github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*PullRequestGenerator)(nil)
@@ -90,13 +90,19 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			shortSHALength = len(pull.HeadSHA)
 		}
 
-		params = append(params, map[string]interface{}{
+		paramMap := map[string]interface{}{
 			"number":         strconv.Itoa(pull.Number),
 			"branch":         pull.Branch,
 			"branch_slug":    slug.Make(pull.Branch),
 			"head_sha":       pull.HeadSHA,
 			"head_short_sha": pull.HeadSHA[:shortSHALength],
-		})
+		}
+
+		// PR lables will only be supported for Go Template appsets, since fasttemplate will be deprecated.
+		if applicationSetInfo != nil && applicationSetInfo.Spec.GoTemplate {
+			paramMap["labels"] = pull.Labels
+		}
+		params = append(params, paramMap)
 	}
 	return params, nil
 }

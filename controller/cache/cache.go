@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
@@ -220,10 +221,10 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 		gv = schema.GroupVersion{}
 	}
 	parentRefs := make([]appv1.ResourceRef, len(r.OwnerRefs))
-	for _, ownerRef := range r.OwnerRefs {
+	for i, ownerRef := range r.OwnerRefs {
 		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
 		ownerKey := kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)
-		parentRefs[0] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
+		parentRefs[i] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
 	}
 	var resHealth *appv1.HealthStatus
 	resourceInfo := resInfo(r)
@@ -382,11 +383,30 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 	cluster, err := c.db.GetCluster(context.Background(), server)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 
 	if !c.canHandleCluster(cluster) {
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
+	}
+
+	resourceCustomLabels, err := c.settingsMgr.GetResourceCustomLabels()
+	if err != nil {
+		return nil, fmt.Errorf("error getting custom label: %w", err)
+	}
+
+	clusterCacheConfig := cluster.RESTConfig()
+	// Controller dynamically fetches all resource types available on the cluster
+	// using a discovery API that may contain deprecated APIs.
+	// This causes log flooding when managing a large number of clusters.
+	// https://github.com/argoproj/argo-cd/issues/11973
+	// However, we can safely suppress deprecation warnings
+	// because we do not rely on resources with a particular API group or version.
+	// https://kubernetes.io/blog/2020/09/03/warnings/#customize-client-handling
+	//
+	// Completely suppress warning logs only for log levels that are less than Debug.
+	if log.GetLevel() < log.DebugLevel {
+		clusterCacheConfig.WarningHandler = rest.NoWarnings{}
 	}
 
 	clusterCacheOpts := []clustercache.UpdateSettingsFunc{
@@ -400,7 +420,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetClusterResources(cluster.ClusterResources),
 		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
 			res := &ResourceInfo{}
-			populateNodeInfo(un, res)
+			populateNodeInfo(un, res, resourceCustomLabels)
 			c.lock.RLock()
 			cacheSettings := c.cacheSettings
 			c.lock.RUnlock()
@@ -420,7 +440,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 	}
 
-	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(), clusterCacheOpts...)
+	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
 		toNotify := make(map[string]bool)
@@ -456,11 +476,11 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 func (c *liveStateCache) getSyncedCluster(server string) (clustercache.ClusterCache, error) {
 	clusterCache, err := c.getCluster(server)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 	err = clusterCache.EnsureSynced()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error synchronizing cache state : %w", err)
 	}
 	return clusterCache, nil
 }
@@ -594,7 +614,7 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 func (c *liveStateCache) Init() error {
 	cacheSettings, err := c.loadCacheSettings()
 	if err != nil {
-		return err
+		return fmt.Errorf("error loading cache settings: %w", err)
 	}
 	c.cacheSettings = *cacheSettings
 	return nil

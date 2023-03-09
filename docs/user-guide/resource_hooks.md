@@ -86,7 +86,7 @@ OutOfSync even though the Job or Workflow was deleted after completion.
 
 ## Using A Hook To Send A Slack Message
 
-The following example uses the Slack API to send a a Slack message when sync completes or fails: 
+The following example uses the Slack API to send a Slack message when sync completes or fails:
 
 ```yaml
 apiVersion: batch/v1

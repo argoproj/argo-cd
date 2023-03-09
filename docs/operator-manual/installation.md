@@ -74,13 +74,13 @@ kind: Kustomization
 
 namespace: argocd
 resources:
-- https://raw.githubusercontent.com/argoproj/argo-cd/v2.0.4/manifests/ha/install.yaml
+- github.com/argoproj/argo-cd/manifests/ha?ref=v2.6.2
 ```
 
 ## Helm
 
 The Argo CD can be installed using [Helm](https://helm.sh/). The Helm chart is currently community maintained and available at
-[argo-helm/charts/argo-cd](https://github.com/argoproj/argo-helm/tree/master/charts/argo-cd).
+[argo-helm/charts/argo-cd](https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd).
 
 ## Supported versions
 

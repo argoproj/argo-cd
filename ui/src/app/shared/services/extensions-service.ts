@@ -4,11 +4,21 @@ import * as minimatch from 'minimatch';
 import {Application, ApplicationTree, State} from '../models';
 
 const extensions = {
-    resourceExtentions: new Array<ResourceTabExtension>()
+    resourceExtentions: new Array<ResourceTabExtension>(),
+    systemLevelExtensions: new Array<SystemLevelExtension>(),
+    appViewExtensions: new Array<AppViewExtension>()
 };
 
 function registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string, opts?: {icon: string}) {
     extensions.resourceExtentions.push({component, group, kind, title: tabTitle, icon: opts?.icon});
+}
+
+function registerSystemLevelExtension(component: ExtensionComponent, title: string, path: string, icon: string) {
+    extensions.systemLevelExtensions.push({component, title, icon, path});
+}
+
+function registerAppViewExtension(component: ExtensionComponent, title: string, icon: string) {
+    extensions.appViewExtensions.push({component, title, icon});
 }
 
 let legacyInitialized = false;
@@ -33,7 +43,22 @@ export interface ResourceTabExtension {
     icon?: string;
 }
 
+export interface SystemLevelExtension {
+    title: string;
+    component: SystemExtensionComponent;
+    icon?: string;
+    path?: string;
+}
+
+export interface AppViewExtension {
+    component: AppViewExtensionComponent;
+    title: string;
+    icon?: string;
+}
+
 export type ExtensionComponent = React.ComponentType<ExtensionComponentProps>;
+export type SystemExtensionComponent = React.ComponentType;
+export type AppViewExtensionComponent = React.ComponentType<AppViewComponentProps>;
 
 export interface Extension {
     component: ExtensionComponent;
@@ -45,11 +70,24 @@ export interface ExtensionComponentProps {
     application: Application;
 }
 
+export interface AppViewComponentProps {
+    application: Application;
+    tree: ApplicationTree;
+}
+
 export class ExtensionsService {
     public getResourceTabs(group: string, kind: string): ResourceTabExtension[] {
         initLegacyExtensions();
         const items = extensions.resourceExtentions.filter(extension => minimatch(group, extension.group) && minimatch(kind, extension.kind)).slice();
         return items.sort((a, b) => a.title.localeCompare(b.title));
+    }
+
+    public getSystemExtensions(): SystemLevelExtension[] {
+        return extensions.systemLevelExtensions.slice();
+    }
+
+    public getAppViewExtensions(): AppViewExtension[] {
+        return extensions.appViewExtensions.slice();
     }
 }
 
@@ -57,6 +95,8 @@ export class ExtensionsService {
     // deprecated: kept for backwards compatibility
     window.extensions = {resources: {}};
     window.extensionsAPI = {
-        registerResourceExtension
+        registerResourceExtension,
+        registerSystemLevelExtension,
+        registerAppViewExtension
     };
 })(window);

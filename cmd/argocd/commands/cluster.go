@@ -27,6 +27,17 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
+const (
+	// type of the cluster ID is 'name'
+	clusterIdTypeName = "name"
+	// cluster field is 'name'
+	clusterFieldName = "name"
+	// cluster field is 'namespaces'
+	clusterFieldNamespaces = "namespaces"
+	// indicates managing all namespaces
+	allNamespaces = "*"
+)
+
 // NewClusterCommand returns a new instance of an `argocd cluster` command
 func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var command = &cobra.Command{
@@ -47,7 +58,10 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 
   # Remove a target cluster context from ArgoCD
   argocd cluster rm example-cluster
-`,
+
+  # Set a target cluster context from ArgoCD
+  argocd cluster set CLUSTER_NAME --name new-cluster-name --namespace '*'
+  argocd cluster set CLUSTER_NAME --name new-cluster-name --namespace namespace-one --namespace namespace-two`,
 	}
 
 	command.AddCommand(NewClusterAddCommand(clientOpts, pathOpts))
@@ -55,6 +69,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 	command.AddCommand(NewClusterListCommand(clientOpts))
 	command.AddCommand(NewClusterRemoveCommand(clientOpts, pathOpts))
 	command.AddCommand(NewClusterRotateAuthCommand(clientOpts))
+	command.AddCommand(NewClusterSetCommand(clientOpts))
 	return command
 }
 
@@ -185,6 +200,72 @@ func getRestConfig(pathOpts *clientcmd.PathOptions, ctxName string) (*rest.Confi
 	return conf, nil
 }
 
+// NewClusterSetCommand returns a new instance of an `argocd cluster set` command
+func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		clusterOptions cmdutil.ClusterOptions
+		clusterName    string
+	)
+	var command = &cobra.Command{
+		Use:   "set NAME",
+		Short: "Set cluster information",
+		Example: `  # Set cluster information
+  argocd cluster set CLUSTER_NAME --name new-cluster-name --namespace '*'
+  argocd cluster set CLUSTER_NAME --name new-cluster-name --namespace namespace-one --namespace namespace-two`,
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			// name of the cluster whose fields have to be updated.
+			clusterName = args[0]
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
+			defer io.Close(conn)
+			// checks the fields that needs to be updated
+			updatedFields := checkFieldsToUpdate(clusterOptions)
+			namespaces := clusterOptions.Namespaces
+			// check if all namespaces have to be considered
+			if len(namespaces) == 1 && strings.EqualFold(namespaces[0], allNamespaces) {
+				namespaces[0] = ""
+			}
+			if updatedFields != nil {
+				clusterUpdateRequest := clusterpkg.ClusterUpdateRequest{
+					Cluster: &argoappv1.Cluster{
+						Name:       clusterOptions.Name,
+						Namespaces: namespaces,
+					},
+					UpdatedFields: updatedFields,
+					Id: &clusterpkg.ClusterID{
+						Type:  clusterIdTypeName,
+						Value: clusterName,
+					},
+				}
+				_, err := clusterIf.Update(ctx, &clusterUpdateRequest)
+				errors.CheckError(err)
+				fmt.Printf("Cluster '%s' updated.\n", clusterName)
+			} else {
+				fmt.Print("Specify the cluster field to be updated.\n")
+			}
+		},
+	}
+	command.Flags().StringVar(&clusterOptions.Name, "name", "", "Overwrite the cluster name")
+	command.Flags().StringArrayVar(&clusterOptions.Namespaces, "namespace", nil, "List of namespaces which are allowed to manage. Specify '*' to manage all namespaces")
+	return command
+}
+
+// checkFieldsToUpdate returns the fields that needs to be updated
+func checkFieldsToUpdate(clusterOptions cmdutil.ClusterOptions) []string {
+	var updatedFields []string
+	if clusterOptions.Name != "" {
+		updatedFields = append(updatedFields, clusterFieldName)
+	}
+	if clusterOptions.Namespaces != nil {
+		updatedFields = append(updatedFields, clusterFieldNamespaces)
+	}
+	return updatedFields
+}
+
 // NewClusterGetCommand returns a new instance of an `argocd cluster get` command
 func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -288,7 +369,7 @@ argocd cluster rm cluster-name`,
 						lowercaseAnswer = cli.AskToProceedS("Are you sure you want to remove '" + clusterSelector + "'? Any Apps deploying to this cluster will go to health status Unknown.[y/n] ")
 					} else {
 						if !isConfirmAll {
-							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to remove '" + clusterSelector + "'? Any Apps deploying to this cluster will go to health status Unknown.[y/n/A] where 'A' is to remove all specified apps and their resources without prompting ")
+							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to remove '" + clusterSelector + "'? Any Apps deploying to this cluster will go to health status Unknown.[y/n/A] where 'A' is to remove all specified clusters without prompting. Any Apps deploying to these clusters will go to health status Unknown. ")
 							if lowercaseAnswer == "a" {
 								lowercaseAnswer = "y"
 								isConfirmAll = true

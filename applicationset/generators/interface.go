@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 // Generator defines the interface implemented by all ApplicationSet generators.
@@ -14,7 +14,7 @@ type Generator interface {
 	// against the current state of the Applications in the cluster.
 	GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error)
 
-	// GetRequeueAfter is the the generator can controller the next reconciled loop
+	// GetRequeueAfter is the generator can controller the next reconciled loop
 	// In case there is more then one generator the time will be the minimum of the times.
 	// In case NoRequeueAfter is empty, it will be ignored
 	GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration

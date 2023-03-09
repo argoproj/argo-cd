@@ -72,6 +72,12 @@ spec:
       selector:
         matchLabels:
           staging: true
+        # The cluster generator also supports matchExpressions.
+        #matchExpressions:
+        #  - key: staging
+        #    operator: In
+        #    values:
+        #      - "true"
   template:
   # (...)
 ```
@@ -104,6 +110,12 @@ spec:
       selector:
         matchLabels:
           argocd.argoproj.io/secret-type: cluster
+        # The cluster generator also supports matchExpressions.
+        #matchExpressions:
+        #  - key: staging
+        #    operator: In
+        #    values:
+        #      - "true"
 ```
 
 This selector will not match the default local cluster, since the default local cluster does not have a Secret (and thus does not have the `argocd.argoproj.io/secret-type` label on that secret). Any cluster selector that selects on that label will automatically exclude the default local cluster.
@@ -112,7 +124,7 @@ However, if you do wish to target both local and non-local clusters, while also 
 
 1. Within the Argo CD web UI, select *Settings*, then *Clusters*.
 2. Select your local cluster, usually named `in-cluster`.
-3. Click the *Edit* button, and change the the *NAME* of the cluster to another value, for example `in-cluster-local`. Any other value here is fine.
+3. Click the *Edit* button, and change the *NAME* of the cluster to another value, for example `in-cluster-local`. Any other value here is fine.
 4. Leave all other fields unchanged.
 5. Click *Save*.
 

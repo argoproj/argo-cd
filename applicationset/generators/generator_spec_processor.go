@@ -1,7 +1,7 @@
 package generators
 
 import (
-	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"github.com/imdario/mergo"
 	log "github.com/sirupsen/logrus"
@@ -24,11 +24,11 @@ type TransformResult struct {
 	Template argoprojiov1alpha1.ApplicationSetTemplate
 }
 
-//Transform a spec generator to list of paramSets and a template
+// Transform a spec generator to list of paramSets and a template
 func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]interface{}) ([]TransformResult, error) {
 	selector, err := metav1.LabelSelectorAsSelector(requestedGenerator.Selector)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing label selector: %w", err)
 	}
 
 	res := []TransformResult{}
@@ -131,27 +131,15 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 	return *dest, err
 }
 
-// Currently for Matrix Generator. Allows interpolating the matrix's 2nd child generator with values from the 1st child generator
+// InterpolateGenerator allows interpolating the matrix's 2nd child generator with values from the 1st child generator
 // "params" parameter is an array, where each index corresponds to a generator. Each index contains a map w/ that generator's parameters.
 func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params map[string]interface{}, useGoTemplate bool) (argoprojiov1alpha1.ApplicationSetGenerator, error) {
-	interpolatedGenerator := requestedGenerator.DeepCopy()
-	tmplBytes, err := json.Marshal(interpolatedGenerator)
-	if err != nil {
-		log.WithError(err).WithField("requestedGenerator", interpolatedGenerator).Error("error marshalling requested generator for interpolation")
-		return *interpolatedGenerator, err
-	}
-
 	render := utils.Render{}
-	replacedTmplStr, err := render.Replace(string(tmplBytes), params, useGoTemplate)
+	interpolatedGenerator, err := render.RenderGeneratorParams(requestedGenerator, params, useGoTemplate)
 	if err != nil {
-		log.WithError(err).WithField("interpolatedGeneratorString", replacedTmplStr).Error("error interpolating generator with other generator's parameter")
+		log.WithError(err).WithField("interpolatedGenerator", interpolatedGenerator).Error("error interpolating generator with other generator's parameter")
 		return *interpolatedGenerator, err
 	}
 
-	err = json.Unmarshal([]byte(replacedTmplStr), interpolatedGenerator)
-	if err != nil {
-		log.WithError(err).WithField("requestedGenerator", interpolatedGenerator).Error("error unmarshalling requested generator for interpolation")
-		return *interpolatedGenerator, err
-	}
 	return *interpolatedGenerator, nil
 }

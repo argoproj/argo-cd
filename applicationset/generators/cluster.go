@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 const (
@@ -51,6 +51,8 @@ func NewClusterGenerator(c client.Client, ctx context.Context, clientset kuberne
 	return g
 }
 
+// GetRequeueAfter never requeue the cluster generator because the `clusterSecretEventHandler` will requeue the appsets
+// when the cluster secrets change
 func (g *ClusterGenerator) GetRequeueAfter(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) time.Duration {
 	return NoRequeueAfter
 }
@@ -170,7 +172,7 @@ func appendTemplatedValues(clusterValues map[string]string, params map[string]in
 		result, err := replaceTemplatedString(value, params, appSet)
 
 		if err != nil {
-			return err
+			return fmt.Errorf("error replacing templated String: %w", err)
 		}
 
 		if appSet.Spec.GoTemplate {

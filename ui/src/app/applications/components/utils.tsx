@@ -1,4 +1,4 @@
-import {DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
+import {models, DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
 import {ActionButton} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
@@ -21,14 +21,17 @@ export interface NodeId {
     namespace: string;
     name: string;
     group: string;
+    createdAt?: models.Time;
 }
 
-export const ExternalLinkAnnotation = 'link.argocd.argoproj.io/external-link';
-
-type ActionMenuItem = MenuItem & {disabled?: boolean};
+type ActionMenuItem = MenuItem & {disabled?: boolean; tooltip?: string};
 
 export function nodeKey(node: NodeId) {
     return [node.group, node.kind, node.namespace, node.name].join('/');
+}
+
+export function createdOrNodeKey(node: NodeId) {
+    return node?.createdAt || nodeKey(node);
 }
 
 export function isSameNode(first: NodeId, second: NodeId) {
@@ -65,7 +68,9 @@ export async function deleteApplication(appName: string, appNamespace: string, a
         'Delete application',
         api => (
             <div>
-                <p>Are you sure you want to delete the application '{appName}'?</p>
+                <p>
+                    Are you sure you want to delete the application <kbd>{appName}</kbd>?
+                </p>
                 <div className='argo-form-row'>
                     <FormField
                         label={`Please type '${appName}' to confirm the deletion of the resource`}
@@ -238,10 +243,10 @@ export const ComparisonStatusIcon = ({
             break;
         case appModels.SyncStatuses.OutOfSync:
             const requiresPruning = resource && resource.requiresPruning;
-            className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-arrow-alt-circle-up';
+            className = requiresPruning ? 'fa fa-trash' : 'fa fa-arrow-alt-circle-up';
             title = 'OutOfSync';
             if (requiresPruning) {
-                title = `${title} (requires pruning)`;
+                title = `${title} (This resource is not present in the application's source. It will be deleted from Kubernetes if the prune option is enabled during sync.)`;
             }
             color = COLORS.sync.out_of_sync;
             break;
@@ -256,8 +261,8 @@ export const ComparisonStatusIcon = ({
     );
 };
 
-export function showDeploy(resource: string, appContext: AppContext) {
-    appContext.apis.navigation.goto('.', {deploy: resource}, {replace: true});
+export function showDeploy(resource: string, apis: ContextApis) {
+    apis.navigation.goto('.', {deploy: resource}, {replace: true});
 }
 
 export function findChildPod(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode {
@@ -293,7 +298,9 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
         'Delete pod',
         () => (
             <div>
-                <p>Are you sure you want to delete Pod '{pod.name}'?</p>
+                <p>
+                    Are you sure you want to delete Pod <kbd>{pod.name}</kbd>?
+                </p>
                 <div className='argo-form-row' style={{paddingLeft: '30px'}}>
                     <CheckboxField id='force-delete-checkbox' field='force'>
                         <label htmlFor='force-delete-checkbox'>Force delete</label>
@@ -330,7 +337,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
         api => (
             <div>
                 <p>
-                    Are you sure you want to delete {resource.kind} '{resource.name}'?
+                    Are you sure you want to delete {resource.kind} <kbd>{resource.name}</kbd>?
                 </p>
                 {isManaged ? (
                     <div className='argo-form-row'>
@@ -388,11 +395,39 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
     );
 };
 
+function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
+    return services.applications
+        .getResourceActions(metadata.name, metadata.namespace, resource)
+        .then(actions => {
+            return actions.map(
+                action =>
+                    ({
+                        title: action.name,
+                        disabled: !!action.disabled,
+                        action: async () => {
+                            try {
+                                const confirmed = await apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
+                                if (confirmed) {
+                                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name);
+                                }
+                            } catch (e) {
+                                apis.notifications.show({
+                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                    type: NotificationType.Error
+                                });
+                            }
+                        }
+                    } as MenuItem)
+            );
+        })
+        .catch(() => [] as MenuItem[]);
+}
+
 function getActionItems(
     resource: ResourceTreeNode,
     application: appModels.Application,
     tree: appModels.ApplicationTree,
-    appContext: AppContext,
+    apis: ContextApis,
     appChanged: BehaviorSubject<appModels.Application>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
@@ -402,7 +437,7 @@ function getActionItems(
             {
                 title: 'Sync',
                 iconClassName: 'fa fa-sync',
-                action: () => showDeploy(nodeKey(resource), appContext)
+                action: () => showDeploy(nodeKey(resource), apis)
             }
         ]) ||
             []),
@@ -410,7 +445,7 @@ function getActionItems(
             title: 'Delete',
             iconClassName: 'fa fa-times-circle',
             action: async () => {
-                return deletePopup(appContext.apis, resource, application, appChanged);
+                return deletePopup(apis, resource, application, appChanged);
             }
         }
     ];
@@ -418,7 +453,7 @@ function getActionItems(
         items.unshift({
             title: 'Details',
             iconClassName: 'fa fa-info-circle',
-            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource)})
+            action: () => apis.navigation.goto('.', {node: nodeKey(resource)})
         });
     }
 
@@ -426,7 +461,7 @@ function getActionItems(
         items.push({
             title: 'Logs',
             iconClassName: 'fa fa-align-left',
-            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
+            action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
         });
     }
 
@@ -443,7 +478,7 @@ function getActionItems(
                     {
                         title: 'Exec',
                         iconClassName: 'fa fa-terminal',
-                        action: async () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
+                        action: async () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
                     } as MenuItem
                 ];
             }
@@ -451,38 +486,28 @@ function getActionItems(
         })
         .catch(() => [] as MenuItem[]);
 
-    const resourceActions = services.applications
-        .getResourceActions(application.metadata.name, application.metadata.namespace, resource)
-        .then(actions => {
-            return actions.map(
-                action =>
+    const resourceActions = getResourceActionsMenuItems(resource, application.metadata, apis);
+
+    const links = services.applications
+        .getResourceLinks(application.metadata.name, application.metadata.namespace, resource)
+        .then(data => {
+            return (data.items || []).map(
+                link =>
                     ({
-                        title: action.name,
-                        disabled: !!action.disabled,
-                        action: async () => {
-                            try {
-                                const confirmed = await appContext.apis.popup.confirm(
-                                    `Execute '${action.name}' action?`,
-                                    `Are you sure you want to execute '${action.name}' action?`
-                                );
-                                if (confirmed) {
-                                    await services.applications.runResourceAction(application.metadata.name, application.metadata.namespace, resource, action.name);
-                                }
-                            } catch (e) {
-                                appContext.apis.notifications.show({
-                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                    type: NotificationType.Error
-                                });
-                            }
-                        }
+                        title: link.title,
+                        iconClassName: `fa ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                        action: () => window.open(link.url, '_blank'),
+                        tooltip: link.description
                     } as MenuItem)
             );
         })
         .catch(() => [] as MenuItem[]);
+
     return combineLatest(
         from([items]), // this resolves immediately
         concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
-        concat([[] as MenuItem[]], execAction) // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], execAction), // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], links) // this resolves at first to [] and then whatever the API returns
     ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
 }
 
@@ -490,7 +515,7 @@ export function renderResourceMenu(
     resource: ResourceTreeNode,
     application: appModels.Application,
     tree: appModels.ApplicationTree,
-    appContext: AppContext,
+    apis: ContextApis,
     appChanged: BehaviorSubject<appModels.Application>,
     getApplicationActionMenu: () => any
 ): React.ReactNode {
@@ -499,8 +524,45 @@ export function renderResourceMenu(
     if (isAppNode(resource) && resource.name === application.metadata.name) {
         menuItems = from([getApplicationActionMenu()]);
     } else {
-        menuItems = getActionItems(resource, application, tree, appContext, appChanged, false);
+        menuItems = getActionItems(resource, application, tree, apis, appChanged, false);
     }
+    return (
+        <DataLoader load={() => menuItems}>
+            {items => (
+                <ul>
+                    {items.map((item, i) => (
+                        <li
+                            className={classNames('application-details__action-menu', {disabled: item.disabled})}
+                            key={i}
+                            onClick={e => {
+                                e.stopPropagation();
+                                if (!item.disabled) {
+                                    item.action();
+                                    document.body.click();
+                                }
+                            }}>
+                            {item.tooltip ? (
+                                <Tooltip content={item.tooltip || ''}>
+                                    <div>
+                                        {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                                    </div>
+                                </Tooltip>
+                            ) : (
+                                <>
+                                    {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                                </>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </DataLoader>
+    );
+}
+
+export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, apis: ContextApis): React.ReactNode {
+    const menuItems = getResourceActionsMenuItems(resource, application.metadata, apis);
+
     return (
         <DataLoader load={() => menuItems}>
             {items => (
@@ -529,11 +591,11 @@ export function renderResourceButtons(
     resource: ResourceTreeNode,
     application: appModels.Application,
     tree: appModels.ApplicationTree,
-    appContext: AppContext,
+    apis: ContextApis,
     appChanged: BehaviorSubject<appModels.Application>
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
-    menuItems = getActionItems(resource, application, tree, appContext, appChanged, true);
+    menuItems = getActionItems(resource, application, tree, apis, appChanged, true);
     return (
         <DataLoader load={() => menuItems}>
             {items => (
@@ -565,12 +627,14 @@ export function renderResourceButtons(
 }
 
 export function syncStatusMessage(app: appModels.Application) {
-    const rev = app.status.sync.revision || app.spec.source.targetRevision || 'HEAD';
-    let message = app.spec.source.targetRevision || 'HEAD';
+    const source = getAppDefaultSource(app);
+    const rev = app.status.sync.revision || source.targetRevision || 'HEAD';
+    let message = source.targetRevision || 'HEAD';
+
     if (app.status.sync.revision) {
-        if (app.spec.source.chart) {
+        if (source.chart) {
             message += ' (' + app.status.sync.revision + ')';
-        } else if (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(app.spec.source.targetRevision)) {
+        } else if (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(source.targetRevision)) {
             message += ' (' + app.status.sync.revision.substr(0, 7) + ')';
         }
     }
@@ -578,8 +642,8 @@ export function syncStatusMessage(app: appModels.Application) {
         case appModels.SyncStatuses.Synced:
             return (
                 <span>
-                    To{' '}
-                    <Revision repoUrl={app.spec.source.repoURL} revision={rev}>
+                    to{' '}
+                    <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
                 </span>
@@ -587,8 +651,8 @@ export function syncStatusMessage(app: appModels.Application) {
         case appModels.SyncStatuses.OutOfSync:
             return (
                 <span>
-                    From{' '}
-                    <Revision repoUrl={app.spec.source.repoURL} revision={rev}>
+                    from{' '}
+                    <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
                 </span>
@@ -758,20 +822,6 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
     }
 };
 
-export function getExternalUrls(annotations: {[name: string]: string}, urls: string[]): string[] {
-    if (!annotations) {
-        return urls;
-    }
-    const extLinks = urls || [];
-    const extLink: string = annotations[ExternalLinkAnnotation];
-    if (extLink) {
-        if (!extLinks.includes(extLink)) {
-            extLinks.push(extLink);
-        }
-    }
-    return extLinks;
-}
-
 export function getOperationType(application: appModels.Application) {
     const operation = application.operation || (application.status && application.status.operationState && application.status.operationState.operation);
     if (application.metadata.deletionTimestamp && !application.operation) {
@@ -892,6 +942,53 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     return {reason, message};
 }
 
+export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingConditions: string[]; failedConditions: string[]} => {
+    if (!pod.spec?.readinessGates?.length) {
+        return {
+            nonExistingConditions: [],
+            failedConditions: []
+        };
+    }
+
+    const existingConditions = new Map<string, boolean>();
+    const podConditions = new Map<string, boolean>();
+
+    const podStatusConditions = pod.status?.conditions || [];
+
+    for (const condition of podStatusConditions) {
+        existingConditions.set(condition.type, true);
+        // priority order of conditions
+        // eg. if there are multiple conditions set with same name then the one which comes first is evaluated
+        if (podConditions.has(condition.type)) {
+            continue;
+        }
+
+        if (condition.status === 'False') {
+            podConditions.set(condition.type, false);
+        } else if (condition.status === 'True') {
+            podConditions.set(condition.type, true);
+        }
+    }
+
+    const nonExistingConditions: string[] = [];
+    const failedConditions: string[] = [];
+
+    const readinessGates: appModels.ReadinessGate[] = pod.spec?.readinessGates || [];
+
+    for (const readinessGate of readinessGates) {
+        if (!existingConditions.has(readinessGate.conditionType)) {
+            nonExistingConditions.push(readinessGate.conditionType);
+        } else if (podConditions.get(readinessGate.conditionType) === false) {
+            failedConditions.push(readinessGate.conditionType);
+        }
+    }
+
+    return {
+        nonExistingConditions,
+        failedConditions
+    };
+};
+
 export function getConditionCategory(condition: appModels.ApplicationCondition): 'error' | 'warning' | 'info' {
     if (condition.type.endsWith('Error')) {
         return 'error';
@@ -907,13 +1004,27 @@ export function isAppNode(node: appModels.ResourceNode) {
 }
 
 export function getAppOverridesCount(app: appModels.Application) {
-    if (app.spec.source.kustomize && app.spec.source.kustomize.images) {
-        return app.spec.source.kustomize.images.length;
+    const source = getAppDefaultSource(app);
+    if (source.kustomize && source.kustomize.images) {
+        return source.kustomize.images.length;
     }
-    if (app.spec.source.helm && app.spec.source.helm.parameters) {
-        return app.spec.source.helm.parameters.length;
+    if (source.helm && source.helm.parameters) {
+        return source.helm.parameters.length;
     }
     return 0;
+}
+
+// getAppDefaultSource gets the first app source from `sources` or, if that list is missing or empty, the `source`
+// field.
+export function getAppDefaultSource(app?: appModels.Application) {
+    if (!app) {
+        return null;
+    }
+    return app.spec.sources && app.spec.sources.length > 0 ? app.spec.sources[0] : app.spec.source;
+}
+
+export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
+    return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
 }
 
 export function isAppRefreshing(app: appModels.Application) {
@@ -1109,10 +1220,29 @@ export const urlPattern = new RegExp(
     )
 );
 
-export function appQualifiedName(app: appModels.Application): string {
-    return app.metadata.namespace + '/' + app.metadata.name;
+export function appQualifiedName(app: appModels.Application, nsEnabled: boolean): string {
+    return (nsEnabled ? app.metadata.namespace + '/' : '') + app.metadata.name;
 }
 
 export function appInstanceName(app: appModels.Application): string {
     return app.metadata.namespace + '_' + app.metadata.name;
 }
+
+export function formatCreationTimestamp(creationTimestamp: string) {
+    const createdAt = moment
+        .utc(creationTimestamp)
+        .local()
+        .format('MM/DD/YYYY HH:mm:ss');
+    const fromNow = moment
+        .utc(creationTimestamp)
+        .local()
+        .fromNow();
+    return (
+        <span>
+            {createdAt}
+            <i style={{padding: '2px'}} /> ({fromNow})
+        </span>
+    );
+}
+
+export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);
