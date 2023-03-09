@@ -82,7 +82,7 @@ The Slack notification service configuration includes following settings:
 
 ## Templates
 
-Notification templates can be customized to leverage slack message blocks and attachments
+[Notification templates](../templates.md) can be customized to leverage slack message blocks and attachments
 [feature](https://api.slack.com/messaging/composing/layouts).
 
 ![](https://user-images.githubusercontent.com/426437/72776856-6dcef880-3bc8-11ea-8e3b-c72df16ee8e6.png)
