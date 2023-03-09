@@ -505,7 +505,7 @@ argocd admin settings resource-overrides action list /tmp/deploy.yaml --argocd-c
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 				_, _ = fmt.Fprintf(w, "NAME\tENABLED\n")
 				for _, action := range availableActions {
-					_, _ = fmt.Fprintf(w, "%s\t%s\n", action.Name, strconv.FormatBool(action.Disabled))
+					_, _ = fmt.Fprintf(w, "%s\t%s\n", action.Name, strconv.FormatBool(!action.Disabled))
 				}
 				_ = w.Flush()
 			})
