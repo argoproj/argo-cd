@@ -42,7 +42,7 @@ export class RepositoriesService {
         enableLfs: boolean;
         proxy: string;
         project?: string;
-        forceHttpBasicAuth: boolean;
+        forceHttpBasicAuth?: boolean;
         enableOCI: boolean;
     }): Promise<models.Repository> {
         return requests

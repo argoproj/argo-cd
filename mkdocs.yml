@@ -155,6 +155,7 @@ nav:
   - user-guide/selective_sync.md
   - user-guide/sync-waves.md
   - user-guide/sync_windows.md
+  - user-guide/skip_reconcile.md
   - Generating Applications with ApplicationSet: user-guide/application-set.md
   - user-guide/ci_automation.md
   - user-guide/app_deletion.md
@@ -202,4 +203,15 @@ theme:
   logo: assets/logo.png
   name: material
   palette:
+  - media: '(prefers-color-scheme: light)'
     primary: teal
+    scheme: default
+    toggle:
+      icon: material/brightness-7
+      name: Switch to dark mode
+  - media: '(prefers-color-scheme: dark)'
+    primary: teal
+    scheme: slate
+    toggle:
+      icon: material/brightness-4
+      name: Switch to light mode

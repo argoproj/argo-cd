@@ -35,7 +35,7 @@ export interface NewHTTPSRepoParams {
     enableLfs: boolean;
     proxy: string;
     project?: string;
-    forceHttpBasicAuth: boolean;
+    forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
 }
 
