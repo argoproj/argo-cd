@@ -384,8 +384,8 @@ func TestResourceOverrideAction(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Contains(t, out, `NAME     ENABLED
-restart  false
-resume   false
+restart  true
+resume   true
 `)
 	})
 }
