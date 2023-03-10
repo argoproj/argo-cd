@@ -458,8 +458,7 @@ func (s *Server) GetManifestsForApplication(ctx context.Context, q *application.
 	if err != nil {
 		return nil, fmt.Errorf("error validating application: %w", err)
 	}
-	// Set doNotSetCache to true. We don't want to let a user with only "get" permissions fill the cache with an
-	// infinite variety of hypothetical applications.
+	// Set doNotSetCache to true. We don't want to fill the cache with an infinite variety of hypothetical applications.
 	manifestInfo, err := s.getManifestsForApplication(ctx, "", q.Application, true)
 	if err != nil {
 		return nil, fmt.Errorf("error getting manifests for application: %w", err)
