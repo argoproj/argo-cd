@@ -5675,6 +5675,17 @@
         }
       }
     },
+    "v1alpha1ApplicationPreservedFields": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1ApplicationSet": {
       "type": "object",
       "title": "ApplicationSet is a set of Application resources\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
@@ -5858,6 +5869,9 @@
         },
         "goTemplate": {
           "type": "boolean"
+        },
+        "preservedFields": {
+          "$ref": "#/definitions/v1alpha1ApplicationPreservedFields"
         },
         "strategy": {
           "$ref": "#/definitions/v1alpha1ApplicationSetStrategy"
