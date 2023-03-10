@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,7 +20,7 @@ import (
 )
 
 func TestRequeueAfter(t *testing.T) {
-	mockServer := argoCDServiceMock{}
+	mockServer := &mocks.Repos{}
 	ctx := context.Background()
 	scheme := runtime.NewScheme()
 	err := argov1alpha1.AddToScheme(scheme)
@@ -149,33 +149,4 @@ func TestRequeueAfter(t *testing.T) {
 			assert.Equalf(t, tt.want, r.getMinRequeueAfter(tt.args.appset), "getMinRequeueAfter(%v)", tt.args.appset)
 		})
 	}
-}
-
-type argoCDServiceMock struct {
-	mock *mock.Mock
-}
-
-func (a argoCDServiceMock) Close() {}
-
-func (a argoCDServiceMock) GetApps(ctx context.Context, repoURL string, revision string) ([]string, error) {
-	args := a.mock.Called(ctx, repoURL, revision)
-
-	return args.Get(0).([]string), args.Error(1)
-}
-
-func (a argoCDServiceMock) GetFiles(ctx context.Context, repoURL string, revision string, pattern string) (map[string][]byte, error) {
-	args := a.mock.Called(ctx, repoURL, revision, pattern)
-
-	return args.Get(0).(map[string][]byte), args.Error(1)
-}
-
-func (a argoCDServiceMock) GetFileContent(ctx context.Context, repoURL string, revision string, path string) ([]byte, error) {
-	args := a.mock.Called(ctx, repoURL, revision, path)
-
-	return args.Get(0).([]byte), args.Error(1)
-}
-
-func (a argoCDServiceMock) GetDirectories(ctx context.Context, repoURL string, revision string) ([]string, error) {
-	args := a.mock.Called(ctx, repoURL, revision)
-	return args.Get(0).([]string), args.Error(1)
 }
