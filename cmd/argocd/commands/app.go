@@ -643,6 +643,7 @@ type unsetOpts struct {
 	namePrefix              bool
 	nameSuffix              bool
 	kustomizeVersion        bool
+	kustomizeNamespace      bool
 	kustomizeImages         []string
 	parameters              []string
 	valuesFiles             []string
@@ -708,6 +709,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().BoolVar(&opts.nameSuffix, "namesuffix", false, "Kustomize namesuffix")
 	command.Flags().BoolVar(&opts.namePrefix, "nameprefix", false, "Kustomize nameprefix")
 	command.Flags().BoolVar(&opts.kustomizeVersion, "kustomize-version", false, "Kustomize version")
+	command.Flags().BoolVar(&opts.kustomizeNamespace, "kustomize-namespace", false, "Kustomize namespace")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)")
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
 	command.Flags().BoolVar(&opts.passCredentials, "pass-credentials", false, "Unset passCredentials")
@@ -716,7 +718,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, nothingToUnset bool) {
 	if source.Kustomize != nil {
-		if !opts.namePrefix && !opts.nameSuffix && !opts.kustomizeVersion && len(opts.kustomizeImages) == 0 {
+		if !opts.namePrefix && !opts.nameSuffix && !opts.kustomizeVersion && !opts.kustomizeNamespace && len(opts.kustomizeImages) == 0 {
 			return false, true
 		}
 
@@ -734,6 +736,11 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 			updated = true
 			source.Kustomize.Version = ""
 		}
+
+		if opts.kustomizeNamespace && source.Kustomize.Namespace != "" {
+                        updated = true
+                        source.Kustomize.Namespace = ""
+                }
 
 		for _, kustomizeImage := range opts.kustomizeImages {
 			for i, item := range source.Kustomize.Images {
