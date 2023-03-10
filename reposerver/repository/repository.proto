@@ -31,6 +31,7 @@ message ManifestRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 21;
     bool hasMultipleSources = 22;
     map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 23;
+    bool doNotSetCache = 24;
 }
 
 message ManifestRequestWithFiles {

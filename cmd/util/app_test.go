@@ -267,7 +267,7 @@ func TestReadAppsFromURI(t *testing.T) {
 	_ = file.Sync()
 
 	apps := make([]*argoappv1.Application, 0)
-	err = readAppsFromURI(file.Name(), &apps)
+	err = ReadAppsFromURI(file.Name(), &apps)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(apps))
 

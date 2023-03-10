@@ -893,12 +893,29 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		localRepoRoot      string
 		serverSideGenerate bool
 		localIncludes      []string
+		appManifest        string
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
 		Use:   "diff APPNAME",
 		Short: shortDesc,
-		Long:  shortDesc + "\nUses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.\nReturns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found",
+		Long: shortDesc + `
+Uses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.
+Returns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found`,
+		Example: `  # Diff the live state against the target state
+  argocd app diff guestbook
+
+  # Diff the live state against the target state and exit with code 1 if a diff is found
+  argocd app diff guestbook --exit-code
+
+  # Diff the live state against the target state if the target revision were different
+  argocd app diff guestbook --revision HEAD~1
+
+  # Diff the live state against the target state if the application manifest were different
+  # Note that the app's name, namespace, and project must be the same as the live application. You must also have
+  # permission to update the application.
+  argocd app diff guestbook --app ./app.yaml
+`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -924,7 +941,26 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			argoSettings, err := settingsIf.Get(ctx, &settingspkg.SettingsQuery{})
 			errors.CheckError(err)
 			diffOption := &DifferenceOption{}
-			if revision != "" {
+			if appManifest != "" {
+				if local != "" {
+					log.Fatal("Cannot use --local and --app together")
+				}
+				if revision != "" {
+					log.Fatal("Cannot use --revision and --app together. To diff against a specific revision, set the revision in the application manifest.")
+				}
+				var apps = make([]*argoappv1.Application, 0)
+				err := cmdutil.ReadAppsFromURI(appManifest, &apps)
+				errors.CheckError(err)
+				if len(apps) != 1 {
+					log.Fatal("Only one application is allowed in the manifest")
+				}
+				q := applicationpkg.ApplicationManifestForApplicationQuery{
+					Application: apps[0],
+				}
+				res, err := appIf.GetManifestsForApplication(ctx, &q)
+				errors.CheckError(err)
+				diffOption.res = res
+			} else if revision != "" {
 				q := applicationpkg.ApplicationManifestQuery{
 					Name:         &appName,
 					Revision:     &revision,
@@ -957,7 +993,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					diffOption.cluster = cluster
 				}
 			}
-			foundDiffs := findandPrintDiff(ctx, app, resources, argoSettings, appName, diffOption)
+			foundDiffs := findandPrintDiff(ctx, app, resources, argoSettings, diffOption)
 			if foundDiffs && exitCode {
 				os.Exit(1)
 			}
@@ -968,6 +1004,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&exitCode, "exit-code", true, "Return non-zero exit code when there is a diff")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
+	command.Flags().StringVar(&appManifest, "app", "", "Path to an app manifest to compare to the live version")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
 	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
@@ -985,7 +1022,7 @@ type DifferenceOption struct {
 }
 
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
-func findandPrintDiff(ctx context.Context, app *argoappv1.Application, resources *applicationpkg.ManagedResourcesResponse, argoSettings *settingspkg.Settings, appName string, diffOptions *DifferenceOption) bool {
+func findandPrintDiff(ctx context.Context, app *argoappv1.Application, resources *applicationpkg.ManagedResourcesResponse, argoSettings *settingspkg.Settings, diffOptions *DifferenceOption) bool {
 	var foundDiffs bool
 	liveObjs, err := cmdutil.LiveObjects(resources.Items)
 	errors.CheckError(err)
@@ -993,7 +1030,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, resources
 	if diffOptions.local != "" {
 		localObjs := groupObjsByKey(getLocalObjects(ctx, app, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
 		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace))
-	} else if diffOptions.revision != "" {
+	} else if diffOptions.res != nil {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.res.Manifests {
 			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
@@ -1723,7 +1760,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					errors.CheckError(err)
 					foundDiffs := false
 					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
-					foundDiffs = findandPrintDiff(ctx, app, resources, argoSettings, appQualifiedName, diffOption)
+					foundDiffs = findandPrintDiff(ctx, app, resources, argoSettings, diffOption)
 					if foundDiffs {
 						if !diffChangesConfirm {
 							yesno := cli.AskToProceed(fmt.Sprintf("Please review changes to application %s shown above. Do you want to continue the sync process? (y/n): ", appQualifiedName))

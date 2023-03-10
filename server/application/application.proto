@@ -62,6 +62,11 @@ message ApplicationManifestQuery {
 	optional string appNamespace = 3;
 }
 
+// ApplicationManifestForApplicationQuery is a query for manifests for a hypothetical application spec
+message ApplicationManifestForApplicationQuery {
+	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application application = 1;
+}
+
 message FileChunk {
 	required bytes chunk = 1;
 }
@@ -325,6 +330,14 @@ service ApplicationService {
 	// GetManifests returns application manifests
 	rpc GetManifests (ApplicationManifestQuery) returns (repository.ManifestResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/manifests";
+	}
+
+	// GetManifests returns application manifests for a hypothetical application manifest
+	rpc GetManifestsForApplication (ApplicationManifestForApplicationQuery) returns (repository.ManifestResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/{application.metadata.name}/manifests"
+			body: "application"
+		};
 	}
 
 	// GetManifestsWithFiles returns application manifests using provided files to generate them

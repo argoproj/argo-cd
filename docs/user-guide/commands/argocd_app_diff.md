@@ -12,9 +12,28 @@ Returns the following exit codes: 2 on general errors, 1 when a diff is found, a
 argocd app diff APPNAME [flags]
 ```
 
+### Examples
+
+```
+  # Diff the live state against the target state
+  argocd app diff guestbook
+
+  # Diff the live state against the target state and exit with code 1 if a diff is found
+  argocd app diff guestbook --exit-code
+
+  # Diff the live state against the target state if the target revision were different
+  argocd app diff guestbook --revision HEAD~1
+
+  # Diff the live state against the target state if the application manifest were different
+  # Note that the app's name, namespace, and project must be the same as the live application.
+  argocd app diff guestbook --app ./app.yaml
+
+```
+
 ### Options
 
 ```
+      --app string                  Path to an app manifest to compare to the live version
       --exit-code                   Return non-zero exit code when there is a diff (default true)
       --hard-refresh                Refresh application data as well as target manifests cache
   -h, --help                        help for diff

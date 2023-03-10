@@ -538,7 +538,7 @@ func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	return nil
 }
 
-func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
+func ReadAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
 
 	readFilePayload := func() ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
@@ -602,7 +602,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
 	apps := make([]*argoappv1.Application, 0)
 	// read uri
-	err := readAppsFromURI(fileURL, &apps)
+	err := ReadAppsFromURI(fileURL, &apps)
 	if err != nil {
 		return nil, err
 	}

@@ -328,18 +328,27 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
-	source := a.Spec.GetSource()
-
 	if !s.isNamespaceEnabled(a.Namespace) {
 		return nil, security.NamespaceNotPermittedError(a.Namespace)
 	}
 
+	manifestInfo, err := s.getManifestsForApplication(ctx, q.GetRevision(), a, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return manifestInfo, nil
+}
+
+func (s *Server) getManifestsForApplication(ctx context.Context, overrideRevision string, a *appv1.Application, doNotSetCache bool) (*apiclient.ManifestResponse, error) {
+	source := a.Spec.GetSource()
+
 	var manifestInfo *apiclient.ManifestResponse
-	err = s.queryRepoServer(ctx, a, func(
+	err := s.queryRepoServer(ctx, a, func(
 		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
 		revision := source.TargetRevision
-		if q.GetRevision() != "" {
-			revision = q.GetRevision()
+		if overrideRevision != "" {
+			revision = overrideRevision
 		}
 		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
 		if err != nil {
@@ -381,6 +390,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			HelmOptions:        helmOptions,
 			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			EnabledSourceTypes: enableGenerateManifests,
+			DoNotSetCache:      doNotSetCache,
 		})
 		if err != nil {
 			return fmt.Errorf("error generating manifests: %w", err)
@@ -410,7 +420,50 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			manifestInfo.Manifests[i] = string(data)
 		}
 	}
+	return manifestInfo, nil
+}
 
+func (s *Server) GetManifestsForApplication(ctx context.Context, q *application.ApplicationManifestForApplicationQuery) (*apiclient.ManifestResponse, error) {
+	if q.Application == nil {
+		return nil, fmt.Errorf("invalid request: application is missing")
+	}
+	if q.Application.Name == "" {
+		return nil, fmt.Errorf("invalid request: application name is missing")
+	}
+	// Check if the user has access to the application they're trying to generate manifests for.
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, q.Application.RBACName(s.ns)); err != nil {
+		return nil, err
+	}
+	if !s.isNamespaceEnabled(q.Application.Namespace) {
+		return nil, security.NamespaceNotPermittedError(q.Application.Namespace)
+	}
+	a, err := s.appLister.Applications(s.appNamespaceOrDefault(q.Application.Namespace)).Get(q.Application.Name)
+	if err != nil {
+		return nil, fmt.Errorf("error getting application: %w", err)
+	}
+	// Check if the user has access to the application that actually exists.
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
+		return nil, err
+	}
+	// Don't let the user generate manifests for an application in a different project than the one that actually exists.
+	if q.Application.Spec.Project != a.Spec.Project {
+		return nil, fmt.Errorf("application project does not match query project")
+	}
+	// Also make sure the user has access to update the application. This proves that, if they wanted to see these
+	// manifests, they could do so just by updating the application.
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, a.RBACName(s.ns)); err != nil {
+		return nil, err
+	}
+	err = s.validateAndNormalizeApp(ctx, q.Application, true)
+	if err != nil {
+		return nil, fmt.Errorf("error validating application: %w", err)
+	}
+	// Set doNotSetCache to true. We don't want to let a user with only "get" permissions fill the cache with an
+	// infinite variety of hypothetical applications.
+	manifestInfo, err := s.getManifestsForApplication(ctx, "", q.Application, true)
+	if err != nil {
+		return nil, fmt.Errorf("error getting manifests for application: %w", err)
+	}
 	return manifestInfo, nil
 }
 

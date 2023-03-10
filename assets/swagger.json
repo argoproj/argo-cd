@@ -409,6 +409,46 @@
         }
       }
     },
+    "/api/v1/applications/{application.metadata.name}/manifests": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "GetManifests returns application manifests for a hypothetical application manifest",
+        "operationId": "ApplicationService_GetManifestsForApplication",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional",
+            "name": "application.metadata.name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryManifestResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{applicationName}/managed-resources": {
       "get": {
         "tags": [

@@ -791,13 +791,14 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
-			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs)
-			if cacheErr != nil {
-				log.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
-				ch.errCh <- cacheErr
-				return
+			if !q.DoNotSetCache {
+				cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs)
+				if cacheErr != nil {
+					log.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
+					ch.errCh <- cacheErr
+					return
+				}
 			}
-
 		}
 		ch.errCh <- err
 		return
@@ -815,9 +816,11 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	}
 	manifestGenResult.Revision = commitSHA
 	manifestGenResult.VerifyResult = opContext.verificationResult
-	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs)
-	if err != nil {
-		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)
+	if !q.DoNotSetCache {
+		err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs)
+		if err != nil {
+			log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)
+		}
 	}
 	ch.responseCh <- manifestGenCacheEntry.ManifestResponse
 }
@@ -889,9 +892,11 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 					// Increment the number of returned cached responses and push that new value to the cache
 					// (if we have not already done so previously in this function)
 					res.NumberOfCachedResponsesReturned++
-					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs)
-					if err != nil {
-						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
+					if !q.DoNotSetCache {
+						err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs)
+						if err != nil {
+							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
+						}
 					}
 				}
 
