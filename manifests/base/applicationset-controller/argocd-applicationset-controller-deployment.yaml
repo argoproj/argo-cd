@@ -3,8 +3,8 @@ kind: Deployment
 metadata:
   labels:
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: applicationset-controller
   name: argocd-applicationset-controller
 spec:
   selector:
@@ -16,9 +16,8 @@ spec:
         app.kubernetes.io/name: argocd-applicationset-controller
     spec:
       containers:
-        - command:
-            - entrypoint.sh
-            - argocd-applicationset-controller
+        - args:
+            - /usr/local/bin/argocd-applicationset-controller
           image: quay.io/argoproj/argocd:latest
           imagePullPolicy: Always
           name: argocd-applicationset-controller

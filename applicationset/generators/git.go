@@ -130,9 +130,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 			return nil, fmt.Errorf("unable to process file '%s': %v", path, err)
 		}
 
-		for index := range paramsArray {
-			res = append(res, paramsArray[index])
-		}
+		res = append(res, paramsArray...)
 	}
 	return res, nil
 }
