@@ -10228,6 +10228,13 @@ spec:
                 type: array
               goTemplate:
                 type: boolean
+              preservedFields:
+                properties:
+                  annotations:
+                    items:
+                      type: string
+                    type: array
+                type: object
               strategy:
                 properties:
                   rollingSync:
