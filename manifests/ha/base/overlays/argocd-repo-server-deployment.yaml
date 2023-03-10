@@ -22,8 +22,7 @@ spec:
               topologyKey: topology.kubernetes.io/zone
       containers:
       - name: argocd-repo-server
-        command:
-        - entrypoint.sh
-        - argocd-repo-server
+        args:
+        - /usr/local/bin/argocd-repo-server
         - --redis
         - "argocd-redis-ha-haproxy:6379"

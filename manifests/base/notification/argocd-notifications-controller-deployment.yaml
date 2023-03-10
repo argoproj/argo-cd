@@ -29,8 +29,8 @@ spec:
             - key: ca.crt
               path: ca.crt
       containers:
-        - command:
-            - argocd-notifications
+        - args:
+            - /usr/local/bin/argocd-notifications
           workingDir: /app
           livenessProbe:
             tcpSocket:
