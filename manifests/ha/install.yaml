@@ -16998,7 +16998,7 @@ spec:
                 app.kubernetes.io/name: argocd-redis-ha-haproxy
             topologyKey: kubernetes.io/hostname
       containers:
-      - image: haproxy:2.6.2-alpine
+      - image: haproxy:2.6.9-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -17034,7 +17034,7 @@ spec:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: haproxy:2.6.2-alpine
+        image: haproxy:2.6.9-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -17874,7 +17874,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:7.0.7-alpine
+        image: redis:7.0.8-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -17927,7 +17927,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:7.0.7-alpine
+        image: redis:7.0.8-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -17979,7 +17979,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.7-alpine
+        image: redis:7.0.8-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -18008,7 +18008,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.7-alpine
+        image: redis:7.0.8-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
