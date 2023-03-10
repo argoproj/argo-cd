@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -175,7 +174,7 @@ func TestKustomizeImages(t *testing.T) {
 		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, app.Spec.GetSource().Kustomize.Images, KustomizeImage("alpine:bar"))
+			assert.Equal(t, KustomizeImages{"alpine:foo", "alpine:bar"}, app.Spec.GetSource().Kustomize.Images)
 		})
 }
 
@@ -213,13 +212,12 @@ func TestKustomizeUnsetOverride(t *testing.T) {
 		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, app.Spec.GetSource().Kustomize.Images, KustomizeImage("alpine:bar"))
+			assert.Equal(t, KustomizeImages{"alpine:foo", "alpine:bar"}, app.Spec.GetSource().Kustomize.Images)
 		}).
 		When().
-		//AppUnSet("--kustomize-image=alpine").
-		AppUnSet("--kustomize-image", "alpine", "--kustomize-image", "alpine").
+		AppUnSet("--kustomize-image", "alpine", "--kustomize-image", "alpine:foo").
 		Then().
 		And(func(app *Application) {
-			assert.Nil(t, app.Spec.GetSource().Kustomize)
+			assert.Equal(t, KustomizeImages{"alpine:bar"}, app.Spec.GetSource().Kustomize.Images)
 		})
 }

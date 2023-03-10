@@ -84,7 +84,7 @@ func Test_setKustomizeOpt(t *testing.T) {
 	t.Run("Images", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setKustomizeOpt(&src, kustomizeOpts{images: []string{"org/image:v1", "org/image:v2"}})
-		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Images: v1alpha1.KustomizeImages{v1alpha1.KustomizeImage("org/image:v2")}}, src.Kustomize)
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Images: v1alpha1.KustomizeImages{"org/image:v1", "org/image:v2"}}, src.Kustomize)
 	})
 	t.Run("Version", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}

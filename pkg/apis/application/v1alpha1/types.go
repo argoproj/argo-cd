@@ -396,22 +396,9 @@ func (h *ApplicationSourceHelm) IsZero() bool {
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
 type KustomizeImage string
 
-func (i KustomizeImage) delim() string {
-	for _, d := range []string{"=", ":", "@"} {
-		if strings.Contains(string(i), d) {
-			return d
-		}
-	}
-	return ":"
-}
-
-// Match returns true if the image name matches (i.e. up to the first delimiter)
+// Match returns true if the image name matches exactly.
 func (i KustomizeImage) Match(j KustomizeImage) bool {
-	delim := j.delim()
-	if !strings.Contains(string(j), delim) {
-		return false
-	}
-	return strings.HasPrefix(string(i), strings.Split(string(j), delim)[0])
+	return i == j
 }
 
 // KustomizeImages is a list of Kustomize images
@@ -468,10 +455,7 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 
 // MergeImage merges a new Kustomize image identifier in to a list of images
 func (k *ApplicationSourceKustomize) MergeImage(image KustomizeImage) {
-	i := k.Images.Find(image)
-	if i >= 0 {
-		k.Images[i] = image
-	} else {
+	if k.Images.Find(image) < 0 {
 		k.Images = append(k.Images, image)
 	}
 }

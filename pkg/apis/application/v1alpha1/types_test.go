@@ -1489,25 +1489,21 @@ func TestEnv_Environ(t *testing.T) {
 func TestKustomizeImage_Match(t *testing.T) {
 	// no prefix
 	assert.False(t, KustomizeImage("foo=1").Match("bar=1"))
-	// mismatched delimiter
-	assert.False(t, KustomizeImage("foo=1").Match("bar:1"))
-	assert.False(t, KustomizeImage("foo:1").Match("bar=1"))
 	// matches
-	assert.True(t, KustomizeImage("foo=1").Match("foo=2"))
-	assert.True(t, KustomizeImage("foo:1").Match("foo:2"))
-	assert.True(t, KustomizeImage("foo@1").Match("foo@2"))
+	assert.True(t, KustomizeImage("foo=1").Match("foo=1"))
 }
 
 func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
 	t.Run("Add", func(t *testing.T) {
 		k := ApplicationSourceKustomize{Images: KustomizeImages{}}
 		k.MergeImage("foo=1")
-		assert.Equal(t, KustomizeImages{"foo=1"}, k.Images)
-	})
-	t.Run("Replace", func(t *testing.T) {
-		k := ApplicationSourceKustomize{Images: KustomizeImages{"foo=1"}}
 		k.MergeImage("foo=2")
-		assert.Equal(t, KustomizeImages{"foo=2"}, k.Images)
+		assert.Equal(t, KustomizeImages{"foo=1", "foo=2"}, k.Images)
+	})
+	t.Run("Ignore", func(t *testing.T) {
+		k := ApplicationSourceKustomize{Images: KustomizeImages{"foo=1"}}
+		k.MergeImage("foo=1")
+		assert.Equal(t, KustomizeImages{"foo=1"}, k.Images)
 	})
 }
 
