@@ -34,6 +34,7 @@ func TestKustomizeBuild(t *testing.T) {
 	assert.Nil(t, err)
 	namePrefix := "namePrefix-"
 	nameSuffix := "-nameSuffix"
+	namespace := "custom-namespace"
 	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
@@ -47,6 +48,7 @@ func TestKustomizeBuild(t *testing.T) {
 			"app.kubernetes.io/managed-by": "argo-cd",
 			"app.kubernetes.io/part-of":    "argo-cd-tests",
 		},
+		Namespace: namespace,
 	}
 	objs, images, err := kustomize.Build(&kustomizeSource, nil, nil)
 	assert.Nil(t, err)
@@ -67,6 +69,7 @@ func TestKustomizeBuild(t *testing.T) {
 				"app.kubernetes.io/managed-by": "argo-cd",
 				"app.kubernetes.io/part-of":    "argo-cd-tests",
 			}, obj.GetAnnotations())
+			assert.Equal(t, namespace, obj.GetNamespace())
 		case "Deployment":
 			assert.Equal(t, namePrefix+"nginx-deployment"+nameSuffix, obj.GetName())
 			assert.Equal(t, map[string]string{
@@ -78,6 +81,7 @@ func TestKustomizeBuild(t *testing.T) {
 				"app.kubernetes.io/managed-by": "argo-cd",
 				"app.kubernetes.io/part-of":    "argo-cd-tests",
 			}, obj.GetAnnotations())
+			assert.Equal(t, namespace, obj.GetNamespace())
 		}
 	}
 
