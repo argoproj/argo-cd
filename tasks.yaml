@@ -4,13 +4,8 @@ metadata:
   name: argo-cd
 spec:
   tasks:
-    - name: docker-ps
-      command: docker ps
-    - name: cluster-info
-      command: kubectl cluster-info
     - name: create-ns
       command: sh -c "kubectl create ns argocd --dry-run=client -oyaml|kubectl apply -f -"
-      dependencies: cluster-info
     - name: kubens
       command: kubectl config set-context --current --namespace argocd
       dependencies: create-ns
@@ -20,12 +15,11 @@ spec:
     - name: redis
       ports: 6379
       image: redis:7.0.7-alpine
-      dependencies: docker-ps
     - name: go-deps
       command: go mod download
-      mutex: deps
+      mutex: downloads
     - name: go-build
-      command: go build -v ./cmd/...
+      command: go build -v -o /tmp/argo-cd ./cmd
       dependencies: go-deps
     - name: repo-server
       command: go run ./cmd  --loglevel debug --port 8081 --redis localhost:6379
@@ -39,7 +33,7 @@ spec:
         - ARGOCD_SSH_DATA_PATH=/tmp/argocd-local/ssh
         - ARGOCD_BINARY_NAME=argocd-repo-server
         - ARGOCD_GPG_ENABLED=false
-      dependencies: install go-build
+      dependencies: install go-deps
       ports: 8081 8081
       watch: cmd reposerver pkg util
     - name: controller
@@ -51,7 +45,7 @@ spec:
         - ARGOCD_TLS_DATA_PATH=/tmp/argocd-local/tls
         - ARGOCD_SSH_DATA_PATH=/tmp/argocd-local/ssh
         - ARGOCD_BINARY_NAME=argocd-application-controller
-      dependencies: install redis repo-server go-build
+      dependencies: install redis repo-server go-deps
       ports: 8082
       watch: cmd controller pkg util
     - name: api-server
@@ -63,15 +57,12 @@ spec:
         - ARGOCD_TLS_DATA_PATH=/tmp/argocd-local/tls
         - ARGOCD_SSH_DATA_PATH=/tmp/argocd-local/ssh
       ports: 8080 8083
-      dependencies: install redis go-build
+      dependencies: install redis go-deps
       watch: cmd server pkg util
     - name: ui-deps
       command: yarn install
       workingDir: ui
-      mutex: deps
-    - name: ui-build
-      # noop
-      dependencies: ui-deps
+      mutex: downloads
     - name: ui
       command: yarn start
       workingDir: ui
@@ -80,7 +71,7 @@ spec:
     - name: example
       command: kubectl apply -f examples/guestbook-app.yaml
       dependencies: controller
-    - name: build
-      dependencies: go-build ui-build
+    - name: pre-up
+      dependencies: go-build ui-deps install
     - name: up
       dependencies: controller api-server ui example
