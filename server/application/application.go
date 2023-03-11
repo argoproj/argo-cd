@@ -1,6 +1,7 @@
 package application
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -1989,6 +1990,9 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 		if err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("error getting application cluster config: %w", err)
 		}
+		data, _ := json.Marshal(obj)
+		fmt.Print("************************************ app " + bytes.NewBuffer(data).String() + "*************************************")
+
 		obj, err = kube.ToUnstructured(app)
 	} else {
 		res, config, app, err = s.getAppLiveResource(ctx, rbacRequest, q)
@@ -1996,6 +2000,9 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 			return nil, nil, nil, nil, fmt.Errorf("error getting app live resource: %w", err)
 		}
 		obj, err = s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
+		data, _ := json.Marshal(obj)
+		fmt.Print("************************************ GetResource " + bytes.NewBuffer(data).String() + "*************************************")
+
 	}
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("error getting resource: %w", err)
@@ -2143,6 +2150,9 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 				if err != nil {
 					return nil, fmt.Errorf("error creating resource: %w", err)
 				}
+
+			} else {
+				return nil, fmt.Errorf("unsupported operation: %s", impactedResource.K8SOperation)
 			}
 		}
 	}

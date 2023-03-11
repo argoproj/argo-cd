@@ -1,6 +1,7 @@
 package lua
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -163,6 +164,8 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
 		jsonBytes, err := luajson.Encode(returnValue)
+
+		fmt.Print("************************************" + bytes.NewBuffer(jsonBytes).String() + "*************************************")
 		if err != nil {
 			return nil, err
 		}

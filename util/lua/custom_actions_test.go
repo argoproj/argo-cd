@@ -139,6 +139,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						if impactedResource.K8SOperation == "create" {
 							t.Log("There is a create action - hooray! But I don't know how to test it yet")
 							t.Log(result.GetKind(), result.GetName(), result.GetNamespace())
+
 						}
 
 					}

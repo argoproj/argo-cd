@@ -3,6 +3,7 @@ kind: CronJob
 metadata:
   name: hello
   namespace: test-ns
+  uid: "123"
 spec:
   schedule: "* * * * *"
   jobTemplate:

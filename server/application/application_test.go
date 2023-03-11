@@ -1172,12 +1172,24 @@ func returnCronJob() *unstructured.Unstructured {
 		},
 		"spec": map[string]interface{}{
 			"jobTemplate": map[string]interface{}{
+				"ku0": "ku0",
 				"spec": map[string]interface{}{
+					"ku1": "ku1",
 					"template": map[string]interface{}{
-						"spec": map[string]interface{}{},
+						"ku2": "ku2",
+						"spec": map[string]interface{}{
+							"ku3": "ku3",
+							"containers": []map[string]interface{}{{
+								"name":            "hello",
+								"image":           "busybox:1.28",
+								"imagePullPolicy": "IfNotPresent",
+								"command":         []string{"/bin/sh", "-c", "date; echo Hello from the Kubernetes cluster"}}},
+							"restartPolicy": "OnFailure",
+						},
 					},
 				},
 			},
+			"schedule": "* * * * *",
 		},
 	}}
 }
