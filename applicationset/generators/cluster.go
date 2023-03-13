@@ -52,6 +52,8 @@ func NewClusterGenerator(c client.Client, ctx context.Context, clientset kuberne
 	return g
 }
 
+// GetRequeueAfter never requeue the cluster generator because the `clusterSecretEventHandler` will requeue the appsets
+// when the cluster secrets change
 func (g *ClusterGenerator) GetRequeueAfter(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) time.Duration {
 	return NoRequeueAfter
 }

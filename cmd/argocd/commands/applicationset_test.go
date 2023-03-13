@@ -1,10 +1,16 @@
 package commands
 
 import (
+	"encoding/json"
+	"io"
+	"os"
 	"testing"
+
+	testutils "github.com/argoproj/argo-cd/v2/test"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	arogappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/stretchr/testify/assert"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -191,4 +197,104 @@ spec:
     targetRevision: '{{ .targetRevision }}'
 `
 	assert.Equal(t, expectation, output)
+}
+
+func TestPrintAppSetSummaryTable(t *testing.T) {
+	baseAppSet := &arogappsetv1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "app-name",
+		},
+		Spec: arogappsetv1.ApplicationSetSpec{
+			Generators: []arogappsetv1.ApplicationSetGenerator{
+				arogappsetv1.ApplicationSetGenerator{
+					Git: &arogappsetv1.GitGenerator{
+						RepoURL:  "https://github.com/argoproj/argo-cd.git",
+						Revision: "head",
+						Directories: []arogappsetv1.GitDirectoryGeneratorItem{
+							arogappsetv1.GitDirectoryGeneratorItem{
+								Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
+							},
+						},
+					},
+				},
+			},
+			Template: apiextensionsv1.JSON{Raw: []byte(`{"spec":{"project": "default"}}`)},
+		},
+		Status: arogappsetv1.ApplicationSetStatus{
+			Conditions: []arogappsetv1.ApplicationSetCondition{
+				arogappsetv1.ApplicationSetCondition{
+					Status: v1alpha1.ApplicationSetConditionStatusTrue,
+					Type:   arogappsetv1.ApplicationSetConditionResourcesUpToDate,
+				},
+			},
+		},
+	}
+
+	appsetSpecSyncPolicy := baseAppSet.DeepCopy()
+
+	appsetSpecSyncPolicy.Spec.SyncPolicy = &arogappsetv1.ApplicationSetSyncPolicy{
+		PreserveResourcesOnDeletion: true,
+	}
+
+	appSetTemplateSpecSyncPolicy := baseAppSet.DeepCopy()
+
+	appSetTemplateSpecSyncPolicy.Spec.Template = testutils.UpdateDataAsJson(appSetTemplateSpecSyncPolicy.Spec.Template, "/spec/syncPolicy", map[string]interface{}{"automated": map[string]interface{}{"selfHeal": true}})
+
+	appSetBothSyncPolicies := baseAppSet.DeepCopy()
+	appSetBothSyncPolicies.Spec.SyncPolicy = &arogappsetv1.ApplicationSetSyncPolicy{
+		PreserveResourcesOnDeletion: true,
+	}
+	appSetBothSyncPolicies.Spec.Template = testutils.UpdateDataAsJson(appSetTemplateSpecSyncPolicy.Spec.Template, "/spec/syncPolicy", map[string]interface{}{"automated": map[string]interface{}{"selfHeal": true}})
+
+	for _, tt := range []struct {
+		name           string
+		appSet         *arogappsetv1.ApplicationSet
+		expectedOutput string
+	}{
+		{
+			name:   "appset with only spec.syncPolicy set",
+			appSet: appsetSpecSyncPolicy,
+			expectedOutput: `Name:               app-name
+Project:            default
+SyncPolicy:         <none>
+`,
+		},
+		{
+			name:   "appset with only spec.template.spec.syncPolicy set",
+			appSet: appSetTemplateSpecSyncPolicy,
+			expectedOutput: `Name:               app-name
+Project:            default
+SyncPolicy:         Automated
+`,
+		},
+		{
+			name:   "appset with both spec.SyncPolicy and spec.template.spec.syncPolicy set",
+			appSet: appSetBothSyncPolicies,
+			expectedOutput: `Name:               app-name
+Project:            default
+SyncPolicy:         Automated
+`,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			oldStdout := os.Stdout
+			defer func() {
+				os.Stdout = oldStdout
+			}()
+
+			r, w, _ := os.Pipe()
+			os.Stdout = w
+
+			var template map[string]interface{}
+			err := json.Unmarshal(tt.appSet.Spec.Template.Raw, &template)
+			errors.CheckError(err)
+
+			printAppSetSummaryTable(tt.appSet, template)
+			w.Close()
+
+			out, err := io.ReadAll(r)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedOutput, string(out))
+		})
+	}
 }

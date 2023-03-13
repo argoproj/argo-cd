@@ -818,6 +818,73 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 				},
 			},
+		}, {
+			name: "Ensure that configured preserved annotations are preserved from an existing app",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Template: argov1alpha1.ApplicationSetTemplate{
+						Spec: argov1alpha1.ApplicationSpec{
+							Project: "project",
+						},
+					},
+					PreservedFields: &argov1alpha1.ApplicationPreservedFields{
+						Annotations: []string{"preserved-annot-key"},
+					},
+				},
+			},
+			existingApps: []argov1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "2",
+						Annotations: map[string]string{
+							"annot-key":           "annot-value",
+							"preserved-annot-key": "preserved-annot-value",
+						},
+					},
+					Spec: argov1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+				},
+			},
+			desiredApps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: argov1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+				},
+			},
+			expected: []argov1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "3",
+						Annotations: map[string]string{
+							"preserved-annot-key": "preserved-annot-value",
+						},
+					},
+					Spec: argov1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+				},
+			},
 		},
 	} {
 

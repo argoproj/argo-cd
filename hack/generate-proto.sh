@@ -93,7 +93,6 @@ done
 # collect_swagger gathers swagger files into a subdirectory
 collect_swagger() {
     SWAGGER_ROOT="$1"
-    EXPECTED_COLLISIONS="$2"
     SWAGGER_OUT="${PROJECT_ROOT}/assets/swagger.json"
     PRIMARY_SWAGGER=$(mktemp)
     COMBINED_SWAGGER=$(mktemp)
@@ -112,7 +111,7 @@ EOF
 
     rm -f "${SWAGGER_OUT}"
 
-    find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin -c "${EXPECTED_COLLISIONS}" "${PRIMARY_SWAGGER}" '{}' \+ > "${COMBINED_SWAGGER}"
+    find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin --ignore-conflicts "${PRIMARY_SWAGGER}" '{}' \+ > "${COMBINED_SWAGGER}"
     jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) | del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title)' "${COMBINED_SWAGGER}" > "${SWAGGER_OUT}"
 
     /bin/rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
@@ -124,9 +123,7 @@ clean_swagger() {
     find "${SWAGGER_ROOT}" -name '*.swagger.json' -delete
 }
 
-echo "If additional types are added, the number of expected collisions may need to be increased"
-EXPECTED_COLLISION_COUNT=75
-collect_swagger server ${EXPECTED_COLLISION_COUNT}
+collect_swagger server
 clean_swagger server
 clean_swagger reposerver
 clean_swagger controller

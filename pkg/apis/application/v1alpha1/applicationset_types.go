@@ -49,11 +49,16 @@ type ApplicationSet struct {
 
 // ApplicationSetSpec represents a class of application set state.
 type ApplicationSetSpec struct {
-	GoTemplate bool                      `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
-	Generators []ApplicationSetGenerator `json:"generators" protobuf:"bytes,2,name=generators"`
-	Template   apiextensionsv1.JSON      `json:"template" protobuf:"bytes,3,name=template"`
-	SyncPolicy *ApplicationSetSyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
-	Strategy   *ApplicationSetStrategy   `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
+	GoTemplate      bool                        `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
+	Generators      []ApplicationSetGenerator   `json:"generators" protobuf:"bytes,2,name=generators"`
+	Template        apiextensionsv1.JSON        `json:"template" protobuf:"bytes,3,name=template"`
+	SyncPolicy      *ApplicationSetSyncPolicy   `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
+	Strategy        *ApplicationSetStrategy     `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
+	PreservedFields *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
+}
+
+type ApplicationPreservedFields struct {
+	Annotations []string `json:"annotations,omitempty" protobuf:"bytes,1,name=annotations"`
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.

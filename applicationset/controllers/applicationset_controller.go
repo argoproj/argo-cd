@@ -54,7 +54,7 @@ const (
 )
 
 var (
-	preservedAnnotations = []string{
+	defaultPreservedAnnotations = []string{
 		NotifiedAnnotationKey,
 		argov1alpha1.AnnotationKeyRefresh,
 	}
@@ -570,9 +570,15 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 				found.Operation = generatedApp.Operation
 			}
 
+			preservedAnnotations := make([]string, 0)
+			if applicationSet.Spec.PreservedFields != nil {
+				preservedAnnotations = append(preservedAnnotations, applicationSet.Spec.PreservedFields.Annotations...)
+			}
 			// Preserve specially treated argo cd annotations:
 			// * https://github.com/argoproj/applicationset/issues/180
 			// * https://github.com/argoproj/argo-cd/issues/10500
+			preservedAnnotations = append(preservedAnnotations, defaultPreservedAnnotations...)
+
 			for _, key := range preservedAnnotations {
 				if state, exists := found.ObjectMeta.Annotations[key]; exists {
 					if generatedApp.Annotations == nil {

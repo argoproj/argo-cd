@@ -334,6 +334,10 @@ spec:
                             description: NameSuffix is a suffix appended to resources
                               for Kustomize apps
                             type: string
+                          namespace:
+                            description: Namespace sets the namespace that Kustomize
+                              adds to all resources
+                            type: string
                           version:
                             description: Version controls which version of Kustomize
                               to use for rendering manifests
@@ -596,6 +600,10 @@ spec:
                             nameSuffix:
                               description: NameSuffix is a suffix appended to resources
                                 for Kustomize apps
+                              type: string
+                            namespace:
+                              description: Namespace sets the namespace that Kustomize
+                                adds to all resources
                               type: string
                             version:
                               description: Version controls which version of Kustomize
@@ -973,6 +981,10 @@ spec:
                         description: NameSuffix is a suffix appended to resources
                           for Kustomize apps
                         type: string
+                      namespace:
+                        description: Namespace sets the namespace that Kustomize adds
+                          to all resources
+                        type: string
                       version:
                         description: Version controls which version of Kustomize to
                           use for rendering manifests
@@ -1226,6 +1238,10 @@ spec:
                         nameSuffix:
                           description: NameSuffix is a suffix appended to resources
                             for Kustomize apps
+                          type: string
+                        namespace:
+                          description: Namespace sets the namespace that Kustomize
+                            adds to all resources
                           type: string
                         version:
                           description: Version controls which version of Kustomize
@@ -1629,6 +1645,10 @@ spec:
                               description: NameSuffix is a suffix appended to resources
                                 for Kustomize apps
                               type: string
+                            namespace:
+                              description: Namespace sets the namespace that Kustomize
+                                adds to all resources
+                              type: string
                             version:
                               description: Version controls which version of Kustomize
                                 to use for rendering manifests
@@ -1893,6 +1913,10 @@ spec:
                               nameSuffix:
                                 description: NameSuffix is a suffix appended to resources
                                   for Kustomize apps
+                                type: string
+                              namespace:
+                                description: Namespace sets the namespace that Kustomize
+                                  adds to all resources
                                 type: string
                               version:
                                 description: Version controls which version of Kustomize
@@ -2304,6 +2328,10 @@ spec:
                                     description: NameSuffix is a suffix appended to
                                       resources for Kustomize apps
                                     type: string
+                                  namespace:
+                                    description: Namespace sets the namespace that
+                                      Kustomize adds to all resources
+                                    type: string
                                   version:
                                     description: Version controls which version of
                                       Kustomize to use for rendering manifests
@@ -2586,6 +2614,10 @@ spec:
                                     nameSuffix:
                                       description: NameSuffix is a suffix appended
                                         to resources for Kustomize apps
+                                      type: string
+                                    namespace:
+                                      description: Namespace sets the namespace that
+                                        Kustomize adds to all resources
                                       type: string
                                     version:
                                       description: Version controls which version
@@ -2970,6 +3002,10 @@ spec:
                                 description: NameSuffix is a suffix appended to resources
                                   for Kustomize apps
                                 type: string
+                              namespace:
+                                description: Namespace sets the namespace that Kustomize
+                                  adds to all resources
+                                type: string
                               version:
                                 description: Version controls which version of Kustomize
                                   to use for rendering manifests
@@ -3245,6 +3281,10 @@ spec:
                                 nameSuffix:
                                   description: NameSuffix is a suffix appended to
                                     resources for Kustomize apps
+                                  type: string
+                                namespace:
+                                  description: Namespace sets the namespace that Kustomize
+                                    adds to all resources
                                   type: string
                                 version:
                                   description: Version controls which version of Kustomize
@@ -3627,6 +3667,10 @@ spec:
                                 description: NameSuffix is a suffix appended to resources
                                   for Kustomize apps
                                 type: string
+                              namespace:
+                                description: Namespace sets the namespace that Kustomize
+                                  adds to all resources
+                                type: string
                               version:
                                 description: Version controls which version of Kustomize
                                   to use for rendering manifests
@@ -3902,6 +3946,10 @@ spec:
                                 nameSuffix:
                                   description: NameSuffix is a suffix appended to
                                     resources for Kustomize apps
+                                  type: string
+                                namespace:
+                                  description: Namespace sets the namespace that Kustomize
+                                    adds to all resources
                                   type: string
                                 version:
                                   description: Version controls which version of Kustomize
@@ -5422,6 +5470,13 @@ spec:
                 type: array
               goTemplate:
                 type: boolean
+              preservedFields:
+                properties:
+                  annotations:
+                    items:
+                      type: string
+                    type: array
+                type: object
               strategy:
                 properties:
                   rollingSync:
@@ -5854,9 +5909,9 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 ---
 apiVersion: v1
@@ -5920,9 +5975,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 rules:
 - apiGroups:
@@ -6022,9 +6077,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -6139,9 +6194,9 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 spec:
   ports:
@@ -6214,9 +6269,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 spec:
   selector:
@@ -6228,9 +6283,8 @@ spec:
         app.kubernetes.io/name: argocd-applicationset-controller
     spec:
       containers:
-      - command:
-        - entrypoint.sh
-        - argocd-applicationset-controller
+      - args:
+        - /usr/local/bin/argocd-applicationset-controller
         env:
         - name: NAMESPACE
           valueFrom:
@@ -6378,7 +6432,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:7.0.7-alpine
+        image: redis:7.0.8-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -6429,10 +6483,10 @@ spec:
             weight: 5
       automountServiceAccountToken: false
       containers:
-      - command:
-        - sh
-        - -c
-        - entrypoint.sh argocd-repo-server --redis argocd-redis:6379
+      - args:
+        - /usr/local/bin/argocd-repo-server
+        - --redis
+        - argocd-redis:6379
         env:
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
@@ -6608,7 +6662,7 @@ spec:
           name: plugins
       initContainers:
       - command:
-        - cp
+        - /bin/cp
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
@@ -6694,8 +6748,8 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 5
       containers:
-      - command:
-        - argocd-application-controller
+      - args:
+        - /usr/local/bin/argocd-application-controller
         env:
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "1"

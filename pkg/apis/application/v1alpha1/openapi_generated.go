@@ -24,6 +24,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination":              schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationList":                     schema_pkg_apis_application_v1alpha1_ApplicationList(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationMatchExpression":          schema_pkg_apis_application_v1alpha1_ApplicationMatchExpression(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationPreservedFields":          schema_pkg_apis_application_v1alpha1_ApplicationPreservedFields(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSet":                      schema_pkg_apis_application_v1alpha1_ApplicationSet(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetApplicationStatus":     schema_pkg_apis_application_v1alpha1_ApplicationSetApplicationStatus(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetCondition":             schema_pkg_apis_application_v1alpha1_ApplicationSetCondition(ref),
@@ -692,6 +693,32 @@ func schema_pkg_apis_application_v1alpha1_ApplicationMatchExpression(ref common.
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_ApplicationPreservedFields(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"annotations": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_ApplicationSet(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1122,12 +1149,17 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetSpec(ref common.Referenc
 							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetStrategy"),
 						},
 					},
+					"preservedFields": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationPreservedFields"),
+						},
+					},
 				},
 				Required: []string{"generators", "template"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetStrategy", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetSyncPolicy", "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationPreservedFields", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetStrategy", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetSyncPolicy", "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"},
 	}
 }
 
@@ -1627,6 +1659,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 						SchemaProps: spec.SchemaProps{
 							Description: "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps",
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace sets the namespace that Kustomize adds to all resources",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},

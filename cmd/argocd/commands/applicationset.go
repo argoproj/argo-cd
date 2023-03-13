@@ -429,7 +429,7 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet, template map[s
 				syncPolicy += " (Prune)"
 			}
 		} else {
-			syncPolicy = "Automated"
+			syncPolicy = "<none>"
 		}
 	} else {
 		syncPolicy = "<none>"
