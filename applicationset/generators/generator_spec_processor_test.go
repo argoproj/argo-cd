@@ -296,7 +296,7 @@ func TestInterpolateGenerator_go(t *testing.T) {
 	requestedGenerator = &argoprojiov1alpha1.ApplicationSetGenerator{
 		Git: &argoprojiov1alpha1.GitGenerator{
 			Files:    append([]argoprojiov1alpha1.GitFileGeneratorItem{}, fileNamePath, fileServerPath),
-			Template: argoprojiov1alpha1.ApplicationSetTemplate{},
+			Template: &apiextensionsv1.JSON{Raw: []byte(`{"project":"project"}`)},
 		},
 	}
 	clusterGeneratorParams := map[string]interface{}{

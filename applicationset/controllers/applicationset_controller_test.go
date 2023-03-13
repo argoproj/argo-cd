@@ -826,11 +826,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					Namespace: "namespace",
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
-					Template: argov1alpha1.ApplicationSetTemplate{
-						Spec: argov1alpha1.ApplicationSpec{
-							Project: "project",
-						},
-					},
+					Template: apiextensionsv1.JSON{Raw: []byte(`{"project":"project"}`)},
 					PreservedFields: &argov1alpha1.ApplicationPreservedFields{
 						Annotations: []string{"preserved-annot-key"},
 					},
