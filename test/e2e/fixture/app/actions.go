@@ -365,6 +365,17 @@ func (a *Actions) DeleteBySelector(selector string) *Actions {
 	return a
 }
 
+func (a *Actions) Wait(args ...string) *Actions {
+	a.context.t.Helper()
+	args = append([]string{"app", "wait"}, args...)
+	if a.context.name != "" {
+		args = append(args, a.context.AppQualifiedName())
+	}
+	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
+	a.runCli(args...)
+	return a
+}
+
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
 	fixture.SetParamInSettingConfigMap(key, value)
 	return a
