@@ -58,6 +58,18 @@ metadata:
 
 The dry run will still be executed if the CRD is already present in the cluster.
 
+## No Resource Deletion
+
+For certain resources you might want to retain them even after your application is deleted, for eg. Persistent Volume Claims.
+In such situations you can stop those resources from being cleaned up during app deletion by using the following annotation:
+
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false
+```
+
 ## Selective Sync
 
 Currently when syncing using auto sync Argo CD applies every object in the application.

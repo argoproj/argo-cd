@@ -1,19 +1,7 @@
 import {AutocompleteField, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
-import {
-    ARGO_WARNING_COLOR,
-    Cluster,
-    DataLoader,
-    EditablePanel,
-    EditablePanelItem,
-    Expandable,
-    MapInputField,
-    NumberField,
-    Repo,
-    Revision,
-    RevisionHelpIcon
-} from '../../../shared/components';
+import {Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, NumberField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
 import {BadgePanel, Spinner} from '../../../shared/components';
 import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -475,13 +463,6 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
 
     return (
         <div className='application-summary'>
-            {source.plugin && typeof source.plugin.name === 'string' && source.plugin.name !== '' && (
-                <div className='white-box'>
-                    <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> This Application uses a plugin which will no longer be supported starting with
-                    Argo CD version 2.6. Contact your Argo CD administrator to make sure they upgrade the '{source.plugin.name}' plugin before upgrading to Argo CD 2.6. See the{' '}
-                    <a href='https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/2.4-2.5/'>2.4-to-2.5 upgrade notes</a> for details.
-                </div>
-            )}
             <EditablePanel
                 save={updateApp}
                 validate={input => ({

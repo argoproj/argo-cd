@@ -123,7 +123,6 @@ clean_swagger() {
     find "${SWAGGER_ROOT}" -name '*.swagger.json' -delete
 }
 
-echo "If additional types are added, the number of expected collisions may need to be increased"
 collect_swagger server
 clean_swagger server
 clean_swagger reposerver

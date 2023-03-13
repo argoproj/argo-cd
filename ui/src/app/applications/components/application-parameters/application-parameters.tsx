@@ -159,6 +159,12 @@ export const ApplicationParameters = (props: {
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.nameSuffix' component={Text} />
         });
 
+        attributes.push({
+            title: 'NAMESPACE',
+            view: app.spec.source.kustomize && app.spec.source.kustomize.namespace,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.namespace' component={Text} />
+        });
+
         const srcImages = ((props.details && props.details.kustomize && props.details.kustomize.images) || []).map(val => kustomize.parse(val));
         const images = ((source.kustomize && source.kustomize.images) || []).map(val => kustomize.parse(val));
 
