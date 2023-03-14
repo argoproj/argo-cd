@@ -12,7 +12,7 @@ on:
       - "!release-v0*"
 
 env:
-  GOLANG_VERSION: '1.18'
+  GOLANG_VERSION: '1.19'
 
 permissions:
   contents: read
@@ -205,7 +205,7 @@ jobs:
         if: ${{ env.DRY_RUN != 'true' }}
 
       - uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18 # v2.1.0
-      - uses: docker/setup-buildx-action@15c905b16b06416d2086efa066dd8e3a35cc7f98 # v2.4.0
+      - uses: docker/setup-buildx-action@f03ac48505955848960e80bbb68046aa35c7b9e7 # v2.4.1
       - name: Build and push Docker image for release
         run: |
           set -ue
@@ -219,12 +219,12 @@ jobs:
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@9becc617647dfa20ae7b1151972e9b3a2c338a2b # v2.8.1
+        uses: sigstore/cosign-installer@c3667d99424e7e6047999fb6246c0da843953c65 # v3.0.1
         with:
           cosign-release: 'v1.13.1'
 
       - name: Install crane to get digest of image
-        uses: imjasonh/setup-crane@e82f1b9a8007d399333baba4d75915558e9fb6a4
+        uses: imjasonh/setup-crane@00c9e93efa4e1138c9a7a5c594acd6c75a2fbf0c
 
       - name: Get digest of image
         run: |
@@ -324,7 +324,7 @@ jobs:
       - name: Update homebrew formula
         env:
           HOMEBREW_TOKEN: ${{ secrets.RELEASE_HOMEBREW_TOKEN }}
-        uses: dawidd6/action-homebrew-bump-formula@02e79d9da43d79efa846d73695b6052cbbdbf48a # v3.8.3
+        uses: dawidd6/action-homebrew-bump-formula@e9b43cd30eec6ea80777e7e22e1526beb1675c18 # v3.9.0
         with:
           token: ${{env.HOMEBREW_TOKEN}}
           formula: argocd
