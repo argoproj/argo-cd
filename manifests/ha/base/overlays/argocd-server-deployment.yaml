@@ -25,7 +25,7 @@ spec:
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: '2'
-        command:
-        - argocd-server
+        args:
+        - /usr/local/bin/argocd-server
         - --redis
         - "argocd-redis-ha-haproxy:6379"
