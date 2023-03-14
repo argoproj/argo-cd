@@ -15780,7 +15780,7 @@ spec:
         env:
         - name: ARGOCD_REDIS_SERVICE
           value: argocd-redis
-        image: redis:7.0.8-alpine
+        image: redis:7.0.9-alpine
         imagePullPolicy: Always
         name: redis
         ports:
