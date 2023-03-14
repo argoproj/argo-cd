@@ -148,7 +148,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 	}
 	newItems := make([]appv1.Application, 0)
 	for _, a := range apps {
-		// Skip any application that is neither in the conrol plane's namespace
+		// Skip any application that is neither in the control plane's namespace
 		// nor in the list of enabled namespaces.
 		if a.Namespace != s.ns && !glob.MatchStringInList(s.enabledNamespaces, a.Namespace, false) {
 			continue
@@ -165,8 +165,8 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 		}
 	}
 
-	// Filter applications by name
-	newItems = argoutil.FilterByProjects(newItems, q.Projects)
+	// Filter applications by projects
+	newItems = argoutil.FilterByProjects(newItems, getProjectsFromApplicationQuery(*q))
 
 	// Filter applications by source repo URL
 	newItems = argoutil.FilterByRepo(newItems, q.GetRepo())
@@ -956,8 +956,8 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		logCtx = logCtx.WithField("application", *q.Name)
 	}
 	projects := map[string]bool{}
-	for i := range q.Projects {
-		projects[q.Projects[i]] = true
+	for _, project := range getProjectsFromApplicationQuery(*q) {
+		projects[project] = true
 	}
 	claims := ws.Context().Value("claims")
 	selector, err := labels.Parse(q.GetSelector())
@@ -2249,4 +2249,13 @@ func (s *Server) appNamespaceOrDefault(appNs string) string {
 
 func (s *Server) isNamespaceEnabled(namespace string) bool {
 	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
+}
+
+// getProjectFromApplicationQuery gets the project names from a query. If the legacy "project" field was specified, use
+// that. Otherwise, use the newer "projects" field.
+func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
+	if q.Project != nil {
+		return q.Project
+	}
+	return q.Projects
 }

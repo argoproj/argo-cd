@@ -401,6 +401,57 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 	}
 }
 
+func TestListAppWithProjects(t *testing.T) {
+	appServer := newTestAppServer(newTestApp(func(app *appsv1.Application) {
+		app.Name = "App1"
+		app.Spec.Project = "test-project1"
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "App2"
+		app.Spec.Project = "test-project2"
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "App3"
+		app.Spec.Project = "test-project3"
+	}))
+
+	t.Run("List all apps", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{}
+		appList, err := appServer.List(context.Background(), &appQuery)
+		assert.NoError(t, err)
+		assert.Len(t, appList.Items, 3)
+	})
+
+	t.Run("List apps with projects filter set", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{Projects: []string{"test-project1"}}
+		appList, err := appServer.List(context.Background(), &appQuery)
+		assert.NoError(t, err)
+		assert.Len(t, appList.Items, 1)
+		for _, app := range appList.Items {
+			assert.Equal(t, "test-project1", app.Spec.Project)
+		}
+	})
+
+	t.Run("List apps with project filter set (legacy field)", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{Project: []string{"test-project1"}}
+		appList, err := appServer.List(context.Background(), &appQuery)
+		assert.NoError(t, err)
+		assert.Len(t, appList.Items, 1)
+		for _, app := range appList.Items {
+			assert.Equal(t, "test-project1", app.Spec.Project)
+		}
+	})
+
+	t.Run("List apps with both projects and project filter set", func(t *testing.T) {
+		// If the older field is present, we should use it instead of the newer field.
+		appQuery := application.ApplicationQuery{Project: []string{"test-project1"}, Projects: []string{"test-project2"}}
+		appList, err := appServer.List(context.Background(), &appQuery)
+		assert.NoError(t, err)
+		assert.Len(t, appList.Items, 1)
+		for _, app := range appList.Items {
+			assert.Equal(t, "test-project1", app.Spec.Project)
+		}
+	})
+}
+
 func TestListApps(t *testing.T) {
 	appServer := newTestAppServer(newTestApp(func(app *appsv1.Application) {
 		app.Name = "bcd"
