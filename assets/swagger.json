@@ -265,6 +265,16 @@
             "description": "the repoURL to restrict returned list applications.",
             "name": "repo",
             "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -528,6 +538,16 @@
             "type": "string",
             "description": "the repoURL to restrict returned list applications.",
             "name": "repo",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -3166,6 +3186,16 @@
             "type": "string",
             "description": "the repoURL to restrict returned list applications.",
             "name": "repo",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
+            "name": "project",
             "in": "query"
           }
         ],

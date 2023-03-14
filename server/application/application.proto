@@ -27,6 +27,8 @@ message ApplicationQuery {
 	optional string selector = 5;
 	// the repoURL to restrict returned list applications
 	optional string repo = 6;
+	// the project names to restrict returned list applications (legacy name for backwards-compatibility)
+	repeated string project = 8;
 }
 
 message NodeQuery {
