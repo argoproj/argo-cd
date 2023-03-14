@@ -133,6 +133,25 @@ func TestClusterListDenied(t *testing.T) {
 		})
 }
 
+func TestClusterSet(t *testing.T) {
+	EnsureCleanState(t)
+	defer RecordTestRun(t)
+	clusterFixture.
+		GivenWithSameState(t).
+		Project(ProjectName).
+		Name("in-cluster").
+		Namespaces([]string{"namespace-edit-1", "namespace-edit-2"}).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		SetNamespaces().
+		GetByName("in-cluster").
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "namespace-edit-1"))
+			assert.True(t, strings.Contains(output, "namespace-edit-2"))
+		})
+}
+
 func TestClusterGet(t *testing.T) {
 	SkipIfAlreadyRun(t)
 	EnsureCleanState(t)

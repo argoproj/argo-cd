@@ -823,6 +823,73 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 				},
 			},
+		}, {
+			name: "Ensure that configured preserved annotations are preserved from an existing app",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Template: argov1alpha1.ApplicationSetTemplate{
+						Spec: argov1alpha1.ApplicationSpec{
+							Project: "project",
+						},
+					},
+					PreservedFields: &argov1alpha1.ApplicationPreservedFields{
+						Annotations: []string{"preserved-annot-key"},
+					},
+				},
+			},
+			existingApps: []argov1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "2",
+						Annotations: map[string]string{
+							"annot-key":           "annot-value",
+							"preserved-annot-key": "preserved-annot-value",
+						},
+					},
+					Spec: argov1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+				},
+			},
+			desiredApps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: argov1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+				},
+			},
+			expected: []argov1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "3",
+						Annotations: map[string]string{
+							"preserved-annot-key": "preserved-annot-value",
+						},
+					},
+					Spec: argov1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+				},
+			},
 		},
 	} {
 
@@ -3548,6 +3615,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 		name              string
 		appSet            argov1alpha1.ApplicationSet
 		apps              []argov1alpha1.Application
+		appStepMap        map[string]int
 		expectedAppStatus []argov1alpha1.ApplicationSetApplicationStatus
 	}{
 		{
@@ -3602,8 +3670,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application: "app1",
-					Message:     "No Application status found, defaulting status to Waiting.",
-					Status:      "Waiting",
+					Message:     "Application resource is already Healthy, updating status from Waiting to Healthy.",
+					Status:      "Healthy",
+					Step:        "1",
 				},
 			},
 		},
@@ -3643,8 +3712,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application: "app1",
-					Message:     "No Application status found, defaulting status to Waiting.",
-					Status:      "Waiting",
+					Message:     "Application resource is already Healthy, updating status from Waiting to Healthy.",
+					Status:      "Healthy",
+					Step:        "1",
 				},
 			},
 		},
@@ -3667,6 +3737,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Application: "app1",
 							Message:     "",
 							Status:      "Healthy",
+							Step:        "1",
 						},
 					},
 				},
@@ -3688,6 +3759,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Application: "app1",
 					Message:     "Application has pending changes, setting status to Waiting.",
 					Status:      "Waiting",
+					Step:        "1",
 				},
 			},
 		},
@@ -3710,6 +3782,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Application: "app1",
 							Message:     "",
 							Status:      "Pending",
+							Step:        "1",
 						},
 					},
 				},
@@ -3731,6 +3804,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Application: "app1",
 					Message:     "Application resource became Progressing, updating status from Pending to Progressing.",
 					Status:      "Progressing",
+					Step:        "1",
 				},
 			},
 		},
@@ -3753,6 +3827,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Application: "app1",
 							Message:     "",
 							Status:      "Pending",
+							Step:        "1",
 						},
 					},
 				},
@@ -3780,6 +3855,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Application: "app1",
 					Message:     "Application resource became Progressing, updating status from Pending to Progressing.",
 					Status:      "Progressing",
+					Step:        "1",
 				},
 			},
 		},
@@ -3802,6 +3878,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Application: "app1",
 							Message:     "",
 							Status:      "Progressing",
+							Step:        "1",
 						},
 					},
 				},
@@ -3829,6 +3906,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Application: "app1",
 					Message:     "Application resource became Healthy, updating status from Progressing to Healthy.",
 					Status:      "Healthy",
+					Step:        "1",
 				},
 			},
 		},
@@ -3851,6 +3929,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Application: "app1",
 							Message:     "",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 					},
 				},
@@ -3878,6 +3957,166 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Application: "app1",
 					Message:     "Application resource is already Healthy, updating status from Waiting to Healthy.",
 					Status:      "Healthy",
+					Step:        "1",
+				},
+			},
+		},
+		{
+			name: "progresses a new outofsync application in a later step to waiting",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeOutOfSync,
+						},
+					},
+				},
+			},
+			appStepMap: map[string]int{
+				"app1": 1,
+				"app2": 0,
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "No Application status found, defaulting status to Waiting.",
+					Status:      "Waiting",
+					Step:        "2",
+				},
+			},
+		},
+		{
+			name: "progresses a pending application with a successful sync to progressing",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							LastTransitionTime: &metav1.Time{
+								Time: time.Now().Add(time.Duration(-1) * time.Minute),
+							},
+							Message: "",
+							Status:  "Pending",
+							Step:    "1",
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusDegraded,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+							StartedAt: metav1.Time{
+								Time: time.Now(),
+							},
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "Application resource completed a sync successfully, updating status from Pending to Progressing.",
+					Status:      "Progressing",
+					Step:        "1",
+				},
+			},
+		},
+		{
+			name: "does not progresses a pending application with an old successful sync to progressing",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							LastTransitionTime: &metav1.Time{
+								Time: time.Now().Add(time.Duration(-1) * time.Minute),
+							},
+							Message: "Application moved to Pending status, watching for the Application resource to start Progressing.",
+							Status:  "Pending",
+							Step:    "1",
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusDegraded,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+							StartedAt: metav1.Time{
+								Time: time.Now().Add(time.Duration(-2) * time.Minute),
+							},
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "Application moved to Pending status, watching for the Application resource to start Progressing.",
+					Status:      "Pending",
+					Step:        "1",
 				},
 			},
 		},
@@ -3901,7 +4140,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				KubeClientset:    kubeclientset,
 			}
 
-			appStatuses, err := r.updateApplicationSetApplicationStatus(context.TODO(), &cc.appSet, cc.apps)
+			appStatuses, err := r.updateApplicationSetApplicationStatus(context.TODO(), &cc.appSet, cc.apps, cc.appStepMap)
 
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
@@ -4060,6 +4299,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					LastTransitionTime: nil,
 					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
 					Status:             "Pending",
+					Step:               "1",
 				},
 			},
 		},
@@ -4091,6 +4331,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 							Application: "app1",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 					},
 				},
@@ -4107,6 +4348,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					LastTransitionTime: nil,
 					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
 					Status:             "Waiting",
+					Step:               "1",
 				},
 			},
 		},
@@ -4138,6 +4380,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 							Application: "app1",
 							Message:     "Application Pending status timed out while waiting to become Progressing, reset status to Healthy.",
 							Status:      "Healthy",
+							Step:        "1",
 						},
 					},
 				},
@@ -4154,6 +4397,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					LastTransitionTime: nil,
 					Message:            "Application Pending status timed out while waiting to become Progressing, reset status to Healthy.",
 					Status:             "Healthy",
+					Step:               "1",
 				},
 			},
 		},
@@ -4189,21 +4433,25 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 							Application: "app1",
 							Message:     "Application resource became Progressing, updating status from Pending to Progressing.",
 							Status:      "Progressing",
+							Step:        "1",
 						},
 						{
 							Application: "app2",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 						{
 							Application: "app3",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 						{
 							Application: "app4",
 							Message:     "Application moved to Pending status, watching for the Application resource to start Progressing.",
 							Status:      "Pending",
+							Step:        "1",
 						},
 					},
 				},
@@ -4268,24 +4516,28 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					LastTransitionTime: nil,
 					Message:            "Application resource became Progressing, updating status from Pending to Progressing.",
 					Status:             "Progressing",
+					Step:               "1",
 				},
 				{
 					Application:        "app2",
 					LastTransitionTime: nil,
 					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
 					Status:             "Pending",
+					Step:               "1",
 				},
 				{
 					Application:        "app3",
 					LastTransitionTime: nil,
 					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
 					Status:             "Waiting",
+					Step:               "1",
 				},
 				{
 					Application:        "app4",
 					LastTransitionTime: nil,
 					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
 					Status:             "Pending",
+					Step:               "1",
 				},
 			},
 		},
@@ -4321,16 +4573,19 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 							Application: "app1",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 						{
 							Application: "app2",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 						{
 							Application: "app3",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 					},
 				},
@@ -4351,18 +4606,21 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					LastTransitionTime: nil,
 					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
 					Status:             "Pending",
+					Step:               "1",
 				},
 				{
 					Application:        "app2",
 					LastTransitionTime: nil,
 					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
 					Status:             "Waiting",
+					Step:               "1",
 				},
 				{
 					Application:        "app3",
 					LastTransitionTime: nil,
 					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
 					Status:             "Waiting",
+					Step:               "1",
 				},
 			},
 		},
@@ -4398,16 +4656,19 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 							Application: "app1",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 						{
 							Application: "app2",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 						{
 							Application: "app3",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 					},
 				},
@@ -4428,18 +4689,21 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					LastTransitionTime: nil,
 					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
 					Status:             "Waiting",
+					Step:               "1",
 				},
 				{
 					Application:        "app2",
 					LastTransitionTime: nil,
 					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
 					Status:             "Waiting",
+					Step:               "1",
 				},
 				{
 					Application:        "app3",
 					LastTransitionTime: nil,
 					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
 					Status:             "Waiting",
+					Step:               "1",
 				},
 			},
 		},
@@ -4475,16 +4739,19 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 							Application: "app1",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 						{
 							Application: "app2",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 						{
 							Application: "app3",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 					},
 				},
@@ -4505,18 +4772,21 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					LastTransitionTime: nil,
 					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
 					Status:             "Pending",
+					Step:               "1",
 				},
 				{
 					Application:        "app2",
 					LastTransitionTime: nil,
 					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
 					Status:             "Pending",
+					Step:               "1",
 				},
 				{
 					Application:        "app3",
 					LastTransitionTime: nil,
 					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
 					Status:             "Pending",
+					Step:               "1",
 				},
 			},
 		},
@@ -4552,16 +4822,19 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 							Application: "app1",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 						{
 							Application: "app2",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 						{
 							Application: "app3",
 							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
 							Status:      "Waiting",
+							Step:        "1",
 						},
 					},
 				},
@@ -4582,18 +4855,21 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					LastTransitionTime: nil,
 					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
 					Status:             "Pending",
+					Step:               "1",
 				},
 				{
 					Application:        "app2",
 					LastTransitionTime: nil,
 					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
 					Status:             "Waiting",
+					Step:               "1",
 				},
 				{
 					Application:        "app3",
 					LastTransitionTime: nil,
 					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
 					Status:             "Waiting",
+					Step:               "1",
 				},
 			},
 		},

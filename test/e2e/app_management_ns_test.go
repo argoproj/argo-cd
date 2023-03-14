@@ -89,7 +89,7 @@ func TestNamespacedGetLogsDenySwitchOn(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			_, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			_, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "permission denied")
 		})
@@ -143,17 +143,17 @@ func TestNamespacedGetLogsAllowSwitchOnNS(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Pod")
+			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Pod")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Service")
+			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Service")
 			assert.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
@@ -202,17 +202,17 @@ func TestNamespacedGetLogsAllowSwitchOff(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Pod")
+			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Pod")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Service")
+			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Service")
 			assert.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
@@ -1353,8 +1353,8 @@ func TestNamespacedSyncOptionValidateFalse(t *testing.T) {
 		IgnoreErrors().
 		Sync().
 		Then().
-		// client error
-		Expect(Error("error validating data", "")).
+		// client error. K8s API changed error message w/ 1.25, so for now, we need to check both
+		Expect(ErrorRegex("error validating data|of type int32", "")).
 		When().
 		PatchFile("deployment.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Validate=false"}}]`).
 		Sync().
@@ -2306,17 +2306,17 @@ func TestNamespacedAppLogs(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.QualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			out, err := RunCliWithRetry(5, "app", "logs", app.QualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.QualifiedName(), "--kind", "Pod")
+			out, err := RunCliWithRetry(5, "app", "logs", app.QualifiedName(), "--kind", "Pod")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.QualifiedName(), "--kind", "Service")
+			out, err := RunCliWithRetry(5, "app", "logs", app.QualifiedName(), "--kind", "Service")
 			assert.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})

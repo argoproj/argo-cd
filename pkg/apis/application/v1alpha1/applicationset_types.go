@@ -47,13 +47,23 @@ type ApplicationSet struct {
 	Status            ApplicationSetStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
+// RBACName formats fully qualified application name for RBAC check.
+func (a *ApplicationSet) RBACName() string {
+	return fmt.Sprintf("%s/%s", a.Spec.Template.Spec.GetProject(), a.ObjectMeta.Name)
+}
+
 // ApplicationSetSpec represents a class of application set state.
 type ApplicationSetSpec struct {
-	GoTemplate bool                      `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
-	Generators []ApplicationSetGenerator `json:"generators" protobuf:"bytes,2,name=generators"`
-	Template   ApplicationSetTemplate    `json:"template" protobuf:"bytes,3,name=template"`
-	SyncPolicy *ApplicationSetSyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
-	Strategy   *ApplicationSetStrategy   `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
+	GoTemplate      bool                        `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
+	Generators      []ApplicationSetGenerator   `json:"generators" protobuf:"bytes,2,name=generators"`
+	Template        ApplicationSetTemplate      `json:"template" protobuf:"bytes,3,name=template"`
+	SyncPolicy      *ApplicationSetSyncPolicy   `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
+	Strategy        *ApplicationSetStrategy     `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
+	PreservedFields *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
+}
+
+type ApplicationPreservedFields struct {
+	Annotations []string `json:"annotations,omitempty" protobuf:"bytes,1,name=annotations"`
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
@@ -308,7 +318,7 @@ type GitGenerator struct {
 	Revision            string                      `json:"revision" protobuf:"bytes,4,name=revision"`
 	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
 	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
-	PathParamPrefix     string                      `json:"pathParamPrefix" protobuf:"bytes,7,name=pathParamPrefix"`
+	PathParamPrefix     string                      `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
 }
 
 type GitDirectoryGeneratorItem struct {
@@ -597,7 +607,9 @@ type ApplicationSetApplicationStatus struct {
 	// Message contains human-readable message indicating details about the status
 	Message string `json:"message" protobuf:"bytes,3,opt,name=message"`
 	// Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
-	Status string `json:"status" protobuf:"bytes,5,opt,name=status"`
+	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
+	// Step tracks which step this Application should be updated in
+	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
 }
 
 // ApplicationSetList contains a list of ApplicationSet

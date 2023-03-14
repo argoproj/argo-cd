@@ -227,25 +227,27 @@ export class ApplicationsService {
         resource: {group: string; kind: string; name: string},
         containerName: string
     ): string {
-        const search = this.getLogsQuery(namespace, appNamespace, podName, resource, containerName, null, false);
+        const search = this.getLogsQuery({namespace, appNamespace, podName, resource, containerName, follow: false});
         search.set('download', 'true');
         return `api/v1/applications/${applicationName}/logs?${search.toString()}`;
     }
 
-    public getContainerLogs(
-        applicationName: string,
-        appNamespace: string,
-        namespace: string,
-        podName: string,
-        resource: {group: string; kind: string; name: string},
-        containerName: string,
-        tail?: number,
-        follow?: boolean,
-        untilTime?: string,
-        filter?: string,
-        previous?: boolean
-    ): Observable<models.LogEntry> {
-        const search = this.getLogsQuery(namespace, appNamespace, podName, resource, containerName, tail, follow, untilTime, filter, previous);
+    public getContainerLogs(query: {
+        applicationName: string;
+        appNamespace: string;
+        namespace: string;
+        podName: string;
+        resource: {group: string; kind: string; name: string};
+        containerName: string;
+        tail?: number;
+        follow?: boolean;
+        sinceSeconds?: number;
+        untilTime?: string;
+        filter?: string;
+        previous?: boolean;
+    }): Observable<models.LogEntry> {
+        const {applicationName} = query;
+        const search = this.getLogsQuery(query);
         const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).pipe(map(data => JSON.parse(data).result as models.LogEntry));
         let first = true;
         return new Observable(observer => {
@@ -289,10 +291,11 @@ export class ApplicationsService {
             .then(res => JSON.parse(res.manifest) as models.State);
     }
 
-    public getResourceActions(name: string, appNamspace: string, resource: models.ResourceNode): Promise<models.ResourceAction[]> {
+    public getResourceActions(name: string, appNamespace: string, resource: models.ResourceNode): Promise<models.ResourceAction[]> {
         return requests
             .get(`/applications/${name}/resource/actions`)
             .query({
+                appNamespace,
                 namespace: resource.namespace,
                 resourceName: resource.name,
                 version: resource.version,
@@ -306,10 +309,11 @@ export class ApplicationsService {
             });
     }
 
-    public runResourceAction(name: string, appNamspace: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
+    public runResourceAction(name: string, appNamespace: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
         return requests
             .post(`/applications/${name}/resource/actions`)
             .query({
+                appNamespace,
                 namespace: resource.namespace,
                 resourceName: resource.name,
                 version: resource.version,
@@ -425,18 +429,21 @@ export class ApplicationsService {
             });
     }
 
-    private getLogsQuery(
-        namespace: string,
-        appNamespace: string,
-        podName: string,
-        resource: {group: string; kind: string; name: string},
-        containerName: string,
-        tail?: number,
-        follow?: boolean,
-        untilTime?: string,
-        filter?: string,
-        previous?: boolean
-    ): URLSearchParams {
+    private getLogsQuery(query: {
+        namespace: string;
+        appNamespace: string;
+        podName: string;
+        resource: {group: string; kind: string; name: string};
+        containerName: string;
+        tail?: number;
+        follow?: boolean;
+        sinceSeconds?: number;
+        untilTime?: string;
+        filter?: string;
+        previous?: boolean;
+    }): URLSearchParams {
+        const {appNamespace, containerName, namespace, podName, resource, tail, sinceSeconds, untilTime, filter, previous} = query;
+        let {follow} = query;
         if (follow === undefined || follow === null) {
             follow = true;
         }
@@ -454,6 +461,9 @@ export class ApplicationsService {
         }
         if (tail) {
             search.set('tailLines', tail.toString());
+        }
+        if (sinceSeconds) {
+            search.set('sinceSeconds', sinceSeconds.toString());
         }
         if (untilTime) {
             search.set('untilTime', untilTime);
