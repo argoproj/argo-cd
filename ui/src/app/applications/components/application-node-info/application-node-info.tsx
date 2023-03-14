@@ -20,7 +20,6 @@ import './application-node-info.scss';
 import {Fragment} from 'react';
 import {ReadinessGatesFailedWarning} from './readiness-gates-failed-warning';
 
-
 export const ApplicationNodeInfo = (props: {
     application: models.Application;
     node: models.ResourceNode;
@@ -74,7 +73,7 @@ export const ApplicationNodeInfo = (props: {
                                     const msgExists = container.state.waiting?.message || container.state.terminating?.message;
 
                                     return (
-                                        <tr>
+                                        <tr key={i}>
                                             <td width='18%'>{container.name}</td>
                                             <td />
                                             <td>
