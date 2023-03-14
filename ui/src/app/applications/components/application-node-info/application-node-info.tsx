@@ -5,7 +5,6 @@ import * as React from 'react';
 import {YamlEditor, ClipboardText} from '../../../shared/components';
 import {DeepLinks} from '../../../shared/components/deep-links';
 import * as models from '../../../shared/models';
-import {HealthStatusCode} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
