@@ -205,6 +205,7 @@ export interface ApplicationSourceKustomize {
     nameSuffix: string;
     images: string[];
     version: string;
+    namespace: string;
 }
 export interface EnvEntry {
     name: string;
@@ -612,6 +613,7 @@ export interface HelmAppSpec {
 export interface KustomizeAppSpec {
     path: string;
     images?: string[];
+    namespace?: string;
 }
 
 export interface PluginAppSpec {

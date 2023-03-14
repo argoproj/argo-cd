@@ -54,7 +54,7 @@ jobs:
 
       # build
       - uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18 # v2.1.0
-      - uses: docker/setup-buildx-action@f03ac48505955848960e80bbb68046aa35c7b9e7 # v2.4.1
+      - uses: docker/setup-buildx-action@4b4e9c3e2d4531116a6f8ba8e71fc6e2cb6e6c8c # v2.5.0
       - run: |
           IMAGE_PLATFORMS=linux/amd64
           if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-arm-image') }}" == "true" ]]
@@ -69,7 +69,7 @@ jobs:
 
       # sign container images
       - name: Install cosign
-        uses: sigstore/cosign-installer@9becc617647dfa20ae7b1151972e9b3a2c338a2b # v2.8.1
+        uses: sigstore/cosign-installer@c3667d99424e7e6047999fb6246c0da843953c65 # v3.0.1
         with:
           cosign-release: 'v1.13.1'
 
