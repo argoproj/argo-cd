@@ -83,4 +83,5 @@ Participation in the Argo CD project is governed by the [CNCF Code of Conduct](h
 1. [Decentralized GitOps over environments](https://blogs.sap.com/2021/05/06/decentralized-gitops-over-environments/)
 1. [Getting Started with ArgoCD for GitOps Deployments](https://youtu.be/AvLuplh1skA)
 1. [Using Argo CD & Datree for Stable Kubernetes CI/CD Deployments](https://youtu.be/17894DTru2Y)
+1. [How to create Argo CD Applications Automatically using ApplicationSet? "Automation of GitOps"](https://amralaayassen.medium.com/how-to-create-argocd-applications-automatically-using-applicationset-automation-of-the-gitops-59455eaf4f72)
 
