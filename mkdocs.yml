@@ -98,6 +98,7 @@ nav:
       - operator-manual/applicationset/Generators-SCM-Provider.md
       - operator-manual/applicationset/Generators-Cluster-Decision-Resource.md
       - operator-manual/applicationset/Generators-Pull-Request.md
+      - operator-manual/applicationset/Generators-Post-Selector.md
     - Template fields:
       - operator-manual/applicationset/Template.md
       - operator-manual/applicationset/GoTemplate.md
