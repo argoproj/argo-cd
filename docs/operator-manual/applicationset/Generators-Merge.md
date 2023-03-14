@@ -127,6 +127,8 @@ spec:
     # Use the selector set by both child generators to combine them.
     - merge:
         mergeKeys:
+          # Note that this would not work with goTemplate enabled,
+          # nested merge keys are not supported there.
           - values.selector
         generators:
           # Assuming, all configured clusters have a label for their location:
@@ -204,3 +206,12 @@ Assuming a cluster named `germany01` with the label `metadata.labels.location=Ge
                           - list:
                               elements:
                                 - # (...)
+
+1. Merging on nested values while using `goTemplate: true` is currently not supported, this will not work
+
+        spec:
+          goTemplate: true
+          generators:
+          - merge:
+              mergeKeys:
+                - values.merge
