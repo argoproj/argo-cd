@@ -15,8 +15,8 @@ interface ProjectRolePoliciesProps {
     newRole: boolean;
 }
 
-function generatePolicy(project: string, role: string, type?: string, action?: string, object?: string, permission?: string): string {
-    return `p, proj:${project}:${role}, ${type || ''}, ${action || ''}, ${object ? project + '/' + object : ''}, ${permission || ''}`;
+function generatePolicy(project: string, role: string, resource?: string, action?: string, object?: string, permission?: string): string {
+    return `p, proj:${project}:${role}, ${resource || ''}, ${action || ''}, ${object ? project + '/' + object : ''}, ${permission || ''}`;
 }
 
 const actions = ['get', 'create', 'update', 'delete', 'sync', 'override'];
@@ -26,13 +26,13 @@ export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => (
         {applications => (
             <React.Fragment>
                 <p>POLICY RULES</p>
-                <div>Manage this role's permissions to applications</div>
+                <div>Manage this role's permissions to applications or repositories</div>
                 <div className='argo-table-list'>
                     <div className='argo-table-list__head'>
                         <div className='row'>
-                            <div className='columns small-3'>TYPE</div>
+                            <div className='columns small-3'>RESOURCE</div>
                             <div className='columns small-3'>ACTION</div>
-                            <div className='columns small-3'>APPLICATION</div>
+                            <div className='columns small-3'>OBJECT</div>
                             <div className='columns small-3'>PERMISSION</div>
                         </div>
                     </div>
@@ -89,16 +89,16 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
         return (
             <div className='row project-role-policies-edit__wrapper-row'>
                 <div className='columns small-3'>
-                    <datalist id='type'>
+                    <datalist id='resource'>
                         <option>applications</option>
                         <option>repositories</option>
                     </datalist>
                     <input
                         className='argo-field'
-                        list='type'
-                        value={this.getType()}
+                        list='resource'
+                        value={this.getResource()}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            this.setType(e.target.value);
+                            this.setResource(e.target.value);
                         }}
                     />
                 </div>
@@ -157,20 +157,20 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
         );
     }
 
-    private getType(): string {
+    private getResource(): string {
         const fields = (this.props.fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
             return '';
         }
         return fields[2].trim();
     }
-    private setType(type: string) {
+    private setResource(resource: string) {
         const fields = (this.props.fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
-            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, type, '', '', ''));
+            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, resource, '', '', ''));
             return;
         }
-        fields[2] = ` ${type}`;
+        fields[2] = ` ${resource}`;
         this.props.fieldApi.setValue(fields.join());
     }
 
