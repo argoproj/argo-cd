@@ -9,10 +9,18 @@ import {HealthStatusCode} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
-import {ComparisonStatusIcon, formatCreationTimestamp, getPodStateReason, HealthStatusIcon} from '../utils';
-
+import {
+    ComparisonStatusIcon,
+    formatCreationTimestamp,
+    getPodReadinessGatesState,
+    getPodReadinessGatesState as _getPodReadinessGatesState,
+    getPodStateReason,
+    HealthStatusIcon
+} from '../utils';
 import './application-node-info.scss';
 import {Fragment} from 'react';
+import {ReadinessGatesFailedWarning} from './readiness-gates-failed-warning';
+
 
 export const ApplicationNodeInfo = (props: {
     application: models.Application;
@@ -225,8 +233,17 @@ export const ApplicationNodeInfo = (props: {
         });
     }
 
+    const readinessGatesState = React.useMemo(() => {
+        if (props.live && props.node?.kind === 'Pod') {
+            return getPodReadinessGatesState(props.live);
+        }
+
+        return null;
+    }, [props.live, props.node]);
+
     return (
         <div>
+            {Boolean(readinessGatesState) && <ReadinessGatesFailedWarning readinessGatesState={readinessGatesState} />}
             <div className='white-box'>
                 <div className='white-box__details'>
                     {attributes.map(attr => (

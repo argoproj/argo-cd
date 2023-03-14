@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -157,6 +159,10 @@ const (
 	// Ex: "http://grafana.example.com/d/yu5UH4MMz/deployments"
 	// Ex: "Go to Dashboard|http://grafana.example.com/d/yu5UH4MMz/deployments"
 	AnnotationKeyLinkPrefix = "link.argocd.argoproj.io/"
+
+	// AnnotationKeyAppSkipReconcile tells the Application to skip the Application controller reconcile.
+	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
+	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
 )
 
 // Environment variables for tuning and debugging Argo CD
@@ -223,13 +229,7 @@ const (
 	// DefaultCMPWorkDirName defines the work directory name used by the cmp-server
 	DefaultCMPWorkDirName = "_cmp_server"
 
-	ConfigMapPluginDeprecationWarning = "argocd-cm plugins are deprecated, and support will be removed in v2.6. Upgrade your plugin to be installed via sidecar. https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/"
-
-	ConfigMapPluginCLIDeprecationWarning = "spec.plugin.name is set, which means this Application uses a plugin installed in the " +
-		"argocd-cm ConfigMap. Installing plugins via that ConfigMap is deprecated in Argo CD v2.5. " +
-		"Starting in Argo CD v2.6, this Application will fail to sync. Contact your Argo CD admin " +
-		"to make sure an upgrade plan is in place. More info: " +
-		"https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/2.4-2.5/"
+	ConfigMapPluginDeprecationWarning = "argocd-cm plugins are deprecated, and support will be removed in v2.7. Upgrade your plugin to be installed via sidecar. https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/"
 )
 
 const (
@@ -322,3 +322,5 @@ const (
 const TokenVerificationError = "failed to verify the token"
 
 var TokenVerificationErr = errors.New(TokenVerificationError)
+
+var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
