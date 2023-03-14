@@ -68,7 +68,7 @@ export const ApplicationNodeInfo = (props: {
                                 {netContainerStatuses.map((container, i) => {
                                     const state =
                                         (container.state?.waiting && 'waiting') || (container.state?.terminating && 'terminating') || (container.state?.running && 'running');
-                                    const reason = container.state.waiting?.reason || container.state.terminating?.reason || container.state.running?.reason;
+                                    const status = container.state.waiting?.reason || container.state.terminating?.reason || container.state.running?.reason;
                                     const lastState = container.lastState?.terminated;
                                     const msgExists = container.state.waiting?.message || container.state.terminating?.message;
 
@@ -80,7 +80,7 @@ export const ApplicationNodeInfo = (props: {
                                                 {!state || state !== 'running' ? (
                                                     <Fragment>
                                                         Container is in <span className='application-node-info__labels--highlight'>{state}</span> state because of{' '}
-                                                        {reason && <span className='application-node-info__labels--highlight'>{reason}</span>}
+                                                        {status && <span className='application-node-info__labels--highlight'>{status}</span>}
                                                     </Fragment>
                                                 ) : (
                                                     <Fragment>
