@@ -451,6 +451,8 @@ type ApplicationSourceKustomize struct {
 	ForceCommonLabels bool `json:"forceCommonLabels,omitempty" protobuf:"bytes,7,opt,name=forceCommonLabels"`
 	// ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
 	ForceCommonAnnotations bool `json:"forceCommonAnnotations,omitempty" protobuf:"bytes,8,opt,name=forceCommonAnnotations"`
+	// Namespace sets the namespace that Kustomize adds to all resources
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,9,opt,name=namespace"`
 }
 
 // AllowsConcurrentProcessing returns true if multiple processes can run Kustomize builds on the same source at the same time
@@ -458,6 +460,7 @@ func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 	return len(k.Images) == 0 &&
 		len(k.CommonLabels) == 0 &&
 		k.NamePrefix == "" &&
+		k.Namespace == "" &&
 		k.NameSuffix == ""
 }
 
@@ -467,6 +470,7 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 		k.NamePrefix == "" &&
 			k.NameSuffix == "" &&
 			k.Version == "" &&
+			k.Namespace == "" &&
 			len(k.Images) == 0 &&
 			len(k.CommonLabels) == 0 &&
 			len(k.CommonAnnotations) == 0
