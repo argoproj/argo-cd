@@ -188,7 +188,7 @@ func (s ApplicationSources) Equals(other ApplicationSources) bool {
 		return false
 	}
 	for i := range s {
-		if !s[i].Equals(other[i]) {
+		if !s[i].Equals(&other[i]) {
 			return false
 		}
 	}
@@ -536,11 +536,65 @@ type OptionalMap struct {
 	// We need the explicit +optional so that kube-builder generates the CRD without marking this as required.
 }
 
+// Equals returns true if the two OptionalMap objects are equal. We can't use reflect.DeepEqual because it will return
+// false if one of the maps is nil and the other is an empty map. This is because the JSON unmarshaller will set the
+// map to nil if it is empty, but the protobuf unmarshaller will set it to an empty map.
+func (o *OptionalMap) Equals(other *OptionalMap) bool {
+	if o == nil && other == nil {
+		return true
+	}
+	if o == nil || other == nil {
+		return false
+	}
+	if len(o.Map) != len(other.Map) {
+		return false
+	}
+	if o.Map == nil && other.Map == nil {
+		return true
+	}
+	// The next two blocks are critical. Depending on whether the struct was populated from JSON or protobufs, the map
+	// field will be either nil or an empty map. They mean the same thing: the map is empty.
+	if o.Map == nil && len(other.Map) == 0 {
+		return true
+	}
+	if other.Map == nil && len(o.Map) == 0 {
+		return true
+	}
+	return reflect.DeepEqual(o.Map, other.Map)
+}
+
 type OptionalArray struct {
 	// Array is the value of an array type parameter.
 	// +optional
 	Array []string `json:"array" protobuf:"bytes,1,rep,name=array"`
 	// We need the explicit +optional so that kube-builder generates the CRD without marking this as required.
+}
+
+// Equals returns true if the two OptionalArray objects are equal. We can't use reflect.DeepEqual because it will return
+// false if one of the arrays is nil and the other is an empty array. This is because the JSON unmarshaller will set the
+// array to nil if it is empty, but the protobuf unmarshaller will set it to an empty array.
+func (o *OptionalArray) Equals(other *OptionalArray) bool {
+	if o == nil && other == nil {
+		return true
+	}
+	if o == nil || other == nil {
+		return false
+	}
+	if len(o.Array) != len(other.Array) {
+		return false
+	}
+	if o.Array == nil && other.Array == nil {
+		return true
+	}
+	// The next two blocks are critical. Depending on whether the struct was populated from JSON or protobufs, the array
+	// field will be either nil or an empty array. They mean the same thing: the array is empty.
+	if o.Array == nil && len(other.Array) == 0 {
+		return true
+	}
+	if other.Array == nil && len(o.Array) == 0 {
+		return true
+	}
+	return reflect.DeepEqual(o.Array, other.Array)
 }
 
 type ApplicationSourcePluginParameter struct {
@@ -557,6 +611,16 @@ type ApplicationSourcePluginParameter struct {
 	*OptionalMap `json:",omitempty" protobuf:"bytes,3,rep,name=map"`
 	// Array is the value of an array type parameter.
 	*OptionalArray `json:",omitempty" protobuf:"bytes,4,rep,name=array"`
+}
+
+func (p ApplicationSourcePluginParameter) Equals(other ApplicationSourcePluginParameter) bool {
+	if p.Name != other.Name {
+		return false
+	}
+	if p.String_ != other.String_ {
+		return false
+	}
+	return p.OptionalMap.Equals(other.OptionalMap) && p.OptionalArray.Equals(other.OptionalArray)
 }
 
 // MarshalJSON is a custom JSON marshaller for ApplicationSourcePluginParameter. We need this custom marshaler because,
@@ -597,6 +661,22 @@ func (p ApplicationSourcePluginParameter) MarshalJSON() ([]byte, error) {
 }
 
 type ApplicationSourcePluginParameters []ApplicationSourcePluginParameter
+
+func (p ApplicationSourcePluginParameters) Equals(other ApplicationSourcePluginParameters) bool {
+	if len(p) != len(other) {
+		return false
+	}
+	for i := range p {
+		if !p[i].Equals(other[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func (p ApplicationSourcePluginParameters) IsZero() bool {
+	return len(p) == 0
+}
 
 // Environ builds a list of environment variables to represent parameters sent to a plugin from the Application
 // manifest. Parameters are represented as one large stringified JSON array (under `ARGOCD_APP_PARAMETERS`). They're
@@ -644,9 +724,28 @@ type ApplicationSourcePlugin struct {
 	Parameters ApplicationSourcePluginParameters `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
 }
 
+func (c *ApplicationSourcePlugin) Equals(other *ApplicationSourcePlugin) bool {
+	if c == nil && other == nil {
+		return true
+	}
+	if c == nil || other == nil {
+		return false
+	}
+	if c.Parameters != nil && !c.Parameters.Equals(other.Parameters) {
+		return false
+	}
+	// DeepEqual works fine for fields besides Parameters. Since we already know that Parameters are equal, we can
+	// set them to nil and then do a DeepEqual.
+	leftCopy := c.DeepCopy()
+	rightCopy := other.DeepCopy()
+	leftCopy.Parameters = nil
+	rightCopy.Parameters = nil
+	return reflect.DeepEqual(leftCopy, rightCopy)
+}
+
 // IsZero returns true if the ApplicationSourcePlugin is considered empty
 func (c *ApplicationSourcePlugin) IsZero() bool {
-	return c == nil || c.Name == "" && c.Env.IsZero()
+	return c == nil || c.Name == "" && c.Env.IsZero() && c.Parameters.IsZero()
 }
 
 // AddEnvEntry merges an EnvEntry into a list of entries. If an entry with the same name already exists,
@@ -2473,8 +2572,23 @@ func (condition *ApplicationCondition) IsError() bool {
 }
 
 // Equals compares two instances of ApplicationSource and return true if instances are equal.
-func (source *ApplicationSource) Equals(other ApplicationSource) bool {
-	return reflect.DeepEqual(*source, other)
+func (source *ApplicationSource) Equals(other *ApplicationSource) bool {
+	if source == nil && other == nil {
+		return true
+	}
+	if source == nil || other == nil {
+		return false
+	}
+	if !source.Plugin.Equals(other.Plugin) {
+		return false
+	}
+	// reflect.DeepEqual works fine for the other fields. Since the plugin fields are equal, set them to null so they're
+	// not considered in the DeepEqual comparison.
+	sourceCopy := source.DeepCopy()
+	otherCopy := other.DeepCopy()
+	sourceCopy.Plugin = nil
+	otherCopy.Plugin = nil
+	return reflect.DeepEqual(sourceCopy, otherCopy)
 }
 
 // ExplicitType returns the type (e.g. Helm, Kustomize, etc) of the application. If either none or multiple types are defined, returns an error.
