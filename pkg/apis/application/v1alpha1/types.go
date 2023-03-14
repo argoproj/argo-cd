@@ -617,7 +617,7 @@ func (p ApplicationSourcePluginParameter) Equals(other ApplicationSourcePluginPa
 	if p.Name != other.Name {
 		return false
 	}
-	if p.String_ != other.String_ {
+	if !reflect.DeepEqual(p.String_, other.String_) {
 		return false
 	}
 	return p.OptionalMap.Equals(other.OptionalMap) && p.OptionalArray.Equals(other.OptionalArray)
@@ -731,7 +731,7 @@ func (c *ApplicationSourcePlugin) Equals(other *ApplicationSourcePlugin) bool {
 	if c == nil || other == nil {
 		return false
 	}
-	if c.Parameters != nil && !c.Parameters.Equals(other.Parameters) {
+	if !c.Parameters.Equals(other.Parameters) {
 		return false
 	}
 	// DeepEqual works fine for fields besides Parameters. Since we already know that Parameters are equal, we can
