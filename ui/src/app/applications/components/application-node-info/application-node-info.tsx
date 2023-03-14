@@ -5,6 +5,7 @@ import * as React from 'react';
 import {YamlEditor, ClipboardText} from '../../../shared/components';
 import {DeepLinks} from '../../../shared/components/deep-links';
 import * as models from '../../../shared/models';
+import {HealthStatusCode} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
@@ -12,8 +13,6 @@ import {ComparisonStatusIcon, formatCreationTimestamp, getPodStateReason, Health
 
 import './application-node-info.scss';
 import {Fragment} from 'react';
-
-
 
 export const ApplicationNodeInfo = (props: {
     application: models.Application;
@@ -69,7 +68,7 @@ export const ApplicationNodeInfo = (props: {
 
                                     return (
                                         <tr>
-                                            <td  width='18%'>{container.name}</td>
+                                            <td width='18%'>{container.name}</td>
                                             <td />
                                             <td>
                                                 {!state || state !== 'running' ? (
@@ -82,7 +81,7 @@ export const ApplicationNodeInfo = (props: {
                                                         Container is in <span className='application-node-info__labels--highlight'>{state}</span> state
                                                     </Fragment>
                                                 )}
-                                                {((!state || state !== 'running') && msgExists) && (
+                                                {(!state || state !== 'running') && msgExists && (
                                                     <span title={msgExists} key={i}>
                                                         {' '}
                                                         <i style={{color: '#6D7F8B'}} className='fa-solid fa-info-circle' />
