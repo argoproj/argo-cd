@@ -91,6 +91,11 @@ func Test_setKustomizeOpt(t *testing.T) {
 		setKustomizeOpt(&src, kustomizeOpts{version: "v0.1"})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Version: "v0.1"}, src.Kustomize)
 	})
+	t.Run("Namespace", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{namespace: "custom-namespace"})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Namespace: "custom-namespace"}, src.Kustomize)
+	})
 	t.Run("Common labels", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setKustomizeOpt(&src, kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}})
