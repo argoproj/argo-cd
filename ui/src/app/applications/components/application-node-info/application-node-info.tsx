@@ -5,40 +5,15 @@ import * as React from 'react';
 import {YamlEditor, ClipboardText} from '../../../shared/components';
 import {DeepLinks} from '../../../shared/components/deep-links';
 import * as models from '../../../shared/models';
-import {HealthStatusCode} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
 import {ComparisonStatusIcon, formatCreationTimestamp, getPodStateReason, HealthStatusIcon} from '../utils';
 
 import './application-node-info.scss';
+import {Fragment} from 'react';
 
-function getContainerFailure(container: any) {
-    if (container.lastState?.terminated) {
-        return `Failed with exitcode ${container.lastState.terminated.exitCode}`;
-    }
-    if (
-        container.state.waiting &&
-        (String(container.state.waiting.reason).startsWith('Err') || String(container.state.waiting.reason).startsWith('Invalid')||
-            String(container.state.waiting.reason).endsWith('Error') ||
-            String(container.state.waiting.reason).endsWith('BackOff'))
-    ) {
-        return container.state.waiting.reason;
-    }
 
-    if (container.state.terminating) {
-        if (container.state.terminating.message != '') {
-            return container.state.terminating.message;
-        }
-        if (container.state.terminating.reason == 'OOMKilled') {
-            return container.state.terminating.reason;
-        }
-        if (container.state.terminating.exitCode != 0) {
-            return `Failed with exitcode ${container.state.terminating.exitCode} `;
-        }
-    }
-    return '';
-}
 
 export const ApplicationNodeInfo = (props: {
     application: models.Application;
@@ -75,32 +50,63 @@ export const ApplicationNodeInfo = (props: {
     if (props.live) {
         if (props.node.kind === 'Pod') {
             const {reason, message, netContainerStatuses} = getPodStateReason(props.live);
-            // console.log("netContainerStatuses is ",netContainerStatuses);
             attributes.push({title: 'STATE', value: reason});
             if (message) {
                 attributes.push({title: 'STATE DETAILS', value: message});
             }
             if (netContainerStatuses.length > 0) {
                 attributes.push({
-                    title: 'CONTAINER STATUS',
+                    title: 'CONTAINER STATE',
                     value: (
-                        <div className='application-node-info__labels' style={{marginTop: 5, overflowY: 'auto', maxHeight: 50}}>
-                            {netContainerStatuses.map((container, i) => {
-                                let failureReason = getContainerFailure(container);
-                                return (
-                                    <div className='boxcolumns small-9' key={i}>
-                                        <span>
-                                            <HealthStatusIcon
-                                                state={{
-                                                    status: failureReason ? ('Degraded' as HealthStatusCode) : container.ready ? 'Healthy' : ('Progressing' as HealthStatusCode),
-                                                    message: ''
-                                                }}
-                                            />{' '}
-                                            {container.name} {failureReason && `-- ${failureReason}`}
-                                        </span>
-                                    </div>
-                                );
-                            })}
+                        <div className='application-node-info__labels'>
+                            <table>
+                                {netContainerStatuses.map((container, i) => {
+                                    const state =
+                                        (container.state?.waiting && 'waiting') || (container.state?.terminating && 'terminating') || (container.state?.running && 'running');
+                                    const reason = container.state.waiting?.reason || container.state.terminating?.reason || container.state.running?.reason;
+                                    const lastState = container.lastState?.terminated;
+                                    const msgExists = container.state.waiting?.message || container.state.terminating?.message;
+
+                                    return (
+                                        <tr>
+                                            <td  width='18%'>{container.name}</td>
+                                            <td />
+                                            <td>
+                                                {!state || state !== 'running' ? (
+                                                    <Fragment>
+                                                        Container is in <span className='application-node-info__labels--highlight'>{state}</span> state because of{' '}
+                                                        {reason && <span className='application-node-info__labels--highlight'>{reason}</span>}
+                                                    </Fragment>
+                                                ) : (
+                                                    <Fragment>
+                                                        Container is in <span className='application-node-info__labels--highlight'>{state}</span> state
+                                                    </Fragment>
+                                                )}
+                                                {((!state || state !== 'running') && msgExists) && (
+                                                    <span title={msgExists} key={i}>
+                                                        {' '}
+                                                        <i style={{color: '#6D7F8B'}} className='fa-solid fa-info-circle' />
+                                                    </span>
+                                                )}
+                                                {'.'}
+                                                {lastState && (
+                                                    <Fragment>
+                                                        {' '}
+                                                        The container most recently terminated with exit code {lastState?.exitCode.toString()} and status{' '}
+                                                        {lastState?.reason && <span className='application-node-info__labels--highlight'>{lastState?.reason}</span>}
+                                                        {container.lastState?.message && (
+                                                            <span title={container.lastState?.message} key={i}>
+                                                                <i style={{color: '#6D7F8B'}} className='fa-solid fa-info-circle' />
+                                                            </span>
+                                                        )}
+                                                        {'.'}
+                                                    </Fragment>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </table>
                         </div>
                     )
                 });
