@@ -55,34 +55,36 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 	}
 
 	// Evaluate all parameters for the child generators
-	ParamsSetListFromGenerators, err := m.getParamsSetListForAllGenerators(appSetGenerator.Merge.Generators, appSet)
+	paramsSetListFromGenerators, err := m.getParamsSetListForAllGenerators(appSetGenerator.Merge.Generators, appSet)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create a map indexed by the merge keys for the base ParamSet
-	baseParamsSet := ParamsSetListFromGenerators[0]
-	baseParamsByMergeKey, err := indexParamsSetByMergeKeys(appSetGenerator.Merge.MergeKeys, baseParamsSet)
+	// Turn all those sets of parameters into a map indexed by the merge key containing the sets
+	paramsSetByMergeKeyList, err := paramsSetListIntoMapsByMergeKey(paramsSetListFromGenerators, appSetGenerator.Merge.MergeKeys)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed evaluating merge keys for parameter sets: %e", err)
 	}
+
 	// If no parameters have been found (by mergeKey), then no additional parameters
-	// can match the base parameters set (and would merge with it).
-	if len(baseParamsByMergeKey) == 0 {
-		return baseParamsSet, nil
+	// can match the base parameters set (and would merge with it). Return the
+	// parameters for the base generator then
+	baseParamsSetByMergeKey := paramsSetByMergeKeyList[0]
+	if len(baseParamsSetByMergeKey) == 0 {
+		return paramsSetListFromGenerators[0], nil
 	}
 
 	// Merge additional parameter sets into the base parameter set
-	additionalParamsSetList := ParamsSetListFromGenerators[1:]
-	err = mergeIntoBaseParamsSet(baseParamsByMergeKey, additionalParamsSetList, appSetGenerator.Merge.MergeKeys, appSet.Spec.GoTemplate)
+	additionalParamsSetByMergeKeyList := paramsSetByMergeKeyList[1:]
+	err = mergeIntoBaseParamsSet(baseParamsSetByMergeKey, additionalParamsSetByMergeKeyList, appSet.Spec.GoTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge additional parameters into base parameter set: %e", err)
 	}
 
-	// Turn the indexed baseParamsByMergeKey back into a simpel ParamsSet
-	mergedParamsSets := make(ParamsSet, len(baseParamsByMergeKey))
+	// Turn the indexed baseParamsByMergeKey back into a simple ParamsSet
+	mergedParamsSets := make(ParamsSet, len(baseParamsSetByMergeKey))
 	var i = 0
-	for _, mergedParamsSet := range baseParamsByMergeKey {
+	for _, mergedParamsSet := range baseParamsSetByMergeKey {
 		mergedParamsSets[i] = mergedParamsSet
 		i += 1
 	}
@@ -90,16 +92,27 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 	return mergedParamsSets, nil
 }
 
-/// mergeIntoBaseParamsSet takes overrides in `additionalParamsSetList` and merges
-// those via `mergeKeys` into the `baseParamsByMergeKey`
-func mergeIntoBaseParamsSet(baseParamsByMergeKey map[string]Params, additionalParamsSetList ParamsSetList, mergeKeys []string, goTemplate bool) error {
-	for _, paramsSet := range additionalParamsSetList {
-		// Index the parameter set into a map
-		additionalParamsByMergeKey, err := indexParamsSetByMergeKeys(mergeKeys, paramsSet)
+// paramsSetListIntoIndexByMergeKey takes a list of parameter sets and turns them
+// into maps containing those lists and indexed by their merge keys
+func paramsSetListIntoMapsByMergeKey(paramsSetList ParamsSetList, mergeKeys []string) ([]map[string]Params, error) {
+	indexedParamsSetList := make([]map[string]Params, 0)
+
+	for _, paramsSet := range paramsSetList {
+		indexedParamsSet, err := indexParamsSetByMergeKeys(mergeKeys, paramsSet)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
+		indexedParamsSetList = append(indexedParamsSetList, indexedParamsSet)
+	}
+
+	return indexedParamsSetList, nil
+}
+
+/// mergeIntoBaseParamsSet takes overrides in `additionalParamsSetList` and merges
+// those via `mergeKeys` into the `baseParamsByMergeKey`
+func mergeIntoBaseParamsSet(baseParamsByMergeKey map[string]Params, additionalParamsSetByMergeKeyList []map[string]Params, goTemplate bool) error {
+	for _, additionalParamsByMergeKey := range additionalParamsSetByMergeKeyList {
 		// Now merge the additional params into every base parameters map
 		for mergeKeyValue, baseParam := range baseParamsByMergeKey {
 			// Check if there is a matching override from the additionalParameters
