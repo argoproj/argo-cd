@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@types/react-virtualized": "^9.21.21",
     "@types/superagent": "^4.1.15",
     "ansi-to-react": "^6.1.6",
     "argo-ui": "git+https://github.com/argoproj/argo-ui.git",
@@ -41,9 +42,10 @@
     "react-router": "^4.3.1",
     "react-router-dom": "^4.2.2",
     "react-svg-piechart": "^2.4.2",
+    "react-virtualized": "^9.22.3",
     "redoc": "^2.0.0-rc.64",
     "rxjs": "^6.6.6",
-    "superagent": "^7.1.6",
+    "superagent": "^8.0.9",
     "timezones-list": "3.0.1",
     "tsx": "^3.4.0",
     "unidiff": "^1.0.2",

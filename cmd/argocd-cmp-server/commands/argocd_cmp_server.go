@@ -44,6 +44,14 @@ func NewCommand() *cobra.Command {
 			config, err := plugin.ReadPluginConfig(configFilePath)
 			errors.CheckError(err)
 
+			if !config.Spec.Discover.IsDefined() {
+				name := config.Metadata.Name
+				if config.Spec.Version != "" {
+					name = name + "-" + config.Spec.Version
+				}
+				log.Infof("No discovery configuration is defined for plugin %s. To use this plugin, specify %q in the Application's spec.source.plugin.name field.", config.Metadata.Name, name)
+			}
+
 			if otlpAddress != "" {
 				var closer func()
 				var err error
