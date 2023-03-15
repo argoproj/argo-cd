@@ -54,6 +54,7 @@ func TestMergeGenerate(t *testing.T) {
 		name           string
 		baseGenerators []argoprojiov1alpha1.ApplicationSetNestedGenerator
 		mergeKeys      []string
+		goTemplate     bool
 		expectedErr    error
 		expected       []map[string]interface{}
 	}{
@@ -79,6 +80,19 @@ func TestMergeGenerate(t *testing.T) {
 				*getNestedListGenerator(`{"a": "3_1","b": "different","c": "3_3"}`), // gets ignored because its merge key value isn't in the base params set
 			},
 			mergeKeys: []string{"b"},
+			expected: []map[string]interface{}{
+				{"a": "2_1", "b": "same", "c": "1_3"},
+			},
+		},
+		{
+			name: "happy flow - generate paramSets with goTemplate",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				*getNestedListGenerator(`{"a": "1_1","b": "same","c": "1_3"}`),
+				*getNestedListGenerator(`{"a": "2_1","b": "same"}`),
+				*getNestedListGenerator(`{"a": "3_1","b": "different","c": "3_3"}`), // gets ignored because its merge key value isn't in the base params set
+			},
+			mergeKeys:  []string{"b"},
+			goTemplate: true,
 			expected: []map[string]interface{}{
 				{"a": "2_1", "b": "same", "c": "1_3"},
 			},
@@ -155,6 +169,7 @@ func TestMergeGenerate(t *testing.T) {
 			t.Parallel()
 
 			appSet := &argoprojiov1alpha1.ApplicationSet{}
+			appSet.Spec.GoTemplate = testCaseCopy.goTemplate
 
 			var mergeGenerator = NewMergeGenerator(
 				map[string]Generator{

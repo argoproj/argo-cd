@@ -88,7 +88,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 				// If we merge with go templates, the parameters might be a nested object,
 				// use mergo
 				if appSet.Spec.GoTemplate {
-					if err := mergo.Merge(&baseParamsSet, overrideParamsSet, mergo.WithOverride); err != nil {
+					if err := mergo.Merge(&baseParam, overrideParamsSet, mergo.WithOverride); err != nil {
 						return nil, fmt.Errorf("failed to merge base param set with override param set: %w", err)
 					}
 					baseParamsByMergeKey[mergeKeyValue] = baseParam
