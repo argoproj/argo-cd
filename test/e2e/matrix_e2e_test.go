@@ -22,7 +22,7 @@ func TestListMatrixGenerator(t *testing.T) {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("%s-%s", cluster, name),
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
@@ -146,7 +146,7 @@ func TestClusterMatrixGenerator(t *testing.T) {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("%s-%s", cluster, name),
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
