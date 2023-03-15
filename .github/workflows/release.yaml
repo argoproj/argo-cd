@@ -3,6 +3,9 @@ on:
   push:
     tags:
       - 'v*'
+      - '!v2.4*'
+      - '!v2.5*'
+      - '!v2.6*'
 
 permissions: {}
 
