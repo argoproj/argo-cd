@@ -120,6 +120,19 @@ func TestMergeGenerate(t *testing.T) {
 			},
 		},
 		{
+			name: "merge ordering - lower overrides upper",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				*getNestedListGenerator(`{"same": "same"}`),
+				*getNestedListGenerator(`{"same": "same", "1": "different_1"}`),
+				*getNestedListGenerator(`{"same": "same", "1": "different_2"}`),
+				*getNestedListGenerator(`{"same": "same", "1": "different_3"}`),
+			},
+			mergeKeys: []string{"same"},
+			expected: []map[string]interface{}{
+				{"same": "same", "1": "different_3"},
+			},
+		},
+		{
 			name: "merge nested matrix with some lists",
 			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
 				{
