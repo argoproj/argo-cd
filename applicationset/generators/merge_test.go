@@ -87,9 +87,9 @@ func TestMergeGenerate(t *testing.T) {
 			name: "merge keys absent - do not merge",
 			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
 				*getNestedListGenerator(`{"a": "a"}`),
-				*getNestedListGenerator(`{"a": "a"}`),
+				*getNestedListGenerator(`{"b": "b"}`),
 			},
-			mergeKeys: []string{"b"},
+			mergeKeys: []string{"c"},
 			expected: []map[string]interface{}{
 				{"a": "a"},
 			},
