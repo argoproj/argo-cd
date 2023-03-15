@@ -16,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 	"github.com/argoproj/argo-cd/v2/util/clusterauth"
@@ -108,8 +107,8 @@ func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clu
 				Name:      secretName,
 				Namespace: utils.ArgoCDNamespace,
 				Labels: map[string]string{
-					argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
-					utils.TestingLabel:            "true",
+					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+					utils.TestingLabel:        "true",
 				},
 			},
 			Data: map[string][]byte{
