@@ -882,7 +882,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	gitGeneratorSpec := &argoprojiov1alpha1.GitGenerator{
 		RepoURL: "https://git.example.com",
 		Files: []argoprojiov1alpha1.GitFileGeneratorItem{
-			{"some/path.json"},
+			{Path: "some/path.json"},
 		},
 	}
 
