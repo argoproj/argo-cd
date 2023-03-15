@@ -128,10 +128,7 @@ func mergeIntoBaseParamsSet(baseParamsByMergeKey map[string]Params, additionalPa
 
 					// Otherwise combine strings
 				} else {
-					overriddenParamsSet, err := utils.CombineStringMapsAllowDuplicates(baseParam, overrideParamsSet)
-					if err != nil {
-						return err
-					}
+					overriddenParamsSet := utils.CombineStringMapsAllowDuplicates(baseParam, overrideParamsSet)
 					baseParamsByMergeKey[mergeKeyValue] = utils.ConvertToMapStringInterface(overriddenParamsSet)
 				}
 			}
