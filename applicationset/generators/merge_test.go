@@ -249,7 +249,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			name:        "simple key, non-unique paramSets",
 			mergeKeys:   []string{"key"},
 			paramSets:   []map[string]interface{}{{"key": "a"}, {"key": "b"}, {"key": "b"}},
-			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, `{"key":"b"}`),
+			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamsSets, `{"key":"b"}`),
 		},
 		{
 			name:      "simple key, duplicated key name, unique paramSets",
@@ -264,7 +264,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			name:        "simple key, duplicated key name, non-unique paramSets",
 			mergeKeys:   []string{"key", "key"},
 			paramSets:   []map[string]interface{}{{"key": "a"}, {"key": "b"}, {"key": "b"}},
-			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, `{"key":"b"}`),
+			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamsSets, `{"key":"b"}`),
 		},
 		{
 			name:      "compound key, unique paramSets",
@@ -316,7 +316,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				{"key1": "a", "key2": "a"},
 				{"key1": "b", "key2": "a"},
 			},
-			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, `{"key1":"a","key2":"a"}`),
+			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamsSets, `{"key1":"a","key2":"a"}`),
 		},
 		{
 			name:      "compound key, duplicate key names, non-unique paramSets",
@@ -326,7 +326,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				{"key1": "a", "key2": "a"},
 				{"key1": "b", "key2": "a"},
 			},
-			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, `{"key1":"a","key2":"a"}`),
+			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamsSets, `{"key1":"a","key2":"a"}`),
 		},
 	}
 
@@ -336,7 +336,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := getParamSetsByMergeKey(testCaseCopy.mergeKeys, testCaseCopy.paramSets)
+			got, err := indexParamsSetByMergeKeys(testCaseCopy.mergeKeys, testCaseCopy.paramSets)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
