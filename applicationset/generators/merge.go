@@ -57,7 +57,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 	// Evaluate all parameters for the child generators
 	paramsSetListFromGenerators, err := m.getParamsSetListForAllGenerators(appSetGenerator.Merge.Generators, appSet)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed evaluating child generator parameters: %e", err)
 	}
 
 	// Turn all those sets of parameters into a map indexed by the merge key containing the sets
@@ -97,10 +97,10 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 func paramsSetListIntoMapsByMergeKey(paramsSetList ParamsSetList, mergeKeys []string) ([]map[string]Params, error) {
 	indexedParamsSetList := make([]map[string]Params, 0)
 
-	for _, paramsSet := range paramsSetList {
+	for i, paramsSet := range paramsSetList {
 		indexedParamsSet, err := indexParamsSetByMergeKeys(mergeKeys, paramsSet)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed computing index for parameter sets from #%d generator : %e", i, err)
 		}
 
 		indexedParamsSetList = append(indexedParamsSetList, indexedParamsSet)
@@ -122,7 +122,7 @@ func mergeIntoBaseParamsSet(baseParamsByMergeKey map[string]Params, additionalPa
 				// use mergo
 				if goTemplate {
 					if err := mergo.Merge(&baseParam, overrideParamsSet, mergo.WithOverride); err != nil {
-						return fmt.Errorf("failed to merge base param set with override param set: %w", err)
+						return fmt.Errorf("failed to merge base param set object with override param set object: %w", err)
 					}
 					baseParamsByMergeKey[mergeKeyValue] = baseParam
 
@@ -142,10 +142,10 @@ func mergeIntoBaseParamsSet(baseParamsByMergeKey map[string]Params, additionalPa
 // in slices ordered according to the order of the given generators.
 func (m *MergeGenerator) getParamsSetListForAllGenerators(generators []argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet) (ParamsSetList, error) {
 	var paramsSets ParamsSetList
-	for _, generator := range generators {
+	for i, generator := range generators {
 		generatorParamsSets, err := m.getParamsSet(generator, appSet)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed generating parameters for generator #%d: %e", i, err)
 		}
 		// concatenate params sets produced by each generator
 		paramsSets = append(paramsSets, generatorParamsSets)
@@ -217,13 +217,10 @@ func indexParamsSetByMergeKeys(mergeKeys []string, paramsSet ParamsSet) (map[str
 	paramsSetsByMergeKey := make(map[string]Params, len(paramsSet))
 
 	for _, paramsSet := range paramsSet {
-
 		// Get the paramsSetId for this paramsSet
 		paramsSetId, err := paramsIdByMergeKeys(paramsSet, deDuplicatedMergeKeys)
-
-		// If error, throw
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed computing parameter set id from merge key values: %e", err)
 		}
 
 		// If the index is empty, try the next param set, this one is missing at
@@ -265,7 +262,7 @@ func paramsIdByMergeKeys(params Params, mergeKeys map[string]bool) (id string, e
 	// Produce a string from the computed id
 	idBytes, err := json.Marshal(idMap)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed turning parameter set (length %d) id into string: %e", len(mergeKeys), err)
 	}
 	id = string(idBytes)
 
