@@ -205,6 +205,7 @@ export interface ApplicationSourceKustomize {
     nameSuffix: string;
     images: string[];
     version: string;
+    namespace: string;
 }
 export interface EnvEntry {
     name: string;
@@ -316,6 +317,10 @@ export interface HealthStatus {
 }
 
 export type State = models.TypeMeta & {metadata: models.ObjectMeta} & {status: any; spec: any};
+
+export type ReadinessGate = {
+    conditionType: string;
+};
 
 export interface ResourceStatus {
     group: string;
@@ -608,6 +613,7 @@ export interface HelmAppSpec {
 export interface KustomizeAppSpec {
     path: string;
     images?: string[];
+    namespace?: string;
 }
 
 export interface PluginAppSpec {

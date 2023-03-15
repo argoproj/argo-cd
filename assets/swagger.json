@@ -5675,6 +5675,17 @@
         }
       }
     },
+    "v1alpha1ApplicationPreservedFields": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1ApplicationSet": {
       "type": "object",
       "title": "ApplicationSet is a set of Application resources\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
@@ -5858,6 +5869,9 @@
         },
         "goTemplate": {
           "type": "boolean"
+        },
+        "preservedFields": {
+          "$ref": "#/definitions/v1alpha1ApplicationPreservedFields"
         },
         "strategy": {
           "$ref": "#/definitions/v1alpha1ApplicationSetStrategy"
@@ -6131,6 +6145,10 @@
           "type": "string",
           "title": "NameSuffix is a suffix appended to resources for Kustomize apps"
         },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace sets the namespace that Kustomize adds to all resources"
+        },
         "version": {
           "type": "string",
           "title": "Version controls which version of Kustomize to use for rendering manifests"
@@ -6162,10 +6180,18 @@
       "type": "object",
       "properties": {
         "array": {
-          "$ref": "#/definitions/v1alpha1OptionalArray"
+          "description": "Array is the value of an array type parameter.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "map": {
-          "$ref": "#/definitions/v1alpha1OptionalMap"
+          "description": "Map is the value of a map type parameter.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "name": {
           "description": "Name is the name identifying a parameter.",
@@ -7087,30 +7113,6 @@
         },
         "syncResult": {
           "$ref": "#/definitions/v1alpha1SyncOperationResult"
-        }
-      }
-    },
-    "v1alpha1OptionalArray": {
-      "type": "object",
-      "properties": {
-        "array": {
-          "type": "array",
-          "title": "Array is the value of an array type parameter.\n+optional",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "v1alpha1OptionalMap": {
-      "type": "object",
-      "properties": {
-        "map": {
-          "type": "object",
-          "title": "Map is the value of a map type parameter.\n+optional",
-          "additionalProperties": {
-            "type": "string"
-          }
         }
       }
     },
