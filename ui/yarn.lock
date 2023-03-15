@@ -1434,10 +1434,10 @@
     "@jridgewell/resolve-uri" "^3.0.3"
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
-"@monokle/validation@0.14.0":
-  version "0.14.0"
-  resolved "https://registry.yarnpkg.com/@monokle/validation/-/validation-0.14.0.tgz#bfaea0a6544624d8f629e1ce818e284a4d3ad97e"
-  integrity sha512-xQanpl+1AX9YqNfpJFafmtabwWuv7ffQUhXSs2RUCk2FLylz5orreRq5ZRbcqov0ozmQGb/jSkTqcu1VInE4wA==
+"@monokle/validation@^0.15.1":
+  version "0.15.1"
+  resolved "https://registry.yarnpkg.com/@monokle/validation/-/validation-0.15.1.tgz#ec4e494665048c19c341add5d9a9aa6d66682bec"
+  integrity sha512-fJVKTgJ0+NiZ5Niu6aUQwtbUrLDV48jCh1/yQNQpLFYtIr7iRabbD6AJknHMjwHxR3XABUzgwcuvYYxHlNvajg==
   dependencies:
     "@open-policy-agent/opa-wasm" "1.8.0"
     "@rollup/plugin-virtual" "3.0.1"
@@ -1817,6 +1817,11 @@
   version "16.3.1"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-16.3.1.tgz#24691fa2b0c3ec8c0d34bfcfd495edac5593ebb4"
   integrity sha512-N87VuQi7HEeRJkhzovao/JviiqKjDKMVKxKMfUvSKw+MbkbW8R0nA3fi/MQhhlxV2fQ+2ReM+/Nt4efdrJx3zA==
+
+"@types/node@18.15.3":
+  version "18.15.3"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-18.15.3.tgz#f0b991c32cfc6a4e7f3399d6cb4b8cf9a0315014"
+  integrity sha512-p6ua9zBxz5otCmbpb5D3U4B5Nanw6Pk3PPyX05xnxbB/fRv71N7CPmORg7uAD5P70T0xmx1pzAx/FUfa5X+3cw==
 
 "@types/node@^14.11.8":
   version "14.18.12"
@@ -6496,12 +6501,12 @@ monaco-editor@^0.33.0:
   resolved "https://registry.yarnpkg.com/monaco-editor/-/monaco-editor-0.33.0.tgz#842e244f3750a2482f8a29c676b5684e75ff34af"
   integrity sha512-VcRWPSLIUEgQJQIE0pVT8FcGBIgFoxz7jtqctE+IiCxWugD0DwgyQBcZBhdSrdMC84eumoqMZsGl2GTreOzwqw==
 
-monaco-kubernetes@0.1.1:
-  version "0.1.1"
-  resolved "https://registry.yarnpkg.com/monaco-kubernetes/-/monaco-kubernetes-0.1.1.tgz#1ec1b5ae1e1885dd40be1d6d266fb848962664d0"
-  integrity sha512-t3cB5oK0mdidHnuynM46tATxQH4JacfaZGeIG6FrlgcwcXhxo4zKKX6VUoi3N23p10FvKS6H0Bf62Zc3FN4YGw==
+monaco-kubernetes@0.2.2:
+  version "0.2.2"
+  resolved "https://registry.yarnpkg.com/monaco-kubernetes/-/monaco-kubernetes-0.2.2.tgz#d6ae0fc4e7c8f43640f47131cd15b56f9bd7aceb"
+  integrity sha512-nw7QfoIIRkSDPW2VyX6ub1vd/HmP9KPy0ZNqEMLavrXLGdZmPD9C8eLZqNruF3edkXUqkk69ZNQmxXeJS7ZIvg==
   dependencies:
-    "@monokle/validation" "0.14.0"
+    "@monokle/validation" "^0.15.1"
     "@types/json-schema" "^7.0.0"
     jsonc-parser "^3.0.0"
     monaco-marker-data-provider "^1.0.0"
@@ -9490,15 +9495,15 @@ typedarray-to-buffer@^3.1.5:
   dependencies:
     is-typedarray "^1.0.0"
 
-typescript@^4.0.3:
-  version "4.4.3"
-  resolved "https://registry.yarnpkg.com/typescript/-/typescript-4.4.3.tgz#bdc5407caa2b109efd4f82fe130656f977a29324"
-  integrity sha512-4xfscpisVgqqDfPaJo5vkd+Qd/ItkoagnHpufr+i2QCHBsNYp+G7UAoyFl8aPtx879u38wPV65rZ8qbGZijalA==
-
 typescript@^4.8.3:
   version "4.8.3"
   resolved "https://registry.yarnpkg.com/typescript/-/typescript-4.8.3.tgz#d59344522c4bc464a65a730ac695007fdb66dd88"
   integrity sha512-goMHfm00nWPa8UvR/CPSvykqf6dVV8x/dp0c5mFTMTIu0u0FlGWRioyy7Nn0PGAdHxpJZnuO/ut+PpQ8UiHAig==
+
+typescript@^4.9.5:
+  version "4.9.5"
+  resolved "https://registry.yarnpkg.com/typescript/-/typescript-4.9.5.tgz#095979f9bcc0d09da324d58d03ce8f8374cbe65a"
+  integrity sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g==
 
 unicode-canonical-property-names-ecmascript@^1.0.4:
   version "1.0.4"
