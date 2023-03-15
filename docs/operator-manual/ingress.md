@@ -186,10 +186,10 @@ metadata:
   name: argocd-server-ingress
   namespace: argocd
   annotations:
-    kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
 spec:
+  ingressClassName: "nginx"
   rules:
   - host: argocd.example.com
     http:
@@ -218,7 +218,6 @@ metadata:
   namespace: argocd
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    kubernetes.io/ingress.class: nginx
     kubernetes.io/tls-acme: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
     # If you encounter a redirect loop or are getting a 307 response code
@@ -226,6 +225,7 @@ metadata:
     #
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
+  ingressClassName: "nginx"
   rules:
   - host: argocd.example.com
     http:
@@ -256,10 +256,10 @@ metadata:
   name: argocd-server-http-ingress
   namespace: argocd
   annotations:
-    kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
 spec:
+  ingressClassName: "nginx"
   rules:
   - http:
       paths:
@@ -285,9 +285,9 @@ metadata:
   name: argocd-server-grpc-ingress
   namespace: argocd
   annotations:
-    kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
 spec:
+  ingressClassName: "nginx"
   rules:
   - http:
       paths:
