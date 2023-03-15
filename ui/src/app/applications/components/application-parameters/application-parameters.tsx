@@ -317,7 +317,8 @@ export const ApplicationParameters = (props: {
         parametersSet.forEach(name => {
             const announcement = props.details.plugin.parametersAnnouncement?.find(param => param.name === name);
             const liveParam = app.spec.source.plugin?.parameters?.find(param => param.name === name);
-            const pluginIcon = announcement && liveParam ? 'This parameter has been provided by plugin, but is overridden in application manifest.':'This parameter is provided by the plugin.';
+            const pluginIcon =
+                announcement && liveParam ? 'This parameter has been provided by plugin, but is overridden in application manifest.' : 'This parameter is provided by the plugin.';
             const isPluginPar = announcement ? true : false;
             if ((announcement?.collectionType === undefined && liveParam?.map) || announcement?.collectionType === 'map') {
                 let liveParamMap;
