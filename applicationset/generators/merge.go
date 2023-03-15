@@ -72,12 +72,32 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 		return baseParamsSet, nil
 	}
 
+	// Merge additional parameter sets into the base parameter set
 	additionalParamsSetList := ParamsSetListFromGenerators[1:]
+	err = mergeIntoBaseParamsSet(baseParamsByMergeKey, additionalParamsSetList, appSetGenerator.Merge.MergeKeys, appSet.Spec.GoTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge additional parameters into base parameter set: %e", err)
+	}
+
+	// Turn the indexed baseParamsByMergeKey back into a simpel ParamsSet
+	mergedParamsSets := make(ParamsSet, len(baseParamsByMergeKey))
+	var i = 0
+	for _, mergedParamsSet := range baseParamsByMergeKey {
+		mergedParamsSets[i] = mergedParamsSet
+		i += 1
+	}
+
+	return mergedParamsSets, nil
+}
+
+/// mergeIntoBaseParamsSet takes overrides in `additionalParamsSetList` and merges
+// those via `mergeKeys` into the `baseParamsByMergeKey`
+func mergeIntoBaseParamsSet(baseParamsByMergeKey map[string]Params, additionalParamsSetList ParamsSetList, mergeKeys []string, goTemplate bool) error {
 	for _, paramsSet := range additionalParamsSetList {
 		// Index the parameter set into a map
-		additionalParamsByMergeKey, err := indexParamsSetByMergeKeys(appSetGenerator.Merge.MergeKeys, paramsSet)
+		additionalParamsByMergeKey, err := indexParamsSetByMergeKeys(mergeKeys, paramsSet)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		// Now merge the additional params into every base parameters map
@@ -87,9 +107,9 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 
 				// If we merge with go templates, the parameters might be a nested object,
 				// use mergo
-				if appSet.Spec.GoTemplate {
+				if goTemplate {
 					if err := mergo.Merge(&baseParam, overrideParamsSet, mergo.WithOverride); err != nil {
-						return nil, fmt.Errorf("failed to merge base param set with override param set: %w", err)
+						return fmt.Errorf("failed to merge base param set with override param set: %w", err)
 					}
 					baseParamsByMergeKey[mergeKeyValue] = baseParam
 
@@ -97,7 +117,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 				} else {
 					overriddenParamsSet, err := utils.CombineStringMapsAllowDuplicates(baseParam, overrideParamsSet)
 					if err != nil {
-						return nil, err
+						return err
 					}
 					baseParamsByMergeKey[mergeKeyValue] = utils.ConvertToMapStringInterface(overriddenParamsSet)
 				}
@@ -105,14 +125,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 		}
 	}
 
-	mergedParamsSets := make(ParamsSet, len(baseParamsByMergeKey))
-	var i = 0
-	for _, mergedParamsSet := range baseParamsByMergeKey {
-		mergedParamsSets[i] = mergedParamsSet
-		i += 1
-	}
-
-	return mergedParamsSets, nil
+	return nil
 }
 
 // getParamsSetListForAllGenerators generates params for each child generator in a MergeGenerator. Param sets are returned
