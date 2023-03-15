@@ -9,8 +9,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/argoproj/pkg/rand"
 
@@ -73,9 +75,8 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	}
 	logCtx := log.WithFields(log.Fields{"execID": execId})
 
-	// log in a way we can copy-and-paste into a terminal
-	args := strings.Join(cmd.Args, " ")
-	logCtx.WithFields(log.Fields{"dir": cmd.Dir}).Info(args)
+	argsToLog := getCommandArgsToLog(cmd)
+	logCtx.WithFields(log.Fields{"dir": cmd.Dir}).Info(argsToLog)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -106,12 +107,34 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	logCtx.WithFields(log.Fields{"duration": duration}).Debug(output)
 
 	if err != nil {
-		err := newCmdError(args, errors.New(err.Error()), strings.TrimSpace(stderr.String()))
+		err := newCmdError(argsToLog, errors.New(err.Error()), strings.TrimSpace(stderr.String()))
 		logCtx.Error(err.Error())
 		return strings.TrimSuffix(output, "\n"), err
 	}
 
 	return strings.TrimSuffix(output, "\n"), nil
+}
+
+// getCommandArgsToLog represents the given command in a way that we can copy-and-paste into a terminal
+func getCommandArgsToLog(cmd *exec.Cmd) string {
+	var argsToLog []string
+	for _, arg := range cmd.Args {
+		containsSpace := false
+		for _, r := range arg {
+			if unicode.IsSpace(r) {
+				containsSpace = true
+				break
+			}
+		}
+		if containsSpace {
+			// add quotes and escape any internal quotes
+			argsToLog = append(argsToLog, strconv.Quote(arg))
+		} else {
+			argsToLog = append(argsToLog, arg)
+		}
+	}
+	args := strings.Join(argsToLog, " ")
+	return args
 }
 
 type CmdError struct {
