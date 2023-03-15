@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -265,4 +266,31 @@ func TestRunCommandContextTimeout(t *testing.T) {
 	after := time.Now()
 	assert.Error(t, err) // The command should time out, causing an error.
 	assert.Less(t, after.Sub(before), 1*time.Second)
+}
+
+func Test_getCommandArgsToLog(t *testing.T) {
+	testCases := []struct {
+		name     string
+		args     []string
+		expected string
+	}{
+		{
+			name:     "no spaces",
+			args:     []string{"sh", "-c", "cat"},
+			expected: "sh -c cat",
+		},
+		{
+			name:     "spaces",
+			args:     []string{"sh", "-c", `echo "hello world"`},
+			expected: `sh -c "echo \"hello world\""`,
+		},
+	}
+
+	for _, tc := range testCases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tcc.expected, getCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
+		})
+	}
 }
