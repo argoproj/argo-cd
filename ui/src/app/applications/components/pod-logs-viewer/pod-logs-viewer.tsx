@@ -73,10 +73,6 @@ const matchNothing = /.^/;
 
 export const PodsLogsViewer = (props: PodLogsProps) => {
     const {containerName, onClickContainer, timestamp, containerGroups, applicationName, applicationNamespace, namespace, podName, group, kind, name} = props;
-    if (!containerName || containerName === '') {
-        return <div>Pod does not have container with name {containerName}</div>;
-    }
-
     const queryParams = new URLSearchParams(location.search);
     const [viewPodNames, setViewPodNames] = useState(queryParams.get('viewPodNames') === 'true');
     const [follow, setFollow] = useState(queryParams.get('follow') !== 'false');
@@ -121,6 +117,10 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         }, 250);
         return () => clearTimeout(to);
     }, [applicationName, applicationNamespace, namespace, podName, group, kind, name, containerName, tail, follow, sinceSeconds, filter, previous]);
+
+    if (!containerName || containerName === '') {
+        return <div>Pod does not have container with name {containerName}</div>;
+    }
 
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
