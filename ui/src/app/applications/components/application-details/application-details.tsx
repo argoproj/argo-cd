@@ -166,8 +166,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         return '';
     }
 
-
-
     public render() {
         return (
             <ObservableQuery>
@@ -543,6 +541,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                                 () => this.getApplicationActionMenu(application, false)
                                                                             )
                                                                         }
+                                                                        tree={tree}
+
                                                                     />
                                                                 )}
                                                             </Paginate>
@@ -571,6 +571,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                     this.getApplicationActionMenu(application, false)
                                                                 )
                                                             }
+                                                            tree={tree}
                                                         />
                                                     )}
                                                 </Paginate>

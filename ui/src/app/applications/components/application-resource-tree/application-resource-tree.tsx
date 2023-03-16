@@ -1,9 +1,7 @@
-import {DropDown, DropDownMenu, Notifications, NotificationType, Tooltip} from 'argo-ui';
+import {DropDown, DropDownMenu, NotificationType, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
-import {useState} from 'react';
-
 import Moment from 'react-moment';
 
 import * as models from '../../../shared/models';
@@ -27,8 +25,8 @@ import {
 } from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
-import {ArrowConnector} from './arrow-connector';
 import './application-resource-tree.scss';
+import {ArrowConnector} from './arrow-connector';
 
 function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
@@ -412,22 +410,15 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     const childCount = nonPodChildren?.length;
     const margin = 8;
     let topExtra = 0;
-    let numberOfRows = 1;
     const podGroup = node.podGroup;
     const podGroupHealthy = podGroup.pods.filter(pod => pod.health === 'Healthy');
     const podGroupDegraded = podGroup.pods.filter(pod => pod.health === 'Degraded');
     const podGroupInProgress = podGroup.pods.filter(pod => pod.health === 'Progressing');
 
     const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
-
-    numberOfRows += [podGroupHealthy.filter(pod => pod).length, podGroupDegraded.filter(pod => pod).length, podGroupInProgress.filter(pod => pod).length].reduce(
-        (total, count) => total + (count > 0 ? 1 : 0),
-        0
-    );
-
-    if (numberOfRows > 0) {
-        numberOfRows = Math.ceil(podGroup.pods.length / 8);
-    }
+    const numberOfRows = showPodGroupByStatus
+        ? [podGroupHealthy, podGroupDegraded, podGroupInProgress].reduce((total, podGroup) => total + (podGroup.filter(pod => pod).length > 0 ? 1 : 0), 0)
+        : Math.ceil(podGroup.pods.length / 8);
 
     if (podGroup) {
         topExtra = margin + (POD_NODE_HEIGHT / 2 + 30 * numberOfRows) / 2;
@@ -444,7 +435,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                 left: node.x,
                 top: node.y - topExtra,
                 width: node.width,
-                height: showPodGroupByStatus ? POD_NODE_HEIGHT + 30 * numberOfRows : node.height
+                height: showPodGroupByStatus ? POD_NODE_HEIGHT + 20 * numberOfRows : node.height
             }}>
             <NodeUpdateAnimation resourceVersion={node.resourceVersion} />
             <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} className={`application-resource-tree__node__top-part`}>
@@ -856,7 +847,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
 
     const [defaultCompactView, setDefaultCompactView] = React.useState(false);
     React.useEffect(() => {
-        const {podGroupCount, setShowCompactNodes, showCompactNodes, appContext} = props;
+        const {podGroupCount, setShowCompactNodes, appContext} = props;
         const podCount = nodes.filter(node => node.kind === 'Pod').length;
 
         if (!defaultCompactView && podCount > podGroupCount) {
@@ -864,12 +855,12 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             setDefaultCompactView(true);
 
             appContext.apis.notifications.show({
-                content: `Since the number of pods has surpassed the threshold pod count of ${podGroupCount}, you will now be directed to the group node view.
+                content: `Since the number of pods has surpassed the threshold pod count of ${podGroupCount}, you will now be switched to the group node view.
                  If you prefer the tree view, you can simply click on the group node icon to deselect the current view.`,
                 type: NotificationType.Success
             });
         }
-    }, [props.nodes, props.setShowCompactNodes, props.showCompactNodes, defaultCompactView]);
+    }, [props.setShowCompactNodes, props.showCompactNodes, defaultCompactView]);
 
     function filterGraph(app: models.Application, filteredIndicatorParent: string, graphNodesFilter: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
         const appKey = appNodeKey(app);
@@ -1199,8 +1190,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                                         top: yMid,
                                         backgroundImage: edge.backgroundImage,
                                         transform: props.useNetworkingHierarchy ? `translate(140px, 35px) rotate(${angle}deg)` : `translate(150px, 35px) rotate(${angle}deg)`
-                                    }}
-                                />
+                                    }}>
+                                    {lastLine && props.useNetworkingHierarchy && <ArrowConnector color={arrowColor} left={xMid + distance / 2} top={yMid} angle={angle} />}
+                                </div>
                             );
                         })}
                     </div>

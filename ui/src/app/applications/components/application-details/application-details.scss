@@ -246,6 +246,8 @@ $header: 120px;
             &.group-nodes-button-on {
                 color: $argo-color-gray-1;
                 background-color: $argo-color-gray-6;
+                border: 3px solid $argo-color-teal-4;
+                outline-style: solid;
                 &:hover {
                     background-color: $argo-color-gray-5;
                 }
@@ -346,4 +348,24 @@ $header: 120px;
 .sb-page-wrapper .top-bar.row {
     display: none !important;
 }
+}
+
+.resource-parent-node-info {
+    display: flex;
+    flex-direction: column;
+    margin-right: 15px;
+    paddting-top: .3em;
+}
+
+.resource-parent-node-info > div {
+    align-self: flex-start;
+
+}
+.resource-parent-node-title {
+    font-size: .8em;
+    text-align: left;
+    color: $white-color;
+    background-color: $argo-color-gray-6;
+    padding: 5px 5px;
+    margin-bottom: .2em;
 }

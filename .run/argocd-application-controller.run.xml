@@ -1,0 +1,23 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="argocd-application-controller" type="GoApplicationRunConfiguration" factoryName="Go Application" singleton="false">
+    <module name="argo-cd" />
+    <working_directory value="$PROJECT_DIR$" />
+    <parameters value="--loglevel debug --redis localhost:6379 --repo-server localhost:8081" />
+    <envs>
+      <env name="FORCE_LOG_COLORS" value="1" />
+      <env name="ARGOCD_FAKE_IN_CLUSTER" value="true" />
+      <env name="ARGOCD_GNUPGHOME" value="/tmp/argocd-local/gpg/keys" />
+      <env name="ARGOCD_PLUGINSOCKFILEPATH" value="./test/cmp" />
+      <env name="ARGOCD_GPG_DATA_PATH" value="/tmp/argocd-local/gpg/source" />
+      <env name="ARGOCD_TLS_DATA_PATH" value="/tmp/argocd-local/tls" />
+      <env name="ARGOCD_SSH_DATA_PATH" value="/tmp/argocd-local/ssh" />
+      <env name="ARGOCD_BINARY_NAME" value="argocd-application-controller" />
+    </envs>
+    <sudo value="true" />
+    <kind value="FILE" />
+    <package value="github.com/argoproj/argo-cd/v2" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/cmd/main.go" />
+    <method v="2" />
+  </configuration>
+</component>
