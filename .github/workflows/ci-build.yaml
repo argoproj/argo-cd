@@ -9,6 +9,7 @@ on:
   pull_request:
     branches:
       - 'master'
+      - 'release-*'
 
 env:
   # Golang version to use across CI steps
