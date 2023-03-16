@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	goio "io"
 	"io/fs"
 	"math"
