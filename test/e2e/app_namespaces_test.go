@@ -20,7 +20,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		Path(guestbookPath).
-		SetAppNamespace(ArgoCDAppNamespace).
+		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
 		Then().
@@ -83,7 +83,7 @@ func TestDeletingNamespacedAppStuckInSync(t *testing.T) {
 		})
 	}).
 		Async(true).
-		SetAppNamespace(ArgoCDAppNamespace).
+		SetAppNamespace(AppNamespace()).
 		Path("hook-custom-health").
 		When().
 		CreateApp().
