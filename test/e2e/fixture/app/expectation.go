@@ -292,7 +292,7 @@ func event(namespace string, reason string, message string) Expectation {
 }
 
 func Event(reason string, message string) Expectation {
-	return event(fixture.ArgoCDNamespace, reason, message)
+	return event(fixture.TestNamespace(), reason, message)
 }
 
 func NamespacedEvent(namespace string, reason string, message string) Expectation {

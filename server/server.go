@@ -38,6 +38,7 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -468,8 +469,9 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 
 		// If not matched, we assume that its TLS.
 		tlsl := tcpm.Match(cmux.Any())
-		tlsConfig := tls.Config{
-			Certificates: []tls.Certificate{*a.settings.Certificate},
+		tlsConfig := tls.Config{}
+		tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return a.settings.Certificate, nil
 		}
 		if a.TLSConfigCustomizer != nil {
 			a.TLSConfigCustomizer(&tlsConfig)
@@ -612,8 +614,8 @@ func (a *ArgoCDServer) watchSettings() {
 				newCert, newCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
 			}
 			if newCert != prevCert || newCertKey != prevCertKey {
-				log.Infof("tls certificate modified. restarting")
-				break
+				log.Infof("tls certificate modified. reloading certificate")
+				// No need to break out of this loop since TlsConfig.GetCertificate will automagically reload the cert.
 			}
 		}
 	}
