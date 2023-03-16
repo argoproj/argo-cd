@@ -28,7 +28,6 @@ import (
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/pkg/sync"
-	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/handlers"
 	gmux "github.com/gorilla/mux"
@@ -38,6 +37,7 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -468,8 +468,9 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 
 		// If not matched, we assume that its TLS.
 		tlsl := tcpm.Match(cmux.Any())
-		tlsConfig := tls.Config{
-			Certificates: []tls.Certificate{*a.settings.Certificate},
+		tlsConfig := tls.Config{}
+		tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return a.settings.Certificate, nil
 		}
 		if a.TLSConfigCustomizer != nil {
 			a.TLSConfigCustomizer(&tlsConfig)
@@ -612,8 +613,8 @@ func (a *ArgoCDServer) watchSettings() {
 				newCert, newCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
 			}
 			if newCert != prevCert || newCertKey != prevCertKey {
-				log.Infof("tls certificate modified. restarting")
-				break
+				log.Infof("tls certificate modified. reloading certificate")
+				// No need to break out of this loop since TlsConfig.GetCertificate will automagically reload the cert.
 			}
 		}
 	}
@@ -679,6 +680,8 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		"/repocreds.RepoCredsService/CreateRepositoryCredentials": true,
 		"/repocreds.RepoCredsService/UpdateRepositoryCredentials": true,
 		"/application.ApplicationService/PatchResource":           true,
+		// Remove from logs both because the contents are sensitive and because they may be very large.
+		"/application.ApplicationService/GetManifestsWithFiles": true,
 	}
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
@@ -910,15 +913,14 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	th := util_session.WithAuthMiddleware(a.DisableAuth, a.sessionMgr, terminal)
 	mux.Handle("/terminal", th)
 
-	// Dead code for now
-	// Proxy extension is currently an experimental feature and is disabled
+	// Proxy extension is currently an alpha feature and is disabled
 	// by default.
-	// if a.EnableProxyExtension {
-	// // API server won't panic if extensions fail to register. In
-	// // this case an error log will be sent and no extension route
-	// // will be added in mux.
-	// registerExtensions(mux, a)
-	// }
+	if a.EnableProxyExtension {
+		// API server won't panic if extensions fail to register. In
+		// this case an error log will be sent and no extension route
+		// will be added in mux.
+		registerExtensions(mux, a)
+	}
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandler, ctx, gwmux, conn)
@@ -967,12 +969,15 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 // registerExtensions will try to register all configured extensions
 // in the given mux. If any error is returned while registering
 // extensions handlers, no route will be added in the given mux.
-// nolint:deadcode,unused,staticcheck
 func registerExtensions(mux *http.ServeMux, a *ArgoCDServer) {
 	sg := extension.NewDefaultSettingsGetter(a.settingsMgr)
-	ag := extension.NewDefaultApplicationGetter(a.serviceSet.ApplicationService)
-	em := extension.NewManager(sg, ag, a.log)
+	ag := extension.NewDefaultApplicationGetter(a.appLister)
+	pg := extension.NewDefaultProjectGetter(a.projLister, a.db)
+	em := extension.NewManager(a.log, sg, ag, pg, a.enf)
 	r := gmux.NewRouter()
+	// register an Auth middleware to ensure all requests to
+	// extensions are authenticated first.
+	r.Use(a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth))
 
 	err := em.RegisterHandlers(r)
 	if err != nil {

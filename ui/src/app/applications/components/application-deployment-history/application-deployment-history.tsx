@@ -32,13 +32,13 @@ export const ApplicationDeploymentHistory = ({
                 <div className='row application-deployment-history__item' key={info.deployedAt} onClick={() => selectDeployment(index)}>
                     <div className='columns small-3'>
                         <div>
-                            <i className='fa fa-clock' /> <span class='show-for-large'>Deployed At:</span>
+                            <i className='fa fa-clock' /> <span className='show-for-large'>Deployed At:</span>
                             <br />
                             <Timestamp date={info.deployedAt} />
                         </div>
                         <div>
                             <br />
-                            <i className='fa fa-hourglass-half' /> <span class='show-for-large'>Time to deploy:</span>
+                            <i className='fa fa-hourglass-half' /> <span className='show-for-large'>Time to deploy:</span>
                             <br />
                             {(info.deployStartedAt && <Duration durationMs={moment(info.deployedAt).diff(moment(info.deployStartedAt)) / 1000} />) || 'Unknown'}
                         </div>

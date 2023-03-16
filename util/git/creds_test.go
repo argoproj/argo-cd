@@ -1,6 +1,7 @@
 package git
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path"
@@ -11,11 +12,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/io"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 )
 
 type cred struct {
@@ -42,7 +43,7 @@ func (s *memoryCredsStore) Remove(id string) {
 
 func TestHTTPSCreds_Environ_no_cert_cleanup(t *testing.T) {
 	store := &memoryCredsStore{creds: make(map[string]cred)}
-	creds := NewHTTPSCreds("", "", "", "", true, "", store)
+	creds := NewHTTPSCreds("", "", "", "", true, "", store, false)
 	closer, env, err := creds.Environ()
 	require.NoError(t, err)
 	var nonce string
@@ -58,7 +59,7 @@ func TestHTTPSCreds_Environ_no_cert_cleanup(t *testing.T) {
 }
 
 func TestHTTPSCreds_Environ_insecure_true(t *testing.T) {
-	creds := NewHTTPSCreds("", "", "", "", true, "", &NoopCredsStore{})
+	creds := NewHTTPSCreds("", "", "", "", true, "", &NoopCredsStore{}, false)
 	closer, env, err := creds.Environ()
 	t.Cleanup(func() {
 		io.Close(closer)
@@ -75,7 +76,7 @@ func TestHTTPSCreds_Environ_insecure_true(t *testing.T) {
 }
 
 func TestHTTPSCreds_Environ_insecure_false(t *testing.T) {
-	creds := NewHTTPSCreds("", "", "", "", false, "", &NoopCredsStore{})
+	creds := NewHTTPSCreds("", "", "", "", false, "", &NoopCredsStore{}, false)
 	closer, env, err := creds.Environ()
 	t.Cleanup(func() {
 		io.Close(closer)
@@ -91,9 +92,82 @@ func TestHTTPSCreds_Environ_insecure_false(t *testing.T) {
 	assert.False(t, found)
 }
 
+func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
+	t.Run("Enabled and credentials set", func(t *testing.T) {
+		store := &memoryCredsStore{creds: make(map[string]cred)}
+		creds := NewHTTPSCreds("username", "password", "", "", false, "", store, true)
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		defer closer.Close()
+		var header string
+		for _, envVar := range env {
+			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
+			}
+			if header != "" {
+				break
+			}
+		}
+		b64enc := base64.StdEncoding.EncodeToString([]byte("username:password"))
+		assert.Equal(t, "Authorization: Basic "+b64enc, header)
+	})
+	t.Run("Enabled but credentials not set", func(t *testing.T) {
+		store := &memoryCredsStore{creds: make(map[string]cred)}
+		creds := NewHTTPSCreds("", "", "", "", false, "", store, true)
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		defer closer.Close()
+		var header string
+		for _, envVar := range env {
+			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
+			}
+			if header != "" {
+				break
+			}
+		}
+		assert.Empty(t, header)
+	})
+	t.Run("Disabled with credentials set", func(t *testing.T) {
+		store := &memoryCredsStore{creds: make(map[string]cred)}
+		creds := NewHTTPSCreds("username", "password", "", "", false, "", store, false)
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		defer closer.Close()
+		var header string
+		for _, envVar := range env {
+			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
+			}
+			if header != "" {
+				break
+			}
+		}
+		assert.Empty(t, header)
+	})
+
+	t.Run("Disabled with credentials not set", func(t *testing.T) {
+		store := &memoryCredsStore{creds: make(map[string]cred)}
+		creds := NewHTTPSCreds("", "", "", "", false, "", store, false)
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		defer closer.Close()
+		var header string
+		for _, envVar := range env {
+			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
+			}
+			if header != "" {
+				break
+			}
+		}
+		assert.Empty(t, header)
+	})
+}
+
 func TestHTTPSCreds_Environ_clientCert(t *testing.T) {
 	store := &memoryCredsStore{creds: make(map[string]cred)}
-	creds := NewHTTPSCreds("", "", "clientCertData", "clientCertKey", false, "", store)
+	creds := NewHTTPSCreds("", "", "clientCertData", "clientCertKey", false, "", store, false)
 	closer, env, err := creds.Environ()
 	require.NoError(t, err)
 	var cert, key string
@@ -177,12 +251,14 @@ const invalidJSON = `{
 `
 
 func TestNewGoogleCloudCreds(t *testing.T) {
-	googleCloudCreds := NewGoogleCloudCreds(gcpServiceAccountKeyJSON)
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	googleCloudCreds := NewGoogleCloudCreds(gcpServiceAccountKeyJSON, store)
 	assert.NotNil(t, googleCloudCreds)
 }
 
 func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
-	googleCloudCreds := NewGoogleCloudCreds(invalidJSON)
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	googleCloudCreds := NewGoogleCloudCreds(invalidJSON, store)
 	assert.Nil(t, googleCloudCreds.creds)
 
 	token, err := googleCloudCreds.getAccessToken()
@@ -199,17 +275,25 @@ func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestGoogleCloudCreds_Environ(t *testing.T) {
+func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {
+	store := &memoryCredsStore{creds: make(map[string]cred)}
 	staticToken := &oauth2.Token{AccessToken: "token"}
 	googleCloudCreds := GoogleCloudCreds{&google.Credentials{
 		ProjectID:   "my-google-project",
 		TokenSource: oauth2.StaticTokenSource(staticToken),
 		JSON:        []byte(gcpServiceAccountKeyJSON),
-	}}
+	}, store}
 
 	closer, env, err := googleCloudCreds.Environ()
 	assert.NoError(t, err)
-	defer func() { _ = closer.Close() }()
-
-	assert.Equal(t, []string{"GIT_ASKPASS=git-ask-pass.sh", "GIT_USERNAME=argocd-service-account@my-google-project.iam.gserviceaccount.com", "GIT_PASSWORD=token"}, env)
+	var nonce string
+	for _, envVar := range env {
+		if strings.HasPrefix(envVar, ASKPASS_NONCE_ENV) {
+			nonce = envVar[len(ASKPASS_NONCE_ENV)+1:]
+			break
+		}
+	}
+	assert.Contains(t, store.creds, nonce)
+	io.Close(closer)
+	assert.NotContains(t, store.creds, nonce)
 }

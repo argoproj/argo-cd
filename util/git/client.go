@@ -13,8 +13,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
+	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -305,7 +307,7 @@ func (m *nativeGitClient) Init() error {
 		return err
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
-	_, err = executil.Run(exec.Command("rm", "-rf", m.root))
+	err = os.RemoveAll(m.root)
 	if err != nil {
 		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
 	}
@@ -631,12 +633,21 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
 // nolint:unparam
 func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) error {
-	cmd := exec.Command(command, args...)
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = closer.Close() }()
+
+	// If a basic auth header is explicitly set, tell Git to send it to the
+	// server to force use of basic auth instead of negotiating the auth scheme
+	for _, e := range environ {
+		if strings.HasPrefix(e, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+			args = append([]string{"--config-env", fmt.Sprintf("http.extraHeader=%s", forceBasicAuthHeaderEnv)}, args...)
+		}
+	}
+
+	cmd := exec.Command(command, args...)
 	cmd.Env = append(cmd.Env, environ...)
 	_, err = m.runCmdOutput(cmd)
 	return err
@@ -675,6 +686,11 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	}
 
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
-
-	return executil.Run(cmd)
+	opts := executil.ExecRunOpts{
+		TimeoutBehavior: argoexec.TimeoutBehavior{
+			Signal:     syscall.SIGTERM,
+			ShouldWait: true,
+		},
+	}
+	return executil.RunWithExecRunOpts(cmd, opts)
 }
