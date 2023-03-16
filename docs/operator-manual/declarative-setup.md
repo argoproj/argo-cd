@@ -727,17 +727,15 @@ based application which uses base Argo CD manifests from [https://github.com/arg
 Example of `kustomization.yaml`:
 
 ```yaml
-bases:
-- github.com/argoproj/argo-cd//manifests/cluster-install?ref=v1.0.1
-
 # additional resources like ingress rules, cluster and repository secrets.
 resources:
+- github.com/argoproj/argo-cd//manifests/cluster-install?ref=v1.0.1
 - clusters-secrets.yaml
 - repos-secrets.yaml
 
 # changes to config maps
-patchesStrategicMerge:
-- overlays/argo-cd-cm.yaml
+patches:
+- path: overlays/argo-cd-cm.yaml
 ```
 
 The live example of self managed Argo CD config is available at [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io) and with configuration
