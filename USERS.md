@@ -197,6 +197,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [RapidAPI](https://www.rapidapi.com/)
 1. [Recreation.gov](https://www.recreation.gov/)
 1. [Red Hat](https://www.redhat.com/)
+1. [Redpill Linpro](https://www.redpill-linpro.com/)
 1. [reev.com](https://www.reev.com/)
 1. [RightRev](https://rightrev.com/)
 1. [Rise](https://www.risecard.eu/)

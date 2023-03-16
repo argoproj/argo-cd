@@ -198,6 +198,10 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-controller
 rules:
 - apiGroups:
@@ -363,6 +367,10 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -447,6 +455,10 @@ metadata:
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-cm
 ---
 apiVersion: v1
@@ -1208,6 +1220,10 @@ metadata:
 apiVersion: v1
 kind: Secret
 metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-secret
 type: Opaque
 ---
@@ -1287,7 +1303,9 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
+    app.kubernetes.io/component: notifications-controller
     app.kubernetes.io/name: argocd-notifications-controller-metrics
+    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-controller-metrics
 spec:
   ports:
@@ -1494,9 +1512,8 @@ spec:
         app.kubernetes.io/name: argocd-applicationset-controller
     spec:
       containers:
-      - command:
-        - entrypoint.sh
-        - argocd-applicationset-controller
+      - args:
+        - /usr/local/bin/argocd-applicationset-controller
         env:
         - name: NAMESPACE
           valueFrom:
@@ -1693,7 +1710,7 @@ spec:
           name: argocd-dex-server-tls
       initContainers:
       - command:
-        - cp
+        - /bin/cp
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
@@ -1735,6 +1752,10 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-controller
 spec:
   selector:
@@ -1748,8 +1769,8 @@ spec:
         app.kubernetes.io/name: argocd-notifications-controller
     spec:
       containers:
-      - command:
-        - argocd-notifications
+      - args:
+        - /usr/local/bin/argocd-notifications
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -1921,9 +1942,8 @@ spec:
             topologyKey: kubernetes.io/hostname
       automountServiceAccountToken: false
       containers:
-      - command:
-        - entrypoint.sh
-        - argocd-repo-server
+      - args:
+        - /usr/local/bin/argocd-repo-server
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:
@@ -2101,7 +2121,7 @@ spec:
           name: plugins
       initContainers:
       - command:
-        - cp
+        - /bin/cp
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
@@ -2185,8 +2205,8 @@ spec:
                 app.kubernetes.io/name: argocd-server
             topologyKey: kubernetes.io/hostname
       containers:
-      - command:
-        - argocd-server
+      - args:
+        - /usr/local/bin/argocd-server
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:
@@ -2493,8 +2513,8 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 5
       containers:
-      - command:
-        - argocd-application-controller
+      - args:
+        - /usr/local/bin/argocd-application-controller
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:
@@ -2697,7 +2717,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:7.0.8-alpine
+        image: redis:7.0.9-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -2750,7 +2770,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:7.0.8-alpine
+        image: redis:7.0.9-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -2802,7 +2822,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.8-alpine
+        image: redis:7.0.9-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -2831,7 +2851,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.8-alpine
+        image: redis:7.0.9-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -2930,6 +2950,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-controller-network-policy
 spec:
   ingress:

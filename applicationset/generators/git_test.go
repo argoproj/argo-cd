@@ -12,6 +12,7 @@ import (
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
+
 func Test_generateParamsFromGitFile(t *testing.T) {
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
