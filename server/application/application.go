@@ -1942,14 +1942,21 @@ func (s *Server) logAppEvent(a *appv1.Application, ctx context.Context, reason s
 	s.auditLogger.LogAppEvent(a, eventInfo, message)
 }
 
-func (s *Server) logResourceEvent(res *appv1.ResourceNode, ctx context.Context, reason string, action string) {
+func (s *Server) logResourceEvent(res *appv1.ResourceNode, ctx context.Context, config *rest.Config, reason string, action string) {
 	eventInfo := argo.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogResourceEvent(res, eventInfo, message)
+
+	kubeClientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Errorf("error creating kube client: %v", err)
+		return
+	}
+	resourceAuditLogger := argo.NewAuditLogger(res.ResourceRef.Namespace, kubeClientset, "argocd-server")
+	resourceAuditLogger.LogResourceEvent(res, eventInfo, message)
 }
 
 func (s *Server) ListResourceActions(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ResourceActionsListResponse, error) {
@@ -2110,7 +2117,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
 	} else {
 		s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.GetAction(), res.Group, res.Kind, res.Name))
-		s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
+		s.logResourceEvent(res, ctx, config, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
 	}
 	return &application.ApplicationResponse{}, nil
 }
