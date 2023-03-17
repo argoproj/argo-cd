@@ -595,7 +595,7 @@ snyk-non-container-tests:
 
 .PHONY: snyk-report
 snyk-report:
-	./hack/snyk-report.sh $(target_branch)
+	./hack/snyk-report/snyk-report.sh $(target_branch)
 
 .PHONY: help
 help:

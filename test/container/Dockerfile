@@ -53,9 +53,11 @@ RUN ./install.sh helm-linux && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \
     ./install.sh lint-tools && \
-    go install github.com/mattn/goreman@latest && \
-    go install github.com/kisielk/godepgraph@latest && \
-    go install github.com/jstemmer/go-junit-report@latest && \
+    # v0.3.14
+    go install github.com/mattn/goreman@eaf955cca418ea9ef2f21ce8ea7b433c6d2676d2 && \
+    go install github.com/kisielk/godepgraph@2d08317894589b27d39b4c32da1299220443a162 && \
+    # v2.0.0
+    go install github.com/jstemmer/go-junit-report@7fde4641acef5b92f397a8baf8309d1a45d608cc && \
     rm -rf /tmp/dl && \
     rm -rf /tmp/helm && \
     rm -rf /tmp/ks_*

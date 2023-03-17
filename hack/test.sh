@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eux -o pipefail
 
-which go-junit-report || go install github.com/jstemmer/go-junit-report@latest
+which go-junit-report || go install github.com/jstemmer/go-junit-report@7fde4641acef5b92f397a8baf8309d1a45d608cc # v2.0.0
 
 TEST_RESULTS=${TEST_RESULTS:-test-results}
 TEST_FLAGS=

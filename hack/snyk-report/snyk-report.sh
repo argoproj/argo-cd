@@ -3,7 +3,7 @@
 set -e
 set -o pipefail
 
-npm install snyk snyk-to-html --location=global
+npm install --location=global
 
 # Choose the branch where docs changes will actually be written.
 target_branch="$1"

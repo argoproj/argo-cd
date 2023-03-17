@@ -11,7 +11,7 @@ RUN curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v2.
 ENV GOCACHE=/go-build-cache
 
 RUN apt-get install redis-server -y
-RUN go install github.com/mattn/goreman@latest
+RUN go install github.com/mattn/goreman@eaf955cca418ea9ef2f21ce8ea7b433c6d2676d2 # v0.3.14
 
 USER gitpod
 

@@ -1,0 +1,10 @@
+{
+  "name": "snyk-report",
+  "description": "Generate Snyk reports for Argo CD docs.",
+  "version": "0.1.0",
+  "dependencies": {},
+  "devDependencies": {
+    "snyk": "^1.1119.0",
+    "snyk-to-html": "^2.3.6"
+  }
+}

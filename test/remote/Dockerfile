@@ -2,8 +2,9 @@ ARG BASE_IMAGE=docker.io/library/ubuntu:22.04
 
 FROM docker.io/library/golang:1.19.6@sha256:7ce31d15a3a4dbf20446cccffa4020d3a2974ad2287d96123f55caf22c7adb71 AS go
 
-RUN go install github.com/mattn/goreman@latest && \
-    go install github.com/kisielk/godepgraph@latest
+# goreman hash is v0.3.14
+RUN go install github.com/mattn/goreman@eaf955cca418ea9ef2f21ce8ea7b433c6d2676d2 && \
+    go install github.com/kisielk/godepgraph@2d08317894589b27d39b4c32da1299220443a162
 
 FROM $BASE_IMAGE
 
