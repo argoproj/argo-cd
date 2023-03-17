@@ -90,7 +90,7 @@ export const ApplicationNodeInfo = (props: {
                                                 {(!state || state !== 'running') && msgExists && (
                                                     <span title={msgExists} key={i}>
                                                         {' '}
-                                                        <i style={{color: '#6D7F8B'}} className='fa-solid fa-info-circle' />
+                                                        <i style={{color: '#00A2B3',fontSize: '0.90em'}} className='fa-solid fa-info-circle' />
                                                     </span>
                                                 )}
                                                 {'.'}
@@ -101,7 +101,7 @@ export const ApplicationNodeInfo = (props: {
                                                         {lastState?.reason && <span className='application-node-info__labels--highlight'>{lastState?.reason}</span>}
                                                         {container.lastState?.message && (
                                                             <span title={container.lastState?.message} key={i}>
-                                                                <i style={{color: '#6D7F8B'}} className='fa-solid fa-info-circle' />
+                                                                <i style={{color: '#00A2B3',fontSize: '0.90em'}} className='fa-solid fa-info-circle' />
                                                             </span>
                                                         )}
                                                         {'.'}

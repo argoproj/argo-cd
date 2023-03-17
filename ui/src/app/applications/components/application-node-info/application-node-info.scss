@@ -21,16 +21,24 @@
     &__labels {
         line-height: 28px;
 
-        th, td {
-            line-height:20px;
+        table {
+            border-collapse: collapse;
+        }
+        td {
+            line-height: 20px;
             padding: 4px;
             margin-bottom: 8px;
         }
-
-        &--highlight{
-            font-style:italic;
+        tr {
+            border-bottom: 1px solid rgba(222, 230, 235, 0.7);
+        }
+        tr:last-child {
+            border-bottom: none;
         }
 
+        &--highlight {
+            font-style: italic;
+        }
     }
 
     &__label {
@@ -51,5 +59,3 @@
         }
     }
 }
-
-
