@@ -877,7 +877,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	listGeneratorMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), mock.AnythingOfType("*v1alpha1.ApplicationSet")).Return([]map[string]interface{}{
 		{"some": "value"},
 	}, nil)
-	listGeneratorMock.On("GetTemplate", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator")).Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
+	listGeneratorMock.On("GetTemplate", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator")).Return(&apiextensionsv1.JSON{Raw: []byte("{}")})
 
 	gitGeneratorSpec := &argoprojiov1alpha1.GitGenerator{
 		RepoURL: "https://git.example.com",
