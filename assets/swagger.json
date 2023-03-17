@@ -271,6 +271,16 @@
             "description": "the application's namespace.",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -584,6 +594,16 @@
             "type": "string",
             "description": "the application's namespace.",
             "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -3670,6 +3690,16 @@
             "description": "the application's namespace.",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -5675,6 +5705,17 @@
         }
       }
     },
+    "v1alpha1ApplicationPreservedFields": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1ApplicationSet": {
       "type": "object",
       "title": "ApplicationSet is a set of Application resources\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
@@ -5858,6 +5899,9 @@
         },
         "goTemplate": {
           "type": "boolean"
+        },
+        "preservedFields": {
+          "$ref": "#/definitions/v1alpha1ApplicationPreservedFields"
         },
         "strategy": {
           "$ref": "#/definitions/v1alpha1ApplicationSetStrategy"
@@ -6130,6 +6174,10 @@
         "nameSuffix": {
           "type": "string",
           "title": "NameSuffix is a suffix appended to resources for Kustomize apps"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace sets the namespace that Kustomize adds to all resources"
         },
         "version": {
           "type": "string",

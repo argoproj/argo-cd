@@ -1,10 +1,8 @@
 # High Availability
 
-Argo CD is largely stateless, all data is persisted as Kubernetes objects, which in turn is stored in Kubernetes' etcd. Redis is only used as a throw-away cache and can be lost. When lost, it will be rebuilt without loss of service.
+Argo CD is largely stateless. All data is persisted as Kubernetes objects, which in turn is stored in Kubernetes' etcd. Redis is only used as a throw-away cache and can be lost. When lost, it will be rebuilt without loss of service.
 
-A set of HA manifests are provided for users who wish to run Argo CD in a highly available manner. This runs more containers, and runs Redis in HA mode.
-
-[HA Manifests ⧉](https://github.com/argoproj/argo-cd/tree/master/manifests#high-availability) 
+A set of [HA manifests](https://github.com/argoproj/argo-cd/tree/master/manifests/ha) are provided for users who wish to run Argo CD in a highly available manner. This runs more containers, and runs Redis in HA mode.
 
 > **NOTE:** The HA installation will require at least three different nodes due to pod anti-affinity roles in the
 > specs. Additionally, IPv6 only clusters are not supported.
@@ -17,11 +15,11 @@ A set of HA manifests are provided for users who wish to run Argo CD in a highly
 
 The `argocd-repo-server` is responsible for cloning Git repository, keeping it up to date and generating manifests using the appropriate tool.
 
-* `argocd-repo-server` fork/exec config management tool to generate manifests. The fork can fail due to lack of memory and limit on the number of OS threads.
-The `--parallelismlimit` flag controls how many manifests generations are running concurrently and allows avoiding OOM kills.
+* `argocd-repo-server` fork/exec config management tool to generate manifests. The fork can fail due to lack of memory or limit on the number of OS threads.
+The `--parallelismlimit` flag controls how many manifests generations are running concurrently and helps avoid OOM kills.
 
 * the `argocd-repo-server` ensures that repository is in the clean state during the manifest generation using config management tools such as Kustomize, Helm
-or custom plugin. As a result Git repositories with multiple applications might be affect repository server performance.
+or custom plugin. As a result Git repositories with multiple applications might affect repository server performance.
 Read [Monorepo Scaling Considerations](#monorepo-scaling-considerations) for more information.
 
 * `argocd-repo-server` clones the repository into `/tmp` (or the path specified in the `TMPDIR` env variable). The Pod might run out of disk space if it has too many repositories
@@ -30,7 +28,7 @@ or if the repositories have a lot of files. To avoid this problem mount a persis
 * `argocd-repo-server` uses `git ls-remote` to resolve ambiguous revisions such as `HEAD`, a branch or a tag name. This operation happens frequently
 and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` environment variable to retry failed requests.
 
-* `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the repo changes, so it caches generated manifests (for 24h by default). With Kustomize remote bases, or Helm patch releases, the manifests can change even though the repo has not changed. By reducing the cache time, you can get the changes without waiting for 24h. Use `--repo-cache-expiration duration`, and we'd suggest in low volume environments you try '1h'. Bear in mind this will negate the benefit of caching if set too low. 
+* `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With Kustomize remote bases, or Helm patch releases, the manifests can change even though the repo has not changed. By reducing the cache time, you can get the changes without waiting for 24h. Use `--repo-cache-expiration duration`, and we'd suggest in low volume environments you try '1h'. Bear in mind that this will negate the benefits of caching if set too low. 
 
 * `argocd-repo-server` executes config management tools such as `helm` or `kustomize` and enforces a 90 second timeout. This timeout can be changed by using the `ARGOCD_EXEC_TIMEOUT` env variable. The value should be in the Go time duration string format, for example, `2m30s`.
 
