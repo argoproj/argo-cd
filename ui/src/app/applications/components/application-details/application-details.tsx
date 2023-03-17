@@ -542,7 +542,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                             )
                                                                         }
                                                                         tree={tree}
-
                                                                     />
                                                                 )}
                                                             </Paginate>

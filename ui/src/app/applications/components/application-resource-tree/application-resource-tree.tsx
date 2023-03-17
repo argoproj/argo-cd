@@ -417,7 +417,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
 
     const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
     const numberOfRows = showPodGroupByStatus
-        ? [podGroupHealthy, podGroupDegraded, podGroupInProgress].reduce((total, podGroup) => total + (podGroup.filter(pod => pod).length > 0 ? 1 : 0), 0)
+        ? [podGroupHealthy, podGroupDegraded, podGroupInProgress].reduce((total, podGroupByStatus) => total + (podGroupByStatus.filter(pod => pod).length > 0 ? 1 : 0), 0)
         : Math.ceil(podGroup.pods.length / 8);
 
     if (podGroup) {

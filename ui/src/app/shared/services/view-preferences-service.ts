@@ -122,7 +122,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         followLogs: false,
         wrapLines: false,
         zoom: 1.0,
-        podGroupCount: 15.0,
+        podGroupCount: 15.0
     },
     appList: {
         view: 'tiles' as AppsListViewType,
