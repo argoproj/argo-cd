@@ -10,6 +10,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	testutils "github.com/argoproj/argo-cd/v2/applicationset/utils/test"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -150,8 +151,8 @@ func getMockClusterGenerator() Generator {
 }
 
 func getMockGitGenerator() Generator {
-	argoCDServiceMock := argoCDServiceMock{mock: &mock.Mock{}}
-	argoCDServiceMock.mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return([]string{"app1", "app2", "app_3", "p1/app4"}, nil)
+	argoCDServiceMock := testutils.ArgoCDServiceMock{Mock: &mock.Mock{}}
+	argoCDServiceMock.Mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return([]string{"app1", "app2", "app_3", "p1/app4"}, nil)
 	var gitGenerator = NewGitGenerator(argoCDServiceMock)
 	return gitGenerator
 }

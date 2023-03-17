@@ -408,5 +408,5 @@ func (s *Server) logAppSetEvent(a *v1alpha1.ApplicationSet, ctx context.Context,
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogAppSetEvent(a, eventInfo, message)
+	s.auditLogger.LogAppSetEvent(a, eventInfo, message, user)
 }

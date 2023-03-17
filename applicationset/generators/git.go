@@ -59,9 +59,9 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 
 	var err error
 	var res []map[string]interface{}
-	if appSetGenerator.Git.Directories != nil {
+	if len(appSetGenerator.Git.Directories) != 0 {
 		res, err = g.generateParamsForGitDirectories(appSetGenerator, appSet.Spec.GoTemplate)
-	} else if appSetGenerator.Git.Files != nil {
+	} else if len(appSetGenerator.Git.Files) != 0 {
 		res, err = g.generateParamsForGitFiles(appSetGenerator, appSet.Spec.GoTemplate)
 	} else {
 		return nil, EmptyAppSetGeneratorError
