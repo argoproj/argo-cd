@@ -105,10 +105,11 @@ jobs:
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
         env:
           TOKEN: ${{ secrets.TOKEN }}
-          IMAGE_TAG: ${{ needs.set-vars.outputs.image-tag }}
       - run: |
           docker run -u $(id -u):$(id -g) -v $(pwd):/src -w /src --rm -t ghcr.io/argoproj/argo-cd/argocd:$IMAGE_TAG kustomize edit set image quay.io/argoproj/argocd=ghcr.io/argoproj/argo-cd/argocd:$IMAGE_TAG
           git config --global user.email 'ci@argoproj.com'
           git config --global user.name 'CI'
           git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to $IMAGE_TAG' && git push)
         working-directory: argoproj-deployments/argocd
+        env:
+          IMAGE_TAG: ${{ needs.set-vars.outputs.image-tag }}
