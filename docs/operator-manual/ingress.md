@@ -240,7 +240,7 @@ spec:
   tls:
   - hosts:
     - argocd.example.com
-    secretName: argocd-secret # do not change, this is provided by Argo CD
+    secretName: argocd-server-tls # as expected by argocd-server
 ```
 
 ### Option 2: Multiple Ingress Objects And Hosts
