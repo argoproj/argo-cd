@@ -23,17 +23,25 @@
 
         table {
             border-collapse: collapse;
-        }
-        td {
-            line-height: 20px;
-            padding: 4px;
-            margin-bottom: 8px;
-        }
-        tr {
-            border-bottom: 1px solid rgba(222, 230, 235, 0.7);
-        }
-        tr:last-child {
-            border-bottom: none;
+
+            td {
+                line-height: 20px;
+                padding: 4px;
+                margin-bottom: 8px;
+            }
+
+            tr {
+                border-bottom: 1px solid rgba(222, 230, 235, 0.7);
+            }
+
+            tr:last-child {
+                border-bottom: none;
+            }
+
+            i {
+                color: #00a2b3;
+                font-size: 0.89em;
+            }
         }
 
         &--highlight {
