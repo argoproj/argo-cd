@@ -94,22 +94,23 @@ jobs:
       registry-password: ${{ secrets.RELEASE_QUAY_TOKEN }}
 
   Deploy:
-   needs: [build-and-publish]
-   permissions:
-     contents: write  # for git to push upgrade commit if not already deployed
-     packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
-   if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
-   runs-on: ubuntu-22.04
-   steps:
+    needs:
+      - build-and-publish
+      - set-vars
+    permissions:
+      contents: write  # for git to push upgrade commit if not already deployed
+      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+    if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
+    runs-on: ubuntu-22.04
+    steps:
       - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
         env:
           TOKEN: ${{ secrets.TOKEN }}
       - run: |
-          docker run -u $(id -u):$(id -g) -v $(pwd):/src -w /src --rm -t ghcr.io/argoproj/argo-cd/argocd:$IMAGE_TAG kustomize edit set image quay.io/argoproj/argocd=ghcr.io/argoproj/argo-cd/argocd:$IMAGE_TAG
+          docker run -u $(id -u):$(id -g) -v $(pwd):/src -w /src --rm -t ghcr.io/argoproj/argo-cd/argocd:${{ needs.set-vars.outputs.image-tag }} kustomize edit set image quay.io/argoproj/argocd=ghcr.io/argoproj/argo-cd/argocd:${{ needs.set-vars.outputs.image-tag }}
           git config --global user.email 'ci@argoproj.com'
           git config --global user.name 'CI'
-          git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to $IMAGE_TAG' && git push)
+          git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ needs.set-vars.outputs.image-tag }}' && git push)
         working-directory: argoproj-deployments/argocd
-        env:
-          IMAGE_TAG: ${{ needs.set-vars.outputs.image-tag }}
+
