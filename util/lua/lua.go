@@ -21,13 +21,12 @@ import (
 )
 
 const (
-	incorrectReturnType         = "expect %s output from Lua script, not %s"
-	incorrectInnerType          = "expect %s inner type from Lua script, not %s"
-	invalidHealthStatus         = "Lua returned an invalid health status"
-	healthScriptFile            = "health.lua"
-	actionScriptFile            = "action.lua"
-	actionDiscoveryScriptFile   = "discovery.lua"
-	luaImpactedResourceTypeName = "impactedResource"
+	incorrectReturnType       = "expect %s output from Lua script, not %s"
+	incorrectInnerType        = "expect %s inner type from Lua script, not %s"
+	invalidHealthStatus       = "Lua returned an invalid health status"
+	healthScriptFile          = "health.lua"
+	actionScriptFile          = "action.lua"
+	actionDiscoveryScriptFile = "discovery.lua"
 )
 
 type ResourceHealthOverrides map[string]appv1.ResourceOverride

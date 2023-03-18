@@ -1223,13 +1223,9 @@ func returnCronJob() *unstructured.Unstructured {
 		},
 		"spec": map[string]interface{}{
 			"jobTemplate": map[string]interface{}{
-				"ku0": "ku0",
 				"spec": map[string]interface{}{
-					"ku1": "ku1",
 					"template": map[string]interface{}{
-						"ku2": "ku2",
 						"spec": map[string]interface{}{
-							"ku3": "ku3",
 							"containers": []map[string]interface{}{{
 								"name":            "hello",
 								"image":           "busybox:1.28",
