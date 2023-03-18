@@ -1184,6 +1184,7 @@ func returnCronJob() *unstructured.Unstructured {
 								"image":           "busybox:1.28",
 								"imagePullPolicy": "IfNotPresent",
 								"command":         []string{"/bin/sh", "-c", "date; echo Hello from the Kubernetes cluster"}}},
+							// "resources":     {},
 							"restartPolicy": "OnFailure",
 						},
 					},

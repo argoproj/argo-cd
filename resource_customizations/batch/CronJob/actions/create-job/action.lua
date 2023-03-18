@@ -1,17 +1,31 @@
 local os = require("os")
 
-function deepCopy(obj, seen)
-    -- Handle non-tables and previously-seen tables.
-    if type(obj) ~= 'table' then 
-        return obj end
-    if seen and seen[obj] then return seen[obj] end
-  
-    -- New table; mark it as seen and copy recursively.
-    local s = seen or {}
-    local res = {}
-    s[obj] = res
-    for k, v in pairs(obj) do res[deepCopy(k, s)] = deepCopy(v, s) end
-    return setmetatable(res, getmetatable(obj))
+-- This action constructs a Job resource from a CronJob resource, to enable creating a CronJob instance on demand.
+-- It returns an array with a single member - a table with the operation to perform (create) and the Job resource.
+-- It mimics the output of "kubectl create job --from=<CRON_JOB_NAME>" command, declaratively.
+
+-- Deep-copying an object is a ChatGPT generated code.
+-- Since empty tables are treated as empty arrays, the resulting k8s resource might be invalid (arrays instead of maps).
+-- So empty tables are not cloned to the target object.
+function deepCopy(object)
+    local lookup_table = {}
+    local function _copy(obj)
+        if type(obj) ~= "table" then
+            return obj
+        elseif lookup_table[obj] then
+            return lookup_table[obj]
+        elseif next(obj) == nil then
+            return nil
+        else
+            local new_table = {}
+            lookup_table[obj] = new_table
+            for key, value in pairs(obj) do
+                new_table[_copy(key)] = _copy(value)
+            end
+            return setmetatable(new_table, getmetatable(obj))
+        end
+    end
+    return _copy(object)
 end
 
 job = {}
@@ -21,22 +35,24 @@ job.kind = "Job"
 job.metadata = {}
 job.metadata.name = obj.metadata.name .. "-" ..os.date("!%Y%m%d%H%M")
 job.metadata.namespace = obj.metadata.namespace
-job.metadata.ownerReferences = {}
 
 ownerRef = {}
 ownerRef.apiVersion = obj.apiVersion
 ownerRef.kind = obj.kind
 ownerRef.name = obj.metadata.name
 ownerRef.uid = obj.metadata.uid
-
+job.metadata.ownerReferences = {}
 job.metadata.ownerReferences[1] = ownerRef
 
 job.spec = {}
 job.spec.suspend = false
 job.spec.template = {}
-
 job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
-print ("deep copied")
-print (job.spec.template.spec)
-return job
 
+impactedResource = {}
+impactedResource.K8SOperation = "create"
+impactedResource.UnstructuredObj = job
+result = {}
+result[1] = impactedResource
+
+return result

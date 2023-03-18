@@ -21,11 +21,13 @@ import (
 )
 
 const (
-	incorrectReturnType       = "expect %s output from Lua script, not %s"
-	invalidHealthStatus       = "Lua returned an invalid health status"
-	healthScriptFile          = "health.lua"
-	actionScriptFile          = "action.lua"
-	actionDiscoveryScriptFile = "discovery.lua"
+	incorrectReturnType         = "expect %s output from Lua script, not %s"
+	incorrectInnerType          = "expect %s inner type from Lua script, not %s"
+	invalidHealthStatus         = "Lua returned an invalid health status"
+	healthScriptFile            = "health.lua"
+	actionScriptFile            = "action.lua"
+	actionDiscoveryScriptFile   = "discovery.lua"
+	luaImpactedResourceTypeName = "impactedResource"
 )
 
 type ResourceHealthOverrides map[string]appv1.ResourceOverride
@@ -61,6 +63,8 @@ type VM struct {
 // that will need to be performed on this returned resource.
 // This replaces the traditional architecture of "Lua action returns a resource that ArgoCD will patch".
 // This enables ArgoCD to create NEW resources upon custom actions.
+// Note that the Lua code in the custom action is coupled to this type, and must return a json output with exactly those fields,
+// since the json output is then unmarshalled to this struct.
 type ImpactedResource struct {
 	UnstructuredObj *unstructured.Unstructured
 	K8SOperation    string
@@ -110,6 +114,7 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 	}
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
+
 		jsonBytes, err := luajson.Encode(returnValue)
 		if err != nil {
 			return nil, err
@@ -165,32 +170,59 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 	if returnValue.Type() == lua.LTTable {
 		jsonBytes, err := luajson.Encode(returnValue)
 
-		fmt.Print("************************************" + bytes.NewBuffer(jsonBytes).String() + "*************************************")
 		if err != nil {
 			return nil, err
 		}
-		newObj, err := appv1.UnmarshalToUnstructured(string(jsonBytes))
-		if err != nil {
-			return nil, err
-		}
-		cleanedNewObj := cleanReturnedObj(newObj.Object, obj.Object)
-		newObj.Object = cleanedNewObj
 
-		// TODO: delete this hard coded thingie when Lua script returns an array of objects along with corresponding actions.
-		// Meanwhile, just wrapping Job resource with a "create" operation, and wrapping everything else with a "patch" operation.
-		// The "everything else" are traditional outputs from a ResourceAction - the update to the same resource the action is invoked on.
-		// The logic, that goes over the array returned from Lua, and makes sure that:
-		// - if a patch operation exists, it is being invoked only on the source resource
-		// will be somewhere here, and if one those is violated, an error will be thrown
-		impactedResources := make([]ImpactedResource, 0)
-		if newObj.GetKind() == "Job" {
-			impactedResources = append(impactedResources, ImpactedResource{newObj, "create"})
+		var impactedResources []ImpactedResource
+
+		jsonString := bytes.NewBuffer(jsonBytes).String()
+		fmt.Print("************************************" + jsonString + "*************************************")
+
+		// The output from Lua is either an object (old-style action output) or an array (new-style action output).
+		// Check whether the string starts with an opening square bracket and ends with a closing square bracket,
+		// avoiding programming by exception.
+		if jsonString[0] == '[' && jsonString[len(jsonString)-1] == ']' {
+			// The string represents a new-style action array output
+			impactedResources, err = unmarshalToImpactedResources(string(jsonBytes))
+			if err != nil {
+				return nil, err
+			}
 		} else {
+			// The string represents an old-style action object output
+			newObj, err := appv1.UnmarshalToUnstructured(string(jsonBytes))
+			if err != nil {
+				return nil, err
+			}
+			// Wrap the old-style action output with a single-member array.
+			// The default definition of the old-style action is a "patch" one.
 			impactedResources = append(impactedResources, ImpactedResource{newObj, "patch"})
+		}
+
+		for _, impactedResource := range impactedResources {
+			// Cleaning the resource is only relevant to "patch"
+			if impactedResource.K8SOperation == "patch" {
+				impactedResource.UnstructuredObj.Object = cleanReturnedObj(impactedResource.UnstructuredObj.Object, obj.Object)
+			}
+
 		}
 		return impactedResources, nil
 	}
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+}
+
+// UnmarshalToImpactedResources unmarshals an ImpactedResource array representation in JSON to ImpactedResource array
+func unmarshalToImpactedResources(resources string) ([]ImpactedResource, error) {
+	if resources == "" || resources == "null" {
+		return nil, nil
+	}
+
+	var impactedResources []ImpactedResource
+	err := json.Unmarshal([]byte(resources), &impactedResources)
+	if err != nil {
+		return nil, err
+	}
+	return impactedResources, nil
 }
 
 // cleanReturnedObj Lua cannot distinguish an empty table as an array or map, and the library we are using choose to
