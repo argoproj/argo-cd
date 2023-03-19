@@ -514,6 +514,7 @@ func getResourceEventPayload(
 		OperationSyncRevision: getOperationRevision(parentApplication),
 		HistoryId:             getLatestAppHistoryId(parentApplication),
 		AppName:               parentApplication.Name,
+		AppNamespace:          parentApplication.Namespace,
 		AppUID:                string(parentApplication.ObjectMeta.UID),
 		AppLabels:             parentApplication.Labels,
 		SyncStatus:            string(rs.Status),
