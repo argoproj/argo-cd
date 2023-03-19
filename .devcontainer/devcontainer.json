@@ -1,7 +1,18 @@
 {
-    "build": { "dockerfile": "Dockerfile" },
-    "hostRequirements": {"cpus": 4},
+    "image": "mcr.microsoft.com/vscode/devcontainers/base:ubuntu",
+    "features": {
+        "ghcr.io/devcontainers/features/go:1": {
+            "version": "1.19"
+        },
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "16"
+        },
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    },
+    "hostRequirements": {
+        "cpus": 4
+    },
     "onCreateCommand": ".devcontainer/pre-build.sh",
-    "workspaceMount": "source=${localWorkspaceFolder},target=${localEnv:HOME}/go/src/github.com/argoproj/argo-cd,type=bind",
-    "workspaceFolder": "${localEnv:HOME}/go/src/github.com/argoproj/argo-cd"
+    "workspaceMount": "source=${localWorkspaceFolder},target=/home/vscode/go/src/github.com/argoproj/argo-cd,type=bind",
+    "workspaceFolder": "/home/vscode/go/src/github.com/argoproj/argo-cd"
 }
