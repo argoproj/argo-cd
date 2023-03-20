@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sync-dependencies
+spec:
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: sync-dependencies
+    repoURL: https://github.com/alexec/argocd-example-apps.git
+    targetRevision: HEAD

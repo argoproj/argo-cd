@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.0
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.23.1
-	github.com/argoproj/gitops-engine v0.7.1-0.20230319235010-745fb5a01f9c
+	github.com/argoproj/gitops-engine v0.7.1-0.20230320011432-f0d11c72d017
 	github.com/argoproj/notifications-engine v0.4.1-0.20230228182525-f754726f03da
 	github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d
 	github.com/aws/aws-sdk-go v1.44.164
@@ -298,3 +298,5 @@ replace (
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.24.2
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.24.2
 )
+
+replace github.com/argoproj/gitops-engine => ../gitops-engine
