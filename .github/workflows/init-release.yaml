@@ -34,7 +34,7 @@ jobs:
           set -xue
           # Target version must not contain 'v' prefix
           if echo "${{ inputs.TARGET_VERSION }}" | grep -e '^v'; then
-            echo "::error::Target version '${{ TARGET_VERSION }}' should not begin with a 'v' prefix, refusing to continue." >&2
+            echo "::error::Target version '${{ inputs.TARGET_VERSION }}' should not begin with a 'v' prefix, refusing to continue." >&2
             exit 1
           fi
 
