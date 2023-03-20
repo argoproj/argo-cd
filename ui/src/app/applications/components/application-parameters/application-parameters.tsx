@@ -504,7 +504,7 @@ export const ApplicationParameters = (props: {
                     let params = input.spec?.source?.plugin?.parameters;
                     if (params) {
                         for (const param of params) {
-                            if (param.array && (param.map || typeof param.array[0] !== 'string')) {
+                            if (param.map && param.array) {
                                 // @ts-ignore
                                 param.map = param.array.reduce((acc, {name, value}) => {
                                     // @ts-ignore
