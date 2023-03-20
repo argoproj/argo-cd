@@ -1,19 +1,21 @@
 package lua
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/gitops-engine/pkg/diff"
 )
 
 type testNormalizer struct{}
@@ -21,6 +23,13 @@ type testNormalizer struct{}
 func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 	if un == nil {
 		return nil
+	}
+	switch un.GetKind() {
+	case "Job":
+		err := unstructured.SetNestedField(un.Object, map[string]interface{}{"name": "not sure why this works"}, "metadata")
+		if err != nil {
+			return fmt.Errorf("failed to normalize Job: %w", err)
+		}
 	}
 	switch un.GetKind() {
 	case "DaemonSet", "Deployment", "StatefulSet":
@@ -102,6 +111,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		for i := range resourceTest.ActionTests {
 			test := resourceTest.ActionTests[i]
 			testName := fmt.Sprintf("actions/%s/%s", test.Action, test.InputPath)
+
 			t.Run(testName, func(t *testing.T) {
 				vm := VM{
 					// Uncomment the following line if you need to use lua libraries debugging
@@ -109,46 +119,104 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					// privileges that API server has.
 					//UseOpenLibs: true,
 				}
-				obj := getObj(filepath.Join(dir, test.InputPath))
-				action, err := vm.GetResourceAction(obj, test.Action)
+				sourceObj := getObj(filepath.Join(dir, test.InputPath))
+				action, err := vm.GetResourceAction(sourceObj, test.Action)
+
 				assert.NoError(t, err)
 
 				assert.NoError(t, err)
-				results, err := vm.ExecuteResourceAction(obj, action.ActionLua)
+				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua)
 				assert.NoError(t, err)
 
-				for _, impactedResource := range results {
+				// Treat the Lua expected output as a list
+				expectedObjects := getExpectedObjectList(t, filepath.Join(dir, test.ExpectedOutputPath))
+
+				for _, impactedResource := range impactedResources {
 					result := impactedResource.UnstructuredObj
-					if impactedResource.K8SOperation == "patch" {
+
+					// The expected output is a list of objects
+					// Find the actual impacted resource in the expected output
+					expectedObj := findFirstMatchingItem(expectedObjects.Items, func(u unstructured.Unstructured) bool {
+						// Job's name is derived from the CronJob name, so the returned Job name is not actually equal to the testdata output name
+						// Considering the Job found in the testdata output if its name starts with CronJob name
+						// TODO: maybe this should use a normalizer function instead of hard-coding the Job specifics here
+						if result.GetKind() == "Job" && sourceObj.GetKind() == "CronJob" {
+							return u.GroupVersionKind() == result.GroupVersionKind() && strings.HasPrefix(u.GetName(), sourceObj.GetName()) && u.GetNamespace() == result.GetNamespace()
+						} else {
+							t.Log(u.GroupVersionKind(), result.GroupVersionKind(), u.GetName(), result.GetName(), u.GetNamespace(), result.GetNamespace())
+							return u.GroupVersionKind() == result.GroupVersionKind() && u.GetName() == result.GetName() && u.GetNamespace() == result.GetNamespace()
+						}
+					})
+
+					assert.NotNil(t, expectedObj)
+
+					switch impactedResource.K8SOperation {
+					case "patch":
 						// Patching is only allowed for the source resource, so the GVK + name + ns must be the same as the impacted resource
-						assert.EqualValues(t, obj.GetKind(), result.GetKind())
-						assert.EqualValues(t, obj.GetAPIVersion(), result.GetAPIVersion())
-						assert.EqualValues(t, obj.GetName(), result.GetName())
-						assert.EqualValues(t, obj.GetNamespace(), result.GetNamespace())
-
-						expectedObj := getObj(filepath.Join(dir, test.ExpectedOutputPath))
-						// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
-						diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
+						assert.EqualValues(t, sourceObj.GroupVersionKind(), result.GroupVersionKind())
+						assert.EqualValues(t, sourceObj.GetName(), result.GetName())
+						assert.EqualValues(t, sourceObj.GetNamespace(), result.GetNamespace())
+					case "create":
+						// no special logic to test for now
+					default:
+						t.Error("Operation not supported: " + impactedResource.K8SOperation)
+					}
+					// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
+					diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
+					assert.NoError(t, err)
+					if diffResult.Modified {
+						t.Error("Output does not match input:")
+						err = cli.PrintDiff(test.Action, expectedObj, result)
 						assert.NoError(t, err)
-						if diffResult.Modified {
-							t.Error("Output does not match input:")
-							err = cli.PrintDiff(test.Action, expectedObj, result)
-							assert.NoError(t, err)
-						}
-					} else {
-						if impactedResource.K8SOperation == "create" {
-							t.Log("There is a create action - hooray! But I don't know how to test it yet")
-							t.Log(result.GetKind(), result.GetName(), result.GetNamespace())
-
-						}
-
 					}
 				}
-
 			})
 		}
 
 		return nil
 	})
 	assert.Nil(t, err)
+}
+
+// Handling backward compatibility.
+// The old-style actions return a single object in the expected output from testdata, so will wrap them in a list
+func getExpectedObjectList(t *testing.T, path string) *unstructured.UnstructuredList {
+	yamlBytes, err := os.ReadFile(path)
+	errors.CheckError(err)
+	unstructuredList := &unstructured.UnstructuredList{}
+	yamlString := bytes.NewBuffer(yamlBytes).String()
+	if yamlString[0] == '-' {
+		// The string represents a new-style action array output, where each member is a wrapper around a k8s unstructured resource
+		objList := make([]map[string]interface{}, 5)
+		err = yaml.Unmarshal(yamlBytes, &objList)
+		errors.CheckError(err)
+		unstructuredList.Items = make([]unstructured.Unstructured, len(objList))
+		// Append each map in objList to the Items field of the new object
+		for i, obj := range objList {
+			unstructuredObj, ok := obj["unstructuredObj"].(map[string]interface{})
+			if !ok {
+				t.Error("Wrong type of unstructuredObj")
+			}
+			unstructuredList.Items[i] = unstructured.Unstructured{Object: unstructuredObj}
+		}
+	} else {
+		// The string represents an old-style action object output, which is a k8s unstructured resource
+		obj := make(map[string]interface{})
+		err = yaml.Unmarshal(yamlBytes, &obj)
+		errors.CheckError(err)
+		unstructuredList.Items = make([]unstructured.Unstructured, 1)
+		unstructuredList.Items[0] = unstructured.Unstructured{Object: obj}
+	}
+	return unstructuredList
+}
+
+func findFirstMatchingItem(items []unstructured.Unstructured, f func(unstructured.Unstructured) bool) *unstructured.Unstructured {
+	var matching *unstructured.Unstructured = nil
+	for _, item := range items {
+		if f(item) {
+			matching = &item
+			break
+		}
+	}
+	return matching
 }

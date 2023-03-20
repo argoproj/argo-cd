@@ -2001,7 +2001,7 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 		}
 		obj, err = s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
 		data, _ := json.Marshal(obj)
-		fmt.Print("************************************ GetResource " + bytes.NewBuffer(data).String() + "*************************************")
+		fmt.Println("************************************ GetResource " + bytes.NewBuffer(data).String() + "*************************************")
 
 	}
 	if err != nil {

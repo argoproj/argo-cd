@@ -1,9 +1,11 @@
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: hello-123
-  namespace: test-ns
-spec:
+- k8sOperation: create
+  unstructuredObj:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-00000000000
+      namespace: test-ns
+    spec:
       template:
         spec:
           containers:

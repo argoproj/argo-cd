@@ -1,8 +1,6 @@
 package lua
 
 import (
-	"bytes"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,11 +25,11 @@ type IndividualTest struct {
 
 func getObj(path string) *unstructured.Unstructured {
 	yamlBytes, err := os.ReadFile(path)
-	fmt.Print("************************************ input " + bytes.NewBuffer(yamlBytes).String() + "*************************************")
 	errors.CheckError(err)
 	obj := make(map[string]interface{})
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	errors.CheckError(err)
+
 	return &unstructured.Unstructured{Object: obj}
 }
 

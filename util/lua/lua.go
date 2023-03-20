@@ -58,17 +58,6 @@ type VM struct {
 	UseOpenLibs bool
 }
 
-// This struct represents a resource, that is returned from Lua custom action script, along with a k8s verb
-// that will need to be performed on this returned resource.
-// This replaces the traditional architecture of "Lua action returns a resource that ArgoCD will patch".
-// This enables ArgoCD to create NEW resources upon custom actions.
-// Note that the Lua code in the custom action is coupled to this type, and must return a json output with exactly those fields,
-// since the json output is then unmarshalled to this struct.
-type ImpactedResource struct {
-	UnstructuredObj *unstructured.Unstructured
-	K8SOperation    string
-}
-
 func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState, error) {
 	l := lua.NewState(lua.Options{
 		SkipOpenLibs: !vm.UseOpenLibs,
@@ -176,8 +165,6 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 		var impactedResources []ImpactedResource
 
 		jsonString := bytes.NewBuffer(jsonBytes).String()
-		fmt.Print("************************************" + jsonString + "*************************************")
-
 		// The output from Lua is either an object (old-style action output) or an array (new-style action output).
 		// Check whether the string starts with an opening square bracket and ends with a closing square bracket,
 		// avoiding programming by exception.

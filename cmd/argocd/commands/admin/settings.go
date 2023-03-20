@@ -547,7 +547,8 @@ argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --a
 
 				for _, impactedResource := range modifiedRes {
 					result := impactedResource.UnstructuredObj
-					if impactedResource.K8SOperation == "patch" {
+					switch impactedResource.K8SOperation {
+					case "patch":
 						if reflect.DeepEqual(&res, modifiedRes) {
 							_, _ = fmt.Printf("No fields had been changed by action: \n%s\n", action.Name)
 							return
@@ -555,13 +556,13 @@ argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --a
 
 						_, _ = fmt.Printf("Following fields have been changed:\n\n")
 						_ = cli.PrintDiff(res.GetName(), &res, result)
-					} else {
-						if impactedResource.K8SOperation == "create" {
-							_, _ = fmt.Printf("Create action detected. Don't know what to print yet")
-						}
+					case "create":
+						_, _ = fmt.Printf("Create action detected. Don't know what to print yet")
+					default:
+						errors.CheckError(fmt.Errorf("Unsupported operation: %s", impactedResource.K8SOperation))
 					}
-
 				}
+
 			})
 		},
 	}
