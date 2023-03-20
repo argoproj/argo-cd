@@ -137,6 +137,8 @@ github.com/antonmedv/expr v1.9.0/go.mod h1:5qsM3oLGDND7sDmQGDXHkYfkjYMUX14qsgqmH
 github.com/appscode/go v0.0.0-20191119085241-0887d8ec2ecc/go.mod h1:OawnOmAL4ZX3YaPdN+8HTNwBveT1jMsqP74moa9XUbE=
 github.com/argoproj/gitops-engine v0.7.1-0.20230214165351-ed70eac8b7bd h1:4Y76oXOZ2b7px7ppRSNpdxFPhUEw5e3BYEWpxn8pO2I=
 github.com/argoproj/gitops-engine v0.7.1-0.20230214165351-ed70eac8b7bd/go.mod h1:WpA/B7tgwfz+sdNE3LqrTrb7ArEY1FOPI2pAGI0hfPc=
+github.com/argoproj/gitops-engine v0.7.1-0.20230319235010-745fb5a01f9c h1:Wgq8mXfceCBp4ykdao4oTomvhDCpnJ4zg2zK9FyL+7Q=
+github.com/argoproj/gitops-engine v0.7.1-0.20230319235010-745fb5a01f9c/go.mod h1:WpA/B7tgwfz+sdNE3LqrTrb7ArEY1FOPI2pAGI0hfPc=
 github.com/argoproj/notifications-engine v0.4.1-0.20230228182525-f754726f03da h1:Vf9xvHcXn4TP/nLIfWn+TaC521V9fpz/DwRP6uEeVR8=
 github.com/argoproj/notifications-engine v0.4.1-0.20230228182525-f754726f03da/go.mod h1:05koR0gE/O0i5YDbidg1dpr76XitK4DJveh+dIAq6e8=
 github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d h1:7fXEKF3OQ9i1PrgieA6FLrXOL3UAKyiotomn0RHevds=
