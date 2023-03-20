@@ -1242,7 +1242,19 @@ func returnCronJob() *unstructured.Unstructured {
 	}}
 }
 
-func TestRunResourceAction(t *testing.T) {
+func returnDeployment() *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "apps/v1",
+		"kind":       "Deployment",
+		"metadata": map[string]interface{}{
+			"name":      "nginx-deploy",
+			"namespace": testNamespace,
+		},
+		"spec": map[string]interface{}{},
+	}}
+}
+
+func TestRunNewStyleResourceAction(t *testing.T) {
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
 
 	group := "batch"
@@ -1315,6 +1327,69 @@ func TestRunResourceAction(t *testing.T) {
 	})
 
 	t.Run("CreateOperationPermitted", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+		testApp.Status.Resources = resources
+
+		appServer := newTestAppServerWithResourceFunc(&getResourceFunc, testApp)
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
+
+		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		require.NoError(t, err)
+
+		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
+			Name:         &testApp.Name,
+			Namespace:    &namespace,
+			Action:       &action,
+			AppNamespace: &testApp.Namespace,
+			ResourceName: &resourceName,
+			Version:      &version,
+			Group:        &group,
+			Kind:         &kind,
+		})
+
+		require.NoError(t, runErr)
+		assert.NotNil(t, appResponse)
+	})
+}
+
+func TestRunOldStyleResourceAction(t *testing.T) {
+	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+
+	group := "apps"
+	kind := "Deployment"
+	version := "v1"
+	resourceName := "nginx-deploy"
+	namespace := testNamespace
+	action := "pause"
+	uid := "2"
+
+	resources := []appsv1.ResourceStatus{{
+		Group:     group,
+		Kind:      kind,
+		Name:      resourceName,
+		Namespace: testNamespace,
+		Version:   version,
+	}}
+
+	getResourceFunc := func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+		return returnDeployment(), nil
+	}
+
+	appStateCache := appstate.NewCache(cacheClient, time.Minute)
+
+	nodes := []appsv1.ResourceNode{{
+		ResourceRef: appsv1.ResourceRef{
+			Group:     group,
+			Kind:      kind,
+			Version:   version,
+			Name:      resourceName,
+			Namespace: testNamespace,
+			UID:       uid,
+		},
+	}}
+
+	t.Run("DefaultPatchOperation", func(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
 		testApp.Status.Resources = resources

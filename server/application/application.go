@@ -1,7 +1,6 @@
 package application
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -1990,9 +1989,6 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 		if err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("error getting application cluster config: %w", err)
 		}
-		data, _ := json.Marshal(obj)
-		fmt.Print("************************************ app " + bytes.NewBuffer(data).String() + "*************************************")
-
 		obj, err = kube.ToUnstructured(app)
 	} else {
 		res, config, app, err = s.getAppLiveResource(ctx, rbacRequest, q)
@@ -2000,8 +1996,6 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 			return nil, nil, nil, nil, fmt.Errorf("error getting app live resource: %w", err)
 		}
 		obj, err = s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
-		data, _ := json.Marshal(obj)
-		fmt.Println("************************************ GetResource " + bytes.NewBuffer(data).String() + "*************************************")
 
 	}
 	if err != nil {

@@ -1,6 +1,7 @@
 package lua
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
@@ -24,6 +25,7 @@ metadata:
   namespace: default
   resourceVersion: "123"
 `
+
 const objWithNoScriptJSON = `
 apiVersion: not-an-endpoint.io/v1alpha1
 kind: Test
@@ -370,7 +372,7 @@ obj.metadata.labels["test"] = "test"
 return obj
 `
 
-const expectedUpdatedObj = `
+const expectedLuaUpdatedResult = `
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -382,15 +384,127 @@ metadata:
   resourceVersion: "123"
 `
 
-func TestExecuteResourceAction(t *testing.T) {
+// Test an action that returns a single k8s resource json
+func TestExecuteOldStyleResourceAction(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
-	expectedObj := StrToUnstructured(expectedUpdatedObj)
+	expectedLuaUpdatedObj := StrToUnstructured(expectedLuaUpdatedResult)
 	vm := VM{}
 	newObjects, err := vm.ExecuteResourceAction(testObj, validActionLua)
 	assert.Nil(t, err)
 	assert.Equal(t, len(newObjects), 1)
 	assert.Equal(t, newObjects[0].K8SOperation, "patch")
-	assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
+	assert.Equal(t, expectedLuaUpdatedObj, newObjects[0].UnstructuredObj)
+}
+
+const cronJobObjYaml = `
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+  namespace: test-ns
+`
+
+const expectedCreatedJobObjList = `
+- k8sOperation: create
+  unstructuredObj:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-1
+      namespace: test-ns
+`
+
+const expectedCreatedMultipleJobsObjList = `
+- k8sOperation: create
+  unstructuredObj:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-1
+      namespace: test-ns
+- k8sOperation: create
+  unstructuredObj:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-2
+      namespace: test-ns	  
+`
+
+const createJobActionLua = `
+job = {}
+job.apiVersion = "batch/v1"
+job.kind = "Job"
+
+job.metadata = {}
+job.metadata.name = "hello-1"
+job.metadata.namespace = "test-ns"
+
+impactedResource = {}
+impactedResource.k8sOperation = "create"
+impactedResource.unstructuredObj = job
+result = {}
+result[1] = impactedResource
+
+return result
+`
+
+const createMultipleJobsActionLua = `
+job1 = {}
+job1.apiVersion = "batch/v1"
+job1.kind = "Job"
+
+job1.metadata = {}
+job1.metadata.name = "hello-1"
+job1.metadata.namespace = "test-ns"
+
+impactedResource1 = {}
+impactedResource1.k8sOperation = "create"
+impactedResource1.unstructuredObj = job1
+result = {}
+result[1] = impactedResource1
+
+job2 = {}
+job2.apiVersion = "batch/v1"
+job2.kind = "Job"
+
+job2.metadata = {}
+job2.metadata.name = "hello-2"
+job2.metadata.namespace = "test-ns"
+
+impactedResource2 = {}
+impactedResource2.k8sOperation = "create"
+impactedResource2.unstructuredObj = job2
+
+result[2] = impactedResource2
+
+return result
+`
+
+func TestExecuteNewStyleCreateActionSingleResource(t *testing.T) {
+	testObj := StrToUnstructured(cronJobObjYaml)
+	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedCreatedJobObjList))
+	assert.Nil(t, err)
+	t.Log(bytes.NewBuffer(jsonBytes).String())
+	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
+	assert.Nil(t, err)
+	vm := VM{}
+	newObjects, err := vm.ExecuteResourceAction(testObj, createJobActionLua)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedObjects, newObjects)
+}
+
+func TestExecuteNewStyleCreateActionMultipleResources(t *testing.T) {
+	testObj := StrToUnstructured(cronJobObjYaml)
+	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedCreatedMultipleJobsObjList))
+	assert.Nil(t, err)
+	// t.Log(bytes.NewBuffer(jsonBytes).String())
+	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
+	assert.Nil(t, err)
+	vm := VM{}
+	newObjects, err := vm.ExecuteResourceAction(testObj, createMultipleJobsActionLua)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedObjects, newObjects)
 }
 
 func TestExecuteResourceActionNonTableReturn(t *testing.T) {

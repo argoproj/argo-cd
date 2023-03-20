@@ -48,6 +48,7 @@ const (
 	guestbookPathLocal     = "./testdata/guestbook_local"
 	globalWithNoNameSpace  = "global-with-no-namespace"
 	guestbookWithNamespace = "guestbook-with-namespace"
+	resourceActions        = "resource-actions"
 	appLogsRetryCount      = 5
 )
 
@@ -879,7 +880,7 @@ definitions:
     obj.metadata.labels.sample = 'test'
     return obj`
 
-func TestResourceAction(t *testing.T) {
+func TestOldStyleResourceAction(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}).
@@ -915,6 +916,64 @@ func TestResourceAction(t *testing.T) {
 			assert.NoError(t, err)
 
 			deployment, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+			assert.NoError(t, err)
+
+			assert.Equal(t, "test", deployment.Labels["sample"])
+		})
+}
+
+const newStyleActionsConfig = `discovery.lua: return { sample = {} }
+definitions:
+- name: sample
+  action.lua: |
+        job1 = {}
+        job1.apiVersion = "batch/v1"
+        job1.kind = "Job" 
+        job1.metadata = {}
+        job1.metadata.name = "hello-1"
+        impactedResource1 = {}
+        impactedResource1.k8sOperation = "create"
+        impactedResource1.unstructuredObj = job1
+        result = {}
+        result[1] = impactedResource1
+        return result`
+
+func TestNewStyleResourceAction(t *testing.T) {
+	Given(t).
+		Path(resourceActions).
+		ResourceOverrides(map[string]ResourceOverride{"batch/CronJob": {Actions: newStyleActionsConfig}}).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		And(func(app *Application) {
+
+			closer, client, err := ArgoCDClientset.NewApplicationClient()
+			assert.NoError(t, err)
+			defer io.Close(closer)
+
+			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
+				Name:         &app.Name,
+				Group:        pointer.String("batch"),
+				Kind:         pointer.String("CronJob"),
+				Version:      pointer.String("v1"),
+				Namespace:    pointer.String(DeploymentNamespace()),
+				ResourceName: pointer.String("hello"),
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
+
+			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
+				Group:        pointer.String("batch"),
+				Kind:         pointer.String("CronJob"),
+				Version:      pointer.String("v1"),
+				Namespace:    pointer.String(DeploymentNamespace()),
+				ResourceName: pointer.String("hello"),
+				Action:       pointer.String("sample"),
+			})
+			assert.NoError(t, err)
+
+			deployment, err := KubeClientset.BatchV1().Jobs(DeploymentNamespace()).Get(context.Background(), "hello-1", metav1.GetOptions{})
 			assert.NoError(t, err)
 
 			assert.Equal(t, "test", deployment.Labels["sample"])

@@ -557,7 +557,10 @@ argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --a
 						_, _ = fmt.Printf("Following fields have been changed:\n\n")
 						_ = cli.PrintDiff(res.GetName(), &res, result)
 					case "create":
-						_, _ = fmt.Printf("Create action detected. Don't know what to print yet")
+						yamlBytes, err := yaml.Marshal(impactedResource.UnstructuredObj)
+						errors.CheckError(err)
+						fmt.Println("Following resource was created:")
+						fmt.Println(bytes.NewBuffer(yamlBytes).String())
 					default:
 						errors.CheckError(fmt.Errorf("Unsupported operation: %s", impactedResource.K8SOperation))
 					}

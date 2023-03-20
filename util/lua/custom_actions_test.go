@@ -143,7 +143,6 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						if result.GetKind() == "Job" && sourceObj.GetKind() == "CronJob" {
 							return u.GroupVersionKind() == result.GroupVersionKind() && strings.HasPrefix(u.GetName(), sourceObj.GetName()) && u.GetNamespace() == result.GetNamespace()
 						} else {
-							t.Log(u.GroupVersionKind(), result.GroupVersionKind(), u.GetName(), result.GetName(), u.GetNamespace(), result.GetNamespace())
 							return u.GroupVersionKind() == result.GroupVersionKind() && u.GetName() == result.GetName() && u.GetNamespace() == result.GetNamespace()
 						}
 					})
