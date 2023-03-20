@@ -127,11 +127,6 @@ func TestExtractApplications(t *testing.T) {
 		},
 	} {
 		cc := c
-		app := argov1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test",
-			},
-		}
 
 		t.Run(cc.name, func(t *testing.T) {
 
@@ -166,6 +161,11 @@ func TestExtractApplications(t *testing.T) {
 						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p, false).
 							Return(nil, cc.rendererError)
 					} else {
+						app := argov1alpha1.Application{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: p["name"].(string),
+							},
+						}
 						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p, false).
 							Return(&app, nil)
 						expectedApps = append(expectedApps, app)
