@@ -1831,10 +1831,8 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 
-	// sanitize cluster, remove cluster config creds
-	clst.Config = appv1.ClusterConfig{}
-
-	clstObj, err := kube.ToUnstructured(clst)
+	// sanitize cluster, remove cluster config creds and other unwanted fields
+	clstObj, err := deeplinks.SanitizeCluster(clst)
 	if err != nil {
 		return nil, err
 	}
@@ -1872,10 +1870,9 @@ func (s *Server) ListResourceLinks(ctx context.Context, req *application.Applica
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
-	// sanitize cluster, remove cluster config creds
-	clst.Config = appv1.ClusterConfig{}
 
-	clstObj, err := kube.ToUnstructured(clst)
+	// sanitize cluster, remove cluster config creds and other unwanted fields
+	clstObj, err := deeplinks.SanitizeCluster(clst)
 	if err != nil {
 		return nil, err
 	}

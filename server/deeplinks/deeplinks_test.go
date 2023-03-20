@@ -39,6 +39,7 @@ func TestDeepLinks(t *testing.T) {
 			},
 		},
 	})
+	assert.NoError(t, err)
 	resourceObj, err := kube.ToUnstructured(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-cm",
@@ -49,6 +50,12 @@ func TestDeepLinks(t *testing.T) {
 			"key": "value1",
 		},
 	})
+	assert.NoError(t, err)
+	clusterObj, err := kube.ToUnstructured(&ClusterLinksData{
+		Server: "test-svc.com",
+		Name:   "test-cluster",
+	})
+	assert.NoError(t, err)
 	projectObj, err := kube.ToUnstructured(&v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-project",
@@ -64,14 +71,15 @@ func TestDeepLinks(t *testing.T) {
 			appObj:      appObj,
 			resourceObj: resourceObj,
 			projectObj:  projectObj,
+			clusterObj:  clusterObj,
 			inputLinks: []settings.DeepLink{{
 				Title:     "link",
-				URL:       "http://example.com/{{ .application.metadata.name }}&{{ .resource.data.key }}&{{ index .project.spec.sourceRepos 0}}",
+				URL:       "http://example.com/{{ .application.metadata.name }}&{{ .resource.data.key }}&{{ index .project.spec.sourceRepos 0}}&{{ .cluster.name }}",
 				Condition: pointer.String(`application.metadata.name matches "test" && project.metadata.name matches "test-project"`),
 			}},
 			outputLinks: []*application.LinkInfo{{
 				Title: pointer.String("link"),
-				Url:   pointer.String("http://example.com/test&value1&test-repo.git"),
+				Url:   pointer.String("http://example.com/test&value1&test-repo.git&test-cluster"),
 			}},
 			error: []string{},
 		},
