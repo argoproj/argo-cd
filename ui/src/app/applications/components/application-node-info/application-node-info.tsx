@@ -77,31 +77,32 @@ export const ApplicationNodeInfo = (props: {
                                             <td width='18%'>{container.name}</td>
                                             <td />
                                             <td>
-                                                {!state || state !== 'running' ? (
-                                                    <Fragment>
-                                                        Container is in <span className='application-node-info__labels--highlight'>{state}</span> state because of{' '}
-                                                        {status && <span className='application-node-info__labels--highlight'>{status}</span>}
-                                                    </Fragment>
-                                                ) : (
-                                                    <Fragment>
-                                                        Container is in <span className='application-node-info__labels--highlight'>{state}</span> state
-                                                    </Fragment>
-                                                )}
-                                                {(!state || state !== 'running') && msgExists && (
+                                                {state &&
+                                                    (state !== 'running' ? (
+                                                        <Fragment>
+                                                            Container is in <span className='application-node-info__labels--highlight'>{state}</span> state because of{' '}
+                                                            {status && <span className='application-node-info__labels--highlight'>{status}</span>}
+                                                        </Fragment>
+                                                    ) : (
+                                                        <Fragment>
+                                                            Container is in <span className='application-node-info__labels--highlight'>{state}</span> state.
+                                                        </Fragment>
+                                                    ))}
+                                                {msgExists && (
                                                     <span title={msgExists} key={i}>
-                                                        {' '}
-                                                        <i className='fa-solid fa-info-circle' />
+                                                        {'.'}
+                                                        <i className='fa-solid fa-circle-info' />
                                                     </span>
                                                 )}
-                                                {'.'}
+
+                                                <br />
                                                 {lastState && (
                                                     <Fragment>
-                                                        {' '}
-                                                        The container's lastState terminated with exit code {lastState?.exitCode.toString()} and status{' '}
+                                                        The container's lastState terminated with exit code - {lastState?.exitCode.toString()} and status -{' '}
                                                         {lastState?.reason && <span className='application-node-info__labels--highlight'>{lastState?.reason}</span>}
                                                         {container.lastState?.message && (
                                                             <span title={container.lastState?.message} key={i}>
-                                                                <i className='fa-solid fa-info-circle' />
+                                                                <i className='fa-solid fa-circle-info' />
                                                             </span>
                                                         )}
                                                         {'.'}
