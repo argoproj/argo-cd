@@ -48,6 +48,7 @@ const (
 	guestbookPathLocal     = "./testdata/guestbook_local"
 	globalWithNoNameSpace  = "global-with-no-namespace"
 	guestbookWithNamespace = "guestbook-with-namespace"
+	appLogsRetryCount      = 5
 )
 
 // This empty test is here only for clarity, to conform to logs rbac tests structure in account. This exact usecase is covered in the TestAppLogs test
@@ -94,7 +95,7 @@ func TestGetLogsDenySwitchOn(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			_, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			_, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "permission denied")
 		})
@@ -145,17 +146,17 @@ func TestGetLogsAllowSwitchOn(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.Name, "--kind", "Pod")
+			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Pod")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.Name, "--kind", "Service")
+			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Service")
 			assert.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
@@ -202,17 +203,17 @@ func TestGetLogsAllowSwitchOff(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.Name, "--kind", "Pod")
+			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Pod")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.Name, "--kind", "Service")
+			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Service")
 			assert.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
@@ -298,7 +299,7 @@ func TestAppCreation(t *testing.T) {
 		When().
 		// ensure that update replaces spec and merge labels and annotations
 		And(func() {
-			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(context.Background(),
+			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).Patch(context.Background(),
 				ctx.GetName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation" }}}`), metav1.PatchOptions{}))
 		}).
 		CreateApp("--upsert").
@@ -503,7 +504,7 @@ func TestAppRollbackSuccessful(t *testing.T) {
 			}}
 			patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &Application{})
 			require.NoError(t, err)
-			app, err = AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+			app, err = AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 			require.NoError(t, err)
 
 			// sync app and make sure it reaches InSync state
@@ -1593,8 +1594,8 @@ func TestNotPermittedResources(t *testing.T) {
 		},
 	}
 	defer func() {
-		log.Infof("Ingress 'sample-ingress' deleted from %s", ArgoCDNamespace)
-		CheckError(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
+		log.Infof("Ingress 'sample-ingress' deleted from %s", TestNamespace())
+		CheckError(KubeClientset.NetworkingV1().Ingresses(TestNamespace()).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
 	}()
 
 	svc := &v1.Service{
@@ -1622,7 +1623,7 @@ func TestNotPermittedResources(t *testing.T) {
 			{Group: "", Kind: "Service"},
 		}}).
 		And(func() {
-			FailOnErr(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Create(context.Background(), ingress, metav1.CreateOptions{}))
+			FailOnErr(KubeClientset.NetworkingV1().Ingresses(TestNamespace()).Create(context.Background(), ingress, metav1.CreateOptions{}))
 			FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Create(context.Background(), svc, metav1.CreateOptions{}))
 		}).
 		Path(guestbookPath).
@@ -1648,7 +1649,7 @@ func TestNotPermittedResources(t *testing.T) {
 		Expect(DoesNotExist())
 
 	// Make sure prohibited resources are not deleted during application deletion
-	FailOnErr(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Get(context.Background(), "sample-ingress", metav1.GetOptions{}))
+	FailOnErr(KubeClientset.NetworkingV1().Ingresses(TestNamespace()).Get(context.Background(), "sample-ingress", metav1.GetOptions{}))
 	FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{}))
 }
 
@@ -1687,7 +1688,7 @@ func TestCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			time.Sleep(500 * time.Millisecond)
-			app, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			app, err := AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
 			assert.NoError(t, err)
 			assert.Len(t, app.Status.Conditions, 0)
 		})
@@ -1707,7 +1708,7 @@ func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		And(func(app *Application) {
-			updatedApp, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			updatedApp, err := AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			assert.Len(t, updatedApp.Status.Conditions, 2)
@@ -1731,7 +1732,7 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		And(func(app *Application) {
-			updatedApp, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			updatedApp, err := AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			assert.Len(t, updatedApp.Status.Conditions, 2)
@@ -2007,17 +2008,17 @@ func TestAppLogs(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.Name, "--kind", "Pod")
+			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Pod")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.Name, "--kind", "Service")
+			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Service")
 			assert.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})

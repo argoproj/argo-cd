@@ -77,7 +77,7 @@ spec:
 ```
 
 !!! warning
-    By default, deleting an application will not perform a cascade delete, which would delete its resources. You must add the finalizer if you want this behaviour - which you may well not want.
+    Without the `resources-finalizer.argocd.argoproj.io` finalizer, deleting an application will not delete the resources it manages. To perform a cascading delete, you must add the finalizer. See [App Deletion](../user-guide/app_deletion.md#about-the-deletion-finalizer).
 
 ```yaml
 metadata:
@@ -515,6 +515,7 @@ The secret data must include following fields:
 * `server` - cluster api server url
 * `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
 * `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is used only if the list of managed namespaces is not empty.
+* `project` - optional string to designate this as a project-scoped cluster.
 * `config` - JSON representation of following data structure:
 
 ```yaml
@@ -726,17 +727,15 @@ based application which uses base Argo CD manifests from [https://github.com/arg
 Example of `kustomization.yaml`:
 
 ```yaml
-bases:
-- github.com/argoproj/argo-cd//manifests/cluster-install?ref=v1.0.1
-
 # additional resources like ingress rules, cluster and repository secrets.
 resources:
+- github.com/argoproj/argo-cd//manifests/cluster-install?ref=v1.0.1
 - clusters-secrets.yaml
 - repos-secrets.yaml
 
 # changes to config maps
-patchesStrategicMerge:
-- overlays/argo-cd-cm.yaml
+patches:
+- path: overlays/argo-cd-cm.yaml
 ```
 
 The live example of self managed Argo CD config is available at [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io) and with configuration
