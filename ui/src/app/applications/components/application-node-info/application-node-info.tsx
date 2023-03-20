@@ -17,8 +17,8 @@ import {
     HealthStatusIcon
 } from '../utils';
 import './application-node-info.scss';
-import {Fragment} from 'react';
 import {ReadinessGatesFailedWarning} from './readiness-gates-failed-warning';
+import classNames from 'classnames';
 
 export const ApplicationNodeInfo = (props: {
     application: models.Application;
@@ -77,36 +77,39 @@ export const ApplicationNodeInfo = (props: {
                                             <td width='18%'>{container.name}</td>
                                             <td />
                                             <td>
-                                                {state &&
-                                                    (state !== 'running' ? (
-                                                        <Fragment>
-                                                            Container is in <span className='application-node-info__labels--highlight'>{state}</span> state because of{' '}
-                                                            {status && <span className='application-node-info__labels--highlight'>{status}</span>}
-                                                        </Fragment>
-                                                    ) : (
-                                                        <Fragment>
-                                                            Container is in <span className='application-node-info__labels--highlight'>{state}</span> state.
-                                                        </Fragment>
-                                                    ))}
-                                                {msgExists && (
-                                                    <span title={msgExists} key={i}>
-                                                        {'.'}
-                                                        <i className='fa-solid fa-circle-info' />
-                                                    </span>
+                                                {state && (
+                                                    <>
+                                                        Container is in <span className='application-node-info__labels--highlight'>{state}</span> state{' '}
+                                                        {state !== 'running' && <>because of </>}
+                                                    </>
                                                 )}
-
+                                                <span title={msgExists || ''} key={i}>
+                                                    {status && (
+                                                        <span
+                                                            className={classNames('application-node-info__labels--highlight', {
+                                                                'application-node-info__labels--hint': !!msgExists
+                                                            })}>
+                                                            {status}
+                                                        </span>
+                                                    )}
+                                                    {'.'}
+                                                </span>
                                                 <br />
                                                 {lastState && (
-                                                    <Fragment>
+                                                    <>
                                                         The container's lastState terminated with exit code - {lastState?.exitCode.toString()} and status -{' '}
-                                                        {lastState?.reason && <span className='application-node-info__labels--highlight'>{lastState?.reason}</span>}
-                                                        {container.lastState?.message && (
-                                                            <span title={container.lastState?.message} key={i}>
-                                                                <i className='fa-solid fa-circle-info' />
-                                                            </span>
-                                                        )}
+                                                        <span title={container.lastState?.message || ''} key={i}>
+                                                            {lastState?.reason && (
+                                                                <span
+                                                                    className={classNames('application-node-info__labels--highlight', {
+                                                                        'application-node-info__labels--hint': !!container.lastState?.message
+                                                                    })}>
+                                                                    {lastState?.reason}
+                                                                </span>
+                                                            )}
+                                                        </span>
                                                         {'.'}
-                                                    </Fragment>
+                                                    </>
                                                 )}
                                             </td>
                                         </tr>
