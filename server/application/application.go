@@ -1826,7 +1826,22 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
 
-	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(*obj, deepLinks)
+	clst, err := s.db.GetCluster(ctx, a.Spec.Destination.Server)
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster: %w", err)
+	}
+
+	// sanitize cluster, remove cluster config creds
+	clst.Config = appv1.ClusterConfig{}
+
+	clstObj, err := kube.ToUnstructured(clst)
+	if err != nil {
+		return nil, err
+	}
+
+	deepLinksObject := deeplinks.CreateDeepLinksObject(nil, obj, clstObj, nil)
+
+	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(deepLinksObject, obj.GetName(), deepLinks)
 	if len(errorList) > 0 {
 		log.Errorf("errorList while evaluating application deep links, %v", strings.Join(errorList, ", "))
 	}
@@ -1835,11 +1850,10 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 }
 
 func (s *Server) ListResourceLinks(ctx context.Context, req *application.ApplicationResourceRequest) (*application.LinksResponse, error) {
-	obj, _, _, _, err := s.getUnstructuredLiveResourceOrApp(ctx, rbacpolicy.ActionGet, req)
+	obj, _, app, _, err := s.getUnstructuredLiveResourceOrApp(ctx, rbacpolicy.ActionGet, req)
 	if err != nil {
 		return nil, err
 	}
-
 	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ResourceDeepLinks)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
@@ -1850,7 +1864,36 @@ func (s *Server) ListResourceLinks(ctx context.Context, req *application.Applica
 		return nil, fmt.Errorf("error replacing secret values: %w", err)
 	}
 
-	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(*obj, deepLinks)
+	appObj, err := kube.ToUnstructured(app)
+	if err != nil {
+		return nil, err
+	}
+	clst, err := s.db.GetCluster(ctx, app.Spec.Destination.Server)
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster: %w", err)
+	}
+	// sanitize cluster, remove cluster config creds
+	clst.Config = appv1.ClusterConfig{}
+
+	clstObj, err := kube.ToUnstructured(clst)
+	if err != nil {
+		return nil, err
+	}
+
+	proj, err := argo.GetAppProject(app, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error getting app project: %w", err)
+	}
+
+	// sanitize project jwt tokens
+	proj.Status = appv1.AppProjectStatus{}
+
+	projObj, err := kube.ToUnstructured(proj)
+	if err != nil {
+		return nil, err
+	}
+	deepLinksObject := deeplinks.CreateDeepLinksObject(obj, appObj, clstObj, projObj)
+	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(deepLinksObject, obj.GetName(), deepLinks)
 	if len(errorList) > 0 {
 		log.Errorf("errors while evaluating resource deep links, %v", strings.Join(errorList, ", "))
 	}
