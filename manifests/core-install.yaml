@@ -15777,7 +15777,10 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:7.0.8-alpine
+        env:
+        - name: ARGOCD_REDIS_SERVICE
+          value: argocd-redis
+        image: redis:7.0.9-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -15831,7 +15834,7 @@ spec:
       - args:
         - /usr/local/bin/argocd-repo-server
         - --redis
-        - argocd-redis:6379
+        - $(ARGOCD_REDIS_SERVICE):6379
         env:
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
