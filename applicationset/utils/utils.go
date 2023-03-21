@@ -38,8 +38,7 @@ type Render struct {
 }
 
 func copyValueIntoUnexported(destination, value reflect.Value) {
-	destinationType := destination.Type()
-	reflect.NewAt(destinationType, unsafe.Pointer(destination.UnsafeAddr())).
+	reflect.NewAt(destination.Type(), unsafe.Pointer(destination.UnsafeAddr())).
 		Elem().
 		Set(value)
 }
@@ -140,9 +139,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		if copy.CanSet() {
 			copy.Set(reflect.MakeMap(original.Type()))
 		} else {
-			originalType := original.Type()
-			newMap := reflect.MakeMap(originalType)
-			copyValueIntoUnexported(copy, newMap)
+			copyValueIntoUnexported(copy, reflect.MakeMap(original.Type()))
 		}
 		for _, key := range original.MapKeys() {
 			originalValue := original.MapIndex(key)
