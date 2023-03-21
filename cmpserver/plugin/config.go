@@ -29,10 +29,14 @@ type PluginConfigSpec struct {
 	Parameters Parameters `yaml:"parameters"`
 }
 
-//Discover holds find and fileName
+// Discover holds find and fileName
 type Discover struct {
 	Find     Find   `json:"find"`
 	FileName string `json:"fileName"`
+}
+
+func (d Discover) IsDefined() bool {
+	return d.FileName != "" || d.Find.Glob == "" || len(d.Find.Command.Command) > 0
 }
 
 // Command holds binary path and arguments list

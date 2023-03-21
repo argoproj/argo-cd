@@ -188,7 +188,7 @@ func (s ApplicationSources) Equals(other ApplicationSources) bool {
 		return false
 	}
 	for i := range s {
-		if !s[i].Equals(other[i]) {
+		if !s[i].Equals(&other[i]) {
 			return false
 		}
 	}
@@ -531,18 +531,154 @@ func (d *ApplicationSourceDirectory) IsZero() bool {
 	return d == nil || !d.Recurse && d.Jsonnet.IsZero()
 }
 
+type OptionalMap struct {
+	// Map is the value of a map type parameter.
+	// +optional
+	Map map[string]string `json:"map" protobuf:"bytes,1,rep,name=map"`
+	// We need the explicit +optional so that kube-builder generates the CRD without marking this as required.
+}
+
+// Equals returns true if the two OptionalMap objects are equal. We can't use reflect.DeepEqual because it will return
+// false if one of the maps is nil and the other is an empty map. This is because the JSON unmarshaller will set the
+// map to nil if it is empty, but the protobuf unmarshaller will set it to an empty map.
+func (o *OptionalMap) Equals(other *OptionalMap) bool {
+	if o == nil && other == nil {
+		return true
+	}
+	if o == nil || other == nil {
+		return false
+	}
+	if len(o.Map) != len(other.Map) {
+		return false
+	}
+	if o.Map == nil && other.Map == nil {
+		return true
+	}
+	// The next two blocks are critical. Depending on whether the struct was populated from JSON or protobufs, the map
+	// field will be either nil or an empty map. They mean the same thing: the map is empty.
+	if o.Map == nil && len(other.Map) == 0 {
+		return true
+	}
+	if other.Map == nil && len(o.Map) == 0 {
+		return true
+	}
+	return reflect.DeepEqual(o.Map, other.Map)
+}
+
+type OptionalArray struct {
+	// Array is the value of an array type parameter.
+	// +optional
+	Array []string `json:"array" protobuf:"bytes,1,rep,name=array"`
+	// We need the explicit +optional so that kube-builder generates the CRD without marking this as required.
+}
+
+// Equals returns true if the two OptionalArray objects are equal. We can't use reflect.DeepEqual because it will return
+// false if one of the arrays is nil and the other is an empty array. This is because the JSON unmarshaller will set the
+// array to nil if it is empty, but the protobuf unmarshaller will set it to an empty array.
+func (o *OptionalArray) Equals(other *OptionalArray) bool {
+	if o == nil && other == nil {
+		return true
+	}
+	if o == nil || other == nil {
+		return false
+	}
+	if len(o.Array) != len(other.Array) {
+		return false
+	}
+	if o.Array == nil && other.Array == nil {
+		return true
+	}
+	// The next two blocks are critical. Depending on whether the struct was populated from JSON or protobufs, the array
+	// field will be either nil or an empty array. They mean the same thing: the array is empty.
+	if o.Array == nil && len(other.Array) == 0 {
+		return true
+	}
+	if other.Array == nil && len(o.Array) == 0 {
+		return true
+	}
+	return reflect.DeepEqual(o.Array, other.Array)
+}
+
 type ApplicationSourcePluginParameter struct {
+	// We use pointers to structs because go-to-protobuf represents pointers to arrays/maps as repeated fields.
+	// These repeated fields have no way to represent "present but empty." So we would have no way to distinguish
+	// {name: parameters, array: []} from {name: parameter}
+	// By wrapping the array/map in a struct, we can use a pointer to the struct to represent "present but empty."
+
 	// Name is the name identifying a parameter.
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	// String_ is the value of a string type parameter.
 	String_ *string `json:"string,omitempty" protobuf:"bytes,5,opt,name=string"`
 	// Map is the value of a map type parameter.
-	Map map[string]string `json:"map,omitempty" protobuf:"bytes,3,rep,name=map"`
+	*OptionalMap `json:",omitempty" protobuf:"bytes,3,rep,name=map"`
 	// Array is the value of an array type parameter.
-	Array []string `json:"array,omitempty" protobuf:"bytes,4,rep,name=array"`
+	*OptionalArray `json:",omitempty" protobuf:"bytes,4,rep,name=array"`
+}
+
+func (p ApplicationSourcePluginParameter) Equals(other ApplicationSourcePluginParameter) bool {
+	if p.Name != other.Name {
+		return false
+	}
+	if !reflect.DeepEqual(p.String_, other.String_) {
+		return false
+	}
+	return p.OptionalMap.Equals(other.OptionalMap) && p.OptionalArray.Equals(other.OptionalArray)
+}
+
+// MarshalJSON is a custom JSON marshaller for ApplicationSourcePluginParameter. We need this custom marshaler because,
+// when ApplicationSourcePluginParameter is unmarshaled, either from JSON or protobufs, the fields inside OptionalMap and
+// OptionalArray are not set. The default JSON marshaler marshals these as "null." But really what we want to represent
+// is an empty map or array.
+//
+// There are efforts to change things upstream, but nothing has been merged yet. See https://github.com/golang/go/issues/37711
+func (p ApplicationSourcePluginParameter) MarshalJSON() ([]byte, error) {
+	out := map[string]interface{}{}
+	out["name"] = p.Name
+	if p.String_ != nil {
+		out["string"] = p.String_
+	}
+	if p.OptionalMap != nil {
+		if p.OptionalMap.Map == nil {
+			// Nil is not the same as a nil map. Nil means the field was not set, while a nil map means the field was set to an empty map.
+			// Either way, we want to marshal it as "{}".
+			out["map"] = map[string]string{}
+		} else {
+			out["map"] = p.OptionalMap.Map
+		}
+	}
+	if p.OptionalArray != nil {
+		if p.OptionalArray.Array == nil {
+			// Nil is not the same as a nil array. Nil means the field was not set, while a nil array means the field was set to an empty array.
+			// Either way, we want to marshal it as "[]".
+			out["array"] = []string{}
+		} else {
+			out["array"] = p.OptionalArray.Array
+		}
+	}
+	bytes, err := json.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+	return bytes, nil
 }
 
 type ApplicationSourcePluginParameters []ApplicationSourcePluginParameter
+
+func (p ApplicationSourcePluginParameters) Equals(other ApplicationSourcePluginParameters) bool {
+	if len(p) != len(other) {
+		return false
+	}
+	for i := range p {
+		if !p[i].Equals(other[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func (p ApplicationSourcePluginParameters) IsZero() bool {
+	return len(p) == 0
+}
 
 // Environ builds a list of environment variables to represent parameters sent to a plugin from the Application
 // manifest. Parameters are represented as one large stringified JSON array (under `ARGOCD_APP_PARAMETERS`). They're
@@ -562,13 +698,13 @@ func (p ApplicationSourcePluginParameters) Environ() ([]string, error) {
 		if param.String_ != nil {
 			env = append(env, fmt.Sprintf("%s=%s", envBaseName, *param.String_))
 		}
-		if param.Map != nil {
-			for key, value := range param.Map {
+		if param.OptionalMap != nil {
+			for key, value := range param.OptionalMap.Map {
 				env = append(env, fmt.Sprintf("%s_%s=%s", envBaseName, escaped(key), value))
 			}
 		}
-		if param.Array != nil {
-			for i, value := range param.Array {
+		if param.OptionalArray != nil {
+			for i, value := range param.OptionalArray.Array {
 				env = append(env, fmt.Sprintf("%s_%d=%s", envBaseName, i, value))
 			}
 		}
@@ -590,9 +726,28 @@ type ApplicationSourcePlugin struct {
 	Parameters ApplicationSourcePluginParameters `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
 }
 
+func (c *ApplicationSourcePlugin) Equals(other *ApplicationSourcePlugin) bool {
+	if c == nil && other == nil {
+		return true
+	}
+	if c == nil || other == nil {
+		return false
+	}
+	if !c.Parameters.Equals(other.Parameters) {
+		return false
+	}
+	// DeepEqual works fine for fields besides Parameters. Since we already know that Parameters are equal, we can
+	// set them to nil and then do a DeepEqual.
+	leftCopy := c.DeepCopy()
+	rightCopy := other.DeepCopy()
+	leftCopy.Parameters = nil
+	rightCopy.Parameters = nil
+	return reflect.DeepEqual(leftCopy, rightCopy)
+}
+
 // IsZero returns true if the ApplicationSourcePlugin is considered empty
 func (c *ApplicationSourcePlugin) IsZero() bool {
-	return c == nil || c.Name == "" && c.Env.IsZero()
+	return c == nil || c.Name == "" && c.Env.IsZero() && c.Parameters.IsZero()
 }
 
 // AddEnvEntry merges an EnvEntry into a list of entries. If an entry with the same name already exists,
@@ -2419,8 +2574,23 @@ func (condition *ApplicationCondition) IsError() bool {
 }
 
 // Equals compares two instances of ApplicationSource and return true if instances are equal.
-func (source *ApplicationSource) Equals(other ApplicationSource) bool {
-	return reflect.DeepEqual(*source, other)
+func (source *ApplicationSource) Equals(other *ApplicationSource) bool {
+	if source == nil && other == nil {
+		return true
+	}
+	if source == nil || other == nil {
+		return false
+	}
+	if !source.Plugin.Equals(other.Plugin) {
+		return false
+	}
+	// reflect.DeepEqual works fine for the other fields. Since the plugin fields are equal, set them to null so they're
+	// not considered in the DeepEqual comparison.
+	sourceCopy := source.DeepCopy()
+	otherCopy := other.DeepCopy()
+	sourceCopy.Plugin = nil
+	otherCopy.Plugin = nil
+	return reflect.DeepEqual(sourceCopy, otherCopy)
 }
 
 // ExplicitType returns the type (e.g. Helm, Kustomize, etc) of the application. If either none or multiple types are defined, returns an error.
