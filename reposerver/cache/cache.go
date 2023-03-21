@@ -309,21 +309,21 @@ func gitDataKey(gitObject, repoURL, revision string) string {
 }
 
 func (c *Cache) SetGitFiles(repoURL, revision string, files map[string][]byte) error {
-	return c.cache.SetItem(gitDataKey("gitfiles", repoURL, revision), &files, c.repoCacheExpiration, false)
+	return c.cache.SetItem(gitDataKey(gitfiles, repoURL, revision), &files, c.repoCacheExpiration, false)
 }
 
 func (c *Cache) GetGitFiles(repoURL, revision string) (map[string][]byte, error) {
 	var item map[string][]byte
-	return item, c.cache.GetItem(gitDataKey("gitfiles", repoURL, revision), &item)
+	return item, c.cache.GetItem(gitDataKey(gitfiles, repoURL, revision), &item)
 }
 
 func (c *Cache) SetGitDirectories(repoURL, revision string, directories []string) error {
-	return c.cache.SetItem(gitDataKey("gitdirs", repoURL, revision), &directories, c.repoCacheExpiration, false)
+	return c.cache.SetItem(gitDataKey(gitdir, repoURL, revision), &directories, c.repoCacheExpiration, false)
 }
 
 func (c *Cache) GetGitDirectories(repoURL, revision string) ([]string, error) {
 	var item []string
-	return item, c.cache.GetItem(gitDataKey("gitdirs", repoURL, revision), &item)
+	return item, c.cache.GetItem(gitDataKey(gitdir, repoURL, revision), &item)
 }
 
 func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {
