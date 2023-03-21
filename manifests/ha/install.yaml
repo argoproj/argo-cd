@@ -10093,7 +10093,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations: null
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -10195,7 +10194,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations: null
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha-haproxy
@@ -11161,6 +11159,12 @@ spec:
               key: controller.default.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.kubectl.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -11210,7 +11214,6 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  annotations: {}
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha

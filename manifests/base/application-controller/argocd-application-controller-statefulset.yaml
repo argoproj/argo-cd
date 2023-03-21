@@ -119,6 +119,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: controller.default.cache.expiration
                 optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: controller.kubectl.parallelism.limit
+                optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
