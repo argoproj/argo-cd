@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="19 known vulnerabilities found in 87 vulnerable dependency paths.">
+  <meta name="description" content="16 known vulnerabilities found in 83 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,19 +456,19 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">March 14th 2023, 6:32:51 pm</p>
+                <p class="timestamp">March 19th 2023, 12:16:48 am</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
                 <ul>
-                  <li class="paths">quay.io/argoproj/argocd:latest/argoproj/argocd (deb)</li><li class="paths">quay.io/argoproj/argocd:latest/argoproj/argo-cd/v2 (gomodules)</li><li class="paths">quay.io/argoproj/argocd:latest/kustomize/kustomize/v4 (gomodules)</li><li class="paths">quay.io/argoproj/argocd:latest/helm/v3 (gomodules)</li><li class="paths">quay.io/argoproj/argocd:latest/git-lfs/git-lfs (gomodules)</li>
+                  <li class="paths">quay.io/argoproj/argocd:latest/argoproj/argocd (deb)</li><li class="paths">quay.io/argoproj/argocd:latest/argoproj/argo-cd/v2 (gomodules)</li><li class="paths">quay.io/argoproj/argocd:latest/kustomize/kustomize/v5 (gomodules)</li><li class="paths">quay.io/argoproj/argocd:latest/helm/v3 (gomodules)</li><li class="paths">quay.io/argoproj/argocd:latest/git-lfs/git-lfs (gomodules)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>19</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>87 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2056</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>16</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>83 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2065</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -493,180 +493,12 @@
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            gopkg.in/yaml.v3
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                sigs.k8s.io/kustomize/kustomize/v4@* and gopkg.in/yaml.v3@v3.0.0-20210107192922-496545a6307b
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        sigs.k8s.io/kustomize/kustomize/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v3@v3.0.0-20210107192922-496545a6307b
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://github.com/go-yaml/yaml">gopkg.in/yaml.v3</a> is a YAML support package for the Go language.
-        Affected versions of this package are vulnerable to Denial of Service (DoS) via the <code>Unmarshal</code> function, which causes the program to crash when attempting to deserialize invalid input.</p>
-        <h2 id="poc">PoC</h2>
-        <pre><code class="language-golang">package main
-        
-        import (
-            &quot;gopkg.in/yaml.v3&quot;
-        )
-        
-        func main() {
-            var t interface{}
-            yaml.Unmarshal([]byte(&quot;0: [:!00 \xef&quot;), &amp;t)
-        }
-        </code></pre>
-        <h2 id="details">Details</h2>
-        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
-        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
-        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
-        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
-        <p>Two common types of DoS vulnerabilities:</p>
-        <ul>
-        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
-        </li>
-        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
-        </li>
-        </ul>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>gopkg.in/yaml.v3</code> to version 3.0.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/go-yaml/yaml/commit/8f96da9f5d5eff988554c1aae1784627c4bf6754">GitHub Commit</a></li>
-        <li><a href="https://github.com/go-yaml/yaml/issues/666">GitHub Issue</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOPKGINYAMLV3-2841557">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">NULL Pointer Dereference</h2>
-            <div class="card__section">
-        
-                <div class="label label--high">
-                    <span class="label__text">high severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            gopkg.in/yaml.v3
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                sigs.k8s.io/kustomize/kustomize/v4@* and gopkg.in/yaml.v3@v3.0.0-20210107192922-496545a6307b
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        sigs.k8s.io/kustomize/kustomize/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v3@v3.0.0-20210107192922-496545a6307b
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://github.com/go-yaml/yaml">gopkg.in/yaml.v3</a> is a YAML support package for the Go language.
-        Affected versions of this package are vulnerable to NULL Pointer Dereference when parsing <code>#\n-\n-\n0</code> via the <code>parserc.go</code> parser.</p>
-        <h2 id="poc">PoC</h2>
-        <pre><code class="language-golang">package main
-        
-        import (
-            &quot;gopkg.in/yaml.v3&quot;
-        )
-        
-        func main() {
-            var t interface{}
-            yaml.Unmarshal([]byte(&quot;#\n-\n-\n0&quot;), &amp;t)
-        }
-        </code></pre>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>gopkg.in/yaml.v3</code> to version 3.0.1 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/go-yaml/yaml/commit/f6f7691b1fdeb513f56608cd2c32c51f8194bf51">GitHub Commit</a></li>
-        <li><a href="https://github.com/go-yaml/yaml/issues/665">GitHub Issue</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOPKGINYAMLV3-2952714">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Denial of Service (DoS)</h2>
-            <div class="card__section">
-        
-                <div class="label label--high">
-                    <span class="label__text">high severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
                             golang.org/x/net/http2/hpack
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
-                                sigs.k8s.io/kustomize/kustomize/v4@* and golang.org/x/net/http2/hpack@v0.0.0-20220127200216-cd36cc0744dd
+                                helm.sh/helm/v3@* and golang.org/x/net/http2/hpack@v0.5.0
         
                     </li>
                 </ul>
@@ -677,15 +509,6 @@
                         <h3 class="card__section__title">Detailed paths</h3>
         
                     <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        sigs.k8s.io/kustomize/kustomize/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/net/http2/hpack@v0.0.0-20220127200216-cd36cc0744dd
-                                        
-                                </span>
-        
-                            </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         helm.sh/helm/v3@*
@@ -809,74 +632,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTTP2-3323837">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Improper Input Validation</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            golang.org/x/text/language
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                sigs.k8s.io/kustomize/kustomize/v4@* and golang.org/x/text/language@v0.3.7
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        sigs.k8s.io/kustomize/kustomize/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/text/language@v0.3.7
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Improper Input Validation due to the parser being, by design, exposed to untrusted user input, which can be leveraged to force a program to consume significant time parsing <code>Accept-Language</code> headers.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/text/language</code> to version 0.3.8 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/golang/text/commit/434eadcdbc3b0256971992e8c70027278364c72c">GitHub Commit</a></li>
-        <li><a href="https://github.com/golang/go/issues/56152">GitHub Issue</a></li>
-        <li><a href="https://github.com/golang/text/releases/tag/v0.3.8">GitHub Release</a></li>
-        <li><a href="https://groups.google.com/g/golang-dev/c/qfPIly0X7aU">Google Groups Forum</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2134010">RedHat Bugzilla Bug</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXTEXTLANGUAGE-3043869">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
