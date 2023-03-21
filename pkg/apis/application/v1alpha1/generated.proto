@@ -490,10 +490,10 @@ message ApplicationSourcePluginParameter {
   optional string string = 5;
 
   // Map is the value of a map type parameter.
-  map<string, string> map = 3;
+  optional OptionalMap map = 3;
 
   // Array is the value of an array type parameter.
-  repeated string array = 4;
+  optional OptionalArray array = 4;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -1115,6 +1115,18 @@ message OperationState {
 
   // RetryCount contains time of operation retries
   optional int64 retryCount = 8;
+}
+
+message OptionalArray {
+  // Array is the value of an array type parameter.
+  // +optional
+  repeated string array = 1;
+}
+
+message OptionalMap {
+  // Map is the value of a map type parameter.
+  // +optional
+  map<string, string> map = 1;
 }
 
 // OrphanedResourceKey is a reference to a resource to be ignored from
