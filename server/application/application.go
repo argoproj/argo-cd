@@ -1826,28 +1826,9 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
 
-	var clstObj *unstructured.Unstructured
-	if err := argo.ValidateDestination(ctx, &a.Spec.Destination, s.db); err != nil {
-		log.WithFields(map[string]interface{}{
-			"application": appName,
-			"ns":          appNs,
-			"destination": a.Spec.Destination,
-		}).Warnf("cannot validate cluster, error=%v", err.Error())
-	} else {
-		clst, err := s.db.GetCluster(ctx, a.Spec.Destination.Server)
-		if err != nil {
-			log.WithFields(map[string]interface{}{
-				"application": appName,
-				"ns":          appNs,
-				"destination": a.Spec.Destination,
-			}).Warnf("cannot get cluster from db, error=%v", err.Error())
-		} else {
-			// sanitize cluster, remove cluster config creds and other unwanted fields
-			clstObj, err = deeplinks.SanitizeCluster(clst)
-			if err != nil {
-				return nil, err
-			}
-		}
+	clstObj, _, err := s.getObjectsForDeepLinks(ctx, a)
+	if err != nil {
+		return nil, err
 	}
 
 	deepLinksObject := deeplinks.CreateDeepLinksObject(nil, obj, clstObj, nil)
@@ -1858,6 +1839,54 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 	}
 
 	return finalList, nil
+}
+
+func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Application) (cluster *unstructured.Unstructured, project *unstructured.Unstructured, err error) {
+	proj, err := argo.GetAppProject(app, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting app project: %w", err)
+	}
+
+	// sanitize project jwt tokens
+	proj.Status = appv1.AppProjectStatus{}
+
+	project, err = kube.ToUnstructured(proj)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	getProjectClusters := func(project string) ([]*appv1.Cluster, error) {
+		return s.db.GetProjectClusters(ctx, project)
+	}
+
+	permitted, err := proj.IsDestinationPermitted(app.Spec.Destination, getProjectClusters)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !permitted {
+		return nil, nil, fmt.Errorf("error getting destination cluster")
+	}
+
+	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+		log.WithFields(map[string]interface{}{
+			"application": app.GetName(),
+			"ns":          app.GetNamespace(),
+			"destination": app.Spec.Destination,
+		}).Warnf("cannot validate cluster, error=%v", err.Error())
+		return nil, nil, nil
+	}
+	clst, err := s.db.GetCluster(ctx, app.Spec.Destination.Server)
+	if err != nil {
+		log.WithFields(map[string]interface{}{
+			"application": app.GetName(),
+			"ns":          app.GetNamespace(),
+			"destination": app.Spec.Destination,
+		}).Warnf("cannot get cluster from db, error=%v", err.Error())
+		return nil, nil, nil
+	}
+	// sanitize cluster, remove cluster config creds and other unwanted fields
+	cluster, err = deeplinks.SanitizeCluster(clst)
+	return cluster, project, err
 }
 
 func (s *Server) ListResourceLinks(ctx context.Context, req *application.ApplicationResourceRequest) (*application.LinksResponse, error) {
@@ -1879,42 +1908,12 @@ func (s *Server) ListResourceLinks(ctx context.Context, req *application.Applica
 	if err != nil {
 		return nil, err
 	}
-	var clstObj *unstructured.Unstructured
-	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
-		log.WithFields(map[string]interface{}{
-			"application": app.GetName(),
-			"ns":          app.GetNamespace(),
-			"destination": app.Spec.Destination,
-		}).Warnf("cannot validate cluster, error=%v", err.Error())
-	} else {
-		clst, err := s.db.GetCluster(ctx, app.Spec.Destination.Server)
-		if err != nil {
-			log.WithFields(map[string]interface{}{
-				"application": app.GetName(),
-				"ns":          app.GetNamespace(),
-				"destination": app.Spec.Destination,
-			}).Warnf("cannot get cluster from db, error=%v", err.Error())
-		} else {
-			// sanitize cluster, remove cluster config creds and other unwanted fields
-			clstObj, err = deeplinks.SanitizeCluster(clst)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
 
-	proj, err := argo.GetAppProject(app, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error getting app project: %w", err)
-	}
-
-	// sanitize project jwt tokens
-	proj.Status = appv1.AppProjectStatus{}
-
-	projObj, err := kube.ToUnstructured(proj)
+	clstObj, projObj, err := s.getObjectsForDeepLinks(ctx, app)
 	if err != nil {
 		return nil, err
 	}
+
 	deepLinksObject := deeplinks.CreateDeepLinksObject(obj, appObj, clstObj, projObj)
 	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(deepLinksObject, obj.GetName(), deepLinks)
 	if len(errorList) > 0 {
