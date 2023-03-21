@@ -2525,7 +2525,7 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 
 	err = s.cache.SetGitFiles(repo.Repo, revision, res)
 	if err != nil {
-		log.Warnf("cannot cache git files for repo %s with revision %s: %v", repo.Repo, revision, err)
+		log.Warnf("error caching git files for repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 
 	return &apiclient.GitFilesResponse{
@@ -2595,7 +2595,7 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 
 	err = s.cache.SetGitDirectories(repo.Repo, revision, paths)
 	if err != nil {
-		log.Warnf("cannot cache git files for repo %s with revision %s: %v", repo.Repo, revision, err)
+		log.Warnf("error caching git directories for repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 
 	return &apiclient.GitDirectoriesResponse{
