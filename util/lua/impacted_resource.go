@@ -12,6 +12,6 @@ import (
 // Note that the Lua code in the custom action is coupled to this type, since Lua json output is then unmarshalled to this struct.
 // TODO: maybe K8SOperation needs to be an enum of supported k8s verbs, with a custom json marshaller/unmarshaller
 type ImpactedResource struct {
-	UnstructuredObj *unstructured.Unstructured
-	K8SOperation    string
+	UnstructuredObj *unstructured.Unstructured `json:"resource"`
+	K8SOperation    string                     `json:"operation"`
 }

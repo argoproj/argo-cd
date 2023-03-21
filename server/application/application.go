@@ -2156,7 +2156,7 @@ func (s *Server) createResource(ctx context.Context, config *rest.Config, app *a
 		return nil, fmt.Errorf("error checking resource permissions: %w", err)
 	}
 	if !permitted {
-		return nil, fmt.Errorf("%s named %s's creation not permitted in project: %s", newObj.GetKind(), newObj.GetName(), proj.Name)
+		return nil, fmt.Errorf("%s named %s creation not permitted in project: %s", newObj.GetKind(), newObj.GetName(), proj.Name)
 	}
 
 	// Create the resource

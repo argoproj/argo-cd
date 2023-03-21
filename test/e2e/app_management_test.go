@@ -926,22 +926,70 @@ const newStyleActionsConfig = `discovery.lua: return { sample = {} }
 definitions:
 - name: sample
   action.lua: |
-        job1 = {}
-        job1.apiVersion = "batch/v1"
-        job1.kind = "Job" 
-        job1.metadata = {}
-        job1.metadata.name = "hello-1"
-        impactedResource1 = {}
-        impactedResource1.k8sOperation = "create"
-        impactedResource1.unstructuredObj = job1
-        result = {}
-        result[1] = impactedResource1
-        return result`
+    local os = require("os")
 
-func TestNewStyleResourceAction(t *testing.T) {
+    function deepCopy(object)
+      local lookup_table = {}
+      local function _copy(obj)
+        if type(obj) ~= "table" then
+          return obj
+        elseif lookup_table[obj] then
+          return lookup_table[obj]
+        elseif next(obj) == nil then
+          return nil
+        else
+          local new_table = {}
+          lookup_table[obj] = new_table
+          for key, value in pairs(obj) do
+            new_table[_copy(key)] = _copy(value)
+          end
+          return setmetatable(new_table, getmetatable(obj))
+        end
+      end
+      return _copy(object)
+    end
+  
+    job = {}
+    job.apiVersion = "batch/v1"
+    job.kind = "Job"
+  
+    job.metadata = {}
+    job.metadata.name = obj.metadata.name .. "-123"
+    job.metadata.namespace = obj.metadata.namespace
+  
+    ownerRef = {}
+    ownerRef.apiVersion = obj.apiVersion
+    ownerRef.kind = obj.kind
+    ownerRef.name = obj.metadata.name
+    ownerRef.uid = obj.metadata.uid
+    job.metadata.ownerReferences = {}
+    job.metadata.ownerReferences[1] = ownerRef
+  
+    job.spec = {}
+    job.spec.suspend = false
+    job.spec.template = {}
+    job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
+  
+    impactedResource123 = {}
+    impactedResource123.operation = "create"
+    impactedResource123.resource = job
+    result = {}
+    result[1] = impactedResource123
+  
+    return result`
+
+func TestNewStyleResourceActionPermitted(t *testing.T) {
 	Given(t).
 		Path(resourceActions).
 		ResourceOverrides(map[string]ResourceOverride{"batch/CronJob": {Actions: newStyleActionsConfig}}).
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{
+				{Group: "batch", Kind: "Job"},
+				{Group: "batch", Kind: "CronJob"},
+				{Group: "", Kind: "Pod"},
+			}}).
 		When().
 		CreateApp().
 		Sync().
@@ -973,10 +1021,8 @@ func TestNewStyleResourceAction(t *testing.T) {
 			})
 			assert.NoError(t, err)
 
-			deployment, err := KubeClientset.BatchV1().Jobs(DeploymentNamespace()).Get(context.Background(), "hello-1", metav1.GetOptions{})
+			_, err = KubeClientset.BatchV1().Jobs(DeploymentNamespace()).Get(context.Background(), "hello-123", metav1.GetOptions{})
 			assert.NoError(t, err)
-
-			assert.Equal(t, "test", deployment.Labels["sample"])
 		})
 }
 

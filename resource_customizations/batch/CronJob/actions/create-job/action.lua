@@ -50,8 +50,8 @@ job.spec.template = {}
 job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
 
 impactedResource = {}
-impactedResource.k8sOperation = "create"
-impactedResource.unstructuredObj = job
+impactedResource.operation = "create"
+impactedResource.resource = job
 result = {}
 result[1] = impactedResource
 

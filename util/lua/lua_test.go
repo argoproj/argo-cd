@@ -405,8 +405,8 @@ metadata:
 `
 
 const expectedCreatedJobObjList = `
-- k8sOperation: create
-  unstructuredObj:
+- operation: create
+  resource:
     apiVersion: batch/v1
     kind: Job
     metadata:
@@ -415,15 +415,15 @@ const expectedCreatedJobObjList = `
 `
 
 const expectedCreatedMultipleJobsObjList = `
-- k8sOperation: create
-  unstructuredObj:
+- operation: create
+  resource:
     apiVersion: batch/v1
     kind: Job
     metadata:
       name: hello-1
       namespace: test-ns
-- k8sOperation: create
-  unstructuredObj:
+- operation: create
+  resource:
     apiVersion: batch/v1
     kind: Job
     metadata:
@@ -441,8 +441,8 @@ job.metadata.name = "hello-1"
 job.metadata.namespace = "test-ns"
 
 impactedResource = {}
-impactedResource.k8sOperation = "create"
-impactedResource.unstructuredObj = job
+impactedResource.operation = "create"
+impactedResource.resource = job
 result = {}
 result[1] = impactedResource
 
@@ -459,8 +459,8 @@ job1.metadata.name = "hello-1"
 job1.metadata.namespace = "test-ns"
 
 impactedResource1 = {}
-impactedResource1.k8sOperation = "create"
-impactedResource1.unstructuredObj = job1
+impactedResource1.operation = "create"
+impactedResource1.resource = job1
 result = {}
 result[1] = impactedResource1
 
@@ -473,8 +473,8 @@ job2.metadata.name = "hello-2"
 job2.metadata.namespace = "test-ns"
 
 impactedResource2 = {}
-impactedResource2.k8sOperation = "create"
-impactedResource2.unstructuredObj = job2
+impactedResource2.operation = "create"
+impactedResource2.resource = job2
 
 result[2] = impactedResource2
 

@@ -424,8 +424,8 @@ resume   false
         job1.metadata.name = "hello-1"
         job1.metadata.namespace = "test-ns"
         impactedResource1 = {}
-        impactedResource1.k8sOperation = "create"
-        impactedResource1.unstructuredObj = job1
+        impactedResource1.operation = "create"
+        impactedResource1.resource = job1
         result = {}
         result[1] = impactedResource1
         return result

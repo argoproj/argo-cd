@@ -14,6 +14,15 @@ Argo CD supports custom resource actions written in [Lua](https://www.lua.org/).
 
 You can define your own custom resource actions in the `argocd-cm` ConfigMap.
 
+### Custom Resource Action Types
+
+#### An action that modifies the source resource
+This action modifies and returns the source resource.
+
+#### An action that produces a list of new or modified resources
+This action returns a list of impacted resources, each impacted resource has a K8S resource and an operation to invoke on.
+Currently supported operations are "create" and "patch".
+
 ### Define a Custom Resource Action in `argocd-cm` ConfigMap
 
 Custom resource actions can be defined in `resource.customizations.actions.<group_kind>` field of `argocd-cm`. Following example demonstrates a set of custom actions for `CronJob` resources. 
