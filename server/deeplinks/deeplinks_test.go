@@ -75,7 +75,7 @@ func TestDeepLinks(t *testing.T) {
 			inputLinks: []settings.DeepLink{{
 				Title:     "link",
 				URL:       "http://example.com/{{ .application.metadata.name }}&{{ .resource.data.key }}&{{ index .project.spec.sourceRepos 0}}&{{ .cluster.name }}",
-				Condition: pointer.String(`application.metadata.name matches "test" && project.metadata.name matches "test-project"`),
+				Condition: pointer.String(`application.metadata.name == "test" && project.metadata.name == "test-project"`),
 			}},
 			outputLinks: []*application.LinkInfo{{
 				Title: pointer.String("link"),

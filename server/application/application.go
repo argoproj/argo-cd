@@ -1826,15 +1826,28 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
 
-	clst, err := s.db.GetCluster(ctx, a.Spec.Destination.Server)
-	if err != nil {
-		return nil, fmt.Errorf("error getting cluster: %w", err)
-	}
-
-	// sanitize cluster, remove cluster config creds and other unwanted fields
-	clstObj, err := deeplinks.SanitizeCluster(clst)
-	if err != nil {
-		return nil, err
+	var clstObj *unstructured.Unstructured
+	if err := argo.ValidateDestination(ctx, &a.Spec.Destination, s.db); err != nil {
+		log.WithFields(map[string]interface{}{
+			"application": appName,
+			"ns":          appNs,
+			"destination": a.Spec.Destination,
+		}).Warnf("cannot validate cluster, error=%v", err.Error())
+	} else {
+		clst, err := s.db.GetCluster(ctx, a.Spec.Destination.Server)
+		if err != nil {
+			log.WithFields(map[string]interface{}{
+				"application": appName,
+				"ns":          appNs,
+				"destination": a.Spec.Destination,
+			}).Warnf("cannot get cluster from db, error=%v", err.Error())
+		} else {
+			// sanitize cluster, remove cluster config creds and other unwanted fields
+			clstObj, err = deeplinks.SanitizeCluster(clst)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	deepLinksObject := deeplinks.CreateDeepLinksObject(nil, obj, clstObj, nil)
@@ -1866,15 +1879,28 @@ func (s *Server) ListResourceLinks(ctx context.Context, req *application.Applica
 	if err != nil {
 		return nil, err
 	}
-	clst, err := s.db.GetCluster(ctx, app.Spec.Destination.Server)
-	if err != nil {
-		return nil, fmt.Errorf("error getting cluster: %w", err)
-	}
-
-	// sanitize cluster, remove cluster config creds and other unwanted fields
-	clstObj, err := deeplinks.SanitizeCluster(clst)
-	if err != nil {
-		return nil, err
+	var clstObj *unstructured.Unstructured
+	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+		log.WithFields(map[string]interface{}{
+			"application": app.GetName(),
+			"ns":          app.GetNamespace(),
+			"destination": app.Spec.Destination,
+		}).Warnf("cannot validate cluster, error=%v", err.Error())
+	} else {
+		clst, err := s.db.GetCluster(ctx, app.Spec.Destination.Server)
+		if err != nil {
+			log.WithFields(map[string]interface{}{
+				"application": app.GetName(),
+				"ns":          app.GetNamespace(),
+				"destination": app.Spec.Destination,
+			}).Warnf("cannot get cluster from db, error=%v", err.Error())
+		} else {
+			// sanitize cluster, remove cluster config creds and other unwanted fields
+			clstObj, err = deeplinks.SanitizeCluster(clst)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	proj, err := argo.GetAppProject(app, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
