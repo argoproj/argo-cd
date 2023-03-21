@@ -2564,15 +2564,15 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 
 	repoRoot := gitClient.Root()
 	var paths []string
-	if err := filepath.Walk(repoRoot, func(path string, info os.FileInfo, fnErr error) error {
+	if err := filepath.WalkDir(repoRoot, func(path string, entry fs.DirEntry, fnErr error) error {
 		if fnErr != nil {
 			return fmt.Errorf("error walking the file tree: %w", fnErr)
 		}
-		if !info.IsDir() { // Skip files: directories only
+		if !entry.IsDir() { // Skip files: directories only
 			return nil
 		}
 
-		fname := info.Name()
+		fname := entry.Name()
 		if strings.HasPrefix(fname, ".") { // Skip all folders starts with "."
 			return filepath.SkipDir
 		}
