@@ -30,7 +30,7 @@ func TestMatrixGenerate(t *testing.T) {
 	}
 
 	listGenerator := &argoprojiov1alpha1.ListGenerator{
-		Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "Cluster","url": "Url"}`)}},
+		Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "Cluster","url": "Url", "templated": "test-{{path.basenameNormalized}}"}`)}},
 	}
 
 	testCases := []struct {
@@ -50,8 +50,8 @@ func TestMatrixGenerate(t *testing.T) {
 				},
 			},
 			expected: []map[string]interface{}{
-				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "cluster": "Cluster", "url": "Url"},
-				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "cluster": "Cluster", "url": "Url"},
+				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "cluster": "Cluster", "url": "Url", "templated": "test-app1"},
+				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "cluster": "Cluster", "url": "Url", "templated": "test-app2"},
 			},
 		},
 		{
