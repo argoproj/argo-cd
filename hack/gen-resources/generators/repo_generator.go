@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 
@@ -33,13 +33,13 @@ func NewRepoGenerator(clientSet *kubernetes.Clientset) Generator {
 
 func fetchRepos(token string, page int) ([]Repo, error) {
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/argoproj/argocd-example-apps/forks?per_page=100&page=%v", page), nil)
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("https://api.github.com/repos/argoproj/argocd-example-apps/forks?per_page=100&page=%v", page), nil)
 	req.Header.Set("Authorization", token)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

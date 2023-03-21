@@ -7,7 +7,7 @@ There are three different ways to integrate Argo CD login with your Google Works
 * [SAML App Auth using Dex](#saml-app-auth-using-dex)  
   Dex [recommends avoiding this method](https://dexidp.io/docs/connectors/saml/#warning). Also, you won't get Google Groups membership information through this method.
 * [OpenID Connect plus Google Groups using Dex](#openid-connect-plus-google-groups-using-dex)  
-  This is the recommended method if you need to user Google Groups membership in your RBAC configuration.
+  This is the recommended method if you need to use Google Groups membership in your RBAC configuration.
 
 Once you've set up one of the above integrations, be sure to edit `argo-rbac-cm` to configure permissions (as in the example below). See [RBAC Configurations](../rbac.md) for more detailed scenarios.
 
@@ -50,7 +50,7 @@ If you've never configured this, you'll be redirected straight to this if you tr
 
 ### Configure Argo to use OpenID Connect
 
-Edit `argo-cm` and add the following `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before:
+Edit `argocd-cm` and add the following `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before:
 
 ```yaml
 data:
@@ -113,7 +113,7 @@ data:
 
 ### Configure Argo to use the new Google SAML App
 
-Edit `argo-cm` and add the following `dex.config` to the data section, replacing the `caData`, `argocd.example.com`, `sso-url`, and optionally `google-entity-id` with your values from the Google SAML App:
+Edit `argocd-cm` and add the following `dex.config` to the data section, replacing the `caData`, `argocd.example.com`, `sso-url`, and optionally `google-entity-id` with your values from the Google SAML App:
 
 ```yaml
 data:
@@ -211,7 +211,7 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
                 defaultMode: 420
                 secretName: argocd-google-groups-json
 
-3. Edit `argo-cm` and add the following `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before, `adminEmail` with the address for the admin user you're going to impersonate, and editing `redirectURI` with your Argo CD domain:
+3. Edit `argocd-cm` and add the following `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before, `adminEmail` with the address for the admin user you're going to impersonate, and editing `redirectURI` with your Argo CD domain:
 
         dex.config: |
           connectors:

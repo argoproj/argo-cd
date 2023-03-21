@@ -1,4 +1,5 @@
 @import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
 
 .settings-overview {
     &__redirect-panel {
@@ -10,13 +11,18 @@
         position: relative;
         padding: 20px;
         font-size: 16px;
-        background-color: white;
+        @include themify($themes) {
+            background-color: themed('background-2'); 
+            color: themed('text-2');;                
+        }
         border-radius: 4px;
         box-shadow: 1px 2px 3px rgba(#000, .1);
         cursor: pointer;
 
         &:hover {
-            background-color: $argo-color-teal-1;
+            @include themify($themes) {
+                background-color: themed('light-argo-teal-1');                               
+            }
         }
 
         &__ico {
@@ -41,7 +47,9 @@
 
         &__description {
             font-size: .8125em;
-            color: $argo-color-gray-7;
+            @include themify($themes) {                
+                color: themed('text-1');;                
+            }
         }
 
         &__arrow {

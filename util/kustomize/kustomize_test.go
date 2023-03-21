@@ -2,7 +2,6 @@ package kustomize
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -21,12 +20,9 @@ const kustomization2b = "Kustomization"
 const kustomization3 = "force_common"
 const kustomization4 = "custom_version"
 
-func testDataDir(testData string) (string, error) {
-	res, err := ioutil.TempDir("", "kustomize-test")
-	if err != nil {
-		return "", err
-	}
-	_, err = exec.RunCommand("cp", exec.CmdOpts{}, "-r", "./testdata/"+testData, filepath.Join(res, "testdata"))
+func testDataDir(tb testing.TB, testData string) (string, error) {
+	res := tb.TempDir()
+	_, err := exec.RunCommand("cp", exec.CmdOpts{}, "-r", "./testdata/"+testData, filepath.Join(res, "testdata"))
 	if err != nil {
 		return "", err
 	}
@@ -34,10 +30,11 @@ func testDataDir(testData string) (string, error) {
 }
 
 func TestKustomizeBuild(t *testing.T) {
-	appPath, err := testDataDir(kustomization1)
+	appPath, err := testDataDir(t, kustomization1)
 	assert.Nil(t, err)
 	namePrefix := "namePrefix-"
 	nameSuffix := "-nameSuffix"
+	namespace := "custom-namespace"
 	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
@@ -51,6 +48,7 @@ func TestKustomizeBuild(t *testing.T) {
 			"app.kubernetes.io/managed-by": "argo-cd",
 			"app.kubernetes.io/part-of":    "argo-cd-tests",
 		},
+		Namespace: namespace,
 	}
 	objs, images, err := kustomize.Build(&kustomizeSource, nil, nil)
 	assert.Nil(t, err)
@@ -71,6 +69,7 @@ func TestKustomizeBuild(t *testing.T) {
 				"app.kubernetes.io/managed-by": "argo-cd",
 				"app.kubernetes.io/part-of":    "argo-cd-tests",
 			}, obj.GetAnnotations())
+			assert.Equal(t, namespace, obj.GetNamespace())
 		case "Deployment":
 			assert.Equal(t, namePrefix+"nginx-deployment"+nameSuffix, obj.GetName())
 			assert.Equal(t, map[string]string{
@@ -82,6 +81,7 @@ func TestKustomizeBuild(t *testing.T) {
 				"app.kubernetes.io/managed-by": "argo-cd",
 				"app.kubernetes.io/part-of":    "argo-cd-tests",
 			}, obj.GetAnnotations())
+			assert.Equal(t, namespace, obj.GetNamespace())
 		}
 	}
 
@@ -162,7 +162,7 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		appPath, err := testDataDir(tc.TestData)
+		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
 		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil)
@@ -211,7 +211,7 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		appPath, err := testDataDir(tc.TestData)
+		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
 		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil)
@@ -228,9 +228,9 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 }
 
 func TestKustomizeCustomVersion(t *testing.T) {
-	appPath, err := testDataDir(kustomization1)
+	appPath, err := testDataDir(t, kustomization1)
 	assert.Nil(t, err)
-	kustomizePath, err := testDataDir(kustomization4)
+	kustomizePath, err := testDataDir(t, kustomization4)
 	assert.Nil(t, err)
 	envOutputFile := kustomizePath + "/env_output"
 	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", kustomizePath+"/kustomize.special")

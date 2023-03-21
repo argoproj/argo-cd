@@ -77,7 +77,7 @@ spec:
 ```
 
 !!! warning
-    By default, deleting an application will not perform a cascade delete, which would delete its resources. You must add the finalizer if you want this behaviour - which you may well not want.
+    Without the `resources-finalizer.argocd.argoproj.io` finalizer, deleting an application will not delete the resources it manages. To perform a cascading delete, you must add the finalizer. See [App Deletion](../user-guide/app_deletion.md#about-the-deletion-finalizer).
 
 ```yaml
 metadata:
@@ -100,6 +100,12 @@ It is defined by the following key pieces of information:
 * `sourceRepos` reference to the repositories that applications within the project can pull manifests from.
 * `destinations` reference to clusters and namespaces that applications within the project can deploy into (don't use the `name` field, only the `server` field is matched).
 * `roles` list of entities with definitions of their access to resources within the project.
+
+!!!warning "Projects which can deploy to the Argo CD namespace grant admin access"
+    If a Project's `destinations` configuration allows deploying to the namespace in which Argo CD is installed, then
+    Applications under that project have admin-level access. [RBAC access](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/)
+    to admin-level Projects should be carefully restricted, and push access to allowed `sourceRepos` should be limited
+    to only admins.
 
 An example spec is as follows:
 
@@ -172,8 +178,8 @@ Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sea
 Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
 
 !!!warning
-    When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as descibed here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
-    
+    When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as described here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
+
 Example for HTTPS:
 
 ```yaml
@@ -249,6 +255,33 @@ stringData:
     -----END OPENSSH PRIVATE KEY-----
 ```
 
+Example for Google Cloud Source repositories:
+
+```yaml
+kind: Secret
+metadata:
+  name: github-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  repo: https://source.developers.google.com/p/my-google-project/r/my-repo
+  gcpServiceAccountKey: |
+    {
+      "type": "service_account",
+      "project_id": "my-google-project",
+      "private_key_id": "REDACTED",
+      "private_key": "-----BEGIN PRIVATE KEY-----\nREDACTED\n-----END PRIVATE KEY-----\n",
+      "client_email": "argocd-service-account@my-google-project.iam.gserviceaccount.com",
+      "client_id": "REDACTED",
+      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+      "token_uri": "https://oauth2.googleapis.com/token",
+      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/argocd-service-account%40my-google-project.iam.gserviceaccount.com"
+    }
+```
+
 !!! tip
     The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
 
@@ -298,7 +331,7 @@ In the above example, every repository accessed via HTTPS whose URL is prefixed 
 In order for Argo CD to use a credential template for any given repository, the following conditions must be met:
 
 * The repository must either not be configured at all, or if configured, must not contain any credential information (i.e. contain none of `sshPrivateKey`, `username`, `password` )
-* The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`). 
+* The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`).
 
 !!! note
     Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
@@ -323,8 +356,6 @@ The following keys are valid to refer to credential secrets:
 * `tlsClientCertData` and `tlsClientCertKey` refer to secrets where a TLS client certificate (`tlsClientCertData`) and the corresponding private key `tlsClientCertKey` are stored for accessing GitHub Enterprise if custom certificates are used.
 
 ### Repositories using self-signed TLS certificates (or are signed by custom CA)
-
-> v1.2 or later
 
 You can manage the TLS certificates used to verify the authenticity of your repository servers in a ConfigMap object named `argocd-tls-certs-cm`. The data section should contain a map, with the repository server's hostname part (not the complete URL) as key, and the certificate(s) in PEM format as data. So, if you connect to a repository with the URL `https://server.example.com/repos/my-repo`, you should use `server.example.com` as key. The certificate data should be either the server's certificate (in case of self-signed certificate) or the certificate of the CA that was used to sign the server's certificate. You can configure multiple certificates for each server, e.g. if you are having a certificate roll-over planned.
 
@@ -483,6 +514,8 @@ The secret data must include following fields:
 * `name` - cluster name
 * `server` - cluster api server url
 * `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
+* `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is used only if the list of managed namespaces is not empty.
+* `project` - optional string to designate this as a project-scoped cluster.
 * `config` - JSON representation of following data structure:
 
 ```yaml
@@ -548,6 +581,35 @@ stringData:
     }
 ```
 
+GKE cluster secret example using argocd-k8s-auth and [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity):
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  name: mycluster.com
+  server: https://mycluster.com
+  config: |
+    {
+      "execProviderConfig": {
+        "command": "argocd-k8s-auth",
+        "args": ["gcp"],
+        "apiVersion": "client.authentication.k8s.io/v1beta1"
+      },
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }
+    }
+```
+
+Note that you must enable Workload Identity on your GKE cluster, create GCP service account with appropriate IAM role and bind it to Kubernetes service account for argocd-application-controller and argocd-server (showing Pod logs on UI). See [Use Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity) and [Authenticating to the Kubernetes API server](https://cloud.google.com/kubernetes-engine/docs/how-to/api-server-authentication).
+
 ## Helm Chart Repositories
 
 Non standard Helm Chart repositories have to be registered explicitly.
@@ -594,7 +656,7 @@ Resources can be excluded from discovery and sync so that Argo CD is unaware of 
 * There are many of a kind of resources that impacts Argo CD's performance.
 * Restrict Argo CD's access to certain kinds of resources, e.g. secrets. See [security.md#cluster-rbac](security.md#cluster-rbac).
 
-To configure this, edit the `argcd-cm` config map:
+To configure this, edit the `argocd-cm` config map:
 
 ```shell
 kubectl edit configmap argocd-cm -n argocd
@@ -624,7 +686,7 @@ The `resource.exclusions` node is a list of objects. Each object can have:
 If all three match, then the resource is ignored.
 
 In addition to exclusions, you might configure the list of included resources using the `resource.inclusions` setting.
-By default, all resource group/kinds are included. The `resource.inclusions` setting allows customizing the list of included group/kinds: 
+By default, all resource group/kinds are included. The `resource.inclusions` setting allows customizing the list of included group/kinds:
 
 ```yaml
 apiVersion: v1
@@ -648,6 +710,10 @@ Notes:
 * Invalid globs result in the whole rule being ignored.
 * If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
 
+## Resource Custom Labels
+
+Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them).
+
 ## SSO & RBAC
 
 * SSO configuration details: [SSO](./user-management/index.md)
@@ -661,17 +727,15 @@ based application which uses base Argo CD manifests from [https://github.com/arg
 Example of `kustomization.yaml`:
 
 ```yaml
-bases:
-- github.com/argoproj/argo-cd//manifests/cluster-install?ref=v1.0.1
-
 # additional resources like ingress rules, cluster and repository secrets.
 resources:
+- github.com/argoproj/argo-cd//manifests/cluster-install?ref=v1.0.1
 - clusters-secrets.yaml
 - repos-secrets.yaml
 
 # changes to config maps
-patchesStrategicMerge:
-- overlays/argo-cd-cm.yaml
+patches:
+- path: overlays/argo-cd-cm.yaml
 ```
 
 The live example of self managed Argo CD config is available at [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io) and with configuration

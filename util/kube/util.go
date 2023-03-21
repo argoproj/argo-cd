@@ -20,7 +20,7 @@ type kubeUtil struct {
 // secret was created by the caller, or false if it has existed before.
 type updateFn func(s *apiv1.Secret, new bool) error
 
-// NewUtil returns a new kubeUtil receiver
+// NewKubeUtil NewUtil returns a new kubeUtil receiver
 func NewKubeUtil(client kubernetes.Interface, ctx context.Context) *kubeUtil {
 	return &kubeUtil{client: client, ctx: ctx}
 }

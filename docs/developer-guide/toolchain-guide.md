@@ -24,8 +24,7 @@ You will need at least the following things in your toolchain in order to develo
 
 * A Kubernetes cluster. You won't need a fully blown multi-master, multi-node cluster, but you will need something like K3S, Minikube or microk8s. You will also need a working Kubernetes client (`kubectl`) configuration in your development environment. The configuration must reside in `~/.kube/config` and the API server URL must point to the IP address of your local machine (or VM), and **not** to `localhost` or `127.0.0.1` if you are using the virtualized development toolchain (see below)
 
-* You will also need a working Docker runtime environment, to be able to build and run images.
-The Docker version must be fairly recent, and support multi-stage builds. You should not work as root. Make your local user a member of the `docker` group to be able to control the Docker service on your machine.
+* You will also need a working Docker runtime environment, to be able to build and run images. The Docker version must be 17.05.0 or higher, to support multi-stage builds. 
 
 * Obviously, you will need a `git` client for pulling source code and pushing back your changes.
 
@@ -118,6 +117,27 @@ The Docker container for the virtualized toolchain will use the following local 
 
 The following steps are required no matter whether you chose to use a virtualized or a local toolchain.
 
+!!!note "Docker privileges"
+    If you opt in to use the virtualized toolchain, you will need to have the
+    appropriate privileges to interact with the Docker daemon. It is not
+    recommended to work as the root user, and if your user does not have the
+    permissions to talk to the Docker user, but you have `sudo` setup on your
+    system, you can set the environment variable `SUDO` to `sudo` in order to
+    have the build scripts make any calls to the `docker` CLI using sudo,
+    without affecting the other parts of the build scripts (which should be
+    executed with your normal user privileges).
+
+    You can either set this before calling `make`, like so for example:
+
+    ```
+    SUDO=sudo make sometarget
+    ```
+
+    Or you can opt to export this permanently to your environment, for example
+    ```
+    export SUDO=sudo
+    ```
+
 ### Clone the Argo CD repository from your personal fork on GitHub
 
 * `mkdir -p ~/go/src/github.com/argoproj`
@@ -158,7 +178,7 @@ you should edit your `~/.kube/config` and modify the `server` option to point to
 
 ### Using k3d
 
-[k3d](https://github.com/rancher/k3d) is a lightweight wrapper to run [k3s](https://github.com/rancher/k3s), a minimal Kubernetes distribution, in docker. Because it's running in a docker container, you're dealing with docker's internal networking rules when using k3d. A typical Kubernetes cluster running on your local machine is part of the same network that you're on so you can access it using **kubectl**. However, a Kubernetes cluster running within a docker container (in this case, the one launched by make) cannot access 0.0.0.0 from inside the container itself, when 0.0.0.0 is a network resource outside the container itself (and/or the container's network). This is the cost of a fully self-contained, disposable Kubernetes cluster. The following steps should help with a successful `make verify-kube-connect` execution.
+[k3d](https://github.com/rancher/k3d) is a lightweight wrapper to run [k3s](https://github.com/rancher/k3s), a minimal Kubernetes distribution, in docker. Because it's running in a docker container, you're dealing with docker's internal networking rules when using k3d. A typical Kubernetes cluster running on your local machine is part of the same network that you're on, so you can access it using **kubectl**. However, a Kubernetes cluster running within a docker container (in this case, the one launched by make) cannot access 0.0.0.0 from inside the container itself, when 0.0.0.0 is a network resource outside the container itself (and/or the container's network). This is the cost of a fully self-contained, disposable Kubernetes cluster. The following steps should help with a successful `make verify-kube-connect` execution.
 
 1. Find your host IP by executing `ifconfig` on Mac/Linux and `ipconfig` on Windows. For most users, the following command works to find the IP address.
 
@@ -315,7 +335,7 @@ The next thing is to make sure that unit tests are running correctly on your sys
 
 ### Run end-to-end tests
 
-The final step is running the End-to-End testsuite, which makes sure that your Kubernetes dependencies are working properly. This will involve starting all of the Argo CD components locally on your computer. The end-to-end tests consists of two parts: a server component, and a client component.
+The final step is running the End-to-End testsuite, which makes sure that your Kubernetes dependencies are working properly. This will involve starting all the Argo CD components locally on your computer. The end-to-end tests consists of two parts: a server component, and a client component.
 
 * First, start the End-to-End server: `make start-e2e-local`. This will spawn a number of processes and services on your system.
 * When all components have started, run `make test-e2e-local` to run the end-to-end tests against your local services.

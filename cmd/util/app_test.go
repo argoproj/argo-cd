@@ -1,7 +1,6 @@
 package util
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -92,6 +91,11 @@ func Test_setKustomizeOpt(t *testing.T) {
 		setKustomizeOpt(&src, kustomizeOpts{version: "v0.1"})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Version: "v0.1"}, src.Kustomize)
 	})
+	t.Run("Namespace", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{namespace: "custom-namespace"})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Namespace: "custom-namespace"}, src.Kustomize)
+	})
 	t.Run("Common labels", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setKustomizeOpt(&src, kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}})
@@ -150,7 +154,9 @@ func (f *appOptionsFixture) SetFlag(key, value string) error {
 
 func newAppOptionsFixture() *appOptionsFixture {
 	fixture := &appOptionsFixture{
-		spec:    &v1alpha1.ApplicationSpec{},
+		spec: &v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{},
+		},
 		command: &cobra.Command{},
 		options: &AppOptions{},
 	}
@@ -254,7 +260,7 @@ spec:
         - values.yaml`
 
 func TestReadAppsFromURI(t *testing.T) {
-	file, err := ioutil.TempFile(os.TempDir(), "")
+	file, err := os.CreateTemp(os.TempDir(), "")
 	if err != nil {
 		panic(err)
 	}
@@ -276,7 +282,7 @@ func TestReadAppsFromURI(t *testing.T) {
 }
 
 func TestConstructAppFromStdin(t *testing.T) {
-	file, err := ioutil.TempFile(os.TempDir(), "")
+	file, err := os.CreateTemp(os.TempDir(), "")
 	if err != nil {
 		panic(err)
 	}
@@ -311,4 +317,85 @@ func TestConstructBasedOnName(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(apps))
 	assert.Equal(t, "test", apps[0].Name)
+}
+
+func TestFilterResources(t *testing.T) {
+
+	t.Run("Filter by ns", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"ns\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources, err := FilterResources(false, resources, "g", "Service", "ns", "test-helm-guestbook", true)
+		assert.NoError(t, err)
+		assert.Len(t, filteredResources, 1)
+	})
+
+	t.Run("Filter by kind", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources, err := FilterResources(false, resources, "g", "Deployment", "argocd", "test-helm-guestbook", true)
+		assert.NoError(t, err)
+		assert.Len(t, filteredResources, 1)
+	})
+
+	t.Run("Filter by name", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd", "test-helm", true)
+		assert.NoError(t, err)
+		assert.Len(t, filteredResources, 1)
+	})
+
+	t.Run("Filter no result", func(t *testing.T) {
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd-unknown", "test-helm", true)
+		assert.ErrorContains(t, err, "No matching resource found")
+		assert.Nil(t, filteredResources)
+	})
+
+	t.Run("Filter multiple results", func(t *testing.T) {
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd", "test-helm", false)
+		assert.ErrorContains(t, err, "Use the --all flag")
+		assert.Nil(t, filteredResources)
+	})
 }

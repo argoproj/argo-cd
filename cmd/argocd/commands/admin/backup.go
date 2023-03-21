@@ -2,10 +2,8 @@ package admin
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -33,6 +31,8 @@ func NewExportCommand() *cobra.Command {
 		Use:   "export",
 		Short: "Export all Argo CD data to stdout (default) or a file",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
@@ -55,38 +55,38 @@ func NewExportCommand() *cobra.Command {
 			}
 
 			acdClients := newArgoCDClientsets(config, namespace)
-			acdConfigMap, err := acdClients.configMaps.Get(context.Background(), common.ArgoCDConfigMapName, v1.GetOptions{})
+			acdConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDConfigMapName, v1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdConfigMap)
-			acdRBACConfigMap, err := acdClients.configMaps.Get(context.Background(), common.ArgoCDRBACConfigMapName, v1.GetOptions{})
+			acdRBACConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDRBACConfigMapName, v1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdRBACConfigMap)
-			acdKnownHostsConfigMap, err := acdClients.configMaps.Get(context.Background(), common.ArgoCDKnownHostsConfigMapName, v1.GetOptions{})
+			acdKnownHostsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDKnownHostsConfigMapName, v1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdKnownHostsConfigMap)
-			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(context.Background(), common.ArgoCDTLSCertsConfigMapName, v1.GetOptions{})
+			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDTLSCertsConfigMapName, v1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdTLSCertsConfigMap)
 
 			referencedSecrets := getReferencedSecrets(*acdConfigMap)
-			secrets, err := acdClients.secrets.List(context.Background(), v1.ListOptions{})
+			secrets, err := acdClients.secrets.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, secret := range secrets.Items {
 				if isArgoCDSecret(referencedSecrets, secret) {
 					export(writer, secret)
 				}
 			}
-			projects, err := acdClients.projects.List(context.Background(), v1.ListOptions{})
+			projects, err := acdClients.projects.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, proj := range projects.Items {
 				export(writer, proj)
 			}
-			applications, err := acdClients.applications.List(context.Background(), v1.ListOptions{})
+			applications, err := acdClients.applications.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, app := range applications.Items {
 				export(writer, app)
 			}
-			applicationSets, err := acdClients.applicationSets.List(context.Background(), v1.ListOptions{})
+			applicationSets, err := acdClients.applicationSets.List(ctx, v1.ListOptions{})
 			if err != nil && !apierr.IsNotFound(err) {
 				if apierr.IsForbidden(err) {
 					log.Warn(err)
@@ -121,6 +121,8 @@ func NewImportCommand() *cobra.Command {
 		Use:   "import SOURCE",
 		Short: "Import Argo CD data from stdin (specify `-') or a file",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -136,9 +138,9 @@ func NewImportCommand() *cobra.Command {
 
 			var input []byte
 			if in := args[0]; in == "-" {
-				input, err = ioutil.ReadAll(os.Stdin)
+				input, err = io.ReadAll(os.Stdin)
 			} else {
-				input, err = ioutil.ReadFile(in)
+				input, err = os.ReadFile(in)
 			}
 			errors.CheckError(err)
 			var dryRunMsg string
@@ -150,7 +152,7 @@ func NewImportCommand() *cobra.Command {
 			// items in this map indicates the resource should be pruned since it no longer appears
 			// in the backup
 			pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
-			configMaps, err := acdClients.configMaps.List(context.Background(), v1.ListOptions{})
+			configMaps, err := acdClients.configMaps.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			// referencedSecrets holds any secrets referenced in the argocd-cm configmap. These
 			// secrets need to be imported too
@@ -164,24 +166,24 @@ func NewImportCommand() *cobra.Command {
 				}
 			}
 
-			secrets, err := acdClients.secrets.List(context.Background(), v1.ListOptions{})
+			secrets, err := acdClients.secrets.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, secret := range secrets.Items {
 				if isArgoCDSecret(referencedSecrets, secret) {
 					pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: secret.GetName()}] = secret
 				}
 			}
-			applications, err := acdClients.applications.List(context.Background(), v1.ListOptions{})
+			applications, err := acdClients.applications.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, app := range applications.Items {
 				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "Application", Name: app.GetName()}] = app
 			}
-			projects, err := acdClients.projects.List(context.Background(), v1.ListOptions{})
+			projects, err := acdClients.projects.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, proj := range projects.Items {
 				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "AppProject", Name: proj.GetName()}] = proj
 			}
-			applicationSets, err := acdClients.applicationSets.List(context.Background(), v1.ListOptions{})
+			applicationSets, err := acdClients.applicationSets.List(ctx, v1.ListOptions{})
 			if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
 				log.Warnf("argoproj.io/ApplicationSet: %v\n", err)
 			} else {
@@ -217,7 +219,7 @@ func NewImportCommand() *cobra.Command {
 				if !exists {
 					isForbidden := false
 					if !dryRun {
-						_, err = dynClient.Create(context.Background(), bakObj, v1.CreateOptions{})
+						_, err = dynClient.Create(ctx, bakObj, v1.CreateOptions{})
 						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
 							isForbidden = true
 							log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
@@ -237,7 +239,7 @@ func NewImportCommand() *cobra.Command {
 					isForbidden := false
 					if !dryRun {
 						newLive := updateLive(bakObj, &liveObj, stopOperation)
-						_, err = dynClient.Update(context.Background(), newLive, v1.UpdateOptions{})
+						_, err = dynClient.Update(ctx, newLive, v1.UpdateOptions{})
 						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
 							isForbidden = true
 							log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
@@ -266,7 +268,7 @@ func NewImportCommand() *cobra.Command {
 							if finalizers := liveObj.GetFinalizers(); len(finalizers) > 0 {
 								newLive := liveObj.DeepCopy()
 								newLive.SetFinalizers(nil)
-								_, err = dynClient.Update(context.Background(), newLive, v1.UpdateOptions{})
+								_, err = dynClient.Update(ctx, newLive, v1.UpdateOptions{})
 								if err != nil && !apierr.IsNotFound(err) {
 									errors.CheckError(err)
 								}
@@ -279,7 +281,7 @@ func NewImportCommand() *cobra.Command {
 					}
 					isForbidden := false
 					if !dryRun {
-						err = dynClient.Delete(context.Background(), key.Name, v1.DeleteOptions{})
+						err = dynClient.Delete(ctx, key.Name, v1.DeleteOptions{})
 						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
 							isForbidden = true
 							log.Warnf("%s/%s %s: %v\n", key.Group, key.Kind, key.Name, err)

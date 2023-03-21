@@ -2,6 +2,12 @@
 
 The Git generator contains two subtypes: the Git directory generator, and Git file generator.
 
+!!! warning
+    Git generators are often used to make it easier for (non-admin) developers to create Applications.
+    If the `project` field in your ApplicationSet is templated, developers may be able to create Applications under Projects with excessive permissions.
+    For ApplicationSets with a templated `project` field, [the source of truth _must_ be controlled by admins](./Security.md#templated-project-field)
+    - in the case of git generators, PRs must require admin approval.
+
 ## Git Generator: Directories
 
 The Git directory generator, one of two subtypes of the Git generator, generates parameters using the directory structure of a specified Git repository.
@@ -39,9 +45,9 @@ spec:
       - path: applicationset/examples/git-generator-directory/cluster-addons/*
   template:
     metadata:
-      name: '{{path[0]}}'
+      name: '{{path.basename}}'
     spec:
-      project: default
+      project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
@@ -49,6 +55,9 @@ spec:
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{path.basename}}'
+      syncPolicy:
+        syncOptions:
+        - CreateNamespace=true
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory).*)
 
@@ -59,13 +68,17 @@ The generator parameters are:
 - `{{path.basename}}`: For any directory path within the Git repository that matches the `path` wildcard, the right-most path name is extracted (e.g. `/directory/directory2` would produce `directory2`).
 - `{{path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
 
-Whenever a new Helm chart/Kustomize YAML/Application/plain subfolder is added to the Git repository, the ApplicationSet controller will detect this change and automatically deploy the resulting manifests within new `Application` resources.
+**Note**: The right-most path name always becomes `{{path.basename}}`. For example, for `- path: /one/two/three/four`, `{{path.basename}}` is `four`.
+
+**Note**: If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `myRepo.path` instead of `path`. Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
+
+Whenever a new Helm chart/Kustomize YAML/Application/plain subdirectory is added to the Git repository, the ApplicationSet controller will detect this change and automatically deploy the resulting manifests within new `Application` resources.
 
 As with other generators, clusters *must* already be defined within Argo CD, in order to generate Applications for them.
 
 ### Exclude directories
 
-The Git directory generator will automatically exclude folders that begin with `.` (such as `.git`).
+The Git directory generator will automatically exclude directories that begin with `.` (such as `.git`).
 
 The Git directory generator also supports an `exclude` option in order to exclude directories in the repository from being scanned by the ApplicationSet controller:
 
@@ -88,7 +101,7 @@ spec:
     metadata:
       name: '{{path.basename}}'
     spec:
-      project: default
+      project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
@@ -97,9 +110,9 @@ spec:
         server: https://kubernetes.default.svc
         namespace: '{{path.basename}}'
 ```
-(*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/examples/applicationset/git-generator-directory/excludes).*)
+(*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory/excludes).*)
 
-This example excludes the `exclude-helm-guestbook` directory from the list of directories scanned for this `ApplictionSet` resource.
+This example excludes the `exclude-helm-guestbook` directory from the list of directories scanned for this `ApplicationSet` resource.
 
 !!! note "Exclude rules have higher priority than include rules"
 
@@ -144,6 +157,41 @@ Or, a shorter way (using [path.Match](https://golang.org/pkg/path/#Match) syntax
   exclude: true
 ```
 
+### Root Of Git Repo
+
+The Git directory generator can be configured to deploy from the root of the git repository by providing `'*'` as the `path`.
+
+To exclude directories, you only need to put the name/[path.Match](https://golang.org/pkg/path/#Match) of the directory you do not want to deploy.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-addons
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/example/example-repo.git
+      revision: HEAD
+      directories:
+      - path: '*'
+      - path: donotdeploy
+        exclude: true
+  template:
+    metadata:
+      name: '{{path.basename}}'
+    spec:
+      project: "my-project"
+      source:
+        repoURL: https://github.com/example/example-repo.git
+        targetRevision: HEAD
+        path: '{{path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{path.basename}}'
+```
+
 ## Git Generator: Files
 
 The Git file generator is the second subtype of the Git generator. The Git file generator generates parameters using the contents of JSON/YAML files found within a specified repository.
@@ -164,7 +212,7 @@ Suppose you have a Git repository with the following directory structure:
 └── git-generator-files.yaml
 ```
 
-The folders are:
+The directories are:
 
 - `guestbook` contains the Kubernetes resources for a simple guestbook application
 - `cluster-config` contains JSON/YAML files describing the individual engineering clusters: one for `dev` and one for `prod`.
@@ -228,10 +276,17 @@ As with other generators, clusters *must* already be defined within Argo CD, in 
 
 In addition to the flattened key/value pairs from the configuration file, the following generator parameters are provided:
 
-- `{{path}}`: The path to the folder containing matching configuration file within the Git repository. Example: `/clusters/clusterA`, if the config file was `/clusters/clusterA/config.json`
+- `{{path}}`: The path to the directory containing matching configuration file within the Git repository. Example: `/clusters/clusterA`, if the config file was `/clusters/clusterA/config.json`
 - `{{path[n]}}`: The path to the matching configuration file within the Git repository, split into array elements (`n` - array index). Example: `path[0]: clusters`, `path[1]: clusterA`
-- `{{path.basename}}`: Basename of the path to the folder containing the configuration file (e.g. `clusterA`, with the above example.)
+- `{{path.basename}}`: Basename of the path to the directory containing the configuration file (e.g. `clusterA`, with the above example.)
 - `{{path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
+- `{{path.filename}}`: The matched filename. e.g., `config.json` in the above example.
+- `{{path.filenameNormalized}}`: The matched filename with unsupported characters replaced with `-`.
+
+**Note**: The right-most *directory* name always becomes `{{path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{path.basename}}` will be `four`. 
+The filename can always be accessed using `{{path.filename}}`. 
+
+**Note**: If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `myRepo.path` instead of `path`. Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
 
 ## Webhook Configuration
 

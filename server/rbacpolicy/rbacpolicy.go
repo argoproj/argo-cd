@@ -14,14 +14,17 @@ import (
 
 const (
 	// please add new items to Resources
-	ResourceClusters     = "clusters"
-	ResourceProjects     = "projects"
-	ResourceApplications = "applications"
-	ResourceRepositories = "repositories"
-	ResourceCertificates = "certificates"
-	ResourceAccounts     = "accounts"
-	ResourceGPGKeys      = "gpgkeys"
-	ResourceLogs         = "logs"
+	ResourceClusters        = "clusters"
+	ResourceProjects        = "projects"
+	ResourceApplications    = "applications"
+	ResourceApplicationSets = "applicationsets"
+	ResourceRepositories    = "repositories"
+	ResourceCertificates    = "certificates"
+	ResourceAccounts        = "accounts"
+	ResourceGPGKeys         = "gpgkeys"
+	ResourceLogs            = "logs"
+	ResourceExec            = "exec"
+	ResourceExtensions      = "extensions"
 
 	// please add new items to Actions
 	ActionGet      = "get"
@@ -31,6 +34,7 @@ const (
 	ActionSync     = "sync"
 	ActionOverride = "override"
 	ActionAction   = "action"
+	ActionInvoke   = "invoke"
 )
 
 var (
@@ -39,9 +43,11 @@ var (
 		ResourceClusters,
 		ResourceProjects,
 		ResourceApplications,
+		ResourceApplicationSets,
 		ResourceRepositories,
 		ResourceCertificates,
 		ResourceLogs,
+		ResourceExec,
 	}
 	Actions = []string{
 		ActionGet,
@@ -169,7 +175,7 @@ func (p *RBACPolicyEnforcer) getProjectFromRequest(rvals ...interface{}) *v1alph
 	if res, ok := rvals[1].(string); ok {
 		if obj, ok := rvals[3].(string); ok {
 			switch res {
-			case ResourceApplications, ResourceRepositories, ResourceClusters, ResourceLogs:
+			case ResourceApplications, ResourceRepositories, ResourceClusters, ResourceLogs, ResourceExec:
 				if objSplit := strings.Split(obj, "/"); len(objSplit) >= 2 {
 					return getProjectByName(objSplit[0])
 				}

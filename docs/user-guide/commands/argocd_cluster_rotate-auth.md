@@ -1,15 +1,16 @@
 ## argocd cluster rotate-auth
 
-argocd cluster rotate-auth SERVER
+argocd cluster rotate-auth SERVER/NAME
 
 ```
-argocd cluster rotate-auth SERVER [flags]
+argocd cluster rotate-auth SERVER/NAME [flags]
 ```
 
 ### Examples
 
 ```
 argocd cluster rotate-auth https://12.34.567.89
+argocd cluster rotate-auth cluster-name
 ```
 
 ### Options

@@ -1,12 +1,16 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+$sidebar-color: #30303d;
+$slate: #191826;
 
 .filter {
-    background-color: white;
-    padding: 10px;
-    box-shadow: 1px 1px 2px 0 rgba(0, 0, 0, 0.1);
     border-radius: 5px;
     margin-bottom: 1em;
+    width: 100%;
+    color: #818d94;
+    font-weight: 500;
 
     &__header {
         font-size: 13px;
@@ -15,6 +19,23 @@
         margin-bottom: 0.5em;
         height: 28px;
         position: relative;
+        display: flex;
+        align-items: center;
+
+        .argo-button {
+            margin-left: auto;
+            background: $slate;
+            font-size: 10px;
+            font-weight: bold;
+
+            i {
+                margin-right: 2px;
+            }
+
+            &:hover {
+                background: $sidebar-color !important;
+            }
+        }
     }
 
     &__collapse {
@@ -50,11 +71,14 @@
         border-radius: 5px;
         display: flex;
         align-items: center;
-        background-color: white;
-        transition: background-color 200ms ease;
-        margin: 0.25em 0;
+        margin: 0.15em 0;
         cursor: pointer;
         flex-wrap: nowrap;
+
+        i.fa {
+            width: 25px;
+            text-align: center;
+        }
 
         &__label {
             text-overflow: ellipsis;
@@ -64,14 +88,17 @@
         }
 
         &--selected {
-            background-color: $argo-color-teal-3;
-            color: $argo-color-teal-8;
+            background-color: $slate;
+            color: white;
             font-weight: 500;
         }
     }
 }
 
 .filters-group {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 2em;
     &__toggle {
         display: none;
         cursor: pointer;
@@ -85,78 +112,32 @@
         margin-right: 1em;
     }
 
-    &__panel {
-        transition: width 0.2s ease-in-out;
-        background-color: $argo-color-gray-3;
-        box-shadow: 1px 1px 2px 0 rgba(0, 0, 0, 0.1);
-        padding: 10px;
-        overflow-y: hidden;
-        overflow-x: hidden;
-        z-index: 2;
-
-        position: fixed;
-        width: 240px;
-        margin-top: -18px;
-        left: 60px;
-        bottom: 0;
-
-        &__title {
-            margin-bottom: 1em;
-            font-size: 13px;
-            color: $argo-color-gray-6;
-            align-items: center;
-            width: 200px;
-        }
-
-        &:hover {
-            overflow-y: auto;
-        }
-
-        .filter {
-            width: 205px;
-            transition: visibility 0.2s ease-in-out;
-        }
-    }
-
     &__content {
-        padding-left: 230px;
-    }
-}
-
-@include breakpoint(xlarge down) {
-    .filters-group__toggle {
-        display: inline;
+        margin-left: 220px;
+        width: 100%;
     }
 
-    .filters-group--expanded {
-        .filters-group__toggle {
-            color: $argo-color-gray-8;
-        }
-    }
+    &__header {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        height: 1.5em;
+        margin-bottom: 0em;
+        margin-top: -1.5em;
 
-    .filters-group__toggle:hover {
-        color: $argo-color-gray-7;
-    }
+        .argo-button {
+            margin-left: auto;
+            background: $slate;
+            font-size: 10px;
+            font-weight: bold;
 
-    .filters-group:not(.filters-group--expanded) {
-        .filters-group__panel:not(.filters-group__panel:hover) {
-            width: 30px;
-
-            .filters-group__toggle {
-                display: none;
+            i {
+                margin-right: 2px;
             }
 
-            .filters-group__panel__title {
-                display: none;
+            &:hover {
+                background: $sidebar-color !important;
             }
-
-            .filter {
-                visibility: hidden;
-            }
-        }
-
-        .filters-group__content {
-            padding-left: 30px;
         }
     }
 }

@@ -45,7 +45,7 @@ spec:
     metadata:
       name: '{{name}}-guestbook' # 'name' field of the Secret
     spec:
-      project: "default"
+      project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argocd-example-apps/
         targetRevision: HEAD
@@ -72,6 +72,12 @@ spec:
       selector:
         matchLabels:
           staging: true
+        # The cluster generator also supports matchExpressions.
+        #matchExpressions:
+        #  - key: staging
+        #    operator: In
+        #    values:
+        #      - "true"
   template:
   # (...)
 ```
@@ -104,6 +110,12 @@ spec:
       selector:
         matchLabels:
           argocd.argoproj.io/secret-type: cluster
+        # The cluster generator also supports matchExpressions.
+        #matchExpressions:
+        #  - key: staging
+        #    operator: In
+        #    values:
+        #      - "true"
 ```
 
 This selector will not match the default local cluster, since the default local cluster does not have a Secret (and thus does not have the `argocd.argoproj.io/secret-type` label on that secret). Any cluster selector that selects on that label will automatically exclude the default local cluster.
@@ -112,7 +124,7 @@ However, if you do wish to target both local and non-local clusters, while also 
 
 1. Within the Argo CD web UI, select *Settings*, then *Clusters*.
 2. Select your local cluster, usually named `in-cluster`.
-3. Click the *Edit* button, and change the the *NAME* of the cluster to another value, for example `in-cluster-local`. Any other value here is fine.
+3. Click the *Edit* button, and change the *NAME* of the cluster to another value, for example `in-cluster-local`. Any other value here is fine.
 4. Leave all other fields unchanged.
 5. Click *Save*.
 
@@ -144,7 +156,7 @@ spec:
     metadata:
       name: '{{name}}-guestbook'
     spec:
-      project: "default"
+      project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argocd-example-apps/
         # The cluster values field for each generator will be substituted here:
@@ -159,3 +171,49 @@ In this example the `revision` value from the `generators.clusters` fields is pa
 
 !!! note
     The `values.` prefix is always prepended to values provided via `generators.clusters.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+
+In `values` we can also interpolate the following parameter values (i.e. the same values as presented in the beginning of this page)
+
+- `name`
+- `nameNormalized` *('name' but normalized to contain only lowercase alphanumeric characters, '-' or '.')*
+- `server`
+- `metadata.labels.<key>` *(for each label in the Secret)*
+- `metadata.annotations.<key>` *(for each annotation in the Secret)*
+
+Extending the example above, we could do something like this:
+
+```yaml
+spec:
+  generators:
+  - clusters:
+      selector:
+        matchLabels:
+          type: 'staging'
+      # A key-value map for arbitrary parameters
+      values:
+        # If `my-custom-annotation` is in your cluster secret, `revision` will be substituted with it.
+        revision: '{{metadata.annotations.my-custom-annotation}}' 
+        clusterName: '{{name}}'
+  - clusters:
+      selector:
+        matchLabels:
+          type: 'production'
+      values:
+        # production uses a different revision value, for 'stable' branch
+        revision: stable
+        clusterName: '{{name}}'
+  template:
+    metadata:
+      name: '{{name}}-guestbook'
+    spec:
+      project: "my-project"
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps/
+        # The cluster values field for each generator will be substituted here:
+        targetRevision: '{{values.revision}}'
+        path: guestbook
+      destination:
+        # In this case this is equivalent to just using {{name}}
+        server: '{{values.clusterName}}'
+        namespace: guestbook
+```

@@ -1,10 +1,11 @@
+extra:
+  analytics:
+    property: G-5Z1VTPDL73
+    provider: google
 extra_css:
 - assets/versions.css
 extra_javascript:
 - assets/versions.js
-google_analytics:
-- UA-105170809-2
-- auto
 markdown_extensions:
 - markdown_include.include
 - codehilite
@@ -21,6 +22,7 @@ nav:
   - operator-manual/architecture.md
   - operator-manual/installation.md
   - operator-manual/declarative-setup.md
+  - operator-manual/app-any-namespace.md
   - operator-manual/ingress.md
   - User Management:
     - operator-manual/user-management/index.md
@@ -32,7 +34,10 @@ nav:
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/google.md
     - operator-manual/rbac.md
-  - operator-manual/security.md
+  - Security:
+    - Overview: operator-manual/security.md
+    - snyk/index.md
+    - operator-manual/signed-release-assets.md
   - operator-manual/tls.md
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
@@ -43,7 +48,11 @@ nav:
   - operator-manual/resource_actions.md
   - operator-manual/custom_tools.md
   - operator-manual/custom-styles.md
+  - operator-manual/ui-customization.md
   - operator-manual/metrics.md
+  - operator-manual/web_based_terminal.md
+  - operator-manual/config-management-plugins.md
+  - operator-manual/deep_links.md
   - Notification:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md
@@ -52,9 +61,9 @@ nav:
     - operator-manual/notifications/catalog.md
     - operator-manual/notifications/monitoring.md
     - operator-manual/notifications/subscriptions.md
+    - operator-manual/notifications/troubleshooting.md
     - operator-manual/notifications/troubleshooting-commands.md
     - operator-manual/notifications/troubleshooting-errors.md
-    - operator-manual/notifications/troubleshooting.md
     - Notification Services:
       - operator-manual/notifications/services/alertmanager.md
       - operator-manual/notifications/services/email.md
@@ -62,19 +71,23 @@ nav:
       - operator-manual/notifications/services/googlechat.md
       - operator-manual/notifications/services/grafana.md
       - operator-manual/notifications/services/mattermost.md
+      - operator-manual/notifications/services/newrelic.md
       - operator-manual/notifications/services/opsgenie.md
       - operator-manual/notifications/services/overview.md
+      - operator-manual/notifications/services/pagerduty.md
       - operator-manual/notifications/services/pushover.md
       - operator-manual/notifications/services/rocketchat.md
       - operator-manual/notifications/services/slack.md
       - operator-manual/notifications/services/teams.md
       - operator-manual/notifications/services/telegram.md
+      - operator-manual/notifications/services/webex.md
       - operator-manual/notifications/services/webhook.md
   - operator-manual/troubleshooting.md
   - ApplicationSet:
     - Introduction: operator-manual/applicationset/index.md
     - Installations: operator-manual/applicationset/Getting-Started.md
     - Use Cases: operator-manual/applicationset/Use-Cases.md
+    - Security: operator-manual/applicationset/Security.md
     - How ApplicationSet controller interacts with Argo CD: operator-manual/applicationset/Argo-CD-Integration.md
     - Generators:
       - operator-manual/applicationset/Generators.md
@@ -86,9 +99,13 @@ nav:
       - operator-manual/applicationset/Generators-SCM-Provider.md
       - operator-manual/applicationset/Generators-Cluster-Decision-Resource.md
       - operator-manual/applicationset/Generators-Pull-Request.md
-    - Template fields: operator-manual/applicationset/Template.md
+      - operator-manual/applicationset/Generators-Post-Selector.md
+    - Template fields:
+      - operator-manual/applicationset/Template.md
+      - operator-manual/applicationset/GoTemplate.md
     - Controlling Resource Modification: operator-manual/applicationset/Controlling-Resource-Modification.md
     - Application Pruning & Resource Deletion: operator-manual/applicationset/Application-Deletion.md
+    - Progressive Syncs: operator-manual/applicationset/Progressive-Syncs.md
   - Server Configuration Parameters:
     - operator-manual/server-commands/argocd-server.md
     - operator-manual/server-commands/argocd-application-controller.md
@@ -97,6 +114,10 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.6-2.7.md
+    - operator-manual/upgrading/2.5-2.6.md
+    - operator-manual/upgrading/2.4-2.5.md
+    - operator-manual/upgrading/2.3-2.4.md
     - operator-manual/upgrading/2.2-2.3.md
     - operator-manual/upgrading/2.1-2.2.md
     - operator-manual/upgrading/2.0-2.1.md
@@ -114,11 +135,13 @@ nav:
   - user-guide/application_sources.md
   - user-guide/kustomize.md
   - user-guide/helm.md
+  - user-guide/import.md
   - user-guide/jsonnet.md
-  - user-guide/config-management-plugins.md
+  - user-guide/directory.md
   - user-guide/tool_detection.md
   - user-guide/projects.md
   - user-guide/private-repositories.md
+  - user-guide/multiple_sources.md
   - GnuPG verification: user-guide/gpg-verification.md
   - user-guide/auto_sync.md
   - user-guide/diffing.md
@@ -126,6 +149,7 @@ nav:
   - user-guide/compare-options.md
   - user-guide/sync-options.md
   - user-guide/parameters.md
+  - user-guide/environment-variables.md
   - user-guide/build-environment.md
   - user-guide/tracking_strategies.md
   - user-guide/resource_tracking.md
@@ -133,6 +157,7 @@ nav:
   - user-guide/selective_sync.md
   - user-guide/sync-waves.md
   - user-guide/sync_windows.md
+  - user-guide/skip_reconcile.md
   - Generating Applications with ApplicationSet: user-guide/application-set.md
   - user-guide/ci_automation.md
   - user-guide/app_deletion.md
@@ -143,8 +168,11 @@ nav:
   - Command Reference: user-guide/commands/argocd.md
 - Developer Guide:
   - developer-guide/index.md
+  - Architecture:
+    - developer-guide/architecture/authz-authn.md
   - Code Contribution Guide: developer-guide/code-contributions.md
   - Toolchain Guide: developer-guide/toolchain-guide.md
+  - developer-guide/contributors-quickstart.md
   - developer-guide/release-process-and-cadence.md
   - developer-guide/running-locally.md
   - developer-guide/debugging-remote-environment.md
@@ -156,6 +184,9 @@ nav:
   - developer-guide/releasing.md
   - developer-guide/site.md
   - developer-guide/static-code-analysis.md
+  - Extensions:
+    - developer-guide/extensions/ui-extensions.md
+    - developer-guide/extensions/proxy-extensions.md
   - developer-guide/faq.md
 - faq.md
 - security_considerations.md
@@ -174,4 +205,15 @@ theme:
   logo: assets/logo.png
   name: material
   palette:
+  - media: '(prefers-color-scheme: light)'
     primary: teal
+    scheme: default
+    toggle:
+      icon: material/brightness-7
+      name: Switch to dark mode
+  - media: '(prefers-color-scheme: dark)'
+    primary: teal
+    scheme: slate
+    toggle:
+      icon: material/brightness-4
+      name: Switch to light mode

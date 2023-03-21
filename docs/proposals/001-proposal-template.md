@@ -58,10 +58,10 @@ This is where we get down to details of what the proposal is about.
 
 Add a list of detailed use cases this enhancement intends to take care of.
 
-#### Use case 1: 
+#### Use case 1:
 As a user, I would like to understand the drift. (This is an example)
 
-#### Use case 2: 
+#### Use case 2:
 As a user, I would like to take an action on the deviation/drift. (This is an example)
 
 ### Implementation Details/Notes/Constraints [optional]
@@ -77,11 +77,11 @@ You may have a work-in-progress Pull Request to demonstrate the functioning of t
 ### Security Considerations
 
 * How does this proposal impact the security aspects of Argo CD workloads ?
-* Are there any unresolved follow-ups that need to be done to make the enhancement more robust ?  
+* Are there any unresolved follow-ups that need to be done to make the enhancement more robust ?
 
 ### Risks and Mitigations
 
-What are the risks of this proposal and how do we mitigate. Think broadly. 
+What are the risks of this proposal and how do we mitigate. Think broadly.
 
 For example, consider
 both security and how this will impact the larger Kubernetes ecosystem.

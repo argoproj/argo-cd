@@ -126,6 +126,20 @@ func StringFromEnv(env string, defaultValue string) string {
 	return defaultValue
 }
 
+// StringsFromEnv parses given value from the environment as a list of strings,
+// using seperator as the delimeter, and returns them as a slice. The strings
+// in the returned slice will have leading and trailing white space removed.
+func StringsFromEnv(env string, defaultValue []string, separator string) []string {
+	if str := os.Getenv(env); str != "" {
+		ss := strings.Split(str, separator)
+		for i, s := range ss {
+			ss[i] = strings.TrimSpace(s)
+		}
+		return ss
+	}
+	return defaultValue
+}
+
 // ParseBoolFromEnv retrieves a boolean value from given environment envVar.
 // Returns default value if envVar is not set.
 //

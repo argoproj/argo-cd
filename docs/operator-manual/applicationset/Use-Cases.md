@@ -1,6 +1,6 @@
 # Use cases supported by the ApplicationSet controller
 
-With the concept of generators, the ApplicationSet controller provides a powerful set of tools to automate the templating and modification of Argo CD Applications. Generators produce template parameter data from a variety of sources, including Argo CD clusters and Git repositories, supporting and enabling new use cases. 
+With the concept of generators, the ApplicationSet controller provides a powerful set of tools to automate the templating and modification of Argo CD Applications. Generators produce template parameter data from a variety of sources, including Argo CD clusters and Git repositories, supporting and enabling new use cases.
 
 While these tools may be utilized for whichever purpose is desired, here are some of the specific use cases that the ApplicationSet controller was designed to support.
 
@@ -8,7 +8,7 @@ While these tools may be utilized for whichever purpose is desired, here are som
 
 An initial design focus of the ApplicationSet controller was to allow an infrastructure team's Kubernetes cluster administrators the ability to automatically create a large, diverse set of Argo CD Applications, across a significant number of clusters, and manage those Applications as a single unit. One example of why this is needed is the *cluster add-on use case*.
 
-In the *cluster add-on use case*, an administrator is responsible for provisioning cluster add-ons to one or more Kubernete clusters: cluster-addons are operators such as the [Prometheus operator](https://github.com/prometheus-operator/prometheus-operator), or controllers such as the [argo-workflows controller](https://argoproj.github.io/argo-workflows/) (part of the [Argo ecosystem](https://argoproj.github.io/)).
+In the *cluster add-on use case*, an administrator is responsible for provisioning cluster add-ons to one or more Kubernetes clusters: cluster-addons are operators such as the [Prometheus operator](https://github.com/prometheus-operator/prometheus-operator), or controllers such as the [argo-workflows controller](https://argoproj.github.io/argo-workflows/) (part of the [Argo ecosystem](https://argoproj.github.io/)).
 
 Typically these add-ons are required by the applications of development teams (as tenants of a multi-tenant cluster, for instance, they may wish to provide metrics data to Prometheus or orchestrate workflows via Argo Workflows).
 
@@ -26,7 +26,7 @@ In this use case, we may use either the List, Cluster, or Git generators of the 
 
 - *List generator*: Administrators maintain two `ApplicationSet` resources, one for each application (Workflows and Prometheus), and include the list of clusters they wish to target within the List generator elements of each.
     - With this generator, adding/removing clusters requires manually updating the `ApplicationSet` resource's list elements.
-- *Cluster generator*: Administrators maintain two  `ApplicationSet` resources, one for each application (Workflows and Prometheus), and ensure that all new cluster are defined within Argo CD. 
+- *Cluster generator*: Administrators maintain two  `ApplicationSet` resources, one for each application (Workflows and Prometheus), and ensure that all new cluster are defined within Argo CD.
     - Since the Cluster generator automatically detects and targets the clusters defined within Argo CD, [adding/remove a cluster from Argo CD](../../declarative-setup/#clusters) will automatically cause Argo CD Application resources (for each application) to be created by the ApplicationSet controller.
 - *Git generator*: The Git generator is the most flexible/powerful of the generators, and thus there are a number of different ways to tackle this use case. Here are a couple:
     - Using the Git generator `files` field: A list of clusters is kept as a JSON file within a Git repository. Updates to the JSON file, through Git commits, cause new clusters to be added/removed.
@@ -44,7 +44,7 @@ Manifest changes merged into the Git repository should automatically deploy to t
 
 In this example, the infrastructure team maintains a Git repository containing application manifests for an Argo Workflows controller, and a Prometheus operator. Independent development teams also have added additional services they wish to deploy to the cluster.
 
-Changes made to the Git repository -- for example, updating the version of a deployed artifact -- should automatically cause that update to be applied to the corresponding Kubernetes cluster by Argo CD. 
+Changes made to the Git repository -- for example, updating the version of a deployed artifact -- should automatically cause that update to be applied to the corresponding Kubernetes cluster by Argo CD.
 
 The Git generator may be used to support this use case:
 
@@ -66,7 +66,7 @@ While this might sound like an effective solution, a major disadvantage is that 
 
 Thus in the self-service use case, administrators desire to only allow some fields of the `Application` spec to be controlled by developers (eg the Git source repository) but not other fields (eg the target namespace, or target cluster, should be restricted).
 
-Fortunately, the ApplicationSet controller presents an alternative solution to this use case: cluster administrators may safely create an `ApplicationSet` resource containing a Git generator that restricts deployment of application resources to fixed values with the `template` field, while allowing customization of 'safe' fields by developers, at will. 
+Fortunately, the ApplicationSet controller presents an alternative solution to this use case: cluster administrators may safely create an `ApplicationSet` resource containing a Git generator that restricts deployment of application resources to fixed values with the `template` field, while allowing customization of 'safe' fields by developers, at will.
 
 ```yaml
 kind: ApplicationSet

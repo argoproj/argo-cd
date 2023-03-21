@@ -19,6 +19,7 @@ func NewCommand() *cobra.Command {
 	}
 
 	command.AddCommand(newAWSCommand())
+	command.AddCommand(newGCPCommand())
 
 	return command
 }

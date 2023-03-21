@@ -2,7 +2,6 @@ package lua
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +19,36 @@ import (
 type testNormalizer struct{}
 
 func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
+	if un == nil {
+		return nil
+	}
+	switch un.GetKind() {
+	case "DaemonSet", "Deployment", "StatefulSet":
+		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"kubectl.kubernetes.io/restartedAt": "0001-01-01T00:00:00Z"}, "spec", "template", "metadata", "annotations")
+		if err != nil {
+			return fmt.Errorf("failed to normalize DaemonSet: %w", err)
+		}
+	}
+	switch un.GetKind() {
+	case "Deployment":
+		err := unstructured.SetNestedField(un.Object, nil, "status")
+		if err != nil {
+			return fmt.Errorf("failed to normalize DaemonSet: %w", err)
+		}
+		err = unstructured.SetNestedField(un.Object, nil, "metadata", "creationTimestamp")
+		if err != nil {
+			return fmt.Errorf("failed to normalize DaemonSet: %w", err)
+		}
+		err = unstructured.SetNestedField(un.Object, nil, "metadata", "generation")
+		if err != nil {
+			return fmt.Errorf("failed to normalize DaemonSet: %w", err)
+		}
+	case "Rollout":
+		err := unstructured.SetNestedField(un.Object, nil, "spec", "restartAt")
+		if err != nil {
+			return fmt.Errorf("failed to normalize Rollout: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -41,14 +70,14 @@ type IndividualActionTest struct {
 }
 
 func TestLuaResourceActionsScript(t *testing.T) {
-	err := filepath.Walk(".", func(path string, f os.FileInfo, err error) error {
+	err := filepath.Walk("../../resource_customizations", func(path string, f os.FileInfo, err error) error {
 		if !strings.Contains(path, "action_test.yaml") {
 			return nil
 		}
 		assert.NoError(t, err)
 		dir := filepath.Dir(path)
 		//TODO: Change to path
-		yamlBytes, err := ioutil.ReadFile(dir + "/action_test.yaml")
+		yamlBytes, err := os.ReadFile(dir + "/action_test.yaml")
 		assert.NoError(t, err)
 		var resourceTest ActionTestStructure
 		err = yaml.Unmarshal(yamlBytes, &resourceTest)

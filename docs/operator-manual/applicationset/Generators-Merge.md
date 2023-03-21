@@ -114,31 +114,31 @@ When merged with the updated base parameters, the `values.redis` value for the p
 ## Restrictions
 
 1. You should specify only a single generator per array entry. This is not valid:
-```yaml
-- merge:
-    generators:
-     - list: # (...)
-       git: # (...)
-```
+
+        - merge:
+            generators:
+            - list: # (...)
+              git: # (...)
+
     - While this *will* be accepted by Kubernetes API validation, the controller will report an error on generation. Each generator should be specified in a separate array element, as in the examples above.
+
 1. The Merge generator does not support [`template` overrides](Template.md#generator-templates) specified on child generators. This `template` will not be processed:
-```yaml
-- merge:
-    generators:
-      - list:
-          elements:
-            - # (...)
-          template: { } # Not processed
-```
+
+        - merge:
+            generators:
+              - list:
+                  elements:
+                    - # (...)
+                  template: { } # Not processed
+
 1. Combination-type generators (Matrix or Merge) can only be nested once. For example, this will not work:
-```yaml
-- merge:
-    generators:
-      - merge:
-          generators:
-            - merge:  # This third level is invalid.
-                generators:
-                  - list:
-                      elements:
-                        - # (...)
-```
+
+        - merge:
+            generators:
+              - merge:
+                  generators:
+                    - merge:  # This third level is invalid.
+                        generators:
+                          - list:
+                              elements:
+                                - # (...)

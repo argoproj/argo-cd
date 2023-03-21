@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"strings"
 
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,10 +52,10 @@ func (a *Actions) AddSource(repo string) *Actions {
 }
 
 func (a *Actions) UpdateProject(updater func(project *v1alpha1.AppProject)) *Actions {
-	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.TODO(), a.context.name, v1.GetOptions{})
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.TODO(), a.context.name, v1.GetOptions{})
 	require.NoError(a.context.t, err)
 	updater(proj)
-	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(context.TODO(), proj, v1.UpdateOptions{})
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(context.TODO(), proj, v1.UpdateOptions{})
 	require.NoError(a.context.t, err)
 	return a
 }
@@ -74,6 +75,9 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 		args = append(args, "--dest", a.context.destination)
 	}
 
+	if len(a.context.sourceNamespaces) > 0 {
+		args = append(args, "--source-namespaces", strings.Join(a.context.sourceNamespaces, ","))
+	}
 	return args
 }
 

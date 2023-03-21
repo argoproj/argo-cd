@@ -4,12 +4,16 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"sort"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	testutil "github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -302,6 +306,24 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(overrides))
 
+}
+
+func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
+	data := map[string]string{
+		"resource.customizations": `
+    "*.aws.crossplane.io/*":
+      health.lua: |
+        foo`,
+	}
+
+	t.Run("TestResourceHealthOverrideWithWildcard", func(t *testing.T) {
+		_, settingsManager := fixtures(data)
+
+		overrides, err := settingsManager.GetResourceOverrides()
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(overrides))
+		assert.Equal(t, "foo", overrides["*.aws.crossplane.io/*"].HealthLua)
+	})
 }
 
 func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
@@ -649,7 +671,7 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		h, err := settingsManager.GetHelp()
 		assert.NoError(t, err)
 		assert.Empty(t, h.ChatURL)
-		assert.Equal(t, "Chat now!", h.ChatText)
+		assert.Empty(t, h.ChatText)
 
 	})
 	t.Run("Set", func(t *testing.T) {
@@ -662,14 +684,130 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		assert.Equal(t, "foo", h.ChatURL)
 		assert.Equal(t, "bar", h.ChatText)
 	})
+	t.Run("SetOnlyChatUrl", func(t *testing.T) {
+		_, settingManager := fixtures(map[string]string{
+			"help.chatUrl": "foo",
+		})
+		h, err := settingManager.GetHelp()
+		assert.NoError(t, err)
+		assert.Equal(t, "foo", h.ChatURL)
+		assert.Equal(t, "Chat now!", h.ChatText)
+	})
+	t.Run("SetOnlyChatText", func(t *testing.T) {
+		_, settingManager := fixtures(map[string]string{
+			"help.chatText": "bar",
+		})
+		h, err := settingManager.GetHelp()
+		assert.NoError(t, err)
+		assert.Empty(t, h.ChatURL)
+		assert.Empty(t, h.ChatText)
+	})
 	t.Run("GetBinaryUrls", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
 			"help.download.darwin-amd64": "amd64-path",
+			"help.download.linux-s390x":  "s390x-path",
 			"help.download.unsupported":  "nowhere",
 		})
 		h, err := settingsManager.GetHelp()
 		assert.NoError(t, err)
-		assert.Equal(t, map[string]string{"darwin-amd64": "amd64-path"}, h.BinaryURLs)
+		assert.Equal(t, map[string]string{"darwin-amd64": "amd64-path", "linux-s390x": "s390x-path"}, h.BinaryURLs)
+	})
+}
+
+func TestSettingsManager_GetSettings(t *testing.T) {
+	t.Run("UserSessionDurationNotProvided", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: nil,
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"server.secretkey": nil,
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		s, err := settingsManager.GetSettings()
+		assert.NoError(t, err)
+		assert.Equal(t, time.Hour*24, s.UserSessionDuration)
+	})
+	t.Run("UserSessionDurationInvalidFormat", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"users.session.duration": "10hh",
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"server.secretkey": nil,
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		s, err := settingsManager.GetSettings()
+		assert.NoError(t, err)
+		assert.Equal(t, time.Hour*24, s.UserSessionDuration)
+	})
+	t.Run("UserSessionDurationProvided", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"users.session.duration": "10h",
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"server.secretkey": nil,
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		s, err := settingsManager.GetSettings()
+		assert.NoError(t, err)
+		assert.Equal(t, time.Hour*10, s.UserSessionDuration)
 	})
 }
 
@@ -984,6 +1122,13 @@ func TestDownloadArgoCDBinaryUrls(t *testing.T) {
 	assert.Equal(t, "some-url", argoCDCM.Data["help.download.darwin-amd64"])
 
 	_, settingsManager = fixtures(map[string]string{
+		"help.download.linux-s390x": "some-url",
+	})
+	argoCDCM, err = settingsManager.getConfigMap()
+	assert.NoError(t, err)
+	assert.Equal(t, "some-url", argoCDCM.Data["help.download.linux-s390x"])
+
+	_, settingsManager = fixtures(map[string]string{
 		"help.download.unsupported": "some-url",
 	})
 	argoCDCM, err = settingsManager.getConfigMap()
@@ -1166,6 +1311,136 @@ func TestGetHelmSettings(t *testing.T) {
 			assert.NoError(t, err)
 
 			assert.ElementsMatch(t, tc.expected, helmSettings.ValuesFileSchemes)
+		})
+	}
+}
+func TestArgoCDSettings_OIDCTLSConfig_OIDCTLSInsecureSkipVerify(t *testing.T) {
+	certParsed, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name               string
+		settings           *ArgoCDSettings
+		expectNilTLSConfig bool
+	}{
+		{
+			name: "OIDC configured, no root CA",
+			settings: &ArgoCDSettings{OIDCConfigRAW: `name: Test
+issuer: aaa
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]`},
+		},
+		{
+			name: "OIDC configured, valid root CA",
+			settings: &ArgoCDSettings{OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: aaa
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]
+rootCA: |
+  %s
+`, strings.Replace(string(test.Cert), "\n", "\n  ", -1))},
+		},
+		{
+			name: "OIDC configured, invalid root CA",
+			settings: &ArgoCDSettings{OIDCConfigRAW: `name: Test
+issuer: aaa
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]
+rootCA: "invalid"`},
+		},
+		{
+			name:               "OIDC not configured, no cert configured",
+			settings:           &ArgoCDSettings{},
+			expectNilTLSConfig: true,
+		},
+		{
+			name:     "OIDC not configured, cert configured",
+			settings: &ArgoCDSettings{Certificate: &certParsed},
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+
+		t.Run(testCase.name, func(t *testing.T) {
+			if testCase.expectNilTLSConfig {
+				assert.Nil(t, testCase.settings.OIDCTLSConfig())
+			} else {
+				assert.False(t, testCase.settings.OIDCTLSConfig().InsecureSkipVerify)
+
+				testCase.settings.OIDCTLSInsecureSkipVerify = true
+
+				assert.True(t, testCase.settings.OIDCTLSConfig().InsecureSkipVerify)
+			}
+		})
+	}
+}
+
+func Test_OAuth2AllowedAudiences(t *testing.T) {
+	testCases := []struct {
+		name     string
+		settings *ArgoCDSettings
+		expected []string
+	}{
+		{
+			name:     "Empty",
+			settings: &ArgoCDSettings{},
+			expected: []string{},
+		},
+		{
+			name: "OIDC configured, no audiences specified, clientID used",
+			settings: &ArgoCDSettings{OIDCConfigRAW: `name: Test
+issuer: aaa
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]`},
+			expected: []string{"xxx"},
+		},
+		{
+			name: "OIDC configured, no audiences specified, clientID and cliClientID used",
+			settings: &ArgoCDSettings{OIDCConfigRAW: `name: Test
+issuer: aaa
+clientID: xxx
+cliClientID: cli-xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]`},
+			expected: []string{"xxx", "cli-xxx"},
+		},
+		{
+			name: "OIDC configured, audiences specified",
+			settings: &ArgoCDSettings{OIDCConfigRAW: `name: Test
+issuer: aaa
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]
+allowedAudiences: ["aud1", "aud2"]`},
+			expected: []string{"aud1", "aud2"},
+		},
+		{
+			name: "Dex configured",
+			settings: &ArgoCDSettings{DexConfig: `connectors:
+  - type: github
+    id: github
+    name: GitHub
+    config:
+      clientID: aabbccddeeff00112233
+      clientSecret: $dex.github.clientSecret
+      orgs:
+      - name: your-github-org
+`},
+			expected: []string{common.ArgoCDClientAppID, common.ArgoCDCLIClientAppID},
+		},
+	}
+
+	for _, tc := range testCases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ElementsMatch(t, tcc.expected, tcc.settings.OAuth2AllowedAudiences())
 		})
 	}
 }

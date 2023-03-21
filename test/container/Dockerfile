@@ -1,36 +1,46 @@
-FROM redis:6.2.6 as redis
+FROM docker.io/library/redis:7.0.9@sha256:e50c7e23f79ae81351beacb20e004720d4bed657415e68c2b1a2b5557c075ce0 as redis
 
-FROM node:12.18.4 as node
+# There are libraries we will want to copy from here in the final stage of the
+# build, but the COPY directive does not have a way to determine system
+# architecture, so we create a symlink here to facilitate copying.
+RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu 
 
-FROM golang:1.18 as golang
+FROM docker.io/library/node:18.15.0@sha256:8d9a875ee427897ef245302e31e2319385b092f1c3368b497e89790f240368f5 as node
 
-FROM registry:2.7.1 as registry
+FROM docker.io/library/golang:1.19.6@sha256:7ce31d15a3a4dbf20446cccffa4020d3a2974ad2287d96123f55caf22c7adb71 as golang
 
-FROM ubuntu:21.10
+FROM docker.io/library/registry:2.8@sha256:41f413c22d6156587e2a51f3e80c09808b8c70e82be149b82b5e0196a88d49b4 as registry
+
+FROM docker.io/bitnami/kubectl:1.26@sha256:90d54ce960bf00b6d06cf1c69075a120d88e9f3237096b237c0a5efcacd5ed0b as kubectl
+
+FROM docker.io/library/ubuntu:22.04@sha256:9a0bdde4188b896a372804be2384015e90e3f84906b750c1a53539b585fbbe7f
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
-        ca-certificates \
-        curl \
-        openssh-server \
-        nginx \
-        fcgiwrap \
-        git \
-        git-lfs \
-        gpg \
-        jq \
-        make \
-        wget \
-        gcc \
-        sudo \
-        tini \
-        zip && \
-        apt-get clean && \
-        rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    ca-certificates \
+    curl \
+    openssh-server \
+    nginx \
+    fcgiwrap \
+    git \
+    git-lfs \
+    gpg \
+    jq \
+    make \
+    wget \
+    gcc \
+    g++ \
+    sudo \
+    tini \
+    zip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY --from=golang /usr/local/go /usr/local/go
 
-ENV PATH /dist:/go/bin:/usr/local/go/bin:$PATH
+COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
+
+ENV PATH /dist:/go/bin:/usr/local/go/bin:/go/src/github.com/argoproj/argo-cd/dist:$PATH
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 
@@ -39,7 +49,6 @@ COPY hack/install.sh hack/tool-versions.sh go.* ./
 COPY hack/installers installers
 
 RUN ./install.sh helm-linux && \
-    ./install.sh kubectl-linux && \
     ./install.sh kustomize && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \
@@ -60,6 +69,14 @@ COPY ./test/fixture/testrepos/ssh_host_*_key* /etc/ssh/
 # Copy redis binaries to the image
 COPY --from=redis /usr/local/bin/* /usr/local/bin/
 
+# Copy redis dependencies/shared libraries
+# Ubuntu 22.04+ has moved to OpenSSL3 and no longer provides these libraries
+COPY --from=redis /usr/lib/linux-gnu/libssl.so.1.1 /usr/lib/linux-gnu/
+COPY --from=redis /usr/lib/linux-gnu/libcrypto.so.1.1 /usr/lib/linux-gnu/
+RUN mv /usr/lib/linux-gnu/libssl.so.1.1 /usr/lib/$(uname -m)-linux-gnu/ && \
+    mv /usr/lib/linux-gnu/libcrypto.so.1.1 /usr/lib/$(uname -m)-linux-gnu/ && \
+    rm -rf /usr/lib/linux-gnu/
+
 # Copy registry binaries to the image
 COPY --from=registry /bin/registry /usr/local/bin/
 COPY --from=registry /etc/docker/registry/config.yml /etc/docker/registry/config.yml
@@ -77,26 +94,24 @@ ARG UID
 # Prepare user configuration & build environments
 RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
-    mkdir -p /home/user/.kube && chmod 777 /home/user/.kube && \
+    mkdir -p /home/user/.kube && \
+    mkdir -p /home/user/.cache && \
     chown -R user /home/user && \
     chgrp -R user /home/user && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
     HOME=/home/user git config --global user.email "noreply@example.com" && \
-    mkdir -p /go/pkg && chmod 777 /go/pkg && \
+    mkdir -p /go/pkg && \
     mkdir -p /var/run/sshd && \
     mkdir -p /root/.ssh && \
     mkdir -p /go && \
-    chmod -R 777 /go && \
     chown root /etc/ssh/ssh_host_*_key* && \
     chmod 0600 /etc/ssh/ssh_host_*_key && \
-    mkdir -p /tmp/go-build-cache && chmod -R 777 /tmp/go-build-cache && \
-    mkdir -p /home/user/.cache && chmod 777 /home/user/.cache && \
-    chmod -R 777 /usr/local/go && \
+    mkdir -p /tmp/go-build-cache && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
     ln -s /opt/yarn-v1.22.4/bin/yarn /usr/local/bin/yarn && \
     ln -s /opt/yarn-v1.22.4/bin/yarnpkg /usr/local/bin/yarnpkg && \
-    mkdir -p /var/lib/registry && chmod -R 777 /var/lib/registry
+    mkdir -p /var/lib/registry
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

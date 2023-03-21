@@ -4,7 +4,6 @@ const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
-const path = require('path');
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -28,17 +27,19 @@ const config = {
         alias: { react: require.resolve('react') },
         fallback: { fs: false }
     },
-
+    ignoreWarnings: [{
+        module: new RegExp('/node_modules/argo-ui/.*')
+    }],
     module: {
-        rules: [{
+        rules: [
+            {
                 test: /\.tsx?$/,
-                use: ['esbuild-loader', {
-                    loader: 'ts-loader',
-                    options: {
-                        allowTsInNodeModules: true,
-                        configFile: `${path.resolve('./src/app/tsconfig.json')}`
-                    },
-                }]
+                loader: 'esbuild-loader',
+                options: {
+                    loader: 'tsx',
+                    target: 'es2015',
+                    tsconfigRaw: require('./tsconfig.json')
+                }
             },
             {
                 enforce: 'pre',
@@ -96,6 +97,7 @@ const config = {
         })
     ],
     devServer: {
+        compress: false,
         historyApiFallback: {
             disableDotRule: true
         },
@@ -105,6 +107,10 @@ const config = {
             '/extensions': proxyConf,
             '/api': proxyConf,
             '/auth': proxyConf,
+            '/terminal': {
+              target: process.env.ARGOCD_API_URL || 'ws://localhost:8080',
+              ws: true,
+            },
             '/swagger-ui': proxyConf,
             '/swagger.json': proxyConf
         }

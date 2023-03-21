@@ -213,7 +213,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	settingsManagerWithOIDCConfigButNoLogoutURL := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfigButNoLogoutURL, "default")
 	settingsManagerWithOIDCConfigButNoURL := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfigButNoURL, "default")
 
-	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", session.NewUserStateStorage(nil))
+	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
 
 	oidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfig, sessionManager, rootPath, baseHRef, "default")
 	oidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
@@ -251,17 +251,17 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	invalidHeader := make(map[string][]string)
 	invalidHeader["Cookie"] = []string{"argocd.token=" + invalidToken}
 
-	oidcRequest, err := http.NewRequest("GET", "http://localhost:4000/api/logout", nil)
+	oidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
 	assert.NoError(t, err)
 	oidcRequest.Header = oidcTokenHeader
-	nonoidcRequest, err := http.NewRequest("GET", "http://localhost:4000/api/logout", nil)
+	nonoidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
 	assert.NoError(t, err)
 	nonoidcRequest.Header = nonOidcTokenHeader
 	assert.NoError(t, err)
-	requestWithInvalidToken, err := http.NewRequest("GET", "http://localhost:4000/api/logout", nil)
+	requestWithInvalidToken, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
 	assert.NoError(t, err)
 	requestWithInvalidToken.Header = invalidHeader
-	invalidRequest, err := http.NewRequest("GET", "http://localhost:4000/api/logout", nil)
+	invalidRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
 	assert.NoError(t, err)
 
 	tests := []struct {
