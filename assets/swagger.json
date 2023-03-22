@@ -7021,7 +7021,7 @@
             "$ref": "#/definitions/v1JSON"
           }
         },
-        "elementsyaml": {
+        "elementsYaml": {
           "type": "string"
         },
         "template": {

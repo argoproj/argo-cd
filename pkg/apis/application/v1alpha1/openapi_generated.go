@@ -3605,7 +3605,7 @@ func schema_pkg_apis_application_v1alpha1_ListGenerator(ref common.ReferenceCall
 							},
 						},
 					},
-					"elementsyaml": {
+					"elementsYaml": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
