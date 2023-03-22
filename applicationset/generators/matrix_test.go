@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
+	testutils "github.com/argoproj/argo-cd/v2/applicationset/utils/test"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -1024,4 +1026,73 @@ func (g *generatorMock) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Appl
 
 	return args.Get(0).(time.Duration)
 
+}
+
+func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
+	// Given a matrix generator over a list generator and a git files generator, the nested git files generator should
+	// be treated as a files generator, and it should produce parameters.
+
+	// This tests for a specific bug where a nested git files generator was being treated as a directory generator. This
+	// happened because, when the matrix generator was being processed, the nested git files generator was being
+	// interpolated by the deeplyReplace function. That function cannot differentiate between a nil slice and an empty
+	// slice. So it was replacing the `Directories` field with an empty slice, which the ApplicationSet controller
+	// interpreted as meaning this was a directory generator, not a files generator.
+
+	// Now instead of checking for nil, we check whether the field is a non-empty slice. This test prevents a regression
+	// of that bug.
+
+	listGeneratorMock := &generatorMock{}
+	listGeneratorMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), mock.AnythingOfType("*v1alpha1.ApplicationSet")).Return([]map[string]interface{}{
+		{"some": "value"},
+	}, nil)
+	listGeneratorMock.On("GetTemplate", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator")).Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
+
+	gitGeneratorSpec := &argoprojiov1alpha1.GitGenerator{
+		RepoURL: "https://git.example.com",
+		Files: []argoprojiov1alpha1.GitFileGeneratorItem{
+			{Path: "some/path.json"},
+		},
+	}
+
+	repoServiceMock := testutils.ArgoCDServiceMock{Mock: &mock.Mock{}}
+	repoServiceMock.Mock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
+		"some/path.json": []byte("test: content"),
+	}, nil)
+	gitGenerator := NewGitGenerator(repoServiceMock)
+
+	matrixGenerator := NewMatrixGenerator(map[string]Generator{
+		"List": listGeneratorMock,
+		"Git":  gitGenerator,
+	})
+
+	matrixGeneratorSpec := &argoprojiov1alpha1.MatrixGenerator{
+		Generators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+			{
+				List: &argoprojiov1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{
+						{
+							Raw: []byte(`{"some": "value"}`),
+						},
+					},
+				},
+			},
+			{
+				Git: gitGeneratorSpec,
+			},
+		},
+	}
+	params, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+		Matrix: matrixGeneratorSpec,
+	}, &argoprojiov1alpha1.ApplicationSet{})
+	require.NoError(t, err)
+	assert.Equal(t, []map[string]interface{}{{
+		"path":                    "some",
+		"path.basename":           "some",
+		"path.basenameNormalized": "some",
+		"path.filename":           "path.json",
+		"path.filenameNormalized": "path.json",
+		"path[0]":                 "some",
+		"some":                    "value",
+		"test":                    "content",
+	}}, params)
 }
