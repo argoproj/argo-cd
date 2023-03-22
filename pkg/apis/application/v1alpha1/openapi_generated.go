@@ -1770,6 +1770,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Format:      "",
 						},
 					},
+					"commonAnnotationsEnvsubst": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
