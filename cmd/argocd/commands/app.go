@@ -738,9 +738,9 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 		}
 
 		if opts.kustomizeNamespace && source.Kustomize.Namespace != "" {
-                        updated = true
-                        source.Kustomize.Namespace = ""
-                }
+			updated = true
+			source.Kustomize.Namespace = ""
+		}
 
 		for _, kustomizeImage := range opts.kustomizeImages {
 			for i, item := range source.Kustomize.Images {

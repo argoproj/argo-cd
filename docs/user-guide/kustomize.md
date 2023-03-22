@@ -6,8 +6,11 @@ The following configuration options are available for Kustomize:
 * `nameSuffix` is a suffix appended to resources for Kustomize apps
 * `images` is a list of Kustomize image overrides
 * `commonLabels` is a string map of additional labels
+* `forceCommonLabels` is a boolean value which defines if it's allowed to override existing labels
 * `commonAnnotations` is a string map of additional annotations
 * `namespace` is a kubernetes resources namespace
+* `forceCommonAnnotations` is a boolean value which defines if it's allowed to override existing annotations
+* `commonAnnotationsEnvsubst` is a boolean value which enables env variables substition in annotation  values
 
 To use Kustomize with an overlay, point your path to the overlay.
 

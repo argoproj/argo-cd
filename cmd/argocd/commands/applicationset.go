@@ -345,7 +345,7 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 
 	var (
 		syncPolicyStr string
-		syncPolicy = appSet.Spec.Template.Spec.SyncPolicy
+		syncPolicy    = appSet.Spec.Template.Spec.SyncPolicy
 	)
 	if syncPolicy != nil && syncPolicy.Automated != nil {
 		syncPolicyStr = "Automated"
