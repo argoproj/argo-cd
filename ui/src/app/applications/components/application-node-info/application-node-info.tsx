@@ -65,6 +65,7 @@ export const ApplicationNodeInfo = (props: {
                     value: (
                         <div className='application-node-info__labels'>
                             <table>
+                                <tbody>
                                 {netContainerStatuses.map((container, i) => {
                                     const state =
                                         (container.state?.waiting && 'waiting') || (container.state?.terminating && 'terminating') || (container.state?.running && 'running');
@@ -115,6 +116,7 @@ export const ApplicationNodeInfo = (props: {
                                         </tr>
                                     );
                                 })}
+                                </tbody>
                             </table>
                         </div>
                     )
