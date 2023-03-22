@@ -36,13 +36,13 @@ export const ApplicationResourceList = ({
             <div className='argo-table-list__head'>
                 <div className='resource-details__header' style={{paddingTop: '20px'}}>
                     {Object.keys(parentNode).length > 0 && (
-                        <>
+                        <React.Fragment>
                             <div className='resource-parent-node-info'>
-                                <div className='resource-parent-node-title'>Parent Node Info</div>
-                                <div className='resource-parent-node-title'>Name: {parentNode?.name}</div>
-                                <div className='resource-parent-node-title'>Kind: {parentNode?.kind}</div>
+                                <label className='resource-parent-node-label'>Parent Node Info</label>
+                                <label className='resource-parent-node-label'>Name: {parentNode?.name}</label>
+                                <label className='resource-parent-node-label'>Kind: {parentNode?.kind}</label>
                             </div>
-                        </>
+                        </React.Fragment>
                     )}
                 </div>
                 <div className='row'>

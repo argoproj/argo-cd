@@ -361,11 +361,11 @@ $header: 120px;
     align-self: flex-start;
 
 }
-.resource-parent-node-title {
-    font-size: .8em;
+.resource-parent-node-label {
+    font-size: .9em;
     text-align: left;
-    color: $white-color;
-    background-color: $argo-color-gray-6;
+    fontWeight: 600;
+    color:'#6D7F8B';
     padding: 5px 5px;
     margin-bottom: .2em;
 }
