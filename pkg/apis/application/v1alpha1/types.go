@@ -447,6 +447,8 @@ type ApplicationSourceKustomize struct {
 	ForceCommonAnnotations bool `json:"forceCommonAnnotations,omitempty" protobuf:"bytes,8,opt,name=forceCommonAnnotations"`
 	// Namespace sets the namespace that Kustomize adds to all resources
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,9,opt,name=namespace"`
+	// CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
+	CommonAnnotationsEnvsubst bool `json:"commonAnnotationsEnvsubst,omitempty" protobuf:"bytes,10,opt,name=commonAnnotationsEnvsubst"`
 }
 
 // AllowsConcurrentProcessing returns true if multiple processes can run Kustomize builds on the same source at the same time

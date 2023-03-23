@@ -165,7 +165,9 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 				// Get app before creating to see if it is being updated or no change
 				existing, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &app.Name})
-				if grpc.UnwrapGRPCStatus(err).Code() != codes.NotFound {
+				unwrappedError := grpc.UnwrapGRPCStatus(err).Code()
+				// As part of the fix for CVE-2022-41354, the API will return Permission Denied when an app does not exist.
+				if unwrappedError != codes.NotFound && unwrappedError != codes.PermissionDenied {
 					errors.CheckError(err)
 				}
 
@@ -738,9 +740,9 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 		}
 
 		if opts.kustomizeNamespace && source.Kustomize.Namespace != "" {
-                        updated = true
-                        source.Kustomize.Namespace = ""
-                }
+			updated = true
+			source.Kustomize.Namespace = ""
+		}
 
 		for _, kustomizeImage := range opts.kustomizeImages {
 			for i, item := range source.Kustomize.Images {
