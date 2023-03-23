@@ -397,7 +397,6 @@ func (t *TestServerStream) SendHeader(metadata.MD) error {
 }
 
 func (t *TestServerStream) SetTrailer(metadata.MD) {
-	return
 }
 
 func (t *TestServerStream) Context() context.Context {
@@ -450,7 +449,6 @@ func (t *TestResourceTreeServer) SendHeader(metadata.MD) error {
 }
 
 func (t *TestResourceTreeServer) SetTrailer(metadata.MD) {
-	return
 }
 
 func (t *TestResourceTreeServer) Context() context.Context {
@@ -482,7 +480,6 @@ func (t *TestPodLogsServer) SendHeader(metadata.MD) error {
 }
 
 func (t *TestPodLogsServer) SetTrailer(metadata.MD) {
-	return
 }
 
 func (t *TestPodLogsServer) Context() context.Context {
@@ -550,13 +547,17 @@ func TestNoAppEnumeration(t *testing.T) {
 	appServer := newTestAppServerWithEnforcerConfigure(f, t, testApp, testDeployment)
 
 	noRoleCtx := context.Background()
+	// nolint:staticcheck
 	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 
 	t.Run("Get", func(t *testing.T) {
+		// nolint:staticcheck
 		_, err := appServer.Get(adminCtx, &application.ApplicationQuery{Name: pointer.String("test")})
 		assert.NoError(t, err)
+		// nolint:staticcheck
 		_, err = appServer.Get(noRoleCtx, &application.ApplicationQuery{Name: pointer.String("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		// nolint:staticcheck
 		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: pointer.String("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 	})
