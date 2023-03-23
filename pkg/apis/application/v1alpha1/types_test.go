@@ -3,7 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"errors"
-	fmt "fmt"
+	"fmt"
 	"os"
 	"path"
 	"reflect"
@@ -11,9 +11,10 @@ import (
 	"testing"
 	"time"
 
-	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/pointer"
+
+	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -864,9 +865,9 @@ func TestAppSourceEquality(t *testing.T) {
 		},
 	}
 	right := left.DeepCopy()
-	assert.True(t, left.Equals(*right))
+	assert.True(t, left.Equals(right))
 	right.Directory.Recurse = false
-	assert.False(t, left.Equals(*right))
+	assert.False(t, left.Equals(right))
 }
 
 func TestAppDestinationEquality(t *testing.T) {
@@ -3353,8 +3354,8 @@ func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 func TestApplicationSourcePluginParameters_Environ_array(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
-			Name:  "dependencies",
-			Array: []string{"redis", "minio"},
+			Name:          "dependencies",
+			OptionalArray: &OptionalArray{Array: []string{"redis", "minio"}},
 		},
 	}
 	environ, err := params.Environ()
@@ -3371,9 +3372,11 @@ func TestApplicationSourcePluginParameters_Environ_map(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name: "helm-parameters",
-			Map: map[string]string{
-				"image.repo": "quay.io/argoproj/argo-cd",
-				"image.tag":  "v2.4.0",
+			OptionalMap: &OptionalMap{
+				Map: map[string]string{
+					"image.repo": "quay.io/argoproj/argo-cd",
+					"image.tag":  "v2.4.0",
+				},
 			},
 		},
 	}
@@ -3394,10 +3397,14 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 		{
 			Name:    "some-name",
 			String_: pointer.String("1.2.3"),
-			Array:   []string{"redis", "minio"},
-			Map: map[string]string{
-				"image.repo": "quay.io/argoproj/argo-cd",
-				"image.tag":  "v2.4.0",
+			OptionalArray: &OptionalArray{
+				Array: []string{"redis", "minio"},
+			},
+			OptionalMap: &OptionalMap{
+				Map: map[string]string{
+					"image.repo": "quay.io/argoproj/argo-cd",
+					"image.tag":  "v2.4.0",
+				},
 			},
 		},
 	}
@@ -3490,6 +3497,92 @@ func TestGetSources(t *testing.T) {
 			}
 			sources := testCopy.appSpec.GetSources()
 			assert.Equal(t, testCopy.expectedSources, sources)
+		})
+	}
+}
+
+func TestOptionalArrayEquality(t *testing.T) {
+	// Demonstrate that the JSON unmarshalling of an empty array parameter is an OptionalArray with the array field set
+	// to an empty array.
+	presentButEmpty := `{"array":[]}`
+	param := ApplicationSourcePluginParameter{}
+	err := json.Unmarshal([]byte(presentButEmpty), &param)
+	require.NoError(t, err)
+	jsonPresentButEmpty := param.OptionalArray
+	require.Equal(t, &OptionalArray{Array: []string{}}, jsonPresentButEmpty)
+
+	// We won't simulate the protobuf unmarshalling of an empty array parameter. By experimentation, this is how it's
+	// unmarshalled.
+	protobufPresentButEmpty := &OptionalArray{Array: nil}
+
+	tests := []struct {
+		name     string
+		a        *OptionalArray
+		b        *OptionalArray
+		expected bool
+	}{
+		{"nil and nil", nil, nil, true},
+		{"nil and empty", nil, jsonPresentButEmpty, false},
+		{"nil and empty-containing-nil", nil, protobufPresentButEmpty, false},
+		{"empty-containing-empty and nil", jsonPresentButEmpty, nil, false},
+		{"empty-containing-nil and nil", protobufPresentButEmpty, nil, false},
+		{"empty-containing-empty and empty-containing-empty", jsonPresentButEmpty, jsonPresentButEmpty, true},
+		{"empty-containing-empty and empty-containing-nil", jsonPresentButEmpty, protobufPresentButEmpty, true},
+		{"empty-containing-nil and empty-containing-empty", protobufPresentButEmpty, jsonPresentButEmpty, true},
+		{"empty-containing-nil and empty-containing-nil", protobufPresentButEmpty, protobufPresentButEmpty, true},
+		{"empty-containing-empty and non-empty", jsonPresentButEmpty, &OptionalArray{Array: []string{"a"}}, false},
+		{"non-empty and empty-containing-nil", &OptionalArray{Array: []string{"a"}}, jsonPresentButEmpty, false},
+		{"non-empty and non-empty", &OptionalArray{Array: []string{"a"}}, &OptionalArray{Array: []string{"a"}}, true},
+		{"non-empty and non-empty different", &OptionalArray{Array: []string{"a"}}, &OptionalArray{Array: []string{"b"}}, false},
+	}
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
+		})
+	}
+}
+
+func TestOptionalMapEquality(t *testing.T) {
+	// Demonstrate that the JSON unmarshalling of an empty map parameter is an OptionalMap with the map field set
+	// to an empty map.
+	presentButEmpty := `{"map":{}}`
+	param := ApplicationSourcePluginParameter{}
+	err := json.Unmarshal([]byte(presentButEmpty), &param)
+	require.NoError(t, err)
+	jsonPresentButEmpty := param.OptionalMap
+	require.Equal(t, &OptionalMap{Map: map[string]string{}}, jsonPresentButEmpty)
+
+	// We won't simulate the protobuf unmarshalling of an empty map parameter. By experimentation, this is how it's
+	// unmarshalled.
+	protobufPresentButEmpty := &OptionalMap{Map: nil}
+
+	tests := []struct {
+		name     string
+		a        *OptionalMap
+		b        *OptionalMap
+		expected bool
+	}{
+		{"nil and nil", nil, nil, true},
+		{"nil and empty-containing-empty", nil, jsonPresentButEmpty, false},
+		{"nil and empty-containing-nil", nil, protobufPresentButEmpty, false},
+		{"empty-containing-empty and nil", jsonPresentButEmpty, nil, false},
+		{"empty-containing-nil and nil", protobufPresentButEmpty, nil, false},
+		{"empty-containing-empty and empty-containing-empty", jsonPresentButEmpty, jsonPresentButEmpty, true},
+		{"empty-containing-empty and empty-containing-nil", jsonPresentButEmpty, protobufPresentButEmpty, true},
+		{"empty-containing-empty and non-empty", jsonPresentButEmpty, &OptionalMap{Map: map[string]string{"a": "b"}}, false},
+		{"empty-containing-nil and empty-containing-empty", protobufPresentButEmpty, jsonPresentButEmpty, true},
+		{"empty-containing-nil and empty-containing-nil", protobufPresentButEmpty, protobufPresentButEmpty, true},
+		{"non-empty and empty-containing-empty", &OptionalMap{Map: map[string]string{"a": "b"}}, jsonPresentButEmpty, false},
+		{"non-empty and non-empty", &OptionalMap{Map: map[string]string{"a": "b"}}, &OptionalMap{Map: map[string]string{"a": "b"}}, true},
+		{"non-empty and non-empty different", &OptionalMap{Map: map[string]string{"a": "b"}}, &OptionalMap{Map: map[string]string{"a": "c"}}, false},
+	}
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
 		})
 	}
 }

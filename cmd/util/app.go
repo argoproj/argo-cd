@@ -70,6 +70,7 @@ type AppOptions struct {
 	kustomizeCommonAnnotations      []string
 	kustomizeForceCommonLabels      bool
 	kustomizeForceCommonAnnotations bool
+	kustomizeNamespace              string
 	pluginEnvs                      []string
 	Validate                        bool
 	directoryExclude                string
@@ -125,6 +126,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
 	command.Flags().BoolVar(&opts.kustomizeForceCommonLabels, "kustomize-force-common-label", false, "Force common labels in Kustomize")
 	command.Flags().BoolVar(&opts.kustomizeForceCommonAnnotations, "kustomize-force-common-annotation", false, "Force common annotations in Kustomize")
+	command.Flags().StringVar(&opts.kustomizeNamespace, "kustomize-namespace", "", "Kustomize namespace")
 	command.Flags().StringVar(&opts.directoryExclude, "directory-exclude", "", "Set glob expression used to exclude files from application source path")
 	command.Flags().StringVar(&opts.directoryInclude, "directory-include", "", "Set glob expression used to include files from application source path")
 	command.Flags().Int64Var(&opts.retryLimit, "sync-retry-limit", 0, "Max number of allowed sync retries")
@@ -224,6 +226,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setKustomizeOpt(source, kustomizeOpts{replicas: appOpts.kustomizeReplicas})
 		case "kustomize-version":
 			setKustomizeOpt(source, kustomizeOpts{version: appOpts.kustomizeVersion})
+		case "kustomize-namespace":
+			setKustomizeOpt(source, kustomizeOpts{namespace: appOpts.kustomizeNamespace})
 		case "kustomize-common-label":
 			parsedLabels, err := label.Parse(appOpts.kustomizeCommonLabels)
 			errors.CheckError(err)
@@ -338,6 +342,7 @@ type kustomizeOpts struct {
 	commonAnnotations      map[string]string
 	forceCommonLabels      bool
 	forceCommonAnnotations bool
+	namespace              string
 }
 
 func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
@@ -352,6 +357,9 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	}
 	if opts.nameSuffix != "" {
 		src.Kustomize.NameSuffix = opts.nameSuffix
+	}
+	if opts.namespace != "" {
+		src.Kustomize.Namespace = opts.namespace
 	}
 	if opts.commonLabels != nil {
 		src.Kustomize.CommonLabels = opts.commonLabels

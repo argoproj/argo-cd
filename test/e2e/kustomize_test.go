@@ -147,7 +147,7 @@ func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 		Path(guestbookPath).
 		And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
-				"-n", fixture.ArgoCDNamespace,
+				"-n", fixture.TestNamespace(),
 				"-p", `{ "data": { "kustomize.buildOptions": "--load-restrictor LoadRestrictionsNone" } }`))
 		}).
 		When().
@@ -161,7 +161,7 @@ func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 		Given().
 		And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
-				"-n", fixture.ArgoCDNamespace,
+				"-n", fixture.TestNamespace(),
 				"-p", `{ "data": { "kustomize.buildOptions": "" } }`))
 		})
 }

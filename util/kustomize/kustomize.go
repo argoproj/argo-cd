@@ -144,7 +144,11 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if opts.ForceCommonLabels {
 				args = append(args, "--force")
 			}
-			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonLabels)...)...)
+			commonLabels := map[string]string{}
+			for name, value := range opts.CommonLabels {
+				commonLabels[name] = envVars.Envsubst(value)
+			}
+			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonLabels)...)...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -158,7 +162,25 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if opts.ForceCommonAnnotations {
 				args = append(args, "--force")
 			}
-			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonAnnotations)...)...)
+			var commonAnnotations map[string]string
+			if opts.CommonAnnotationsEnvsubst {
+				commonAnnotations = map[string]string{}
+				for name, value := range opts.CommonAnnotations {
+					commonAnnotations[name] = envVars.Envsubst(value)
+				}
+			} else {
+				commonAnnotations = opts.CommonAnnotations
+			}
+			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonAnnotations)...)...)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if opts.Namespace != "" {
+			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namespace", "--", opts.Namespace)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
