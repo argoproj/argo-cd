@@ -389,9 +389,7 @@ func (t *TestResourceTreeServer) SendHeader(metadata.MD) error {
 	return nil
 }
 
-func (t *TestResourceTreeServer) SetTrailer(metadata.MD) {
-	return
-}
+func (t *TestResourceTreeServer) SetTrailer(metadata.MD) {}
 
 func (t *TestResourceTreeServer) Context() context.Context {
 	return t.ctx
@@ -421,9 +419,7 @@ func (t *TestPodLogsServer) SendHeader(metadata.MD) error {
 	return nil
 }
 
-func (t *TestPodLogsServer) SetTrailer(metadata.MD) {
-	return
-}
+func (t *TestPodLogsServer) SetTrailer(metadata.MD) {}
 
 func (t *TestPodLogsServer) Context() context.Context {
 	return t.ctx
@@ -490,6 +486,7 @@ func TestNoAppEnumeration(t *testing.T) {
 	appServer := newTestAppServerWithEnforcerConfigure(f, t, testApp, testDeployment)
 
 	noRoleCtx := context.Background()
+	// nolint:staticcheck
 	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 
 	t.Run("Get", func(t *testing.T) {
