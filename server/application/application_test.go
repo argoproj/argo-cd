@@ -396,8 +396,7 @@ func (t *TestServerStream) SendHeader(metadata.MD) error {
 	return nil
 }
 
-func (t *TestServerStream) SetTrailer(metadata.MD) {
-}
+func (t *TestServerStream) SetTrailer(metadata.MD) {}
 
 func (t *TestServerStream) Context() context.Context {
 	return t.ctx
@@ -448,8 +447,7 @@ func (t *TestResourceTreeServer) SendHeader(metadata.MD) error {
 	return nil
 }
 
-func (t *TestResourceTreeServer) SetTrailer(metadata.MD) {
-}
+func (t *TestResourceTreeServer) SetTrailer(metadata.MD) {}
 
 func (t *TestResourceTreeServer) Context() context.Context {
 	return t.ctx
@@ -479,8 +477,7 @@ func (t *TestPodLogsServer) SendHeader(metadata.MD) error {
 	return nil
 }
 
-func (t *TestPodLogsServer) SetTrailer(metadata.MD) {
-}
+func (t *TestPodLogsServer) SetTrailer(metadata.MD) {}
 
 func (t *TestPodLogsServer) Context() context.Context {
 	return t.ctx
