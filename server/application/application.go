@@ -67,7 +67,8 @@ const (
 )
 
 var (
-	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
+	watchAPIBufferSize  = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
+	permissionDeniedErr = status.Error(codes.PermissionDenied, "permission denied")
 )
 
 // Server provides an Application service
@@ -77,7 +78,7 @@ type Server struct {
 	appclientset   appclientset.Interface
 	appLister      applisters.ApplicationNamespaceLister
 	appInformer    cache.SharedIndexInformer
-	appBroadcaster *broadcasterHandler
+	appBroadcaster Broadcaster
 	repoClientset  apiclient.Clientset
 	kubectl        kube.Kubectl
 	db             db.ArgoDB
@@ -96,6 +97,7 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appLister applisters.ApplicationNamespaceLister,
 	appInformer cache.SharedIndexInformer,
+	appBroadcaster Broadcaster,
 	repoClientset apiclient.Clientset,
 	cache *servercache.Cache,
 	kubectl kube.Kubectl,
@@ -105,7 +107,9 @@ func NewServer(
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
-	appBroadcaster := &broadcasterHandler{}
+	if appBroadcaster == nil {
+		appBroadcaster = &broadcasterHandler{}
+	}
 	appInformer.AddEventHandler(appBroadcaster)
 	s := &Server{
 		ns:             namespace,
@@ -125,6 +129,57 @@ func NewServer(
 		projInformer:   projInformer,
 	}
 	return s, s.GetAppResources
+}
+
+// getAppEnforceRBAC gets the Application with the given name in the given namespace. If no namespace is
+// specified, the Application is fetched from the default namespace (the one in which the API server is running).
+//
+// If the Application does not exist, then we have no way of determining if the user would have had access to get that
+// Application. Verifying access requires knowing the Application's name, namespace, and project. The user may specify,
+// at minimum, the Application name.
+//
+// So to prevent a malicious user from inferring the existence or absense of the Application or namespace, we respond
+// "permission denied" if the Application does not exist.
+func (s *Server) getAppEnforceRBAC(ctx context.Context, action, name string, getApp func() (*appv1.Application, error)) (*appv1.Application, error) {
+	logCtx := log.WithFields(map[string]interface{}{
+		"application": name,
+	})
+	a, err := getApp()
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			logCtx.Warn("application does not exist")
+			return nil, permissionDeniedErr
+		}
+		logCtx.Errorf("failed to get application: %s", err)
+		return nil, permissionDeniedErr
+	}
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, action, apputil.AppRBACName(*a)); err != nil {
+		logCtx.WithFields(map[string]interface{}{
+			"project": a.Spec.Project,
+		}).Warnf("user tried to %s application which they do not have access to: %s", action, err)
+		return nil, permissionDeniedErr
+	}
+	return a, nil
+}
+
+// getApplicationEnforceRBACInformer uses an informer to get an Application. If the app does not exist, permission is
+// denied, or any other error occurs when getting the app, we return a permission denied error to obscure any sensitive
+// information.
+func (s *Server) getApplicationEnforceRBACInformer(ctx context.Context, action, name string) (*appv1.Application, error) {
+	return s.getAppEnforceRBAC(ctx, action, name, func() (*appv1.Application, error) {
+		return s.appLister.Get(name)
+	})
+}
+
+// getApplicationEnforceRBACClient uses a client to get an Application. If the app does not exist, permission is denied,
+// or any other error occurs when getting the app, we return a permission denied error to obscure any sensitive
+// information.
+func (s *Server) getApplicationEnforceRBACClient(ctx context.Context, action, name, resourceVersion string) (*appv1.Application, error) {
+	return s.getAppEnforceRBAC(ctx, action, name, func() (*appv1.Application, error) {
+		return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(ctx, name, metav1.GetOptions{
+			ResourceVersion: resourceVersion,
+		})
+	})
 }
 
 // List returns list of applications
@@ -291,11 +346,11 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 
 // GetManifests returns application manifests
 func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
-	a, err := s.appLister.Get(*q.Name)
-	if err != nil {
-		return nil, fmt.Errorf("error getting application: %w", err)
+	if q.Name == nil || *q.Name == "" {
+		return nil, fmt.Errorf("invalid request: application name is missing")
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, apputil.AppRBACName(*a)); err != nil {
+	a, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetName())
+	if err != nil {
 		return nil, err
 	}
 
@@ -381,17 +436,13 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 
 // Get returns an application by name
 func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*appv1.Application, error) {
+	appName := q.GetName()
+
 	// We must use a client Get instead of an informer Get, because it's common to call Get immediately
 	// following a Watch (which is not yet powered by an informer), and the Get must reflect what was
 	// previously seen by the client.
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(ctx, q.GetName(), metav1.GetOptions{
-		ResourceVersion: q.GetResourceVersion(),
-	})
-
+	a, err := s.getApplicationEnforceRBACClient(ctx, rbacpolicy.ActionGet, appName, q.GetResourceVersion())
 	if err != nil {
-		return nil, fmt.Errorf("error getting application: %w", err)
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, apputil.AppRBACName(*a)); err != nil {
 		return nil, err
 	}
 	if q.Refresh == nil {
@@ -469,11 +520,8 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 
 // ListResourceEvents returns a list of event resources
 func (s *Server) ListResourceEvents(ctx context.Context, q *application.ApplicationResourceEventsQuery) (*v1.EventList, error) {
-	a, err := s.appLister.Get(*q.Name)
+	a, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetName())
 	if err != nil {
-		return nil, fmt.Errorf("error getting application: %w", err)
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, apputil.AppRBACName(*a)); err != nil {
 		return nil, err
 	}
 	var (
@@ -533,13 +581,13 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	return list, nil
 }
 
-func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Application, merge bool, validate bool) (*appv1.Application, error) {
+func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Application, merge bool, validate bool, action string) (*appv1.Application, error) {
 	s.projectLock.RLock(newApp.Spec.GetProject())
 	defer s.projectLock.RUnlock(newApp.Spec.GetProject())
 
-	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(ctx, newApp.Name, metav1.GetOptions{})
+	app, err := s.getApplicationEnforceRBACClient(ctx, action, newApp.Name, "")
 	if err != nil {
-		return nil, fmt.Errorf("error getting application: %w", err)
+		return nil, err
 	}
 
 	err = s.validateAndNormalizeApp(ctx, newApp, validate)
@@ -641,7 +689,7 @@ func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateReq
 	if q.Validate != nil {
 		validate = *q.Validate
 	}
-	return s.validateAndUpdateApp(ctx, q.Application, false, validate)
+	return s.validateAndUpdateApp(ctx, q.Application, false, validate, rbacpolicy.ActionUpdate)
 }
 
 // UpdateSpec updates an application spec and filters out any invalid parameter overrides
@@ -649,11 +697,8 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 	if q.GetSpec() == nil {
 		return nil, fmt.Errorf("error updating application spec: spec is nil in request")
 	}
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(ctx, *q.Name, metav1.GetOptions{})
+	a, err := s.getApplicationEnforceRBACClient(ctx, rbacpolicy.ActionUpdate, q.GetName(), "")
 	if err != nil {
-		return nil, fmt.Errorf("error getting application: %w", err)
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, apputil.AppRBACName(*a)); err != nil {
 		return nil, err
 	}
 	a.Spec = *q.GetSpec()
@@ -661,7 +706,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 	if q.Validate != nil {
 		validate = *q.Validate
 	}
-	a, err = s.validateAndUpdateApp(ctx, a, false, validate)
+	a, err = s.validateAndUpdateApp(ctx, a, false, validate, rbacpolicy.ActionUpdate)
 	if err != nil {
 		return nil, fmt.Errorf("error validating and updating app: %w", err)
 	}
@@ -670,10 +715,9 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 
 // Patch patches an application
 func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchRequest) (*appv1.Application, error) {
-
-	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(ctx, *q.Name, metav1.GetOptions{})
+	app, err := s.getApplicationEnforceRBACClient(ctx, rbacpolicy.ActionGet, q.GetName(), "")
 	if err != nil {
-		return nil, fmt.Errorf("error getting application: %w", err)
+		return nil, err
 	}
 
 	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, apputil.AppRBACName(*app)); err != nil {
@@ -711,14 +755,15 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling patched app: %w", err)
 	}
-	return s.validateAndUpdateApp(ctx, newApp, false, true)
+	return s.validateAndUpdateApp(ctx, newApp, false, true, rbacpolicy.ActionUpdate)
 }
 
 // Delete removes an application and all associated resources
 func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(ctx, *q.Name, metav1.GetOptions{})
+	appName := q.GetName()
+	a, err := s.getApplicationEnforceRBACClient(ctx, rbacpolicy.ActionGet, appName, "")
 	if err != nil {
-		return nil, fmt.Errorf("error getting application: %w", err)
+		return nil, err
 	}
 
 	s.projectLock.RLock(a.Spec.Project)
@@ -859,7 +904,9 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
-			return status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", app.Spec.Project)
+			// Offer no hint that the project does not exist.
+			log.Warnf("User attempted to create/update application in non-existent project %q", app.Spec.Project)
+			return permissionDeniedErr
 		}
 		return fmt.Errorf("error getting application's project: %w", err)
 	}
@@ -966,20 +1013,16 @@ func (s *Server) GetAppResources(ctx context.Context, a *appv1.Application) (*ap
 		return s.cache.GetAppResourcesTree(a.Name, &tree)
 	})
 	if err != nil {
-		return &tree, fmt.Errorf("error getting cached app state: %w", err)
+		return &tree, fmt.Errorf("error getting cached app resource tree: %w", err)
 	}
 	return &tree, nil
 }
 
 func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
-	a, err := s.appLister.Get(*q.Name)
+	a, err := s.getApplicationEnforceRBACInformer(ctx, action, q.GetName())
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("error getting app by name: %w", err)
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, action, apputil.AppRBACName(*a)); err != nil {
 		return nil, nil, nil, err
 	}
-
 	tree, err := s.GetAppResources(ctx, a)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error getting app resources: %w", err)
@@ -999,7 +1042,7 @@ func (s *Server) getAppLiveResource(ctx context.Context, action string, q *appli
 func (s *Server) GetResource(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error) {
 	res, config, _, err := s.getAppLiveResource(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
-		return nil, fmt.Errorf("error getting app live resource: %w", err)
+		return nil, err
 	}
 
 	// make sure to use specified resource version if provided
@@ -1045,9 +1088,6 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	}
 	res, config, a, err := s.getAppLiveResource(ctx, rbacpolicy.ActionUpdate, resourceRequest)
 	if err != nil {
-		return nil, fmt.Errorf("error getting app live resource: %w", err)
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, apputil.AppRBACName(*a)); err != nil {
 		return nil, err
 	}
 
@@ -1058,6 +1098,9 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 			return nil, fmt.Errorf("failed to patch Secret %s/%s", res.Namespace, res.Name)
 		}
 		return nil, fmt.Errorf("error patching resource: %w", err)
+	}
+	if manifest == nil {
+		return nil, fmt.Errorf("failed to patch resource: manifest was nil")
 	}
 	manifest, err = replaceSecretValues(manifest)
 	if err != nil {
@@ -1086,9 +1129,6 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 	}
 	res, config, a, err := s.getAppLiveResource(ctx, rbacpolicy.ActionDelete, resourceRequest)
 	if err != nil {
-		return nil, fmt.Errorf("error getting live resource for delete: %w", err)
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, apputil.AppRBACName(*a)); err != nil {
 		return nil, err
 	}
 	var deleteOption metav1.DeleteOptions
@@ -1112,23 +1152,16 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 }
 
 func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery) (*appv1.ApplicationTree, error) {
-	a, err := s.appLister.Get(q.GetApplicationName())
+	a, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetApplicationName())
 	if err != nil {
-		return nil, fmt.Errorf("error getting application by name: %w", err)
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, apputil.AppRBACName(*a)); err != nil {
 		return nil, err
 	}
 	return s.GetAppResources(ctx, a)
 }
 
 func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application.ApplicationService_WatchResourceTreeServer) error {
-	a, err := s.appLister.Get(q.GetApplicationName())
+	_, err := s.getApplicationEnforceRBACInformer(ws.Context(), rbacpolicy.ActionGet, q.GetApplicationName())
 	if err != nil {
-		return fmt.Errorf("error getting application by name: %w", err)
-	}
-
-	if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, apputil.AppRBACName(*a)); err != nil {
 		return err
 	}
 
@@ -1143,11 +1176,8 @@ func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application
 }
 
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
-	a, err := s.appLister.Get(q.GetName())
+	a, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetName())
 	if err != nil {
-		return nil, fmt.Errorf("error getting app by name: %w", err)
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, apputil.AppRBACName(*a)); err != nil {
 		return nil, err
 	}
 	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
@@ -1180,19 +1210,16 @@ func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) boo
 }
 
 func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
-	a, err := s.appLister.Get(*q.ApplicationName)
+	a, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetApplicationName())
 	if err != nil {
-		return nil, fmt.Errorf("error getting application: %w", err)
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, apputil.AppRBACName(*a)); err != nil {
-		return nil, fmt.Errorf("error verifying rbac: %w", err)
+		return nil, err
 	}
 	items := make([]*appv1.ResourceDiff, 0)
 	err = s.getCachedAppState(ctx, a, func() error {
 		return s.cache.GetAppManagedResources(a.Name, &items)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error getting cached app state: %w", err)
+		return nil, fmt.Errorf("error getting cached app managed resources: %w", err)
 	}
 	res := &application.ManagedResourcesResponse{}
 	for i := range items {
@@ -1239,12 +1266,8 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		}
 	}
 
-	a, err := s.appLister.Get(q.GetName())
+	a, err := s.getApplicationEnforceRBACInformer(ws.Context(), rbacpolicy.ActionGet, q.GetName())
 	if err != nil {
-		return fmt.Errorf("error getting application by name: %w", err)
-	}
-
-	if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, apputil.AppRBACName(*a)); err != nil {
 		return err
 	}
 
@@ -1436,10 +1459,9 @@ func isTheSelectedOne(currentNode *appv1.ResourceNode, q *application.Applicatio
 
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncRequest) (*appv1.Application, error) {
-	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
-	a, err := appIf.Get(ctx, *syncReq.Name, metav1.GetOptions{})
+	a, err := s.getApplicationEnforceRBACClient(ctx, rbacpolicy.ActionGet, syncReq.GetName(), "")
 	if err != nil {
-		return nil, fmt.Errorf("error getting application by name: %w", err)
+		return nil, err
 	}
 
 	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr, s.db, ctx)
@@ -1521,7 +1543,9 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		op.Retry = *retry
 	}
 
-	a, err = argo.SetAppOperation(appIf, *syncReq.Name, &op)
+	appName := syncReq.GetName()
+	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
+	a, err = argo.SetAppOperation(appIf, appName, &op)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
@@ -1538,12 +1562,8 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*appv1.Application, error) {
-	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
-	a, err := appIf.Get(ctx, *rollbackReq.Name, metav1.GetOptions{})
+	a, err := s.getApplicationEnforceRBACClient(ctx, rbacpolicy.ActionSync, rollbackReq.GetName(), "")
 	if err != nil {
-		return nil, fmt.Errorf("error getting application by name: %w", err)
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, apputil.AppRBACName(*a)); err != nil {
 		return nil, err
 	}
 	if a.DeletionTimestamp != nil {
@@ -1585,7 +1605,9 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 			Source:       &deploymentInfo.Source,
 		},
 	}
-	a, err = argo.SetAppOperation(appIf, *rollbackReq.Name, &op)
+	appName := rollbackReq.GetName()
+	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
+	a, err = argo.SetAppOperation(appIf, appName, &op)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
@@ -1632,11 +1654,9 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 }
 
 func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error) {
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(ctx, *termOpReq.Name, metav1.GetOptions{})
+	appName := termOpReq.GetName()
+	a, err := s.getApplicationEnforceRBACClient(ctx, rbacpolicy.ActionSync, appName, "")
 	if err != nil {
-		return nil, fmt.Errorf("error getting application by name: %w", err)
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, apputil.AppRBACName(*a)); err != nil {
 		return nil, err
 	}
 
@@ -1687,7 +1707,7 @@ func (s *Server) logResourceEvent(res *appv1.ResourceNode, ctx context.Context, 
 func (s *Server) ListResourceActions(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ResourceActionsListResponse, error) {
 	res, config, _, err := s.getAppLiveResource(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
-		return nil, fmt.Errorf("error getting app live resource: %w", err)
+		return nil, err
 	}
 	obj, err := s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
 	if err != nil {
@@ -1742,7 +1762,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	actionRequest := fmt.Sprintf("%s/%s/%s/%s", rbacpolicy.ActionAction, q.GetGroup(), q.GetKind(), q.GetAction())
 	res, config, a, err := s.getAppLiveResource(ctx, actionRequest, resourceRequest)
 	if err != nil {
-		return nil, fmt.Errorf("error getting app live resource: %w", err)
+		return nil, err
 	}
 	liveObj, err := s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
 	if err != nil {
@@ -1869,13 +1889,8 @@ func (s *Server) plugins() ([]*v1alpha1.ConfigManagementPlugin, error) {
 }
 
 func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.ApplicationSyncWindowsQuery) (*application.ApplicationSyncWindowsResponse, error) {
-	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
-	a, err := appIf.Get(ctx, *q.Name, metav1.GetOptions{})
+	a, err := s.getApplicationEnforceRBACClient(ctx, rbacpolicy.ActionGet, q.GetName(), "")
 	if err != nil {
-		return nil, fmt.Errorf("error getting application by name: %w", err)
-	}
-
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, apputil.AppRBACName(*a)); err != nil {
 		return nil, err
 	}
 

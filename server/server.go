@@ -681,6 +681,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		a.AppClientset,
 		a.appLister,
 		a.appInformer,
+		nil,
 		a.RepoClientset,
 		a.Cache,
 		kubectl,
