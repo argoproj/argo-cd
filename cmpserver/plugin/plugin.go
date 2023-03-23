@@ -113,7 +113,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	}
 	if len(output) == 0 {
 		log.WithFields(log.Fields{
-			"stderr": stderr,
+			"stderr":  stderr,
 			"command": command,
 		}).Warn("Plugin command returned zero output")
 	}
@@ -213,7 +213,7 @@ func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 	}
 	defer cleanup()
 
-	metadata, err := cmp.ReceiveRepoStream(ctx, stream, workDir)
+	metadata, err := cmp.ReceiveRepoStream(ctx, stream, workDir, s.initConstants.PluginConfig.Spec.PreserveFileMode)
 	if err != nil {
 		return fmt.Errorf("generate manifest error receiving stream: %w", err)
 	}
@@ -297,7 +297,7 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	}
 	defer cleanup()
 
-	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
+	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir, s.initConstants.PluginConfig.Spec.PreserveFileMode)
 	if err != nil {
 		return fmt.Errorf("match repository error receiving stream: %w", err)
 	}
@@ -375,7 +375,7 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	}
 	defer cleanup()
 
-	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
+	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir, s.initConstants.PluginConfig.Spec.PreserveFileMode)
 	if err != nil {
 		return fmt.Errorf("parameters announcement error receiving stream: %w", err)
 	}
@@ -384,7 +384,7 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 		return fmt.Errorf("illegal appPath: out of workDir bound")
 	}
 
-	repoResponse, err := getParametersAnnouncement(bufferedCtx, appPath, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic)
+	repoResponse, err := getParametersAnnouncement(bufferedCtx, appPath, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic, metadata.GetEnv())
 	if err != nil {
 		return fmt.Errorf("get parameters announcement error: %w", err)
 	}
@@ -396,11 +396,12 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	return nil
 }
 
-func getParametersAnnouncement(ctx context.Context, appDir string, announcements []*repoclient.ParameterAnnouncement, command Command) (*apiclient.ParametersAnnouncementResponse, error) {
+func getParametersAnnouncement(ctx context.Context, appDir string, announcements []*repoclient.ParameterAnnouncement, command Command, envEntries []*apiclient.EnvEntry) (*apiclient.ParametersAnnouncementResponse, error) {
 	augmentedAnnouncements := announcements
 
 	if len(command.Command) > 0 {
-		stdout, err := runCommand(ctx, command, appDir, os.Environ())
+		env := append(os.Environ(), environ(envEntries)...)
+		stdout, err := runCommand(ctx, command, appDir, env)
 		if err != nil {
 			return nil, fmt.Errorf("error executing dynamic parameter output command: %w", err)
 		}

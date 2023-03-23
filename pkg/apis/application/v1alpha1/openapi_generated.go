@@ -93,6 +93,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Operation":                           schema_pkg_apis_application_v1alpha1_Operation(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationInitiator":                  schema_pkg_apis_application_v1alpha1_OperationInitiator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationState":                      schema_pkg_apis_application_v1alpha1_OperationState(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OptionalArray":                       schema_pkg_apis_application_v1alpha1_OptionalArray(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OptionalMap":                         schema_pkg_apis_application_v1alpha1_OptionalMap(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourceKey":                 schema_pkg_apis_application_v1alpha1_OrphanedResourceKey(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings":    schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OverrideIgnoreDiff":                  schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref),
@@ -1669,6 +1671,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Format:      "",
 						},
 					},
+					"commonAnnotationsEnvsubst": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -1739,37 +1748,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourcePluginParameter(ref c
 							Description: "String_ is the value of a string type parameter.",
 							Type:        []string{"string"},
 							Format:      "",
-						},
-					},
-					"map": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Map is the value of a map type parameter.",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"array": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Array is the value of an array type parameter.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
 						},
 					},
 				},
@@ -3532,6 +3510,12 @@ func schema_pkg_apis_application_v1alpha1_ListGenerator(ref common.ReferenceCall
 							},
 						},
 					},
+					"elementsYaml": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 					"template": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
@@ -3878,6 +3862,61 @@ func schema_pkg_apis_application_v1alpha1_OperationState(ref common.ReferenceCal
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Operation", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResult", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_OptionalArray(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"array": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Array is the value of an array type parameter.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_OptionalMap(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"map": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Map is the value of a map type parameter.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

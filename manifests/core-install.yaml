@@ -303,6 +303,10 @@ spec:
                             description: CommonAnnotations is a list of additional
                               annotations to add to rendered manifests
                             type: object
+                          commonAnnotationsEnvsubst:
+                            description: CommonAnnotationsEnvsubst specifies whether
+                              to apply env variables substitution for annotation values
+                            type: boolean
                           commonLabels:
                             additionalProperties:
                               type: string
@@ -569,6 +573,11 @@ spec:
                               description: CommonAnnotations is a list of additional
                                 annotations to add to rendered manifests
                               type: object
+                            commonAnnotationsEnvsubst:
+                              description: CommonAnnotationsEnvsubst specifies whether
+                                to apply env variables substitution for annotation
+                                values
+                              type: boolean
                             commonLabels:
                               additionalProperties:
                                 type: string
@@ -951,6 +960,10 @@ spec:
                         description: CommonAnnotations is a list of additional annotations
                           to add to rendered manifests
                         type: object
+                      commonAnnotationsEnvsubst:
+                        description: CommonAnnotationsEnvsubst specifies whether to
+                          apply env variables substitution for annotation values
+                        type: boolean
                       commonLabels:
                         additionalProperties:
                           type: string
@@ -1208,6 +1221,10 @@ spec:
                           description: CommonAnnotations is a list of additional annotations
                             to add to rendered manifests
                           type: object
+                        commonAnnotationsEnvsubst:
+                          description: CommonAnnotationsEnvsubst specifies whether
+                            to apply env variables substitution for annotation values
+                          type: boolean
                         commonLabels:
                           additionalProperties:
                             type: string
@@ -1613,6 +1630,11 @@ spec:
                               description: CommonAnnotations is a list of additional
                                 annotations to add to rendered manifests
                               type: object
+                            commonAnnotationsEnvsubst:
+                              description: CommonAnnotationsEnvsubst specifies whether
+                                to apply env variables substitution for annotation
+                                values
+                              type: boolean
                             commonLabels:
                               additionalProperties:
                                 type: string
@@ -1882,6 +1904,11 @@ spec:
                                 description: CommonAnnotations is a list of additional
                                   annotations to add to rendered manifests
                                 type: object
+                              commonAnnotationsEnvsubst:
+                                description: CommonAnnotationsEnvsubst specifies whether
+                                  to apply env variables substitution for annotation
+                                  values
+                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -2296,6 +2323,11 @@ spec:
                                     description: CommonAnnotations is a list of additional
                                       annotations to add to rendered manifests
                                     type: object
+                                  commonAnnotationsEnvsubst:
+                                    description: CommonAnnotationsEnvsubst specifies
+                                      whether to apply env variables substitution
+                                      for annotation values
+                                    type: boolean
                                   commonLabels:
                                     additionalProperties:
                                       type: string
@@ -2583,6 +2615,11 @@ spec:
                                         additional annotations to add to rendered
                                         manifests
                                       type: object
+                                    commonAnnotationsEnvsubst:
+                                      description: CommonAnnotationsEnvsubst specifies
+                                        whether to apply env variables substitution
+                                        for annotation values
+                                      type: boolean
                                     commonLabels:
                                       additionalProperties:
                                         type: string
@@ -2970,6 +3007,11 @@ spec:
                                 description: CommonAnnotations is a list of additional
                                   annotations to add to rendered manifests
                                 type: object
+                              commonAnnotationsEnvsubst:
+                                description: CommonAnnotationsEnvsubst specifies whether
+                                  to apply env variables substitution for annotation
+                                  values
+                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -3250,6 +3292,11 @@ spec:
                                   description: CommonAnnotations is a list of additional
                                     annotations to add to rendered manifests
                                   type: object
+                                commonAnnotationsEnvsubst:
+                                  description: CommonAnnotationsEnvsubst specifies
+                                    whether to apply env variables substitution for
+                                    annotation values
+                                  type: boolean
                                 commonLabels:
                                   additionalProperties:
                                     type: string
@@ -3635,6 +3682,11 @@ spec:
                                 description: CommonAnnotations is a list of additional
                                   annotations to add to rendered manifests
                                 type: object
+                              commonAnnotationsEnvsubst:
+                                description: CommonAnnotationsEnvsubst specifies whether
+                                  to apply env variables substitution for annotation
+                                  values
+                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -3915,6 +3967,11 @@ spec:
                                   description: CommonAnnotations is a list of additional
                                     annotations to add to rendered manifests
                                   type: object
+                                commonAnnotationsEnvsubst:
+                                  description: CommonAnnotationsEnvsubst specifies
+                                    whether to apply env variables substitution for
+                                    annotation values
+                                  type: boolean
                                 commonLabels:
                                   additionalProperties:
                                     type: string
@@ -4210,6 +4267,8 @@ spec:
                           items:
                             x-kubernetes-preserve-unknown-fields: true
                           type: array
+                        elementsYaml:
+                          type: string
                         template:
                           x-kubernetes-preserve-unknown-fields: true
                       required:
@@ -4336,6 +4395,8 @@ spec:
                                     items:
                                       x-kubernetes-preserve-unknown-fields: true
                                     type: array
+                                  elementsYaml:
+                                    type: string
                                   template:
                                     x-kubernetes-preserve-unknown-fields: true
                                 required:
@@ -4797,6 +4858,8 @@ spec:
                                     items:
                                       x-kubernetes-preserve-unknown-fields: true
                                     type: array
+                                  elementsYaml:
+                                    type: string
                                   template:
                                     x-kubernetes-preserve-unknown-fields: true
                                 required:
@@ -6874,6 +6937,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.kubectl.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest

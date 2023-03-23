@@ -148,6 +148,8 @@ spec:
                           items:
                             x-kubernetes-preserve-unknown-fields: true
                           type: array
+                        elementsYaml:
+                          type: string
                         template:
                           x-kubernetes-preserve-unknown-fields: true
                       required:
@@ -274,6 +276,8 @@ spec:
                                     items:
                                       x-kubernetes-preserve-unknown-fields: true
                                     type: array
+                                  elementsYaml:
+                                    type: string
                                   template:
                                     x-kubernetes-preserve-unknown-fields: true
                                 required:
@@ -735,6 +739,8 @@ spec:
                                     items:
                                       x-kubernetes-preserve-unknown-fields: true
                                     type: array
+                                  elementsYaml:
+                                    type: string
                                   template:
                                     x-kubernetes-preserve-unknown-fields: true
                                 required:
