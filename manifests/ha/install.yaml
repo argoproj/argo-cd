@@ -303,6 +303,10 @@ spec:
                             description: CommonAnnotations is a list of additional
                               annotations to add to rendered manifests
                             type: object
+                          commonAnnotationsEnvsubst:
+                            description: CommonAnnotationsEnvsubst specifies whether
+                              to apply env variables substitution for annotation values
+                            type: boolean
                           commonLabels:
                             additionalProperties:
                               type: string
@@ -569,6 +573,11 @@ spec:
                               description: CommonAnnotations is a list of additional
                                 annotations to add to rendered manifests
                               type: object
+                            commonAnnotationsEnvsubst:
+                              description: CommonAnnotationsEnvsubst specifies whether
+                                to apply env variables substitution for annotation
+                                values
+                              type: boolean
                             commonLabels:
                               additionalProperties:
                                 type: string
@@ -951,6 +960,10 @@ spec:
                         description: CommonAnnotations is a list of additional annotations
                           to add to rendered manifests
                         type: object
+                      commonAnnotationsEnvsubst:
+                        description: CommonAnnotationsEnvsubst specifies whether to
+                          apply env variables substitution for annotation values
+                        type: boolean
                       commonLabels:
                         additionalProperties:
                           type: string
@@ -1208,6 +1221,10 @@ spec:
                           description: CommonAnnotations is a list of additional annotations
                             to add to rendered manifests
                           type: object
+                        commonAnnotationsEnvsubst:
+                          description: CommonAnnotationsEnvsubst specifies whether
+                            to apply env variables substitution for annotation values
+                          type: boolean
                         commonLabels:
                           additionalProperties:
                             type: string
@@ -1613,6 +1630,11 @@ spec:
                               description: CommonAnnotations is a list of additional
                                 annotations to add to rendered manifests
                               type: object
+                            commonAnnotationsEnvsubst:
+                              description: CommonAnnotationsEnvsubst specifies whether
+                                to apply env variables substitution for annotation
+                                values
+                              type: boolean
                             commonLabels:
                               additionalProperties:
                                 type: string
@@ -1882,6 +1904,11 @@ spec:
                                 description: CommonAnnotations is a list of additional
                                   annotations to add to rendered manifests
                                 type: object
+                              commonAnnotationsEnvsubst:
+                                description: CommonAnnotationsEnvsubst specifies whether
+                                  to apply env variables substitution for annotation
+                                  values
+                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -2296,6 +2323,11 @@ spec:
                                     description: CommonAnnotations is a list of additional
                                       annotations to add to rendered manifests
                                     type: object
+                                  commonAnnotationsEnvsubst:
+                                    description: CommonAnnotationsEnvsubst specifies
+                                      whether to apply env variables substitution
+                                      for annotation values
+                                    type: boolean
                                   commonLabels:
                                     additionalProperties:
                                       type: string
@@ -2583,6 +2615,11 @@ spec:
                                         additional annotations to add to rendered
                                         manifests
                                       type: object
+                                    commonAnnotationsEnvsubst:
+                                      description: CommonAnnotationsEnvsubst specifies
+                                        whether to apply env variables substitution
+                                        for annotation values
+                                      type: boolean
                                     commonLabels:
                                       additionalProperties:
                                         type: string
@@ -2970,6 +3007,11 @@ spec:
                                 description: CommonAnnotations is a list of additional
                                   annotations to add to rendered manifests
                                 type: object
+                              commonAnnotationsEnvsubst:
+                                description: CommonAnnotationsEnvsubst specifies whether
+                                  to apply env variables substitution for annotation
+                                  values
+                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -3250,6 +3292,11 @@ spec:
                                   description: CommonAnnotations is a list of additional
                                     annotations to add to rendered manifests
                                   type: object
+                                commonAnnotationsEnvsubst:
+                                  description: CommonAnnotationsEnvsubst specifies
+                                    whether to apply env variables substitution for
+                                    annotation values
+                                  type: boolean
                                 commonLabels:
                                   additionalProperties:
                                     type: string
@@ -3635,6 +3682,11 @@ spec:
                                 description: CommonAnnotations is a list of additional
                                   annotations to add to rendered manifests
                                 type: object
+                              commonAnnotationsEnvsubst:
+                                description: CommonAnnotationsEnvsubst specifies whether
+                                  to apply env variables substitution for annotation
+                                  values
+                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -3915,6 +3967,11 @@ spec:
                                   description: CommonAnnotations is a list of additional
                                     annotations to add to rendered manifests
                                   type: object
+                                commonAnnotationsEnvsubst:
+                                  description: CommonAnnotationsEnvsubst specifies
+                                    whether to apply env variables substitution for
+                                    annotation values
+                                  type: boolean
                                 commonLabels:
                                   additionalProperties:
                                     type: string
@@ -4295,6 +4352,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -4455,6 +4514,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -4774,6 +4835,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -4934,6 +4997,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -5257,6 +5322,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -5417,6 +5484,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -5545,6 +5614,8 @@ spec:
                           items:
                             x-kubernetes-preserve-unknown-fields: true
                           type: array
+                        elementsYaml:
+                          type: string
                         template:
                           properties:
                             metadata:
@@ -5714,6 +5785,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -5874,6 +5947,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -6201,6 +6276,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -6361,6 +6438,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -6680,6 +6759,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -6840,6 +6921,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -7163,6 +7246,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -7323,6 +7408,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -7451,6 +7538,8 @@ spec:
                                     items:
                                       x-kubernetes-preserve-unknown-fields: true
                                     type: array
+                                  elementsYaml:
+                                    type: string
                                   template:
                                     properties:
                                       metadata:
@@ -7620,6 +7709,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -7780,6 +7871,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -8195,6 +8288,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -8355,6 +8450,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -8817,6 +8914,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -8977,6 +9076,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -9290,6 +9391,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -9450,6 +9553,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -9777,6 +9882,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -9937,6 +10044,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -10256,6 +10365,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -10416,6 +10527,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -10739,6 +10852,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -10899,6 +11014,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -11027,6 +11144,8 @@ spec:
                                     items:
                                       x-kubernetes-preserve-unknown-fields: true
                                     type: array
+                                  elementsYaml:
+                                    type: string
                                   template:
                                     properties:
                                       metadata:
@@ -11196,6 +11315,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -11356,6 +11477,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -11771,6 +11894,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -11931,6 +12056,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -12393,6 +12520,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -12553,6 +12682,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -12870,6 +13001,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -13030,6 +13163,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -13442,6 +13577,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -13602,6 +13739,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -14064,6 +14203,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -14224,6 +14365,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -14582,6 +14725,8 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
+                              commonAnnotationsEnvsubst:
+                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -14742,6 +14887,8 @@ spec:
                                   additionalProperties:
                                     type: string
                                   type: object
+                                commonAnnotationsEnvsubst:
+                                  type: boolean
                                 commonLabels:
                                   additionalProperties:
                                     type: string
