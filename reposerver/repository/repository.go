@@ -474,7 +474,7 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 					if !ok {
 						_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
 						if err != nil {
-							log.Errorf("failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
+							log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 							return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
 						}
 
