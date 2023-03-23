@@ -18,7 +18,7 @@ redis-ha:
       client: 6m
     checkInterval: 3s
   image:
-    tag: 7.0.8-alpine
+    tag: 7.0.9-alpine
   containerSecurityContext: null
   sentinel:
     bind: "0.0.0.0"

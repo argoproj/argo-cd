@@ -99,6 +99,7 @@ nav:
       - operator-manual/applicationset/Generators-SCM-Provider.md
       - operator-manual/applicationset/Generators-Cluster-Decision-Resource.md
       - operator-manual/applicationset/Generators-Pull-Request.md
+      - operator-manual/applicationset/Generators-Post-Selector.md
     - Template fields:
       - operator-manual/applicationset/Template.md
       - operator-manual/applicationset/GoTemplate.md
@@ -113,6 +114,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.6-2.7.md
     - operator-manual/upgrading/2.5-2.6.md
     - operator-manual/upgrading/2.4-2.5.md
     - operator-manual/upgrading/2.3-2.4.md

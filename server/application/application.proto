@@ -29,6 +29,8 @@ message ApplicationQuery {
 	optional string repo = 6;
 	// the application's namespace
 	optional string appNamespace = 7;
+	// the project names to restrict returned list applications (legacy name for backwards-compatibility)
+	repeated string project = 8;
 }
 
 message NodeQuery {

@@ -157,6 +157,10 @@ message ApplicationMatchExpression {
   repeated string values = 3;
 }
 
+message ApplicationPreservedFields {
+  repeated string annotations = 1;
+}
+
 // ApplicationSet is a set of Application resources
 // +genclient
 // +genclient:noStatus
@@ -284,6 +288,8 @@ message ApplicationSetSpec {
   optional ApplicationSetSyncPolicy syncPolicy = 4;
 
   optional ApplicationSetStrategy strategy = 5;
+
+  optional ApplicationPreservedFields preservedFields = 6;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -462,6 +468,12 @@ message ApplicationSourceKustomize {
 
   // ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
   optional bool forceCommonAnnotations = 8;
+
+  // Namespace sets the namespace that Kustomize adds to all resources
+  optional string namespace = 9;
+
+  // CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
+  optional bool commonAnnotationsEnvsubst = 10;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -481,10 +493,10 @@ message ApplicationSourcePluginParameter {
   optional string string = 5;
 
   // Map is the value of a map type parameter.
-  map<string, string> map = 3;
+  optional OptionalMap map = 3;
 
   // Array is the value of an array type parameter.
-  repeated string array = 4;
+  optional OptionalArray array = 4;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -1012,7 +1024,9 @@ message KustomizeOptions {
 message ListGenerator {
   repeated k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
 
-  optional ApplicationSetTemplate template = 2;
+  optional string elementsYaml = 2;
+
+  optional ApplicationSetTemplate template = 3;
 }
 
 message ManagedNamespaceMetadata {
@@ -1117,6 +1131,18 @@ message OperationState {
 
   // RetryCount contains time of operation retries
   optional int64 retryCount = 8;
+}
+
+message OptionalArray {
+  // Array is the value of an array type parameter.
+  // +optional
+  repeated string array = 1;
+}
+
+message OptionalMap {
+  // Map is the value of a map type parameter.
+  // +optional
+  map<string, string> map = 1;
 }
 
 // OrphanedResourceKey is a reference to a resource to be ignored from

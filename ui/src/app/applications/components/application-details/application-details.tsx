@@ -326,6 +326,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                     this.setState({collapsedNodes: collapsedNodesList});
                                 }
                             };
+                            const appFullName = AppUtils.nodeKey({
+                                group: 'argoproj.io',
+                                kind: application.kind,
+                                name: application.metadata.name,
+                                namespace: application.metadata.namespace
+                            });
                             return (
                                 <div className='application-details'>
                                     <Page
@@ -392,6 +398,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         <div className='application-details__status-panel'>
                                             <ApplicationStatusPanel
                                                 application={application}
+                                                showDiff={() => this.selectNode(appFullName, 0, 'diff')}
                                                 showOperation={() => this.setOperationStatusVisible(true)}
                                                 showConditions={() => this.setConditionsStatusVisible(true)}
                                                 showMetadataInfo={revision => this.setState({...this.state, revision})}
@@ -571,7 +578,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         </SlidingPanel>
                                         <ApplicationSyncPanel
                                             application={application}
-                                            hide={() => AppUtils.showDeploy(null, this.appContext.apis)}
+                                            hide={() => AppUtils.showDeploy(null, null, this.appContext.apis)}
                                             selectedResource={syncResourceKey}
                                         />
                                         <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
@@ -717,7 +724,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             {
                 iconClassName: 'fa fa-sync',
                 title: <ActionMenuItem actionLabel='Sync' />,
-                action: () => AppUtils.showDeploy('all', this.appContext.apis)
+                action: () => AppUtils.showDeploy('all', null, this.appContext.apis)
             },
             {
                 iconClassName: 'fa fa-info-circle',

@@ -211,6 +211,7 @@ export interface ApplicationSourceKustomize {
     nameSuffix: string;
     images: string[];
     version: string;
+    namespace: string;
 }
 export interface EnvEntry {
     name: string;
@@ -339,6 +340,7 @@ export interface ResourceStatus {
     hook?: boolean;
     requiresPruning?: boolean;
     syncWave?: number;
+    orphaned?: boolean;
 }
 
 export interface ResourceRef {
@@ -618,6 +620,7 @@ export interface HelmAppSpec {
 export interface KustomizeAppSpec {
     path: string;
     images?: string[];
+    namespace?: string;
 }
 
 export interface PluginAppSpec {
