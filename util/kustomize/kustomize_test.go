@@ -9,6 +9,9 @@ import (
 
 	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/git"
@@ -53,6 +56,16 @@ func TestKustomizeBuild(t *testing.T) {
 		},
 		Namespace:                 namespace,
 		CommonAnnotationsEnvsubst: true,
+		Replicas: []v1alpha1.KustomizeReplica{
+			{
+				Name:  "nginx-deployment",
+				Count: intstr.FromInt(2),
+			},
+			{
+				Name:  "web",
+				Count: intstr.FromString("4"),
+			},
+		},
 	}
 	objs, images, err := kustomize.Build(&kustomizeSource, nil, env)
 	assert.Nil(t, err)
@@ -73,6 +86,10 @@ func TestKustomizeBuild(t *testing.T) {
 				"app.kubernetes.io/managed-by": "argo-cd",
 				"app.kubernetes.io/part-of":    "argo-cd-tests",
 			}, obj.GetAnnotations())
+			replicas, ok, err := unstructured.NestedInt64(obj.Object, "spec", "replicas")
+			require.NoError(t, err)
+			require.True(t, ok)
+			assert.Equal(t, int64(4), replicas)
 			assert.Equal(t, namespace, obj.GetNamespace())
 		case "Deployment":
 			assert.Equal(t, namePrefix+"nginx-deployment"+nameSuffix, obj.GetName())
@@ -85,6 +102,10 @@ func TestKustomizeBuild(t *testing.T) {
 				"app.kubernetes.io/managed-by": "argo-cd",
 				"app.kubernetes.io/part-of":    "argo-cd-tests",
 			}, obj.GetAnnotations())
+			replicas, ok, err := unstructured.NestedInt64(obj.Object, "spec", "replicas")
+			require.NoError(t, err)
+			require.True(t, ok)
+			assert.Equal(t, int64(2), replicas)
 			assert.Equal(t, namespace, obj.GetNamespace())
 		}
 	}
@@ -95,6 +116,22 @@ func TestKustomizeBuild(t *testing.T) {
 			assert.Equal(t, "1.15.5", image)
 		}
 	}
+}
+
+func TestFailKustomizeBuild(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization1)
+	assert.Nil(t, err)
+	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Replicas: []v1alpha1.KustomizeReplica{
+			{
+				Name:  "nginx-deployment",
+				Count: intstr.Parse("garbage"),
+			},
+		},
+	}
+	_, _, err = kustomize.Build(&kustomizeSource, nil, nil)
+	assert.EqualError(t, err, "expected integer value for count. Received: garbage")
 }
 
 func TestFindKustomization(t *testing.T) {
