@@ -66,57 +66,58 @@ export const ApplicationNodeInfo = (props: {
                         <div className='application-node-info__labels'>
                             <table>
                                 <tbody>
-                                {netContainerStatuses.map((container, i) => {
-                                    const state =
-                                        (container.state?.waiting && 'waiting') || (container.state?.terminated && 'terminated') || (container.state?.running && 'running');
-                                    const status = container.state.waiting?.reason || container.state.terminated?.reason || container.state.running?.reason;
-                                    const lastState = container.lastState?.terminated;
-                                    const msgExists = container.state.waiting?.message || container.state.terminated?.message;
+                                    {netContainerStatuses.map((container, i) => {
+                                        const state =
+                                            (container.state?.waiting && 'waiting') || (container.state?.terminated && 'terminated') || (container.state?.running && 'running');
+                                        const status = container.state.waiting?.reason || container.state.terminated?.reason || container.state.running?.reason;
+                                        const lastState = container.lastState?.terminated;
+                                        const msgExists = container.state.waiting?.message || container.state.terminated?.message;
 
-                                    return (
-                                        <tr key={i}>
-                                            <td width='18%'>{container.name}</td>
-                                            <td />
-                                            <td>
-                                                {state && (
-                                                    <>
-                                                        Container is in <span className='application-node-info__labels--highlight'>{state}</span> state
-                                                        {state !== 'running' ? <>because of reason-</>:'.'}
-                                                    </>
-                                                )}
-                                                <span title={msgExists || ''} key={i}>
-                                                    {status && (
-                                                        <span
-                                                            className={classNames('application-node-info__labels--highlight', {
-                                                                'application-node-info__labels--hint': !!msgExists
-                                                            })}>
-                                                            {status}
-                                                        </span>
+                                        return (
+                                            <tr key={i}>
+                                                <td width='18%'>{container.name}</td>
+                                                <td />
+                                                <td>
+                                                    {state && (
+                                                        <>
+                                                            Container is in <span className='application-node-info__labels--highlight'>{state}</span> state
+                                                            {state !== 'running' ? <>because of reason-</> : '.'}
+                                                        </>
                                                     )}
-                                                    {'.'}
-                                                </span>
-                                                {(container.state.terminated?.exitCode===0||container.state.terminated?.exitCode)  && ` Container exited with exitCode-${container.state.terminated.exitCode}.`}
-                                                <br />
-                                                {lastState && (
-                                                    <>
-                                                        The container's lastState terminated with exit code - {lastState?.exitCode.toString()} and status -{' '}
-                                                        <span title={container.lastState?.message || ''} key={i}>
-                                                            {lastState?.reason && (
-                                                                <span
-                                                                    className={classNames('application-node-info__labels--highlight', {
-                                                                        'application-node-info__labels--hint': !!container.lastState?.message
-                                                                    })}>
-                                                                    {lastState?.reason}
-                                                                </span>
-                                                            )}
-                                                        </span>
+                                                    <span title={msgExists || ''} key={i}>
+                                                        {status && (
+                                                            <span
+                                                                className={classNames('application-node-info__labels--highlight', {
+                                                                    'application-node-info__labels--hint': !!msgExists
+                                                                })}>
+                                                                {status}
+                                                            </span>
+                                                        )}
                                                         {'.'}
-                                                    </>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                                    </span>
+                                                    {(container.state.terminated?.exitCode === 0 || container.state.terminated?.exitCode) &&
+                                                        ` Container exited with exitCode-${container.state.terminated.exitCode}.`}
+                                                    <br />
+                                                    {lastState && (
+                                                        <>
+                                                            The container's lastState terminated with exit code - {lastState?.exitCode.toString()} and status -{' '}
+                                                            <span title={container.lastState?.message || ''} key={i}>
+                                                                {lastState?.reason && (
+                                                                    <span
+                                                                        className={classNames('application-node-info__labels--highlight', {
+                                                                            'application-node-info__labels--hint': !!container.lastState?.message
+                                                                        })}>
+                                                                        {lastState?.reason}
+                                                                    </span>
+                                                                )}
+                                                            </span>
+                                                            {'.'}
+                                                        </>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
