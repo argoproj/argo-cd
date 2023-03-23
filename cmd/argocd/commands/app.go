@@ -662,6 +662,7 @@ func (o *unsetOpts) KustomizeIsZero() bool {
 		!o.namePrefix &&
 			!o.nameSuffix &&
 			!o.kustomizeVersion &&
+			!o.kustomizeNamespace &&
 			len(o.kustomizeImages) == 0 &&
 			len(o.kustomizeReplicas) == 0
 }
