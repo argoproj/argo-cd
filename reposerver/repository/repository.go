@@ -295,7 +295,7 @@ func (s *Service) runRepoOperation(
 
 	if sanitizer, ok := grpc.SanitizerFromContext(ctx); ok {
 		// make sure randomized path replaced with '.' in the error message
-		sanitizer.AddRegexReplacement(regexp.MustCompile(`(`+regexp.QuoteMeta(s.rootDir)+`/.*?)/`), ".")
+		sanitizer.AddRegexReplacement(getRepoSanitizerRegex(s.rootDir), "<path to cached source>")
 	}
 
 	var gitClient git.Client
@@ -438,6 +438,15 @@ func (s *Service) runRepoOperation(
 			return &operationContext{appPath, signature}, nil
 		})
 	}
+}
+
+func getRepoSanitizerRegex(rootDir string) *regexp.Regexp {
+	// This regex assumes that the sensitive part of the path (the component immediately after "rootDir") contains no
+	// spaces. This assumption allows us to avoid sanitizing "more info" in "/tmp/_argocd-repo/SENSITIVE more info".
+	//
+	// The no-spaces assumption holds for our actual use case, which is "/tmp/_argocd-repo/{random UUID}". The UUID will
+	// only ever contain digits and hyphens.
+	return regexp.MustCompile(regexp.QuoteMeta(rootDir) + `/[^ /]*`)
 }
 
 type gitClientGetter func(repo *v1alpha1.Repository, revision string, opts ...git.ClientOpts) (git.Client, string, error)
