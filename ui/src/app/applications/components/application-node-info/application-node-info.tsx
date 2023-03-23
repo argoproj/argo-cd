@@ -68,10 +68,10 @@ export const ApplicationNodeInfo = (props: {
                                 <tbody>
                                 {netContainerStatuses.map((container, i) => {
                                     const state =
-                                        (container.state?.waiting && 'waiting') || (container.state?.terminating && 'terminating') || (container.state?.running && 'running');
-                                    const status = container.state.waiting?.reason || container.state.terminating?.reason || container.state.running?.reason;
+                                        (container.state?.waiting && 'waiting') || (container.state?.terminated && 'terminated') || (container.state?.running && 'running');
+                                    const status = container.state.waiting?.reason || container.state.terminated?.reason || container.state.running?.reason;
                                     const lastState = container.lastState?.terminated;
-                                    const msgExists = container.state.waiting?.message || container.state.terminating?.message;
+                                    const msgExists = container.state.waiting?.message || container.state.terminated?.message;
 
                                     return (
                                         <tr key={i}>
@@ -80,8 +80,8 @@ export const ApplicationNodeInfo = (props: {
                                             <td>
                                                 {state && (
                                                     <>
-                                                        Container is in <span className='application-node-info__labels--highlight'>{state}</span> state{' '}
-                                                        {state !== 'running' && <>because of </>}
+                                                        Container is in <span className='application-node-info__labels--highlight'>{state}</span> state
+                                                        {state !== 'running' ? <>because of reason-</>:'.'}
                                                     </>
                                                 )}
                                                 <span title={msgExists || ''} key={i}>
@@ -95,6 +95,7 @@ export const ApplicationNodeInfo = (props: {
                                                     )}
                                                     {'.'}
                                                 </span>
+                                                {(container.state.terminated?.exitCode===0||container.state.terminated?.exitCode)  && ` Container exited with exitCode-${container.state.terminated.exitCode}.`}
                                                 <br />
                                                 {lastState && (
                                                     <>
