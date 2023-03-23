@@ -174,7 +174,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 
 func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error) {
 	if tmpl == nil {
-		return nil, fmt.Errorf("application template is empty ")
+		return nil, fmt.Errorf("application template is empty")
 	}
 
 	if len(params) == 0 {
@@ -202,6 +202,27 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	}
 
 	return replacedTmpl, nil
+}
+
+func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.ApplicationSetGenerator, error) {
+	if gen == nil {
+		return nil, fmt.Errorf("generator is empty")
+	}
+
+	if len(params) == 0 {
+		return gen, nil
+	}
+
+	original := reflect.ValueOf(gen)
+	copy := reflect.New(original.Type()).Elem()
+
+	if err := r.deeplyReplace(copy, original, params, useGoTemplate); err != nil {
+		return nil, fmt.Errorf("failed to replace parameters in generator: %w", err)
+	}
+
+	replacedGen := copy.Interface().(*argoappsv1.ApplicationSetGenerator)
+
+	return replacedGen, nil
 }
 
 var isTemplatedRegex = regexp.MustCompile(".*{{.*}}.*")

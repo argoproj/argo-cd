@@ -233,6 +233,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -248,6 +250,8 @@ spec:
                                         namePrefix:
                                           type: string
                                         nameSuffix:
+                                          type: string
+                                        namespace:
                                           type: string
                                         version:
                                           type: string
@@ -391,6 +395,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -406,6 +412,8 @@ spec:
                                           namePrefix:
                                             type: string
                                           nameSuffix:
+                                            type: string
+                                          namespace:
                                             type: string
                                           version:
                                             type: string
@@ -708,6 +716,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -723,6 +733,8 @@ spec:
                                         namePrefix:
                                           type: string
                                         nameSuffix:
+                                          type: string
+                                        namespace:
                                           type: string
                                         version:
                                           type: string
@@ -866,6 +878,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -881,6 +895,8 @@ spec:
                                           namePrefix:
                                             type: string
                                           nameSuffix:
+                                            type: string
+                                          namespace:
                                             type: string
                                           version:
                                             type: string
@@ -1187,6 +1203,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -1202,6 +1220,8 @@ spec:
                                         namePrefix:
                                           type: string
                                         nameSuffix:
+                                          type: string
+                                        namespace:
                                           type: string
                                         version:
                                           type: string
@@ -1345,6 +1365,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -1360,6 +1382,8 @@ spec:
                                           namePrefix:
                                             type: string
                                           nameSuffix:
+                                            type: string
+                                          namespace:
                                             type: string
                                           version:
                                             type: string
@@ -1471,6 +1495,8 @@ spec:
                           items:
                             x-kubernetes-preserve-unknown-fields: true
                           type: array
+                        elementsYaml:
+                          type: string
                         template:
                           properties:
                             metadata:
@@ -1640,6 +1666,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -1655,6 +1683,8 @@ spec:
                                         namePrefix:
                                           type: string
                                         nameSuffix:
+                                          type: string
+                                        namespace:
                                           type: string
                                         version:
                                           type: string
@@ -1798,6 +1828,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -1813,6 +1845,8 @@ spec:
                                           namePrefix:
                                             type: string
                                           nameSuffix:
+                                            type: string
+                                          namespace:
                                             type: string
                                           version:
                                             type: string
@@ -2123,6 +2157,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -2138,6 +2174,8 @@ spec:
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
+                                                    type: string
+                                                  namespace:
                                                     type: string
                                                   version:
                                                     type: string
@@ -2281,6 +2319,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -2296,6 +2336,8 @@ spec:
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     version:
                                                       type: string
@@ -2598,6 +2640,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -2613,6 +2657,8 @@ spec:
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
+                                                    type: string
+                                                  namespace:
                                                     type: string
                                                   version:
                                                     type: string
@@ -2756,6 +2802,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -2771,6 +2819,8 @@ spec:
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     version:
                                                       type: string
@@ -3077,6 +3127,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -3092,6 +3144,8 @@ spec:
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
+                                                    type: string
+                                                  namespace:
                                                     type: string
                                                   version:
                                                     type: string
@@ -3235,6 +3289,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -3250,6 +3306,8 @@ spec:
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     version:
                                                       type: string
@@ -3361,6 +3419,8 @@ spec:
                                     items:
                                       x-kubernetes-preserve-unknown-fields: true
                                     type: array
+                                  elementsYaml:
+                                    type: string
                                   template:
                                     properties:
                                       metadata:
@@ -3530,6 +3590,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -3545,6 +3607,8 @@ spec:
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
+                                                    type: string
+                                                  namespace:
                                                     type: string
                                                   version:
                                                     type: string
@@ -3688,6 +3752,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -3703,6 +3769,8 @@ spec:
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     version:
                                                       type: string
@@ -4101,6 +4169,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -4116,6 +4186,8 @@ spec:
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
+                                                    type: string
+                                                  namespace:
                                                     type: string
                                                   version:
                                                     type: string
@@ -4259,6 +4331,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -4274,6 +4348,8 @@ spec:
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     version:
                                                       type: string
@@ -4719,6 +4795,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -4734,6 +4812,8 @@ spec:
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
+                                                    type: string
+                                                  namespace:
                                                     type: string
                                                   version:
                                                     type: string
@@ -4877,6 +4957,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -4892,6 +4974,8 @@ spec:
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     version:
                                                       type: string
@@ -5188,6 +5272,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -5203,6 +5289,8 @@ spec:
                                         namePrefix:
                                           type: string
                                         nameSuffix:
+                                          type: string
+                                        namespace:
                                           type: string
                                         version:
                                           type: string
@@ -5346,6 +5434,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -5361,6 +5451,8 @@ spec:
                                           namePrefix:
                                             type: string
                                           nameSuffix:
+                                            type: string
+                                          namespace:
                                             type: string
                                           version:
                                             type: string
@@ -5671,6 +5763,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -5686,6 +5780,8 @@ spec:
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
+                                                    type: string
+                                                  namespace:
                                                     type: string
                                                   version:
                                                     type: string
@@ -5829,6 +5925,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -5844,6 +5942,8 @@ spec:
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     version:
                                                       type: string
@@ -6146,6 +6246,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -6161,6 +6263,8 @@ spec:
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
+                                                    type: string
+                                                  namespace:
                                                     type: string
                                                   version:
                                                     type: string
@@ -6304,6 +6408,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -6319,6 +6425,8 @@ spec:
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     version:
                                                       type: string
@@ -6625,6 +6733,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -6640,6 +6750,8 @@ spec:
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
+                                                    type: string
+                                                  namespace:
                                                     type: string
                                                   version:
                                                     type: string
@@ -6783,6 +6895,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -6798,6 +6912,8 @@ spec:
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     version:
                                                       type: string
@@ -6909,6 +7025,8 @@ spec:
                                     items:
                                       x-kubernetes-preserve-unknown-fields: true
                                     type: array
+                                  elementsYaml:
+                                    type: string
                                   template:
                                     properties:
                                       metadata:
@@ -7078,6 +7196,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -7093,6 +7213,8 @@ spec:
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
+                                                    type: string
+                                                  namespace:
                                                     type: string
                                                   version:
                                                     type: string
@@ -7236,6 +7358,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -7251,6 +7375,8 @@ spec:
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     version:
                                                       type: string
@@ -7649,6 +7775,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -7664,6 +7792,8 @@ spec:
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
+                                                    type: string
+                                                  namespace:
                                                     type: string
                                                   version:
                                                     type: string
@@ -7807,6 +7937,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -7822,6 +7954,8 @@ spec:
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     version:
                                                       type: string
@@ -8267,6 +8401,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -8282,6 +8418,8 @@ spec:
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
+                                                    type: string
+                                                  namespace:
                                                     type: string
                                                   version:
                                                     type: string
@@ -8425,6 +8563,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -8440,6 +8580,8 @@ spec:
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     version:
                                                       type: string
@@ -8740,6 +8882,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -8755,6 +8899,8 @@ spec:
                                         namePrefix:
                                           type: string
                                         nameSuffix:
+                                          type: string
+                                        namespace:
                                           type: string
                                         version:
                                           type: string
@@ -8898,6 +9044,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -8913,6 +9061,8 @@ spec:
                                           namePrefix:
                                             type: string
                                           nameSuffix:
+                                            type: string
+                                          namespace:
                                             type: string
                                           version:
                                             type: string
@@ -9308,6 +9458,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -9323,6 +9475,8 @@ spec:
                                         namePrefix:
                                           type: string
                                         nameSuffix:
+                                          type: string
+                                        namespace:
                                           type: string
                                         version:
                                           type: string
@@ -9466,6 +9620,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -9481,6 +9637,8 @@ spec:
                                           namePrefix:
                                             type: string
                                           nameSuffix:
+                                            type: string
+                                          namespace:
                                             type: string
                                           version:
                                             type: string
@@ -9926,6 +10084,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -9941,6 +10101,8 @@ spec:
                                         namePrefix:
                                           type: string
                                         nameSuffix:
+                                          type: string
+                                        namespace:
                                           type: string
                                         version:
                                           type: string
@@ -10084,6 +10246,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -10099,6 +10263,8 @@ spec:
                                           namePrefix:
                                             type: string
                                           nameSuffix:
+                                            type: string
+                                          namespace:
                                             type: string
                                           version:
                                             type: string
@@ -10228,6 +10394,13 @@ spec:
                 type: array
               goTemplate:
                 type: boolean
+              preservedFields:
+                properties:
+                  annotations:
+                    items:
+                      type: string
+                    type: array
+                type: object
               strategy:
                 properties:
                   rollingSync:
@@ -10440,6 +10613,8 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
+                              commonAnnotationsEnvsubst:
+                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -10455,6 +10630,8 @@ spec:
                               namePrefix:
                                 type: string
                               nameSuffix:
+                                type: string
+                              namespace:
                                 type: string
                               version:
                                 type: string
@@ -10598,6 +10775,8 @@ spec:
                                   additionalProperties:
                                     type: string
                                   type: object
+                                commonAnnotationsEnvsubst:
+                                  type: boolean
                                 commonLabels:
                                   additionalProperties:
                                     type: string
@@ -10613,6 +10792,8 @@ spec:
                                 namePrefix:
                                   type: string
                                 nameSuffix:
+                                  type: string
+                                namespace:
                                   type: string
                                 version:
                                   type: string

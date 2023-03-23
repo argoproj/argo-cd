@@ -302,6 +302,10 @@ spec:
                             description: CommonAnnotations is a list of additional
                               annotations to add to rendered manifests
                             type: object
+                          commonAnnotationsEnvsubst:
+                            description: CommonAnnotationsEnvsubst specifies whether
+                              to apply env variables substitution for annotation values
+                            type: boolean
                           commonLabels:
                             additionalProperties:
                               type: string
@@ -332,6 +336,10 @@ spec:
                           nameSuffix:
                             description: NameSuffix is a suffix appended to resources
                               for Kustomize apps
+                            type: string
+                          namespace:
+                            description: Namespace sets the namespace that Kustomize
+                              adds to all resources
                             type: string
                           version:
                             description: Version controls which version of Kustomize
@@ -564,6 +572,11 @@ spec:
                               description: CommonAnnotations is a list of additional
                                 annotations to add to rendered manifests
                               type: object
+                            commonAnnotationsEnvsubst:
+                              description: CommonAnnotationsEnvsubst specifies whether
+                                to apply env variables substitution for annotation
+                                values
+                              type: boolean
                             commonLabels:
                               additionalProperties:
                                 type: string
@@ -595,6 +608,10 @@ spec:
                             nameSuffix:
                               description: NameSuffix is a suffix appended to resources
                                 for Kustomize apps
+                              type: string
+                            namespace:
+                              description: Namespace sets the namespace that Kustomize
+                                adds to all resources
                               type: string
                             version:
                               description: Version controls which version of Kustomize
@@ -942,6 +959,10 @@ spec:
                         description: CommonAnnotations is a list of additional annotations
                           to add to rendered manifests
                         type: object
+                      commonAnnotationsEnvsubst:
+                        description: CommonAnnotationsEnvsubst specifies whether to
+                          apply env variables substitution for annotation values
+                        type: boolean
                       commonLabels:
                         additionalProperties:
                           type: string
@@ -971,6 +992,10 @@ spec:
                       nameSuffix:
                         description: NameSuffix is a suffix appended to resources
                           for Kustomize apps
+                        type: string
+                      namespace:
+                        description: Namespace sets the namespace that Kustomize adds
+                          to all resources
                         type: string
                       version:
                         description: Version controls which version of Kustomize to
@@ -1195,6 +1220,10 @@ spec:
                           description: CommonAnnotations is a list of additional annotations
                             to add to rendered manifests
                           type: object
+                        commonAnnotationsEnvsubst:
+                          description: CommonAnnotationsEnvsubst specifies whether
+                            to apply env variables substitution for annotation values
+                          type: boolean
                         commonLabels:
                           additionalProperties:
                             type: string
@@ -1225,6 +1254,10 @@ spec:
                         nameSuffix:
                           description: NameSuffix is a suffix appended to resources
                             for Kustomize apps
+                          type: string
+                        namespace:
+                          description: Namespace sets the namespace that Kustomize
+                            adds to all resources
                           type: string
                         version:
                           description: Version controls which version of Kustomize
@@ -1596,6 +1629,11 @@ spec:
                               description: CommonAnnotations is a list of additional
                                 annotations to add to rendered manifests
                               type: object
+                            commonAnnotationsEnvsubst:
+                              description: CommonAnnotationsEnvsubst specifies whether
+                                to apply env variables substitution for annotation
+                                values
+                              type: boolean
                             commonLabels:
                               additionalProperties:
                                 type: string
@@ -1627,6 +1665,10 @@ spec:
                             nameSuffix:
                               description: NameSuffix is a suffix appended to resources
                                 for Kustomize apps
+                              type: string
+                            namespace:
+                              description: Namespace sets the namespace that Kustomize
+                                adds to all resources
                               type: string
                             version:
                               description: Version controls which version of Kustomize
@@ -1861,6 +1903,11 @@ spec:
                                 description: CommonAnnotations is a list of additional
                                   annotations to add to rendered manifests
                                 type: object
+                              commonAnnotationsEnvsubst:
+                                description: CommonAnnotationsEnvsubst specifies whether
+                                  to apply env variables substitution for annotation
+                                  values
+                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -1892,6 +1939,10 @@ spec:
                               nameSuffix:
                                 description: NameSuffix is a suffix appended to resources
                                   for Kustomize apps
+                                type: string
+                              namespace:
+                                description: Namespace sets the namespace that Kustomize
+                                  adds to all resources
                                 type: string
                               version:
                                 description: Version controls which version of Kustomize
@@ -2271,6 +2322,11 @@ spec:
                                     description: CommonAnnotations is a list of additional
                                       annotations to add to rendered manifests
                                     type: object
+                                  commonAnnotationsEnvsubst:
+                                    description: CommonAnnotationsEnvsubst specifies
+                                      whether to apply env variables substitution
+                                      for annotation values
+                                    type: boolean
                                   commonLabels:
                                     additionalProperties:
                                       type: string
@@ -2302,6 +2358,10 @@ spec:
                                   nameSuffix:
                                     description: NameSuffix is a suffix appended to
                                       resources for Kustomize apps
+                                    type: string
+                                  namespace:
+                                    description: Namespace sets the namespace that
+                                      Kustomize adds to all resources
                                     type: string
                                   version:
                                     description: Version controls which version of
@@ -2554,6 +2614,11 @@ spec:
                                         additional annotations to add to rendered
                                         manifests
                                       type: object
+                                    commonAnnotationsEnvsubst:
+                                      description: CommonAnnotationsEnvsubst specifies
+                                        whether to apply env variables substitution
+                                        for annotation values
+                                      type: boolean
                                     commonLabels:
                                       additionalProperties:
                                         type: string
@@ -2585,6 +2650,10 @@ spec:
                                     nameSuffix:
                                       description: NameSuffix is a suffix appended
                                         to resources for Kustomize apps
+                                      type: string
+                                    namespace:
+                                      description: Namespace sets the namespace that
+                                        Kustomize adds to all resources
                                       type: string
                                     version:
                                       description: Version controls which version
@@ -2937,6 +3006,11 @@ spec:
                                 description: CommonAnnotations is a list of additional
                                   annotations to add to rendered manifests
                                 type: object
+                              commonAnnotationsEnvsubst:
+                                description: CommonAnnotationsEnvsubst specifies whether
+                                  to apply env variables substitution for annotation
+                                  values
+                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -2968,6 +3042,10 @@ spec:
                               nameSuffix:
                                 description: NameSuffix is a suffix appended to resources
                                   for Kustomize apps
+                                type: string
+                              namespace:
+                                description: Namespace sets the namespace that Kustomize
+                                  adds to all resources
                                 type: string
                               version:
                                 description: Version controls which version of Kustomize
@@ -3213,6 +3291,11 @@ spec:
                                   description: CommonAnnotations is a list of additional
                                     annotations to add to rendered manifests
                                   type: object
+                                commonAnnotationsEnvsubst:
+                                  description: CommonAnnotationsEnvsubst specifies
+                                    whether to apply env variables substitution for
+                                    annotation values
+                                  type: boolean
                                 commonLabels:
                                   additionalProperties:
                                     type: string
@@ -3244,6 +3327,10 @@ spec:
                                 nameSuffix:
                                   description: NameSuffix is a suffix appended to
                                     resources for Kustomize apps
+                                  type: string
+                                namespace:
+                                  description: Namespace sets the namespace that Kustomize
+                                    adds to all resources
                                   type: string
                                 version:
                                   description: Version controls which version of Kustomize
@@ -3594,6 +3681,11 @@ spec:
                                 description: CommonAnnotations is a list of additional
                                   annotations to add to rendered manifests
                                 type: object
+                              commonAnnotationsEnvsubst:
+                                description: CommonAnnotationsEnvsubst specifies whether
+                                  to apply env variables substitution for annotation
+                                  values
+                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -3625,6 +3717,10 @@ spec:
                               nameSuffix:
                                 description: NameSuffix is a suffix appended to resources
                                   for Kustomize apps
+                                type: string
+                              namespace:
+                                description: Namespace sets the namespace that Kustomize
+                                  adds to all resources
                                 type: string
                               version:
                                 description: Version controls which version of Kustomize
@@ -3870,6 +3966,11 @@ spec:
                                   description: CommonAnnotations is a list of additional
                                     annotations to add to rendered manifests
                                   type: object
+                                commonAnnotationsEnvsubst:
+                                  description: CommonAnnotationsEnvsubst specifies
+                                    whether to apply env variables substitution for
+                                    annotation values
+                                  type: boolean
                                 commonLabels:
                                   additionalProperties:
                                     type: string
@@ -3901,6 +4002,10 @@ spec:
                                 nameSuffix:
                                   description: NameSuffix is a suffix appended to
                                     resources for Kustomize apps
+                                  type: string
+                                namespace:
+                                  description: Namespace sets the namespace that Kustomize
+                                    adds to all resources
                                   type: string
                                 version:
                                   description: Version controls which version of Kustomize
