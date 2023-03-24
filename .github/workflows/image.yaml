@@ -83,7 +83,7 @@ jobs:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
-    if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name != 'push' }}
+    if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.5.0
     with:
@@ -94,13 +94,15 @@ jobs:
       registry-password: ${{ secrets.RELEASE_QUAY_TOKEN }}
 
   Deploy:
-   needs: [build-and-publish]
-   permissions:
-     contents: write  # for git to push upgrade commit if not already deployed
-     packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
-   if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
-   runs-on: ubuntu-22.04
-   steps:
+    needs:
+      - build-and-publish
+      - set-vars
+    permissions:
+      contents: write  # for git to push upgrade commit if not already deployed
+      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+    if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
+    runs-on: ubuntu-22.04
+    steps:
       - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
         env:
@@ -111,3 +113,4 @@ jobs:
           git config --global user.name 'CI'
           git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ needs.set-vars.outputs.image-tag }}' && git push)
         working-directory: argoproj-deployments/argocd
+
