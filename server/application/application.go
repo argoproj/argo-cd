@@ -2066,11 +2066,10 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.Resource
 }
 
 func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceActionRunRequest) (*application.ApplicationResponse, error) {
-	appName := q.GetName()
-	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
-	app, err := s.appLister.Applications(appNs).Get(appName)
+	app, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionAction, q.GetAppNamespace(), q.GetName())
+	// app, err := s.getApplicationEnforceRBACClient(ctx, rbacpolicy.ActionAction, q.GetAppNamespace(), q.GetName(), "")
 	if err != nil {
-		return nil, fmt.Errorf("error getting application: %w", err)
+		return nil, err
 	}
 	resourceRequest := &application.ApplicationResourceRequest{
 		Name:         q.Name,

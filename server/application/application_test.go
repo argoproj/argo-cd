@@ -24,6 +24,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	k8sappsv1 "k8s.io/api/apps/v1"
+	k8sbatchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -1687,4 +1689,230 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 
 	assert.Equal(t, health.HealthStatusDegraded, testApp.Status.Resources[0].Health.Status)
 	assert.Nil(t, testApp.Status.Resources[1].Health)
+}
+
+func returnCronJob() *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "batch/v1",
+		"kind":       "CronJob",
+		"metadata": map[string]interface{}{
+			"name":      "my-cron-job",
+			"namespace": testNamespace,
+		},
+		"spec": map[string]interface{}{
+			"jobTemplate": map[string]interface{}{
+				"spec": map[string]interface{}{
+					"template": map[string]interface{}{
+						"spec": map[string]interface{}{
+							"containers": []map[string]interface{}{{
+								"name":            "hello",
+								"image":           "busybox:1.28",
+								"imagePullPolicy": "IfNotPresent",
+								"command":         []string{"/bin/sh", "-c", "date; echo Hello from the Kubernetes cluster"}}},
+							// "resources":     {},
+							"restartPolicy": "OnFailure",
+						},
+					},
+				},
+			},
+			"schedule": "* * * * *",
+		},
+	}}
+}
+
+func TestRunNewStyleResourceAction(t *testing.T) {
+	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+
+	group := "batch"
+	kind := "CronJob"
+	version := "v1"
+	resourceName := "my-cron-job"
+	namespace := testNamespace
+	action := "create-job"
+	uid := "1"
+
+	resources := []appsv1.ResourceStatus{{
+		Group:     group,
+		Kind:      kind,
+		Name:      resourceName,
+		Namespace: testNamespace,
+		Version:   version,
+	}}
+
+	appStateCache := appstate.NewCache(cacheClient, time.Minute)
+
+	nodes := []appsv1.ResourceNode{{
+		ResourceRef: appsv1.ResourceRef{
+			Group:     group,
+			Kind:      kind,
+			Version:   version,
+			Name:      resourceName,
+			Namespace: testNamespace,
+			UID:       uid,
+		},
+	}}
+
+	createJobDenyingProj := &appsv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "createJobDenyingProj", Namespace: "default"},
+		Spec: appsv1.AppProjectSpec{
+			SourceRepos:                []string{"*"},
+			Destinations:               []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "never", Kind: "mind"}},
+		},
+	}
+
+	cronJob := k8sbatchv1.CronJob{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "batch/v1",
+			Kind:       "CronJob",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cron-job",
+			Namespace: testNamespace,
+		},
+		Spec: k8sbatchv1.CronJobSpec{
+			Schedule: "* * * * *",
+			JobTemplate: k8sbatchv1.JobTemplateSpec{
+				Spec: k8sbatchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:            "hello",
+									Image:           "busybox:1.28",
+									ImagePullPolicy: "IfNotPresent",
+									Command:         []string{"/bin/sh", "-c", "date; echo Hello from the Kubernetes cluster"},
+								},
+							},
+							RestartPolicy: corev1.RestartPolicyOnFailure,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("CreateOperationNotPermitted", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Spec.Project = "createJobDenyingProj"
+		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+		testApp.Status.Resources = resources
+
+		appServer := newTestAppServer(t, testApp, createJobDenyingProj, kube.MustToUnstructured(&cronJob))
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
+
+		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		require.NoError(t, err)
+
+		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
+			Name:         &testApp.Name,
+			Namespace:    &namespace,
+			Action:       &action,
+			AppNamespace: &testApp.Namespace,
+			ResourceName: &resourceName,
+			Version:      &version,
+			Group:        &group,
+			Kind:         &kind,
+		})
+
+		assert.Contains(t, runErr.Error(), "permission denied")
+		assert.Nil(t, appResponse)
+	})
+
+	t.Run("CreateOperationPermitted", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+		testApp.Status.Resources = resources
+
+		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&cronJob))
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
+
+		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		require.NoError(t, err)
+
+		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
+			Name:         &testApp.Name,
+			Namespace:    &namespace,
+			Action:       &action,
+			AppNamespace: &testApp.Namespace,
+			ResourceName: &resourceName,
+			Version:      &version,
+			Group:        &group,
+			Kind:         &kind,
+		})
+
+		require.NoError(t, runErr)
+		assert.NotNil(t, appResponse)
+	})
+}
+
+func TestRunOldStyleResourceAction(t *testing.T) {
+	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+
+	group := "apps"
+	kind := "Deployment"
+	version := "v1"
+	resourceName := "nginx-deploy"
+	namespace := testNamespace
+	action := "pause"
+	uid := "2"
+
+	resources := []appsv1.ResourceStatus{{
+		Group:     group,
+		Kind:      kind,
+		Name:      resourceName,
+		Namespace: testNamespace,
+		Version:   version,
+	}}
+
+	appStateCache := appstate.NewCache(cacheClient, time.Minute)
+
+	nodes := []appsv1.ResourceNode{{
+		ResourceRef: appsv1.ResourceRef{
+			Group:     group,
+			Kind:      kind,
+			Version:   version,
+			Name:      resourceName,
+			Namespace: testNamespace,
+			UID:       uid,
+		},
+	}}
+
+	deployment := k8sappsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "nginx-deploy",
+			Namespace: testNamespace,
+		},
+	}
+
+	t.Run("DefaultPatchOperation", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+		testApp.Status.Resources = resources
+
+		// appServer := newTestAppServer(t, testApp, returnDeployment())
+		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&deployment))
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
+
+		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		require.NoError(t, err)
+
+		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
+			Name:         &testApp.Name,
+			Namespace:    &namespace,
+			Action:       &action,
+			AppNamespace: &testApp.Namespace,
+			ResourceName: &resourceName,
+			Version:      &version,
+			Group:        &group,
+			Kind:         &kind,
+		})
+
+		require.NoError(t, runErr)
+		assert.NotNil(t, appResponse)
+	})
 }
