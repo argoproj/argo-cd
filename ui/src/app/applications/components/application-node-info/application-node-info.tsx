@@ -113,7 +113,6 @@ export const ApplicationNodeInfo = (props: {
                                                                     </span>
                                                                 )}
                                                             </span>
-
                                                         </>
                                                     )}
                                                 </td>
