@@ -41,6 +41,8 @@ import (
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 const (
@@ -815,7 +817,7 @@ func TestCRDs(t *testing.T) {
 }
 
 func TestKnownTypesInCRDDiffing(t *testing.T) {
-	dummiesGVR := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "dummies"}
+	dummiesGVR := schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: "dummies"}
 
 	Given(t).
 		Path("crd-creation").

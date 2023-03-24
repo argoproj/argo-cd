@@ -7,6 +7,7 @@ import (
 	"time"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -1141,13 +1142,13 @@ func TestParseSelectedResources(t *testing.T) {
 	assert.Equal(t, *operationResources[0], v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "test",
-		Kind:      "Application",
+		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
 	})
 	assert.Equal(t, *operationResources[1], v1alpha1.SyncOperationResource{
 		Namespace: "namespace",
 		Name:      "test",
-		Kind:      "Application",
+		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
 	})
 	assert.Equal(t, *operationResources[2], v1alpha1.SyncOperationResource{
