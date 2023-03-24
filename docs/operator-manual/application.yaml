@@ -200,3 +200,8 @@ spec:
   # circumstances. Setting to zero will store no history. This will reduce storage used. Increasing will increase the
   # space used to store the history, so we do not recommend increasing it.
   revisionHistoryLimit: 10
+
+  # Info contains a list of information (URLs, email addresses, and plain text) that relates to the application
+  info:
+  - name: Website
+    value: https://argoproj.github.io/argo-cd
