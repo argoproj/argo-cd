@@ -28,7 +28,6 @@ import (
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
-	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/session"
@@ -115,7 +114,7 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 		}
 	}
 
-	newItems = argoutil.FilterAppSetsByProjects(newItems, q.Projects)
+	newItems = argo.FilterAppSetsByProjects(newItems, q.Projects)
 
 	// Sort found applicationsets by name
 	sort.Slice(newItems, func(i, j int) bool {
