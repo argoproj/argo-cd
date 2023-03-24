@@ -323,7 +323,7 @@ func Test_SSHFingerprintSHA256(t *testing.T) {
 	// actual SHA256 fingerprints for keys defined above
 	fingerprints := [...]string{
 		"zzXQOXSRBEiUtuE8AikJYKwbHaxvSc0ojez9YXaGp1A",
-		"nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8",
+		"uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s",
 		"HbW3g8zUjNSksFbqTiUWPWg2Bq1x8xdGUrliXFzSnUw",
 		"eUXGGm1YGsMAS7vkcx6JOJdOGHPem5gQp4taiCfCLB8",
 		"ROQFvPThGrW4RuWLoL9tq9I9zJ42fK4XywyRtbOz/EQ",
@@ -345,7 +345,7 @@ func Test_SSHFingerPrintSHA256FromString(t *testing.T) {
 	// actual SHA256 fingerprints for keys defined above
 	fingerprints := [...]string{
 		"zzXQOXSRBEiUtuE8AikJYKwbHaxvSc0ojez9YXaGp1A",
-		"nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8",
+		"uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s",
 		"HbW3g8zUjNSksFbqTiUWPWg2Bq1x8xdGUrliXFzSnUw",
 		"eUXGGm1YGsMAS7vkcx6JOJdOGHPem5gQp4taiCfCLB8",
 		"ROQFvPThGrW4RuWLoL9tq9I9zJ42fK4XywyRtbOz/EQ",
