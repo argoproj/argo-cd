@@ -207,8 +207,24 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 	if err != nil {
 		return nil, fmt.Errorf("error listing apps with selectors: %w", err)
 	}
+
+	filteredApps := apps
+	// Filter applications by name
+	if q.Name != nil {
+		filteredApps, err = argoutil.FilterByNameP(filteredApps, *q.Name)
+		if err != nil {
+			return nil, fmt.Errorf("error filtering applications by name: %w", err)
+		}
+	}
+
+	// Filter applications by projects
+	filteredApps = argoutil.FilterByProjectsP(filteredApps, getProjectsFromApplicationQuery(*q))
+
+	// Filter applications by source repo URL
+	filteredApps = argoutil.FilterByRepoP(filteredApps, q.GetRepo())
+
 	newItems := make([]appv1.Application, 0)
-	for _, a := range apps {
+	for _, a := range filteredApps {
 		// Skip any application that is neither in the control plane's namespace
 		// nor in the list of enabled namespaces.
 		if a.Namespace != s.ns && !glob.MatchStringInList(s.enabledNamespaces, a.Namespace, false) {
@@ -218,19 +234,6 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 			newItems = append(newItems, *a)
 		}
 	}
-
-	if q.Name != nil {
-		newItems, err = argoutil.FilterByName(newItems, *q.Name)
-		if err != nil {
-			return nil, fmt.Errorf("error filtering applications by name: %w", err)
-		}
-	}
-
-	// Filter applications by projects
-	newItems = argoutil.FilterByProjects(newItems, getProjectsFromApplicationQuery(*q))
-
-	// Filter applications by source repo URL
-	newItems = argoutil.FilterByRepo(newItems, q.GetRepo())
 
 	// Sort found applications by name
 	sort.Slice(newItems, func(i, j int) bool {
