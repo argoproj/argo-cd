@@ -210,12 +210,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 
 	filteredApps := apps
 	// Filter applications by name
-	if q.Name != nil {
-		filteredApps, err = argoutil.FilterByNameP(filteredApps, *q.Name)
-		if err != nil {
-			return nil, fmt.Errorf("error filtering applications by name: %w", err)
-		}
-	}
+	filteredApps = argoutil.FilterByNameP(filteredApps, *q.Name)
 
 	// Filter applications by projects
 	filteredApps = argoutil.FilterByProjectsP(filteredApps, getProjectsFromApplicationQuery(*q))

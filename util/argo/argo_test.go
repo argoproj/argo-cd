@@ -1028,20 +1028,17 @@ func TestFilterByNameP(t *testing.T) {
 	}
 
 	t.Run("Name is empty string", func(t *testing.T) {
-		res, err := FilterByNameP(apps, "")
-		assert.NoError(t, err)
+		res := FilterByNameP(apps, "")
 		assert.Len(t, res, 2)
 	})
 
 	t.Run("Single app by name", func(t *testing.T) {
-		res, err := FilterByNameP(apps, "foo")
-		assert.NoError(t, err)
+		res := FilterByNameP(apps, "foo")
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("No such app", func(t *testing.T) {
-		res, err := FilterByNameP(apps, "foobar")
-		assert.Error(t, err)
+		res := FilterByNameP(apps, "foobar")
 		assert.Len(t, res, 0)
 	})
 }
