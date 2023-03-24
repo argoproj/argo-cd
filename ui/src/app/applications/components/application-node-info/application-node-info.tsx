@@ -101,19 +101,19 @@ export const ApplicationNodeInfo = (props: {
                                                     <br />
                                                     {lastState && (
                                                         <>
-                                                            The container's lastState terminated with exit code - {lastState?.exitCode} and status -
+                                                            <>The container's lastState terminated with exit code - {lastState?.exitCode} and status - </>
                                                             <span title={container.lastState?.message || ''} key={i}>
                                                                 {lastState?.reason && (
                                                                     <span
                                                                         className={classNames('application-node-info__labels--highlight', {
                                                                             'application-node-info__labels--hint': !!container.lastState?.message
                                                                         })}>
-                                                                        &nbsp;
                                                                         {lastState?.reason}
+                                                                        {'.'}
                                                                     </span>
                                                                 )}
                                                             </span>
-                                                            {'.'}
+
                                                         </>
                                                     )}
                                                 </td>
