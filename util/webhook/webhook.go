@@ -3,6 +3,7 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 	"html"
 	"net/http"
 	"net/url"
@@ -45,6 +46,7 @@ type ArgoCDWebhookHandler struct {
 	serverCache     *servercache.Cache
 	db              db.ArgoDB
 	ns              string
+	appNs           []string
 	appClientset    appclientset.Interface
 	github          *github.Webhook
 	gitlab          *gitlab.Webhook
@@ -54,7 +56,7 @@ type ArgoCDWebhookHandler struct {
 	settingsSrc     settingsSource
 }
 
-func NewHandler(namespace string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, applicationNamespaces []string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
@@ -78,6 +80,7 @@ func NewHandler(namespace string, appClientset appclientset.Interface, set *sett
 
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:              namespace,
+		appNs:           applicationNamespaces,
 		appClientset:    appClientset,
 		github:          githubWebhook,
 		gitlab:          gitlabWebhook,
@@ -214,7 +217,14 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	for _, webURL := range webURLs {
 		log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
 	}
-	appIf := a.appClientset.ArgoprojV1alpha1().Applications(a.ns)
+
+	nsFilter := a.ns
+	if len(a.appNs) > 0 {
+		// Retrieve app from all namespaces
+		nsFilter = ""
+	}
+
+	appIf := a.appClientset.ArgoprojV1alpha1().Applications(nsFilter)
 	apps, err := appIf.List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Warnf("Failed to list applications: %v", err)
@@ -232,13 +242,22 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 		return
 	}
 
+	// Skip any application that is neither in the control plane's namespace
+	// nor in the list of enabled namespaces.
+	var filteredApps []v1alpha1.Application
+	for _, app := range apps.Items {
+		if app.Namespace == a.ns || glob.MatchStringInList(a.appNs, app.Namespace, false) {
+			filteredApps = append(filteredApps, app)
+		}
+	}
+
 	for _, webURL := range webURLs {
 		repoRegexp, err := getWebUrlRegex(webURL)
 		if err != nil {
 			log.Warnf("Failed to get repoRegexp: %s", err)
 			continue
 		}
-		for _, app := range apps.Items {
+		for _, app := range filteredApps {
 			if appRevisionHasChanged(&app, revision, touchedHead) && appUsesURL(&app, webURL, repoRegexp) {
 				if appFilesHaveChanged(&app, changedFiles) {
 					_, err = argo.RefreshApp(appIf, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
