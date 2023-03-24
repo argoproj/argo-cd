@@ -422,7 +422,7 @@ resume   false
         job1.kind = "Job" 
         job1.metadata = {}
         job1.metadata.name = "hello-1"
-        job1.metadata.namespace = "test-ns"
+        job1.metadata.namespace = "obj.metadata.namespace"
         impactedResource1 = {}
         impactedResource1.operation = "create"
         impactedResource1.resource = job1

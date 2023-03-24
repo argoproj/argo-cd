@@ -2046,6 +2046,11 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, err
 	}
 
+	liveObjBytes, err := json.Marshal(liveObj)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling live object: %w", err)
+	}
+
 	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource overrides: %w", err)
@@ -2064,6 +2069,16 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, fmt.Errorf("error executing Lua resource action: %w", err)
 	}
 
+	// First, make sure all the returned resources are permitted, no matter for which operation.
+	for _, impactedResource := range newObjects {
+		newObj := impactedResource.UnstructuredObj
+		err := s.verifyResourcePermitted(ctx, app, newObj)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Now, perform the actual operations
 	for _, impactedResource := range newObjects {
 		newObj := impactedResource.UnstructuredObj
 		newObjBytes, err := json.Marshal(newObj)
@@ -2071,18 +2086,13 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 			return nil, fmt.Errorf("error marshaling new object: %w", err)
 		}
 
-		liveObjBytes, err := json.Marshal(liveObj)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling live object: %w", err)
-		}
-
 		switch impactedResource.K8SOperation {
 		case "patch":
 			return s.patchResource(ctx, config, liveObjBytes, newObjBytes, newObj)
 		case "create":
 			return s.createResource(ctx, config, app, newObj)
-		default:
-			return nil, fmt.Errorf("unsupported operation: %s", impactedResource.K8SOperation)
+
+			// No default case since a not supported operation fails upon luaVM.ExecuteResourceAction
 		}
 	}
 
@@ -2138,14 +2148,14 @@ func (s *Server) patchResource(ctx context.Context, config *rest.Config, liveObj
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) createResource(ctx context.Context, config *rest.Config, app *appv1.Application, newObj *unstructured.Unstructured) (*application.ApplicationResponse, error) {
+func (s *Server) verifyResourcePermitted(ctx context.Context, app *appv1.Application, obj *unstructured.Unstructured) error {
 	proj, err := argo.GetAppProject(app, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
-			return nil, fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
+			return fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
 		}
 	}
-	permitted, err := proj.IsResourcePermitted(schema.GroupKind{Group: newObj.GroupVersionKind().Group, Kind: newObj.GroupVersionKind().Kind}, newObj.GetNamespace(), app.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
+	permitted, err := proj.IsResourcePermitted(schema.GroupKind{Group: obj.GroupVersionKind().Group, Kind: obj.GroupVersionKind().Kind}, obj.GetNamespace(), app.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
 		clusters, err := s.db.GetProjectClusters(context.TODO(), project)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get project clusters: %w", err)
@@ -2153,14 +2163,18 @@ func (s *Server) createResource(ctx context.Context, config *rest.Config, app *a
 		return clusters, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error checking resource permissions: %w", err)
+		return fmt.Errorf("error checking resource permissions: %w", err)
 	}
 	if !permitted {
-		return nil, fmt.Errorf("%s named %s creation not permitted in project: %s", newObj.GetKind(), newObj.GetName(), proj.Name)
+		return fmt.Errorf("%s named %s creation not permitted in project: %s", obj.GetKind(), obj.GetName(), proj.Name)
 	}
 
+	return nil
+}
+
+func (s *Server) createResource(ctx context.Context, config *rest.Config, app *appv1.Application, newObj *unstructured.Unstructured) (*application.ApplicationResponse, error) {
 	// Create the resource
-	_, err = s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj)
+	_, err := s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj)
 	if err != nil {
 		return nil, fmt.Errorf("error creating resource: %w", err)
 	}

@@ -431,6 +431,25 @@ const expectedCreatedMultipleJobsObjList = `
       namespace: test-ns	  
 `
 
+const expectedActionMixedOperationObjList = `
+- operation: create
+  resource:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-1
+      namespace: test-ns
+- operation: patch
+  resource:
+    apiVersion: batch/v1
+    kind: CronJob
+    metadata:
+      name: hello
+      namespace: test-ns	  
+      labels:
+        test: test  
+`
+
 const createJobActionLua = `
 job = {}
 job.apiVersion = "batch/v1"
@@ -480,6 +499,59 @@ result[2] = impactedResource2
 
 return result
 `
+const mixedOperationActionLuaOk = `
+job1 = {}
+job1.apiVersion = "batch/v1"
+job1.kind = "Job"
+
+job1.metadata = {}
+job1.metadata.name = "hello-1"
+job1.metadata.namespace = obj.metadata.namespace
+
+impactedResource1 = {}
+impactedResource1.operation = "create"
+impactedResource1.resource = job1
+result = {}
+result[1] = impactedResource1
+
+obj.metadata.labels = {}
+obj.metadata.labels["test"] = "test"
+
+impactedResource2 = {}
+impactedResource2.operation = "patch"
+impactedResource2.resource = obj
+
+result[2] = impactedResource2
+
+return result
+`
+
+const createMixedOperationActionLuaFailing = `
+job1 = {}
+job1.apiVersion = "batch/v1"
+job1.kind = "Job"
+
+job1.metadata = {}
+job1.metadata.name = "hello-1"
+job1.metadata.namespace = obj.metadata.namespace
+
+impactedResource1 = {}
+impactedResource1.operation = "create"
+impactedResource1.resource = job1
+result = {}
+result[1] = impactedResource1
+
+obj.metadata.labels = {}
+obj.metadata.labels["test"] = "test"
+
+impactedResource2 = {}
+impactedResource2.operation = "thisShouldFail"
+impactedResource2.resource = obj
+
+result[2] = impactedResource2
+
+return result
+`
 
 func TestExecuteNewStyleCreateActionSingleResource(t *testing.T) {
 	testObj := StrToUnstructured(cronJobObjYaml)
@@ -505,6 +577,27 @@ func TestExecuteNewStyleCreateActionMultipleResources(t *testing.T) {
 	newObjects, err := vm.ExecuteResourceAction(testObj, createMultipleJobsActionLua)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedObjects, newObjects)
+}
+
+func TestExecuteNewStyleActionMixedOperationsOk(t *testing.T) {
+	testObj := StrToUnstructured(cronJobObjYaml)
+	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedActionMixedOperationObjList))
+	assert.Nil(t, err)
+	// t.Log(bytes.NewBuffer(jsonBytes).String())
+	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
+	assert.Nil(t, err)
+	vm := VM{}
+	newObjects, err := vm.ExecuteResourceAction(testObj, mixedOperationActionLuaOk)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedObjects, newObjects)
+}
+
+func TestExecuteNewStyleActionMixedOperationsFailure(t *testing.T) {
+	testObj := StrToUnstructured(cronJobObjYaml)
+	vm := VM{}
+	_, err := vm.ExecuteResourceAction(testObj, createMixedOperationActionLuaFailing)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "unsupported operation")
 }
 
 func TestExecuteResourceActionNonTableReturn(t *testing.T) {

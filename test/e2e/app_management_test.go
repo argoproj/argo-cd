@@ -970,11 +970,11 @@ definitions:
     job.spec.template = {}
     job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
   
-    impactedResource123 = {}
-    impactedResource123.operation = "create"
-    impactedResource123.resource = job
+    impactedResource = {}
+    impactedResource.operation = "create"
+    impactedResource.resource = job
     result = {}
-    result[1] = impactedResource123
+    result[1] = impactedResource
   
     return result`
 
@@ -982,6 +982,112 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 	Given(t).
 		Path(resourceActions).
 		ResourceOverrides(map[string]ResourceOverride{"batch/CronJob": {Actions: newStyleActionsConfig}}).
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{
+				{Group: "batch", Kind: "Job"},
+				{Group: "batch", Kind: "CronJob"},
+				{Group: "", Kind: "Pod"},
+			}}).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		And(func(app *Application) {
+
+			closer, client, err := ArgoCDClientset.NewApplicationClient()
+			assert.NoError(t, err)
+			defer io.Close(closer)
+
+			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
+				Name:         &app.Name,
+				Group:        pointer.String("batch"),
+				Kind:         pointer.String("CronJob"),
+				Version:      pointer.String("v1"),
+				Namespace:    pointer.String(DeploymentNamespace()),
+				ResourceName: pointer.String("hello"),
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
+
+			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
+				Group:        pointer.String("batch"),
+				Kind:         pointer.String("CronJob"),
+				Version:      pointer.String("v1"),
+				Namespace:    pointer.String(DeploymentNamespace()),
+				ResourceName: pointer.String("hello"),
+				Action:       pointer.String("sample"),
+			})
+			assert.NoError(t, err)
+
+			_, err = KubeClientset.BatchV1().Jobs(DeploymentNamespace()).Get(context.Background(), "hello-123", metav1.GetOptions{})
+			assert.NoError(t, err)
+		})
+}
+
+const newStyleActionsConfigMixedOk = `discovery.lua: return { sample = {} }
+definitions:
+- name: sample
+  action.lua: |
+    local os = require("os")
+
+    function deepCopy(object)
+      local lookup_table = {}
+      local function _copy(obj)
+        if type(obj) ~= "table" then
+          return obj
+        elseif lookup_table[obj] then
+          return lookup_table[obj]
+        elseif next(obj) == nil then
+          return nil
+        else
+          local new_table = {}
+          lookup_table[obj] = new_table
+          for key, value in pairs(obj) do
+            new_table[_copy(key)] = _copy(value)
+          end
+          return setmetatable(new_table, getmetatable(obj))
+        end
+      end
+      return _copy(object)
+    end
+  
+    job = {}
+    job.apiVersion = "batch/v1"
+    job.kind = "Job"
+  
+    job.metadata = {}
+    job.metadata.name = obj.metadata.name .. "-123"
+    job.metadata.namespace = obj.metadata.namespace
+  
+    ownerRef = {}
+    ownerRef.apiVersion = obj.apiVersion
+    ownerRef.kind = obj.kind
+    ownerRef.name = obj.metadata.name
+    ownerRef.uid = obj.metadata.uid
+    job.metadata.ownerReferences = {}
+    job.metadata.ownerReferences[1] = ownerRef
+  
+    job.spec = {}
+    job.spec.suspend = false
+    job.spec.template = {}
+    job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
+  
+    impactedResource = {}
+    impactedResource.operation = "create"
+    impactedResource.resource = job
+    result = {}
+    result[1] = impactedResource
+
+    obj.metadata.labels
+  
+    return result`
+
+func TestNewStyleResourceActionMixedOk(t *testing.T) {
+	Given(t).
+		Path(resourceActions).
+		ResourceOverrides(map[string]ResourceOverride{"batch/CronJob": {Actions: newStyleActionsConfigMixedOk}}).
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []ApplicationDestination{{Namespace: "*", Server: "*"}},
