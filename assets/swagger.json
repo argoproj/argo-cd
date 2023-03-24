@@ -6145,6 +6145,10 @@
             "type": "string"
           }
         },
+        "commonAnnotationsEnvsubst": {
+          "type": "boolean",
+          "title": "CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values"
+        },
         "commonLabels": {
           "type": "object",
           "title": "CommonLabels is a list of additional labels to add to rendered manifests",
@@ -6178,6 +6182,13 @@
         "namespace": {
           "type": "string",
           "title": "Namespace sets the namespace that Kustomize adds to all resources"
+        },
+        "replicas": {
+          "type": "array",
+          "title": "Replicas is a list of Kustomize Replicas override specifications",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KustomizeReplica"
+          }
         },
         "version": {
           "type": "string",
@@ -7011,6 +7022,18 @@
         }
       }
     },
+    "v1alpha1KustomizeReplica": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "$ref": "#/definitions/intstrIntOrString"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name of Deployment or StatefulSet"
+        }
+      }
+    },
     "v1alpha1ListGenerator": {
       "type": "object",
       "title": "ListGenerator include items info",
@@ -7020,6 +7043,9 @@
           "items": {
             "$ref": "#/definitions/v1JSON"
           }
+        },
+        "elementsYaml": {
+          "type": "string"
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"

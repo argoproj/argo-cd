@@ -1660,7 +1660,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.35.3
+        image: ghcr.io/dexidp/dex:v2.36.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -2613,6 +2613,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.kubectl.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest

@@ -30,7 +30,7 @@ argocd-application-controller [flags]
   -h, --help                                  help for argocd-application-controller
       --insecure-skip-tls-verify              If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                     Path to a kube config. Only required if out-of-cluster
-      --kubectl-parallelism-limit int         Number of allowed concurrent kubectl fork/execs. Any value less the 1 means no limit. (default 20)
+      --kubectl-parallelism-limit int         Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit. (default 20)
       --logformat string                      Set the logging format. One of: text|json (default "text")
       --loglevel string                       Set the logging level. One of: debug|info|warn|error (default "info")
       --metrics-application-labels strings    List of Application labels that will be added to the argocd_application_labels metric
