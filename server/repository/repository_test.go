@@ -34,6 +34,8 @@ import (
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 const testNamespace = "default"
@@ -60,7 +62,7 @@ var (
 	}
 	defaultProj = &appsv1.AppProject{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "AppProject",
+			Kind:       application.AppProjectKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -75,7 +77,7 @@ var (
 
 	defaultProjNoSources = &appsv1.AppProject{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "AppProject",
+			Kind:       application.AppProjectKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -100,7 +102,7 @@ var (
 	}
 	guestbookApp = &appsv1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
