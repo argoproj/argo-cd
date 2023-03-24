@@ -81,7 +81,7 @@ export const ApplicationNodeInfo = (props: {
                                                     {state && (
                                                         <>
                                                             Container is in <span className='application-node-info__labels--highlight'>{state}</span> state
-                                                            {state !== 'running' ? <>because of reason-</> : '.'}
+                                                            {state !== 'running' ? ' because of reason - ' : '.'}
                                                         </>
                                                     )}
                                                     <span title={msgExists || ''} key={i}>
@@ -91,22 +91,24 @@ export const ApplicationNodeInfo = (props: {
                                                                     'application-node-info__labels--hint': !!msgExists
                                                                 })}>
                                                                 {status}
+                                                                {'.'}
                                                             </span>
                                                         )}
-                                                        {'.'}
                                                     </span>
-                                                    {(container.state.terminated?.exitCode === 0 || container.state.terminated?.exitCode) &&
-                                                        ` Container exited with exitCode-${container.state.terminated.exitCode}.`}
+                                                    {(container.state.terminated?.exitCode === 0 || container.state.terminated?.exitCode) && (
+                                                        <> Container exited with exitCode - {container.state.terminated.exitCode}.</>
+                                                    )}
                                                     <br />
                                                     {lastState && (
                                                         <>
-                                                            The container's lastState terminated with exit code - {lastState?.exitCode.toString()} and status -{' '}
+                                                            The container's lastState terminated with exit code - {lastState?.exitCode} and status -
                                                             <span title={container.lastState?.message || ''} key={i}>
                                                                 {lastState?.reason && (
                                                                     <span
                                                                         className={classNames('application-node-info__labels--highlight', {
                                                                             'application-node-info__labels--hint': !!container.lastState?.message
                                                                         })}>
+                                                                        &nbsp;
                                                                         {lastState?.reason}
                                                                     </span>
                                                                 )}
