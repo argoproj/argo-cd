@@ -779,7 +779,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.35.3
+        image: ghcr.io/dexidp/dex:v2.36.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -942,6 +942,9 @@ spec:
         - ""
         - --appendonly
         - "no"
+        env:
+        - name: ARGOCD_REDIS_SERVICE
+          value: argocd-redis
         image: redis:7.0.9-alpine
         imagePullPolicy: Always
         name: redis
@@ -996,7 +999,7 @@ spec:
       - args:
         - /usr/local/bin/argocd-repo-server
         - --redis
-        - argocd-redis:6379
+        - $(ARGOCD_REDIS_SERVICE):6379
         env:
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
@@ -1683,6 +1686,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.kubectl.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest

@@ -64,6 +64,7 @@ type AppOptions struct {
 	jsonnetExtVarCode               []string
 	jsonnetLibs                     []string
 	kustomizeImages                 []string
+	kustomizeReplicas               []string
 	kustomizeVersion                string
 	kustomizeCommonLabels           []string
 	kustomizeCommonAnnotations      []string
@@ -118,6 +119,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.jsonnetExtVarCode, "jsonnet-ext-var-code", []string{}, "Jsonnet ext var")
 	command.Flags().StringArrayVar(&opts.jsonnetLibs, "jsonnet-libs", []string{}, "Additional jsonnet libs (prefixed by repoRoot)")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
+	command.Flags().StringArrayVar(&opts.kustomizeReplicas, "kustomize-replica", []string{}, "Kustomize replicas (e.g. --kustomize-replica my-development=2 --kustomize-replica my-statefulset=4)")
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Additional plugin envs")
 	command.Flags().BoolVar(&opts.Validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
@@ -220,6 +222,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setKustomizeOpt(source, kustomizeOpts{nameSuffix: appOpts.nameSuffix})
 		case "kustomize-image":
 			setKustomizeOpt(source, kustomizeOpts{images: appOpts.kustomizeImages})
+		case "kustomize-replica":
+			setKustomizeOpt(source, kustomizeOpts{replicas: appOpts.kustomizeReplicas})
 		case "kustomize-version":
 			setKustomizeOpt(source, kustomizeOpts{version: appOpts.kustomizeVersion})
 		case "kustomize-namespace":
@@ -332,6 +336,7 @@ type kustomizeOpts struct {
 	namePrefix             string
 	nameSuffix             string
 	images                 []string
+	replicas               []string
 	version                string
 	commonLabels           map[string]string
 	commonAnnotations      map[string]string
@@ -371,6 +376,14 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
 	}
+	for _, replica := range opts.replicas {
+		r, err := argoappv1.NewKustomizeReplica(replica)
+		if err != nil {
+			log.Fatal(err)
+		}
+		src.Kustomize.MergeReplica(*r)
+	}
+
 	if src.Kustomize.IsZero() {
 		src.Kustomize = nil
 	}

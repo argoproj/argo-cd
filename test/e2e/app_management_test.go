@@ -413,7 +413,9 @@ func TestInvalidAppProject(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		Then().
-		Expect(Error("", "application references project does-not-exist which does not exist"))
+		// We're not allowed to infer whether the project exists based on this error message. Instead, we get a generic
+		// permission denied error.
+		Expect(Error("", "permission denied"))
 }
 
 func TestAppDeletion(t *testing.T) {

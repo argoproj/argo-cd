@@ -172,6 +172,9 @@ func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksReque
 		return nil, err
 	}
 
+	// sanitize project jwt tokens
+	proj.Status = v1alpha1.AppProjectStatus{}
+
 	obj, err := kube.ToUnstructured(proj)
 	if err != nil {
 		return nil, fmt.Errorf("error getting application: %w", err)
@@ -182,7 +185,8 @@ func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksReque
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
 
-	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(*obj, deepLinks)
+	deeplinksObj := deeplinks.CreateDeepLinksObject(nil, nil, nil, obj)
+	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(deeplinksObj, obj.GetName(), deepLinks)
 	if len(errorList) > 0 {
 		log.Errorf("errorList while evaluating project deep links, %v", strings.Join(errorList, ", "))
 	}
@@ -503,7 +507,7 @@ func (s *Server) logEvent(a *v1alpha1.AppProject, ctx context.Context, reason st
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogAppProjEvent(a, eventInfo, message)
+	s.auditLogger.LogAppProjEvent(a, eventInfo, message, user)
 }
 
 func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindowsQuery) (*project.SyncWindowsResponse, error) {
