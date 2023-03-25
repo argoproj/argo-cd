@@ -1136,6 +1136,7 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 
 			// Assert new Job was created
 			_, err = KubeClientset.BatchV1().Jobs(DeploymentNamespace()).Get(context.Background(), "hello-123", metav1.GetOptions{})
+			assert.NoError(t, err)
 			// Assert the original CronJob was patched
 			cronJob, err := KubeClientset.BatchV1().CronJobs(DeploymentNamespace()).Get(context.Background(), "hello", metav1.GetOptions{})
 			assert.Equal(t, "aValue", cronJob.Labels["aKey"])

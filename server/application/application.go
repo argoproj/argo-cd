@@ -2132,9 +2132,15 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		switch impactedResource.K8SOperation {
 		// No default case since a not supported operation would have failed upon luaVM.ExecuteResourceAction
 		case "patch":
-			s.patchResource(ctx, config, liveObjBytes, newObjBytes, newObj)
+			_, err := s.patchResource(ctx, config, liveObjBytes, newObjBytes, newObj)
+			if err != nil {
+				return nil, err
+			}
 		case "create":
-			s.createResource(ctx, config, app, newObj)
+			_, err := s.createResource(ctx, config, app, newObj)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
