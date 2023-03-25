@@ -1691,35 +1691,6 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 	assert.Nil(t, testApp.Status.Resources[1].Health)
 }
 
-func returnCronJob() *unstructured.Unstructured {
-	return &unstructured.Unstructured{Object: map[string]interface{}{
-		"apiVersion": "batch/v1",
-		"kind":       "CronJob",
-		"metadata": map[string]interface{}{
-			"name":      "my-cron-job",
-			"namespace": testNamespace,
-		},
-		"spec": map[string]interface{}{
-			"jobTemplate": map[string]interface{}{
-				"spec": map[string]interface{}{
-					"template": map[string]interface{}{
-						"spec": map[string]interface{}{
-							"containers": []map[string]interface{}{{
-								"name":            "hello",
-								"image":           "busybox:1.28",
-								"imagePullPolicy": "IfNotPresent",
-								"command":         []string{"/bin/sh", "-c", "date; echo Hello from the Kubernetes cluster"}}},
-							// "resources":     {},
-							"restartPolicy": "OnFailure",
-						},
-					},
-				},
-			},
-			"schedule": "* * * * *",
-		},
-	}}
-}
-
 func TestRunNewStyleResourceAction(t *testing.T) {
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
 
@@ -1769,6 +1740,9 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-cron-job",
 			Namespace: testNamespace,
+			Labels: map[string]string{
+				"some": "label",
+			},
 		},
 		Spec: k8sbatchv1.CronJobSpec{
 			Schedule: "* * * * *",
@@ -1815,7 +1789,7 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 			Kind:         &kind,
 		})
 
-		assert.Contains(t, runErr.Error(), "permission denied")
+		assert.Equal(t, permissionDeniedErr.Error(), runErr.Error())
 		assert.Nil(t, appResponse)
 	})
 

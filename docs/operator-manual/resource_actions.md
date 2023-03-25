@@ -71,8 +71,10 @@ Each action name must be represented in the list of `definitions` with an accomp
 
 #### Creating new resources with a custom action
 The resource the action is invoked on would be referred to as the `source resource`.  
-The new resource must be permitted on the AppProject level, otherwise the creation will fail.  
-If the new resource represents a k8s child of the source resource, the ownerReference should be set on the new resource.  
+The new resource and all the resources implicitly created as a result, must be permitted on the AppProject level, otherwise the creation will fail.
+
+##### Creating a source resource child resources with a custom action
+If the new resource represents a k8s child of the source resource, the source resource ownerReference must be set on the new resource.  
 Here is an example Lua snippet, that takes care of constructing a Job resource that is a child of a source CronJob resource - the `obj` is a global variable, which contains the source resource:   
 ```
 ...
@@ -87,7 +89,7 @@ job.metadata.ownerReferences = {}
 job.metadata.ownerReferences[1] = ownerRef
 ...
 ```
-
+##### Creating independent child resources with a custom action
 If the new resource is independent of the source resource, the default behavior of such new resource is that it is not known by the App of the source resource (as it is not part of the desired state and does not have an `ownerReference`).  
 To make the App aware of the new resource, the `app.kubernetes.io/instance` label (or other ArgoCD tracking label, if configured) must be set on the resource. It can be copied from the source resource, like this:
 ```
@@ -98,14 +100,14 @@ newObj.metadata.labels = {}
 newObj.metadata.labels["app.kubernetes.io/instance"] = obj.metadata.labels["app.kubernetes.io/instance"]
 ...
 ```   
-While the new resource will be part of the App with the tracking label in place, it will be immediately pruned if auto prune is set on the App. To keep the resource, set `Prune=false` annotation on the resource, with this Lua snippet:
+While the new resource will be part of the App with the tracking label in place, it will be immediately deleted if auto prune is set on the App. To keep the resource, set `Prune=false` annotation on the resource, with this Lua snippet:
 ```
 ...
 newObj.metadata.annotations = {}
 newObj.metadata.annotations["argocd.argoproj.io/sync-options"] = "Prune=false"
 ...
 ```
-(If setting `Prune=false` behavior, the resource will not be deleted upon the deletion of the App, and will require a manual cleanup.)
+(If setting `Prune=false` behavior, the resource will not be deleted upon the deletion of the App, and will require a manual cleanup).
 
 The resource and the App will now appear out of sync - which is the expected ArgoCD behavior upon creating a resource that is not part of the desired state.
 
@@ -126,7 +128,7 @@ resource.customizations.actions.ConfigMap: |
   definitions:
   - name: do-things
     action.lua: |
-      # Create a new ConfigMap
+      -- Create a new ConfigMap
       cm1 = {}
       cm1.apiVersion = "v1"
       cm1.kind = "ConfigMap"
@@ -134,12 +136,12 @@ resource.customizations.actions.ConfigMap: |
       cm1.metadata.name = "cm1"
       cm1.metadata.namespace = obj.metadata.namespace
       cm1.metadata.labels = {}
-      # Copy ArgoCD tracking label so that the resource is recognized by the App
+      -- Copy ArgoCD tracking label so that the resource is recognized by the App
       cm1.metadata.labels["app.kubernetes.io/instance"] = obj.metadata.labels["app.kubernetes.io/instance"]
       cm1.metadata.annotations = {}
-      # For Apps with auto-prune, set the prune false on the resource, so it does not get deleted
+      -- For Apps with auto-prune, set the prune false on the resource, so it does not get deleted
       cm1.metadata.annotations["argocd.argoproj.io/sync-options"] = "Prune=false"	  
-      # Keep the App synced even though it has a resource that is not in Git
+      -- Keep the App synced even though it has a resource that is not in Git
       cm1.metadata.annotations["argocd.argoproj.io/compare-options"] = "IgnoreExtraneous"		  
       cm1.data = {}
       cm1.data.myKey1 = "myValue1"
@@ -147,8 +149,8 @@ resource.customizations.actions.ConfigMap: |
       impactedResource1.operation = "create"
       impactedResource1.resource = cm1
 
-      # Patch the original cm
-      obj.metadata.label["aKey"] = "aValue"
+      -- Patch the original cm
+      obj.metadata.labels["aKey"] = "aValue"
       impactedResource2 = {}
       impactedResource2.operation = "patch"
       impactedResource2.resource = obj

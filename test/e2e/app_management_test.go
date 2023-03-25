@@ -992,7 +992,6 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 			NamespaceResourceWhitelist: []metav1.GroupKind{
 				{Group: "batch", Kind: "Job"},
 				{Group: "batch", Kind: "CronJob"},
-				{Group: "", Kind: "Pod"},
 			}}).
 		When().
 		CreateApp().
@@ -1078,13 +1077,18 @@ definitions:
     job.spec.template = {}
     job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
   
-    impactedResource = {}
-    impactedResource.operation = "create"
-    impactedResource.resource = job
+    impactedResource1 = {}
+    impactedResource1.operation = "create"
+    impactedResource1.resource = job
     result = {}
-    result[1] = impactedResource
+    result[1] = impactedResource1
 
-    obj.metadata.labels
+    obj.metadata.labels["aKey"] = 'aValue'
+    impactedResource2 = {}
+    impactedResource2.operation = "patch"
+    impactedResource2.resource = obj
+
+    result[2] = impactedResource2
   
     return result`
 
@@ -1098,7 +1102,6 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 			NamespaceResourceWhitelist: []metav1.GroupKind{
 				{Group: "batch", Kind: "Job"},
 				{Group: "batch", Kind: "CronJob"},
-				{Group: "", Kind: "Pod"},
 			}}).
 		When().
 		CreateApp().
@@ -1131,7 +1134,11 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 			})
 			assert.NoError(t, err)
 
+			// Assert new Job was created
 			_, err = KubeClientset.BatchV1().Jobs(DeploymentNamespace()).Get(context.Background(), "hello-123", metav1.GetOptions{})
+			// Assert the original CronJob was patched
+			cronJob, err := KubeClientset.BatchV1().CronJobs(DeploymentNamespace()).Get(context.Background(), "hello", metav1.GetOptions{})
+			assert.Equal(t, "aValue", cronJob.Labels["aKey"])
 			assert.NoError(t, err)
 		})
 }

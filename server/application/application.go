@@ -2066,11 +2066,13 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.Resource
 }
 
 func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceActionRunRequest) (*application.ApplicationResponse, error) {
-	app, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionAction, q.GetAppNamespace(), q.GetName())
-	// app, err := s.getApplicationEnforceRBACClient(ctx, rbacpolicy.ActionAction, q.GetAppNamespace(), q.GetName(), "")
+	appName := q.GetName()
+	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
+	app, err := s.appLister.Applications(appNs).Get(appName)
 	if err != nil {
-		return nil, err
+		return nil, permissionDeniedErr
 	}
+
 	resourceRequest := &application.ApplicationResourceRequest{
 		Name:         q.Name,
 		AppNamespace: q.AppNamespace,
@@ -2122,17 +2124,17 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	for _, impactedResource := range newObjects {
 		newObj := impactedResource.UnstructuredObj
 		newObjBytes, err := json.Marshal(newObj)
+
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling new object: %w", err)
 		}
 
 		switch impactedResource.K8SOperation {
+		// No default case since a not supported operation would have failed upon luaVM.ExecuteResourceAction
 		case "patch":
-			return s.patchResource(ctx, config, liveObjBytes, newObjBytes, newObj)
+			s.patchResource(ctx, config, liveObjBytes, newObjBytes, newObj)
 		case "create":
-			return s.createResource(ctx, config, app, newObj)
-
-			// No default case since a not supported operation fails upon luaVM.ExecuteResourceAction
+			s.createResource(ctx, config, app, newObj)
 		}
 	}
 
@@ -2206,7 +2208,7 @@ func (s *Server) verifyResourcePermitted(ctx context.Context, app *appv1.Applica
 		return fmt.Errorf("error checking resource permissions: %w", err)
 	}
 	if !permitted {
-		return fmt.Errorf("%s named %s creation not permitted in project: %s", obj.GetKind(), obj.GetName(), proj.Name)
+		return permissionDeniedErr
 	}
 
 	return nil

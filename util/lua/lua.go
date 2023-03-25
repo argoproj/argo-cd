@@ -166,15 +166,13 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 		var impactedResources []ImpactedResource
 
 		jsonString := bytes.NewBuffer(jsonBytes).String()
-		if jsonString[0] == '[' && jsonString[len(jsonString)-1] == ']' {
-			if len(jsonString) < 2 {
-				return nil, fmt.Errorf("Lua output was not a valid json object or array")
-			}
-		}
 		// The output from Lua is either an object (old-style action output) or an array (new-style action output).
 		// Check whether the string starts with an opening square bracket and ends with a closing square bracket,
 		// avoiding programming by exception.
 		if jsonString[0] == '[' && jsonString[len(jsonString)-1] == ']' {
+			if len(jsonString) < 2 {
+				return nil, fmt.Errorf("Lua output was not a valid json object or array")
+			}
 			// The string represents a new-style action array output
 			impactedResources, err = UnmarshalToImpactedResources(string(jsonBytes))
 			if err != nil {
