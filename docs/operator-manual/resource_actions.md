@@ -23,11 +23,11 @@ This action modifies and returns the source resource.
 This kind of action was the only one available till 2.8, and it is still supported.
 
 #### An action that produces a list of new or modified resources
-An alpha feature, introduced in 2.8.
-This action returns a list of impacted resources, each impacted resource has a K8S resource and an operation to perform on.
-Currently supported operations are "create" and "patch", "patch" is only supported for the source resource.
-Creating new resources is possible, by specifying a "create" operation for each such resource in the returned list. 
-One of the returned resources can be the modified source object, with a "patch" operation, if needed.
+An alpha feature, introduced in 2.8.   
+This action returns a list of impacted resources, each impacted resource has a K8S resource and an operation to perform on.   
+Currently supported operations are "create" and "patch", "patch" is only supported for the source resource.   
+Creating new resources is possible, by specifying a "create" operation for each such resource in the returned list.  
+One of the returned resources can be the modified source object, with a "patch" operation, if needed.   
 See the definition examples below.
 
 ### Define a Custom Resource Action in `argocd-cm` ConfigMap
@@ -91,7 +91,8 @@ job.metadata.ownerReferences[1] = ownerRef
 ```
 ##### Creating independent child resources with a custom action
 If the new resource is independent of the source resource, the default behavior of such new resource is that it is not known by the App of the source resource (as it is not part of the desired state and does not have an `ownerReference`).  
-To make the App aware of the new resource, the `app.kubernetes.io/instance` label (or other ArgoCD tracking label, if configured) must be set on the resource. It can be copied from the source resource, like this:
+To make the App aware of the new resource, the `app.kubernetes.io/instance` label (or other ArgoCD tracking label, if configured) must be set on the resource.   
+It can be copied from the source resource, like this:
 ```
 ...
 newObj = {}
@@ -100,7 +101,8 @@ newObj.metadata.labels = {}
 newObj.metadata.labels["app.kubernetes.io/instance"] = obj.metadata.labels["app.kubernetes.io/instance"]
 ...
 ```   
-While the new resource will be part of the App with the tracking label in place, it will be immediately deleted if auto prune is set on the App. To keep the resource, set `Prune=false` annotation on the resource, with this Lua snippet:
+While the new resource will be part of the App with the tracking label in place, it will be immediately deleted if auto prune is set on the App.   
+To keep the resource, set `Prune=false` annotation on the resource, with this Lua snippet:
 ```
 ...
 newObj.metadata.annotations = {}
