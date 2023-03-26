@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -1316,6 +1317,96 @@ func TestNewHelmParameter(t *testing.T) {
 	})
 }
 
+func TestNewKustomizeReplica(t *testing.T) {
+	t.Run("Valid", func(t *testing.T) {
+		r, err := NewKustomizeReplica("my-deployment=2")
+		assert.NoError(t, err)
+		assert.Equal(t, &KustomizeReplica{Name: "my-deployment", Count: intstr.Parse("2")}, r)
+	})
+	t.Run("InvalidFormat", func(t *testing.T) {
+		_, err := NewKustomizeReplica("garbage")
+		assert.EqualError(t, err, "expected parameter of the form: name=count. Received: garbage")
+	})
+	t.Run("InvalidCount", func(t *testing.T) {
+		_, err := NewKustomizeReplica("my-deployment=garbage")
+		assert.EqualError(t, err, "expected integer value for count. Received: garbage")
+	})
+}
+
+func TestKustomizeReplica_GetIntCount(t *testing.T) {
+	t.Run("String which can be converted to integer", func(t *testing.T) {
+		kr := KustomizeReplica{
+			Name:  "test",
+			Count: intstr.FromString("2"),
+		}
+		count, err := kr.GetIntCount()
+		assert.NoError(t, err)
+		assert.Equal(t, 2, count)
+	})
+	t.Run("String which cannot be converted to integer", func(t *testing.T) {
+		kr := KustomizeReplica{
+			Name:  "test",
+			Count: intstr.FromString("garbage"),
+		}
+		count, err := kr.GetIntCount()
+		assert.EqualError(t, err, "expected integer value for count. Received: garbage")
+		assert.Equal(t, 0, count)
+	})
+	t.Run("Integer", func(t *testing.T) {
+		kr := KustomizeReplica{
+			Name:  "test",
+			Count: intstr.FromInt(2),
+		}
+		count, err := kr.GetIntCount()
+		assert.NoError(t, err)
+		assert.Equal(t, 2, count)
+	})
+}
+
+func TestApplicationSourceKustomize_MergeReplica(t *testing.T) {
+	r1 := KustomizeReplica{
+		Name:  "my-deployment",
+		Count: intstr.FromInt(2),
+	}
+	r2 := KustomizeReplica{
+		Name:  "my-deployment",
+		Count: intstr.FromInt(4),
+	}
+	t.Run("Add", func(t *testing.T) {
+		k := ApplicationSourceKustomize{Replicas: KustomizeReplicas{}}
+		k.MergeReplica(r1)
+		assert.Equal(t, KustomizeReplicas{r1}, k.Replicas)
+	})
+	t.Run("Replace", func(t *testing.T) {
+		k := ApplicationSourceKustomize{Replicas: KustomizeReplicas{r1}}
+		k.MergeReplica(r2)
+		assert.Equal(t, 1, len(k.Replicas))
+		assert.Equal(t, k.Replicas[0].Name, r2.Name)
+		assert.Equal(t, k.Replicas[0].Count, r2.Count)
+	})
+}
+func TestApplicationSourceKustomize_FindByName(t *testing.T) {
+	r1 := KustomizeReplica{
+		Name:  "my-deployment",
+		Count: intstr.FromInt(2),
+	}
+	r2 := KustomizeReplica{
+		Name:  "my-statefulset",
+		Count: intstr.FromInt(4),
+	}
+	Replicas := KustomizeReplicas{r1, r2}
+	t.Run("Found", func(t *testing.T) {
+		i1 := Replicas.FindByName("my-deployment")
+		i2 := Replicas.FindByName("my-statefulset")
+		assert.Equal(t, 0, i1)
+		assert.Equal(t, 1, i2)
+	})
+	t.Run("Not Found", func(t *testing.T) {
+		i := Replicas.FindByName("not-found")
+		assert.Equal(t, -1, i)
+	})
+}
+
 func TestApplicationSourceHelm_IsZero(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -1347,6 +1438,7 @@ func TestApplicationSourceKustomize_IsZero(t *testing.T) {
 		{"NamePrefix", &ApplicationSourceKustomize{NamePrefix: "foo"}, false},
 		{"NameSuffix", &ApplicationSourceKustomize{NameSuffix: "foo"}, false},
 		{"Images", &ApplicationSourceKustomize{Images: []KustomizeImage{""}}, false},
+		{"Replicas", &ApplicationSourceKustomize{Replicas: []KustomizeReplica{{Name: "", Count: intstr.FromInt(0)}}}, false},
 		{"CommonLabels", &ApplicationSourceKustomize{CommonLabels: map[string]string{"": ""}}, false},
 		{"CommonAnnotations", &ApplicationSourceKustomize{CommonAnnotations: map[string]string{"": ""}}, false},
 	}

@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
@@ -449,6 +450,50 @@ type ApplicationSourceKustomize struct {
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,9,opt,name=namespace"`
 	// CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
 	CommonAnnotationsEnvsubst bool `json:"commonAnnotationsEnvsubst,omitempty" protobuf:"bytes,10,opt,name=commonAnnotationsEnvsubst"`
+	// Replicas is a list of Kustomize Replicas override specifications
+	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,11,opt,name=replicas"`
+}
+
+type KustomizeReplica struct {
+	// Name of Deployment or StatefulSet
+	Name string `json:"name" protobuf:"bytes,1,name=name"`
+	// Number of replicas
+	Count intstr.IntOrString `json:"count" protobuf:"bytes,2,name=count"`
+}
+
+type KustomizeReplicas []KustomizeReplica
+
+// GetIntCount returns Count converted to int.
+// If parsing error occurs, returns 0 and error.
+func (kr KustomizeReplica) GetIntCount() (int, error) {
+	if kr.Count.Type == intstr.String {
+		if count, err := strconv.Atoi(kr.Count.StrVal); err != nil {
+			return 0, fmt.Errorf("expected integer value for count. Received: %s", kr.Count.StrVal)
+		} else {
+			return count, nil
+		}
+	} else {
+		return kr.Count.IntValue(), nil
+	}
+}
+
+// NewKustomizeReplica parses a string in format name=count into a KustomizeReplica object and returns it
+func NewKustomizeReplica(text string) (*KustomizeReplica, error) {
+	parts := strings.SplitN(text, "=", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("expected parameter of the form: name=count. Received: %s", text)
+	}
+
+	kr := &KustomizeReplica{
+		Name:  parts[0],
+		Count: intstr.Parse(parts[1]),
+	}
+
+	if _, err := kr.GetIntCount(); err != nil {
+		return nil, err
+	}
+
+	return kr, nil
 }
 
 // AllowsConcurrentProcessing returns true if multiple processes can run Kustomize builds on the same source at the same time
@@ -468,6 +513,7 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			k.Version == "" &&
 			k.Namespace == "" &&
 			len(k.Images) == 0 &&
+			len(k.Replicas) == 0 &&
 			len(k.CommonLabels) == 0 &&
 			len(k.CommonAnnotations) == 0
 }
@@ -480,6 +526,26 @@ func (k *ApplicationSourceKustomize) MergeImage(image KustomizeImage) {
 	} else {
 		k.Images = append(k.Images, image)
 	}
+}
+
+// MergeReplicas merges a new Kustomize replica identifier in to a list of replicas
+func (k *ApplicationSourceKustomize) MergeReplica(replica KustomizeReplica) {
+	i := k.Replicas.FindByName(replica.Name)
+	if i >= 0 {
+		k.Replicas[i] = replica
+	} else {
+		k.Replicas = append(k.Replicas, replica)
+	}
+}
+
+// Find returns a positive integer representing the index in the list of replicas
+func (rs KustomizeReplicas) FindByName(name string) int {
+	for i, r := range rs {
+		if r.Name == name {
+			return i
+		}
+	}
+	return -1
 }
 
 // JsonnetVar represents a variable to be passed to jsonnet during manifest generation
