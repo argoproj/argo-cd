@@ -96,6 +96,7 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 			Git:                     appSetBaseGenerator.Git,
 			SCMProvider:             appSetBaseGenerator.SCMProvider,
 			ClusterDecisionResource: appSetBaseGenerator.ClusterDecisionResource,
+			Plugin:                  appSetBaseGenerator.Plugin,
 			PullRequest:             appSetBaseGenerator.PullRequest,
 			Matrix:                  matrixGen,
 			Merge:                   mergeGen,
