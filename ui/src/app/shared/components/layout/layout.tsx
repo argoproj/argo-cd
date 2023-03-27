@@ -12,7 +12,7 @@ export interface LayoutProps {
     isExtension?: boolean;
 }
 
-const getBGColor = (theme: string): string => theme === 'light' ? '#dee6eb' : '#100f0f';
+const getBGColor = (theme: string): string => (theme === 'light' ? '#dee6eb' : '#100f0f');
 
 export const Layout = (props: LayoutProps) => (
     <div className={props.pref.theme ? 'theme-' + props.pref.theme : 'theme-light'}>
