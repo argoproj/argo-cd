@@ -143,8 +143,13 @@ func matchRepositoryCMP(ctx context.Context, repoPath string, client pluginclien
 }
 
 func cmpSupports(ctx context.Context, pluginSockFilePath, repoPath, fileName string, env []string, tarExcludedGlobs []string, namedPlugin bool) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, bool) {
-	address := filepath.Join(pluginSockFilePath, fileName)
-	if !files.Inbound(address, pluginSockFilePath) {
+	absPluginSockFilePath, err := filepath.Abs(pluginSockFilePath)
+	if err != nil {
+		log.Errorf("error getting absolute path for plugin socket dir %v, %v", pluginSockFilePath, err)
+		return nil, nil, false
+	}
+	address := filepath.Join(absPluginSockFilePath, fileName)
+	if !files.Inbound(address, absPluginSockFilePath) {
 		log.Errorf("invalid socket file path, %v is outside plugin socket dir %v", fileName, pluginSockFilePath)
 		return nil, nil, false
 	}
