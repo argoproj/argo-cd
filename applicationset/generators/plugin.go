@@ -1,0 +1,208 @@
+package generators
+
+import (
+	"context"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/jeremywohl/flatten"
+
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	plugin "github.com/argoproj/argo-cd/v2/applicationset/services/plugin"
+)
+
+const (
+	DefaultPluginRequeueAfterSeconds = 30 * time.Minute
+)
+
+var _ Generator = (*PluginGenerator)(nil)
+
+type PluginGenerator struct {
+	client    client.Client
+	ctx       context.Context
+	clientset kubernetes.Interface
+	namespace string
+}
+
+func NewPluginGenerator(client client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string) Generator {
+	g := &PluginGenerator{
+		client:    client,
+		ctx:       ctx,
+		clientset: clientset,
+		namespace: namespace,
+	}
+	return g
+}
+
+func (g *PluginGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
+	// Return a requeue default of 30 minutes, if no default is specified.
+
+	if appSetGenerator.Plugin.RequeueAfterSeconds != nil {
+		return time.Duration(*appSetGenerator.Plugin.RequeueAfterSeconds) * time.Second
+	}
+
+	return DefaultPluginRequeueAfterSeconds
+}
+
+func (g *PluginGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
+	return &appSetGenerator.Plugin.Template
+}
+
+func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
+
+	if appSetGenerator == nil {
+		return nil, EmptyAppSetGeneratorError
+	}
+
+	if appSetGenerator.Plugin == nil {
+		return nil, EmptyAppSetGeneratorError
+	}
+
+	ctx := context.Background()
+
+	providerConfig := appSetGenerator.Plugin
+
+	plugin, err := g.getPluginFromGenerator(ctx, providerConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	list, _, err := plugin.List(ctx, providerConfig.Params)
+	if err != nil {
+		return nil, fmt.Errorf("error listing params : %v", err)
+	}
+
+	res, err := g.generateParams(list, appSetGenerator.Plugin.Params, appSetGenerator.Plugin.AppendParamsToValues, applicationSetInfo.Spec.GoTemplate)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, generatorConfig *argoprojiov1alpha1.PluginGenerator) (*plugin.PluginService, error) {
+	cm, err := g.getConfigMap(ctx, generatorConfig.ConfigMapRef)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching ConfigMap: %v", err)
+	}
+	token, err := g.getToken(ctx, cm["token"])
+	if err != nil {
+		return nil, fmt.Errorf("error fetching Secret token: %v", err)
+	}
+
+	var requestTimeout int
+	requestTimeoutStr, ok := cm["requestTimeout"]
+	if ok {
+		requestTimeout, err = strconv.Atoi(requestTimeoutStr)
+		if err != nil {
+			return nil, fmt.Errorf("error set requestTimeout : %v", err)
+		}
+	}
+
+	plugin, err := plugin.NewPluginService(ctx, generatorConfig.Name, cm["baseUrl"], token, requestTimeout)
+	if err != nil {
+		return nil, err
+	}
+	return plugin, nil
+}
+
+func (g *PluginGenerator) generateParams(objectsFound []map[string]interface{}, pluginParams map[string]string, appendParamsToValues bool, useGoTemplate bool) ([]map[string]interface{}, error) {
+	res := []map[string]interface{}{}
+
+	for _, objectFound := range objectsFound {
+
+		params := map[string]interface{}{}
+
+		if useGoTemplate {
+			for k, v := range objectFound {
+				params[k] = v
+			}
+		} else {
+			flat, err := flatten.Flatten(objectFound, "", flatten.DotStyle)
+			if err != nil {
+				return nil, err
+			}
+			for k, v := range flat {
+				params[k] = fmt.Sprintf("%v", v)
+			}
+		}
+
+		if appendParamsToValues {
+			for k, v := range pluginParams {
+				// value returned by the plugin has precedence
+				if _, present := params[k]; !present {
+					params[k] = v
+				}
+			}
+		}
+
+		res = append(res, params)
+	}
+
+	return res, nil
+}
+
+func (g *PluginGenerator) getToken(ctx context.Context, tokenRef string) (string, error) {
+
+	if tokenRef == "" || !strings.HasPrefix(tokenRef, "$") {
+		return "", fmt.Errorf("token is empty, or does not reference a secret key starting with $ : %v", tokenRef)
+	}
+
+	secretName, tokenKey := plugin.ParseSecretKey(tokenRef)
+
+	secret := &corev1.Secret{}
+	err := g.client.Get(
+		ctx,
+		client.ObjectKey{
+			Name:      secretName,
+			Namespace: g.namespace,
+		},
+		secret)
+
+	if err != nil {
+		return "", fmt.Errorf("error fetching secret %s/%s: %v", g.namespace, secretName, err)
+	}
+
+	secretValues := make(map[string]string, len(secret.Data))
+
+	for k, v := range secret.Data {
+		secretValues[k] = string(v)
+	}
+
+	token := plugin.ReplaceStringSecret(tokenKey, secretValues)
+
+	return token, err
+}
+
+func (g *PluginGenerator) getConfigMap(ctx context.Context, configMapRef string) (map[string]string, error) {
+	cm := &corev1.ConfigMap{}
+	err := g.client.Get(
+		ctx,
+		client.ObjectKey{
+			Name:      configMapRef,
+			Namespace: g.namespace,
+		},
+		cm)
+
+	if err != nil {
+		return nil, err
+	}
+
+	baseUrl, ok := cm.Data["baseUrl"]
+	if !ok || baseUrl == "" {
+		return nil, fmt.Errorf("baseUrl not found in ConfigMap")
+	}
+
+	token, ok := cm.Data["token"]
+	if !ok || token == "" {
+		return nil, fmt.Errorf("token not found in ConfigMap")
+	}
+
+	return cm.Data, nil
+}

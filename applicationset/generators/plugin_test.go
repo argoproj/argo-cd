@@ -1,0 +1,555 @@
+package generators
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	plugin "github.com/argoproj/argo-cd/v2/applicationset/services/plugin"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	kubefake "k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+)
+
+func TestPluginGenerateParams(t *testing.T) {
+	testCases := []struct {
+		name                 string
+		configmap            *v1.ConfigMap
+		secret               *v1.Secret
+		params               map[string]string
+		gotemplate           bool
+		appendParamsToValues bool
+		expected             []map[string]interface{}
+		content              []byte
+		expectedError        error
+	}{
+		{
+			name: "simple case",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "default",
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+					"token":   "$plugin.token",
+				},
+			},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			params: map[string]string{
+				"pkey1": "val1",
+				"pkey2": "val2",
+			},
+			gotemplate: false,
+			content: []byte(`[{
+				"key1": "val1",
+				"key2": {
+					"key2_1": "val2_1",
+					"key2_2": {
+						"key2_2_1": "val2_2_1"
+					}
+				},
+				"key3": 123
+			 }]`),
+			expected: []map[string]interface{}{
+				{
+					"key1":                 "val1",
+					"key2.key2_1":          "val2_1",
+					"key2.key2_2.key2_2_1": "val2_2_1",
+					"key3":                 "123",
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "simple case with gotemplate",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "default",
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+					"token":   "$plugin.token",
+				},
+			},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			params: map[string]string{
+				"pkey1": "val1",
+				"pkey2": "val2",
+			},
+			gotemplate: true,
+			content: []byte(`[{
+				"key1": "val1",
+				"key2": {
+					"key2_1": "val2_1",
+					"key2_2": {
+						"key2_2_1": "val2_2_1"
+					}
+				},
+				"key3": 123
+			 }]`),
+			expected: []map[string]interface{}{
+				{
+					"key1": "val1",
+					"key2": map[string]interface{}{
+						"key2_1": "val2_1",
+						"key2_2": map[string]interface{}{
+							"key2_2_1": "val2_2_1",
+						},
+					},
+					"key3": float64(123),
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "simple case with appended params",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "default",
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+					"token":   "$plugin.token",
+				},
+			},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			params: map[string]string{
+				"pkey1": "val1",
+				"pkey2": "val2",
+			},
+			gotemplate:           false,
+			appendParamsToValues: true,
+			content: []byte(`[{
+				"key1": "val1",
+				"key2": {
+					"key2_1": "val2_1",
+					"key2_2": {
+						"key2_2_1": "val2_2_1"
+					}
+				},
+				"key3": 123,
+				"pkey2": "valplugin"
+			 }]`),
+			expected: []map[string]interface{}{
+				{
+					"key1":                 "val1",
+					"key2.key2_1":          "val2_1",
+					"key2.key2_2.key2_2_1": "val2_2_1",
+					"key3":                 "123",
+					"pkey1":                "val1",
+					"pkey2":                "valplugin",
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "no params",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "default",
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+					"token":   "$plugin.token",
+				},
+			},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			params:     map[string]string{},
+			gotemplate: false,
+			content: []byte(`[{
+				"key1": "val1",
+				"key2": {
+					"key2_1": "val2_1",
+					"key2_2": {
+						"key2_2_1": "val2_2_1"
+					}
+				},
+				"key3": 123
+			 }]`),
+			expected: []map[string]interface{}{
+				{
+					"key1":                 "val1",
+					"key2.key2_1":          "val2_1",
+					"key2.key2_2.key2_2_1": "val2_2_1",
+					"key3":                 "123",
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "empty return",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "default",
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+					"token":   "$plugin.token",
+				},
+			},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			params:        map[string]string{},
+			gotemplate:    false,
+			content:       []byte(`[]`),
+			expected:      []map[string]interface{}{},
+			expectedError: nil,
+		},
+		{
+			name: "wrong return",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "default",
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+					"token":   "$plugin.token",
+				},
+			},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			params:        map[string]string{},
+			gotemplate:    false,
+			content:       []byte(`wrong body ...`),
+			expected:      []map[string]interface{}{},
+			expectedError: fmt.Errorf("error listing params : error get api 'wrong return': invalid character 'w' looking for beginning of value: wrong body ..."),
+		},
+		{
+			name: "external secret",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "default",
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+					"token":   "$plugin-secret:plugin.token",
+				},
+			},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "plugin-secret",
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			params: map[string]string{
+				"pkey1": "val1",
+				"pkey2": "val2",
+			},
+			gotemplate:           false,
+			appendParamsToValues: true,
+			content: []byte(`[{
+				"key1": "val1",
+				"key2": {
+					"key2_1": "val2_1",
+					"key2_2": {
+						"key2_2_1": "val2_2_1"
+					}
+				},
+				"key3": 123,
+				"pkey2": "valplugin"
+			 }]`),
+			expected: []map[string]interface{}{
+				{
+					"key1":                 "val1",
+					"key2.key2_1":          "val2_1",
+					"key2.key2_2.key2_2_1": "val2_2_1",
+					"key3":                 "123",
+					"pkey1":                "val1",
+					"pkey2":                "valplugin",
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "no secret",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "default",
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+					"token":   "$plugin.token",
+				},
+			},
+			secret: &v1.Secret{},
+			params: map[string]string{
+				"pkey1": "val1",
+				"pkey2": "val2",
+			},
+			gotemplate: false,
+			content: []byte(`[{
+				"key1": "val1",
+				"key2": {
+					"key2_1": "val2_1",
+					"key2_2": {
+						"key2_2_1": "val2_2_1"
+					}
+				},
+				"key3": 123
+			 }]`),
+			expected: []map[string]interface{}{
+				{
+					"key1":                 "val1",
+					"key2.key2_1":          "val2_1",
+					"key2.key2_2.key2_2_1": "val2_2_1",
+					"key3":                 "123",
+				},
+			},
+			expectedError: fmt.Errorf("error fetching Secret token: error fetching secret default/argocd-secret: secrets \"argocd-secret\" not found"),
+		},
+		{
+			name:      "no configmap",
+			configmap: &v1.ConfigMap{},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			params: map[string]string{
+				"pkey1": "val1",
+				"pkey2": "val2",
+			},
+			gotemplate: false,
+			content: []byte(`[{
+				"key1": "val1",
+				"key2": {
+					"key2_1": "val2_1",
+					"key2_2": {
+						"key2_2_1": "val2_2_1"
+					}
+				},
+				"key3": 123
+			 }]`),
+			expected: []map[string]interface{}{
+				{
+					"key1":                 "val1",
+					"key2.key2_1":          "val2_1",
+					"key2.key2_2.key2_2_1": "val2_2_1",
+					"key3":                 "123",
+				},
+			},
+			expectedError: fmt.Errorf("error fetching ConfigMap: configmaps \"\" not found"),
+		},
+		{
+			name: "no baseUrl",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "default",
+				},
+				Data: map[string]string{
+					"token": "$plugin.token",
+				},
+			},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			params: map[string]string{
+				"pkey1": "val1",
+				"pkey2": "val2",
+			},
+			gotemplate: false,
+			content: []byte(`[{
+				"key1": "val1",
+				"key2": {
+					"key2_1": "val2_1",
+					"key2_2": {
+						"key2_2_1": "val2_2_1"
+					}
+				},
+				"key3": 123
+			 }]`),
+			expected: []map[string]interface{}{
+				{
+					"key1":                 "val1",
+					"key2.key2_1":          "val2_1",
+					"key2.key2_2.key2_2_1": "val2_2_1",
+					"key3":                 "123",
+				},
+			},
+			expectedError: fmt.Errorf("error fetching ConfigMap: baseUrl not found in ConfigMap"),
+		},
+		{
+			name: "no token",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "default",
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+				},
+			},
+			secret: &v1.Secret{},
+			params: map[string]string{
+				"pkey1": "val1",
+				"pkey2": "val2",
+			},
+			gotemplate: false,
+			content: []byte(`[{
+				"key1": "val1",
+				"key2": {
+					"key2_1": "val2_1",
+					"key2_2": {
+						"key2_2_1": "val2_2_1"
+					}
+				},
+				"key3": 123
+			 }]`),
+			expected: []map[string]interface{}{
+				{
+					"key1":                 "val1",
+					"key2.key2_1":          "val2_1",
+					"key2.key2_2.key2_2_1": "val2_2_1",
+					"key3":                 "123",
+				},
+			},
+			expectedError: fmt.Errorf("error fetching ConfigMap: token not found in ConfigMap"),
+		},
+	}
+
+	ctx := context.Background()
+
+	for _, testCase := range testCases {
+
+		t.Run(testCase.name, func(t *testing.T) {
+
+			generatorConfig := argoprojiov1alpha1.ApplicationSetGenerator{
+				Plugin: &argoprojiov1alpha1.PluginGenerator{
+					Name:                 testCase.name,
+					ConfigMapRef:         testCase.configmap.Name,
+					Params:               testCase.params,
+					AppendParamsToValues: testCase.appendParamsToValues,
+				},
+			}
+
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+				authHeader := r.Header.Get("Authorization")
+				_, tokenKey := plugin.ParseSecretKey(testCase.configmap.Data["token"])
+				expectedToken := testCase.secret.Data[strings.Replace(tokenKey, "$", "", -1)]
+				if authHeader != "Bearer "+string(expectedToken) {
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				_, err := w.Write([]byte(testCase.content))
+				if err != nil {
+					assert.NoError(t, fmt.Errorf("Error Write %v", err))
+				}
+			})
+
+			fakeServer := httptest.NewServer(handler)
+
+			defer fakeServer.Close()
+
+			if _, ok := testCase.configmap.Data["baseUrl"]; ok {
+				testCase.configmap.Data["baseUrl"] = fakeServer.URL
+			}
+
+			fakeClient := kubefake.NewSimpleClientset(append([]runtime.Object{}, testCase.configmap, testCase.secret)...)
+
+			fakeClientWithCache := fake.NewClientBuilder().WithObjects([]client.Object{testCase.configmap, testCase.secret}...).Build()
+
+			var pluginGenerator = NewPluginGenerator(fakeClientWithCache, ctx, fakeClient, "default")
+
+			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+					GoTemplate: testCase.gotemplate,
+				},
+			}
+
+			got, err := pluginGenerator.GenerateParams(&generatorConfig, &applicationSetInfo)
+
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			if testCase.expectedError != nil {
+				assert.EqualError(t, err, testCase.expectedError.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.ElementsMatch(t, testCase.expected, got)
+			}
+		})
+	}
+}
