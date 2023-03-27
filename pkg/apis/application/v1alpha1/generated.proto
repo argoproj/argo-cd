@@ -225,12 +225,14 @@ message ApplicationSetGenerator {
 
   optional PullRequestGenerator pullRequest = 6;
 
-  optional MatrixGenerator matrix = 7;
+  optional PluginGenerator plugin = 7;
 
-  optional MergeGenerator merge = 8;
+  optional MatrixGenerator matrix = 8;
+
+  optional MergeGenerator merge = 9;
 
   // Selector allows to post-filter all generator.
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 10;
 }
 
 // ApplicationSetList contains a list of ApplicationSet
@@ -257,14 +259,16 @@ message ApplicationSetNestedGenerator {
 
   optional PullRequestGenerator pullRequest = 6;
 
+  optional PluginGenerator plugin = 7;
+
   // Matrix should have the form of NestedMatrixGenerator
-  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON matrix = 7;
+  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON matrix = 8;
 
   // Merge should have the form of NestedMergeGenerator
-  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON merge = 8;
+  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON merge = 9;
 
   // Selector allows to post-filter all generator.
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 10;
 }
 
 message ApplicationSetRolloutStep {
@@ -352,6 +356,8 @@ message ApplicationSetTerminalGenerator {
   optional DuckTypeGenerator clusterDecisionResource = 5;
 
   optional PullRequestGenerator pullRequest = 6;
+
+  optional PluginGenerator plugin = 7;
 }
 
 // ApplicationSource contains all required information about the source of an application
@@ -1175,6 +1181,22 @@ message OverrideIgnoreDiff {
   // ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
   // desired state defined in the SCM and won't be displayed in diffs
   repeated string managedFieldsManagers = 3;
+}
+
+// PluginGenerator defines connection info specific to Plugin.
+message PluginGenerator {
+  optional string name = 1;
+
+  optional string configMapRef = 2;
+
+  map<string, string> params = 3;
+
+  optional bool appendParamsToValues = 4;
+
+  // Standard parameters.
+  optional int64 requeueAfterSeconds = 5;
+
+  optional ApplicationSetTemplate template = 6;
 }
 
 // ProjectRole represents a role that has access to a project

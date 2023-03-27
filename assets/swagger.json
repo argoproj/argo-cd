@@ -5803,6 +5803,9 @@
         "merge": {
           "$ref": "#/definitions/v1alpha1MergeGenerator"
         },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1PluginGenerator"
+        },
         "pullRequest": {
           "$ref": "#/definitions/v1alpha1PullRequestGenerator"
         },
@@ -5850,6 +5853,9 @@
         },
         "merge": {
           "$ref": "#/definitions/v1JSON"
+        },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1PluginGenerator"
         },
         "pullRequest": {
           "$ref": "#/definitions/v1alpha1PullRequestGenerator"
@@ -7228,6 +7234,35 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1PluginGenerator": {
+      "description": "PluginGenerator defines connection info specific to Plugin.",
+      "type": "object",
+      "properties": {
+        "appendParamsToValues": {
+          "type": "boolean"
+        },
+        "configMapRef": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "requeueAfterSeconds": {
+          "description": "Standard parameters.",
+          "type": "string",
+          "format": "int64"
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
         }
       }
     },
