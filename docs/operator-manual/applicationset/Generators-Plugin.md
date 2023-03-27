@@ -1,0 +1,234 @@
+# Plugin Generator
+
+Plugins allow you to extend Generator to add new capabilities.
+
+* You can write in any language
+* Simple: a plugin just responds to RPC HTTP requests.
+* You can use it in a sidecar, or standalone deployment.
+* You can get your plugin running today, no need to wait 3-5 months for review, approval, merge and an Argo software
+  release.
+* You can combine it with Matrix or Merge.
+
+## Simple example
+
+Using a generator plugin without combining with Matrix or Merge.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myplugin
+spec:
+  generators:
+    - plugin:
+        # The name of the plugin used
+        name: my-plugin
+        # Specify the configMap where the plugin configuration is located
+        configMapRef: my-plugin
+        # You can pass parameters included in the RPC call
+        params:
+          key1: "value1"
+          key1: "value1"
+        # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
+        requeueAfterSeconds: 30
+        # ...
+```
+
+* `name`: Required name of the Plugin.
+* `configMapRef`: A `ConfigMap` name containing the Plugin configuration to use for RPC call.
+* `params`: Parameters included in the RPC call. (Optional)
+
+!!! note
+    The concept of the plugin should not undermine the spirit of GitOps by externalizing data outside of Git. The goal is to be complementary in specific contexts.
+    For example, when using one of the PullRequest generators, it's impossible to retrieve parameters related to the CI (only the commit hash is available), which limits the possibilities. By using a plugin, it's possible to retrieve the necessary parameters from a separate data source and use them to extend the functionality of the generator.
+
+## Add a configMap to configure the access of the plugin
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-plugin
+data:
+  token: $plugin.myplugin.token # Alternatively $<some_K8S_secret>:plugin.myplugin.token
+  baseUrl: http://myplugin.plugin.svc.cluster.local.
+```
+
+* `token`: Authentication tokens for Plugin access ( points to the right key you created in the argocd-secret Secret )
+* `baseUrl`: The baseUrl of the k8s service linked to your plugin.
+
+## Store credentials
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-secret
+    app.kubernetes.io/part-of: argocd
+type: Opaque
+data:
+  ...
+  # The secret value must be base64 encoded **once** 
+  # this value corresponds to: `printf "strong-password" | base64`
+  plugin.myplugin.token: "c3Ryb25nLXBhc3N3b3Jk"
+  ...
+```
+
+### Alternative
+
+If you want to store sensitive data in **another** Kubernetes `Secret`, instead of `argocd-secret`. ArgoCD knows to check the keys under `data` in your Kubernetes `Secret` for a corresponding key whenever a value in a configmap starts with `$`, then your Kubernetes `Secret` name and `:` (colon).
+
+Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
+
+> NOTE: Secret must have label `app.kubernetes.io/part-of: argocd`
+
+#### Example
+
+`another-secret`:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: another-secret
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: argocd
+type: Opaque
+data:
+  ...
+  # Store client secret like below.
+  # Ensure the secret is base64 encoded
+  plugin.myplugin.token: <client-secret-base64-encoded>
+  ...
+```
+
+## Template
+
+### A Simple Python Plugin
+
+You can deploy it either as a sidecar or as a standalone deployment (the latter is recommended).
+
+In the example, the token is stored in a file at this location : `/var/run/argo/token`
+```
+string-password
+```
+
+```python
+import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+with open("/var/run/argo/token") as f:
+    token = f.read().strip()
+
+class Plugin(BaseHTTPRequestHandler):
+
+    def args(self):
+        return json.loads(self.rfile.read(int(self.headers.get('Content-Length'))))
+
+    def reply(self, reply):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(json.dumps(reply).encode("UTF-8"))
+
+    def forbidden(self):
+        self.send_response(403)
+        self.end_headers()
+
+    def unsupported(self):
+        self.send_response(404)
+        self.end_headers()
+
+    def do_POST(self):
+        if self.headers.get("Authorization") != "Bearer " + token:
+            self.forbidden()
+        elif self.path == '/api/v1/getparams.execute':
+            args = self.args()
+            self.reply(
+                [
+                    {
+                        "digestFront": "sha256:a3f18c17771cc1051b790b453a0217b585723b37f14b413ad7c5b12d4534d411",
+                        "digestBack": "sha256:4411417d614d5b1b479933b7420079671facd434fd42db196dc1f4cc55ba13ce"
+                    },
+                    {
+                        "digestFront": "sha256:7c20b927946805124f67a0cb8848a8fb1344d16b4d0425d63aaa3f2427c20497",
+                        "digestBack": "sha256:e55e7e40700bbab9e542aba56c593cb87d680cefdfba3dd2ab9cfcb27ec384c2"
+                    }
+                ]
+            )
+        else:
+            self.unsupported()
+
+
+if __name__ == '__main__':
+    httpd = HTTPServer(('', 4355), Plugin)
+    httpd.serve_forever()
+```
+
+Execute getparams with curl : 
+
+```
+curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
+'{
+  "param1": "value1"
+}'
+```
+
+Some things to note here:
+
+* You only need to implement the calls `/api/v1/getparams.execute`
+* You should check that the `Authorization` header contains the same value as `/var/run/argo/token`. Return 403 if not
+* The input parameters are included in the request body and can be accessed using the args variable.
+* The output must always be a list of object maps.
+
+## With matrix and pull request example
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: fb-matrix
+spec:
+  goTemplate: true
+  generators:
+    - matrix:
+        generators:
+          - pullRequest:
+              github:
+                ...
+              requeueAfterSeconds: 30
+          - plugin:
+              configMapRef: cm-plugin
+              name: plugin-matrix
+              params:
+                branch: "{{.branch}}" # precedence by generator pull request
+  template:
+    metadata:
+      name: "fb-matrix-{{.branch}}"
+    spec:
+      source:
+        repoURL: 'https://github.com/myorg/myrepo.git'
+        targetRevision: "HEAD"
+        path: charts/my-chart
+        helm:
+          releaseName: fb-matrix-{{.branch}}
+          valueFiles:
+            - values.yaml
+          values: |
+            front:
+              image: myregistry:{{.branch}}@{{ .digestFront }} # digestFront is generated by the plugin
+            back:
+              image: myregistry:{{.branch}}@{{ .digestBack }} # digestBack is generated by the plugin
+      project: default
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{.branch}}"
+```
