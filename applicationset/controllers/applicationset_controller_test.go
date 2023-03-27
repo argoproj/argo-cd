@@ -4930,25 +4930,25 @@ func TestOwnsHandler(t *testing.T) {
 		want bool
 	}{
 		{name: "SameApplicationReconciledAtDiff", args: args{e: event.UpdateEvent{
-			ObjectOld: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{ReconciledAt: &now}},
-			ObjectNew: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{ReconciledAt: &now}},
+			ObjectOld: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{ReconciledAt: &now}},
+			ObjectNew: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{ReconciledAt: &now}},
 		}}, want: false},
 		{name: "SameApplicationResourceVersionDiff", args: args{e: event.UpdateEvent{
-			ObjectOld: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{
 				ResourceVersion: "foo",
 			}},
-			ObjectNew: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{
 				ResourceVersion: "bar",
 			}},
 		}}, want: false},
 		{name: "ApplicationHealthStatusDiff", args: args{e: event.UpdateEvent{
-			ObjectOld: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
-				Health: argov1alpha1.HealthStatus{
+			ObjectOld: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Health: v1alpha1.HealthStatus{
 					Status: "Unknown",
 				},
 			}},
-			ObjectNew: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
-				Health: argov1alpha1.HealthStatus{
+			ObjectNew: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Health: v1alpha1.HealthStatus{
 					Status: "Healthy",
 				},
 			}},
@@ -4956,13 +4956,13 @@ func TestOwnsHandler(t *testing.T) {
 			enableProgressiveSyncs: true,
 		}, want: true},
 		{name: "ApplicationSyncStatusDiff", args: args{e: event.UpdateEvent{
-			ObjectOld: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
-				Sync: argov1alpha1.SyncStatus{
+			ObjectOld: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
 					Status: "OutOfSync",
 				},
 			}},
-			ObjectNew: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
-				Sync: argov1alpha1.SyncStatus{
+			ObjectNew: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
 					Status: "Synced",
 				},
 			}},
@@ -4970,13 +4970,13 @@ func TestOwnsHandler(t *testing.T) {
 			enableProgressiveSyncs: true,
 		}, want: true},
 		{name: "ApplicationOperationStateDiff", args: args{e: event.UpdateEvent{
-			ObjectOld: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
-				OperationState: &argov1alpha1.OperationState{
+			ObjectOld: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				OperationState: &v1alpha1.OperationState{
 					Phase: "foo",
 				},
 			}},
-			ObjectNew: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
-				OperationState: &argov1alpha1.OperationState{
+			ObjectNew: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				OperationState: &v1alpha1.OperationState{
 					Phase: "bar",
 				},
 			}},
@@ -4984,13 +4984,13 @@ func TestOwnsHandler(t *testing.T) {
 			enableProgressiveSyncs: true,
 		}, want: true},
 		{name: "ApplicationOperationStartedAtDiff", args: args{e: event.UpdateEvent{
-			ObjectOld: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
-				OperationState: &argov1alpha1.OperationState{
+			ObjectOld: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				OperationState: &v1alpha1.OperationState{
 					StartedAt: now,
 				},
 			}},
-			ObjectNew: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
-				OperationState: &argov1alpha1.OperationState{
+			ObjectNew: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				OperationState: &v1alpha1.OperationState{
 					StartedAt: metav1.NewTime(now.Add(time.Minute * 1)),
 				},
 			}},
@@ -4998,36 +4998,36 @@ func TestOwnsHandler(t *testing.T) {
 			enableProgressiveSyncs: true,
 		}, want: true},
 		{name: "SameApplicationGeneration", args: args{e: event.UpdateEvent{
-			ObjectOld: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{
 				Generation: 1,
 			}},
-			ObjectNew: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{
 				Generation: 2,
 			}},
 		}}, want: false},
 		{name: "DifferentApplicationSpec", args: args{e: event.UpdateEvent{
-			ObjectOld: &argov1alpha1.Application{Spec: argov1alpha1.ApplicationSpec{Project: "default"}},
-			ObjectNew: &argov1alpha1.Application{Spec: argov1alpha1.ApplicationSpec{Project: "not-default"}},
+			ObjectOld: &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Project: "default"}},
+			ObjectNew: &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Project: "not-default"}},
 		}}, want: true},
 		{name: "DifferentApplicationLabels", args: args{e: event.UpdateEvent{
-			ObjectOld: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}},
-			ObjectNew: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"bar": "foo"}}},
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}},
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"bar": "foo"}}},
 		}}, want: true},
 		{name: "DifferentApplicationAnnotations", args: args{e: event.UpdateEvent{
-			ObjectOld: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"foo": "bar"}}},
-			ObjectNew: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"bar": "foo"}}},
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"foo": "bar"}}},
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"bar": "foo"}}},
 		}}, want: true},
 		{name: "DifferentApplicationFinalizers", args: args{e: event.UpdateEvent{
-			ObjectOld: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{"argo"}}},
-			ObjectNew: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{"none"}}},
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{"argo"}}},
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{"none"}}},
 		}}, want: true},
 		{name: "NotAnAppOld", args: args{e: event.UpdateEvent{
-			ObjectOld: &argov1alpha1.AppProject{},
-			ObjectNew: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"bar": "foo"}}},
+			ObjectOld: &v1alpha1.AppProject{},
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"bar": "foo"}}},
 		}}, want: false},
 		{name: "NotAnAppNew", args: args{e: event.UpdateEvent{
-			ObjectOld: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}},
-			ObjectNew: &argov1alpha1.AppProject{},
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}},
+			ObjectNew: &v1alpha1.AppProject{},
 		}}, want: false},
 	}
 	for _, tt := range tests {
