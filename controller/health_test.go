@@ -124,7 +124,7 @@ func newAppLiveObj(status health.HealthStatusCode) *unstructured.Unstructured {
 		},
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 		},
 		Status: appv1.ApplicationStatus{
 			Health: appv1.HealthStatus{
