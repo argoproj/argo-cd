@@ -118,11 +118,12 @@ type ApplicationSetGenerator struct {
 	SCMProvider             *SCMProviderGenerator `json:"scmProvider,omitempty" protobuf:"bytes,4,name=scmProvider"`
 	ClusterDecisionResource *DuckTypeGenerator    `json:"clusterDecisionResource,omitempty" protobuf:"bytes,5,name=clusterDecisionResource"`
 	PullRequest             *PullRequestGenerator `json:"pullRequest,omitempty" protobuf:"bytes,6,name=pullRequest"`
-	Matrix                  *MatrixGenerator      `json:"matrix,omitempty" protobuf:"bytes,7,name=matrix"`
-	Merge                   *MergeGenerator       `json:"merge,omitempty" protobuf:"bytes,8,name=merge"`
+	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=plugin"`
+	Matrix                  *MatrixGenerator      `json:"matrix,omitempty" protobuf:"bytes,8,name=matrix"`
+	Merge                   *MergeGenerator       `json:"merge,omitempty" protobuf:"bytes,9,name=merge"`
 
 	// Selector allows to post-filter all generator.
-	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
+	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,10,name=selector"`
 }
 
 // ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or
@@ -134,15 +135,16 @@ type ApplicationSetNestedGenerator struct {
 	SCMProvider             *SCMProviderGenerator `json:"scmProvider,omitempty" protobuf:"bytes,4,name=scmProvider"`
 	ClusterDecisionResource *DuckTypeGenerator    `json:"clusterDecisionResource,omitempty" protobuf:"bytes,5,name=clusterDecisionResource"`
 	PullRequest             *PullRequestGenerator `json:"pullRequest,omitempty" protobuf:"bytes,6,name=pullRequest"`
+	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=plugin"`
 
 	// Matrix should have the form of NestedMatrixGenerator
-	Matrix *apiextensionsv1.JSON `json:"matrix,omitempty" protobuf:"bytes,7,name=matrix"`
+	Matrix *apiextensionsv1.JSON `json:"matrix,omitempty" protobuf:"bytes,8,name=matrix"`
 
 	// Merge should have the form of NestedMergeGenerator
-	Merge *apiextensionsv1.JSON `json:"merge,omitempty" protobuf:"bytes,8,name=merge"`
+	Merge *apiextensionsv1.JSON `json:"merge,omitempty" protobuf:"bytes,9,name=merge"`
 
 	// Selector allows to post-filter all generator.
-	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
+	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,10,name=selector"`
 }
 
 type ApplicationSetNestedGenerators []ApplicationSetNestedGenerator
@@ -158,6 +160,7 @@ type ApplicationSetTerminalGenerator struct {
 	SCMProvider             *SCMProviderGenerator `json:"scmProvider,omitempty" protobuf:"bytes,4,name=scmProvider"`
 	ClusterDecisionResource *DuckTypeGenerator    `json:"clusterDecisionResource,omitempty" protobuf:"bytes,5,name=clusterDecisionResource"`
 	PullRequest             *PullRequestGenerator `json:"pullRequest,omitempty" protobuf:"bytes,6,name=pullRequest"`
+	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=pullRequest"`
 }
 
 type ApplicationSetTerminalGenerators []ApplicationSetTerminalGenerator
@@ -175,6 +178,7 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 			SCMProvider:             terminalGenerator.SCMProvider,
 			ClusterDecisionResource: terminalGenerator.ClusterDecisionResource,
 			PullRequest:             terminalGenerator.PullRequest,
+			Plugin:                  terminalGenerator.Plugin,
 		}
 	}
 	return nestedGenerators
@@ -529,6 +533,17 @@ type BasicAuthBitbucketServer struct {
 // pass for a pull request to be included.
 type PullRequestGeneratorFilter struct {
 	BranchMatch *string `json:"branchMatch,omitempty" protobuf:"bytes,1,opt,name=branchMatch"`
+}
+
+// PluginGenerator defines connection info specific to Plugin.
+type PluginGenerator struct {
+	Name                 string            `json:"name,omitempty" protobuf:"bytes,1,name=name"`
+	ConfigMapRef         string            `json:"configMapRef" protobuf:"bytes,2,name=configMapRef"`
+	Params               map[string]string `json:"params,omitempty" protobuf:"bytes,3,name=params"`
+	AppendParamsToValues bool              `json:"appendParamsToValues,omitempty" protobuf:"varint,4,opt,name=appendParamsToValues"`
+	// Standard parameters.
+	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,5,opt,name=requeueAfterSeconds"`
+	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,6,name=template"`
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet

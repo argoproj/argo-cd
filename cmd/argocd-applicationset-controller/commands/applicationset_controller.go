@@ -132,6 +132,7 @@ func NewCommand() *cobra.Command {
 				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth),
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
 				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth),
+				"Plugin":                  generators.NewPluginGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
 			}
 
 			nestedGenerators := map[string]generators.Generator{
@@ -141,6 +142,7 @@ func NewCommand() *cobra.Command {
 				"SCMProvider":             terminalGenerators["SCMProvider"],
 				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 				"PullRequest":             terminalGenerators["PullRequest"],
+				"Plugin":                  terminalGenerators["Plugin"],
 				"Matrix":                  generators.NewMatrixGenerator(terminalGenerators),
 				"Merge":                   generators.NewMergeGenerator(terminalGenerators),
 			}
@@ -152,6 +154,7 @@ func NewCommand() *cobra.Command {
 				"SCMProvider":             terminalGenerators["SCMProvider"],
 				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 				"PullRequest":             terminalGenerators["PullRequest"],
+				"Plugin":                  terminalGenerators["Plugin"],
 				"Matrix":                  generators.NewMatrixGenerator(nestedGenerators),
 				"Merge":                   generators.NewMergeGenerator(nestedGenerators),
 			}
