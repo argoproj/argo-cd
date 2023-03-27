@@ -9,7 +9,15 @@ import (
 	"strings"
 	"time"
 
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	applicationsv1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/gitops-engine/pkg/cache"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/r3labs/diff"
 	log "github.com/sirupsen/logrus"
@@ -20,19 +28,49 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
-	applicationsv1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
 	errDestinationMissing = "Destination server missing from app spec"
 )
+
+var apiResources *[]kube.APIResourceInfo
+var cacheRefresh time.Time = time.Now()
+
+// FormatSyncMsg enrich the K8s message with user-relevant information
+func FormatSyncMsg(res *common.ResourceSyncResult, f func(kind string) (*[]kube.APIResourceInfo, error)) error {
+
+	var resource *kube.APIResourceInfo
+	var err error
+
+	if apiResources == nil || time.Since(cacheRefresh) > 5*time.Minute {
+		cacheRefresh = time.Now()
+		apiResources, err = f(res.ResourceKey.Kind)
+		if err != nil {
+			return fmt.Errorf("failed to fetch resource of given kind %s from the target cluster", res.ResourceKey.Kind)
+		}
+	}
+
+	for _, r := range *apiResources {
+		if r.GroupKind.Kind == res.ResourceKey.Kind {
+			resource = &r
+			break
+		}
+	}
+
+	if resource == nil {
+		return fmt.Errorf("no matching resource found of kind: %s", res.ResourceKey.Kind)
+
+	}
+	switch res.Message {
+	case "the server could not find the requested resource":
+		res.Message = fmt.Sprintf("The server could not find resource %s. Make sure the CRD is installed on the destination cluster, "+
+			"and that the requested CRD version is available. Currently, the installed API version for the corresponding Kind `%s` is %s",
+			res.ResourceKey.Name, resource.GroupKind.Kind, resource.GroupVersionResource.Version)
+	}
+
+	return nil
+}
 
 // FormatAppConditions returns string representation of give app condition list
 func FormatAppConditions(conditions []argoappv1.ApplicationCondition) string {

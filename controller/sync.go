@@ -56,6 +56,15 @@ func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser,
 	return cluster.GetGVKParser(), nil
 }
 
+func (m *appStateManager) getAPIResourceVersion(server string, kind string) (*[]kube.APIResourceInfo, error) {
+	_, apiResources, err := m.liveStateCache.GetVersionsInfo(server)
+
+	if err != nil {
+		return nil, err
+	}
+	return &apiResources, nil
+}
+
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
@@ -323,6 +332,15 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	state.Phase, state.Message, resState = syncCtx.GetState()
 	state.SyncResult.Resources = nil
 	for _, res := range resState {
+
+		err := argo.FormatSyncMsg(&res, func(kind string) (*[]kube.APIResourceInfo, error) {
+			return m.getAPIResourceVersion(app.Spec.Destination.Server, kind)
+		})
+
+		if err != nil {
+			log.Errorf("retain the original message since: %v", err)
+		}
+
 		state.SyncResult.Resources = append(state.SyncResult.Resources, &v1alpha1.ResourceResult{
 			HookType:  res.HookType,
 			Group:     res.ResourceKey.Group,

@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 )
 
 func TestRefreshApp(t *testing.T) {
@@ -1432,4 +1433,94 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, conditions, 0)
 	})
+}
+
+func TestFormatSyncMsg(t *testing.T) {
+	mockAPIResourcesFn := func(s string) (*[]kube.APIResourceInfo, error) {
+		return &[]kube.APIResourceInfo{
+			{
+				GroupKind: schema.GroupKind{
+					Group: "",
+					Kind:  "Deployment",
+				},
+				GroupVersionResource: schema.GroupVersionResource{
+					Group:   "",
+					Version: "v1beta1",
+				},
+			},
+		}, nil
+	}
+
+	res := &common.ResourceSyncResult{
+		ResourceKey: kube.ResourceKey{
+			Name: "deployment-resource",
+			Kind: "Deployment",
+		},
+	}
+
+	testcases := []struct {
+		name            string
+		msg             string
+		expectedMessage string
+		kind            string
+		mockFn          func(string) (*[]kube.APIResourceInfo, error)
+	}{
+		{
+			name: "match_specific_k8s_error",
+			msg:  "the server could not find the requested resource",
+			expectedMessage: fmt.Sprintf("The server could not find resource deployment-resource. Make sure the CRD is installed on the destination cluster, " +
+				"and that the requested CRD version is available. Currently, the installed API version for the corresponding Kind `Deployment` is v1beta1"),
+			mockFn: mockAPIResourcesFn,
+		},
+		{
+			name:            "no_match_random_k8s_error",
+			msg:             "random message from k8s",
+			expectedMessage: fmt.Sprintf("random message from k8s"),
+			mockFn:          mockAPIResourcesFn,
+		},
+		{
+			name:            "no_resource_kind_match",
+			kind:            "Volume",
+			expectedMessage: fmt.Sprintf("random message from k8s"),
+			mockFn: func(string) (*[]kube.APIResourceInfo, error) {
+				return &[]kube.APIResourceInfo{
+					{
+						GroupKind: schema.GroupKind{
+							Group: "",
+							Kind:  "Volumne",
+						},
+						GroupVersionResource: schema.GroupVersionResource{
+							Group:   "",
+							Version: "v1beta1",
+						},
+					},
+				}, errors.New("random message from k8s")
+			},
+		},
+		{
+			name:            "api_resource_nil",
+			expectedMessage: fmt.Sprintf("random message from k8s"),
+			mockFn: func(string) (*[]kube.APIResourceInfo, error) {
+				return nil, errors.New("random message from k8s")
+			},
+		},
+	}
+
+	for _, tt := range testcases {
+		t.Run(tt.name, func(t *testing.T) {
+			res.Message = tt.msg
+			if tt.kind != "" {
+				res.ResourceKey.Kind = tt.kind
+			}
+			err := FormatSyncMsg(res, tt.mockFn)
+			fmt.Println(err)
+			if res.ResourceKey.Kind == "Volume" {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+				assert.Equal(t, tt.expectedMessage, res.Message)
+
+			}
+		})
+	}
 }
