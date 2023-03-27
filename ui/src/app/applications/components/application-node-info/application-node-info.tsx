@@ -75,7 +75,7 @@ export const ApplicationNodeInfo = (props: {
 
                                         return (
                                             <tr key={i}>
-                                                <td width='18%'>{container.name}</td>
+                                                <td width='15%'>{container.name}</td>
                                                 <td />
                                                 <td>
                                                     {state && (
