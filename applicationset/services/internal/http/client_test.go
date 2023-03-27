@@ -111,7 +111,7 @@ func TestClientDo(t *testing.T) {
 			clientOptionFns: nil,
 			expected:        []map[string]interface{}(nil),
 			expectedCode:    401,
-			expectedError:   fmt.Errorf("error while checking API response: API error with status code 401: "),
+			expectedError:   fmt.Errorf("API error with status code 401: "),
 		},
 	} {
 		cc := c
