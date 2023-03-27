@@ -516,7 +516,7 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 	return res, applicationSetReason, firstError
 }
 
-func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProgressiveSyncs bool) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &argov1alpha1.Application{}, ".metadata.controller", func(rawObj client.Object) []string {
 		// grab the job object, extract the owner...
 		app := rawObj.(*argov1alpha1.Application)
@@ -534,6 +534,8 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}); err != nil {
 		return fmt.Errorf("error setting up with manager: %w", err)
 	}
+
+	ownsHandler := getOwnsHandlerPredicate(enableProgressiveSyncs)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&argov1alpha1.ApplicationSet{}).
@@ -1316,35 +1318,37 @@ func syncApplication(application argov1alpha1.Application, prune bool) (argov1al
 	return application, nil
 }
 
-var ownsHandler = predicate.Funcs{
-	CreateFunc: func(e event.CreateEvent) bool {
-		// if we are the owner and there is a create event, we most likely created it and do not need to
-		// re-reconcile
-		log.Debugln("received create event from owning an application")
-		return false
-	},
-	DeleteFunc: func(e event.DeleteEvent) bool {
-		log.Debugln("received delete event from owning an application")
-		return true
-	},
-	UpdateFunc: func(e event.UpdateEvent) bool {
-		log.Debugln("received update event from owning an application")
-		appOld, isApp := e.ObjectOld.(*argov1alpha1.Application)
-		if !isApp {
+func getOwnsHandlerPredicate(enableProgressiveSyncs bool) predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			// if we are the owner and there is a create event, we most likely created it and do not need to
+			// re-reconcile
+			log.Debugln("received create event from owning an application")
 			return false
-		}
-		appNew, isApp := e.ObjectNew.(*argov1alpha1.Application)
-		if !isApp {
-			return false
-		}
-		requeue := shouldRequeueApplicationSet(appOld, appNew)
-		log.Debugf("requeue: %t caused by application %s\n", requeue, appNew.Name)
-		return requeue
-	},
-	GenericFunc: func(e event.GenericEvent) bool {
-		log.Debugln("received generic event from owning an application")
-		return true
-	},
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			log.Debugln("received delete event from owning an application")
+			return true
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			log.Debugln("received update event from owning an application")
+			appOld, isApp := e.ObjectOld.(*argov1alpha1.Application)
+			if !isApp {
+				return false
+			}
+			appNew, isApp := e.ObjectNew.(*argov1alpha1.Application)
+			if !isApp {
+				return false
+			}
+			requeue := shouldRequeueApplicationSet(appOld, appNew, enableProgressiveSyncs)
+			log.Debugf("requeue: %t caused by application %s\n", requeue, appNew.Name)
+			return requeue
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			log.Debugln("received generic event from owning an application")
+			return true
+		},
+	}
 }
 
 // shouldRequeueApplicationSet determines when we want to requeue an ApplicationSet for reconciling based on an owned
@@ -1353,7 +1357,7 @@ var ownsHandler = predicate.Funcs{
 // We do not need to re-reconcile if parts of the application change outside the applicationset's control.
 // An example being, Application.ApplicationStatus.ReconciledAt which gets updated by the application controller.
 // Additionally, Application.ObjectMeta.ResourceVersion and Application.ObjectMeta.Generation which are set by K8s.
-func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov1alpha1.Application) bool {
+func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov1alpha1.Application, enableProgressiveSyncs bool) bool {
 	if appOld == nil || appNew == nil {
 		return false
 	}
@@ -1367,14 +1371,16 @@ func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov
 	}
 
 	// progressive syncs use the application status for updates. if they differ, requeue to trigger the next progression
-	if appOld.Status.Health.Status != appNew.Status.Health.Status || appOld.Status.Sync.Status != appNew.Status.Sync.Status {
-		return true
-	}
-
-	if appOld.Status.OperationState != nil && appNew.Status.OperationState != nil {
-		if appOld.Status.OperationState.Phase != appNew.Status.OperationState.Phase ||
-			appOld.Status.OperationState.StartedAt != appNew.Status.OperationState.StartedAt {
+	if enableProgressiveSyncs {
+		if appOld.Status.Health.Status != appNew.Status.Health.Status || appOld.Status.Sync.Status != appNew.Status.Sync.Status {
 			return true
+		}
+
+		if appOld.Status.OperationState != nil && appNew.Status.OperationState != nil {
+			if appOld.Status.OperationState.Phase != appNew.Status.OperationState.Phase ||
+				appOld.Status.OperationState.StartedAt != appNew.Status.OperationState.StartedAt {
+				return true
+			}
 		}
 	}
 

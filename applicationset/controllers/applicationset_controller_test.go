@@ -4841,13 +4841,20 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 }
 
 func TestOwnsHandler(t *testing.T) {
+	// progressive syncs do not affect create, delete, or generic
+	ownsHandler := getOwnsHandlerPredicate(true)
+	assert.False(t, ownsHandler.CreateFunc(event.CreateEvent{}))
+	assert.True(t, ownsHandler.DeleteFunc(event.DeleteEvent{}))
+	assert.True(t, ownsHandler.GenericFunc(event.GenericEvent{}))
+	ownsHandler = getOwnsHandlerPredicate(false)
 	assert.False(t, ownsHandler.CreateFunc(event.CreateEvent{}))
 	assert.True(t, ownsHandler.DeleteFunc(event.DeleteEvent{}))
 	assert.True(t, ownsHandler.GenericFunc(event.GenericEvent{}))
 
 	now := metav1.Now()
 	type args struct {
-		e event.UpdateEvent
+		e                      event.UpdateEvent
+		enableProgressiveSyncs bool
 	}
 	tests := []struct {
 		name string
@@ -4877,7 +4884,9 @@ func TestOwnsHandler(t *testing.T) {
 					Status: "Healthy",
 				},
 			}},
-		}}, want: true},
+		},
+			enableProgressiveSyncs: true,
+		}, want: true},
 		{name: "ApplicationSyncStatusDiff", args: args{e: event.UpdateEvent{
 			ObjectOld: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
 				Sync: argov1alpha1.SyncStatus{
@@ -4889,7 +4898,9 @@ func TestOwnsHandler(t *testing.T) {
 					Status: "Synced",
 				},
 			}},
-		}}, want: true},
+		},
+			enableProgressiveSyncs: true,
+		}, want: true},
 		{name: "ApplicationOperationStateDiff", args: args{e: event.UpdateEvent{
 			ObjectOld: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
 				OperationState: &argov1alpha1.OperationState{
@@ -4901,7 +4912,9 @@ func TestOwnsHandler(t *testing.T) {
 					Phase: "bar",
 				},
 			}},
-		}}, want: true},
+		},
+			enableProgressiveSyncs: true,
+		}, want: true},
 		{name: "ApplicationOperationStartedAtDiff", args: args{e: event.UpdateEvent{
 			ObjectOld: &argov1alpha1.Application{Status: argov1alpha1.ApplicationStatus{
 				OperationState: &argov1alpha1.OperationState{
@@ -4913,7 +4926,9 @@ func TestOwnsHandler(t *testing.T) {
 					StartedAt: metav1.NewTime(now.Add(time.Minute * 1)),
 				},
 			}},
-		}}, want: true},
+		},
+			enableProgressiveSyncs: true,
+		}, want: true},
 		{name: "SameApplicationGeneration", args: args{e: event.UpdateEvent{
 			ObjectOld: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{
 				Generation: 1,
@@ -4949,6 +4964,7 @@ func TestOwnsHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ownsHandler = getOwnsHandlerPredicate(tt.args.enableProgressiveSyncs)
 			assert.Equalf(t, tt.want, ownsHandler.UpdateFunc(tt.args.e), "UpdateFunc(%v)", tt.args.e)
 		})
 	}
