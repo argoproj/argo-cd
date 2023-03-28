@@ -1466,22 +1466,22 @@ func TestFormatSyncMsg(t *testing.T) {
 		mockFn          func(string) (*[]kube.APIResourceInfo, error)
 	}{
 		{
-			name: "match_specific_k8s_error",
+			name: "match specific k8s error",
 			msg:  "the server could not find the requested resource",
-			expectedMessage: fmt.Sprintf("The server could not find resource deployment-resource. Make sure the CRD is installed on the destination cluster, " +
-				"and that the requested CRD version is available. Currently, the installed API version for the corresponding Kind `Deployment` is v1beta1"),
+			expectedMessage: "The server could not find resource deployment-resource. Make sure the CRD is installed on the destination cluster, " +
+				"and that the requested CRD version is available. Currently, the installed API version for the corresponding Kind `Deployment` is v1beta1",
 			mockFn: mockAPIResourcesFn,
 		},
 		{
-			name:            "no_match_random_k8s_error",
+			name:            "any random k8s msg",
 			msg:             "random message from k8s",
-			expectedMessage: fmt.Sprintf("random message from k8s"),
+			expectedMessage: "random message from k8s",
 			mockFn:          mockAPIResourcesFn,
 		},
 		{
-			name:            "no_resource_kind_match",
+			name:            "resource doesn't exist in the target cluster",
 			kind:            "Volume",
-			expectedMessage: fmt.Sprintf("random message from k8s"),
+			expectedMessage: "random message from k8s",
 			mockFn: func(string) (*[]kube.APIResourceInfo, error) {
 				return &[]kube.APIResourceInfo{
 					{
@@ -1498,8 +1498,8 @@ func TestFormatSyncMsg(t *testing.T) {
 			},
 		},
 		{
-			name:            "api_resource_nil",
-			expectedMessage: fmt.Sprintf("random message from k8s"),
+			name:            "API Resource is empty",
+			expectedMessage: "random message from k8s",
 			mockFn: func(string) (*[]kube.APIResourceInfo, error) {
 				return nil, errors.New("random message from k8s")
 			},
