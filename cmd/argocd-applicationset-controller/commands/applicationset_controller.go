@@ -30,7 +30,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
-	appsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -60,7 +59,6 @@ func NewCommand() *cobra.Command {
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = appsetv1alpha1.AddToScheme(scheme)
 	_ = appv1alpha1.AddToScheme(scheme)
 	var command = cobra.Command{
 		Use:   "controller",

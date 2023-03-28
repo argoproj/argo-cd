@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 )
@@ -176,12 +177,12 @@ func NewImportCommand() *cobra.Command {
 			applications, err := acdClients.applications.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, app := range applications.Items {
-				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "Application", Name: app.GetName()}] = app
+				pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.ApplicationKind, Name: app.GetName()}] = app
 			}
 			projects, err := acdClients.projects.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, proj := range projects.Items {
-				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "AppProject", Name: proj.GetName()}] = proj
+				pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.AppProjectKind, Name: proj.GetName()}] = proj
 			}
 			applicationSets, err := acdClients.applicationSets.List(ctx, v1.ListOptions{})
 			if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
@@ -191,7 +192,7 @@ func NewImportCommand() *cobra.Command {
 			}
 			if applicationSets != nil {
 				for _, appSet := range applicationSets.Items {
-					pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "ApplicationSet", Name: appSet.GetName()}] = appSet
+					pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.ApplicationSetKind, Name: appSet.GetName()}] = appSet
 				}
 			}
 
@@ -209,11 +210,11 @@ func NewImportCommand() *cobra.Command {
 					dynClient = acdClients.secrets
 				case "ConfigMap":
 					dynClient = acdClients.configMaps
-				case "AppProject":
+				case application.AppProjectKind:
 					dynClient = acdClients.projects
-				case "Application":
+				case application.ApplicationKind:
 					dynClient = acdClients.applications
-				case "ApplicationSet":
+				case application.ApplicationSetKind:
 					dynClient = acdClients.applicationSets
 				}
 				if !exists {
@@ -260,9 +261,9 @@ func NewImportCommand() *cobra.Command {
 					switch key.Kind {
 					case "Secret":
 						dynClient = acdClients.secrets
-					case "AppProject":
+					case application.AppProjectKind:
 						dynClient = acdClients.projects
-					case "Application":
+					case application.ApplicationKind:
 						dynClient = acdClients.applications
 						if !dryRun {
 							if finalizers := liveObj.GetFinalizers(); len(finalizers) > 0 {
@@ -274,7 +275,7 @@ func NewImportCommand() *cobra.Command {
 								}
 							}
 						}
-					case "ApplicationSet":
+					case application.ApplicationSetKind:
 						dynClient = acdClients.applicationSets
 					default:
 						log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
@@ -314,7 +315,7 @@ func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOpe
 		return true
 	}
 	switch liveObj.GetKind() {
-	case "Application":
+	case application.ApplicationKind:
 		return liveObj.Object["operation"] == nil
 	}
 	return true
@@ -353,9 +354,9 @@ func updateLive(bak, live *unstructured.Unstructured, stopOperation bool) *unstr
 	switch live.GetKind() {
 	case "Secret", "ConfigMap":
 		newLive.Object["data"] = bak.Object["data"]
-	case "AppProject":
+	case application.AppProjectKind:
 		newLive.Object["spec"] = bak.Object["spec"]
-	case "Application":
+	case application.ApplicationKind:
 		newLive.Object["spec"] = bak.Object["spec"]
 		if _, ok := bak.Object["status"]; ok {
 			newLive.Object["status"] = bak.Object["status"]
