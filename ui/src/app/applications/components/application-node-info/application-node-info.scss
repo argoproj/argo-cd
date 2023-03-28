@@ -39,4 +39,8 @@
             color: $argo-color-gray-8;
         }
     }
+    &__err_msg {
+        padding-right: 2em;
+        color: #E96D76;
+    }
 }

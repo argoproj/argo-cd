@@ -52,6 +52,8 @@ export const ApplicationNodeInfo = (props: {
             )
         });
     }
+    let showLiveState = true;
+
     if (props.live) {
         if (props.node.kind === 'Pod') {
             const {reason, message} = getPodStateReason(props.live);
@@ -125,35 +127,62 @@ export const ApplicationNodeInfo = (props: {
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
                     {pref => {
                         const live = deepMerge(props.live, {}) as any;
+                        if (Object.keys(live).length === 0) {
+                            showLiveState = false;
+                        }
+
                         if (live?.metadata?.managedFields && pref.appDetails.hideManagedFields) {
                             delete live.metadata.managedFields;
                         }
                         return (
-                            <>
-                                <div className='application-node-info__checkboxes'>
-                                    <Checkbox
-                                        id='hideManagedFields'
-                                        checked={!!pref.appDetails.hideManagedFields}
-                                        onChange={() =>
-                                            services.viewPreferences.updatePreferences({
-                                                appDetails: {
-                                                    ...pref.appDetails,
-                                                    hideManagedFields: !pref.appDetails.hideManagedFields
+                            <React.Fragment>
+                                {showLiveState ? (
+                                    <React.Fragment>
+                                        <div className='application-node-info__checkboxes'>
+                                            <Checkbox
+                                                id='hideManagedFields'
+                                                checked={!!pref.appDetails.hideManagedFields}
+                                                onChange={() =>
+                                                    services.viewPreferences.updatePreferences({
+                                                        appDetails: {
+                                                            ...pref.appDetails,
+                                                            hideManagedFields: !pref.appDetails.hideManagedFields
+                                                        }
+                                                    })
                                                 }
-                                            })
-                                        }
-                                    />
-                                    <label htmlFor='hideManagedFields'>Hide Managed Fields</label>
-                                </div>
-                                <YamlEditor
-                                    input={live}
-                                    hideModeButtons={!live}
-                                    vScrollbar={live}
-                                    onSave={(patch, patchType) =>
-                                        services.applications.patchResource(props.application.metadata.name, props.application.metadata.namespace, props.node, patch, patchType)
-                                    }
-                                />
-                            </>
+                                            />
+                                            <label htmlFor='hideManagedFields'>Hide Managed Fields</label>
+                                        </div>
+                                        <YamlEditor
+                                            input={live}
+                                            hideModeButtons={!live}
+                                            vScrollbar={live}
+                                            onSave={(patch, patchType) =>
+                                                services.applications.patchResource(
+                                                    props.application.metadata.name,
+                                                    props.application.metadata.namespace,
+                                                    props.node,
+                                                    patch,
+                                                    patchType
+                                                )
+                                            }
+                                        />
+                                    </React.Fragment>
+                                ) : (
+                                    <div className='application-node-info__err_msg'>
+                                        Resource not found in cluster:{' '}
+                                        {`${props?.controlled?.state?.targetState?.apiVersion}/${props?.controlled?.state?.targetState?.kind}:${props.node.name}`}
+                                        <br />
+                                        {props?.controlled?.state?.normalizedLiveState?.apiVersion && (
+                                            <span>
+                                                Please update your resource specification to use the latest Kubernetes API resources supported by the target cluster. The
+                                                recommended syntax is{' '}
+                                                {`${props.controlled.state.normalizedLiveState.apiVersion}/${props?.controlled.state.normalizedLiveState?.kind}:${props.node.name}`}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </React.Fragment>
                         );
                     }}
                 </DataLoader>
