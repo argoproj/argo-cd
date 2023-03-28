@@ -198,7 +198,7 @@ func NewCommand() *cobra.Command {
 				KubeClientset:          k8sClient,
 				ArgoDB:                 argoCDDB,
 				EnableProgressiveSyncs: enableProgressiveSyncs,
-			}).SetupWithManager(mgr); err != nil {
+			}).SetupWithManager(mgr, enableProgressiveSyncs); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
 			}
