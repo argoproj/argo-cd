@@ -1212,7 +1212,10 @@ func BenchmarkListMuchApps(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		appServer.List(context.Background(), &application.ApplicationQuery{})
+		_, err := appServer.List(context.Background(), &application.ApplicationQuery{})
+		if err != nil {
+			break
+		}
 	}
 }
 
@@ -1227,7 +1230,10 @@ func BenchmarkListSomeApps(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		appServer.List(context.Background(), &application.ApplicationQuery{})
+		_, err := appServer.List(context.Background(), &application.ApplicationQuery{})
+		if err != nil {
+			break
+		}
 	}
 }
 
@@ -1242,7 +1248,10 @@ func BenchmarkListFewApps(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		appServer.List(context.Background(), &application.ApplicationQuery{})
+		_, err := appServer.List(context.Background(), &application.ApplicationQuery{})
+		if err != nil {
+			break
+		}
 	}
 }
 
@@ -1262,7 +1271,10 @@ func BenchmarkListMuchAppsWithName(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		app := &application.ApplicationQuery{Name: strToPtr("test-app000099")}
-		appServer.List(context.Background(), app)
+		_, err := appServer.List(context.Background(), app)
+		if err != nil {
+			break
+		}
 	}
 }
 
@@ -1280,7 +1292,10 @@ func BenchmarkListMuchAppsWithProjects(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		app := &application.ApplicationQuery{Project: []string{"test-project1", "test-project2"}}
-		appServer.List(context.Background(), app)
+		_, err := appServer.List(context.Background(), app)
+		if err != nil {
+			break
+		}
 	}
 }
 
@@ -1297,7 +1312,10 @@ func BenchmarkListMuchAppsWithRepo(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		app := &application.ApplicationQuery{Repo: strToPtr("https://some-fake-source")}
-		appServer.List(context.Background(), app)
+		_, err := appServer.List(context.Background(), app)
+		if err != nil {
+			break
+		}
 	}
 }
 
