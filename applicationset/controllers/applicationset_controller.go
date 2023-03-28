@@ -537,7 +537,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 		return fmt.Errorf("error setting up with manager: %w", err)
 	}
 
-	ownsHandler := getOwnsHandlerPredicate(enableProgressiveSyncs)
+	ownsHandler := getOwnsHandlerPredicates(enableProgressiveSyncs)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&argov1alpha1.ApplicationSet{}).
@@ -1326,7 +1326,7 @@ func syncApplication(application argov1alpha1.Application, prune bool) (argov1al
 	return application, nil
 }
 
-func getOwnsHandlerPredicate(enableProgressiveSyncs bool) predicate.Funcs {
+func getOwnsHandlerPredicates(enableProgressiveSyncs bool) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			// if we are the owner and there is a create event, we most likely created it and do not need to
