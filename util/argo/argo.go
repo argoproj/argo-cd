@@ -65,7 +65,7 @@ func FormatSyncMsg(res *common.ResourceSyncResult, f func(kind string) (*[]kube.
 	switch res.Message {
 	case "the server could not find the requested resource":
 		res.Message = fmt.Sprintf("The server could not find resource %s. Make sure the CRD is installed on the destination cluster, "+
-			"and that the requested CRD version is available. Currently, the installed API version for the corresponding Kind `%s` is %s",
+			"and that the requested CRD version is available. Currently, the installed API version for the corresponding Kind: %s is %s",
 			res.ResourceKey.Name, resource.GroupKind.Kind, resource.GroupVersionResource.Version)
 	}
 

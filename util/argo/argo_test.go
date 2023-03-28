@@ -1469,7 +1469,7 @@ func TestFormatSyncMsg(t *testing.T) {
 			name: "match specific k8s error",
 			msg:  "the server could not find the requested resource",
 			expectedMessage: "The server could not find resource deployment-resource. Make sure the CRD is installed on the destination cluster, " +
-				"and that the requested CRD version is available. Currently, the installed API version for the corresponding Kind `Deployment` is v1beta1",
+				"and that the requested CRD version is available. Currently, the installed API version for the corresponding Kind: Deployment is v1beta1",
 			mockFn: mockAPIResourcesFn,
 		},
 		{
