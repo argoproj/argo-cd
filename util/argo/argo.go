@@ -35,17 +35,17 @@ const (
 )
 
 var apiResources *[]kube.APIResourceInfo
-var cacheRefresh time.Time = time.Now()
+var lastCacheRefresh time.Time = time.Now()
 
 // FormatSyncMsg enrich the K8s message with user-relevant information
-func FormatSyncMsg(res *common.ResourceSyncResult, f func(kind string) (*[]kube.APIResourceInfo, error)) error {
+func FormatSyncMsg(res *common.ResourceSyncResult, apiVersFn func(kind string) (*[]kube.APIResourceInfo, error)) error {
 
 	var resource *kube.APIResourceInfo
 	var err error
 
-	if apiResources == nil || time.Since(cacheRefresh) > 5*time.Minute {
-		cacheRefresh = time.Now()
-		apiResources, err = f(res.ResourceKey.Kind)
+	if apiResources == nil || time.Since(lastCacheRefresh) > 5*time.Minute {
+		lastCacheRefresh = time.Now()
+		apiResources, err = apiVersFn(res.ResourceKey.Kind)
 		if err != nil {
 			return fmt.Errorf("failed to fetch resource of given kind %s from the target cluster", res.ResourceKey.Kind)
 		}
@@ -64,7 +64,7 @@ func FormatSyncMsg(res *common.ResourceSyncResult, f func(kind string) (*[]kube.
 	}
 	switch res.Message {
 	case "the server could not find the requested resource":
-		res.Message = fmt.Sprintf("The server could not find resource %s. Make sure the CRD is installed on the destination cluster, "+
+		res.Message = fmt.Sprintf("The server could not find requested resource %s. Make sure the CRD is installed on the destination cluster, "+
 			"and that the requested CRD version is available. Currently, the installed API version for the corresponding Kind: %s is %s",
 			res.ResourceKey.Name, resource.GroupKind.Kind, resource.GroupVersionResource.Version)
 	}

@@ -56,7 +56,7 @@ func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser,
 	return cluster.GetGVKParser(), nil
 }
 
-func (m *appStateManager) getAPIResourceVersion(server string, kind string) (*[]kube.APIResourceInfo, error) {
+func (m *appStateManager) getAPIResourceVersion(server string) (*[]kube.APIResourceInfo, error) {
 	_, apiResources, err := m.liveStateCache.GetVersionsInfo(server)
 
 	if err != nil {
@@ -334,7 +334,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	for _, res := range resState {
 
 		err := argo.FormatSyncMsg(&res, func(kind string) (*[]kube.APIResourceInfo, error) {
-			return m.getAPIResourceVersion(app.Spec.Destination.Server, kind)
+			return m.getAPIResourceVersion(app.Spec.Destination.Server)
 		})
 
 		if err != nil {
