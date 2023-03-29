@@ -2,7 +2,7 @@
 
 The RBAC feature enables restriction of access to Argo CD resources. Argo CD does not have its own
 user management system and has only one built-in user `admin`. The `admin` user is a superuser and
-it has unrestricted access to the system. RBAC requires [SSO configuration](user-management/index.md) or [one or more local users setup](user-management/index.md). 
+it has unrestricted access to the system. RBAC requires [SSO configuration](user-management/index.md) or [one or more local users setup](user-management/index.md).
 Once SSO or local users are configured, additional RBAC roles can be defined, and SSO groups or local users can then be mapped to roles.
 
 ## Basic Built-in Roles
@@ -20,11 +20,11 @@ Breaking down the permissions definition differs slightly between applications a
 
 * All resources *except* application-specific permissions (see next bullet):
 
-    `p, <role/user/group>, <resource>, <action>, <object>`
+  `p, <role/user/group>, <resource>, <action>, <object>`
 
 * Applications, applicationsets, logs, and exec (which belong to an AppProject):
 
-    `p, <role/user/group>, <resource>, <action>, <appproject>/<object>`
+  `p, <role/user/group>, <resource>, <action>, <appproject>/<object>`
 
 ### RBAC Resources and Actions
 
@@ -59,10 +59,22 @@ also use glob patterns in the action path: `action/*` (or regex patterns if you 
 
 #### The `exec` resource
 
-`exec` is a special resource. When enabled with the `create` action, this privilege allows a user to `exec` into Pods via 
+`exec` is a special resource. When enabled with the `create` action, this privilege allows a user to `exec` into Pods via
 the Argo CD UI. The functionality is similar to `kubectl exec`.
 
 See [Web-based Terminal](web_based_terminal.md) for more info.
+
+The exec feature is disabled entirely by default. To enable it, set the `exec.enabled` key to "true" on the argocd-cm
+ConfigMap. You will also need to add the following to the argocd-api-server Role (if you're using Argo CD in namespaced
+mode) or ClusterRole (if you're using Argo CD in cluster mode).
+
+```yaml
+- apiGroups:
+    - ""
+  resources:
+    - pods/exec
+  verbs:
+    - create
 
 #### The `applicationsets` resource
 
@@ -254,4 +266,31 @@ Or against the group defined:
 ```shell
 $ argocd admin settings rbac can db-admins get applications 'staging-db-admins/*' --policy-file policy.csv
 Yes
+```
+
+### Adding additional RBAC configmaps
+Since v2.5, you now have the ability to create additional ConfigMaps to augment the policy specified in `argocd-rbac-cm`.
+
+Simply create a ConfigMap in the `argocd` namespace with the label `argocd.argoproj.io/cm-type=additional-rbac` and specify the `policy.csv` key.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm-extra
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/cm-type: rbac
+data:
+  policy.csv: |
+    p, role:org-admin, applications, *, */*, allow
+    p, role:org-admin, clusters, get, *, allow
+    p, role:org-admin, repositories, get, *, allow
+    p, role:org-admin, repositories, create, *, allow
+    p, role:org-admin, repositories, update, *, allow
+    p, role:org-admin, repositories, delete, *, allow
+    p, role:org-admin, logs, get, *, allow
+    p, role:org-admin, exec, create, */*, allow
+
+    g, your-github-org:your-team, role:org-admin
 ```

@@ -54,7 +54,7 @@ func TestEnforceAllPolicies(t *testing.T) {
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableLog(true)
 	_ = enf.SetBuiltinPolicy(`p, alice, applications, create, my-proj/*, allow` + "\n" + `p, alice, logs, get, my-proj/*, allow` + "\n" + `p, alice, exec, create, my-proj/*, allow`)
-	_ = enf.SetUserPolicy(`p, bob, applications, create, my-proj/*, allow` + "\n" + `p, bob, logs, get, my-proj/*, allow` + "\n" + `p, bob, exec, create, my-proj/*, allow`)
+	_ = enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, `p, bob, applications, create, my-proj/*, allow`+"\n"+`p, bob, logs, get, my-proj/*, allow`+"\n"+`p, bob, exec, create, my-proj/*, allow`)
 	rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 
@@ -128,7 +128,7 @@ func TestInvalidatedCache(t *testing.T) {
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableLog(true)
 	_ = enf.SetBuiltinPolicy(`p, alice, applications, create, my-proj/*, allow` + "\n" + `p, alice, logs, get, my-proj/*, allow` + "\n" + `p, alice, exec, create, my-proj/*, allow`)
-	_ = enf.SetUserPolicy(`p, bob, applications, create, my-proj/*, allow` + "\n" + `p, bob, logs, get, my-proj/*, allow` + "\n" + `p, bob, exec, create, my-proj/*, allow`)
+	_ = enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, `p, bob, applications, create, my-proj/*, allow`+"\n"+`p, bob, logs, get, my-proj/*, allow`+"\n"+`p, bob, exec, create, my-proj/*, allow`)
 	rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 
@@ -143,7 +143,7 @@ func TestInvalidatedCache(t *testing.T) {
 	assert.True(t, enf.Enforce(claims, "exec", "create", "my-proj/my-app"))
 
 	_ = enf.SetBuiltinPolicy(`p, alice, applications, create, my-proj2/*, allow` + "\n" + `p, alice, logs, get, my-proj2/*, allow` + "\n" + `p, alice, exec, create, my-proj2/*, allow`)
-	_ = enf.SetUserPolicy(`p, bob, applications, create, my-proj2/*, allow` + "\n" + `p, bob, logs, get, my-proj2/*, allow` + "\n" + `p, bob, exec, create, my-proj2/*, allow`)
+	_ = enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, `p, bob, applications, create, my-proj2/*, allow`+"\n"+`p, bob, logs, get, my-proj2/*, allow`+"\n"+`p, bob, exec, create, my-proj2/*, allow`)
 	claims = jwt.MapClaims{"sub": "alice"}
 	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj2/my-app"))
 	assert.True(t, enf.Enforce(claims, "logs", "get", "my-proj2/my-app"))

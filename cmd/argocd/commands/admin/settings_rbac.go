@@ -308,13 +308,26 @@ func getPolicyConfigMap(ctx context.Context, client kubernetes.Interface, namesp
 	if err != nil {
 		return nil, err
 	}
+
+	cmList, err := client.CoreV1().ConfigMaps(namespace).List(ctx, v1.ListOptions{
+		LabelSelector: common.ArgoCDRBACConfigMapLabelSelector,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range cmList.Items {
+		cm.Data[rbac.ConfigMapPolicyCSVKey] += fmt.Sprintf("\n# concenated rbac data fetched by label %s\n%s",
+			common.ArgoCDRBACConfigMapLabelSelector, v.Data[rbac.ConfigMapPolicyCSVKey])
+	}
+
 	return cm, nil
 }
 
 // checkPolicy checks whether given subject is allowed to execute specified
 // action against specified resource
 func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode string, strict bool) bool {
-	enf := rbac.NewEnforcer(nil, "argocd", "argocd-rbac-cm", nil)
+	enf := rbac.NewEnforcer(nil, "argocd", common.ArgoCDRBACConfigMapName, nil)
 	enf.SetDefaultRole(defaultRole)
 	enf.SetMatchMode(matchMode)
 	if builtinPolicy != "" {
@@ -328,7 +341,7 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 			log.Fatalf("invalid user policy: %v", err)
 			return false
 		}
-		if err := enf.SetUserPolicy(userPolicy); err != nil {
+		if err := enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, userPolicy); err != nil {
 			log.Fatalf("could not set user policy: %v", err)
 			return false
 		}
