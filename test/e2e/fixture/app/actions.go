@@ -259,7 +259,7 @@ func (a *Actions) Declarative(filename string) *Actions {
 func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Actions {
 	a.context.t.Helper()
 	values := map[string]interface{}{
-		"ArgoCDNamespace":     fixture.ArgoCDNamespace,
+		"ArgoCDNamespace":     fixture.TestNamespace(),
 		"DeploymentNamespace": fixture.DeploymentNamespace(),
 		"Name":                a.context.AppName(),
 		"Path":                a.context.path,
@@ -310,6 +310,9 @@ func (a *Actions) Sync(args ...string) *Actions {
 	}
 
 	if a.context.resource != "" {
+		// Waiting for the app to be successfully created.
+		// Else the sync would fail to retrieve the app resources.
+		a.context.Sleep(5)
 		args = append(args, "--resource", a.context.resource)
 	}
 
@@ -359,6 +362,17 @@ func (a *Actions) Delete(cascade bool) *Actions {
 func (a *Actions) DeleteBySelector(selector string) *Actions {
 	a.context.t.Helper()
 	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes")
+	return a
+}
+
+func (a *Actions) Wait(args ...string) *Actions {
+	a.context.t.Helper()
+	args = append([]string{"app", "wait"}, args...)
+	if a.context.name != "" {
+		args = append(args, a.context.AppQualifiedName())
+	}
+	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
+	a.runCli(args...)
 	return a
 }
 

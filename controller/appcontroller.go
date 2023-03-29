@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
@@ -37,6 +38,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -335,7 +337,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 		}
 
 		if !ctrl.canProcessApp(obj) {
-			// Don't force refresh app if app belongs to a different controller shard
+			// Don't force refresh app if app belongs to a different controller shard or is outside the allowed namespaces.
 			continue
 		}
 
@@ -417,7 +419,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	nodes := make([]appv1.ResourceNode, 0)
 	proj, err := ctrl.getAppProj(a)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
 	orphanedNodesMap := make(map[kube.ResourceKey]appv1.ResourceNode)
@@ -425,7 +427,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	if proj.Spec.OrphanedResources != nil {
 		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(a.Spec.Destination.Server, a.Spec.Destination.Namespace)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get namespace top-level resources: %w", err)
 		}
 		warnOrphaned = proj.Spec.OrphanedResources.IsWarn()
 	}
@@ -435,12 +437,12 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 		var live = &unstructured.Unstructured{}
 		err := json.Unmarshal([]byte(managedResource.LiveState), &live)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to unmarshal live state of managed resources: %w", err)
 		}
 		var target = &unstructured.Unstructured{}
 		err = json.Unmarshal([]byte(managedResource.TargetState), &target)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to unmarshal target state of managed resources: %w", err)
 		}
 
 		if live == nil {
@@ -456,7 +458,11 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 		} else {
 			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) bool {
 				permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
-					return ctrl.db.GetProjectClusters(context.TODO(), project)
+					clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
+					if err != nil {
+						return nil, fmt.Errorf("failed to get project clusters: %w", err)
+					}
+					return clusters, nil
 				})
 				if !permitted {
 					return false
@@ -465,7 +471,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 				return true
 			})
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to iterate resource hierarchy: %w", err)
 			}
 		}
 	}
@@ -514,7 +520,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 
 	hosts, err := ctrl.getAppHosts(a, nodes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get app hosts: %w", err)
 	}
 	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes, Hosts: hosts}, nil
 }
@@ -833,7 +839,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 				Message: err.Error(),
 			})
 			message := fmt.Sprintf("Unable to delete application resources: %v", err.Error())
-			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message)
+			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message, "")
 		}
 	}
 	return
@@ -937,7 +943,7 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 
 // shouldBeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
 func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
-	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj))
+	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj)) && !resourceutil.HasAnnotationOption(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDisableDeletion)
 }
 
 func (ctrl *ApplicationController) getPermittedAppLiveObjects(app *appv1.Application, proj *appv1.AppProject, projectClusters func(project string) ([]*appv1.Cluster, error)) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
@@ -1293,7 +1299,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 				eventInfo.Type = v1.EventTypeWarning
 				messages = append(messages, "failed:", state.Message)
 			}
-			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "))
+			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "), "")
 			ctrl.metricsServer.IncSync(app, state)
 		}
 		return nil
@@ -1356,7 +1362,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		} else {
 			var tree *appv1.ApplicationTree
 			if tree, err = ctrl.getResourceTree(app, managedResources); err == nil {
-				app.Status.Summary = tree.GetSummary()
+				app.Status.Summary = tree.GetSummary(app)
 				if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), tree); err != nil {
 					logCtx.Errorf("Failed to cache resources tree: %v", err)
 					return
@@ -1430,7 +1436,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if err != nil {
 		logCtx.Errorf("Failed to cache app resources: %v", err)
 	} else {
-		app.Status.Summary = tree.GetSummary()
+		app.Status.Summary = tree.GetSummary(app)
 	}
 
 	if project.Spec.SyncWindows.Matches(app).CanSync(false) {
@@ -1469,6 +1475,13 @@ func resourceStatusKey(res appv1.ResourceStatus) string {
 	return strings.Join([]string{res.Group, res.Kind, res.Namespace, res.Name}, "/")
 }
 
+func currentSourceEqualsSyncedSource(app *appv1.Application) bool {
+	if app.Spec.HasMultipleSources() {
+		return app.Spec.Sources.Equals(app.Status.Sync.ComparedTo.Sources)
+	}
+	return app.Spec.Source.Equals(&app.Status.Sync.ComparedTo.Source)
+}
+
 // needRefreshAppStatus answers if application status needs to be refreshed.
 // Returns true if application never been compared, has changed or comparison result has expired.
 // Additionally returns whether full refresh was requested or not.
@@ -1487,14 +1500,12 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		refreshType = requestedType
 		reason = fmt.Sprintf("%s refresh requested", refreshType)
 	} else {
-		if app.Spec.HasMultipleSources() {
-			if (len(app.Spec.Sources) != len(app.Status.Sync.ComparedTo.Sources)) || !reflect.DeepEqual(app.Spec.Sources, app.Status.Sync.ComparedTo.Sources) {
-				reason = "atleast one of the spec.sources differs"
-				compareWith = CompareWithLatestForceResolve
-			}
-		} else if !app.Spec.Source.Equals(app.Status.Sync.ComparedTo.Source) {
+		if !currentSourceEqualsSyncedSource(app) {
 			reason = "spec.source differs"
 			compareWith = CompareWithLatestForceResolve
+			if app.Spec.HasMultipleSources() {
+				reason = "at least one of the spec.sources differs"
+			}
 		} else if hardExpired || softExpired {
 			// The commented line below mysteriously crashes if app.Status.ReconciledAt is nil
 			// reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
@@ -1571,11 +1582,11 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	logCtx := log.WithFields(log.Fields{"application": orig.QualifiedName()})
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
 		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
-		ctrl.auditLogger.LogAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
+		ctrl.auditLogger.LogAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message, "")
 	}
 	if orig.Status.Health.Status != newStatus.Health.Status {
 		message := fmt.Sprintf("Updated health status: %s -> %s", orig.Status.Health.Status, newStatus.Health.Status)
-		ctrl.auditLogger.LogAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
+		ctrl.auditLogger.LogAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message, "")
 	}
 	var newAnnotations map[string]string
 	if orig.GetAnnotations() != nil {
@@ -1710,7 +1721,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}
 	}
 	message := fmt.Sprintf("Initiated automated sync to '%s'", desiredCommitSHA)
-	ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message)
+	ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message, "")
 	logCtx.Info(message)
 	return nil
 }
@@ -1773,18 +1784,33 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 	if !ok {
 		return false
 	}
+
+	// Only process given app if it exists in a watched namespace, or in the
+	// control plane's namespace.
+	if app.Namespace != ctrl.namespace && !glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
+		return false
+	}
+
+	if annotations := app.GetAnnotations(); annotations != nil {
+		if skipVal, ok := annotations[common.AnnotationKeyAppSkipReconcile]; ok {
+			logCtx := log.WithFields(log.Fields{"application": app.QualifiedName()})
+			if skipReconcile, err := strconv.ParseBool(skipVal); err == nil {
+				if skipReconcile {
+					logCtx.Debugf("Skipping Application reconcile based on annotation %s", common.AnnotationKeyAppSkipReconcile)
+					return false
+				}
+			} else {
+				logCtx.Debugf("Unable to determine if Application should skip reconcile based on annotation %s: %v", common.AnnotationKeyAppSkipReconcile, err)
+			}
+		}
+	}
+
 	if ctrl.clusterFilter != nil {
 		cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 		if err != nil {
 			return ctrl.clusterFilter(nil)
 		}
 		return ctrl.clusterFilter(cluster)
-	}
-
-	// Only process given app if it exists in a watched namespace, or in the
-	// control plane's namespace.
-	if app.Namespace != ctrl.namespace && !glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
-		return false
 	}
 
 	return true

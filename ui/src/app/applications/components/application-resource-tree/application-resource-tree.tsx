@@ -16,7 +16,6 @@ import {
     ComparisonStatusIcon,
     deletePodAction,
     getAppOverridesCount,
-    getExternalUrls,
     HealthStatusIcon,
     isAppNode,
     isYoungerThanXMinutes,
@@ -110,7 +109,7 @@ function getGraphSize(nodes: dagre.Node[]): {width: number; height: number} {
     return {width, height};
 }
 
-function groupNodes(nodes: any[], graph: dagre.graphlib.Graph) {
+function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph) {
     function getNodeGroupingInfo(nodeId: string) {
         const node = graph.node(nodeId);
         return {
@@ -174,22 +173,34 @@ function groupNodes(nodes: any[], graph: dagre.graphlib.Graph) {
         groupedNodesArr.forEach((obj: {kind: string; nodeIds: string[]; parentIds: dagre.Node[]}) => {
             const {nodeIds, kind, parentIds} = obj;
             const groupedNodeIds: string[] = [];
+            const podGroupIds: string[] = [];
             nodeIds.forEach((nodeId: string) => {
                 const index = nodes.findIndex(node => nodeId === node.uid || nodeId === nodeKey(node));
-                if (index > -1) {
+                const graphNode = graph.node(nodeId);
+                if (!graphNode.podGroup && index > -1) {
                     groupedNodeIds.push(nodeId);
+                } else {
+                    podGroupIds.push(nodeId);
                 }
-                graph.removeNode(nodeId);
             });
-            graph.setNode(`${parentIds[0].toString()}/child/${kind}`, {
-                kind,
-                groupedNodeIds,
-                height: NODE_HEIGHT,
-                width: NODE_WIDTH,
-                count: nodeIds.length,
-                type: NODE_TYPES.groupedNodes
-            });
-            graph.setEdge(parentIds[0].toString(), `${parentIds[0].toString()}/child/${kind}`);
+            const reducedNodeIds = nodeIds.reduce((acc, aNodeId) => {
+                if (podGroupIds.findIndex(i => i === aNodeId) < 0) {
+                    acc.push(aNodeId);
+                }
+                return acc;
+            }, []);
+            if (groupedNodeIds.length > 1) {
+                groupedNodeIds.forEach(n => graph.removeNode(n));
+                graph.setNode(`${parentIds[0].toString()}/child/${kind}`, {
+                    kind,
+                    groupedNodeIds,
+                    height: NODE_HEIGHT,
+                    width: NODE_WIDTH,
+                    count: reducedNodeIds.length,
+                    type: NODE_TYPES.groupedNodes
+                });
+                graph.setEdge(parentIds[0].toString(), `${parentIds[0].toString()}/child/${kind}`);
+            }
         });
     }
 }
@@ -216,6 +227,14 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
             return '';
         }
         return value.replace(/^Rev:/, '');
+    }
+    if (first.kind === 'ReplicaSet') {
+        return (
+            orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
+            compareRevision(getRevision(second), getRevision(first)) ||
+            nodeKey(first).localeCompare(nodeKey(second)) ||
+            0
+        );
     }
     return (
         orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
@@ -376,10 +395,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
-    let extLinks: string[] = props.app.status.summary.externalURLs;
-    if (rootNode) {
-        extLinks = getExternalUrls(props.app.metadata.annotations, props.app.status.summary.externalURLs);
-    }
+    const extLinks: string[] = props.app.status.summary.externalURLs;
     const podGroupChildren = childMap.get(treeNodeKey(node));
     const nonPodChildren = podGroupChildren?.reduce((acc, child) => {
         if (child.kind !== 'Pod') {
@@ -432,7 +448,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         {appNode && !rootNode && (
                             <Consumer>
                                 {ctx => (
-                                    <a href={ctx.baseHref + 'applications/' + node.name} title='Open application'>
+                                    <a href={ctx.baseHref + 'applications/' + node.namespace + '/' + node.name} title='Open application'>
                                         <i className='fa fa-external-link-alt' />
                                     </a>
                                 )}
@@ -605,11 +621,8 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
-    let extLinks: string[] = props.app.status.summary.externalURLs;
+    const extLinks: string[] = props.app.status.summary.externalURLs;
     const childCount = nodesHavingChildren.get(node.uid);
-    if (rootNode) {
-        extLinks = getExternalUrls(props.app.metadata.annotations, props.app.status.summary.externalURLs);
-    }
     return (
         <div
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
@@ -651,7 +664,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     {appNode && !rootNode && (
                         <Consumer>
                             {ctx => (
-                                <a href={ctx.baseHref + 'applications/' + node.name} title='Open application'>
+                                <a href={ctx.baseHref + 'applications/' + node.namespace + '/' + node.name} title='Open application'>
                                     <i className='fa fa-external-link-alt' />
                                 </a>
                             )}

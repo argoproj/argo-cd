@@ -1,6 +1,8 @@
+import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {combineLatest} from 'rxjs';
 import {map} from 'rxjs/operators';
+import {ExternalLink} from '../applications/components/application-urls';
 
 import {DataLoader} from '../shared/components';
 import {services, ViewPreferences} from '../shared/services';
@@ -67,9 +69,17 @@ export const Banner = (props: React.Props<any>) => {
                         chatBottomPosition = 85;
                     }
                 }
+                if (chatUrl) {
+                    try {
+                        const externalLink = new ExternalLink(chatUrl);
+                        chatUrl = externalLink.ref;
+                    } catch (InvalidExternalLinkError) {
+                        chatUrl = 'invalid-url';
+                    }
+                }
                 return (
                     <React.Fragment>
-                        <div className={combinedBannerClassName} style={{visibility: show ? 'visible' : 'hidden', height: heightOfBanner, left: leftOffset}}>
+                        <div className={combinedBannerClassName} style={{visibility: show ? 'visible' : 'hidden', height: heightOfBanner, marginLeft: leftOffset}}>
                             <div className='ui-banner-text' style={{maxHeight: permanent ? '25px' : '50px'}}>
                                 {url !== undefined ? (
                                     <a href={url} target='_blank' rel='noopener noreferrer'>
@@ -97,9 +107,17 @@ export const Banner = (props: React.Props<any>) => {
                         {show ? <div className={wrapperClassname}>{props.children}</div> : props.children}
                         {chatUrl && (
                             <div style={{position: 'fixed', right: 10, bottom: chatBottomPosition}}>
-                                <a href={chatUrl} className='argo-button argo-button--special'>
-                                    <i className='fas fa-comment-alt' /> {chatText}
-                                </a>
+                                {chatUrl === 'invalid-url' ? (
+                                    <Tooltip content='Invalid URL provided'>
+                                        <a className='argo-button disabled argo-button--special'>
+                                            <i className='fas fa-comment-alt' /> {chatText}
+                                        </a>
+                                    </Tooltip>
+                                ) : (
+                                    <a href={chatUrl} className='argo-button argo-button--special'>
+                                        <i className='fas fa-comment-alt' /> {chatText}
+                                    </a>
+                                )}
                             </div>
                         )}
                     </React.Fragment>

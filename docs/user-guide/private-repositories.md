@@ -26,13 +26,13 @@ or UI:
 
     ![connect repo overview](../assets/repo-add-overview.png)
 
-1. Click `Connect Repo using HTTPS` button and enter credentials 
+2. Click `Connect Repo using HTTPS` button and enter credentials 
 
     ![connect repo](../assets/repo-add-https.png)
 
     *Note: username in screenshot is for illustration purposes only , we have no relationship to this GitHub account should it exist.*
 
-1. Click `Connect` to test the connection and have the repository added 
+3. Click `Connect` to test the connection and have the repository added 
 
 ![connect repo](../assets/connect-repo.png)
 
@@ -92,11 +92,11 @@ Using the UI:
 
     ![connect repo overview](../assets/repo-add-overview.png)
 
-1. Click `Connect Repo using SSH` button, enter the URL and paste the SSH private key 
+2. Click `Connect Repo using SSH` button, enter the URL and paste the SSH private key 
 
     ![connect repo](../assets/repo-add-ssh.png)
 
-1. Click `Connect` to test the connection and have the repository added 
+3. Click `Connect` to test the connection and have the repository added 
 
 !!!note
     When pasting SSH private key in the UI, make sure there are no unintended line breaks or additional characters in the text area
@@ -125,11 +125,11 @@ Using the UI:
 
     ![connect repo overview](../assets/repo-add-overview.png)
 
-1. Click `Connect Repo using GitHub App` button, enter the URL, App Id, Installation Id, and the app's private key.
+2. Click `Connect Repo using GitHub App` button, enter the URL, App Id, Installation Id, and the app's private key.
 
     ![connect repo](../assets/repo-add-github-app.png)
 
-1. Click `Connect` to test the connection and have the repository added
+3. Click `Connect` to test the connection and have the repository added
 
 !!!note
     When pasting GitHub App private key in the UI, make sure there are no unintended line breaks or additional characters in the text area
@@ -155,11 +155,11 @@ Using the UI:
 
    ![connect repo overview](../assets/repo-add-overview.png)
 
-1. Click `Connect Repo using Google Cloud Source` button, enter the URL and the Google Cloud service account in JSON format.
+2. Click `Connect Repo using Google Cloud Source` button, enter the URL and the Google Cloud service account in JSON format.
 
    ![connect repo](../assets/repo-add-google-cloud-source.png)
 
-1. Click `Connect` to test the connection and have the repository added
+3. Click `Connect` to test the connection and have the repository added
 
 ## Credential templates
 
@@ -265,15 +265,15 @@ It is possible to add and remove TLS certificates using the ArgoCD web UI:
 
 1. In the navigation pane to the left, click on "Settings" and choose "Certificates" from the settings menu
 
-1. The following page lists all currently configured certificates and provides you with the option to add either a new TLS certificate or SSH known entries: 
+2. The following page lists all currently configured certificates and provides you with the option to add either a new TLS certificate or SSH known entries: 
 
     ![manage certificates](../assets/cert-management-overview.png)
 
-1. Click on "Add TLS certificate", fill in relevant data and click on "Create". Take care to specify only the FQDN of your repository server (not the URL) and that you C&P the complete PEM of your TLS certificate into the text area field, including the `----BEGIN CERTIFICATE----` and `----END CERTIFICATE----` lines:
+3. Click on "Add TLS certificate", fill in relevant data and click on "Create". Take care to specify only the FQDN of your repository server (not the URL) and that you C&P the complete PEM of your TLS certificate into the text area field, including the `----BEGIN CERTIFICATE----` and `----END CERTIFICATE----` lines:
 
     ![add tls certificate](../assets/cert-management-add-tls.png)
 
-1. To remove a certificate, click on the small three-dotted button next to the certificate entry, select "Remove" from the pop-up menu and confirm the removal in the following dialogue.
+4. To remove a certificate, click on the small three-dotted button next to the certificate entry, select "Remove" from the pop-up menu and confirm the removal in the following dialogue.
 
     ![remove certificate](../assets/cert-management-remove.png)
 
@@ -304,7 +304,7 @@ You can list all configured SSH known host entries using the `argocd cert list` 
 $ argocd cert list --cert-type ssh
 HOSTNAME                 TYPE  SUBTYPE              FINGERPRINT/SUBJECT
 bitbucket.org            ssh   ssh-rsa              SHA256:zzXQOXSRBEiUtuE8AikJYKwbHaxvSc0ojez9YXaGp1A
-github.com               ssh   ssh-rsa              SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8
+github.com               ssh   ssh-rsa              SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s
 gitlab.com               ssh   ecdsa-sha2-nistp256  SHA256:HbW3g8zUjNSksFbqTiUWPWg2Bq1x8xdGUrliXFzSnUw
 gitlab.com               ssh   ssh-ed25519          SHA256:eUXGGm1YGsMAS7vkcx6JOJdOGHPem5gQp4taiCfCLB8
 gitlab.com               ssh   ssh-rsa              SHA256:ROQFvPThGrW4RuWLoL9tq9I9zJ42fK4XywyRtbOz/EQ
@@ -345,15 +345,15 @@ It is possible to add and remove SSH known hosts entries using the ArgoCD web UI
 
 1. In the navigation pane to the left, click on "Settings" and choose "Certificates" from the settings menu
 
-1. The following page lists all currently configured certificates and provides you with the option to add either a new TLS certificate or SSH known entries: 
+2. The following page lists all currently configured certificates and provides you with the option to add either a new TLS certificate or SSH known entries: 
 
     ![manage certificates](../assets/cert-management-overview.png)
 
-1. Click on "Add SSH known hosts" and paste your SSH known hosts data in the following mask. **Important**: Make sure there are no line breaks in the entries (key data) when you paste the data. Afterwards, click on "Create".
+3. Click on "Add SSH known hosts" and paste your SSH known hosts data in the following mask. **Important**: Make sure there are no line breaks in the entries (key data) when you paste the data. Afterwards, click on "Create".
 
     ![manage ssh known hosts](../assets/cert-management-add-ssh.png)
 
-1. To remove a certificate, click on the small three-dotted button next to the certificate entry, select "Remove" from the pop-up menu and confirm the removal in the following dialogue.
+4. To remove a certificate, click on the small three-dotted button next to the certificate entry, select "Remove" from the pop-up menu and confirm the removal in the following dialogue.
 
     ![remove certificate](../assets/cert-management-remove.png)
 
