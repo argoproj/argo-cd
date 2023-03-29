@@ -1,21 +1,30 @@
 import {Checkbox, DataLoader, Tab, Tabs} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
-import * as moment from 'moment';
 import * as React from 'react';
 
 import {YamlEditor, ClipboardText} from '../../../shared/components';
+import {DeepLinks} from '../../../shared/components/deep-links';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
-import {ComparisonStatusIcon, formatCreationTimestamp, getPodStateReason, HealthStatusIcon} from '../utils';
+import {
+    ComparisonStatusIcon,
+    formatCreationTimestamp,
+    getPodReadinessGatesState,
+    getPodReadinessGatesState as _getPodReadinessGatesState,
+    getPodStateReason,
+    HealthStatusIcon
+} from '../utils';
 
 import './application-node-info.scss';
+import {ReadinessGatesFailedWarning} from './readiness-gates-failed-warning';
 
 export const ApplicationNodeInfo = (props: {
     application: models.Application;
     node: models.ResourceNode;
     live: models.State;
+    links: models.LinksResponse;
     controlled: {summary: models.ResourceStatus; state: models.ResourceDiff};
 }) => {
     const attributes: {title: string; value: any}[] = [
@@ -59,7 +68,7 @@ export const ApplicationNodeInfo = (props: {
             }
             attributes.push({title: 'HOSTNAMES', value: hostNames});
         } else if (props.node.kind === 'ReplicaSet') {
-            attributes.push({title: 'REPLICAS', value: `${props.live.spec?.replicas || 0}/${props.live.status?.readyReplicas || 0}/${props.live.spec?.replicas || 0}`});
+            attributes.push({title: 'REPLICAS', value: `${props.live.spec?.replicas || 0}/${props.live.status?.readyReplicas || 0}/${props.live.status?.replicas || 0}`});
         }
     }
 
@@ -99,6 +108,13 @@ export const ApplicationNodeInfo = (props: {
                 )
             } as any);
         }
+    }
+
+    if (props.links) {
+        attributes.push({
+            title: 'LINKS',
+            value: <DeepLinks links={props.links.items} />
+        });
     }
 
     const tabs: Tab[] = [
@@ -158,8 +174,17 @@ export const ApplicationNodeInfo = (props: {
         });
     }
 
+    const readinessGatesState = React.useMemo(() => {
+        if (props.live && props.node?.kind === 'Pod') {
+            return getPodReadinessGatesState(props.live);
+        }
+
+        return null;
+    }, [props.live, props.node]);
+
     return (
         <div>
+            {Boolean(readinessGatesState) && <ReadinessGatesFailedWarning readinessGatesState={readinessGatesState} />}
             <div className='white-box'>
                 <div className='white-box__details'>
                     {attributes.map(attr => (

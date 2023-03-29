@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -84,6 +85,39 @@ func NoConditions() Expectation {
 			return succeeded, message
 		}
 		return pending, message
+	}
+}
+
+func NoStatus() Expectation {
+	return func(c *Consequences) (state, string) {
+		message := "no status"
+		if reflect.ValueOf(c.app().Status).IsZero() {
+			return succeeded, message
+		}
+		return pending, message
+	}
+}
+
+func StatusExists() Expectation {
+	return func(c *Consequences) (state, string) {
+		message := "status exists"
+		if !reflect.ValueOf(c.app().Status).IsZero() {
+			return succeeded, message
+		}
+		return pending, message
+	}
+}
+
+func Namespace(name string, block func(app *Application, ns *v1.Namespace)) Expectation {
+	return func(c *Consequences) (state, string) {
+		ns, err := namespace(name)
+
+		if err != nil {
+			return failed, fmt.Sprintf("namespace not found %s", err.Error())
+		}
+
+		block(c.app(), ns)
+		return succeeded, fmt.Sprintf("namespace %s assertions passed", name)
 	}
 }
 
@@ -218,6 +252,23 @@ func pods() (*v1.PodList, error) {
 	return pods, err
 }
 
+func NoNamespace(name string) Expectation {
+	return func(c *Consequences) (state, string) {
+		_, err := namespace(name)
+
+		if err != nil {
+			return succeeded, "namespace not found"
+		}
+
+		return failed, fmt.Sprintf("found namespace %s", name)
+	}
+}
+
+func namespace(name string) (*v1.Namespace, error) {
+	fixture.KubeClientset.CoreV1()
+	return fixture.KubeClientset.CoreV1().Namespaces().Get(context.Background(), name, metav1.GetOptions{})
+}
+
 func event(namespace string, reason string, message string) Expectation {
 	return func(c *Consequences) (state, string) {
 		list, err := fixture.KubeClientset.CoreV1().Events(namespace).List(context.Background(), metav1.ListOptions{
@@ -241,7 +292,7 @@ func event(namespace string, reason string, message string) Expectation {
 }
 
 func Event(reason string, message string) Expectation {
-	return event(fixture.ArgoCDNamespace, reason, message)
+	return event(fixture.TestNamespace(), reason, message)
 }
 
 func NamespacedEvent(namespace string, reason string, message string) Expectation {
