@@ -80,8 +80,8 @@ export const ApplicationNodeInfo = (props: {
                                                 <td>
                                                     {state && (
                                                         <>
-                                                            Container is in <span className='application-node-info__labels--highlight'>{state}</span> state
-                                                            {state !== 'running' ? ' because of reason - ' : '.'}
+                                                            Container is <span className='application-node-info__labels--highlight'>{state}</span>
+                                                            {state !== 'running' ? ' because of ' : '.'}
                                                         </>
                                                     )}
                                                     <span title={msgExists || ''} key={i}>
@@ -96,12 +96,17 @@ export const ApplicationNodeInfo = (props: {
                                                         )}
                                                     </span>
                                                     {(container.state.terminated?.exitCode === 0 || container.state.terminated?.exitCode) && (
-                                                        <> Container exited with exitCode - {container.state.terminated.exitCode}.</>
+                                                        <> It exited with exitCode - {container.state.terminated.exitCode}.</>
                                                     )}
+                                                    <>
+                                                        {' '}
+                                                        It is <span className='application-node-info__labels--highlight'>{container?.started ? 'started' : 'not started'}</span> and
+                                                        is <span className='application-node-info__labels--highlight'>{container?.ready ? 'ready' : 'not ready'}</span>
+                                                    </>
                                                     <br />
                                                     {lastState && (
                                                         <>
-                                                            <>The container's lastState terminated with exit code - {lastState?.exitCode} and status - </>
+                                                            <>The container last terminated with exit code - {lastState?.exitCode} because of </>
                                                             <span title={container.lastState?.message || ''} key={i}>
                                                                 {lastState?.reason && (
                                                                     <span
