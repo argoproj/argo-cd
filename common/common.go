@@ -27,9 +27,9 @@ const (
 	ArgoCDNotificationsConfigMapName = "argocd-notifications-cm"
 	ArgoCDNotificationsSecretName    = "argocd-notifications-secret"
 	ArgoCDRBACConfigMapName          = "argocd-rbac-cm"
-	// ArgoCDKnownHostsConfigMapName The Contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
+	// ArgoCDKnownHostsConfigMapName contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
-	// ArgoCDTLSCertsConfigMapName The Contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
+	// ArgoCDTLSCertsConfigMapName contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDTLSCertsConfigMapName = "argocd-tls-certs-cm"
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
 )
@@ -56,21 +56,21 @@ const (
 
 // Default paths on the pod's file system
 const (
-	// DefaultPathTLSConfig The default path where TLS certificates for repositories are located
+	// DefaultPathTLSConfig is the default path where TLS certificates for repositories are located
 	DefaultPathTLSConfig = "/app/config/tls"
-	// DefaultPathSSHConfig The default path where SSH known hosts are stored
+	// DefaultPathSSHConfig is the default path where SSH known hosts are stored
 	DefaultPathSSHConfig = "/app/config/ssh"
-	// DefaultSSHKnownHostsName The Default name for the SSH known hosts file
+	// DefaultSSHKnownHostsName is the Default name for the SSH known hosts file
 	DefaultSSHKnownHostsName = "ssh_known_hosts"
-	// DefaultGnuPgHomePath The Default path to GnuPG home directory
+	// DefaultGnuPgHomePath is the Default path to GnuPG home directory
 	DefaultGnuPgHomePath = "/app/config/gpg/keys"
-	// DefaultAppConfigPath The Default path to repo server TLS endpoint config
+	// DefaultAppConfigPath is the Default path to repo server TLS endpoint config
 	DefaultAppConfigPath = "/app/config"
-	// DefaultPluginSockFilePath The Default path to cmp server plugin socket file
+	// DefaultPluginSockFilePath is the Default path to cmp server plugin socket file
 	DefaultPluginSockFilePath = "/home/argocd/cmp-server/plugins"
-	// DefaultPluginConfigFilePath The Default path to cmp server plugin configuration file
+	// DefaultPluginConfigFilePath is the Default path to cmp server plugin configuration file
 	DefaultPluginConfigFilePath = "/home/argocd/cmp-server/config"
-	// PluginConfigFileName The Plugin Config File is a ConfigManagementPlugin manifest located inside the plugin container
+	// PluginConfigFileName is the Plugin Config File is a ConfigManagementPlugin manifest located inside the plugin container
 	PluginConfigFileName = "plugin.yaml"
 )
 
@@ -137,7 +137,7 @@ const (
 	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
 	LabelValueSecretTypeRepoCreds = "repo-creds"
 
-	// AnnotationKeyAppInstance The Argo CD application name is used as the instance name
+	// AnnotationKeyAppInstance is the Argo CD application name is used as the instance name
 	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
@@ -165,19 +165,19 @@ const (
 	EnvVarSSODebug = "ARGOCD_SSO_DEBUG"
 	// EnvVarRBACDebug is an environment variable to enable additional RBAC debugging in the API server
 	EnvVarRBACDebug = "ARGOCD_RBAC_DEBUG"
-	// EnvVarSSHDataPath Overrides the location where SSH known hosts for repo access data is stored
+	// EnvVarSSHDataPath overrides the location where SSH known hosts for repo access data is stored
 	EnvVarSSHDataPath = "ARGOCD_SSH_DATA_PATH"
-	// EnvVarTLSDataPath Overrides the location where TLS certificate for repo access data is stored
+	// EnvVarTLSDataPath overrides the location where TLS certificate for repo access data is stored
 	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
-	// EnvGitAttemptsCount Specifies number of git remote operations attempts count
+	// EnvGitAttemptsCount specifies number of git remote operations attempts count
 	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
-	// EnvGitRetryMaxDuration Specifices max duration of git remote operation retry
+	// EnvGitRetryMaxDuration specifices max duration of git remote operation retry
 	EnvGitRetryMaxDuration = "ARGOCD_GIT_RETRY_MAX_DURATION"
-	// EnvGitRetryDuration Specifies duration of git remote operation retry
+	// EnvGitRetryDuration specifies duration of git remote operation retry
 	EnvGitRetryDuration = "ARGOCD_GIT_RETRY_DURATION"
-	// EnvGitRetryFactor Specifies fator of git remote operation retry
+	// EnvGitRetryFactor specifies fator of git remote operation retry
 	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
-	// EnvGitSubmoduleEnabled Overrides git submodule support, true by default
+	// EnvGitSubmoduleEnabled overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
@@ -297,7 +297,7 @@ const (
 // gRPC settings
 const (
 	GRPCKeepAliveEnforcementMinimum = 10 * time.Second
-	// GRPCKeepAliveTime Keep alive is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
+	// GRPCKeepAliveTime is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
 	GRPCKeepAliveTime = 2 * GRPCKeepAliveEnforcementMinimum
 )
 
@@ -312,7 +312,7 @@ const (
 	SecurityLow       = 1 // Unexceptional entries (i.e. successful access logs)
 )
 
-// TokenVerificationError Common error messages
+// TokenVerificationError is a generic error message for a failure to verify a JWT
 const TokenVerificationError = "failed to verify the token"
 
 var TokenVerificationErr = errors.New(TokenVerificationError)
