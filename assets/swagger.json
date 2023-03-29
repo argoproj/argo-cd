@@ -3868,7 +3868,7 @@
       "type": "object",
       "properties": {
         "expiresIn": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "expiresIn represents a duration in seconds"
         },
@@ -3895,14 +3895,14 @@
       "type": "object",
       "properties": {
         "expiresAt": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "id": {
           "type": "string"
         },
         "issuedAt": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         }
       }
@@ -3988,7 +3988,7 @@
           "type": "boolean"
         },
         "id": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "name": {
@@ -4445,7 +4445,7 @@
           "type": "string"
         },
         "type": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         }
       }
@@ -4584,7 +4584,7 @@
           "type": "string"
         },
         "expiresIn": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "expiresIn represents a duration in seconds"
         },
@@ -5164,7 +5164,7 @@
           "type": "string"
         },
         "remainingItemCount": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "remainingItemCount is the number of subsequent items in the list which are not included in this\nlist response. If the list request contained label or field selectors, then the number of\nremaining items is unknown and the field will be left unset and omitted during serialization.\nIf the list is complete (either because it is not chunking or because this is the last chunk),\nthen there are no more remaining items and this field will be left unset and omitted during\nserialization.\nServers older than v1.15 do not set this field.\nThe intended use of the remainingItemCount is *estimating* the size of a collection. Clients\nshould not rely on the remainingItemCount to be set or to be exact.\n+optional"
         },
@@ -5242,7 +5242,7 @@
         },
         "seconds": {
           "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive.",
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         }
       }
@@ -5312,7 +5312,7 @@
           "$ref": "#/definitions/v1Time"
         },
         "deletionGracePeriodSeconds": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "Number of seconds allowed for this object to gracefully terminate before\nit will be removed from the system. Only set when deletionTimestamp is also set.\nMay only be shortened.\nRead-only.\n+optional"
         },
@@ -5331,7 +5331,7 @@
           "type": "string"
         },
         "generation": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "A sequence number representing a specific generation of the desired state.\nPopulated by the system. Read-only.\n+optional"
         },
@@ -5471,7 +5471,7 @@
         },
         "seconds": {
           "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive.",
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         }
       }
@@ -6271,7 +6271,7 @@
         },
         "revisionHistoryLimit": {
           "description": "RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.\nThis should only be changed in exceptional circumstances.\nSetting to zero will store no history. This will reduce storage used.\nIncreasing will increase the space used to store the history, so we do not recommend increasing it.\nDefault is 10.",
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "source": {
@@ -6417,7 +6417,7 @@
           "title": "Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. \"2m\", \"1h\")"
         },
         "factor": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "Factor is a factor to multiply the base duration after each failed retry"
         },
@@ -6499,7 +6499,7 @@
         },
         "shard": {
           "description": "Shard contains optional shard number. Calculated on the fly by the application controller if not specified.",
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         }
       }
@@ -6509,7 +6509,7 @@
       "title": "ClusterCacheInfo contains information about the cluster cache",
       "properties": {
         "apisCount": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "APIsCount holds number of observed Kubernetes API count"
         },
@@ -6517,7 +6517,7 @@
           "$ref": "#/definitions/v1Time"
         },
         "resourcesCount": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "ResourcesCount holds number of observed Kubernetes resources"
         }
@@ -6580,7 +6580,7 @@
           }
         },
         "applicationsCount": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "ApplicationsCount is the number of applications managed by Argo CD on the cluster"
         },
@@ -6698,7 +6698,7 @@
           "type": "string"
         },
         "requeueAfterSeconds": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "template": {
@@ -6786,7 +6786,7 @@
           "type": "string"
         },
         "requeueAfterSeconds": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "revision": {
@@ -6911,15 +6911,15 @@
       "title": "TODO: describe this type",
       "properties": {
         "capacity": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "requestedByApp": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "requestedByNeighbors": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "resourceName": {
@@ -6957,11 +6957,11 @@
       "title": "JWTToken holds the issuedAt and expiresAt values of a token",
       "properties": {
         "exp": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "iat": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "id": {
@@ -7160,7 +7160,7 @@
           "title": "Phase is the current phase of the operation"
         },
         "retryCount": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "RetryCount contains time of operation retries"
         },
@@ -7291,7 +7291,7 @@
         },
         "requeueAfterSeconds": {
           "description": "Standard parameters.",
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "template": {
@@ -7435,12 +7435,12 @@
           "title": "GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com"
         },
         "githubAppID": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication"
         },
         "githubAppInstallationID": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication"
         },
@@ -7525,12 +7525,12 @@
           "title": "GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com"
         },
         "githubAppID": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "GithubAppId specifies the ID of the GitHub app used to access the repo"
         },
         "githubAppInstallationID": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo"
         },
@@ -7969,7 +7969,7 @@
           "type": "string"
         },
         "syncWave": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "version": {
@@ -7986,7 +7986,7 @@
         },
         "limit": {
           "description": "Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed.",
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         }
       }
@@ -8002,7 +8002,7 @@
           "$ref": "#/definitions/v1Time"
         },
         "id": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "ID is an auto incrementing identifier of the RevisionHistory"
         },
@@ -8092,7 +8092,7 @@
         },
         "requeueAfterSeconds": {
           "description": "Standard parameters.",
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "template": {
