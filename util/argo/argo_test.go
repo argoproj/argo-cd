@@ -1513,7 +1513,6 @@ func TestFormatSyncMsg(t *testing.T) {
 				res.ResourceKey.Kind = tt.kind
 			}
 			err := FormatSyncMsg(res, tt.mockFn)
-			fmt.Println(err)
 			if res.ResourceKey.Kind == "Volume" {
 				assert.NotNil(t, err)
 			} else {
