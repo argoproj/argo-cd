@@ -11,7 +11,10 @@ Checklist:
 * [ ] Does this PR require documentation updates?
 * [ ] I've updated documentation as required by this PR.
 * [ ] Optional. My organization is added to USERS.md.
-* [ ] I have signed off all my commits as required by [DCO](https://github.com/argoproj/argoproj/tree/master/community#contributing-to-argo)
+* [ ] I have signed off all my commits as required by [DCO](https://github.com/argoproj/argoproj/blob/master/community/CONTRIBUTING.md#legal)
 * [ ] I have written unit and/or e2e tests for my change. PRs without these are unlikely to be merged.
 * [ ] My build is green ([troubleshooting builds](https://argo-cd.readthedocs.io/en/latest/developer-guide/ci/)). 
+* [ ] My new feature complies with the [feature status](https://github.com/argoproj/argoproj/blob/master/community/feature-status.md) guidelines.
+* [ ] I have added a brief description of why this PR is necessary and/or what this PR solves.
 
+Please see [Contribution FAQs](https://argo-cd.readthedocs.io/en/latest/developer-guide/faq/) if you have questions about your pull-request.

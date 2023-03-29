@@ -7,6 +7,7 @@ import (
 	"time"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func Test_getInfos(t *testing.T) {
@@ -750,6 +752,16 @@ func Test_unset(t *testing.T) {
 				"old1=new:tag",
 				"old2=new:tag",
 			},
+			Replicas: []v1alpha1.KustomizeReplica{
+				{
+					Name:  "my-deployment",
+					Count: intstr.FromInt(2),
+				},
+				{
+					Name:  "my-statefulset",
+					Count: intstr.FromInt(4),
+				},
+			},
 		},
 	}
 
@@ -823,6 +835,15 @@ func Test_unset(t *testing.T) {
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, 2, len(kustomizeSource.Kustomize.Replicas))
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
+	assert.Equal(t, 1, len(kustomizeSource.Kustomize.Replicas))
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
@@ -1121,13 +1142,13 @@ func TestParseSelectedResources(t *testing.T) {
 	assert.Equal(t, *operationResources[0], v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "test",
-		Kind:      "Application",
+		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
 	})
 	assert.Equal(t, *operationResources[1], v1alpha1.SyncOperationResource{
 		Namespace: "namespace",
 		Name:      "test",
-		Kind:      "Application",
+		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
 	})
 	assert.Equal(t, *operationResources[2], v1alpha1.SyncOperationResource{
