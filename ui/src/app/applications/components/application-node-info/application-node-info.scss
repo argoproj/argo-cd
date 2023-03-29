@@ -21,24 +21,6 @@
     &__labels {
         line-height: 28px;
 
-        //table {
-        //    border-collapse: collapse;
-        //    width: 100%;
-        //    td {
-        //        line-height: 20px;
-        //        padding: 4px;
-        //        margin-bottom: 8px;
-        //    }
-        //
-        //    tr {
-        //        border-bottom: 1px solid rgba(222, 230, 235, 0.7);
-        //    }
-        //
-        //    tr:last-child {
-        //        border-bottom: none;
-        //    }
-        //}
-
         &--highlight {
             font-style: italic;
         }
@@ -67,11 +49,20 @@
             color: $argo-color-gray-8;
         }
     }
+}
 
-    .parent {
-        display: flex;
-        align-items: center;
-        // justify-content: space-between;
-        flex-direction: column;
+.container {
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    line-height: 1.8;
+    border-bottom: 1px solid rgba(222, 230, 235, 0.7);
+
+    &__name {
+        width: 15%;
     }
+}
+
+.container:last-child {
+    border-bottom: none;
 }
