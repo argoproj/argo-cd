@@ -213,8 +213,7 @@ $header: 120px;
         display: inline-block;
         background-color: $argo-color-gray-1;
         box-shadow: 1px 1px 3px $argo-color-gray-5;
-        position: fixed;
-
+        position: absolute;
         a {
             padding: 5px;
             margin: 2px;
@@ -227,7 +226,6 @@ $header: 120px;
                 position: relative;
                 display: inline-block;
                 vertical-align: middle;
-                font-size: 13px;
                 font-weight: 500;
                 line-height: 1.4;
                 text-align: center;
@@ -247,6 +245,7 @@ $header: 120px;
                 color: $argo-color-gray-1;
                 background-color: $argo-color-gray-6;
                 border: 3px solid $argo-color-teal-4;
+                font-size: 16px;
                 outline-style: solid;
                 &:hover {
                     background-color: $argo-color-gray-5;
@@ -260,21 +259,19 @@ $header: 120px;
             padding-bottom: 6px;
         }
 
-        .panel-options-text {
+        .zoom-value {
             user-select: none;
             margin-top: 3px;
             margin-right: 6px;
             margin-left: 4px;
             font-size: 14px;
             text-align-last: right;
+            float: right;
             width: 40px;
             border: 1px $argo-color-gray-5 solid;
             background-color: $argo-color-gray-3;
             padding: 2px;
             color: $argo-color-gray-7;
-            &.pod-group-count {
-                text-align-last: center;
-            }
         }
     }
 }
@@ -350,22 +347,30 @@ $header: 120px;
 }
 }
 
-.resource-parent-node-info {
-    display: flex;
+.resource-parent-node-info-title {
     flex-direction: column;
-    margin-right: 15px;
-    paddting-top: .3em;
+    color: $argo-color-gray-6;
+
+    &__label {
+        display: flex;
+        margin-bottom: 0.25em;
+        flex-shrink: 1;
+        div:first-child {
+            margin-right: 10px;
+            width: 60px;
+            text-align: left;
+        }
+        div:last-child {
+            font-weight: 500;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: left;
+
+        }
+    }
 }
 
-.resource-parent-node-info > div {
-    align-self: flex-start;
 
-}
-.resource-parent-node-label {
-    font-size: .9em;
-    text-align: left;
-    fontWeight: 600;
-    color:'#6D7F8B';
-    padding: 5px 5px;
-    margin-bottom: .2em;
-}
+

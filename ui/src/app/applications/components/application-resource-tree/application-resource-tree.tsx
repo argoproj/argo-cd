@@ -294,17 +294,18 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
                 </div>
                 <div
                     className='application-resource-tree__node-title application-resource-tree__direction-center-left'
-                    onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}>
+                    onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}
+                    title={`Click to see details of ${node.count} collapsed ${node.kind} and doesn't contains any active pods`}>
                     {node.kind}
                     <span style={{paddingLeft: '.5em', fontSize: 'small'}}>
                         {node.kind === 'ReplicaSet' ? (
                             <i
                                 className='fa-solid fa-cart-flatbed icon-background'
-                                title={`Click to see details ${node.count} collapsed ${node.kind} and doesn't contains any active pods`}
+                                title={`Click to see details of ${node.count} collapsed ${node.kind} and doesn't contains any active pods`}
                                 key={node.uid}
                             />
                         ) : (
-                            <i className='fa fa-info-circle icon-background' title={`Click to show details ${node.count} collapsed ${node.kind}`} key={node.uid} />
+                            <i className='fa fa-info-circle icon-background' title={`Click to see details of ${node.count} collapsed ${node.kind}`} key={node.uid} />
                         )}
                     </span>
                 </div>
@@ -419,9 +420,9 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     const margin = 8;
     let topExtra = 0;
     const podGroup = node.podGroup;
-    const podGroupHealthy = podGroup.pods.filter(pod => pod.health === 'Healthy');
-    const podGroupDegraded = podGroup.pods.filter(pod => pod.health === 'Degraded');
-    const podGroupInProgress = podGroup.pods.filter(pod => pod.health === 'Progressing');
+    const podGroupHealthy = (podGroup.pods || []).filter(pod => pod.health === 'Healthy');
+    const podGroupDegraded = (podGroup.pods || []).filter(pod => pod.health === 'Degraded');
+    const podGroupInProgress = (podGroup.pods || []).filter(pod => pod.health === 'Progressing');
 
     const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
     const numberOfRows = showPodGroupByStatus
@@ -558,16 +559,20 @@ function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, 
         <div className='application-resource-tree__node--lower-section__pod-group__pod-container__pods'>
             {pods.length !== 0 && showPodGroupByStatus ? (
                 <React.Fragment>
-                    <div style={{cursor: 'none'}} className={`pod-view__node__pod pod-view__node__pod--${pods[0].health.toLowerCase()}`}>
-                        <PodHealthIcon state={{status: pods[0].health, message: pods[0].health}} key={pods[0].uid} />
+                    <div className={`pod-view__node__pod pod-view__node__pod--${pods[0].health.toLowerCase()}`}>
+                        <PodHealthIcon state={{status: pods[0].health, message: ''}} key={pods[0].uid} />
                     </div>
+
                     <div className='pod-view__node__label--large'>
                         <a
                             className='application-resource-tree__node-title'
                             onClick={() =>
                                 props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupdedNodeIds === 'undefined' ? node.groupdedNodeIds : pods.map(pod => pod.uid))
                             }>
-                            &nbsp; {pods[0].health} {pods.length} pods
+                            &nbsp;
+                            <span title={`Click to view the ${pods[0].health.toLowerCase()} pods list`}>
+                                {pods[0].health} {pods.length} pods
+                            </span>
                         </a>
                     </div>
                 </React.Fragment>

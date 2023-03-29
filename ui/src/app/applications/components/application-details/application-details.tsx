@@ -468,7 +468,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
                                                                 <i className='fa fa-search-minus fa-fw' />
                                                             </a>
-                                                            <span className={`panel-options-text`}>{zoomNum}%</span>
+                                                            <div className={`zoom-value`}>{zoomNum}%</div>
                                                         </span>
                                                     </div>
                                                     <ApplicationResourceTree
