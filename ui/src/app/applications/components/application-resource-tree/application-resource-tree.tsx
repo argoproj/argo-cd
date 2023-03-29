@@ -420,14 +420,14 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     const margin = 8;
     let topExtra = 0;
     const podGroup = node.podGroup;
-    const podGroupHealthy = (podGroup.pods || []).filter(pod => pod.health === 'Healthy');
-    const podGroupDegraded = (podGroup.pods || []).filter(pod => pod.health === 'Degraded');
-    const podGroupInProgress = (podGroup.pods || []).filter(pod => pod.health === 'Progressing');
+    const podGroupHealthy = (podGroup?.pods || []).filter(pod => pod.health === 'Healthy');
+    const podGroupDegraded = (podGroup?.pods || []).filter(pod => pod.health === 'Degraded');
+    const podGroupInProgress = (podGroup?.pods || []).filter(pod => pod.health === 'Progressing');
 
     const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
     const numberOfRows = showPodGroupByStatus
         ? [podGroupHealthy, podGroupDegraded, podGroupInProgress].reduce((total, podGroupByStatus) => total + (podGroupByStatus.filter(pod => pod).length > 0 ? 1 : 0), 0)
-        : Math.ceil(podGroup.pods.length / 8);
+        : Math.ceil(podGroup?.pods.length / 8);
 
     if (podGroup) {
         topExtra = margin + (POD_NODE_HEIGHT / 2 + 30 * numberOfRows) / 2;
@@ -869,7 +869,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
 
             appContext.apis.notifications.show({
                 content: `Since the number of pods has surpassed the threshold pod count of ${podGroupCount}, you will now be switched to the group node view.
-                 If you prefer the tree view, you can simply click on the group node icon to deselect the current view.`,
+                 If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`,
                 type: NotificationType.Success
             });
         }

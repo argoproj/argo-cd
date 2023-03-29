@@ -245,11 +245,12 @@ $header: 120px;
                 color: $argo-color-gray-1;
                 background-color: $argo-color-gray-6;
                 border: 3px solid $argo-color-teal-4;
-                font-size: 16px;
+                font-size: 14px;
                 outline-style: solid;
                 &:hover {
                     background-color: $argo-color-gray-5;
                 }
+
             }
         }
 
@@ -261,7 +262,7 @@ $header: 120px;
 
         .zoom-value {
             user-select: none;
-            margin-top: 3px;
+            margin-top: 5px;
             margin-right: 6px;
             margin-left: 4px;
             font-size: 14px;
@@ -358,7 +359,7 @@ $header: 120px;
         div:first-child {
             margin-right: 10px;
             width: 60px;
-            text-align: left;
+            text-align: right;
         }
         div:last-child {
             font-weight: 500;
