@@ -1,6 +1,7 @@
 package kustomize
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -14,7 +15,6 @@ import (
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -118,13 +118,37 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 		}
 
+		if len(opts.Replicas) > 0 {
+			// set replicas my-development=2 my-statefulset=4
+			args := []string{"edit", "set", "replicas"}
+			for _, replica := range opts.Replicas {
+				count, err := replica.GetIntCount()
+				if err != nil {
+					return nil, nil, err
+				}
+				arg := fmt.Sprintf("%s=%d", replica.Name, count)
+				args = append(args, arg)
+			}
+
+			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
 		if len(opts.CommonLabels) > 0 {
 			//  edit add label foo:bar
 			args := []string{"edit", "add", "label"}
 			if opts.ForceCommonLabels {
 				args = append(args, "--force")
 			}
-			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonLabels)...)...)
+			commonLabels := map[string]string{}
+			for name, value := range opts.CommonLabels {
+				commonLabels[name] = envVars.Envsubst(value)
+			}
+			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonLabels)...)...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -138,7 +162,25 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if opts.ForceCommonAnnotations {
 				args = append(args, "--force")
 			}
-			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonAnnotations)...)...)
+			var commonAnnotations map[string]string
+			if opts.CommonAnnotationsEnvsubst {
+				commonAnnotations = map[string]string{}
+				for name, value := range opts.CommonAnnotations {
+					commonAnnotations[name] = envVars.Envsubst(value)
+				}
+			} else {
+				commonAnnotations = opts.CommonAnnotations
+			}
+			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonAnnotations)...)...)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if opts.Namespace != "" {
+			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namespace", "--", opts.Namespace)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -258,7 +300,7 @@ func getSemver() (*semver.Version, error) {
 
 // getSemverSafe returns parsed kustomize version;
 // if version cannot be parsed assumes that "kustomize version" output format changed again
-//  and fallback to latest ( v99.99.99 )
+// and fallback to latest ( v99.99.99 )
 func getSemverSafe() *semver.Version {
 	if semVer == nil {
 		semVerLock.Lock()
