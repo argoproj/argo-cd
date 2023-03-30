@@ -24,22 +24,23 @@ const RenderContainerState = (props: {container: any}) => {
     const state = (props.container.state?.waiting && 'waiting') || (props.container.state?.terminated && 'terminated') || (props.container.state?.running && 'running');
     const status = props.container.state.waiting?.reason || props.container.state.terminated?.reason || props.container.state.running?.reason;
     const lastState = props.container.lastState?.terminated;
-    const msg = props.container.state.waiting?.message || props.container.state.terminated?.message;
+    const msg = props.container.state.waiting?.message || props.container.state.terminated?.message || props.container.state.running?.message;
+
     return (
-        <div className='container'>
-            <div className='container__name'>{props.container.name}</div>
+        <div className='application-node-info__container'>
+            <div className='application-node-info__container--name'>{props.container.name}</div>
             <div>
                 {state && (
                     <>
-                        Container is <span className='application-node-info__labels--highlight'>{state}</span>
+                        Container is <span className='application-node-info__container--highlight'>{state}</span>
                         {status && ' because of '}
                     </>
                 )}
                 <span title={msg || ''}>
                     {status && (
                         <span
-                            className={classNames('application-node-info__labels--highlight', {
-                                'application-node-info__labels--hint': !!msg
+                            className={classNames('application-node-info__container--highlight', {
+                                'application-node-info__container--hint': !!msg
                             })}>
                             {status}
                         </span>
@@ -49,32 +50,32 @@ const RenderContainerState = (props: {container: any}) => {
                 {(props.container.state.terminated?.exitCode === 0 || props.container.state.terminated?.exitCode) && (
                     <>
                         {' '}
-                        It exited with <span className='application-node-info__labels--highlight'>exit code {props.container.state.terminated.exitCode}.</span>
+                        It exited with <span className='application-node-info__container--highlight'>exit code {props.container.state.terminated.exitCode}.</span>
                     </>
                 )}
                 <>
                     {' '}
-                    It is <span className='application-node-info__labels--highlight'>{props.container?.started ? 'started' : 'not started'}</span> and
-                    <span className='application-node-info__labels--highlight'>{props.container?.ready ? ' ready.' : ' not ready.'}</span>
+                    It is <span className='application-node-info__container--highlight'>{props.container?.started ? 'started' : 'not started'}</span> and
+                    <span className='application-node-info__container--highlight'>{props.container?.ready ? ' ready.' : ' not ready.'}</span>
                 </>
                 <br />
                 {lastState && (
                     <>
                         <>
-                            The container last terminated with <span className='application-node-info__labels--highlight'>exit code {lastState?.exitCode}</span>
+                            The container last terminated with <span className='application-node-info__container--highlight'>exit code {lastState?.exitCode}</span>
                         </>
                         {lastState?.reason && ' because of '}
                         <span title={props.container.lastState?.message || ''}>
                             {lastState?.reason && (
                                 <span
-                                    className={classNames('application-node-info__labels--highlight', {
-                                        'application-node-info__labels--hint': !!props.container.lastState?.message
+                                    className={classNames('application-node-info__container--highlight', {
+                                        'application-node-info__container--hint': !!props.container.lastState?.message
                                     })}>
                                     {lastState?.reason}
-                                    {'.'}
                                 </span>
                             )}
                         </span>
+                        {'.'}
                     </>
                 )}
             </div>

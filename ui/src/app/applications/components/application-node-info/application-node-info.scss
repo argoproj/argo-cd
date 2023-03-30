@@ -20,16 +20,6 @@
 
     &__labels {
         line-height: 28px;
-
-        &--highlight {
-            font-style: italic;
-        }
-
-        &--hint {
-            text-decoration: underline;
-            text-decoration-style: dashed;
-            cursor: default;
-        }
     }
 
     &__label {
@@ -49,20 +39,28 @@
             color: $argo-color-gray-8;
         }
     }
-}
 
-.container {
-    display: flex;
-    align-items: center;
-    flex-direction: row;
-    line-height: 1.8;
-    border-bottom: 1px solid rgba(222, 230, 235, 0.7);
+    &__container {
+        display: flex;
+        align-items: center;
+        flex-direction: row;
+        line-height: 1.8;
+        border-bottom: 1px solid rgba(222, 230, 235, 0.7);
 
-    &__name {
-        width: 15%;
+        &--name {
+            width: 15%;
+        }
+        &--highlight {
+            font-style: italic;
+        }
+
+        &--hint {
+            text-decoration: underline;
+            text-decoration-style: dashed;
+            cursor: default;
+        }
+        &:last-child {
+            border-bottom: none;
+        }
     }
-}
-
-.container:last-child {
-    border-bottom: none;
 }
