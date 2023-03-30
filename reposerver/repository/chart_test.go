@@ -14,7 +14,7 @@ version: 0.0.0`
 	cd, err := getChartDetails(chart1)
 	assert.NoError(t, err)
 	assert.Equal(t, cd.Description, "")
-	assert.Equal(t, cd.Maintainers, []string{})
+	assert.Equal(t, cd.Maintainers, []string(nil))
 	assert.Equal(t, cd.Home, "")
 }
 
