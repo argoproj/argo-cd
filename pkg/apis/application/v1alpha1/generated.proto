@@ -633,11 +633,11 @@ message BasicAuthBitbucketServer {
 message ChartDetails {
   optional string description = 1;
 
-  // Home string
+  // The URL of this projects home page, e.g. "http://example.com"
   optional string home = 2;
 
-  // Concatenated maintainers, name and email, e.g. "John Doe <john_doe@my-company.com>"
-  optional string maintainers = 3;
+  // List of maintainer details, name and email, e.g. ["John Doe <john_doe@my-company.com>"]
+  repeated string maintainers = 3;
 }
 
 // Cluster is the definition of a cluster resource

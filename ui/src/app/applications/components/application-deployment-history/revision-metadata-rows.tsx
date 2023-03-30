@@ -32,10 +32,10 @@ export const RevisionMetadataRows = (props: {applicationName: string; applicatio
                                 <div className='columns small-9'>{m.description}</div>
                             </div>
                         )}
-                        {m.maintainers && (
+                        {m.maintainers.length > 0 && (
                             <div className='row'>
                                 <div className='columns small-3'>Maintainers:</div>
-                                <div className='columns small-9'>{m.maintainers}</div>
+                                <div className='columns small-9'>{m.maintainers.join(', ')}</div>
                             </div>
                         )}
                     </div>

@@ -1215,10 +1215,10 @@ type RevisionMetadata struct {
 // ChartDetails contains helm chart metadata for a specific version
 type ChartDetails struct {
 	Description string `json:"description,omitempty" protobuf:"bytes,1,opt,name=description"`
-	// Home string
+	// The URL of this projects home page, e.g. "http://example.com"
 	Home string `json:"home,omitempty" protobuf:"bytes,2,opt,name=home"`
-	// Concatenated maintainers, name and email, e.g. "John Doe <john_doe@my-company.com>"
-	Maintainers string `json:"maintainers,omitempty" protobuf:"bytes,3,opt,name=maintainers"`
+	// List of maintainer details, name and email, e.g. ["John Doe <john_doe@my-company.com>"]
+	Maintainers []string `json:"maintainers,omitempty" protobuf:"bytes,3,opt,name=maintainers"`
 }
 
 // SyncOperationResult represent result of sync operation

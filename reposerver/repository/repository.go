@@ -2263,16 +2263,17 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	return metadata, nil
 }
 
+// GetRevisionChartDetails returns the helm chart details of a given version
 func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
 	details, err := s.cache.GetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision)
 	if err == nil {
 		log.Infof("revision chart details cache hit: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
 		return details, nil
 	} else {
-		if err != reposervercache.ErrCacheMiss {
-			log.Warnf("revision metadata cache error %s/%s/%s: %v", q.Repo.Repo, q.Name, q.Revision, err)
-		} else {
+		if err == reposervercache.ErrCacheMiss {
 			log.Infof("revision metadata cache miss: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
+		} else {
+			log.Warnf("revision metadata cache error %s/%s/%s: %v", q.Repo.Repo, q.Name, q.Revision, err)
 		}
 	}
 	helmClient, revision, err := s.newHelmClientResolveRevision(q.Repo, q.Revision, q.Name, true)
@@ -2281,21 +2282,21 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 	}
 	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false)
 	if err != nil {
-		return nil, fmt.Errorf("extract chart: %v", err)
+		return nil, fmt.Errorf("error extracting chart: %v", err)
 	}
 	defer io.Close(closer)
 	helmCmd, err := helm.NewCmdWithVersion(chartPath, helm.HelmV3, q.Repo.EnableOCI, q.Repo.Proxy)
 	if err != nil {
-		return nil, fmt.Errorf("helm cmd: %v", err)
+		return nil, fmt.Errorf("error creating helm cmd: %v", err)
 	}
 	defer helmCmd.Close()
 	helmDetails, err := helmCmd.InspectChart()
 	if err != nil {
-		return nil, fmt.Errorf("inspect chart: %v", err)
+		return nil, fmt.Errorf("error inspecting chart: %v", err)
 	}
 	details, err = getChartDetails(helmDetails)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting chart details: %v", err)
 	}
 	_ = s.cache.SetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision, details)
 	return details, nil

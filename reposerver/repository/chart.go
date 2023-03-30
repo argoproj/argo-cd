@@ -8,9 +8,9 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-func getChartDetails(helmDetails string) (*v1alpha1.ChartDetails, error) {
+func getChartDetails(chartYAML string) (*v1alpha1.ChartDetails, error) {
 	// see: https://helm.sh/docs/topics/charts/ for more details
-	var chartDetails struct {
+	var chart struct {
 		Description string `yaml:"description,omitempty"`
 		Home        string `yaml:"home,omitempty"`
 		Maintainers []struct {
@@ -19,12 +19,12 @@ func getChartDetails(helmDetails string) (*v1alpha1.ChartDetails, error) {
 			Url   string `yaml:"url,omitempty"`
 		} `yaml:"maintainers,omitempty"`
 	}
-	err := yaml.Unmarshal([]byte(helmDetails), &chartDetails)
+	err := yaml.Unmarshal([]byte(chartYAML), &chart)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal")
+		return nil, fmt.Errorf("failed to unmarshal chart: %w", err)
 	}
 	var maintainers []string
-	for _, maintainer := range chartDetails.Maintainers {
+	for _, maintainer := range chart.Maintainers {
 		if maintainer.Email != "" {
 			maintainers = append(maintainers, strings.Trim(fmt.Sprintf("%v <%v>", maintainer.Name, maintainer.Email), " "))
 		} else {
@@ -32,8 +32,8 @@ func getChartDetails(helmDetails string) (*v1alpha1.ChartDetails, error) {
 		}
 	}
 	return &v1alpha1.ChartDetails{
-		Description: chartDetails.Description,
-		Maintainers: strings.Join(maintainers, ", "),
-		Home:        chartDetails.Home,
+		Description: chart.Description,
+		Maintainers: maintainers,
+		Home:        chart.Home,
 	}, nil
 }

@@ -2299,16 +2299,24 @@ func schema_pkg_apis_application_v1alpha1_ChartDetails(ref common.ReferenceCallb
 					},
 					"home": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Home string",
+							Description: "The URL of this projects home page, e.g. \"http://example.com\"",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"maintainers": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Concatenated maintainers, name and email, e.g. \"John Doe <john_doe@my-company.com>\"",
-							Type:        []string{"string"},
-							Format:      "",
+							Description: "List of maintainer details, name and email, e.g. [\"John Doe <john_doe@my-company.com>\"]",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 				},

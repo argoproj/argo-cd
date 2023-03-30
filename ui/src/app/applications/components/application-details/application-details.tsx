@@ -634,10 +634,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                             <div className='columns small-9'>{m.description}</div>
                                                                         </div>
                                                                     )}
-                                                                    {m.maintainers && (
+                                                                    {m.maintainers.length > 0 && (
                                                                         <div className='row white-box__details-row'>
                                                                             <div className='columns small-3'>Maintainers:</div>
-                                                                            <div className='columns small-9'>{m.maintainers}</div>
+                                                                            <div className='columns small-9'>{m.maintainers.join(', ')}</div>
                                                                         </div>
                                                                     )}
                                                                 </div>

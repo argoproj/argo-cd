@@ -14,7 +14,7 @@ version: 0.0.0`
 	cd, err := getChartDetails(chart1)
 	assert.NoError(t, err)
 	assert.Equal(t, cd.Description, "")
-	assert.Equal(t, cd.Maintainers, "")
+	assert.Equal(t, cd.Maintainers, []string{})
 	assert.Equal(t, cd.Home, "")
 }
 
@@ -32,7 +32,7 @@ maintainers:
 	cd, err := getChartDetails(chart1)
 	assert.NoError(t, err)
 	assert.Equal(t, cd.Description, "a good chart")
-	assert.Equal(t, cd.Maintainers, "alex <example@example.com>")
+	assert.Equal(t, cd.Maintainers, []string{"alex <example@example.com>"})
 	assert.Equal(t, cd.Home, "https://example.com")
 
 	chart1 = `apiVersion: v3
@@ -45,7 +45,7 @@ maintainers:
 `
 	cd, err = getChartDetails(chart1)
 	assert.NoError(t, err)
-	assert.Equal(t, cd.Maintainers, "alex")
+	assert.Equal(t, cd.Maintainers, []string{"alex"})
 }
 
 func Test_getChartDetailsBad(t *testing.T) {

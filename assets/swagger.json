@@ -6494,11 +6494,14 @@
         },
         "home": {
           "type": "string",
-          "title": "Home string"
+          "title": "The URL of this projects home page, e.g. \"http://example.com\""
         },
         "maintainers": {
-          "type": "string",
-          "title": "Concatenated maintainers, name and email, e.g. \"John Doe <john_doe@my-company.com>\""
+          "type": "array",
+          "title": "List of maintainer details, name and email, e.g. [\"John Doe <john_doe@my-company.com>\"]",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

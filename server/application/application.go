@@ -1366,6 +1366,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	})
 }
 
+// RevisionChartDetails returns the helm chart metadata, as fetched from the reposerver
 func (s *Server) RevisionChartDetails(ctx context.Context, q *application.RevisionMetadataQuery) (*appv1.ChartDetails, error) {
 	appName := q.GetName()
 	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
