@@ -57,6 +57,20 @@ type E2EFixtureK8sClient struct {
 	AppSetClientset  dynamic.ResourceInterface
 }
 
+func GetEnvWithDefault(envName, defaultValue string) string {
+	r := os.Getenv(envName)
+	if r == "" {
+		return defaultValue
+	}
+	return r
+}
+
+// TestNamespace returns the namespace where Argo CD E2E test instance will be
+// running in.
+func TestNamespace() string {
+	return GetEnvWithDefault("ARGOCD_E2E_NAMESPACE", ArgoCDNamespace)
+}
+
 // GetE2EFixtureK8sClient initializes the Kubernetes clients (if needed), and returns the most recently initalized value.
 // Note: this requires a local Kubernetes configuration (for example, while running the E2E tests).
 func GetE2EFixtureK8sClient() *E2EFixtureK8sClient {
@@ -73,7 +87,7 @@ func GetE2EFixtureK8sClient() *E2EFixtureK8sClient {
 			KubeClientset:    kubernetes.NewForConfigOrDie(config),
 		}
 
-		internalClientVars.AppSetClientset = internalClientVars.DynamicClientset.Resource(v1alpha1.SchemeGroupVersion.WithResource("applicationsets")).Namespace(ArgoCDNamespace)
+		internalClientVars.AppSetClientset = internalClientVars.DynamicClientset.Resource(v1alpha1.SchemeGroupVersion.WithResource("applicationsets")).Namespace(TestNamespace())
 
 	})
 	return internalClientVars
@@ -98,10 +112,10 @@ func EnsureCleanState(t *testing.T) {
 	// kubectl delete applicationsets --all
 	CheckError(fixtureClient.AppSetClientset.DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
 	// kubectl delete apps --all
-	CheckError(fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
+	CheckError(fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
 
 	// kubectl delete secrets -l e2e.argoproj.io=true
-	CheckError(fixtureClient.KubeClientset.CoreV1().Secrets(ArgoCDNamespace).DeleteCollection(context.Background(),
+	CheckError(fixtureClient.KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: TestingLabel + "=true"}))
 
 	// First we wait up to 30 seconds for all the ApplicationSets to delete, but we don't fail if they don't.
@@ -121,14 +135,14 @@ func EnsureCleanState(t *testing.T) {
 
 	// Remove finalizers from Argo CD Application resources in the namespace
 	err = waitForSuccess(func() error {
-		appList, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).List(context.Background(), v1.ListOptions{})
+		appList, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).List(context.Background(), v1.ListOptions{})
 		if err != nil {
 			return err
 		}
 		for _, app := range appList.Items {
 			t.Log("Removing finalizer for: ", app.Name)
 			app.Finalizers = []string{}
-			_, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Update(context.TODO(), &app, v1.UpdateOptions{})
+			_, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).Update(context.TODO(), &app, v1.UpdateOptions{})
 			if err != nil {
 				return err
 			}
@@ -169,7 +183,7 @@ func waitForExpectedClusterState() error {
 
 	// Wait up to 60 seconds for all the Applications to delete
 	if err := waitForSuccess(func() error {
-		appList, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).List(context.Background(), v1.ListOptions{})
+		appList, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).List(context.Background(), v1.ListOptions{})
 		if err != nil {
 			return err
 		}
