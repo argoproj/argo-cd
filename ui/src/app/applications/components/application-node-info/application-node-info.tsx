@@ -52,7 +52,6 @@ export const ApplicationNodeInfo = (props: {
             )
         });
     }
-    let showLiveState = true;
 
     if (props.live) {
         if (props.node.kind === 'Pod') {
@@ -111,7 +110,7 @@ export const ApplicationNodeInfo = (props: {
             } as any);
         }
     }
-
+    let showLiveState = true;
     if (props.links) {
         attributes.push({
             title: 'LINKS',
