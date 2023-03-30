@@ -55,13 +55,13 @@ func GetClusterFilter(distributionFunction DistributionFunction, shard int) Clus
 }
 
 func GetDistributionFunction(db db.ArgoDB) DistributionFunction {
-	filterFunctionName := env.StringFromEnv(common.EnvControllerShardingAlgorithm, "legacy")
+	filterFunctionName := env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.LegacyShardingAlgorithm)
 	log.Infof("Using filter function:  %s", filterFunctionName)
 	distributionFunction := GetShardByIdUsingHashDistributionFunction()
 	switch {
-	case filterFunctionName == "hash":
+	case filterFunctionName == common.RoundRobinShardingAlgorithm:
 		distributionFunction = GetShardByIndexModuloReplicasCountDistributionFunction(db)
-	case filterFunctionName == "legacy":
+	case filterFunctionName == common.LegacyShardingAlgorithm:
 		distributionFunction = GetShardByIdUsingHashDistributionFunction()
 	default:
 		distributionFunctionName := runtime.FuncForPC(reflect.ValueOf(distributionFunction).Pointer())
