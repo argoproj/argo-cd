@@ -45,7 +45,7 @@ func TestGetShardByID_NoReplicasUsingHashDistributionFunctionWithClusters(t *tes
 	db, cluster1, cluster2, cluster3, cluster4, cluster5 := createTestClusters()
 	// Test with replicas set to 0
 	os.Setenv(common.EnvControllerReplicas, "0")
-	os.Setenv(common.EnvControllerShardingAlgorithm, "hash")
+	os.Setenv(common.EnvControllerShardingAlgorithm, common.RoundRobinShardingAlgorithm)
 	distributionFunction := GetShardByIndexModuloReplicasCountDistributionFunction(db)
 	assert.Equal(t, -1, distributionFunction(nil))
 	assert.Equal(t, -1, distributionFunction(&cluster1))
@@ -84,7 +84,7 @@ func TestGetClusterFilterDefault(t *testing.T) {
 func TestGetClusterFilterLegacy(t *testing.T) {
 	shardIndex := 1 // ensuring that a shard with index 1 will process all the clusters with an "even" id (2,4,6,...)
 	os.Setenv(common.EnvControllerReplicas, "2")
-	os.Setenv(common.EnvControllerShardingAlgorithm, "legacy")
+	os.Setenv(common.EnvControllerShardingAlgorithm, common.LegacyShardingAlgorithm)
 	filter := GetClusterFilter(GetDistributionFunction(nil), shardIndex)
 	assert.False(t, filter(&v1alpha1.Cluster{ID: "1"}))
 	assert.True(t, filter(&v1alpha1.Cluster{ID: "2"}))
@@ -161,7 +161,7 @@ func TestGetClusterFilterWithEnvControllerShardingAlgorithms(t *testing.T) {
 	db, cluster1, cluster2, cluster3, cluster4, _ := createTestClusters()
 	shardIndex := 1
 	os.Setenv(common.EnvControllerReplicas, "2")
-	os.Setenv(common.EnvControllerShardingAlgorithm, "legacy")
+	os.Setenv(common.EnvControllerShardingAlgorithm, common.LegacyShardingAlgorithm)
 	shardShouldProcessCluster := GetClusterFilter(GetDistributionFunction(db), shardIndex)
 	assert.False(t, shardShouldProcessCluster(&cluster1))
 	assert.True(t, shardShouldProcessCluster(&cluster2))
@@ -169,7 +169,7 @@ func TestGetClusterFilterWithEnvControllerShardingAlgorithms(t *testing.T) {
 	assert.True(t, shardShouldProcessCluster(&cluster4))
 	assert.False(t, shardShouldProcessCluster(nil))
 
-	os.Setenv(common.EnvControllerShardingAlgorithm, "hash")
+	os.Setenv(common.EnvControllerShardingAlgorithm, common.RoundRobinShardingAlgorithm)
 	shardShouldProcessCluster = GetClusterFilter(GetDistributionFunction(db), shardIndex)
 	assert.False(t, shardShouldProcessCluster(&cluster1))
 	assert.True(t, shardShouldProcessCluster(&cluster2))
