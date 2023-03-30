@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
@@ -35,6 +36,6 @@ func NewDashboardCommand() *cobra.Command {
 	initialize.InitCommand(cmd)
 	cmd.Flags().IntVar(&port, "port", common.DefaultPortAPIServer, "Listen on given port")
 	cmd.Flags().StringVar(&address, "address", common.DefaultAddressAPIServer, "Listen on given address")
-	cmd.Flags().StringVar(&compressionStr, "redis-compress", string(cache.RedisCompressionNone), "Enable compression for data sent to Redis with the required compression algorithm. (possible values: none, gzip)")
+	cmd.Flags().StringVar(&compressionStr, "redis-compress", env.StringFromEnv("REDIS_COMPRESSION", string(cache.RedisCompressionNone)), "Enable compression for data sent to Redis with the required compression algorithm. (possible values: none, gzip)")
 	return cmd
 }
