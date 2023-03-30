@@ -1,6 +1,6 @@
 # Plugin Generator
 
-Plugins allow you to extend Generator to add new capabilities.
+Plugins allow you to provide your own generator.
 
 * You can write in any language
 * Simple: a plugin just responds to RPC HTTP requests.
@@ -11,7 +11,7 @@ Plugins allow you to extend Generator to add new capabilities.
 
 ## Simple example
 
-Using a generator plugin without combining with Matrix or Merge.
+Using a generator plugin without combining it with Matrix or Merge.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -29,7 +29,7 @@ spec:
         params:
           key1: "value1"
           key1: "value1"
-        # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
+        # When using a Plugin generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
         requeueAfterSeconds: 30
         # ...
 ```
@@ -42,7 +42,7 @@ spec:
     The concept of the plugin should not undermine the spirit of GitOps by externalizing data outside of Git. The goal is to be complementary in specific contexts.
     For example, when using one of the PullRequest generators, it's impossible to retrieve parameters related to the CI (only the commit hash is available), which limits the possibilities. By using a plugin, it's possible to retrieve the necessary parameters from a separate data source and use them to extend the functionality of the generator.
 
-## Add a configMap to configure the access of the plugin
+### Add a ConfigMap to configure the access of the plugin
 
 ```yaml
 apiVersion: v1
@@ -54,10 +54,10 @@ data:
   baseUrl: http://myplugin.plugin.svc.cluster.local.
 ```
 
-* `token`: Authentication tokens for Plugin access ( points to the right key you created in the argocd-secret Secret )
-* `baseUrl`: The baseUrl of the k8s service linked to your plugin.
+* `token`: Pre-shared token used to authenticate HTTP request (points to the right key you created in the `argocd-secret` Secret)
+* `baseUrl`: BaseUrl of the k8s service exposing your plugin in the cluster.
 
-## Store credentials
+### Store credentials
 
 ```yaml
 apiVersion: v1
@@ -77,15 +77,15 @@ data:
   ...
 ```
 
-### Alternative
+#### Alternative
 
-If you want to store sensitive data in **another** Kubernetes `Secret`, instead of `argocd-secret`. ArgoCD knows to check the keys under `data` in your Kubernetes `Secret` for a corresponding key whenever a value in a configmap starts with `$`, then your Kubernetes `Secret` name and `:` (colon).
+If you want to store sensitive data in **another** Kubernetes `Secret`, instead of `argocd-secret`, ArgoCD knows how to check the keys under `data` in your Kubernetes `Secret` for a corresponding key whenever a value in a configmap starts with `$`, then your Kubernetes `Secret` name and `:` (colon) followed by the key name.
 
 Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
 
 > NOTE: Secret must have label `app.kubernetes.io/part-of: argocd`
 
-#### Example
+##### Example
 
 `another-secret`:
 ```yaml
@@ -105,13 +105,14 @@ data:
   ...
 ```
 
-## Template
+### HTTP server
 
-### A Simple Python Plugin
+#### A Simple Python Plugin
 
 You can deploy it either as a sidecar or as a standalone deployment (the latter is recommended).
 
 In the example, the token is stored in a file at this location : `/var/run/argo/token`
+
 ```
 string-password
 ```
@@ -179,11 +180,13 @@ curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer st
 Some things to note here:
 
 * You only need to implement the calls `/api/v1/getparams.execute`
-* You should check that the `Authorization` header contains the same value as `/var/run/argo/token`. Return 403 if not
+* You should check that the `Authorization` header contains the same bearer value as `/var/run/argo/token`. Return 403 if not
 * The input parameters are included in the request body and can be accessed using the args variable.
 * The output must always be a list of object maps.
 
 ## With matrix and pull request example
+
+In the following example, the plugin implementation is returning a set of image digests for the given branch. The returned list contains only one item correspondng to the latest builded image for the branch.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -203,7 +206,7 @@ spec:
               configMapRef: cm-plugin
               name: plugin-matrix
               params:
-                branch: "{{.branch}}" # precedence by generator pull request
+                branch: "{{.branch}}" # provided by generator pull request
   template:
     metadata:
       name: "fb-matrix-{{.branch}}"
