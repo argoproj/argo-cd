@@ -179,7 +179,7 @@ func (s *Service) Init() error {
 func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
 	gitClient, err := s.newClient(q.Repo)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating git client: %w", err)
 	}
 
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
