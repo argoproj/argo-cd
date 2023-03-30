@@ -302,6 +302,186 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 	return server.(*Server)
 }
 
+// return an ApplicationServiceServer which returns fake data
+func newTestAppServerWithBenchmark(b *testing.B, objects ...runtime.Object) *Server {
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	return newTestAppServerWithEnforcerConfigureWithBenchmark(f, b, objects...)
+}
+
+func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), b *testing.B, objects ...runtime.Object) *Server {
+	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testNamespace,
+			Name:      "argocd-cm",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+	}, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-secret",
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"admin.password":   []byte("test"),
+			"server.secretkey": []byte("test"),
+		},
+	})
+	ctx := context.Background()
+	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
+	_, err := db.CreateRepository(ctx, fakeRepo())
+	require.NoError(b, err)
+	_, err = db.CreateCluster(ctx, fakeCluster())
+	require.NoError(b, err)
+
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
+
+	defaultProj := &appsv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+		Spec: appsv1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+	myProj := &appsv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "my-proj", Namespace: "default"},
+		Spec: appsv1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+	projWithSyncWindows := &appsv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "proj-maint", Namespace: "default"},
+		Spec: appsv1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			SyncWindows:  appsv1.SyncWindows{},
+		},
+	}
+	matchingWindow := &appsv1.SyncWindow{
+		Kind:         "allow",
+		Schedule:     "* * * * *",
+		Duration:     "1h",
+		Applications: []string{"test-app"},
+	}
+	projWithSyncWindows.Spec.SyncWindows = append(projWithSyncWindows.Spec.SyncWindows, matchingWindow)
+
+	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
+
+	fakeAppsClientset := apps.NewSimpleClientset(objects...)
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
+
+	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
+	f(enforcer)
+	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
+
+	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
+
+	// populate the app informer with the fake objects
+	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
+
+	go appInformer.Run(ctx.Done())
+	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
+		panic("Timed out waiting for caches to sync")
+	}
+
+	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
+	go projInformer.Run(ctx.Done())
+	if !k8scache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
+		panic("Timed out waiting for caches to sync")
+	}
+
+	broadcaster := new(appmocks.Broadcaster)
+	broadcaster.On("Subscribe", mock.Anything, mock.Anything).Return(func() {}).Run(func(args mock.Arguments) {
+		// Simulate the broadcaster notifying the subscriber of an application update.
+		// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
+		// might require implementing those.
+		go func() {
+			events := args.Get(0).(chan *appsv1.ApplicationWatchEvent)
+			for _, obj := range objects {
+				app, ok := obj.(*appsv1.Application)
+				if ok {
+					oldVersion, err := strconv.Atoi(app.ResourceVersion)
+					if err != nil {
+						oldVersion = 0
+					}
+					clonedApp := app.DeepCopy()
+					clonedApp.ResourceVersion = fmt.Sprintf("%d", oldVersion+1)
+					events <- &appsv1.ApplicationWatchEvent{Type: watch.Added, Application: *clonedApp}
+				}
+			}
+		}()
+	})
+	broadcaster.On("OnAdd", mock.Anything).Return()
+	broadcaster.On("OnUpdate", mock.Anything, mock.Anything).Return()
+	broadcaster.On("OnDelete", mock.Anything).Return()
+
+	appStateCache := appstate.NewCache(cache.NewCache(cache.NewInMemoryCache(time.Hour)), time.Hour)
+	// pre-populate the app cache
+	for _, obj := range objects {
+		app, ok := obj.(*appsv1.Application)
+		if ok {
+			err := appStateCache.SetAppManagedResources(app.Name, []*appsv1.ResourceDiff{})
+			require.NoError(b, err)
+
+			// Pre-populate the resource tree based on the app's resources.
+			nodes := make([]appsv1.ResourceNode, len(app.Status.Resources))
+			for i, res := range app.Status.Resources {
+				nodes[i] = appsv1.ResourceNode{
+					ResourceRef: appsv1.ResourceRef{
+						Group:     res.Group,
+						Kind:      res.Kind,
+						Version:   res.Version,
+						Name:      res.Name,
+						Namespace: res.Namespace,
+						UID:       "fake",
+					},
+				}
+			}
+			err = appStateCache.SetAppResourcesTree(app.Name, &appsv1.ApplicationTree{
+				Nodes: nodes,
+			})
+			require.NoError(b, err)
+		}
+	}
+	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour, time.Hour)
+
+	kubectl := &kubetest.MockKubectlCmd{}
+	kubectl = kubectl.WithGetResourceFunc(func(_ context.Context, _ *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+		for _, obj := range objects {
+			if obj.GetObjectKind().GroupVersionKind().GroupKind() == gvk.GroupKind() {
+				if obj, ok := obj.(*unstructured.Unstructured); ok && obj.GetName() == name && obj.GetNamespace() == namespace {
+					return obj, nil
+				}
+			}
+		}
+		return nil, nil
+	})
+
+	server, _ := NewServer(
+		testNamespace,
+		kubeclientset,
+		fakeAppsClientset,
+		factory.Argoproj().V1alpha1().Applications().Lister(),
+		appInformer,
+		broadcaster,
+		mockRepoClient,
+		appCache,
+		kubectl,
+		db,
+		enforcer,
+		sync.NewKeyLock(),
+		settingsMgr,
+		projInformer,
+		[]string{},
+	)
+	return server.(*Server)
+}
+
 const fakeApp = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -1007,6 +1187,135 @@ g, group-49, role:test3
 		names = append(names, res.Items[i].Name)
 	}
 	assert.Equal(t, 300, len(names))
+}
+
+func generateTestApp(num int) []*appsv1.Application {
+	apps := []*appsv1.Application{}
+	for i := 0; i < num; i++ {
+		apps = append(apps, newTestApp(func(app *appsv1.Application) {
+			app.Name = fmt.Sprintf("test-app%.6d", i)
+		}))
+	}
+
+	return apps
+}
+
+func BenchmarkListMuchApps(b *testing.B) {
+	// 10000 apps
+	apps := generateTestApp(10000)
+	obj := make([]runtime.Object, len(apps))
+	for i, v := range apps {
+		obj[i] = v
+	}
+	appServer := newTestAppServerWithBenchmark(b, obj...)
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		_, err := appServer.List(context.Background(), &application.ApplicationQuery{})
+		if err != nil {
+			break
+		}
+	}
+}
+
+func BenchmarkListSomeApps(b *testing.B) {
+	// 500 apps
+	apps := generateTestApp(500)
+	obj := make([]runtime.Object, len(apps))
+	for i, v := range apps {
+		obj[i] = v
+	}
+	appServer := newTestAppServerWithBenchmark(b, obj...)
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		_, err := appServer.List(context.Background(), &application.ApplicationQuery{})
+		if err != nil {
+			break
+		}
+	}
+}
+
+func BenchmarkListFewApps(b *testing.B) {
+	// 10 apps
+	apps := generateTestApp(10)
+	obj := make([]runtime.Object, len(apps))
+	for i, v := range apps {
+		obj[i] = v
+	}
+	appServer := newTestAppServerWithBenchmark(b, obj...)
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		_, err := appServer.List(context.Background(), &application.ApplicationQuery{})
+		if err != nil {
+			break
+		}
+	}
+}
+
+func strToPtr(v string) *string {
+	return &v
+}
+
+func BenchmarkListMuchAppsWithName(b *testing.B) {
+	// 10000 apps
+	appsMuch := generateTestApp(10000)
+	obj := make([]runtime.Object, len(appsMuch))
+	for i, v := range appsMuch {
+		obj[i] = v
+	}
+	appServer := newTestAppServerWithBenchmark(b, obj...)
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		app := &application.ApplicationQuery{Name: strToPtr("test-app000099")}
+		_, err := appServer.List(context.Background(), app)
+		if err != nil {
+			break
+		}
+	}
+}
+
+func BenchmarkListMuchAppsWithProjects(b *testing.B) {
+	// 10000 apps
+	appsMuch := generateTestApp(10000)
+	appsMuch[999].Spec.Project = "test-project1"
+	appsMuch[1999].Spec.Project = "test-project2"
+	obj := make([]runtime.Object, len(appsMuch))
+	for i, v := range appsMuch {
+		obj[i] = v
+	}
+	appServer := newTestAppServerWithBenchmark(b, obj...)
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		app := &application.ApplicationQuery{Project: []string{"test-project1", "test-project2"}}
+		_, err := appServer.List(context.Background(), app)
+		if err != nil {
+			break
+		}
+	}
+}
+
+func BenchmarkListMuchAppsWithRepo(b *testing.B) {
+	// 10000 apps
+	appsMuch := generateTestApp(10000)
+	appsMuch[999].Spec.Source.RepoURL = "https://some-fake-source"
+	obj := make([]runtime.Object, len(appsMuch))
+	for i, v := range appsMuch {
+		obj[i] = v
+	}
+	appServer := newTestAppServerWithBenchmark(b, obj...)
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		app := &application.ApplicationQuery{Repo: strToPtr("https://some-fake-source")}
+		_, err := appServer.List(context.Background(), app)
+		if err != nil {
+			break
+		}
+	}
 }
 
 func TestCreateApp(t *testing.T) {
