@@ -34,42 +34,45 @@ const (
 	errDestinationMissing = "Destination server missing from app spec"
 )
 
-var apiResources *[]kube.APIResourceInfo
-var lastCacheRefresh time.Time = time.Now()
-
 // FormatSyncMsg enrich the K8s message with user-relevant information
-func FormatSyncMsg(res *common.ResourceSyncResult, apiVersFn func(kind string) (*[]kube.APIResourceInfo, error)) error {
+func FormatSyncMsg(res *common.ResourceSyncResult, apiVersFn func() ([]kube.APIResourceInfo, error)) error {
 
-	var resource *kube.APIResourceInfo
-	var err error
-
-	if apiResources == nil || time.Since(lastCacheRefresh) > 5*time.Minute {
-		lastCacheRefresh = time.Now()
-		apiResources, err = apiVersFn(res.ResourceKey.Kind)
-		if err != nil {
-			return fmt.Errorf("failed to fetch resource of given kind %s from the target cluster", res.ResourceKey.Kind)
-		}
-	}
-
-	for _, r := range *apiResources {
-		if r.GroupKind.Kind == res.ResourceKey.Kind {
-			resource = &r
-			break
-		}
-	}
-
-	if resource == nil {
-		return fmt.Errorf("no matching resource found of kind: %s", res.ResourceKey.Kind)
-
-	}
 	switch res.Message {
 	case "the server could not find the requested resource":
+
+		resource, err := getAPIResourceInfo(res.ResourceKey.Kind, apiVersFn)
+		if err != nil {
+			return err
+		}
 		res.Message = fmt.Sprintf("The server could not find requested resource %s. Make sure the CRD is installed on the destination cluster, "+
 			"and that the requested CRD version is available. Currently, the installed API version for the corresponding Kind: %s is %s",
 			res.ResourceKey.Name, resource.GroupKind.Kind, resource.GroupVersionResource.Version)
 	}
 
 	return nil
+}
+
+func getAPIResourceInfo(kind string, apiVersFn func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
+
+	var resource *kube.APIResourceInfo
+	apiResources, err := apiVersFn()
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, r := range apiResources {
+		if r.GroupKind.Kind == kind {
+			resource = &r
+			break
+		}
+	}
+
+	if resource == nil {
+		return nil, fmt.Errorf("no matching resource found of kind: %s", kind)
+	}
+
+	return resource, nil
 }
 
 // FormatAppConditions returns string representation of give app condition list

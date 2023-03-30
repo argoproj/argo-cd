@@ -56,15 +56,6 @@ func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser,
 	return cluster.GetGVKParser(), nil
 }
 
-func (m *appStateManager) getAPIResourceVersion(server string) (*[]kube.APIResourceInfo, error) {
-	_, apiResources, err := m.liveStateCache.GetVersionsInfo(server)
-
-	if err != nil {
-		return nil, err
-	}
-	return &apiResources, nil
-}
-
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
@@ -331,14 +322,23 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	var resState []common.ResourceSyncResult
 	state.Phase, state.Message, resState = syncCtx.GetState()
 	state.SyncResult.Resources = nil
+
+	var apiVersion []kube.APIResourceInfo
 	for _, res := range resState {
 
-		err := argo.FormatSyncMsg(&res, func(kind string) (*[]kube.APIResourceInfo, error) {
-			return m.getAPIResourceVersion(app.Spec.Destination.Server)
+		err := argo.FormatSyncMsg(&res, func() ([]kube.APIResourceInfo, error) {
+
+			if apiVersion == nil {
+				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+				if err != nil {
+					return nil, fmt.Errorf("failed to fetch resource of given kind %s from the target cluster", res.ResourceKey.Kind)
+				}
+			}
+			return apiVersion, nil
 		})
 
 		if err != nil {
-			log.Errorf("retain the original message since: %v", err)
+			log.Errorf("show the original message since: %v", err)
 		}
 
 		state.SyncResult.Resources = append(state.SyncResult.Resources, &v1alpha1.ResourceResult{

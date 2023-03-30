@@ -1436,8 +1436,8 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 }
 
 func TestFormatSyncMsg(t *testing.T) {
-	mockAPIResourcesFn := func(s string) (*[]kube.APIResourceInfo, error) {
-		return &[]kube.APIResourceInfo{
+	mockAPIResourcesFn := func() ([]kube.APIResourceInfo, error) {
+		return []kube.APIResourceInfo{
 			{
 				GroupKind: schema.GroupKind{
 					Group: "",
@@ -1463,7 +1463,8 @@ func TestFormatSyncMsg(t *testing.T) {
 		msg             string
 		expectedMessage string
 		kind            string
-		mockFn          func(string) (*[]kube.APIResourceInfo, error)
+		mockFn          func() ([]kube.APIResourceInfo, error)
+		errMsg          string
 	}{
 		{
 			name: "match specific k8s error",
@@ -1480,29 +1481,34 @@ func TestFormatSyncMsg(t *testing.T) {
 		},
 		{
 			name:            "resource doesn't exist in the target cluster",
-			kind:            "Volume",
-			expectedMessage: "random message from k8s",
-			mockFn: func(string) (*[]kube.APIResourceInfo, error) {
-				return &[]kube.APIResourceInfo{
+			kind:            "Volumne",
+			msg:             "the server could not find the requested resource",
+			expectedMessage: "the server could not find the requested resource",
+			mockFn: func() ([]kube.APIResourceInfo, error) {
+				return []kube.APIResourceInfo{
 					{
 						GroupKind: schema.GroupKind{
 							Group: "",
-							Kind:  "Volumne",
+							Kind:  "Deployment",
 						},
 						GroupVersionResource: schema.GroupVersionResource{
 							Group:   "",
 							Version: "v1beta1",
 						},
 					},
-				}, errors.New("random message from k8s")
+				}, nil
 			},
+			errMsg: "no matching resource found of kind: Volumne",
 		},
 		{
 			name:            "API Resource is empty",
-			expectedMessage: "random message from k8s",
-			mockFn: func(string) (*[]kube.APIResourceInfo, error) {
-				return nil, errors.New("random message from k8s")
+			kind:            "Volumne",
+			msg:             "the server could not find the requested resource",
+			expectedMessage: "the server could not find the requested resource",
+			mockFn: func() ([]kube.APIResourceInfo, error) {
+				return nil, errors.New("failed to fetch resource of given kind %s from the target cluster")
 			},
+			errMsg: "failed to fetch resource of given kind %s from the target cluster",
 		},
 	}
 
@@ -1513,13 +1519,14 @@ func TestFormatSyncMsg(t *testing.T) {
 				res.ResourceKey.Kind = tt.kind
 			}
 			err := FormatSyncMsg(res, tt.mockFn)
-			if res.ResourceKey.Kind == "Volume" {
+
+			if res.ResourceKey.Kind == "Volumne" {
 				assert.NotNil(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
 			} else {
 				assert.Nil(t, err)
-				assert.Equal(t, tt.expectedMessage, res.Message)
-
 			}
+			assert.Equal(t, tt.expectedMessage, res.Message)
 		})
 	}
 }
