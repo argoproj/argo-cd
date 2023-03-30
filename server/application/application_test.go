@@ -333,9 +333,9 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), 
 	ctx := context.Background()
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
 	_, err := db.CreateRepository(ctx, fakeRepo())
-	errors.CheckError(err)
+	require.NoError(b, err)
 	_, err = db.CreateCluster(ctx, fakeCluster())
-	errors.CheckError(err)
+	require.NoError(b, err)
 
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
 
@@ -383,8 +383,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), 
 
 	// populate the app informer with the fake objects
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
-	// TODO(jessesuen): probably should return cancel function so tests can stop background informer
-	//ctx, cancel := context.WithCancel(context.Background())
+
 	go appInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
 		panic("Timed out waiting for caches to sync")
