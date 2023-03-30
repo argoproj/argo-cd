@@ -228,6 +228,14 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         }
         return value.replace(/^Rev:/, '');
     }
+    if (first.kind === 'ReplicaSet') {
+        return (
+            orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
+            compareRevision(getRevision(second), getRevision(first)) ||
+            nodeKey(first).localeCompare(nodeKey(second)) ||
+            0
+        );
+    }
     return (
         orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
         nodeKey(first).localeCompare(nodeKey(second)) ||

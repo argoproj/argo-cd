@@ -117,6 +117,10 @@ spec:
       # The command is run in an Application's source directory. Standard output must be JSON matching the schema of the
       # static parameter announcements list.
       command: [echo, '[{"name": "example-param", "string": "default-string-value"}]']
+
+    # If set to then the plugin receives repository files with original file mode. Dangerous since the repository
+    # might have executable files. Set to true only if you trust the CMP plugin authors.
+    preserveFileMode: false
 ```
 
 !!! note
@@ -484,3 +488,29 @@ After installing the plugin as a sidecar [according to the directions above](#in
 test it out on a few Applications before migrating all of them to the sidecar plugin.
 
 Once tests have checked out, remove the plugin entry from your argocd-cm ConfigMap.
+
+### Additional Settings
+
+#### Preserve repository files mode
+
+By default, config management plugin receives source repository files with reset file mode. This is done for security
+reasons. If you want to preserve original file mode, you can set `preserveFileMode` to `true` in the plugin spec:
+
+!!! warning
+    Make sure you trust the plugin you are using. If you set `preserveFileMode` to `true` then the plugin might receive
+    files with executable permissions which can be a security risk.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: pluginName
+spec:
+  init:
+    command: ["sample command"]
+    args: ["sample args"]
+  generate:
+    command: ["sample command"]
+    args: ["sample args"]
+  preserveFileMode: true
+```
