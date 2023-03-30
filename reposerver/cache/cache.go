@@ -56,7 +56,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	return func() (*Cache, error) {
 		cache, err := repoFactory()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error adding cache flags to cmd: %w", err)
 		}
 		return NewCache(cache, repoCacheExpiration, revisionCacheExpiration), nil
 	}
