@@ -57,7 +57,10 @@
         &--hint {
             text-decoration: underline;
             text-decoration-style: dashed;
-            cursor: default;
+            cursor: pointer;
+            &:hover {
+                text-decoration: none;
+            }
         }
         &:last-child {
             border-bottom: none;
