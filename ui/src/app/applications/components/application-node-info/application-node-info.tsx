@@ -126,7 +126,7 @@ export const ApplicationNodeInfo = (props: {
                     value: (
                         <div className='application-node-info__labels'>
                             {netContainerStatuses.map((container, i) => {
-                                return <RenderContainerState container={container} />;
+                                return <RenderContainerState key={i} container={container} />;
                             })}
                         </div>
                     )
