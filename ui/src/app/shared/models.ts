@@ -96,7 +96,7 @@ export interface RevisionMetadata {
 
 export interface ChartDetails {
     description?: string;
-    maintainers?: string;
+    maintainers?: string[];
     home?: string;
 }
 
