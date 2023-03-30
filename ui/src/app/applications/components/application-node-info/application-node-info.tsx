@@ -24,7 +24,7 @@ const RenderContainerState = (props: {container: any}) => {
     const state = (props.container.state?.waiting && 'waiting') || (props.container.state?.terminated && 'terminated') || (props.container.state?.running && 'running');
     const status = props.container.state.waiting?.reason || props.container.state.terminated?.reason || props.container.state.running?.reason;
     const lastState = props.container.lastState?.terminated;
-    const msgExists = props.container.state.waiting?.message || props.container.state.terminated?.message;
+    const msg = props.container.state.waiting?.message || props.container.state.terminated?.message;
     return (
         <div className='container'>
             <div className='container__name'>{props.container.name}</div>
@@ -32,14 +32,14 @@ const RenderContainerState = (props: {container: any}) => {
                 {state && (
                     <>
                         Container is <span className='application-node-info__labels--highlight'>{state}</span>
-                        {state !== 'running' && ' because of '}
+                        {status && ' because of '}
                     </>
                 )}
-                <span title={msgExists || ''}>
+                <span title={msg || ''}>
                     {status && (
                         <span
                             className={classNames('application-node-info__labels--highlight', {
-                                'application-node-info__labels--hint': !!msgExists
+                                'application-node-info__labels--hint': !!msg
                             })}>
                             {status}
                         </span>
@@ -49,7 +49,7 @@ const RenderContainerState = (props: {container: any}) => {
                 {(props.container.state.terminated?.exitCode === 0 || props.container.state.terminated?.exitCode) && (
                     <>
                         {' '}
-                        It exited with <span className='application-node-info__labels--highlight'>exitCode {props.container.state.terminated.exitCode}.</span>
+                        It exited with <span className='application-node-info__labels--highlight'>exit code {props.container.state.terminated.exitCode}.</span>
                     </>
                 )}
                 <>
@@ -61,8 +61,9 @@ const RenderContainerState = (props: {container: any}) => {
                 {lastState && (
                     <>
                         <>
-                            The container last terminated with <span className='application-node-info__labels--highlight'>exit code {lastState?.exitCode}</span> because of{' '}
+                            The container last terminated with <span className='application-node-info__labels--highlight'>exit code {lastState?.exitCode}</span>
                         </>
+                        {lastState?.reason && ' because of '}
                         <span title={props.container.lastState?.message || ''}>
                             {lastState?.reason && (
                                 <span
