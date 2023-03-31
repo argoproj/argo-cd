@@ -41,6 +41,8 @@ import (
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 const (
@@ -413,7 +415,9 @@ func TestInvalidAppProject(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		Then().
-		Expect(Error("", "application references project does-not-exist which does not exist"))
+		// We're not allowed to infer whether the project exists based on this error message. Instead, we get a generic
+		// permission denied error.
+		Expect(Error("", "permission denied"))
 }
 
 func TestAppDeletion(t *testing.T) {
@@ -813,7 +817,7 @@ func TestCRDs(t *testing.T) {
 }
 
 func TestKnownTypesInCRDDiffing(t *testing.T) {
-	dummiesGVR := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "dummies"}
+	dummiesGVR := schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: "dummies"}
 
 	Given(t).
 		Path("crd-creation").

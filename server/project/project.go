@@ -172,6 +172,9 @@ func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksReque
 		return nil, err
 	}
 
+	// sanitize project jwt tokens
+	proj.Status = v1alpha1.AppProjectStatus{}
+
 	obj, err := kube.ToUnstructured(proj)
 	if err != nil {
 		return nil, fmt.Errorf("error getting application: %w", err)
@@ -182,7 +185,8 @@ func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksReque
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
 
-	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(*obj, deepLinks)
+	deeplinksObj := deeplinks.CreateDeepLinksObject(nil, nil, nil, obj)
+	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(deeplinksObj, obj.GetName(), deepLinks)
 	if len(errorList) > 0 {
 		log.Errorf("errorList while evaluating project deep links, %v", strings.Join(errorList, ", "))
 	}

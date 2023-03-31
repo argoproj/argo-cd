@@ -757,7 +757,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const root = node.root || ({} as ResourceTreeNode);
         const hook = root && root.hook;
         if (
-            (filterInput.name.length === 0 || filterInput.name.indexOf(node.name) > -1) &&
+            (filterInput.name.length === 0 || this.nodeNameMatchesWildcardFilters(node.name, filterInput.name)) &&
             (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
             // include if node's root sync matches filter
             (syncStatuses.length === 0 || hook || (root.status && syncStatuses.indexOf(root.status) > -1)) &&
@@ -772,6 +772,24 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         }
 
         return false;
+    }
+
+    private nodeNameMatchesWildcardFilters(nodeName: string, filterInputNames: string[]): boolean {
+        const regularExpression = new RegExp(
+            filterInputNames
+                // Escape any regex input to ensure only * can be used
+                .map(pattern => '^' + this.escapeRegex(pattern) + '$')
+                // Replace any escaped * with proper regex
+                .map(pattern => pattern.replace(/\\\*/g, '.*'))
+                // Join all filterInputs to a single regular expression
+                .join('|'),
+            'gi'
+        );
+        return regularExpression.test(nodeName);
+    }
+
+    private escapeRegex(input: string): string {
+        return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     private loadAppInfo(name: string, appNamespace: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {
