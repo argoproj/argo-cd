@@ -3,6 +3,7 @@ import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
 import Moment from 'react-moment';
+import * as moment from 'moment';
 
 import * as models from '../../../shared/models';
 
@@ -611,6 +612,61 @@ function expandCollapse(node: ResourceTreeNode, props: ApplicationResourceTreePr
     props.setNodeExpansion(node.uid, isExpanded);
 }
 
+function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: string}) {
+    if (kind === 'Pod') {
+        const val = `${tag.name}`;
+        if (val === 'Status Reason') {
+            if (`${tag.value}` !== 'ImagePullBackOff')
+                return (
+                    <span className='application-resource-tree__node-label' title={`Status: ${tag.value}`}>
+                        {tag.value}
+                    </span>
+                );
+            else {
+                return (
+                    <span
+                        className='application-resource-tree__node-label'
+                        title='One of the containers may have the incorrect image name/tag, or you may be fetching from the incorrect repository, or the repository requires authentication.'>
+                        {tag.value}
+                    </span>
+                );
+            }
+        } else if (val === 'Containers') {
+            const arr = `${tag.value}`.split('/');
+            const title = `Number of containers in total: ${arr[1]} \nNumber of ready containers: ${arr[0]}`;
+            return (
+                <span className='application-resource-tree__node-label' title={`${title}`}>
+                    {tag.value}
+                </span>
+            );
+        } else if (val === 'Restart Count') {
+            return (
+                <span className='application-resource-tree__node-label' title={`The total number of restarts of the containers: ${tag.value}`}>
+                    {tag.value}
+                </span>
+            );
+        } else if (val === 'Revision') {
+            return (
+                <span className='application-resource-tree__node-label' title={`The revision in which pod present is: ${tag.value}`}>
+                    {tag.value}
+                </span>
+            );
+        } else {
+            return (
+                <span className='application-resource-tree__node-label' title={`${tag.name}: ${tag.value}`}>
+                    {tag.value}
+                </span>
+            );
+        }
+    } else {
+        return (
+            <span className='application-resource-tree__node-label' title={`${tag.name}: ${tag.value}`}>
+                {tag.value}
+            </span>
+        );
+    }
+}
+
 function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node, nodesHavingChildren: Map<string, number>) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
@@ -685,18 +741,18 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
             </div>
             <div className='application-resource-tree__node-labels'>
                 {node.createdAt || rootNode ? (
-                    <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
-                        {node.createdAt || props.app.metadata.creationTimestamp}
-                    </Moment>
+                    <span title={`${node.kind} was created ${moment(node.createdAt).fromNow()}`}>
+                        <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
+                            {node.createdAt || props.app.metadata.creationTimestamp}
+                        </Moment>
+                    </span>
                 ) : null}
                 {(node.info || [])
                     .filter(tag => !tag.name.includes('Node'))
                     .slice(0, 4)
-                    .map((tag, i) => (
-                        <span className='application-resource-tree__node-label' title={`${tag.name}:${tag.value}`} key={i}>
-                            {tag.value}
-                        </span>
-                    ))}
+                    .map((tag, i) => {
+                        return <NodeInfoDetails tag={tag} kind={node.kind} key={i} />;
+                    })}
                 {(node.info || []).length > 4 && (
                     <Tooltip
                         content={(node.info || []).map(i => (
