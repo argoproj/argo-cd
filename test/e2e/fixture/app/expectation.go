@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -81,6 +82,26 @@ func NoConditions() Expectation {
 	return func(c *Consequences) (state, string) {
 		message := "no conditions"
 		if len(c.app().Status.Conditions) == 0 {
+			return succeeded, message
+		}
+		return pending, message
+	}
+}
+
+func NoStatus() Expectation {
+	return func(c *Consequences) (state, string) {
+		message := "no status"
+		if reflect.ValueOf(c.app().Status).IsZero() {
+			return succeeded, message
+		}
+		return pending, message
+	}
+}
+
+func StatusExists() Expectation {
+	return func(c *Consequences) (state, string) {
+		message := "status exists"
+		if !reflect.ValueOf(c.app().Status).IsZero() {
 			return succeeded, message
 		}
 		return pending, message
@@ -271,7 +292,7 @@ func event(namespace string, reason string, message string) Expectation {
 }
 
 func Event(reason string, message string) Expectation {
-	return event(fixture.ArgoCDNamespace, reason, message)
+	return event(fixture.TestNamespace(), reason, message)
 }
 
 func NamespacedEvent(namespace string, reason string, message string) Expectation {

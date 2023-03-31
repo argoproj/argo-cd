@@ -650,6 +650,19 @@ func EnsureCleanState(t *testing.T) {
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
 
+func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
+	var out string
+	var err error
+	for i := 0; i < maxRetries; i++ {
+		out, err = RunCli(args...)
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	return out, err
+}
+
 func RunCli(args ...string) (string, error) {
 	return RunCliWithStdin("", args...)
 }
@@ -811,6 +824,8 @@ func RestartRepoServer() {
 		}
 		FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload))
 		FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload))
+		// wait longer to avoid error on s390x
+		time.Sleep(10 * time.Second)
 	}
 }
 

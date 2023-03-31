@@ -487,6 +487,41 @@ func TestFilterByProjects(t *testing.T) {
 	})
 }
 
+func TestFilterByProjectsP(t *testing.T) {
+	apps := []*argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Project: "fooproj",
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Project: "barproj",
+			},
+		},
+	}
+
+	t.Run("No apps in single project", func(t *testing.T) {
+		res := FilterByProjectsP(apps, []string{"foobarproj"})
+		assert.Empty(t, res)
+	})
+
+	t.Run("Single app in single project", func(t *testing.T) {
+		res := FilterByProjectsP(apps, []string{"fooproj"})
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("Single app in multiple project", func(t *testing.T) {
+		res := FilterByProjectsP(apps, []string{"fooproj", "foobarproj"})
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("Multiple apps in multiple project", func(t *testing.T) {
+		res := FilterByProjectsP(apps, []string{"fooproj", "barproj"})
+		assert.Len(t, res, 2)
+	})
+}
+
 func TestFilterByRepo(t *testing.T) {
 	apps := []argoappv1.Application{
 		{
@@ -517,6 +552,40 @@ func TestFilterByRepo(t *testing.T) {
 
 	t.Run("No match", func(t *testing.T) {
 		res := FilterByRepo(apps, "git@github.com:owner/willnotmatch.git")
+		assert.Len(t, res, 0)
+	})
+}
+
+func TestFilterByRepoP(t *testing.T) {
+	apps := []*argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					RepoURL: "git@github.com:owner/repo.git",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					RepoURL: "git@github.com:owner/otherrepo.git",
+				},
+			},
+		},
+	}
+
+	t.Run("Empty filter", func(t *testing.T) {
+		res := FilterByRepoP(apps, "")
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Match", func(t *testing.T) {
+		res := FilterByRepoP(apps, "git@github.com:owner/repo.git")
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("No match", func(t *testing.T) {
+		res := FilterByRepoP(apps, "git@github.com:owner/willnotmatch.git")
 		assert.Len(t, res, 0)
 	})
 }
@@ -934,6 +1003,42 @@ func TestFilterByName(t *testing.T) {
 	t.Run("No such app", func(t *testing.T) {
 		res, err := FilterByName(apps, "foobar")
 		assert.Error(t, err)
+		assert.Len(t, res, 0)
+	})
+}
+
+func TestFilterByNameP(t *testing.T) {
+	apps := []*argoappv1.Application{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "foo",
+			},
+			Spec: argoappv1.ApplicationSpec{
+				Project: "fooproj",
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "bar",
+			},
+			Spec: argoappv1.ApplicationSpec{
+				Project: "barproj",
+			},
+		},
+	}
+
+	t.Run("Name is empty string", func(t *testing.T) {
+		res := FilterByNameP(apps, "")
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Single app by name", func(t *testing.T) {
+		res := FilterByNameP(apps, "foo")
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("No such app", func(t *testing.T) {
+		res := FilterByNameP(apps, "foobar")
 		assert.Len(t, res, 0)
 	})
 }

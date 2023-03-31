@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -62,6 +63,26 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 
 }
 
+// FilterByProjectsP returns application pointers which belongs to the specified project
+func FilterByProjectsP(apps []*argoappv1.Application, projects []string) []*argoappv1.Application {
+	if len(projects) == 0 {
+		return apps
+	}
+	projectsMap := make(map[string]bool)
+	for i := range projects {
+		projectsMap[projects[i]] = true
+	}
+	items := make([]*argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		a := apps[i]
+		if _, ok := projectsMap[a.Spec.GetProject()]; ok {
+			items = append(items, a)
+		}
+	}
+	return items
+
+}
+
 // FilterAppSetsByProjects returns applications which belongs to the specified project
 func FilterAppSetsByProjects(appsets []argoappv1.ApplicationSet, projects []string) []argoappv1.ApplicationSet {
 	if len(projects) == 0 {
@@ -87,6 +108,20 @@ func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Applica
 		return apps
 	}
 	items := make([]argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		if apps[i].Spec.GetSource().RepoURL == repo {
+			items = append(items, apps[i])
+		}
+	}
+	return items
+}
+
+// FilterByRepoP returns application pointers
+func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Application {
+	if repo == "" {
+		return apps
+	}
+	items := make([]*argoappv1.Application, 0)
 	for i := 0; i < len(apps); i++ {
 		if apps[i].Spec.GetSource().RepoURL == repo {
 			items = append(items, apps[i])
@@ -122,6 +157,22 @@ func FilterByName(apps []argoappv1.Application, name string) ([]argoappv1.Applic
 		}
 	}
 	return items, status.Errorf(codes.NotFound, "application '%s' not found", name)
+}
+
+// FilterByNameP returns pointer applications
+// This function is for the changes in #12985.
+func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Application {
+	if name == "" {
+		return apps
+	}
+	items := make([]*argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		if apps[i].Name == name {
+			items = append(items, apps[i])
+			return items
+		}
+	}
+	return items
 }
 
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
@@ -288,7 +339,7 @@ func validateRepo(ctx context.Context,
 			return nil, err
 		}
 		if err := TestRepoWithKnownType(ctx, repoClient, repo, source.IsHelm(), source.IsHelmOci()); err != nil {
-			errMessage = fmt.Sprintf("repositories not accessible: %v", repo)
+			errMessage = fmt.Sprintf("repositories not accessible: %v: %v", repo.StringForLogging(), err)
 		}
 		repoAccessible := false
 
@@ -968,4 +1019,37 @@ func AppInstanceNameFromQualified(name string, defaultNs string) string {
 // identified by projName.
 func ErrProjectNotPermitted(appName, appNamespace, projName string) error {
 	return fmt.Errorf("application '%s' in namespace '%s' is not permitted to use project '%s'", appName, appNamespace, projName)
+}
+
+// IsValidPodName checks that a podName is valid
+func IsValidPodName(name string) bool {
+	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L241
+	validationErrors := apimachineryvalidation.NameIsDNSSubdomain(name, false)
+	return len(validationErrors) == 0
+}
+
+// IsValidAppName checks if the name can be used as application name
+func IsValidAppName(name string) bool {
+	// app names have the same rules as pods.
+	return IsValidPodName(name)
+}
+
+// IsValidProjectName checks if the name can be used as project name
+func IsValidProjectName(name string) bool {
+	// project names have the same rules as pods.
+	return IsValidPodName(name)
+}
+
+// IsValidNamespaceName checks that a namespace name is valid
+func IsValidNamespaceName(name string) bool {
+	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L262
+	validationErrors := apimachineryvalidation.ValidateNamespaceName(name, false)
+	return len(validationErrors) == 0
+}
+
+// IsValidContainerName checks that a containerName is valid
+func IsValidContainerName(name string) bool {
+	// https://github.com/kubernetes/kubernetes/blob/53a9d106c4aabcd550cc32ae4e8004f32fb0ae7b/pkg/api/validation/validation.go#L280
+	validationErrors := apimachineryvalidation.NameIsDNSLabel(name, false)
+	return len(validationErrors) == 0
 }
