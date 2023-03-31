@@ -322,6 +322,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	var resState []common.ResourceSyncResult
 	state.Phase, state.Message, resState = syncCtx.GetState()
 	state.SyncResult.Resources = nil
+	state.SyncResult.ManagedNamespaceMetadata = app.Spec.SyncPolicy.ManagedNamespaceMetadata
 
 	var apiVersion []kube.APIResourceInfo
 	for _, res := range resState {
