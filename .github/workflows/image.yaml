@@ -78,7 +78,9 @@ jobs:
       ghcr_password: ${{ secrets.GITHUB_TOKEN }}
 
   build-and-publish-provenance: # Push attestations to GHCR, latest image is polluting quay.io
-    needs: [build-and-publish]
+    needs:
+      - build-and-publish
+      - set-vars
     permissions:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
