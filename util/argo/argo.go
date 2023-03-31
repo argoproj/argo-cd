@@ -70,10 +70,6 @@ func getAPIResourceInfo(kind string, apiVersFn func() ([]kube.APIResourceInfo, e
 		}
 	}
 
-	if resource == nil {
-		return nil, fmt.Errorf("no matching resource found of kind: %s", kind)
-	}
-
 	return resource, nil
 }
 
