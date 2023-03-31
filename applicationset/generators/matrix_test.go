@@ -2,7 +2,6 @@ package generators
 
 import (
 	"context"
-	"github.com/sirupsen/logrus"
 	"testing"
 	"time"
 
@@ -649,335 +648,6 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 	}
 }
 
-func TestSkipInterpolatedMatrixCalls(t *testing.T) {
-	//nonInterpolatedGitGenerator := &argoprojiov1alpha1.GitGenerator{
-	//	RepoURL:  "RepoURL",
-	//	Revision: "Revision",
-	//	Files: []argoprojiov1alpha1.GitFileGeneratorItem{
-	//		{Path: "examples/git-generator-files-discovery/cluster-config/config.json"},
-	//	},
-	//}
-	interpolatedGitGenerator := &argoprojiov1alpha1.GitGenerator{
-		RepoURL:  "RepoURL",
-		Revision: "Revision",
-		Files: []argoprojiov1alpha1.GitFileGeneratorItem{
-			{Path: "examples/git-generator-files-discovery/cluster-config/{{GRRRR}}.json"},
-		},
-	}
-
-	interpolatedClusterGenerator := &argoprojiov1alpha1.ClusterGenerator{
-		Selector: metav1.LabelSelector{
-			MatchLabels: nil,
-			MatchExpressions: []metav1.LabelSelectorRequirement{
-				{
-					Key:      "environment",
-					Operator: "Exists",
-					Values:   []string{},
-				},
-			},
-		},
-	}
-	testCases := []struct {
-		name             string
-		baseGenerators   []argoprojiov1alpha1.ApplicationSetNestedGenerator
-		expectedErr      error
-		expected         []map[string]interface{}
-		clientError      bool
-		expectedMock     []map[string]interface{}
-		expectedNumCalls int
-	}{
-		//{
-		//	name: "happy flow - generate noninterpolated params",
-		//	baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
-		//		{
-		//			Clusters: interpolatedClusterGenerator,
-		//		},
-		//		{
-		//			Git: nonInterpolatedGitGenerator,
-		//		},
-		//	},
-		//	expected: []map[string]interface{}{
-		//		{
-		//			"path":                        "examples/git-generator-files-discovery/cluster-config",
-		//			"path.basename":               "cluster-config",
-		//			"path.basenameNormalized":     "cluster-config",
-		//			"path.filename":               "config.json",
-		//			"path.filenameNormalized":     "config.json",
-		//			"path[0]":                     "examples",
-		//			"path[1]":                     "git-generator-files-discovery",
-		//			"path[2]":                     "cluster-config",
-		//			"name":                        "dev-01",
-		//			"nameNormalized":              "dev-01",
-		//			"server":                      "https://dev-01.example.com",
-		//			"metadata.labels.environment": "dev",
-		//			"metadata.labels.argocd.argoproj.io/secret-type": "cluster",
-		//		},
-		//		{
-		//			"path":                        "examples/git-generator-files-discovery/cluster-config",
-		//			"path.basename":               "cluster-config",
-		//			"path.basenameNormalized":     "cluster-config",
-		//			"path.filename":               "config.json",
-		//			"path.filenameNormalized":     "config.json",
-		//			"path[0]":                     "examples",
-		//			"path[1]":                     "git-generator-files-discovery",
-		//			"path[2]":                     "cluster-config",
-		//			"name":                        "prod-01",
-		//			"nameNormalized":              "prod-01",
-		//			"server":                      "https://prod-01.example.com",
-		//			"metadata.labels.environment": "prod",
-		//			"metadata.labels.argocd.argoproj.io/secret-type": "cluster",
-		//		},
-		//		//{
-		//		//	"path":                        "examples/git-generator-files-discovery/cluster-config",
-		//		//	"path.basename":               "cluster-config",
-		//		//	"path.basenameNormalized":     "cluster-config",
-		//		//	"path.filename":               "config.json",
-		//		//	"path.filenameNormalized":     "config.json",
-		//		//	"path[0]":                     "examples",
-		//		//	"path[1]":                     "git-generator-files-discovery",
-		//		//	"path[2]":                     "cluster-config",
-		//		//	"name":                        "tst-01",
-		//		//	"nameNormalized":              "tst-01",
-		//		//	"server":                      "https://tst-01.example.com",
-		//		//	"metadata.labels.environment": "tst",
-		//		//	"metadata.labels.argocd.argoproj.io/secret-type": "cluster",
-		//		//},
-		//	},
-		//	clientError: false,
-		//	expectedMock: []map[string]interface{}{
-		//		{
-		//			"path":                    "examples/git-generator-files-discovery/cluster-config",
-		//			"path.basename":           "cluster-config",
-		//			"path.basenameNormalized": "cluster-config",
-		//			"path.filename":           "config.json",
-		//			"path.filenameNormalized": "config.json",
-		//			"path[0]":                 "examples",
-		//			"path[1]":                 "git-generator-files-discovery",
-		//			"path[2]":                 "cluster-config",
-		//		},
-		//	},
-		//	expectedNumCalls: 1,
-		//},
-		{
-			name: "happy flow - generate interpolated params",
-			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
-				{
-					Clusters: interpolatedClusterGenerator,
-				},
-				{
-					Git: interpolatedGitGenerator,
-				},
-			},
-			expected: []map[string]interface{}{
-				{
-					"path":                        "examples/git-generator-files-discovery/dev-01.json",
-					"path.basename":               "dev-01",
-					"path.basenameNormalized":     "dev-01",
-					"path.filename":               "dev-01.json",
-					"path.filenameNormalized":     "dev-01.json",
-					"path[0]":                     "examples",
-					"path[1]":                     "git-generator-files-discovery",
-					"path[2]":                     "dev-01",
-					"name":                        "dev-01",
-					"nameNormalized":              "dev-01",
-					"server":                      "https://dev-01.example.com",
-					"metadata.labels.environment": "dev",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster",
-				},
-				{
-					"path":                        "examples/git-generator-files-discovery/prod-01.json",
-					"path.basename":               "prod-01",
-					"path.basenameNormalized":     "prod-01",
-					"path.filename":               "prod-01.json",
-					"path.filenameNormalized":     "prod-01.json",
-					"path[0]":                     "examples",
-					"path[1]":                     "git-generator-files-discovery",
-					"path[2]":                     "prod-01",
-					"name":                        "prod-01",
-					"nameNormalized":              "prod-01",
-					"server":                      "https://prod-01.example.com",
-					"metadata.labels.environment": "prod",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster",
-				},
-				//{
-				//	"path":                        "examples/git-generator-files-discovery/tst-01.json",
-				//	"path.basename":               "tst-01",
-				//	"path.basenameNormalized":     "tst-01",
-				//	"path.filename":                "tst-01.json",
-				//	"path.filenameNormalized":      "tst-01.json",
-				//	"path[0]":                     "examples",
-				//	"path[1]":                     "git-generator-files-discovery",
-				//	"path[2]":                     "tst-01",
-				//	"name":                        "tst-01",
-				//	"nameNormalized":              "tst-01",
-				//	"server":                      "https://tst-01.example.com",
-				//	"metadata.labels.environment": "tst",
-				//	"metadata.labels.argocd.argoproj.io/secret-type": "cluster",
-				//},
-			},
-			clientError: false,
-			expectedMock: []map[string]interface{}{
-				{
-					"path":                    "examples/git-generator-files-discovery/dev-01.json",
-					"path.basename":           "dev-01",
-					"path.basenameNormalized": "dev-01",
-					"path.filename":           "dev-01.json",
-					"path.filenameNormalized": "dev-01.json",
-					"path[0]":                 "examples",
-					"path[1]":                 "git-generator-files-discovery",
-					"path[2]":                 "dev-01",
-				},
-				{
-					"path":                    "examples/git-generator-files-discovery/prod-01.json",
-					"path.basename":           "prod-01",
-					"path.basenameNormalized": "prod-01",
-					"path.filename":           "prod-01.json",
-					"path.filenameNormalized": "prod-01.json",
-					"path[0]":                 "examples",
-					"path[1]":                 "git-generator-files-discovery",
-					"path[2]":                 "prod-01",
-				},
-				//{
-				//	"path":                    "examples/git-generator-files-discovery/tst-01.json",
-				//	"path.basename":           "tst-01",
-				//	"path.basenameNormalized": "tst-01",
-				//	"path.filename":            "tst-01.json",
-				//	"path.filenameNormalized":  "tst-01.json",
-				//	"path[0]":                 "examples",
-				//	"path[1]":                 "git-generator-files-discovery",
-				//	"path[2]":                 "tst-01",
-				//},
-			},
-			expectedNumCalls: 3,
-		},
-	}
-	clusters := []client.Object{
-		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "dev-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "dev",
-				},
-			},
-			Data: map[string][]byte{
-				"config": []byte("{}"),
-				"name":   []byte("dev-01"),
-				"server": []byte("https://dev-01.example.com"),
-			},
-			Type: corev1.SecretType("Opaque"),
-		},
-		//&corev1.Secret{
-		//	TypeMeta: metav1.TypeMeta{
-		//		Kind:       "Secret",
-		//		APIVersion: "v1",
-		//	},
-		//	ObjectMeta: metav1.ObjectMeta{
-		//		Name:      "tst-01",
-		//		Namespace: "namespace",
-		//		Labels: map[string]string{
-		//			"argocd.argoproj.io/secret-type": "cluster",
-		//			"environment":                    "tst",
-		//		},
-		//	},
-		//	Data: map[string][]byte{
-		//		"config": []byte("{}"),
-		//		"name":   []byte("tst-01"),
-		//		"server": []byte("https://tst-01.example.com"),
-		//	},
-		//	Type: corev1.SecretType("Opaque"),
-		//},
-		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "prod-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "prod",
-				},
-			},
-			Data: map[string][]byte{
-				"config": []byte("{}"),
-				"name":   []byte("prod-01"),
-				"server": []byte("https://prod-01.example.com"),
-			},
-			Type: corev1.SecretType("Opaque"),
-		},
-	}
-
-	// convert []client.Object to []runtime.Object, for use by kubefake package
-	runtimeClusters := []runtime.Object{}
-	for _, clientCluster := range clusters {
-		runtimeClusters = append(runtimeClusters, clientCluster)
-	}
-
-	for _, testCase := range testCases {
-		testCaseCopy := testCase // Since tests may run in parallel
-
-		t.Run(testCaseCopy.name, func(t *testing.T) {
-			genMock := &generatorMock{}
-			appSet := &argoprojiov1alpha1.ApplicationSet{}
-
-			appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
-			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
-			cl := &possiblyErroringFakeCtrlRuntimeClient{
-				fakeClient,
-				testCase.clientError,
-			}
-			var clusterGenerator = NewClusterGenerator(cl, context.Background(), appClientset, "namespace")
-			logrus.Debug(clusterGenerator)
-			for _, g := range testCaseCopy.baseGenerators {
-
-				gitGeneratorSpec := argoprojiov1alpha1.ApplicationSetGenerator{
-					Clusters: g.Clusters,
-					Git:      g.Git,
-				}
-				//genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet).Return(testCaseCopy.expectedMock, nil).Once()
-				genMock.On("GetTemplate", &gitGeneratorSpec).
-					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
-			}
-			/////////////// GIT MOCK ///////////////
-			for _, currMock := range testCaseCopy.expectedMock {
-				eMock := []map[string]interface{}{currMock}
-				genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet).Return(eMock, nil).Once()
-				logrus.Debug(genMock.ExpectedCalls)
-			}
-
-			var matrixGenerator = NewMatrixGenerator(
-				map[string]Generator{
-					"Git":      genMock,
-					"Clusters": clusterGenerator,
-				},
-			)
-
-			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
-				Matrix: &argoprojiov1alpha1.MatrixGenerator{
-					Generators: testCaseCopy.baseGenerators,
-					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
-				},
-			}, appSet)
-
-			genMock.AssertNumberOfCalls(t, "GenerateParams", testCase.expectedNumCalls)
-
-			if testCaseCopy.expectedErr != nil {
-				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, testCaseCopy.expected, got)
-			}
-		})
-	}
-}
-
 func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 	interpolatedGitGenerator := &argoprojiov1alpha1.GitGenerator{
 		RepoURL:  "RepoURL",
@@ -1178,7 +848,7 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 	}
 
 	listGenerator := &argoprojiov1alpha1.ListGenerator{
-		Elements: []apiextensionsv1.JSON{},
+		Elements:     []apiextensionsv1.JSON{},
 		ElementsYaml: "{{ .foo.bar | toJson }}",
 	}
 
@@ -1200,60 +870,59 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 			},
 			expected: []map[string]interface{}{
 				{
-					"chart":         "a",
-					"version":         "1",
+					"chart":   "a",
+					"version": "1",
 					"foo": map[string]interface{}{
 						"bar": []interface{}{
 							map[string]interface{}{
-								"chart": "a",
+								"chart":   "a",
 								"version": "1",
 							},
 							map[string]interface{}{
-								"chart": "b",
+								"chart":   "b",
 								"version": "2",
 							},
 						},
 					},
 					"path": map[string]interface{}{
-						"basename": "dir",
+						"basename":           "dir",
 						"basenameNormalized": "dir",
-						"filename": "file_name.yaml",
+						"filename":           "file_name.yaml",
 						"filenameNormalized": "file-name.yaml",
-						"path": "path/dir",
-						"segments": []string {
+						"path":               "path/dir",
+						"segments": []string{
 							"path",
 							"dir",
 						},
 					},
 				},
 				{
-					"chart":         "b",
-					"version":         "2",
+					"chart":   "b",
+					"version": "2",
 					"foo": map[string]interface{}{
 						"bar": []interface{}{
 							map[string]interface{}{
-								"chart": "a",
+								"chart":   "a",
 								"version": "1",
 							},
 							map[string]interface{}{
-								"chart": "b",
+								"chart":   "b",
 								"version": "2",
 							},
 						},
 					},
 					"path": map[string]interface{}{
-						"basename": "dir",
+						"basename":           "dir",
 						"basenameNormalized": "dir",
-						"filename": "file_name.yaml",
+						"filename":           "file_name.yaml",
 						"filenameNormalized": "file-name.yaml",
-						"path": "path/dir",
-						"segments": []string {
+						"path":               "path/dir",
+						"segments": []string{
 							"path",
 							"dir",
 						},
 					},
 				},
-
 			},
 		},
 	}
@@ -1282,27 +951,26 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 					"foo": map[string]interface{}{
 						"bar": []interface{}{
 							map[string]interface{}{
-								"chart": "a",
+								"chart":   "a",
 								"version": "1",
 							},
 							map[string]interface{}{
-								"chart": "b",
+								"chart":   "b",
 								"version": "2",
 							},
 						},
 					},
 					"path": map[string]interface{}{
-						"basename": "dir",
+						"basename":           "dir",
 						"basenameNormalized": "dir",
-						"filename": "file_name.yaml",
+						"filename":           "file_name.yaml",
 						"filenameNormalized": "file-name.yaml",
-						"path": "path/dir",
-						"segments": []string {
+						"path":               "path/dir",
+						"segments": []string{
 							"path",
 							"dir",
 						},
 					},
-
 				}}, nil)
 				genMock.On("GetTemplate", &gitGeneratorSpec).
 					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})

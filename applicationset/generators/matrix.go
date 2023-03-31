@@ -2,8 +2,6 @@ package generators
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"regexp"
 	"time"
 
 	"github.com/imdario/mergo"
@@ -52,32 +50,20 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	if err != nil {
 		return nil, err
 	}
-	g1, g1Err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, nil)
-	if g1Err == nil && g1 != nil {
-		hasBraces, err := m.checkSecondGeneratorForParams(g1)
-		if err != nil {
-			return nil, err
-		}
-		if !hasBraces { // Doesn't have braces, no need to check for Interpolation
-			for _, a := range g0 {
-				for _, b := range g1 {
-					val, err := utils.CombineStringMaps(a, b)
-					if err != nil {
-						return nil, err
-					}
-					res = append(res, utils.ConvertToMapStringInterface(val))
-				}
-			}
-			return res, nil
-		}
+	requiresInterpolation := false // Try to generate 2nd generator's params without interpolation
+	g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, nil)
+	if err != nil {
+		requiresInterpolation = true
 	}
-
 	for _, a := range g0 {
-		g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get params for second generator in the matrix generator: %w", err)
+		if requiresInterpolation {
+			g1, err = m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get params for second generator in the matrix generator: %w", err)
+			}
 		}
 		for _, b := range g1 {
+
 			if appSet.Spec.GoTemplate {
 				tmp := map[string]interface{}{}
 				if err := mergo.Merge(&tmp, a); err != nil {
@@ -98,63 +84,6 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	}
 
 	return res, nil
-}
-
-func (m *MatrixGenerator) checkSecondGeneratorForParams(g1 []map[string]interface{}) (bool, error) {
-	for _, a := range g1 {
-		aStr := utils.ConvertToMapStringString(a)
-		for _, v := range aStr {
-			willComp := regexp.MustCompile("\\{\\{.*\\}\\}")
-			if willComp.MatchString(v) {
-				return true, nil
-			}
-		}
-	}
-	return false, nil
-}
-
-func (m *MatrixGenerator) checkForInterpolation(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator) (bool, error) {
-	matrixGen, err := getMatrixGenerator(appSetBaseGenerator)
-	if err != nil {
-		return false, err
-	}
-	mergeGen, err := getMergeGenerator(appSetBaseGenerator)
-	if err != nil {
-		return false, err
-	}
-	generators := GetRelevantGenerators(
-		&argoprojiov1alpha1.ApplicationSetGenerator{
-			List:                    appSetBaseGenerator.List,
-			Clusters:                appSetBaseGenerator.Clusters,
-			Git:                     appSetBaseGenerator.Git,
-			SCMProvider:             appSetBaseGenerator.SCMProvider,
-			ClusterDecisionResource: appSetBaseGenerator.ClusterDecisionResource,
-			PullRequest:             appSetBaseGenerator.PullRequest,
-			Matrix:                  matrixGen,
-			Merge:                   mergeGen,
-			Selector:                appSetBaseGenerator.Selector,
-		},
-		m.supportedGenerators)
-	for _, g := range generators {
-
-		logrus.Debug(g)
-	}
-	//aStr := utils.ConvertToMapStringString(a)
-	//hasBraces := false
-	//for _, v := range aStr {
-	//	willComp := regexp.MustCompile("\\{\\{.*\\}\\}")
-	//	if (willComp.MatchString(v)) {
-	//		hasBraces = true
-	//		logrus.Debug(true)
-	//	} else  {
-	//		logrus.Debug(false)
-	//	}
-	//}
-	//if !hasBraces {
-	//	continue
-	//}
-	logrus.Debug(generators)
-	return false, nil
 }
 
 func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, params map[string]interface{}) ([]map[string]interface{}, error) {
