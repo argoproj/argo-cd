@@ -52,7 +52,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	}
 	requiresInterpolation := false // Try to generate 2nd generator's params without interpolation
 	g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, nil)
-	if err != nil {
+	if err != nil || g1 == nil {
 		requiresInterpolation = true
 	}
 	for _, a := range g0 {
