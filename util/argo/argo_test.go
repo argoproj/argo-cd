@@ -11,6 +11,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -19,6 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -30,7 +33,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
 )
 
 func TestRefreshApp(t *testing.T) {
@@ -1435,98 +1437,131 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 	})
 }
 
-func TestFormatSyncMsg(t *testing.T) {
+func TestAugmentSyncMsg(t *testing.T) {
 	mockAPIResourcesFn := func() ([]kube.APIResourceInfo, error) {
 		return []kube.APIResourceInfo{
 			{
 				GroupKind: schema.GroupKind{
-					Group: "",
+					Group: "apps",
 					Kind:  "Deployment",
 				},
 				GroupVersionResource: schema.GroupVersionResource{
-					Group:   "",
-					Version: "v1beta1",
+					Group:   "apps",
+					Version: "v1",
+				},
+			},
+			{
+				GroupKind: schema.GroupKind{
+					Group: "networking.k8s.io",
+					Kind:  "Ingress",
+				},
+				GroupVersionResource: schema.GroupVersionResource{
+					Group:   "networking.k8s.io",
+					Version: "v1",
 				},
 			},
 		}, nil
-	}
-
-	res := &common.ResourceSyncResult{
-		ResourceKey: kube.ResourceKey{
-			Name: "deployment-resource",
-			Kind: "Deployment",
-		},
 	}
 
 	testcases := []struct {
 		name            string
 		msg             string
 		expectedMessage string
-		kind            string
+		res             common.ResourceSyncResult
 		mockFn          func() ([]kube.APIResourceInfo, error)
 		errMsg          string
 	}{
 		{
 			name: "match specific k8s error",
 			msg:  "the server could not find the requested resource",
-			expectedMessage: "The server could not find requested resource deployment-resource. Make sure the CRD is installed on the destination cluster, " +
-				"and that the requested CRD version is available. Currently, the installed API version for the corresponding Kind: Deployment is v1beta1",
-			mockFn: mockAPIResourcesFn,
+			res: common.ResourceSyncResult{
+				ResourceKey: kube.ResourceKey{
+					Name:      "deployment-resource",
+					Namespace: "test-namespace",
+					Kind:      "Deployment",
+					Group:     "apps",
+				},
+				Version: "v1beta1",
+			},
+			expectedMessage: "The Kubernetes API could not find version \"v1beta1\" of apps/Deployment for requested resource test-namespace/deployment-resource. Version \"v1\" of apps/Deployment is installed on the destination cluster.",
+			mockFn:          mockAPIResourcesFn,
 		},
 		{
-			name:            "any random k8s msg",
-			msg:             "random message from k8s",
+			name: "any random k8s msg",
+			msg:  "random message from k8s",
+			res: common.ResourceSyncResult{
+				ResourceKey: kube.ResourceKey{
+					Name:      "deployment-resource",
+					Namespace: "test-namespace",
+					Kind:      "Deployment",
+					Group:     "apps",
+				},
+				Version: "v1beta1",
+			},
 			expectedMessage: "random message from k8s",
 			mockFn:          mockAPIResourcesFn,
 		},
 		{
-			name:            "resource doesn't exist in the target cluster",
-			kind:            "Volumne",
-			msg:             "the server could not find the requested resource",
-			expectedMessage: "the server could not find the requested resource",
-			mockFn: func() ([]kube.APIResourceInfo, error) {
-				return []kube.APIResourceInfo{
-					{
-						GroupKind: schema.GroupKind{
-							Group: "",
-							Kind:  "Deployment",
-						},
-						GroupVersionResource: schema.GroupVersionResource{
-							Group:   "",
-							Version: "v1beta1",
-						},
-					},
-				}, nil
+			name: "resource doesn't exist in the target cluster",
+			res: common.ResourceSyncResult{
+				ResourceKey: kube.ResourceKey{
+					Name:      "persistent-volume-resource",
+					Namespace: "test-namespace",
+					Kind:      "PersistentVolume",
+					Group:     "",
+				},
+				Version: "v1",
 			},
-			errMsg: "no matching resource found of kind: Volumne",
+			msg:             "the server could not find the requested resource",
+			expectedMessage: "The Kubernetes API could not find /PersistentVolume for requested resource test-namespace/persistent-volume-resource. Make sure the \"PersistentVolume\" CRD is installed on the destination cluster.",
+			mockFn:          mockAPIResourcesFn,
 		},
 		{
-			name:            "API Resource is empty",
-			kind:            "Volumne",
+			name: "API Resource returns error",
+			res: common.ResourceSyncResult{
+				ResourceKey: kube.ResourceKey{
+					Name:      "persistent-volume-resource",
+					Namespace: "test-namespace",
+					Kind:      "PersistentVolume",
+					Group:     "",
+				},
+				Version: "v1",
+			},
 			msg:             "the server could not find the requested resource",
 			expectedMessage: "the server could not find the requested resource",
 			mockFn: func() ([]kube.APIResourceInfo, error) {
 				return nil, errors.New("failed to fetch resource of given kind %s from the target cluster")
 			},
-			errMsg: "failed to fetch resource of given kind %s from the target cluster",
+			errMsg: "failed to get API resource info for group \"\" and kind \"PersistentVolume\": failed to get API resource info: failed to fetch resource of given kind %s from the target cluster",
+		},
+		{
+			name: "old Ingress type returns error suggesting new Ingress type",
+			res: common.ResourceSyncResult{
+				ResourceKey: kube.ResourceKey{
+					Name:      "ingress-resource",
+					Namespace: "test-namespace",
+					Kind:      "Ingress",
+					Group:     "extensions",
+				},
+				Version: "v1beta1",
+			},
+			msg:             "the server could not find the requested resource",
+			expectedMessage: "The Kubernetes API could not find version \"v1beta1\" of extensions/Ingress for requested resource test-namespace/ingress-resource. Version \"v1\" of networking.k8s.io/Ingress is installed on the destination cluster.",
+			mockFn:          mockAPIResourcesFn,
 		},
 	}
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
-			res.Message = tt.msg
-			if tt.kind != "" {
-				res.ResourceKey.Kind = tt.kind
-			}
-			err := FormatSyncMsg(res, tt.mockFn)
-
-			if res.ResourceKey.Kind == "Volumne" {
-				assert.NotNil(t, err)
-				assert.Contains(t, err.Error(), tt.errMsg)
+			tt.res.Message = tt.msg
+			msg, err := AugmentSyncMsg(tt.res, tt.mockFn)
+			if tt.errMsg != "" {
+				require.Error(t, err)
+				assert.Equal(t, tt.errMsg, err.Error())
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedMessage, msg)
 			}
-			assert.Equal(t, tt.expectedMessage, res.Message)
 		})
 	}
 }

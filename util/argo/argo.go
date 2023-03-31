@@ -9,13 +9,6 @@ import (
 	"strings"
 	"time"
 
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
-	applicationsv1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -28,21 +21,27 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	applicationsv1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
 	errDestinationMissing = "Destination server missing from app spec"
 )
 
-// FormatSyncMsg enrich the K8s message with user-relevant information
-func FormatSyncMsg(res *common.ResourceSyncResult, apiVersFn func() ([]kube.APIResourceInfo, error)) error {
-
+// AugmentSyncMsg enrich the K8s message with user-relevant information
+func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() ([]kube.APIResourceInfo, error)) (string, error) {
 	switch res.Message {
 	case "the server could not find the requested resource":
-
-		resource, err := getAPIResourceInfo(res.ResourceKey.Kind, apiVersFn)
+		resource, err := getAPIResourceInfo(res.ResourceKey.Group, res.ResourceKey.Kind, apiResourceInfoGetter)
 		if err != nil {
-			return err
+			return "", fmt.Errorf("failed to get API resource info for group %q and kind %q: %w", res.ResourceKey.Group, res.ResourceKey.Kind, err)
 		}
 		if resource == nil {
 			res.Message = fmt.Sprintf("The Kubernetes API could not find %s/%s for requested resource %s/%s. Make sure the %q CRD is installed on the destination cluster.", res.ResourceKey.Group, res.ResourceKey.Kind, res.ResourceKey.Namespace, res.ResourceKey.Name, res.ResourceKey.Kind)
@@ -51,26 +50,33 @@ func FormatSyncMsg(res *common.ResourceSyncResult, apiVersFn func() ([]kube.APIR
 		}
 	}
 
-	return nil
+	return res.Message, nil
 }
 
-func getAPIResourceInfo(kind string, apiVersFn func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
+// getAPIResourceInfo gets Kubernetes API resource info for the given group and kind. If there's a matching resource
+// group _and_ kind, it will return the resource info. If there's a matching kind but no matching group, it will
+// return the first resource info that matches the kind. If there's no matching kind, it will return nil.
+func getAPIResourceInfo(group, kind string, getApiResourceInfo func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
 
-	var resource *kube.APIResourceInfo
-	apiResources, err := apiVersFn()
+	apiResources, err := getApiResourceInfo()
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get API resource info: %w", err)
+	}
+
+	for _, r := range apiResources {
+		if r.GroupKind.Group == group && r.GroupKind.Kind == kind {
+			return &r, nil
+		}
 	}
 
 	for _, r := range apiResources {
 		if r.GroupKind.Kind == kind {
-			resource = &r
-			break
+			return &r, nil
 		}
 	}
 
-	return resource, nil
+	return nil, nil
 }
 
 // FormatAppConditions returns string representation of give app condition list
