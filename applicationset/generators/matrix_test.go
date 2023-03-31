@@ -848,7 +848,7 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 	}
 
 	listGenerator := &argoprojiov1alpha1.ListGenerator{
-		Elements:     []apiextensionsv1.JSON{},
+		Elements: []apiextensionsv1.JSON{},
 		ElementsYaml: "{{ .foo.bar | toJson }}",
 	}
 
@@ -870,59 +870,60 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 			},
 			expected: []map[string]interface{}{
 				{
-					"chart":   "a",
-					"version": "1",
+					"chart":         "a",
+					"version":         "1",
 					"foo": map[string]interface{}{
 						"bar": []interface{}{
 							map[string]interface{}{
-								"chart":   "a",
+								"chart": "a",
 								"version": "1",
 							},
 							map[string]interface{}{
-								"chart":   "b",
+								"chart": "b",
 								"version": "2",
 							},
 						},
 					},
 					"path": map[string]interface{}{
-						"basename":           "dir",
+						"basename": "dir",
 						"basenameNormalized": "dir",
-						"filename":           "file_name.yaml",
+						"filename": "file_name.yaml",
 						"filenameNormalized": "file-name.yaml",
-						"path":               "path/dir",
-						"segments": []string{
+						"path": "path/dir",
+						"segments": []string {
 							"path",
 							"dir",
 						},
 					},
 				},
 				{
-					"chart":   "b",
-					"version": "2",
+					"chart":         "b",
+					"version":         "2",
 					"foo": map[string]interface{}{
 						"bar": []interface{}{
 							map[string]interface{}{
-								"chart":   "a",
+								"chart": "a",
 								"version": "1",
 							},
 							map[string]interface{}{
-								"chart":   "b",
+								"chart": "b",
 								"version": "2",
 							},
 						},
 					},
 					"path": map[string]interface{}{
-						"basename":           "dir",
+						"basename": "dir",
 						"basenameNormalized": "dir",
-						"filename":           "file_name.yaml",
+						"filename": "file_name.yaml",
 						"filenameNormalized": "file-name.yaml",
-						"path":               "path/dir",
-						"segments": []string{
+						"path": "path/dir",
+						"segments": []string {
 							"path",
 							"dir",
 						},
 					},
 				},
+
 			},
 		},
 	}
@@ -951,26 +952,27 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 					"foo": map[string]interface{}{
 						"bar": []interface{}{
 							map[string]interface{}{
-								"chart":   "a",
+								"chart": "a",
 								"version": "1",
 							},
 							map[string]interface{}{
-								"chart":   "b",
+								"chart": "b",
 								"version": "2",
 							},
 						},
 					},
 					"path": map[string]interface{}{
-						"basename":           "dir",
+						"basename": "dir",
 						"basenameNormalized": "dir",
-						"filename":           "file_name.yaml",
+						"filename": "file_name.yaml",
 						"filenameNormalized": "file-name.yaml",
-						"path":               "path/dir",
-						"segments": []string{
+						"path": "path/dir",
+						"segments": []string {
 							"path",
 							"dir",
 						},
 					},
+
 				}}, nil)
 				genMock.On("GetTemplate", &gitGeneratorSpec).
 					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
