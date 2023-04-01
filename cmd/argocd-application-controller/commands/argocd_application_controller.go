@@ -23,6 +23,7 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
@@ -134,7 +135,7 @@ func NewCommand() *cobra.Command {
 				appController.InvalidateProjectsCache()
 			}))
 			kubectl := kubeutil.NewKubectl()
-			clusterFilter := getClusterFilter()
+			clusterFilter := getClusterFilter(kubeClient, settingsMgr)
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -201,7 +202,7 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-func getClusterFilter() func(cluster *v1alpha1.Cluster) bool {
+func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager) sharding.ClusterFilterFunction {
 	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
 	var clusterFilter func(cluster *v1alpha1.Cluster) bool
@@ -212,7 +213,9 @@ func getClusterFilter() func(cluster *v1alpha1.Cluster) bool {
 			errors.CheckError(err)
 		}
 		log.Infof("Processing clusters from shard %d", shard)
-		clusterFilter = sharding.GetClusterFilter(replicas, shard)
+		db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
+		distributionFunction := sharding.GetDistributionFunction(db)
+		clusterFilter = sharding.GetClusterFilter(distributionFunction, shard)
 	} else {
 		log.Info("Processing all cluster shards")
 	}
