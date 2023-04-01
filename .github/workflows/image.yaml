@@ -77,8 +77,10 @@ jobs:
       ghcr_username: ${{ github.actor }}
       ghcr_password: ${{ secrets.GITHUB_TOKEN }}
 
-  build-and-publish-provenance:
-    needs: [build-and-publish]
+  build-and-publish-provenance: # Push attestations to GHCR, latest image is polluting quay.io
+    needs:
+      - build-and-publish
+      - set-vars
     permissions:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
@@ -87,11 +89,11 @@ jobs:
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.5.0
     with:
-      image: quay.io/argoproj/argocd
-      digest: ${{ needs.build-and-publish.outputs.image-digest }}
+      image: ghcr.io/argoproj/argo-cd/argocd
+      digest: ${{ needs.set-vars.outputs.image-tag }}
+      registry-username: ${{ github.actor }}
     secrets:
-      registry-username: ${{ secrets.RELEASE_QUAY_USERNAME }}
-      registry-password: ${{ secrets.RELEASE_QUAY_TOKEN }}
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
 
   Deploy:
     needs:
