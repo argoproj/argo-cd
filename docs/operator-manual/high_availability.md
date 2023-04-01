@@ -80,6 +80,8 @@ spec:
           value: "2"
 ```
 
+* The shard distribution algorthim of the `argocd-application-controller` can be set by using the `--sharding-method` parameter. Supported sharding methods are : [legacy (default), round-robin]. `legacy` mode uses an `uid` based distribution (non-uniform). `roudn-robin` uses an equal distribution accross all shards.
+
 * `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` - environment variable that enables collecting RPC performance metrics. Enable it if you need to troubleshoot performance issues. Note: This metric is expensive to both query and store!
 
 **metrics**
