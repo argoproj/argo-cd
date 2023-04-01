@@ -1467,6 +1467,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	})
 	app.Status.SourceType = compareResult.appSourceType
 	app.Status.SourceTypes = compareResult.appSourceTypes
+	app.Status.ControllerNamespace = ctrl.namespace
 	ctrl.persistAppStatus(origApp, &app.Status)
 	return
 }

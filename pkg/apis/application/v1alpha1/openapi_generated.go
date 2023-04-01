@@ -2081,6 +2081,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 							},
 						},
 					},
+					"controllerNamespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ControllerNamespace indicates the namespace in which the application controller is located",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

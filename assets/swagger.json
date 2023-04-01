@@ -6300,6 +6300,10 @@
             "$ref": "#/definitions/v1alpha1ApplicationCondition"
           }
         },
+        "controllerNamespace": {
+          "type": "string",
+          "title": "ControllerNamespace indicates the namespace in which the application controller is located"
+        },
         "health": {
           "$ref": "#/definitions/v1alpha1HealthStatus"
         },

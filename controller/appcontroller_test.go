@@ -54,6 +54,7 @@ type fakeData struct {
 	namespacedResources    map[kube.ResourceKey]namespacedResource
 	configMapData          map[string]string
 	metricsCacheExpiration time.Duration
+	applicationNamespaces  []string
 }
 
 func newFakeController(data *fakeData) *ApplicationController {
@@ -111,7 +112,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		0,
 		true,
 		nil,
-		[]string{},
+		data.applicationNamespaces,
 	)
 	if err != nil {
 		panic(err)
@@ -1527,5 +1528,40 @@ func Test_syncDeleteOption(t *testing.T) {
 		cmObj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=false"})
 		delete := ctrl.shouldBeDeleted(app, cmObj)
 		assert.False(t, delete)
+	})
+}
+
+func TestAddControllerNamespace(t *testing.T) {
+	t.Run("set controllerNamespace when the app is in the controller namespace", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{},
+		})
+	
+		ctrl.processAppRefreshQueueItem()
+	
+		updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, test.FakeArgoCDNamespace, updatedApp.Status.ControllerNamespace)
+	})
+	t.Run("set controllerNamespace when the app is in another namespace than the controller", func(t *testing.T) {
+		appNamespace := "app-namespace"
+
+		app := newFakeApp()
+		app.ObjectMeta.Namespace = appNamespace
+		proj := defaultProj
+		proj.Spec.SourceNamespaces = []string{appNamespace}
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &proj},
+			manifestResponse: &apiclient.ManifestResponse{},
+			applicationNamespaces: []string{appNamespace},
+		})
+	
+		ctrl.processAppRefreshQueueItem()
+	
+		updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, test.FakeArgoCDNamespace, updatedApp.Status.ControllerNamespace)
 	})
 }

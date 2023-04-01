@@ -572,6 +572,9 @@ message ApplicationStatus {
 
   // SourceTypes specifies the type of the sources included in the application
   repeated string sourceTypes = 12;
+
+  // ControllerNamespace indicates the namespace in which the application controller is located
+  optional string controllerNamespace = 13;
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
