@@ -324,6 +324,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	state.SyncResult.Resources = nil
 	state.SyncResult.ManagedNamespaceMetadata = app.Spec.SyncPolicy.ManagedNamespaceMetadata
 
+	if app.Spec.SyncPolicy != nil {
+		state.SyncResult.ManagedNamespaceMetadata = app.Spec.SyncPolicy.ManagedNamespaceMetadata
+	}
+
 	var apiVersion []kube.APIResourceInfo
 	for _, res := range resState {
 		augmentedMsg, err := argo.AugmentSyncMsg(res, func() ([]kube.APIResourceInfo, error) {
