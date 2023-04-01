@@ -199,6 +199,8 @@ const (
 	EnvControllerReplicas = "ARGOCD_CONTROLLER_REPLICAS"
 	// EnvControllerShard is the shard number that should be handled by controller
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
+	// EnvControllerShardingAlgorithm is the distribution sharding algorithm to be used: legacy or hash
+	EnvControllerShardingAlgorithm = "ARGOCD_CONTROLLER_SHARDING_ALGORITHM"
 	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection
 	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
 	// EnvGithubAppCredsExpirationDuration controls the caching of Github app credentials. This value is in minutes (default: 60)

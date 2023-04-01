@@ -167,6 +167,23 @@ metadata:
   namespace: ` + test.FakeArgoCDNamespace + `
 type: Opaque
 `
+var fakeClusterTemplate = `
+apiVersion: v1
+data:
+  # {"bearerToken":"fake","tlsClientConfig":{"insecure":true},"awsAuthConfig":null}
+  config: eyJiZWFyZXJUb2tlbiI6ImZha2UiLCJ0bHNDbGllbnRDb25maWciOnsiaW5zZWN1cmUiOnRydWV9LCJhd3NBdXRoQ29uZmlnIjpudWxsfQ==
+  # minikube
+  name: bWluaWt1YmU=
+  # eg: https://localhost:6443 => aHR0cHM6Ly9sb2NhbGhvc3Q6NjQ0Mw==
+  server: @@BASE64_ENCODED_SERVER_URL@@
+kind: Secret
+metadata:
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+  name: some-secret
+  namespace: ` + test.FakeArgoCDNamespace + `
+type: Opaque
+`
 
 var fakeApp = `
 apiVersion: argoproj.io/v1alpha1

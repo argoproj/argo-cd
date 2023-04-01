@@ -21,7 +21,7 @@ func TestGetShardByID_EmptyID(t *testing.T) {
 }
 
 func TestGetClusterFilter(t *testing.T) {
-	filter := GetClusterFilter(2, 1)
+	filter := GetDistributionFunction(2, 1)
 	assert.False(t, filter(&v1alpha1.Cluster{ID: "1"}))
 	assert.True(t, filter(&v1alpha1.Cluster{ID: "2"}))
 	assert.False(t, filter(&v1alpha1.Cluster{ID: "3"}))

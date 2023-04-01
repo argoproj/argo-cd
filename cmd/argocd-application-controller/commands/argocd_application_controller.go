@@ -134,7 +134,7 @@ func NewCommand() *cobra.Command {
 				appController.InvalidateProjectsCache()
 			}))
 			kubectl := kubeutil.NewKubectl()
-			clusterFilter := getClusterFilter()
+			clusterFilterFunction := getClusterFilter(kubeClient, settingsMgr)
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -151,7 +151,7 @@ func NewCommand() *cobra.Command {
 				metricsAplicationLabels,
 				kubectlParallelismLimit,
 				persistResourceHealth,
-				clusterFilter,
+				clusterFilterFunction,
 				applicationNamespaces)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
@@ -201,9 +201,9 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-func getClusterFilter() func(cluster *v1alpha1.Cluster) bool {
+func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager) func(cluster *v1alpha1.Cluster) bool {
 	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
-	shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
+	shard := int32(env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32))
 	var clusterFilter func(cluster *v1alpha1.Cluster) bool
 	if replicas > 1 {
 		if shard < 0 {
@@ -212,7 +212,8 @@ func getClusterFilter() func(cluster *v1alpha1.Cluster) bool {
 			errors.CheckError(err)
 		}
 		log.Infof("Processing clusters from shard %d", shard)
-		clusterFilter = sharding.GetClusterFilter(replicas, shard)
+		distributionFunction := sharding.GetDistributionFunction(kubeClient, settingsMgr)
+		clusterFilter = sharding.GetClusterFilter(distributionFunction, shard)
 	} else {
 		log.Info("Processing all cluster shards")
 	}
