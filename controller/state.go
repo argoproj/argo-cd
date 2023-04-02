@@ -612,8 +612,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			if !(needsPruning && resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous")) {
 				syncCode = v1alpha1.SyncStatusCodeOutOfSync
 			}
-		} else if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil && app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil && !reflect.DeepEqual(app.Spec.SyncPolicy.ManagedNamespaceMetadata, app.Status.OperationState.SyncResult.ManagedNamespaceMetadata) {
-			syncCode = v1alpha1.SyncStatusCodeOutOfSync
 		} else {
 			resState.Status = v1alpha1.SyncStatusCodeSynced
 		}
@@ -653,6 +651,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	if failedToLoadObjs {
 		syncCode = v1alpha1.SyncStatusCodeUnknown
+	} else if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil && app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil && !reflect.DeepEqual(app.Spec.SyncPolicy.ManagedNamespaceMetadata, app.Status.OperationState.SyncResult.ManagedNamespaceMetadata) {
+		syncCode = v1alpha1.SyncStatusCodeOutOfSync
 	}
 	var revision string
 
