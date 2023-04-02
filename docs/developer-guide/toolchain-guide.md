@@ -157,9 +157,9 @@ Make sure you fulfill the pre-requisites above and run some preliminary tests. N
 * Run `docker version`
 * Run `go version`
 
-### Build (or pull) the required Docker image
+### Build the required Docker image
 
-Build the required Docker image by running `make test-tools-image` or pull the latest version by issuing `docker pull argoproj/argocd-test-tools`.
+Build the required Docker image by running `make test-tools-image`. This image offers the environment of the virtualized toolchain.
 
 The `Dockerfile` used to build these images can be found at `test/container/Dockerfile`.
 
