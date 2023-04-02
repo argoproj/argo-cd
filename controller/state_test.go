@@ -89,7 +89,7 @@ func TestCompareAppStateNamespaceMetadataDiffers(t *testing.T) {
 	assert.Len(t, app.Status.Conditions, 0)
 }
 
-// TestCompareAppStateNamespaceMetadataIsTheSame tests comparison when managed namespace metadata differs
+// TestCompareAppStateNamespaceMetadataIsTheSame tests comparison when managed namespace metadata is the same
 func TestCompareAppStateNamespaceMetadataIsTheSame(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
