@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/cache"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/r3labs/diff"
 	log "github.com/sirupsen/logrus"
@@ -33,6 +34,50 @@ import (
 const (
 	errDestinationMissing = "Destination server missing from app spec"
 )
+
+// AugmentSyncMsg enrich the K8s message with user-relevant information
+func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() ([]kube.APIResourceInfo, error)) (string, error) {
+	switch res.Message {
+	case "the server could not find the requested resource":
+		resource, err := getAPIResourceInfo(res.ResourceKey.Group, res.ResourceKey.Kind, apiResourceInfoGetter)
+		if err != nil {
+			return "", fmt.Errorf("failed to get API resource info for group %q and kind %q: %w", res.ResourceKey.Group, res.ResourceKey.Kind, err)
+		}
+		if resource == nil {
+			res.Message = fmt.Sprintf("The Kubernetes API could not find %s/%s for requested resource %s/%s. Make sure the %q CRD is installed on the destination cluster.", res.ResourceKey.Group, res.ResourceKey.Kind, res.ResourceKey.Namespace, res.ResourceKey.Name, res.ResourceKey.Kind)
+		} else {
+			res.Message = fmt.Sprintf("The Kubernetes API could not find version %q of %s/%s for requested resource %s/%s. Version %q of %s/%s is installed on the destination cluster.", res.Version, res.ResourceKey.Group, res.ResourceKey.Kind, res.ResourceKey.Namespace, res.ResourceKey.Name, resource.GroupVersionResource.Version, resource.GroupKind.Group, resource.GroupKind.Kind)
+		}
+	}
+
+	return res.Message, nil
+}
+
+// getAPIResourceInfo gets Kubernetes API resource info for the given group and kind. If there's a matching resource
+// group _and_ kind, it will return the resource info. If there's a matching kind but no matching group, it will
+// return the first resource info that matches the kind. If there's no matching kind, it will return nil.
+func getAPIResourceInfo(group, kind string, getApiResourceInfo func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
+
+	apiResources, err := getApiResourceInfo()
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get API resource info: %w", err)
+	}
+
+	for _, r := range apiResources {
+		if r.GroupKind.Group == group && r.GroupKind.Kind == kind {
+			return &r, nil
+		}
+	}
+
+	for _, r := range apiResources {
+		if r.GroupKind.Kind == kind {
+			return &r, nil
+		}
+	}
+
+	return nil, nil
+}
 
 // FormatAppConditions returns string representation of give app condition list
 func FormatAppConditions(conditions []argoappv1.ApplicationCondition) string {
