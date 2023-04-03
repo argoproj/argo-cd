@@ -134,8 +134,7 @@ export const ApplicationResourceList = ({
                                                     <i className='fa fa-ellipsis-v' />
                                                 </button>
                                             )}>
-                                            {() =>
-                                                nodeMenu({
+                                            {nodeMenu({
                                                     name: res.name,
                                                     version: res.version,
                                                     kind: res.kind,
@@ -145,8 +144,7 @@ export const ApplicationResourceList = ({
                                                     uid: '',
                                                     resourceVersion: null,
                                                     parentRefs: []
-                                                })
-                                            }
+                                             })}
                                         </DropDown>
                                     </div>
                                 </div>
