@@ -29,9 +29,9 @@ const (
 	ArgoCDNotificationsConfigMapName = "argocd-notifications-cm"
 	ArgoCDNotificationsSecretName    = "argocd-notifications-secret"
 	ArgoCDRBACConfigMapName          = "argocd-rbac-cm"
-	// Contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
+	// ArgoCDKnownHostsConfigMapName contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
-	// Contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
+	// ArgoCDTLSCertsConfigMapName contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDTLSCertsConfigMapName = "argocd-tls-certs-cm"
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
 )
@@ -51,28 +51,28 @@ const (
 	DefaultPortRepoServerMetrics      = 8084
 )
 
-// Default listener address for ArgoCD components
+// DefaultAddressAPIServer for ArgoCD components
 const (
 	DefaultAddressAPIServer = "localhost"
 )
 
 // Default paths on the pod's file system
 const (
-	// The default path where TLS certificates for repositories are located
+	// DefaultPathTLSConfig is the default path where TLS certificates for repositories are located
 	DefaultPathTLSConfig = "/app/config/tls"
-	// The default path where SSH known hosts are stored
+	// DefaultPathSSHConfig is the default path where SSH known hosts are stored
 	DefaultPathSSHConfig = "/app/config/ssh"
-	// Default name for the SSH known hosts file
+	// DefaultSSHKnownHostsName is the Default name for the SSH known hosts file
 	DefaultSSHKnownHostsName = "ssh_known_hosts"
-	// Default path to GnuPG home directory
+	// DefaultGnuPgHomePath is the Default path to GnuPG home directory
 	DefaultGnuPgHomePath = "/app/config/gpg/keys"
-	// Default path to repo server TLS endpoint config
+	// DefaultAppConfigPath is the Default path to repo server TLS endpoint config
 	DefaultAppConfigPath = "/app/config"
-	// Default path to cmp server plugin socket file
+	// DefaultPluginSockFilePath is the Default path to cmp server plugin socket file
 	DefaultPluginSockFilePath = "/home/argocd/cmp-server/plugins"
-	// Default path to cmp server plugin configuration file
+	// DefaultPluginConfigFilePath is the Default path to cmp server plugin configuration file
 	DefaultPluginConfigFilePath = "/home/argocd/cmp-server/config"
-	// Plugin Config File is a ConfigManagementPlugin manifest located inside the plugin container
+	// PluginConfigFileName is the Plugin Config File is a ConfigManagementPlugin manifest located inside the plugin container
 	PluginConfigFileName = "plugin.yaml"
 )
 
@@ -139,7 +139,7 @@ const (
 	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
 	LabelValueSecretTypeRepoCreds = "repo-creds"
 
-	// The Argo CD application name is used as the instance name
+	// AnnotationKeyAppInstance is the Argo CD application name is used as the instance name
 	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
@@ -159,6 +159,10 @@ const (
 	// Ex: "http://grafana.example.com/d/yu5UH4MMz/deployments"
 	// Ex: "Go to Dashboard|http://grafana.example.com/d/yu5UH4MMz/deployments"
 	AnnotationKeyLinkPrefix = "link.argocd.argoproj.io/"
+
+	// AnnotationKeyAppSkipReconcile tells the Application to skip the Application controller reconcile.
+	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
+	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
 )
 
 // Environment variables for tuning and debugging Argo CD
@@ -167,19 +171,19 @@ const (
 	EnvVarSSODebug = "ARGOCD_SSO_DEBUG"
 	// EnvVarRBACDebug is an environment variable to enable additional RBAC debugging in the API server
 	EnvVarRBACDebug = "ARGOCD_RBAC_DEBUG"
-	// Overrides the location where SSH known hosts for repo access data is stored
+	// EnvVarSSHDataPath overrides the location where SSH known hosts for repo access data is stored
 	EnvVarSSHDataPath = "ARGOCD_SSH_DATA_PATH"
-	// Overrides the location where TLS certificate for repo access data is stored
+	// EnvVarTLSDataPath overrides the location where TLS certificate for repo access data is stored
 	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
-	// Specifies number of git remote operations attempts count
+	// EnvGitAttemptsCount specifies number of git remote operations attempts count
 	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
-	// Specifices max duration of git remote operation retry
+	// EnvGitRetryMaxDuration specifices max duration of git remote operation retry
 	EnvGitRetryMaxDuration = "ARGOCD_GIT_RETRY_MAX_DURATION"
-	// Specifies duration of git remote operation retry
+	// EnvGitRetryDuration specifies duration of git remote operation retry
 	EnvGitRetryDuration = "ARGOCD_GIT_RETRY_DURATION"
-	// Specifies fator of git remote operation retry
+	// EnvGitRetryFactor specifies fator of git remote operation retry
 	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
-	// Overrides git submodule support, true by default
+	// EnvGitSubmoduleEnabled overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
@@ -201,7 +205,7 @@ const (
 	EnvGithubAppCredsExpirationDuration = "ARGOCD_GITHUB_APP_CREDS_EXPIRATION_DURATION"
 	// EnvHelmIndexCacheDuration controls how the helm repository index file is cached for (default: 0)
 	EnvHelmIndexCacheDuration = "ARGOCD_HELM_INDEX_CACHE_DURATION"
-	// EnvRepoServerConfigPath allows to override the configuration path for repo server
+	// EnvAppConfigPath allows to override the configuration path for repo server
 	EnvAppConfigPath = "ARGOCD_APP_CONF_PATH"
 	// EnvLogFormat log format that is defined by `--logformat` option
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
@@ -292,14 +296,14 @@ func GetCMPWorkDir() string {
 }
 
 const (
-	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.
+	// AnnotationApplicationSetRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.
 	AnnotationApplicationSetRefresh = "argocd.argoproj.io/application-set-refresh"
 )
 
 // gRPC settings
 const (
 	GRPCKeepAliveEnforcementMinimum = 10 * time.Second
-	// Keep alive is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
+	// GRPCKeepAliveTime is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
 	GRPCKeepAliveTime = 2 * GRPCKeepAliveEnforcementMinimum
 )
 
@@ -314,7 +318,7 @@ const (
 	SecurityLow       = 1 // Unexceptional entries (i.e. successful access logs)
 )
 
-// Common error messages
+// TokenVerificationError is a generic error message for a failure to verify a JWT
 const TokenVerificationError = "failed to verify the token"
 
 var TokenVerificationErr = errors.New(TokenVerificationError)
