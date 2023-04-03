@@ -1006,8 +1006,16 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 	}
 }
 
-func TestSkipNonInterpolatedMatrixCalls(t *testing.T) {
+func TestSkipInterpolatedMatrixCalls(t *testing.T) {
 	interpolatedGitGenerator := &argoprojiov1alpha1.GitGenerator{
+		RepoURL:  "RepoURL",
+		Revision: "Revision",
+		Files: []argoprojiov1alpha1.GitFileGeneratorItem{
+			{Path: "examples/git-generator-files-discovery/cluster-config/{{name}}.json"},
+		},
+	}
+
+	nonInterpolatedGitGenerator := &argoprojiov1alpha1.GitGenerator{
 		RepoURL:  "RepoURL",
 		Revision: "Revision",
 		Files: []argoprojiov1alpha1.GitFileGeneratorItem{
@@ -1037,14 +1045,10 @@ func TestSkipNonInterpolatedMatrixCalls(t *testing.T) {
 		expectedNumCalls int
 	}{
 		{
-			name: "happy flow - generate interpolated params",
+			name: "happy flow - generate noninterpolated params",
 			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
-				{
-					Clusters: interpolatedClusterGenerator,
-				},
-				{
-					Git: interpolatedGitGenerator,
-				},
+				{ Clusters: interpolatedClusterGenerator },
+				{ Git: nonInterpolatedGitGenerator },
 			},
 			expected: []map[string]interface{}{
 				{
@@ -1095,150 +1099,11 @@ func TestSkipNonInterpolatedMatrixCalls(t *testing.T) {
 			},
 			expectedNumCalls: 1,
 		},
-	}
-	clusters := []client.Object{
-		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "dev-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "dev",
-				},
-			},
-			Data: map[string][]byte{
-				"config": []byte("{}"),
-				"name":   []byte("dev-01"),
-				"server": []byte("https://dev-01.example.com"),
-			},
-			Type: corev1.SecretType("Opaque"),
-		},
-		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "prod-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "prod",
-				},
-			},
-			Data: map[string][]byte{
-				"config": []byte("{}"),
-				"name":   []byte("prod-01"),
-				"server": []byte("https://prod-01.example.com"),
-			},
-			Type: corev1.SecretType("Opaque"),
-		},
-	}
-
-	// convert []client.Object to []runtime.Object, for use by kubefake package
-	runtimeClusters := []runtime.Object{}
-	for _, clientCluster := range clusters {
-		runtimeClusters = append(runtimeClusters, clientCluster)
-	}
-
-	for _, testCase := range testCases {
-		testCaseCopy := testCase // Since tests may run in parallel
-
-		t.Run(testCaseCopy.name, func(t *testing.T) {
-			genMock := &generatorMock{}
-			appSet := &argoprojiov1alpha1.ApplicationSet{}
-
-			appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
-			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
-			cl := &possiblyErroringFakeCtrlRuntimeClient{
-				fakeClient,
-				testCase.clientError,
-			}
-			var clusterGenerator = NewClusterGenerator(cl, context.Background(), appClientset, "namespace")
-			logrus.Debug(clusterGenerator)
-			for _, g := range testCaseCopy.baseGenerators {
-
-				gitGeneratorSpec := argoprojiov1alpha1.ApplicationSetGenerator{
-					Clusters: g.Clusters,
-					Git:      g.Git,
-				}
-				genMock.On("GetTemplate", &gitGeneratorSpec).
-					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
-			}
-			/////////////// GIT MOCK ///////////////
-			for _, currMock := range testCaseCopy.expectedMock {
-				genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet).Return(currMock, nil).Once()
-			}
-
-			var matrixGenerator = NewMatrixGenerator(
-				map[string]Generator{
-					"Git":      genMock,
-					"Clusters": clusterGenerator,
-				},
-			)
-
-			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
-				Matrix: &argoprojiov1alpha1.MatrixGenerator{
-					Generators: testCaseCopy.baseGenerators,
-					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
-				},
-			}, appSet)
-
-			genMock.AssertNumberOfCalls(t, "GenerateParams", testCase.expectedNumCalls)
-
-			if testCaseCopy.expectedErr != nil {
-				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, testCaseCopy.expected, got)
-			}
-		})
-	}
-}
-
-func TestSkipInterpolatedMatrixCalls(t *testing.T) {
-	interpolatedGitGenerator := &argoprojiov1alpha1.GitGenerator{
-		RepoURL:  "RepoURL",
-		Revision: "Revision",
-		Files: []argoprojiov1alpha1.GitFileGeneratorItem{
-			{Path: "examples/git-generator-files-discovery/cluster-config/{{name}}.json"},
-		},
-	}
-
-	interpolatedClusterGenerator := &argoprojiov1alpha1.ClusterGenerator{
-		Selector: metav1.LabelSelector{
-			MatchLabels: nil,
-			MatchExpressions: []metav1.LabelSelectorRequirement{
-				{
-					Key:      "environment",
-					Operator: "Exists",
-					Values:   []string{},
-				},
-			},
-		},
-	}
-	testCases := []struct {
-		name             string
-		baseGenerators   []argoprojiov1alpha1.ApplicationSetNestedGenerator
-		expectedErr      error
-		expected         []map[string]interface{}
-		clientError      bool
-		expectedMock     [][]map[string]interface{}
-		expectedNumCalls int
-	}{
 		{
 			name: "happy flow - generate interpolated params",
 			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
-				{
-					Clusters: interpolatedClusterGenerator,
-				},
-				{
-					Git: interpolatedGitGenerator,
-				},
+				{ Clusters: interpolatedClusterGenerator },
+				{ Git: interpolatedGitGenerator },
 			},
 			expected: []map[string]interface{}{
 				{
@@ -1274,8 +1139,8 @@ func TestSkipInterpolatedMatrixCalls(t *testing.T) {
 			},
 			clientError: false,
 			expectedMock: [][]map[string]interface{}{
-				{},
-				{
+				{}, // Needed, because the 1st call will fail without interpolation
+				{ // Subsequent calls will succeed with interpolation
 					{
 						"path":                    "examples/git-generator-files-discovery/dev-01.json",
 						"path.basename":           "dev-01",
@@ -1377,7 +1242,7 @@ func TestSkipInterpolatedMatrixCalls(t *testing.T) {
 				genMock.On("GetTemplate", &gitGeneratorSpec).
 					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
 			}
-			/////////////// GIT MOCK ///////////////
+
 			for _, currMock := range testCaseCopy.expectedMock {
 				genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet).Return(currMock, nil).Once()
 			}
