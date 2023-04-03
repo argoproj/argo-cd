@@ -17206,15 +17206,15 @@ spec:
       - args:
         - /usr/local/bin/argocd-notifications
         env:
-        - name: ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT 
-          valueFrom: 
-            configMapKeyRef: 
-              key: notificationscontroller.log.format 
-              name: argocd-cmd-params-cm 
-              optional: true 
-        - name: ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL 
-          valueFrom: 
-            configMapKeyRef: 
+        - name: ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.log.format
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL
+          valueFrom:
+            configMapKeyRef:
               key: notificationscontroller.log.level
               name: argocd-cmd-params-cm
               optional: true
