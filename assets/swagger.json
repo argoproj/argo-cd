@@ -5490,6 +5490,23 @@
         }
       }
     },
+    "v1alpha1AllowTags": {
+      "type": "object",
+      "title": "AllowTags provides filtering options to express which tags should be considered as update candidates",
+      "properties": {
+        "matchList": {
+          "type": "array",
+          "title": "MatchList defines a list of regex/wildcard expressions that are used to filter tags",
+          "items": {
+            "type": "string"
+          }
+        },
+        "matchType": {
+          "type": "string",
+          "title": "MatchType defines the type of matchList entries"
+        }
+      }
+    },
     "v1alpha1AppProject": {
       "type": "object",
       "title": "AppProject provides a logical grouping of applications, providing controls for:\n* where the apps may deploy to (cluster whitelist)\n* what may be deployed (repository whitelist, resource whitelist/blacklist)\n* who can access these applications (roles, OIDC group claims bindings)\n* and what they can do (RBAC policies)\n* automation access to these roles (JWT tokens)\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=appprojects,shortName=appproj;appprojs",
@@ -6258,6 +6275,9 @@
             "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
           }
         },
+        "image": {
+          "$ref": "#/definitions/v1alpha1Image"
+        },
         "info": {
           "type": "array",
           "title": "Info contains a list of information (URLs, email addresses, and plain text) that relates to the application",
@@ -6888,6 +6908,24 @@
         }
       }
     },
+    "v1alpha1HelmParameterConfig": {
+      "type": "object",
+      "title": "HelmParameterConfig holds the names of helm parameters that Image Updater should set with appropriate/updated values in `.spec.source.helm.parameters`",
+      "properties": {
+        "imageName": {
+          "type": "string",
+          "title": "helm parameter name for image name\n+optional"
+        },
+        "imageSpec": {
+          "type": "string",
+          "title": "helm parameter name for image spec\n+optional"
+        },
+        "imageTag": {
+          "type": "string",
+          "title": "helm parameter name for image tag\n+optional"
+        }
+      }
+    },
     "v1alpha1HostInfo": {
       "type": "object",
       "title": "HostInfo holds host name and resources metrics\nTODO: describe purpose of this type\nTODO: describe members of this type",
@@ -6924,6 +6962,76 @@
         },
         "resourceName": {
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1IgnoreTags": {
+      "type": "object",
+      "title": "IgnoreTags provides filtering options to express which tags should be ignored when looking for update candidates",
+      "properties": {
+        "matchList": {
+          "type": "array",
+          "title": "MatchList defines a list of regex/wildcard expressions that are used to filter tags",
+          "items": {
+            "type": "string"
+          }
+        },
+        "matchType": {
+          "type": "string",
+          "title": "MatchType defines the type of matchList entries"
+        }
+      }
+    },
+    "v1alpha1Image": {
+      "type": "object",
+      "title": "Image contains all the configuration that is related to the images deployed by a specific application",
+      "properties": {
+        "updates": {
+          "$ref": "#/definitions/v1alpha1Updates"
+        }
+      }
+    },
+    "v1alpha1ImageConfiguration": {
+      "type": "object",
+      "title": "ImageConfiguration contains image specific update configuration for a given image",
+      "properties": {
+        "allowTags": {
+          "$ref": "#/definitions/v1alpha1AllowTags"
+        },
+        "constraint": {
+          "type": "string",
+          "title": "Constraint holds semver constraints to be applied filtering through image tags\n+optional"
+        },
+        "forceUpdate": {
+          "type": "boolean",
+          "title": "ForceUpdate determines if Image Updater should update images not exposed in Application status"
+        },
+        "helm": {
+          "$ref": "#/definitions/v1alpha1HelmParameterConfig"
+        },
+        "ignoreTags": {
+          "$ref": "#/definitions/v1alpha1IgnoreTags"
+        },
+        "image": {
+          "type": "string",
+          "title": "Image contains the fully qualified image name"
+        },
+        "imagePlatforms": {
+          "type": "array",
+          "title": "ImagePlatforms specifies a list of allowed architectures for a specific image",
+          "items": {
+            "type": "string"
+          }
+        },
+        "kustomize": {
+          "$ref": "#/definitions/v1alpha1KustomizeParameterConfig"
+        },
+        "pullSecret": {
+          "$ref": "#/definitions/v1alpha1PullSecret"
+        },
+        "updateStrategy": {
+          "type": "string",
+          "title": "UpdateStrategy determines how Image Updater will find new versions of an image to be updated\nDefault strategy is \"semver\"\n+optional"
         }
       }
     },
@@ -7019,6 +7127,16 @@
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
+        }
+      }
+    },
+    "v1alpha1KustomizeParameterConfig": {
+      "type": "object",
+      "title": "KustomizeParameterConfig holds the original image that Image Updater should override appropriate/updated values in `.spec.source.kustomize.images`",
+      "properties": {
+        "imageName": {
+          "type": "string",
+          "title": "Original image to be overridden through kustomize"
         }
       }
     },
@@ -7411,6 +7529,34 @@
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
+    "v1alpha1PullSecret": {
+      "type": "object",
+      "properties": {
+        "credsExpire": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "env": {
+          "type": "string",
+          "title": "References an environment variable for the secret\n+optional"
+        },
+        "ext": {
+          "type": "string",
+          "title": "References an external script mounted to the Image Updater controller to generate credentials\n+optional"
+        },
+        "field": {
+          "type": "string",
+          "title": "+optional"
+        },
+        "name": {
+          "type": "string",
+          "title": "+optional"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "+optional"
         }
       }
     },
@@ -8575,6 +8721,36 @@
         "serverName": {
           "description": "ServerName is passed to the server for SNI and is used in the client to check server\ncertificates against. If ServerName is empty, the hostname used to contact the\nserver is used.",
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1Updates": {
+      "type": "object",
+      "title": "Updates contains configuration related to updating images",
+      "properties": {
+        "allowTags": {
+          "$ref": "#/definitions/v1alpha1AllowTags"
+        },
+        "forceUpdate": {
+          "type": "boolean",
+          "title": "ForceUpdate determines if Image Updater should force update all application images"
+        },
+        "ignoreTags": {
+          "$ref": "#/definitions/v1alpha1IgnoreTags"
+        },
+        "imageList": {
+          "type": "array",
+          "title": "ImageList contains image specific configurations for each individual application image",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ImageConfiguration"
+          }
+        },
+        "pullSecret": {
+          "$ref": "#/definitions/v1alpha1PullSecret"
+        },
+        "updateStrategy": {
+          "type": "string",
+          "title": "UpdateStrategy determines common strategy that Image Updater will use to find new versions of all application image to be updated\nDefault strategy is \"semver\"\n+optional"
         }
       }
     },

@@ -24,6 +24,15 @@ message AWSAuthConfig {
   optional string roleARN = 2;
 }
 
+// AllowTags provides filtering options to express which tags should be considered as update candidates
+message AllowTags {
+  // MatchType defines the type of matchList entries
+  optional string matchType = 1;
+
+  // MatchList defines a list of regex/wildcard expressions that are used to filter tags
+  repeated string matchList = 2;
+}
+
 // AppProject provides a logical grouping of applications, providing controls for:
 // * where the apps may deploy to (cluster whitelist)
 // * what may be deployed (repository whitelist, resource whitelist/blacklist)
@@ -532,6 +541,10 @@ message ApplicationSpec {
 
   // Sources is a reference to the location of the application's manifests or chart
   repeated ApplicationSource sources = 8;
+
+  // Image contains all the configuration that is related to the images deployed by a specific application
+  // +optional
+  optional Image image = 9;
 }
 
 // ApplicationStatus contains status information for the application
@@ -934,6 +947,21 @@ message HelmParameter {
   optional bool forceString = 3;
 }
 
+// HelmParameterConfig holds the names of helm parameters that Image Updater should set with appropriate/updated values in `.spec.source.helm.parameters`
+message HelmParameterConfig {
+  // helm parameter name for image name
+  // +optional
+  optional string imageName = 1;
+
+  // helm parameter name for image tag
+  // +optional
+  optional string imageTag = 2;
+
+  // helm parameter name for image spec
+  // +optional
+  optional string imageSpec = 3;
+}
+
 // HostInfo holds host name and resources metrics
 // TODO: describe purpose of this type
 // TODO: describe members of this type
@@ -954,6 +982,63 @@ message HostResourceInfo {
   optional int64 requestedByNeighbors = 3;
 
   optional int64 capacity = 4;
+}
+
+// IgnoreTags provides filtering options to express which tags should be ignored when looking for update candidates
+message IgnoreTags {
+  // MatchType defines the type of matchList entries
+  optional string matchType = 1;
+
+  // MatchList defines a list of regex/wildcard expressions that are used to filter tags
+  repeated string matchList = 2;
+}
+
+// Image contains all the configuration that is related to the images deployed by a specific application
+message Image {
+  // Updates contains all the configuration that is related to automatic image updatees for images deployed in applications
+  // +optional
+  optional Updates updates = 1;
+}
+
+// ImageConfiguration contains image specific update configuration for a given image
+message ImageConfiguration {
+  // Image contains the fully qualified image name
+  optional string image = 1;
+
+  // Constraint holds semver constraints to be applied filtering through image tags
+  // +optional
+  optional string constraint = 2;
+
+  // AllowTags allows further filtering of tags to be considered based on regex/wildcard expressions
+  // +optional
+  optional AllowTags allowTags = 3;
+
+  // IgnoreTags allows further filtering of tags to be ignored based on regex/wildcard expressions
+  // +optional
+  optional IgnoreTags ignoreTags = 4;
+
+  // ForceUpdate determines if Image Updater should update images not exposed in Application status
+  optional bool forceUpdate = 5;
+
+  // UpdateStrategy determines how Image Updater will find new versions of an image to be updated
+  // Default strategy is "semver"
+  // +optional
+  optional string updateStrategy = 6;
+
+  // ImagePlatforms specifies a list of allowed architectures for a specific image
+  repeated string imagePlatforms = 7;
+
+  // PullSecret allows configuration of a pull secret to be used to pull target images
+  // +optional
+  optional PullSecret pullSecret = 8;
+
+  // Helm holds configurations related to helm parameters that will be written back to by Image Updater
+  // +optional
+  optional HelmParameterConfig helm = 9;
+
+  // Kustomize holds configurations related to kustomize parameters that will be written back to by Image Updater
+  // +optional
+  optional KustomizeParameterConfig kustomize = 10;
 }
 
 message Info {
@@ -1003,6 +1088,10 @@ message KnownTypeField {
   optional string type = 2;
 }
 
+message KustomizationConfig {
+  optional string path = 1;
+}
+
 // KustomizeOptions are options for kustomize to use when building manifests
 message KustomizeOptions {
   // BuildOptions is a string of build parameters to use when calling `kustomize build`
@@ -1010,6 +1099,12 @@ message KustomizeOptions {
 
   // BinaryPath holds optional path to kustomize binary
   optional string binaryPath = 2;
+}
+
+// KustomizeParameterConfig holds the original image that Image Updater should override appropriate/updated values in `.spec.source.kustomize.images`
+message KustomizeParameterConfig {
+  // Original image to be overridden through kustomize
+  optional string imageName = 1;
 }
 
 message KustomizeReplica {
@@ -1292,6 +1387,29 @@ message PullRequestGeneratorGithub {
 
   // Labels is used to filter the PRs that you want to target
   repeated string labels = 6;
+}
+
+message PullSecret {
+  // +optional
+  optional string name = 1;
+
+  // +optional
+  optional string namespace = 2;
+
+  // +optional
+  optional string field = 3;
+
+  // References an environment variable for the secret
+  // +optional
+  optional string env = 4;
+
+  // References an external script mounted to the Image Updater controller to generate credentials
+  // +optional
+  optional string ext = 5;
+
+  // CredsExpire specifies a timestamp for when the pullsecret credentials expire
+  // +optional
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time credsExpire = 6;
 }
 
 message RefTarget {
@@ -1884,6 +2002,14 @@ message SecretRef {
   optional string key = 2;
 }
 
+message SecretReferece {
+  optional string name = 1;
+
+  optional string namespace = 2;
+
+  optional string field = 3;
+}
+
 // SignatureKey is the specification of a key required to verify commit signatures with
 message SignatureKey {
   // The ID of the key in hexadecimal notation
@@ -2071,5 +2197,68 @@ message TLSClientConfig {
   // CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
   // CAData takes precedence over CAFile
   optional bytes caData = 5;
+}
+
+// Updates contains configuration related to updating images
+message Updates {
+  // ImageList contains image specific configurations for each individual application image
+  repeated ImageConfiguration imageList = 1;
+
+  // AllowTags allows application-wide filtering of tags to be considered based on regex/wildcard expressions
+  // +optional
+  optional AllowTags allowTags = 2;
+
+  // IgnoreTags allows application-wide filtering of tags to be ignored based on regex/wildcard expressions
+  // +optional
+  optional IgnoreTags ignoreTags = 3;
+
+  // ForceUpdate determines if Image Updater should force update all application images
+  optional bool forceUpdate = 4;
+
+  // UpdateStrategy determines common strategy that Image Updater will use to find new versions of all application image to be updated
+  // Default strategy is "semver"
+  // +optional
+  optional string updateStrategy = 5;
+
+  // PullSecret allows configuration of a common pull secret to be used to pull all application images
+  // +optional
+  optional PullSecret pullSecret = 6;
+}
+
+// WriteBackConfig holds configuration to write back image updates to source
+message WriteBackConfig {
+  // Method is the write back method to be used by Image Updater
+  // Default method is "argocd"
+  // +optional
+  optional string method = 1;
+
+  // RepoURL is the URL to the repository (Git or Helm) that should be commited back to if Application is configured with multiple sources
+  // +optional
+  optional string repoURL = 2;
+
+  // Path is a directory path within the Git repository that would contain the target file to be written/updated if Application is configured with multiple sources
+  // +optional
+  optional string path = 3;
+
+  // BaseBranch specifies the branch to checkout and commit to if different from revision tracked in application spec
+  // +optional
+  optional string baseBranch = 4;
+
+  // CommitBranch specifies the branch to commit to if there is need for separate read/write branches. Supports templating
+  // +optional
+  optional string commitBranch = 5;
+
+  // Target determins the target file Image Updater writes back to
+  // Default target is "default"
+  // +optional
+  optional string target = 6;
+
+  // Kustomization specifies the path for target kustomziation file
+  // +optional
+  optional KustomizationConfig kustomization = 7;
+
+  // Secret references an optional secret containing credentials to be used to write back to git
+  // +optional
+  optional SecretReferece secret = 8;
 }
 

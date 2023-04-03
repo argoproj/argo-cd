@@ -821,6 +821,189 @@ spec:
                   - kind
                   type: object
                 type: array
+              image:
+                description: Image contains all the configuration that is related
+                  to the images deployed by a specific application
+                properties:
+                  updates:
+                    description: Updates contains all the configuration that is related
+                      to automatic image updatees for images deployed in applications
+                    properties:
+                      allowTags:
+                        description: AllowTags allows application-wide filtering of
+                          tags to be considered based on regex/wildcard expressions
+                        properties:
+                          matchList:
+                            description: MatchList defines a list of regex/wildcard
+                              expressions that are used to filter tags
+                            items:
+                              type: string
+                            type: array
+                          matchType:
+                            description: MatchType defines the type of matchList entries
+                            type: string
+                        type: object
+                      forceUpdate:
+                        description: ForceUpdate determines if Image Updater should
+                          force update all application images
+                        type: boolean
+                      ignoreTags:
+                        description: IgnoreTags allows application-wide filtering
+                          of tags to be ignored based on regex/wildcard expressions
+                        properties:
+                          matchList:
+                            description: MatchList defines a list of regex/wildcard
+                              expressions that are used to filter tags
+                            items:
+                              type: string
+                            type: array
+                          matchType:
+                            description: MatchType defines the type of matchList entries
+                            type: string
+                        type: object
+                      imageList:
+                        description: ImageList contains image specific configurations
+                          for each individual application image
+                        items:
+                          description: ImageConfiguration contains image specific
+                            update configuration for a given image
+                          properties:
+                            allowTags:
+                              description: AllowTags allows further filtering of tags
+                                to be considered based on regex/wildcard expressions
+                              properties:
+                                matchList:
+                                  description: MatchList defines a list of regex/wildcard
+                                    expressions that are used to filter tags
+                                  items:
+                                    type: string
+                                  type: array
+                                matchType:
+                                  description: MatchType defines the type of matchList
+                                    entries
+                                  type: string
+                              type: object
+                            constraint:
+                              description: Constraint holds semver constraints to
+                                be applied filtering through image tags
+                              type: string
+                            forceUpdate:
+                              description: ForceUpdate determines if Image Updater
+                                should update images not exposed in Application status
+                              type: boolean
+                            helm:
+                              description: Helm holds configurations related to helm
+                                parameters that will be written back to by Image Updater
+                              properties:
+                                imageName:
+                                  description: helm parameter name for image name
+                                  type: string
+                                imageSpec:
+                                  description: helm parameter name for image spec
+                                  type: string
+                                imageTag:
+                                  description: helm parameter name for image tag
+                                  type: string
+                              type: object
+                            ignoreTags:
+                              description: IgnoreTags allows further filtering of
+                                tags to be ignored based on regex/wildcard expressions
+                              properties:
+                                matchList:
+                                  description: MatchList defines a list of regex/wildcard
+                                    expressions that are used to filter tags
+                                  items:
+                                    type: string
+                                  type: array
+                                matchType:
+                                  description: MatchType defines the type of matchList
+                                    entries
+                                  type: string
+                              type: object
+                            image:
+                              description: Image contains the fully qualified image
+                                name
+                              type: string
+                            imagePlatforms:
+                              description: ImagePlatforms specifies a list of allowed
+                                architectures for a specific image
+                              items:
+                                type: string
+                              type: array
+                            kustomize:
+                              description: Kustomize holds configurations related
+                                to kustomize parameters that will be written back
+                                to by Image Updater
+                              properties:
+                                imageName:
+                                  description: Original image to be overridden through
+                                    kustomize
+                                  type: string
+                              type: object
+                            pullSecret:
+                              description: PullSecret allows configuration of a pull
+                                secret to be used to pull target images
+                              properties:
+                                credsExpire:
+                                  description: CredsExpire specifies a timestamp for
+                                    when the pullsecret credentials expire
+                                  format: date-time
+                                  type: string
+                                env:
+                                  description: References an environment variable
+                                    for the secret
+                                  type: string
+                                ext:
+                                  description: References an external script mounted
+                                    to the Image Updater controller to generate credentials
+                                  type: string
+                                field:
+                                  type: string
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                              type: object
+                            updateStrategy:
+                              description: UpdateStrategy determines how Image Updater
+                                will find new versions of an image to be updated Default
+                                strategy is "semver"
+                              type: string
+                          type: object
+                        type: array
+                      pullSecret:
+                        description: PullSecret allows configuration of a common pull
+                          secret to be used to pull all application images
+                        properties:
+                          credsExpire:
+                            description: CredsExpire specifies a timestamp for when
+                              the pullsecret credentials expire
+                            format: date-time
+                            type: string
+                          env:
+                            description: References an environment variable for the
+                              secret
+                            type: string
+                          ext:
+                            description: References an external script mounted to
+                              the Image Updater controller to generate credentials
+                            type: string
+                          field:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                        type: object
+                      updateStrategy:
+                        description: UpdateStrategy determines common strategy that
+                          Image Updater will use to find new versions of all application
+                          image to be updated Default strategy is "semver"
+                        type: string
+                    required:
+                    - imageList
+                    type: object
+                type: object
               info:
                 description: Info contains a list of information (URLs, email addresses,
                   and plain text) that relates to the application
@@ -4470,6 +4653,117 @@ spec:
                                     - kind
                                     type: object
                                   type: array
+                                image:
+                                  properties:
+                                    updates:
+                                      properties:
+                                        allowTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        forceUpdate:
+                                          type: boolean
+                                        ignoreTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        imageList:
+                                          items:
+                                            properties:
+                                              allowTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              constraint:
+                                                type: string
+                                              forceUpdate:
+                                                type: boolean
+                                              helm:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                  imageSpec:
+                                                    type: string
+                                                  imageTag:
+                                                    type: string
+                                                type: object
+                                              ignoreTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              image:
+                                                type: string
+                                              imagePlatforms:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              kustomize:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                type: object
+                                              pullSecret:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  field:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              updateStrategy:
+                                                type: string
+                                            type: object
+                                          type: array
+                                        pullSecret:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            field:
+                                              type: string
+                                            name:
+                                              type: string
+                                            namespace:
+                                              type: string
+                                          type: object
+                                        updateStrategy:
+                                          type: string
+                                      required:
+                                      - imageList
+                                      type: object
+                                  type: object
                                 info:
                                   items:
                                     properties:
@@ -4983,6 +5277,117 @@ spec:
                                     - kind
                                     type: object
                                   type: array
+                                image:
+                                  properties:
+                                    updates:
+                                      properties:
+                                        allowTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        forceUpdate:
+                                          type: boolean
+                                        ignoreTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        imageList:
+                                          items:
+                                            properties:
+                                              allowTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              constraint:
+                                                type: string
+                                              forceUpdate:
+                                                type: boolean
+                                              helm:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                  imageSpec:
+                                                    type: string
+                                                  imageTag:
+                                                    type: string
+                                                type: object
+                                              ignoreTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              image:
+                                                type: string
+                                              imagePlatforms:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              kustomize:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                type: object
+                                              pullSecret:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  field:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              updateStrategy:
+                                                type: string
+                                            type: object
+                                          type: array
+                                        pullSecret:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            field:
+                                              type: string
+                                            name:
+                                              type: string
+                                            namespace:
+                                              type: string
+                                          type: object
+                                        updateStrategy:
+                                          type: string
+                                      required:
+                                      - imageList
+                                      type: object
+                                  type: object
                                 info:
                                   items:
                                     properties:
@@ -5500,6 +5905,117 @@ spec:
                                     - kind
                                     type: object
                                   type: array
+                                image:
+                                  properties:
+                                    updates:
+                                      properties:
+                                        allowTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        forceUpdate:
+                                          type: boolean
+                                        ignoreTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        imageList:
+                                          items:
+                                            properties:
+                                              allowTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              constraint:
+                                                type: string
+                                              forceUpdate:
+                                                type: boolean
+                                              helm:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                  imageSpec:
+                                                    type: string
+                                                  imageTag:
+                                                    type: string
+                                                type: object
+                                              ignoreTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              image:
+                                                type: string
+                                              imagePlatforms:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              kustomize:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                type: object
+                                              pullSecret:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  field:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              updateStrategy:
+                                                type: string
+                                            type: object
+                                          type: array
+                                        pullSecret:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            field:
+                                              type: string
+                                            name:
+                                              type: string
+                                            namespace:
+                                              type: string
+                                          type: object
+                                        updateStrategy:
+                                          type: string
+                                      required:
+                                      - imageList
+                                      type: object
+                                  type: object
                                 info:
                                   items:
                                     properties:
@@ -5993,6 +6509,117 @@ spec:
                                     - kind
                                     type: object
                                   type: array
+                                image:
+                                  properties:
+                                    updates:
+                                      properties:
+                                        allowTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        forceUpdate:
+                                          type: boolean
+                                        ignoreTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        imageList:
+                                          items:
+                                            properties:
+                                              allowTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              constraint:
+                                                type: string
+                                              forceUpdate:
+                                                type: boolean
+                                              helm:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                  imageSpec:
+                                                    type: string
+                                                  imageTag:
+                                                    type: string
+                                                type: object
+                                              ignoreTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              image:
+                                                type: string
+                                              imagePlatforms:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              kustomize:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                type: object
+                                              pullSecret:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  field:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              updateStrategy:
+                                                type: string
+                                            type: object
+                                          type: array
+                                        pullSecret:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            field:
+                                              type: string
+                                            name:
+                                              type: string
+                                            namespace:
+                                              type: string
+                                          type: object
+                                        updateStrategy:
+                                          type: string
+                                      required:
+                                      - imageList
+                                      type: object
+                                  type: object
                                 info:
                                   items:
                                     properties:
@@ -6514,6 +7141,117 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          image:
+                                            properties:
+                                              updates:
+                                                properties:
+                                                  allowTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  forceUpdate:
+                                                    type: boolean
+                                                  ignoreTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  imageList:
+                                                    items:
+                                                      properties:
+                                                        allowTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        constraint:
+                                                          type: string
+                                                        forceUpdate:
+                                                          type: boolean
+                                                        helm:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                            imageSpec:
+                                                              type: string
+                                                            imageTag:
+                                                              type: string
+                                                          type: object
+                                                        ignoreTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        image:
+                                                          type: string
+                                                        imagePlatforms:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        kustomize:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                          type: object
+                                                        pullSecret:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            field:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        updateStrategy:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  pullSecret:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      field:
+                                                        type: string
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    type: object
+                                                  updateStrategy:
+                                                    type: string
+                                                required:
+                                                - imageList
+                                                type: object
+                                            type: object
                                           info:
                                             items:
                                               properties:
@@ -7027,6 +7765,117 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          image:
+                                            properties:
+                                              updates:
+                                                properties:
+                                                  allowTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  forceUpdate:
+                                                    type: boolean
+                                                  ignoreTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  imageList:
+                                                    items:
+                                                      properties:
+                                                        allowTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        constraint:
+                                                          type: string
+                                                        forceUpdate:
+                                                          type: boolean
+                                                        helm:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                            imageSpec:
+                                                              type: string
+                                                            imageTag:
+                                                              type: string
+                                                          type: object
+                                                        ignoreTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        image:
+                                                          type: string
+                                                        imagePlatforms:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        kustomize:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                          type: object
+                                                        pullSecret:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            field:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        updateStrategy:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  pullSecret:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      field:
+                                                        type: string
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    type: object
+                                                  updateStrategy:
+                                                    type: string
+                                                required:
+                                                - imageList
+                                                type: object
+                                            type: object
                                           info:
                                             items:
                                               properties:
@@ -7544,6 +8393,117 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          image:
+                                            properties:
+                                              updates:
+                                                properties:
+                                                  allowTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  forceUpdate:
+                                                    type: boolean
+                                                  ignoreTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  imageList:
+                                                    items:
+                                                      properties:
+                                                        allowTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        constraint:
+                                                          type: string
+                                                        forceUpdate:
+                                                          type: boolean
+                                                        helm:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                            imageSpec:
+                                                              type: string
+                                                            imageTag:
+                                                              type: string
+                                                          type: object
+                                                        ignoreTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        image:
+                                                          type: string
+                                                        imagePlatforms:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        kustomize:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                          type: object
+                                                        pullSecret:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            field:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        updateStrategy:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  pullSecret:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      field:
+                                                        type: string
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    type: object
+                                                  updateStrategy:
+                                                    type: string
+                                                required:
+                                                - imageList
+                                                type: object
+                                            type: object
                                           info:
                                             items:
                                               properties:
@@ -8037,6 +8997,117 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          image:
+                                            properties:
+                                              updates:
+                                                properties:
+                                                  allowTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  forceUpdate:
+                                                    type: boolean
+                                                  ignoreTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  imageList:
+                                                    items:
+                                                      properties:
+                                                        allowTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        constraint:
+                                                          type: string
+                                                        forceUpdate:
+                                                          type: boolean
+                                                        helm:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                            imageSpec:
+                                                              type: string
+                                                            imageTag:
+                                                              type: string
+                                                          type: object
+                                                        ignoreTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        image:
+                                                          type: string
+                                                        imagePlatforms:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        kustomize:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                          type: object
+                                                        pullSecret:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            field:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        updateStrategy:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  pullSecret:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      field:
+                                                        type: string
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    type: object
+                                                  updateStrategy:
+                                                    type: string
+                                                required:
+                                                - imageList
+                                                type: object
+                                            type: object
                                           info:
                                             items:
                                               properties:
@@ -8646,6 +9717,117 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          image:
+                                            properties:
+                                              updates:
+                                                properties:
+                                                  allowTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  forceUpdate:
+                                                    type: boolean
+                                                  ignoreTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  imageList:
+                                                    items:
+                                                      properties:
+                                                        allowTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        constraint:
+                                                          type: string
+                                                        forceUpdate:
+                                                          type: boolean
+                                                        helm:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                            imageSpec:
+                                                              type: string
+                                                            imageTag:
+                                                              type: string
+                                                          type: object
+                                                        ignoreTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        image:
+                                                          type: string
+                                                        imagePlatforms:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        kustomize:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                          type: object
+                                                        pullSecret:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            field:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        updateStrategy:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  pullSecret:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      field:
+                                                        type: string
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    type: object
+                                                  updateStrategy:
+                                                    type: string
+                                                required:
+                                                - imageList
+                                                type: object
+                                            type: object
                                           info:
                                             items:
                                               properties:
@@ -9302,6 +10484,117 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          image:
+                                            properties:
+                                              updates:
+                                                properties:
+                                                  allowTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  forceUpdate:
+                                                    type: boolean
+                                                  ignoreTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  imageList:
+                                                    items:
+                                                      properties:
+                                                        allowTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        constraint:
+                                                          type: string
+                                                        forceUpdate:
+                                                          type: boolean
+                                                        helm:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                            imageSpec:
+                                                              type: string
+                                                            imageTag:
+                                                              type: string
+                                                          type: object
+                                                        ignoreTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        image:
+                                                          type: string
+                                                        imagePlatforms:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        kustomize:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                          type: object
+                                                        pullSecret:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            field:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        updateStrategy:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  pullSecret:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      field:
+                                                        type: string
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    type: object
+                                                  updateStrategy:
+                                                    type: string
+                                                required:
+                                                - imageList
+                                                type: object
+                                            type: object
                                           info:
                                             items:
                                               properties:
@@ -9809,6 +11102,117 @@ spec:
                                     - kind
                                     type: object
                                   type: array
+                                image:
+                                  properties:
+                                    updates:
+                                      properties:
+                                        allowTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        forceUpdate:
+                                          type: boolean
+                                        ignoreTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        imageList:
+                                          items:
+                                            properties:
+                                              allowTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              constraint:
+                                                type: string
+                                              forceUpdate:
+                                                type: boolean
+                                              helm:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                  imageSpec:
+                                                    type: string
+                                                  imageTag:
+                                                    type: string
+                                                type: object
+                                              ignoreTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              image:
+                                                type: string
+                                              imagePlatforms:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              kustomize:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                type: object
+                                              pullSecret:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  field:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              updateStrategy:
+                                                type: string
+                                            type: object
+                                          type: array
+                                        pullSecret:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            field:
+                                              type: string
+                                            name:
+                                              type: string
+                                            namespace:
+                                              type: string
+                                          type: object
+                                        updateStrategy:
+                                          type: string
+                                      required:
+                                      - imageList
+                                      type: object
+                                  type: object
                                 info:
                                   items:
                                     properties:
@@ -10330,6 +11734,117 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          image:
+                                            properties:
+                                              updates:
+                                                properties:
+                                                  allowTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  forceUpdate:
+                                                    type: boolean
+                                                  ignoreTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  imageList:
+                                                    items:
+                                                      properties:
+                                                        allowTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        constraint:
+                                                          type: string
+                                                        forceUpdate:
+                                                          type: boolean
+                                                        helm:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                            imageSpec:
+                                                              type: string
+                                                            imageTag:
+                                                              type: string
+                                                          type: object
+                                                        ignoreTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        image:
+                                                          type: string
+                                                        imagePlatforms:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        kustomize:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                          type: object
+                                                        pullSecret:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            field:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        updateStrategy:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  pullSecret:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      field:
+                                                        type: string
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    type: object
+                                                  updateStrategy:
+                                                    type: string
+                                                required:
+                                                - imageList
+                                                type: object
+                                            type: object
                                           info:
                                             items:
                                               properties:
@@ -10843,6 +12358,117 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          image:
+                                            properties:
+                                              updates:
+                                                properties:
+                                                  allowTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  forceUpdate:
+                                                    type: boolean
+                                                  ignoreTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  imageList:
+                                                    items:
+                                                      properties:
+                                                        allowTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        constraint:
+                                                          type: string
+                                                        forceUpdate:
+                                                          type: boolean
+                                                        helm:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                            imageSpec:
+                                                              type: string
+                                                            imageTag:
+                                                              type: string
+                                                          type: object
+                                                        ignoreTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        image:
+                                                          type: string
+                                                        imagePlatforms:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        kustomize:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                          type: object
+                                                        pullSecret:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            field:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        updateStrategy:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  pullSecret:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      field:
+                                                        type: string
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    type: object
+                                                  updateStrategy:
+                                                    type: string
+                                                required:
+                                                - imageList
+                                                type: object
+                                            type: object
                                           info:
                                             items:
                                               properties:
@@ -11360,6 +12986,117 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          image:
+                                            properties:
+                                              updates:
+                                                properties:
+                                                  allowTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  forceUpdate:
+                                                    type: boolean
+                                                  ignoreTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  imageList:
+                                                    items:
+                                                      properties:
+                                                        allowTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        constraint:
+                                                          type: string
+                                                        forceUpdate:
+                                                          type: boolean
+                                                        helm:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                            imageSpec:
+                                                              type: string
+                                                            imageTag:
+                                                              type: string
+                                                          type: object
+                                                        ignoreTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        image:
+                                                          type: string
+                                                        imagePlatforms:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        kustomize:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                          type: object
+                                                        pullSecret:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            field:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        updateStrategy:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  pullSecret:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      field:
+                                                        type: string
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    type: object
+                                                  updateStrategy:
+                                                    type: string
+                                                required:
+                                                - imageList
+                                                type: object
+                                            type: object
                                           info:
                                             items:
                                               properties:
@@ -11853,6 +13590,117 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          image:
+                                            properties:
+                                              updates:
+                                                properties:
+                                                  allowTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  forceUpdate:
+                                                    type: boolean
+                                                  ignoreTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  imageList:
+                                                    items:
+                                                      properties:
+                                                        allowTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        constraint:
+                                                          type: string
+                                                        forceUpdate:
+                                                          type: boolean
+                                                        helm:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                            imageSpec:
+                                                              type: string
+                                                            imageTag:
+                                                              type: string
+                                                          type: object
+                                                        ignoreTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        image:
+                                                          type: string
+                                                        imagePlatforms:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        kustomize:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                          type: object
+                                                        pullSecret:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            field:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        updateStrategy:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  pullSecret:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      field:
+                                                        type: string
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    type: object
+                                                  updateStrategy:
+                                                    type: string
+                                                required:
+                                                - imageList
+                                                type: object
+                                            type: object
                                           info:
                                             items:
                                               properties:
@@ -12462,6 +14310,117 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          image:
+                                            properties:
+                                              updates:
+                                                properties:
+                                                  allowTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  forceUpdate:
+                                                    type: boolean
+                                                  ignoreTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  imageList:
+                                                    items:
+                                                      properties:
+                                                        allowTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        constraint:
+                                                          type: string
+                                                        forceUpdate:
+                                                          type: boolean
+                                                        helm:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                            imageSpec:
+                                                              type: string
+                                                            imageTag:
+                                                              type: string
+                                                          type: object
+                                                        ignoreTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        image:
+                                                          type: string
+                                                        imagePlatforms:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        kustomize:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                          type: object
+                                                        pullSecret:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            field:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        updateStrategy:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  pullSecret:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      field:
+                                                        type: string
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    type: object
+                                                  updateStrategy:
+                                                    type: string
+                                                required:
+                                                - imageList
+                                                type: object
+                                            type: object
                                           info:
                                             items:
                                               properties:
@@ -13118,6 +15077,117 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          image:
+                                            properties:
+                                              updates:
+                                                properties:
+                                                  allowTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  forceUpdate:
+                                                    type: boolean
+                                                  ignoreTags:
+                                                    properties:
+                                                      matchList:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      matchType:
+                                                        type: string
+                                                    type: object
+                                                  imageList:
+                                                    items:
+                                                      properties:
+                                                        allowTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        constraint:
+                                                          type: string
+                                                        forceUpdate:
+                                                          type: boolean
+                                                        helm:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                            imageSpec:
+                                                              type: string
+                                                            imageTag:
+                                                              type: string
+                                                          type: object
+                                                        ignoreTags:
+                                                          properties:
+                                                            matchList:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            matchType:
+                                                              type: string
+                                                          type: object
+                                                        image:
+                                                          type: string
+                                                        imagePlatforms:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        kustomize:
+                                                          properties:
+                                                            imageName:
+                                                              type: string
+                                                          type: object
+                                                        pullSecret:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            field:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                          type: object
+                                                        updateStrategy:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  pullSecret:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      field:
+                                                        type: string
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    type: object
+                                                  updateStrategy:
+                                                    type: string
+                                                required:
+                                                - imageList
+                                                type: object
+                                            type: object
                                           info:
                                             items:
                                               properties:
@@ -13629,6 +15699,117 @@ spec:
                                     - kind
                                     type: object
                                   type: array
+                                image:
+                                  properties:
+                                    updates:
+                                      properties:
+                                        allowTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        forceUpdate:
+                                          type: boolean
+                                        ignoreTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        imageList:
+                                          items:
+                                            properties:
+                                              allowTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              constraint:
+                                                type: string
+                                              forceUpdate:
+                                                type: boolean
+                                              helm:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                  imageSpec:
+                                                    type: string
+                                                  imageTag:
+                                                    type: string
+                                                type: object
+                                              ignoreTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              image:
+                                                type: string
+                                              imagePlatforms:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              kustomize:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                type: object
+                                              pullSecret:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  field:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              updateStrategy:
+                                                type: string
+                                            type: object
+                                          type: array
+                                        pullSecret:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            field:
+                                              type: string
+                                            name:
+                                              type: string
+                                            namespace:
+                                              type: string
+                                          type: object
+                                        updateStrategy:
+                                          type: string
+                                      required:
+                                      - imageList
+                                      type: object
+                                  type: object
                                 info:
                                   items:
                                     properties:
@@ -14235,6 +16416,117 @@ spec:
                                     - kind
                                     type: object
                                   type: array
+                                image:
+                                  properties:
+                                    updates:
+                                      properties:
+                                        allowTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        forceUpdate:
+                                          type: boolean
+                                        ignoreTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        imageList:
+                                          items:
+                                            properties:
+                                              allowTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              constraint:
+                                                type: string
+                                              forceUpdate:
+                                                type: boolean
+                                              helm:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                  imageSpec:
+                                                    type: string
+                                                  imageTag:
+                                                    type: string
+                                                type: object
+                                              ignoreTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              image:
+                                                type: string
+                                              imagePlatforms:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              kustomize:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                type: object
+                                              pullSecret:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  field:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              updateStrategy:
+                                                type: string
+                                            type: object
+                                          type: array
+                                        pullSecret:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            field:
+                                              type: string
+                                            name:
+                                              type: string
+                                            namespace:
+                                              type: string
+                                          type: object
+                                        updateStrategy:
+                                          type: string
+                                      required:
+                                      - imageList
+                                      type: object
+                                  type: object
                                 info:
                                   items:
                                     properties:
@@ -14891,6 +17183,117 @@ spec:
                                     - kind
                                     type: object
                                   type: array
+                                image:
+                                  properties:
+                                    updates:
+                                      properties:
+                                        allowTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        forceUpdate:
+                                          type: boolean
+                                        ignoreTags:
+                                          properties:
+                                            matchList:
+                                              items:
+                                                type: string
+                                              type: array
+                                            matchType:
+                                              type: string
+                                          type: object
+                                        imageList:
+                                          items:
+                                            properties:
+                                              allowTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              constraint:
+                                                type: string
+                                              forceUpdate:
+                                                type: boolean
+                                              helm:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                  imageSpec:
+                                                    type: string
+                                                  imageTag:
+                                                    type: string
+                                                type: object
+                                              ignoreTags:
+                                                properties:
+                                                  matchList:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  matchType:
+                                                    type: string
+                                                type: object
+                                              image:
+                                                type: string
+                                              imagePlatforms:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              kustomize:
+                                                properties:
+                                                  imageName:
+                                                    type: string
+                                                type: object
+                                              pullSecret:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  field:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                type: object
+                                              updateStrategy:
+                                                type: string
+                                            type: object
+                                          type: array
+                                        pullSecret:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            field:
+                                              type: string
+                                            name:
+                                              type: string
+                                            namespace:
+                                              type: string
+                                          type: object
+                                        updateStrategy:
+                                          type: string
+                                      required:
+                                      - imageList
+                                      type: object
+                                  type: object
                                 info:
                                   items:
                                     properties:
@@ -15443,6 +17846,117 @@ spec:
                           - kind
                           type: object
                         type: array
+                      image:
+                        properties:
+                          updates:
+                            properties:
+                              allowTags:
+                                properties:
+                                  matchList:
+                                    items:
+                                      type: string
+                                    type: array
+                                  matchType:
+                                    type: string
+                                type: object
+                              forceUpdate:
+                                type: boolean
+                              ignoreTags:
+                                properties:
+                                  matchList:
+                                    items:
+                                      type: string
+                                    type: array
+                                  matchType:
+                                    type: string
+                                type: object
+                              imageList:
+                                items:
+                                  properties:
+                                    allowTags:
+                                      properties:
+                                        matchList:
+                                          items:
+                                            type: string
+                                          type: array
+                                        matchType:
+                                          type: string
+                                      type: object
+                                    constraint:
+                                      type: string
+                                    forceUpdate:
+                                      type: boolean
+                                    helm:
+                                      properties:
+                                        imageName:
+                                          type: string
+                                        imageSpec:
+                                          type: string
+                                        imageTag:
+                                          type: string
+                                      type: object
+                                    ignoreTags:
+                                      properties:
+                                        matchList:
+                                          items:
+                                            type: string
+                                          type: array
+                                        matchType:
+                                          type: string
+                                      type: object
+                                    image:
+                                      type: string
+                                    imagePlatforms:
+                                      items:
+                                        type: string
+                                      type: array
+                                    kustomize:
+                                      properties:
+                                        imageName:
+                                          type: string
+                                      type: object
+                                    pullSecret:
+                                      properties:
+                                        credsExpire:
+                                          format: date-time
+                                          type: string
+                                        env:
+                                          type: string
+                                        ext:
+                                          type: string
+                                        field:
+                                          type: string
+                                        name:
+                                          type: string
+                                        namespace:
+                                          type: string
+                                      type: object
+                                    updateStrategy:
+                                      type: string
+                                  type: object
+                                type: array
+                              pullSecret:
+                                properties:
+                                  credsExpire:
+                                    format: date-time
+                                    type: string
+                                  env:
+                                    type: string
+                                  ext:
+                                    type: string
+                                  field:
+                                    type: string
+                                  name:
+                                    type: string
+                                  namespace:
+                                    type: string
+                                type: object
+                              updateStrategy:
+                                type: string
+                            required:
+                            - imageList
+                            type: object
+                        type: object
                       info:
                         items:
                           properties:

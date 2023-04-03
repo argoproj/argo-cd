@@ -15,6 +15,7 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AWSAuthConfig":                       schema_pkg_apis_application_v1alpha1_AWSAuthConfig(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AllowTags":                           schema_pkg_apis_application_v1alpha1_AllowTags(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppProject":                          schema_pkg_apis_application_v1alpha1_AppProject(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppProjectList":                      schema_pkg_apis_application_v1alpha1_AppProjectList(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppProjectSpec":                      schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref),
@@ -77,15 +78,21 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmFileParameter":                   schema_pkg_apis_application_v1alpha1_HelmFileParameter(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmOptions":                         schema_pkg_apis_application_v1alpha1_HelmOptions(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter":                       schema_pkg_apis_application_v1alpha1_HelmParameter(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameterConfig":                 schema_pkg_apis_application_v1alpha1_HelmParameterConfig(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HostInfo":                            schema_pkg_apis_application_v1alpha1_HostInfo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HostResourceInfo":                    schema_pkg_apis_application_v1alpha1_HostResourceInfo(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.IgnoreTags":                          schema_pkg_apis_application_v1alpha1_IgnoreTags(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Image":                               schema_pkg_apis_application_v1alpha1_Image(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ImageConfiguration":                  schema_pkg_apis_application_v1alpha1_ImageConfiguration(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Info":                                schema_pkg_apis_application_v1alpha1_Info(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.InfoItem":                            schema_pkg_apis_application_v1alpha1_InfoItem(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JWTToken":                            schema_pkg_apis_application_v1alpha1_JWTToken(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JWTTokens":                           schema_pkg_apis_application_v1alpha1_JWTTokens(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JsonnetVar":                          schema_pkg_apis_application_v1alpha1_JsonnetVar(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KnownTypeField":                      schema_pkg_apis_application_v1alpha1_KnownTypeField(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizationConfig":                 schema_pkg_apis_application_v1alpha1_KustomizationConfig(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeOptions":                    schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeParameterConfig":            schema_pkg_apis_application_v1alpha1_KustomizeParameterConfig(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeReplica":                    schema_pkg_apis_application_v1alpha1_KustomizeReplica(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator":                       schema_pkg_apis_application_v1alpha1_ListGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata":            schema_pkg_apis_application_v1alpha1_ManagedNamespaceMetadata(ref),
@@ -108,6 +115,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGitLab":          schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGitea":           schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitea(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGithub":          schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGithub(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret":                          schema_pkg_apis_application_v1alpha1_PullSecret(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RefTarget":                           schema_pkg_apis_application_v1alpha1_RefTarget(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RepoCreds":                           schema_pkg_apis_application_v1alpha1_RepoCreds(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RepoCredsList":                       schema_pkg_apis_application_v1alpha1_RepoCredsList(ref),
@@ -139,6 +147,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGithub":          schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGithub(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitlab":          schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef":                           schema_pkg_apis_application_v1alpha1_SecretRef(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretReferece":                      schema_pkg_apis_application_v1alpha1_SecretReferece(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey":                        schema_pkg_apis_application_v1alpha1_SignatureKey(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperation":                       schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResource":               schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
@@ -151,6 +160,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyHook":                    schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncWindow":                          schema_pkg_apis_application_v1alpha1_SyncWindow(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TLSClientConfig":                     schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Updates":                             schema_pkg_apis_application_v1alpha1_Updates(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.WriteBackConfig":                     schema_pkg_apis_application_v1alpha1_WriteBackConfig(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.objectMeta":                          schema_pkg_apis_application_v1alpha1_objectMeta(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.rawResourceOverride":                 schema_pkg_apis_application_v1alpha1_rawResourceOverride(ref),
 	}
@@ -175,6 +186,41 @@ func schema_pkg_apis_application_v1alpha1_AWSAuthConfig(ref common.ReferenceCall
 							Description: "RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_AllowTags(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AllowTags provides filtering options to express which tags should be considered as update candidates",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"matchType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MatchType defines the type of matchList entries",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"matchList": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MatchList defines a list of regex/wildcard expressions that are used to filter tags",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -1955,12 +2001,18 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							},
 						},
 					},
+					"image": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Image contains all the configuration that is related to the images deployed by a specific application",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Image"),
+						},
+					},
 				},
 				Required: []string{"destination", "project"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Info", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncPolicy"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Image", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Info", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncPolicy"},
 	}
 }
 
@@ -3329,6 +3381,40 @@ func schema_pkg_apis_application_v1alpha1_HelmParameter(ref common.ReferenceCall
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_HelmParameterConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HelmParameterConfig holds the names of helm parameters that Image Updater should set with appropriate/updated values in `.spec.source.helm.parameters`",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"imageName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "helm parameter name for image name",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"imageTag": {
+						SchemaProps: spec.SchemaProps{
+							Description: "helm parameter name for image tag",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"imageSpec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "helm parameter name for image spec",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_HostInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3402,6 +3488,150 @@ func schema_pkg_apis_application_v1alpha1_HostResourceInfo(ref common.ReferenceC
 				},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_IgnoreTags(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IgnoreTags provides filtering options to express which tags should be ignored when looking for update candidates",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"matchType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MatchType defines the type of matchList entries",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"matchList": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MatchList defines a list of regex/wildcard expressions that are used to filter tags",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_Image(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Image contains all the configuration that is related to the images deployed by a specific application",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"updates": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Updates contains all the configuration that is related to automatic image updatees for images deployed in applications",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Updates"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Updates"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ImageConfiguration(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ImageConfiguration contains image specific update configuration for a given image",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"image": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Image contains the fully qualified image name",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"constraint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Constraint holds semver constraints to be applied filtering through image tags",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"allowTags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AllowTags allows further filtering of tags to be considered based on regex/wildcard expressions",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AllowTags"),
+						},
+					},
+					"ignoreTags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IgnoreTags allows further filtering of tags to be ignored based on regex/wildcard expressions",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.IgnoreTags"),
+						},
+					},
+					"forceUpdate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceUpdate determines if Image Updater should update images not exposed in Application status",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"updateStrategy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UpdateStrategy determines how Image Updater will find new versions of an image to be updated Default strategy is \"semver\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"imagePlatforms": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ImagePlatforms specifies a list of allowed architectures for a specific image",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"pullSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PullSecret allows configuration of a pull secret to be used to pull target images",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret"),
+						},
+					},
+					"helm": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Helm holds configurations related to helm parameters that will be written back to by Image Updater",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameterConfig"),
+						},
+					},
+					"kustomize": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kustomize holds configurations related to kustomize parameters that will be written back to by Image Updater",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeParameterConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AllowTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameterConfig", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.IgnoreTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeParameterConfig", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret"},
 	}
 }
 
@@ -3579,6 +3809,24 @@ func schema_pkg_apis_application_v1alpha1_KnownTypeField(ref common.ReferenceCal
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_KustomizationConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3604,6 +3852,26 @@ func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceC
 					},
 				},
 				Required: []string{"BuildOptions", "BinaryPath"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_KustomizeParameterConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "KustomizeParameterConfig holds the original image that Image Updater should override appropriate/updated values in `.spec.source.kustomize.images`",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"imageName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Original image to be overridden through kustomize",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -4577,6 +4845,58 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGithub(ref common.
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_PullSecret(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"field": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"env": {
+						SchemaProps: spec.SchemaProps{
+							Description: "References an environment variable for the secret",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"ext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "References an external script mounted to the Image Updater controller to generate credentials",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"credsExpire": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CredsExpire specifies a timestamp for when the pullsecret credentials expire",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -6472,6 +6792,39 @@ func schema_pkg_apis_application_v1alpha1_SecretRef(ref common.ReferenceCallback
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_SecretReferece(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"field": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"name", "namespace"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_SignatureKey(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -7070,6 +7423,137 @@ func schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref common.ReferenceCa
 				Required: []string{"insecure"},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_Updates(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Updates contains configuration related to updating images",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"imageList": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ImageList contains image specific configurations for each individual application image",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ImageConfiguration"),
+									},
+								},
+							},
+						},
+					},
+					"allowTags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AllowTags allows application-wide filtering of tags to be considered based on regex/wildcard expressions",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AllowTags"),
+						},
+					},
+					"ignoreTags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IgnoreTags allows application-wide filtering of tags to be ignored based on regex/wildcard expressions",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.IgnoreTags"),
+						},
+					},
+					"forceUpdate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceUpdate determines if Image Updater should force update all application images",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"updateStrategy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UpdateStrategy determines common strategy that Image Updater will use to find new versions of all application image to be updated Default strategy is \"semver\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"pullSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PullSecret allows configuration of a common pull secret to be used to pull all application images",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret"),
+						},
+					},
+				},
+				Required: []string{"imageList"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AllowTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.IgnoreTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ImageConfiguration", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_WriteBackConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WriteBackConfig holds configuration to write back image updates to source",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"method": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Method is the write back method to be used by Image Updater Default method is \"argocd\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"repoURL": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RepoURL is the URL to the repository (Git or Helm) that should be commited back to if Application is configured with multiple sources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Path is a directory path within the Git repository that would contain the target file to be written/updated if Application is configured with multiple sources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"baseBranch": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BaseBranch specifies the branch to checkout and commit to if different from revision tracked in application spec",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"commitBranch": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CommitBranch specifies the branch to commit to if there is need for separate read/write branches. Supports templating",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"target": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Target determins the target file Image Updater writes back to Default target is \"default\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"kustomization": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kustomization specifies the path for target kustomziation file",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizationConfig"),
+						},
+					},
+					"secret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Secret references an optional secret containing credentials to be used to write back to git",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretReferece"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizationConfig", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretReferece"},
 	}
 }
 

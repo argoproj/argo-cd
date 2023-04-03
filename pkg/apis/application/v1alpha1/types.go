@@ -80,6 +80,10 @@ type ApplicationSpec struct {
 
 	// Sources is a reference to the location of the application's manifests or chart
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
+
+	// Image contains all the configuration that is related to the images deployed by a specific application
+	//+optional
+	Image *Image `json:"image,omitempty" protobuf:"bytes,9,opt,name=image"`
 }
 
 type TrackingMethod string
@@ -289,6 +293,204 @@ type RefTarget struct {
 }
 
 type RefTargetRevisionMapping map[string]*RefTarget
+
+// Image contains all the configuration that is related to the images deployed by a specific application
+type Image struct {
+	// Updates contains all the configuration that is related to automatic image updatees for images deployed in applications
+	// +optional
+	Updates *Updates `json:"updates,omitempty" protobuf:"bytes,1,opt,name=updates"`
+}
+
+// Updates contains configuration related to updating images
+type Updates struct {
+	// ImageList contains image specific configurations for each individual application image
+	ImageList ImageList `json:"imageList" protobuf:"bytes,1,opt,name=imageList"`
+	// AllowTags allows application-wide filtering of tags to be considered based on regex/wildcard expressions
+	// +optional
+	AllowTags *AllowTags `json:"allowTags,omitempty" protobuf:"bytes,2,opt,name=allowTags"`
+	// IgnoreTags allows application-wide filtering of tags to be ignored based on regex/wildcard expressions
+	// +optional
+	Ignoretags *IgnoreTags `json:"ignoreTags,omitempty" protobuf:"bytes,3,opt,name=ignoreTags"`
+	// ForceUpdate determines if Image Updater should force update all application images
+	ForceUpdate bool `json:"forceUpdate,omitempty" protobuf:"bytes,4,opt,name=forceUpdate"`
+	// UpdateStrategy determines common strategy that Image Updater will use to find new versions of all application image to be updated
+	// Default strategy is "semver"
+	// +optional
+	UpdateStrategy *UpdateStrategy `json:"updateStrategy,omitempty" protobuf:"bytes,5,opt,name=updateStrategy"`
+	// PullSecret allows configuration of a common pull secret to be used to pull all application images
+	// +optional
+	PullSecret *PullSecret `json:"pullSecret,omitempty" protobuf:"bytes,6,opt,name=pullSecret"`
+}
+
+// ImageList contains a list of image specific configurations
+type ImageList []ImageConfiguration
+
+// ImageConfiguration contains image specific update configuration for a given image
+type ImageConfiguration struct {
+	// Image contains the fully qualified image name
+	Image string `json:"image,omitempty" protobuf:"bytes,1,opt,name=image"`
+	// Constraint holds semver constraints to be applied filtering through image tags
+	// +optional
+	Constraint *string `json:"constraint,omitempty" protobuf:"bytes,2,opt,name=constraint"`
+	// AllowTags allows further filtering of tags to be considered based on regex/wildcard expressions
+	// +optional
+	AllowTags *AllowTags `json:"allowTags,omitempty" protobuf:"bytes,3,opt,name=allowTags"`
+	// IgnoreTags allows further filtering of tags to be ignored based on regex/wildcard expressions
+	// +optional
+	Ignoretags *IgnoreTags `json:"ignoreTags,omitempty" protobuf:"bytes,4,opt,name=ignoreTags"`
+	// ForceUpdate determines if Image Updater should update images not exposed in Application status
+	ForceUpdate bool `json:"forceUpdate,omitempty" protobuf:"bytes,5,opt,name=forceUpdate"`
+	// UpdateStrategy determines how Image Updater will find new versions of an image to be updated
+	// Default strategy is "semver"
+	// +optional
+	UpdateStrategy *UpdateStrategy `json:"updateStrategy,omitempty" protobuf:"bytes,6,opt,name=updateStrategy"`
+	// ImagePlatforms specifies a list of allowed architectures for a specific image
+	ImagePlatforms []string `json:"imagePlatforms,omitempty" protobuf:"bytes,7,opt,name=imagePlatforms"`
+	// PullSecret allows configuration of a pull secret to be used to pull target images
+	// +optional
+	PullSecret *PullSecret `json:"pullSecret,omitempty" protobuf:"bytes,8,opt,name=pullSecret"`
+	// Helm holds configurations related to helm parameters that will be written back to by Image Updater
+	// +optional
+	Helm *HelmParameterConfig `json:"helm,omitempty" protobuf:"bytes,9,opt,name=helm"`
+	// Kustomize holds configurations related to kustomize parameters that will be written back to by Image Updater
+	// +optional
+	Kustomize *KustomizeParameterConfig `json:"kustomize,omitempty" protobuf:"bytes,10,opt,name=kustomize"`
+}
+
+// UpdateStrategy defines the strategy that should be used when identifying images qualifying as update candidates
+type UpdateStrategy string
+
+const (
+	// Track and update images that use tags following the semantic versioning scheme
+	UpdateStrategySemver UpdateStrategy = "semver"
+	// Update to the most recently pushed image digest of a given tag
+	UpdateStrategyDigest UpdateStrategy = "digest"
+	// Update to the last image tag in a list sorted in descending order lexically
+	UpdateStrategyLexical UpdateStrategy = "lexical"
+	// Update to the image that has the most recent build date
+	UpdateStrategyMRB UpdateStrategy = "most-recently-built"
+)
+
+// MatchType defines the match function to be used to match against tags in image registries
+type MatchType string
+
+const (
+	MatchTypeRegex    MatchType = "regex"
+	MatchTypeWildcard MatchType = "wildcard"
+)
+
+// AllowTags provides filtering options to express which tags should be considered as update candidates
+type AllowTags struct {
+	// MatchType defines the type of matchList entries
+	MatchType MatchType `json:"matchType,omitempty" protobuf:"bytes,1,opt,name=matchType"`
+	// MatchList defines a list of regex/wildcard expressions that are used to filter tags
+	MatchList []string `json:"matchList,omitempty" protobuf:"bytes,2,opt,name=matchList"`
+}
+
+// IgnoreTags provides filtering options to express which tags should be ignored when looking for update candidates
+type IgnoreTags struct {
+	// MatchType defines the type of matchList entries
+	MatchType MatchType `json:"matchType,omitempty" protobuf:"bytes,1,opt,name=matchType"`
+	// MatchList defines a list of regex/wildcard expressions that are used to filter tags
+	MatchList []string `json:"matchList,omitempty" protobuf:"bytes,2,opt,name=matchList"`
+}
+
+type PullSecret struct {
+	// +optional
+	Name *string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// +optional
+	Namespace *string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+	// +optional
+	Field *string `json:"field,omitempty" protobuf:"bytes,3,opt,name=field"`
+	// References an environment variable for the secret
+	// +optional
+	Env *string `json:"env,omitempty" protobuf:"bytes,4,opt,name=env"`
+	// References an external script mounted to the Image Updater controller to generate credentials
+	// +optional
+	Ext *string `json:"ext,omitempty" protobuf:"bytes,5,opt,name=ext"`
+	// CredsExpire specifies a timestamp for when the pullsecret credentials expire
+	// +optional
+	CredsExpire *metav1.Time `json:"credsExpire,omitempty" protobuf:"bytes,6,opt,name=credsExpire"`
+}
+
+// HelmParameterConfig holds the names of helm parameters that Image Updater should set with appropriate/updated values in `.spec.source.helm.parameters`
+type HelmParameterConfig struct {
+	// helm parameter name for image name
+	// +optional
+	ImageName *string `json:"imageName,omitempty" protobuf:"bytes,1,opt,name=imageName"`
+	// helm parameter name for image tag
+	// +optional
+	ImageTag *string `json:"imageTag,omitempty" protobuf:"bytes,2,opt,name=imageTag"`
+	// helm parameter name for image spec
+	// +optional
+	ImageSpec *string `json:"imageSpec,omitempty" protobuf:"bytes,3,opt,name=imageSpec"`
+}
+
+// KustomizeParameterConfig holds the original image that Image Updater should override appropriate/updated values in `.spec.source.kustomize.images`
+type KustomizeParameterConfig struct {
+	// Original image to be overridden through kustomize
+	ImageName string `json:"imageName,omitempty" protobuf:"bytes,1,opt,name=imageName"`
+}
+
+type SecretReferece struct {
+	Name      string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Namespace string `json:"namespace" protobuf:"bytes,2,opt,name=namespace"`
+	Field     string `json:"field,omitempty" protobuf:"bytes,3,opt,name=field"`
+}
+
+type KustomizationConfig struct {
+	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
+}
+
+// WriteBackMethod specifies the write back mode Image Updater should use
+type WriteBackMethod string
+
+const (
+	// Pseudo persistent. Updates are written directly to application manifest in memory
+	WriteBackMethodArgoCD WriteBackMethod = "argocd"
+	// Persistent. Updates are commited to source repo in git
+	WriteBackMethodGit WriteBackMethod = "git"
+)
+
+// WriteBackTarget determines the target file for writing updates to
+type WriteBackTarget string
+
+const (
+	// Updates are written to `.argocd-source-<appName>.yaml` file
+	WriteBackTargetDefault WriteBackTarget = "default"
+	// Updates are written to a configured kustomization file directly
+	WriteBackTargetKustomization WriteBackTarget = "kustomization"
+)
+
+// WriteBackConfig holds configuration to write back image updates to source
+type WriteBackConfig struct {
+	// Method is the write back method to be used by Image Updater
+	// Default method is "argocd"
+	// +optional
+	Method *WriteBackMethod `json:"method,omitempty" protobuf:"bytes,1,opt,name=method"`
+	// RepoURL is the URL to the repository (Git or Helm) that should be commited back to if Application is configured with multiple sources
+	// +optional
+	RepoURL *string `json:"repoURL,omitempty" protobuf:"bytes,2,opt,name=repoURL"`
+	// Path is a directory path within the Git repository that would contain the target file to be written/updated if Application is configured with multiple sources
+	// +optional
+	Path *string `json:"path,omitempty" protobuf:"bytes,3,opt,name=path"`
+	// BaseBranch specifies the branch to checkout and commit to if different from revision tracked in application spec
+	// +optional
+	BaseBranch *string `json:"baseBranch,omitempty" protobuf:"bytes,4,opt,name=baseBranch"`
+	// CommitBranch specifies the branch to commit to if there is need for separate read/write branches. Supports templating
+	// +optional
+	CommitBranch *string `json:"commitBranch,omitempty" protobuf:"bytes,5,opt,name=commitBranch"`
+	// Target determins the target file Image Updater writes back to
+	// Default target is "default"
+	// +optional
+	Target *WriteBackTarget `json:"target,omitempty" protobuf:"bytes,6,opt,name=target"`
+	// Kustomization specifies the path for target kustomziation file
+	// +optional
+	Kustomization *KustomizationConfig `json:"kustomization,omitempty" protobuf:"bytes,7,opt,name=kustomization"`
+	// Secret references an optional secret containing credentials to be used to write back to git
+	// +optional
+	Secret *SecretReferece `json:"secret,omitempty" protobuf:"bytes,8,opt,name=secret"`
+}
 
 // ApplicationSourceHelm holds helm specific options
 type ApplicationSourceHelm struct {
