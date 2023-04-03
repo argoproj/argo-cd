@@ -1,7 +1,7 @@
 apiVersion: wrong.group/v1alpha1
-kind: Dummy
+kind: Fake
 metadata:
-  name: dummy-crd-instance-wronggroup
+  name: fake-crd-instance-wronggroup
 spec:
   cpu: 2000m
   memory: 32Mi

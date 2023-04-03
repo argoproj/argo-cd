@@ -30,7 +30,7 @@ func TestAppSyncWrongVersion(t *testing.T) {
 		Get().
 		Then().
 		// Technically it's a "success" because we're just doing a "get," but the get output contains the error message.
-		Expect(SuccessRegex(`The Kubernetes API could not find version "v1alpha2" of argoproj\.io/Dummy for requested resource [a-z0-9-]+/dummy-crd-instance\. Version "v1alpha1" of argoproj\.io/Dummy is installed on the destination cluster\.`)).
+		Expect(SuccessRegex(`The Kubernetes API could not find version "v1alpha2" of argoproj\.io/Fake for requested resource [a-z0-9-]+/fake-crd-instance\. Version "v1alpha1" of argoproj\.io/Fake is installed on the destination cluster\.`)).
 		When().
 		AppSet("--directory-include", "crd-wronggroup-instance.yaml", "--directory-exclude", "crd-v1alpha2-instance.yaml").
 		IgnoreErrors(). // Ignore errors because we are testing the error message.
@@ -41,7 +41,7 @@ func TestAppSyncWrongVersion(t *testing.T) {
 		DoNotIgnoreErrors().
 		Get().
 		Then().
-		Expect(SuccessRegex(`The Kubernetes API could not find version "v1alpha1" of wrong\.group/Dummy for requested resource [a-z0-9-]+/dummy-crd-instance-wronggroup\. Version "v1alpha1" of argoproj\.io/Dummy is installed on the destination cluster\.`)).
+		Expect(SuccessRegex(`The Kubernetes API could not find version "v1alpha1" of wrong\.group/Fake for requested resource [a-z0-9-]+/fake-crd-instance-wronggroup\. Version "v1alpha1" of argoproj\.io/Fake is installed on the destination cluster\.`)).
 		When().
 		AppSet("--directory-include", "crd-does-not-exist-instance.yaml", "--directory-exclude", "crd-wronggroup-instance.yaml").
 		IgnoreErrors(). // Ignore errors because we are testing the error message.
