@@ -353,6 +353,12 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 	return a
 }
 
+func (a *Actions) Get() *Actions {
+	a.context.t.Helper()
+	a.runCli("app", "get", a.context.AppQualifiedName())
+	return a
+}
+
 func (a *Actions) Delete(cascade bool) *Actions {
 	a.context.t.Helper()
 	a.runCli("app", "delete", a.context.AppQualifiedName(), fmt.Sprintf("--cascade=%v", cascade), "--yes")
