@@ -17253,7 +17253,7 @@ spec:
           - key: tls.key
             path: tls.key
           - key: ca.crt
-            path: ca.crtrgocd-notifications-controller
+            path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
 ---
