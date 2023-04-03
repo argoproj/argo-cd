@@ -151,6 +151,8 @@ spec:
 
             # or use an external script mounted to image-updater FS to generate credentials
             ext: <path/to/script>
+            
+            credsExpire: <timestamp for when credentials expire>
 
           # (optional) specify helm parameter names to be used for image update write back
           helm:
