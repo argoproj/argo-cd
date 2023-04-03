@@ -4,11 +4,12 @@
       "color": "EEEEEE"
     },
     "CHECKS": {
-      "regexp": "^(feat|fix|docs|test|ci|chore|\[Bot\]).*:.+$"
+      "prefixes": ["[Bot] docs: "],
+      "regexp": "^(feat|fix|docs|test|ci|chore)!?(\\(.*\\))?!?:.*"
     },
     "MESSAGES": {
       "success": "PR title is valid",
       "failure": "PR title is invalid",
-      "notice": "PR Title needs to pass regex '^(feat|fix|docs|test|ci|chore|\[Bot\]).*:.+$"
+      "notice": "PR Title needs to pass regex '^(feat|fix|docs|test|ci|chore)!?(\\(.*\\))?!?:.*"
     }
   }
