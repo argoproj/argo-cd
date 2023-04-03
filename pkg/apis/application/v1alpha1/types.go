@@ -2580,6 +2580,13 @@ func (app *Application) GetPropagationPolicy() string {
 	return ""
 }
 
+// HasChangedManagedNamespaceMetadata checks whether app.Spec.SyncPolicy.ManagedNamespaceMetadata differs from the
+// managed namespace metadata which has been stored app.Status.OperationState.SyncResult. If they differ a refresh should
+// be triggered.
+func (app *Application) HasChangedManagedNamespaceMetadata() bool {
+	return app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil && app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil && !reflect.DeepEqual(app.Spec.SyncPolicy.ManagedNamespaceMetadata, app.Status.OperationState.SyncResult.ManagedNamespaceMetadata)
+}
+
 // IsFinalizerPresent checks if the app has a given finalizer
 func (app *Application) IsFinalizerPresent(finalizer string) bool {
 	return getFinalizerIndex(app.ObjectMeta, finalizer) > -1

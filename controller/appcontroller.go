@@ -1524,7 +1524,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 			}
 		} else if !app.Spec.Destination.Equals(app.Status.Sync.ComparedTo.Destination) {
 			reason = "spec.destination differs"
-		} else if app.Spec.SyncPolicy != nil && app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil && !reflect.DeepEqual(app.Spec.SyncPolicy.ManagedNamespaceMetadata, app.Status.OperationState.SyncResult.ManagedNamespaceMetadata) {
+		} else if app.HasChangedManagedNamespaceMetadata() {
 			reason = "spec.syncPolicy.managedNamespaceMetadata differs"
 		} else if requested, level := ctrl.isRefreshRequested(app.QualifiedName()); requested {
 			compareWith = level
