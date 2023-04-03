@@ -1012,13 +1012,22 @@ func TestSkipNonInterpolatedMatrixCalls(t *testing.T) {
 		Revision: "Revision",
 		Files: []argoprojiov1alpha1.GitFileGeneratorItem{
 			{Path: "examples/git-generator-files-discovery/cluster-config/{{name}}.json"},
+			//{Path: "examples/git-generator-files-discovery/cluster-config/dev-01.json"},
+			//{Path: "examples/git-generator-files-discovery/cluster-config/prod-01.json"},
 		},
 	}
 
 	interpolatedClusterGenerator := &argoprojiov1alpha1.ClusterGenerator{
 		Selector: metav1.LabelSelector{
 			MatchLabels: nil,
-			MatchExpressions: []metav1.LabelSelectorRequirement{},
+			//MatchExpressions: []metav1.LabelSelectorRequirement{},
+			MatchExpressions: []metav1.LabelSelectorRequirement{
+				{
+					Key:      "environment",
+					Operator: "Exists",
+					Values:   []string{},
+				},
+			},
 		},
 	}
 	testCases := []struct {
@@ -1074,6 +1083,7 @@ func TestSkipNonInterpolatedMatrixCalls(t *testing.T) {
 			},
 			clientError: false,
 			expectedMock: []map[string]interface{}{
+				//nil,
 				{
 					"path":                    "examples/git-generator-files-discovery/dev-01.json",
 					"path.basename":           "dev-01",
@@ -1174,6 +1184,7 @@ func TestSkipNonInterpolatedMatrixCalls(t *testing.T) {
 					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
 			}
 			/////////////// GIT MOCK ///////////////
+			genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet).Return([]map[string]interface {}{}, nil).Once()
 			for _, currMock := range testCaseCopy.expectedMock {
 				eMock := []map[string]interface{}{currMock}
 				genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet).Return(eMock, nil).Once()
