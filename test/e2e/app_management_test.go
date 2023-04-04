@@ -252,7 +252,7 @@ func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusMissing))
 }
 
-func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
+func TestSyncToSignedCommitWithKnownKey(t *testing.T) {
 	SkipOnEnv(t, "GPG")
 	Given(t).
 		Project("gpg").
@@ -268,6 +268,62 @@ func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestSyncToSignedTagWithKnownKey(t *testing.T) {
+	SkipOnEnv(t, "GPG")
+	Given(t).
+		Project("gpg").
+		Revision("signed-tag").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedTag("signed-tag").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestSyncToSignedTagWithUnknownKey(t *testing.T) {
+	SkipOnEnv(t, "GPG")
+	Given(t).
+		Project("gpg").
+		Revision("signed-tag").
+		Path(guestbookPath).
+		Sleep(2).
+		When().
+		AddSignedTag("signed-tag").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing))
+}
+
+func TestSyncToUnsignedTag(t *testing.T) {
+	SkipOnEnv(t, "GPG")
+	Given(t).
+		Project("gpg").
+		Revision("unsigned-tag").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddTag("unsigned-tag").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing))
 }
 
 func TestAppCreation(t *testing.T) {
