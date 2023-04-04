@@ -6,6 +6,7 @@ Checklist:
 
 * [ ] Either (a) I've created an [enhancement proposal](https://github.com/argoproj/argo-cd/issues/new/choose) and discussed it with the community, (b) this is a bug fix, or (c) this does not need to be in the release notes.
 * [ ] The title of the PR states what changed and the related issues number (used for the release note).
+* [ ] The title of the PR conforms to the [Toolchain Guide](https://argo-cd.readthedocs.io/en/latest/developer-guide/toolchain-guide/#title-of-the-pr)
 * [ ] I've included "Closes [ISSUE #]" or "Fixes [ISSUE #]" in the description to automatically close the associated issue.
 * [ ] I've updated both the CLI and UI to expose my feature, or I plan to submit a second PR with them.
 * [ ] Does this PR require documentation updates?
