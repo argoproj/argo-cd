@@ -34,6 +34,8 @@ import (
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 const testNamespace = "default"
@@ -60,7 +62,7 @@ var (
 	}
 	defaultProj = &appsv1.AppProject{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "AppProject",
+			Kind:       application.AppProjectKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -75,7 +77,7 @@ var (
 
 	defaultProjNoSources = &appsv1.AppProject{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "AppProject",
+			Kind:       application.AppProjectKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -87,10 +89,20 @@ var (
 			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
-
+	fakeRepo = appsv1.Repository{
+		Repo:      "https://test",
+		Type:      "test",
+		Name:      "test",
+		Username:  "argo",
+		Insecure:  false,
+		EnableLFS: false,
+		EnableOCI: false,
+		Proxy:     "test",
+		Project:   "argocd",
+	}
 	guestbookApp = &appsv1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -279,6 +291,23 @@ func TestRepositoryServer(t *testing.T) {
 		assert.Equal(t, repo.Repo, "test")
 	})
 
+	t.Run("Test_ListRepositories", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.On("GetRepository", context.TODO(), url).Return(nil, nil)
+		db.On("ListHelmRepositories", context.TODO(), mock.Anything).Return(nil, nil)
+		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{&fakeRepo, &fakeRepo}, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		resp, err := s.ListRepositories(context.TODO(), &repository.RepoQuery{})
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(resp.Items))
+	})
 }
 
 func TestRepositoryServerListApps(t *testing.T) {
