@@ -966,6 +966,25 @@ func (ctrl *ApplicationController) getPermittedAppLiveObjects(app *appv1.Applica
 	return objsMap, nil
 }
 
+func removeFromSlice(objs, toRemove []*unstructured.Unstructured) []*unstructured.Unstructured {
+	log.Printf("removeFromSlice called with %d objects and %d objects to remove", len(objs), len(toRemove))
+	objMap := make(map[string]bool)
+	for _, obj := range toRemove {
+		objKey := fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName())
+		objMap[objKey] = true
+	}
+
+	remainingObjs := make([]*unstructured.Unstructured, 0)
+	for _, obj := range objs {
+		objKey := fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName())
+		if !objMap[objKey] {
+			remainingObjs = append(remainingObjs, obj)
+		}
+	}
+
+	return remainingObjs
+}
+
 func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application, projectClusters func(project string) ([]*appv1.Cluster, error)) ([]*unstructured.Unstructured, error) {
 	logCtx := log.WithField("application", app.QualifiedName())
 	logCtx.Infof("Deleting resources")
@@ -1026,20 +1045,44 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 		config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
-		filteredObjs := FilterObjectsForDeletion(objs)
+		for len(objs) > 0 {
+			filteredObjs := FilterObjectsForDeletion(objs)
 
-		propagationPolicy := metav1.DeletePropagationForeground
-		if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
-			propagationPolicy = metav1.DeletePropagationBackground
-		}
-		logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
+			propagationPolicy := metav1.DeletePropagationForeground
+			if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
+				propagationPolicy = metav1.DeletePropagationBackground
+			}
 
-		err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
-			obj := filteredObjs[i]
-			return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
-		})
-		if err != nil {
-			return objs, err
+			// If we want to delete the sync waves in reverse order, we can sort the objs slice by
+			// their metadata.creationTimestamp in descending order before deleting them.
+			// This way, the resources will be deleted in the reverse order of their creation.
+
+			// sort resources in descending order of creation time
+			sort.Slice(objs, func(i, j int) bool {
+				return objs[i].GetCreationTimestamp().Time.After(objs[j].GetCreationTimestamp().Time)
+			})
+
+			// delete resources in reverse order of creation
+			for i := len(objs) - 1; i >= 0; i-- {
+				obj := objs[i]
+				err := ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+				if err != nil {
+					return objs, err
+				}
+			}
+
+			logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
+
+			err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
+				obj := filteredObjs[i]
+				return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+			})
+			if err != nil {
+				return objs, err
+			}
+
+			objs = removeFromSlice(objs, filteredObjs)
+
 		}
 
 		objsMap, err = ctrl.getPermittedAppLiveObjects(app, proj, projectClusters)
