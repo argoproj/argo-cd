@@ -271,6 +271,8 @@ string-based field accessors.
 
 The lack of typing makes it more difficult to write code and to detect bugs while we code.
 
+The raw json is deserialized to a `map[string]interface{}`, therefore fields are still accessible using `template["spec"].(map[string]interface{})["source"].(map[string]string)["repoURL"]` or similar.
+
 Thankfully, the places where we currently reach into the `template` field are relatively few and simple.
 
 ### Upgrade / Downgrade Strategy
