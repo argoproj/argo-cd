@@ -151,6 +151,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Metanet](http://www.metanet.co.kr/en/)
 1. [MindSpore](https://mindspore.cn)
 1. [Mirantis](https://mirantis.com/)
+1. [Mission Lane](https://missionlane.com)
 1. [mixi Group](https://mixi.co.jp/)
 1. [Moengage](https://www.moengage.com/)
 1. [Money Forward](https://corp.moneyforward.com/en/)
