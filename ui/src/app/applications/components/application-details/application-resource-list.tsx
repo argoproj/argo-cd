@@ -135,16 +135,16 @@ export const ApplicationResourceList = ({
                                                 </button>
                                             )}>
                                             {nodeMenu({
-                                                    name: res.name,
-                                                    version: res.version,
-                                                    kind: res.kind,
-                                                    namespace: res.namespace,
-                                                    group: res.group,
-                                                    info: null,
-                                                    uid: '',
-                                                    resourceVersion: null,
-                                                    parentRefs: []
-                                             })}
+                                                name: res.name,
+                                                version: res.version,
+                                                kind: res.kind,
+                                                namespace: res.namespace,
+                                                group: res.group,
+                                                info: null,
+                                                uid: '',
+                                                resourceVersion: null,
+                                                parentRefs: []
+                                            })}
                                         </DropDown>
                                     </div>
                                 </div>
