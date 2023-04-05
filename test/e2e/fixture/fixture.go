@@ -760,6 +760,26 @@ func AddSignedFile(path, contents string) {
 	}
 }
 
+func AddSignedTag(name string) {
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
+	FailOnErr(Run(repoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "tag", "-sm", "add signed tag", name))
+	if IsRemote() {
+		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
+
+func AddTag(name string) {
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
+	FailOnErr(Run(repoDirectory(), "git", "tag", name))
+	if IsRemote() {
+		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
+
 // create the resource by creating using "kubectl apply", with bonus templating
 func Declarative(filename string, values interface{}) (string, error) {
 
