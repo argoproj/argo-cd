@@ -471,6 +471,12 @@ message ApplicationSourceKustomize {
 
   // Namespace sets the namespace that Kustomize adds to all resources
   optional string namespace = 9;
+
+  // CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
+  optional bool commonAnnotationsEnvsubst = 10;
+
+  // Replicas is a list of Kustomize Replicas override specifications
+  repeated KustomizeReplica replicas = 11;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -490,10 +496,10 @@ message ApplicationSourcePluginParameter {
   optional string string = 5;
 
   // Map is the value of a map type parameter.
-  map<string, string> map = 3;
+  optional OptionalMap map = 3;
 
   // Array is the value of an array type parameter.
-  repeated string array = 4;
+  optional OptionalArray array = 4;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -1006,11 +1012,21 @@ message KustomizeOptions {
   optional string binaryPath = 2;
 }
 
+message KustomizeReplica {
+  // Name of Deployment or StatefulSet
+  optional string name = 1;
+
+  // Number of replicas
+  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString count = 2;
+}
+
 // ListGenerator include items info
 message ListGenerator {
   repeated k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
 
-  optional ApplicationSetTemplate template = 2;
+  optional string elementsYaml = 2;
+
+  optional ApplicationSetTemplate template = 3;
 }
 
 message ManagedNamespaceMetadata {
@@ -1115,6 +1131,18 @@ message OperationState {
 
   // RetryCount contains time of operation retries
   optional int64 retryCount = 8;
+}
+
+message OptionalArray {
+  // Array is the value of an array type parameter.
+  // +optional
+  repeated string array = 1;
+}
+
+message OptionalMap {
+  // Map is the value of a map type parameter.
+  // +optional
+  map<string, string> map = 1;
 }
 
 // OrphanedResourceKey is a reference to a resource to be ignored from
