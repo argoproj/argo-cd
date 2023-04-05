@@ -84,7 +84,7 @@ The exact key scalability factors used in each permutations will be determined o
 This will capture the impact of network throughput on performance.
 
 #### Topology 3: One Namespaced Argo CD.
-This instance will only manage namespace level resources (i.e., nothing cluster-scoped).
+This instance will only manage namespace-level resources to determine the impact of monitoring cluster-scoped resources (related to the effect of resource churn in the cluster).
 
 ### Implementation Details/Notes/Constraints [optional]
 There is already some [tooling in the Argo CD repository](https://github.com/argoproj/argo-cd/pull/8037/files) for scalability testing. We plan to build on the existing effort and further push the boundaries of testing it.
