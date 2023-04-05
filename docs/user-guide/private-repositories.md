@@ -103,11 +103,11 @@ Using the UI:
 
 !!!note 
     When your SSH repository is served from a non-standard port, you have to use `ssh://`-style URLs to specify your repository. The scp-style `git@yourgit.com:yourrepo` URLs do **not** support port specification, and will treat any port number as part of the repository's path.
-    Here is a working example with `gituser` user to access `gitserver.example.com` Git server on TCP/2222 port if Git repository is located in `/home/mygitrepo/` folder on the server side:
+    For example, the `gituser` user connecting to the `gitserver.example.com` server on port TCP/2222 for the repository located in the `/home/mygitrepo/` folder on the server:
     ```
     ssh://gituser@gitserver.example.com:2222/home/mygitrepo/
     ```
-    Be sure about your repo has a `master` branch with initial commit in it otherwise connetion status will be *Failed*.
+    If the repository does not have a `master` branch with an initial commit, the connection status will be `Failed`.
 
 
 ### GitHub App Credential
