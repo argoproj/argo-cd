@@ -39,3 +39,7 @@ You need to check your argocd-notifications controller version. For instance, th
 ### notification service 'xxxx' is not supported"
 
 You have not defined `xxxx` in `argocd-notifications-cm` or to fail to parse settings.
+
+### channel_not_found
+
+The slack app must be added as an integration to the channel. To add the Slack app as integrations, access the channel settings and navigate to the Integrations section. Then, click `Add apps` and choose the Slack app to add.
