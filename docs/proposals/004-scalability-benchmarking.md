@@ -23,8 +23,6 @@ last-updated: 2023-02-28
 * What are the scalability factors to prioritize when benchmarking Argo CD?
     * Reconciliation time for all, one, or a number of applications in the cluster.
 
-## Summary
-
 ## Motivation
 Users of Argo CD are interested to know how to scale Argo CD, what configuration tweaks and deployment options they have, and how far they can push resources (in terms of the number of supported applications, Git repositories, managing clusters, etc.).
 
@@ -50,6 +48,19 @@ By running large-scale benchmarking, we aim at helping the Argo CD community wit
 * This proposal does not intend to cover implementation of any auto-scaling based on the metrics and thresholds determined by the scalability benchmarking. A separate proposal will be used for any auto-scaling enhancements.
 * This proposal does not intend to add testing that determines how a change impacts the scalability of Argo CD based on the benchmarks.
 * We do not intend to analyze cost implications of running different topologies and purely focus on scalability requirements from a technology perspective.
+
+### Initial Members
+The initial members for this proposal and their affiliations are:
+| Name                                                | Company   |
+|-----------------------------------------------------|-----------|
+| [Andrew Lee](https://github.com/andklee)            | AWS       |
+| [Carlos Santana](https://github.com/csantanapr)     | AWS       |
+| [Nicholas Morey](https://github.com/morey-tech)     | Akuity    |
+| [Nima Kaviani](https://github.com/nimakaviani)      | AWS       |
+
+With the introduction of [the proposed Scalability SIG](https://github.com/argoproj/argoproj/pull/192), the members participating in the proposal may change.
+
+Any community member is welcome to participate in the work for this proposal. Either by joining the Scalability SIG or through contributing to the proposed `argoproj-labs/argo-cd-benchmarking` repository containing the tooling.
 
 ## Proposal
 1.  Create new `argo-cd-benchmarking` repo under `argoproj-labs` and add authors of this proposal as maintainers.
