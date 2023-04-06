@@ -338,7 +338,7 @@ func TestGitLabPushEvent(t *testing.T) {
 
 func TestGitLabSystemEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler(nil)
+	h := NewMockHandler(nil, []string{})
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-Gitlab-Event", "System Hook")
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
