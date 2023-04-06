@@ -41,7 +41,7 @@ export class RepositoriesService {
         enableLfs: boolean;
         proxy: string;
         project?: string;
-        forceHttpBasicAuth: boolean;
+        forceHttpBasicAuth?: boolean;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
