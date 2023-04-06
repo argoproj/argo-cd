@@ -24,6 +24,7 @@ permissions:
 
 jobs:
   check-go:
+    if: github.repository_owner == 'argoproj'
     name: Ensure Go modules synchronicity
     runs-on: ubuntu-22.04
     steps:
@@ -42,6 +43,7 @@ jobs:
           git diff --exit-code -- .
 
   build-go:
+    if: github.repository_owner == 'argoproj'
     name: Build & cache Go code
     runs-on: ubuntu-22.04
     steps:
@@ -63,6 +65,7 @@ jobs:
         run: make build-local
 
   lint-go:
+    if: github.repository_owner == 'argoproj'
     permissions:
       contents: read  # for actions/checkout to fetch code
       pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
@@ -82,6 +85,7 @@ jobs:
           args: --timeout 10m --exclude SA5011 --verbose
 
   test-go:
+    if: github.repository_owner == 'argoproj'
     name: Run unit tests for Go packages
     runs-on: ubuntu-22.04
     needs:
@@ -149,6 +153,7 @@ jobs:
           path: test-results/
 
   test-go-race:
+    if: github.repository_owner == 'argoproj'
     name: Run unit tests with -race, for Go packages
     runs-on: ubuntu-22.04
     needs:
@@ -211,6 +216,7 @@ jobs:
           path: test-results/
 
   codegen:
+    if: github.repository_owner == 'argoproj'
     name: Check changes to generated code
     runs-on: ubuntu-22.04
     steps:
@@ -259,6 +265,7 @@ jobs:
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
 
   build-ui:
+    if: github.repository_owner == 'argoproj'
     name: Build, test & lint UI code
     runs-on: ubuntu-22.04
     steps:
@@ -291,6 +298,7 @@ jobs:
         working-directory: ui/
 
   analyze:
+    if: github.repository_owner == 'argoproj'
     name: Process & analyze test artifacts
     runs-on: ubuntu-22.04
     needs:
@@ -357,6 +365,7 @@ jobs:
         if: env.sonar_secret != ''
 
   test-e2e:
+    if: github.repository_owner == 'argoproj'
     name: Run end-to-end tests
     runs-on: ubuntu-22.04
     strategy:
