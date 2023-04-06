@@ -1,0 +1,27 @@
+apiVersion: mariadb.mmontes.io/v1alpha1
+kind: MariaDB
+metadata:
+  name: mariadb-server
+spec:
+  rootPasswordSecretKeyRef:
+    name: mariadb
+    key: root-password
+  image:
+    repository: mariadb
+    tag: "10.7.4"
+    pullPolicy: IfNotPresent
+  port: 3306
+  volumeClaimTemplate:
+    resources:
+      requests:
+        storage: 100Mi
+    storageClassName: standard
+    accessModes:
+      - ReadWriteOnce
+status:
+  conditions:
+  - lastTransitionTime: "2023-04-05T14:18:01Z"
+    message: Running
+    reason: StatefulSetReady
+    status: "True"
+    type: Ready
