@@ -119,6 +119,7 @@ Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Ar
 | `helm.sh/hook-delete-policy` | Supported. See also `argocd.argoproj.io/hook-delete-policy`). |
 | `helm.sh/hook-delete-timeout` | No supported. Never used in Helm stable |
 | `helm.sh/hook-weight` | Supported as equivalent to `argocd.argoproj.io/sync-wave`. |
+| `helm.sh/resource-policy: keep` | Supported as equivalent to `argocd.argoproj.io/sync-options: Delete=false`. |
 
 Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl apply`, rather than `kubectl create`. This means that if the hook is named and already exists, it will not change unless you have annotated it with `before-hook-creation`.
 
