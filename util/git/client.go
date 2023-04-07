@@ -424,7 +424,12 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error
 			}
 		}
 	}
-	if _, err := m.runCmd("clean", "-fdx"); err != nil {
+	// NOTE
+	// The double “f” in the arguments is not a typo: the first “f” tells
+	// `git clean` to delete untracked files and directories, and the second “f”
+	// tells it to clean untractked nested Git repositories (for example a
+	// submodule which has since been removed).
+	if _, err := m.runCmd("clean", "-ffdx"); err != nil {
 		return err
 	}
 	return nil
