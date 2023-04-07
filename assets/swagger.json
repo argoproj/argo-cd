@@ -6380,6 +6380,13 @@
             "type": "string"
           }
         },
+        "imageUpdates": {
+          "type": "array",
+          "title": "ImageUpdates holds the status information on image updates",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ImageUpdate"
+          }
+        },
         "images": {
           "description": "Images holds all images of application child resources.",
           "type": "array",
@@ -7032,6 +7039,31 @@
         "updateStrategy": {
           "type": "string",
           "title": "UpdateStrategy determines how Image Updater will find new versions of an image to be updated\nDefault strategy is \"semver\"\n+optional"
+        }
+      }
+    },
+    "v1alpha1ImageUpdate": {
+      "type": "object",
+      "title": "ImageUpdate contains status information about the update operations that have been conducted against container images used by an application",
+      "properties": {
+        "digest": {
+          "type": "string",
+          "title": "Digest represents the image that was deployed after the update operation was carried out"
+        },
+        "image": {
+          "type": "string",
+          "title": "Image holds the reference to the image whose update status is being displayed"
+        },
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "newTag": {
+          "type": "string",
+          "title": "NewTag represents the tag of the image that was deployed after the update operation was carried out"
+        },
+        "oldTag": {
+          "type": "string",
+          "title": "OldTag represents the tag of the image that was deployed before the update operation was carried out"
         }
       }
     },

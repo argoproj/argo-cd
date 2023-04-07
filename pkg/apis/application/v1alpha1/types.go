@@ -1677,6 +1677,22 @@ type ApplicationSummary struct {
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,1,opt,name=externalURLs"`
 	// Images holds all images of application child resources.
 	Images []string `json:"images,omitempty" protobuf:"bytes,2,opt,name=images"`
+	// ImageUpdates holds the status information on image updates
+	ImageUpdates []ImageUpdate `json:"imageUpdates,omitempty" protobuf:"bytes,3,opt,name=imageUpdates"`
+}
+
+// ImageUpdate contains status information about the update operations that have been conducted against container images used by an application
+type ImageUpdate struct {
+	// Image holds the reference to the image whose update status is being displayed
+	Image string `json:"image,omitempty" protobuf:"bytes,1,opt,name=image"`
+	// LastTransitionTime records the time at which the last successful update operation was carried out for a specific image
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,2,opt,name=lastTransitionTime"`
+	// OldTag represents the tag of the image that was deployed before the update operation was carried out
+	OldTag string `json:"oldTag,omitempty" protobuf:"bytes,3,opt,name=oldTag"`
+	// NewTag represents the tag of the image that was deployed after the update operation was carried out
+	NewTag string `json:"newTag,omitempty" protobuf:"bytes,4,opt,name=newTag"`
+	// Digest represents the image that was deployed after the update operation was carried out
+	Digest string `json:"digest,omitempty" protobuf:"bytes,5,opt,name=digest"`
 }
 
 // TODO: Document purpose of this method

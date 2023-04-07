@@ -84,6 +84,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.IgnoreTags":                          schema_pkg_apis_application_v1alpha1_IgnoreTags(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Image":                               schema_pkg_apis_application_v1alpha1_Image(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ImageConfiguration":                  schema_pkg_apis_application_v1alpha1_ImageConfiguration(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ImageUpdate":                         schema_pkg_apis_application_v1alpha1_ImageUpdate(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Info":                                schema_pkg_apis_application_v1alpha1_Info(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.InfoItem":                            schema_pkg_apis_application_v1alpha1_InfoItem(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JWTToken":                            schema_pkg_apis_application_v1alpha1_JWTToken(ref),
@@ -2178,9 +2179,25 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref common.Referenc
 							},
 						},
 					},
+					"imageUpdates": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ImageUpdates holds the status information on image updates",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ImageUpdate"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ImageUpdate"},
 	}
 }
 
@@ -3632,6 +3649,55 @@ func schema_pkg_apis_application_v1alpha1_ImageConfiguration(ref common.Referenc
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AllowTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameterConfig", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.IgnoreTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeParameterConfig", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ImageUpdate(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ImageUpdate contains status information about the update operations that have been conducted against container images used by an application",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"image": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Image holds the reference to the image whose update status is being displayed",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"lastTransitionTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastTransitionTime records the time at which the last successful update operation was carried out for a specific image",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"oldTag": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OldTag represents the tag of the image that was deployed before the update operation was carried out",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"newTag": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NewTag represents the tag of the image that was deployed after the update operation was carried out",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"digest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Digest represents the image that was deployed after the update operation was carried out",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

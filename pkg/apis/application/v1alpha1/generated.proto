@@ -594,6 +594,9 @@ message ApplicationSummary {
 
   // Images holds all images of application child resources.
   repeated string images = 2;
+
+  // ImageUpdates holds the status information on image updates
+  repeated ImageUpdate imageUpdates = 3;
 }
 
 // ApplicationTree holds nodes which belongs to the application
@@ -1039,6 +1042,24 @@ message ImageConfiguration {
   // Kustomize holds configurations related to kustomize parameters that will be written back to by Image Updater
   // +optional
   optional KustomizeParameterConfig kustomize = 10;
+}
+
+// ImageUpdate contains status information about the update operations that have been conducted against container images used by an application
+message ImageUpdate {
+  // Image holds the reference to the image whose update status is being displayed
+  optional string image = 1;
+
+  // LastTransitionTime records the time at which the last successful update operation was carried out for a specific image
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 2;
+
+  // OldTag represents the tag of the image that was deployed before the update operation was carried out
+  optional string oldTag = 3;
+
+  // NewTag represents the tag of the image that was deployed after the update operation was carried out
+  optional string newTag = 4;
+
+  // Digest represents the image that was deployed after the update operation was carried out
+  optional string digest = 5;
 }
 
 message Info {

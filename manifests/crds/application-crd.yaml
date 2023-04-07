@@ -3867,6 +3867,38 @@ spec:
                     items:
                       type: string
                     type: array
+                  imageUpdates:
+                    description: ImageUpdates holds the status information on image
+                      updates
+                    items:
+                      description: ImageUpdate contains status information about the
+                        update operations that have been conducted against container
+                        images used by an application
+                      properties:
+                        digest:
+                          description: Digest represents the image that was deployed
+                            after the update operation was carried out
+                          type: string
+                        image:
+                          description: Image holds the reference to the image whose
+                            update status is being displayed
+                          type: string
+                        lastTransitionTime:
+                          description: LastTransitionTime records the time at which
+                            the last successful update operation was carried out for
+                            a specific image
+                          format: date-time
+                          type: string
+                        newTag:
+                          description: NewTag represents the tag of the image that
+                            was deployed after the update operation was carried out
+                          type: string
+                        oldTag:
+                          description: OldTag represents the tag of the image that
+                            was deployed before the update operation was carried out
+                          type: string
+                      type: object
+                    type: array
                   images:
                     description: Images holds all images of application child resources.
                     items:
