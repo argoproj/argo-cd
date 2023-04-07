@@ -334,9 +334,9 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 func (m *nativeGitClient) fetch(revision string) error {
 	var err error
 	if revision != "" {
-		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force", "--prune")
+		err = m.runCredentialedCmd("fetch", "origin", revision, "--tags", "--force", "--prune")
 	} else {
-		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force", "--prune")
+		err = m.runCredentialedCmd("fetch", "origin", "--tags", "--force", "--prune")
 	}
 	return err
 }
@@ -354,7 +354,7 @@ func (m *nativeGitClient) Fetch(revision string) error {
 	if err == nil && m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
 		if err == nil && len(largeFiles) > 0 {
-			err = m.runCredentialedCmd("git", "lfs", "fetch", "--all")
+			err = m.runCredentialedCmd("lfs", "fetch", "--all")
 			if err != nil {
 				return err
 			}
@@ -387,10 +387,10 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 
 // Submodule embed other repositories into this repository
 func (m *nativeGitClient) Submodule() error {
-	if err := m.runCredentialedCmd("git", "submodule", "sync", "--recursive"); err != nil {
+	if err := m.runCredentialedCmd("submodule", "sync", "--recursive"); err != nil {
 		return err
 	}
-	if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
+	if err := m.runCredentialedCmd("submodule", "update", "--init", "--recursive"); err != nil {
 		return err
 	}
 	return nil
@@ -632,7 +632,7 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
 // nolint:unparam
-func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) error {
+func (m *nativeGitClient) runCredentialedCmd(args ...string) error {
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
 		return err
@@ -647,7 +647,7 @@ func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) err
 		}
 	}
 
-	cmd := exec.Command(command, args...)
+	cmd := exec.Command("git", args...)
 	cmd.Env = append(cmd.Env, environ...)
 	_, err = m.runCmdOutput(cmd)
 	return err
