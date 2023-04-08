@@ -45,7 +45,7 @@ func TestGetShardByID_NoReplicasUsingHashDistributionFunctionWithClusters(t *tes
 	db, cluster1, cluster2, cluster3, cluster4, cluster5 := createTestClusters()
 	// Test with replicas set to 0
 	os.Setenv(common.EnvControllerReplicas, "0")
-	os.Setenv(common.EnvControllerShardingAlgorithm, "round-robin")
+	os.Setenv(common.EnvControllerShardingAlgorithm, "hash")
 	distributionFunction := GetShardByIndexModuloReplicasCountDistributionFunction(db)
 	assert.Equal(t, -1, distributionFunction(nil))
 	assert.Equal(t, -1, distributionFunction(&cluster1))
@@ -266,7 +266,6 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunctionWhenClusterIsAdde
 
 func TestGetShardByIndexModuloReplicasCountDistributionFunction(t *testing.T) {
 	db, cluster1, cluster2, _, _, _ := createTestClusters()
-
 	os.Setenv(common.EnvControllerReplicas, "2")
 	distributionFunction := GetShardByIndexModuloReplicasCountDistributionFunction(db)
 
