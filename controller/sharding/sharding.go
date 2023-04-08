@@ -37,8 +37,20 @@ func InferShard() (int, error) {
 }
 
 func GetClusterFilter(distributionFunction DistributionFunction, shard int) ClusterFilterFunction {
+	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	return func(c *v1alpha1.Cluster) bool {
-		return distributionFunction(c) == shard
+		clusterShard := 0
+		if c != nil && c.Shard != nil {
+			requestedShard := int(*c.Shard)
+			if requestedShard < replicas {
+				clusterShard = requestedShard
+			} else {
+				log.Warnf("Specified cluster shard (%d) for cluster: %s is greater than the number of available shard. Assigning automatically.", requestedShard, c.Name)
+			}
+		} else {
+			clusterShard = distributionFunction(c)
+		}
+		return clusterShard == shard
 	}
 }
 
@@ -115,8 +127,7 @@ func GetShardByIdUsingHashDistributionFunction() DistributionFunction {
 			return -1
 		}
 		if c == nil {
-			log.Infof("Cannot calculate cluster shard when cluster not specified")
-			return -1
+			return 0
 		}
 		id := c.ID
 		log.Debugf("Calculating cluster shard for cluster id: %s", id)
@@ -126,7 +137,7 @@ func GetShardByIdUsingHashDistributionFunction() DistributionFunction {
 			h := fnv.New32a()
 			_, _ = h.Write([]byte(id))
 			shard := int32(h.Sum32() % uint32(replicas))
-			log.Infof("Cluster with id=%s will be processed by shard %d", c.ID, shard)
+			log.Infof("Cluster with id=%s will be processed by shard %d", id, shard)
 			return int(shard)
 		}
 	}
