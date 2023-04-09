@@ -105,7 +105,7 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 				Repository:   gitlabRepo.Path,
 				URL:          url,
 				Branch:       gitlabRepo.DefaultBranch,
-				Labels:       gitlabRepo.TagList,
+				Labels:       gitlabRepo.Topics,
 				RepositoryId: gitlabRepo.ID,
 			})
 		}
