@@ -1182,6 +1182,44 @@ func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
 	assert.Equal(t, result, false, "no error since no config change")
 }
 
+func TestOIDCConfigChangeDetection_WholeConfigFromSecret(t *testing.T) {
+	//Given
+	rawOIDCConfig := "$k8ssecret:oidcconfig"
+	originalConfig := settings_util.OIDCConfig{
+		ClientID:     "argocd",
+		ClientSecret: "sharedargooauthsecret"}
+	rawOriginalOIDCConfigForSecret, err := yaml.Marshal(&originalConfig)
+	assert.NoError(t, err, "no error expected when marshalling OIDC config for secret")
+
+	originalSecrets := map[string]string{"k8ssecret:oidcconfig": string(rawOriginalOIDCConfigForSecret)}
+
+	argoSettings := settings_util.ArgoCDSettings{OIDCConfigRAW: string(rawOIDCConfig), Secrets: originalSecrets}
+
+	originalOIDCConfig := argoSettings.OIDCConfig()
+
+	assert.Equal(t, originalOIDCConfig.ClientID, originalConfig.ClientID, "expected ClientID be replaced by secret value")
+	assert.Equal(t, originalOIDCConfig.ClientSecret, originalConfig.ClientSecret, "expected ClientSecret be replaced by secret value")
+
+	//When
+	newConfig := settings_util.OIDCConfig{
+		ClientID:     "argocd",
+		ClientSecret: "a!Better!Secret"}
+	rawNewOIDCConfigForSecret, err := yaml.Marshal(&newConfig)
+	assert.NoError(t, err, "no error expected when marshalling OIDC config for secret")
+
+	newSecrets := map[string]string{"k8ssecret:oidcconfig": string(rawNewOIDCConfigForSecret)}
+	argoSettings.Secrets = newSecrets
+	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
+
+	//Then
+	assert.Equal(t, result, true, "secrets have changed, expect interpolated OIDCConfig to change")
+
+	newOIDCConfig := argoSettings.OIDCConfig()
+
+	assert.Equal(t, newOIDCConfig.ClientID, newConfig.ClientID, "expected ClientID be replaced by secret value")
+	assert.Equal(t, newOIDCConfig.ClientSecret, newConfig.ClientSecret, "expected ClientSecret be replaced by new secret value")
+}
+
 func TestIsMainJsBundle(t *testing.T) {
 	testCases := []struct {
 		name           string
