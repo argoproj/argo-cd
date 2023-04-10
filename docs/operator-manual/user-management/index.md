@@ -413,8 +413,13 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
 
 `argocd-secret` can be used to store sensitive data which can be referenced by ArgoCD. Values starting with `$` in configmaps are interpreted as follows:
 
-- If value has the form: `$<secret>:a.key.in.k8s.secret`, look for a k8s secret with the name `<secret>` (minus the `$`), and read its value. 
-- Otherwise, look for a key in the k8s secret named `argocd-secret`. 
+- If value has the form: `$<secret>:a.key.in.k8s.secret`, look for a k8s secret with the name `<secret>` (minus the `$`), and read its value.
+- Otherwise, look for a key in the k8s secret named `argocd-secret`.
+
+When using OIDC (and not Dex), this replacement is supported for the `clientID` and
+`clientSecret` keys. If you wish to store other OIDC values in a secret, you may do so with
+the entirety of the `oidc.config`. See [Store full OIDC config in
+secret](#store-full-oidc-config-in-secret) below.
 
 #### Example
 
@@ -505,6 +510,55 @@ data:
     clientID: aabbccddeeff00112233
     # Reference key in another-secret (and not argocd-secret)
     clientSecret: $another-secret:oidc.auth0.clientSecret  # Mind the ':'
+  ...
+```
+
+#### Store full OIDC config in secret
+
+If you want to store the entirety of the OIDC config in a secret you may do so by
+referencing the secret and key in that secret in same manner as noted for the `clientID`
+and `clientSecret` above.
+
+Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
+
+> NOTE: Secret must have label `app.kubernetes.io/part-of: argocd`
+
+##### Example
+
+`another-secret`:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: another-secret
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: argocd
+type: Opaque
+stringData:
+  ...
+  # Store client secret like below.
+  # If stringData is used non-base-64 encoded data can be provided
+  oidc.config: |
+    name: Auth0
+    clientSecret: xxxxxxxxx
+    clientID: aabbccddeeff00112233
+  ...
+```
+
+`argocd-cm`:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  ...
+  oidc.config: $another-secret:oidc.auth0
   ...
 ```
 
