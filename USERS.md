@@ -77,6 +77,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Energisme](https://energisme.com/)
 1. [enigmo](https://enigmo.co.jp/)
 1. [Envoy](https://envoy.com/)
+1. [Equilibrium Energy](https://www.equilibriumenergy.com/)
 1. [Farfetch](https://www.farfetch.com)
 1. [Faro](https://www.faro.com/)
 1. [Fave](https://myfave.com)
