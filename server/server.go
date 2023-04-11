@@ -28,7 +28,6 @@ import (
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/pkg/sync"
-	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/handlers"
 	gmux "github.com/gorilla/mux"
@@ -38,6 +37,7 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -681,7 +681,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		"/repocreds.RepoCredsService/UpdateRepositoryCredentials": true,
 		"/application.ApplicationService/PatchResource":           true,
 		// Remove from logs both because the contents are sensitive and because they may be very large.
-		"/application.ApplicationService/GetManifestsWithFiles":   true,
+		"/application.ApplicationService/GetManifestsWithFiles": true,
 	}
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
@@ -768,6 +768,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.AppClientset,
 		a.appLister,
 		a.appInformer,
+		nil,
 		a.RepoClientset,
 		a.Cache,
 		kubectl,
@@ -944,7 +945,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.AppClientset, a.settings, a.settingsMgr, repocache.NewCache(a.Cache.GetCache(), 24*time.Hour, 3*time.Minute), a.Cache, argoDB)
+	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.ArgoCDServerOpts.ApplicationNamespaces, a.AppClientset, a.settings, a.settingsMgr, repocache.NewCache(a.Cache.GetCache(), 24*time.Hour, 3*time.Minute), a.Cache, argoDB)
+
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
 	// Serve cli binaries directly from API server
@@ -953,9 +955,13 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// Serve extensions
 	var extensionsSharedPath = "/tmp/extensions/"
 
-	mux.HandleFunc("/extensions.js", func(writer http.ResponseWriter, _ *http.Request) {
+	var extensionsHandler http.Handler = http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		a.serveExtensions(extensionsSharedPath, writer)
 	})
+	if a.ArgoCDServerOpts.EnableGZip {
+		extensionsHandler = compressHandler(extensionsHandler)
+	}
+	mux.Handle("/extensions.js", extensionsHandler)
 
 	// Serve UI static assets
 	var assetsHandler http.Handler = http.HandlerFunc(a.newStaticAssetsHandler())
