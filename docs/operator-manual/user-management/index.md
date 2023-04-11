@@ -558,7 +558,7 @@ metadata:
     app.kubernetes.io/part-of: argocd
 data:
   ...
-  oidc.config: $another-secret:oidc.auth0
+  oidc.config: $another-secret:oidc.config
   ...
 ```
 
