@@ -10,9 +10,9 @@ to have the following benefits:
   replaced without requiring the rest of the system to adapt. It is
   also possible to run the system without certain components if a
   specific group of functionality isn't desired.
-- **Single responsibility**: Helps to determine where the different types
-  of functionality should be implementation which drives for better
-  system cohesiveness.
+- **Single responsibility**: Helps to determine where the different
+  types of functionality should be implementation which drives for
+  better system cohesiveness.
 - **Reusability**: Clearly defined interfaces helps in functionality
   discoverability which benefits reusability of services.
 
@@ -33,10 +33,10 @@ different components used by the default Argo CD installation:
 
 There are 4 logical layers represented in the diagram:
 
-- **UI**: This is the presentation layer. Users interact with Argo CD mainly
-  by components from this layer.
-- **Application**: The capabilities required to support the
-  components from the UI layer.
+- **UI**: This is the presentation layer. Users interact with Argo CD
+  mainly by components from this layer.
+- **Application**: The capabilities required to support the components
+  from the UI layer.
 - **Core**: The main Argo CD gitops functionality is implemented by
   components and Kubernetes controllers from the Core layer.
 - **Infra**: Represent the tools that Argo CD depends on as part of
@@ -55,7 +55,8 @@ its main responsibilities.
 
 ### Webapp
 
-Argo CD ships with a powerful web interface that allows managing applications deployed in a given Kubernetes cluster.
+Argo CD ships with a powerful web interface that allows managing
+applications deployed in a given Kubernetes cluster.
 
 ### CLI
 
