@@ -18,7 +18,7 @@ to have the following benefits:
 
 The default Argo CD installation is composed by different components
 and different Kubernetes controllers. The controllers aren't
-categorized as components as they have a proprietary interfaces (CRDs)
+categorized as components as they have proprietary interfaces (CRDs)
 and therefore, miss the modular nature. There are more resources
 created while installing Argo CD (ConfigMaps, Services, etc), but for
 simplicity we are covering just the ones directly related with the
@@ -42,5 +42,73 @@ There are 4 logical layers represented in the diagram:
 - **Infra**: Represent the tools that Argo CD depends on as part of
   its infrastructure.
 
+The logical layers also help making the diagram easier to follow as
+dependencies are represented in a top-down relationship. This means
+that components from the top layers will be allowed to depend on any
+component from any of the bottom layers. However components from the
+bottom layers will never depend on any ones from upper layers.
 
 ## Responsibility
+
+Below you can refer to a brief description of Argo CD components and
+its main responsibilities.
+
+### Webapp
+
+Argo CD ships with a powerful web interface that allows managing applications deployed in a given Kubernetes cluster.
+
+### CLI
+
+Argo CD provides a CLI that can be used by users to interact with Argo
+CD API. The CLI can also be used for automation and scripting.
+
+### API Server
+
+Defines the proprietary API exposed by Argo CD that powers the Webapp
+and the CLI functionalities.
+
+### Application Controller
+
+The Application Controller is responsible for reconciling the
+Application resource in Kubernetes syncronizing the desired
+application state (provided in Git) with the live state (in
+Kubernetes). The Application Controller is also responsible for
+reconciling the Project resource.
+
+### ApplicationSet Controller
+
+The ApplicationSet Controller is responsible for reconciling the
+ApplicationSet resource.
+
+### Repo Server
+
+Repo Server plays an important role in Argo CD architecture as it is
+responsible for interacting with the Git repository to generate the
+desired state for all Kubernetes resources that belongs to a given
+application.
+
+### Redis
+
+Redis is used by Argo CD to provide a cache layer reducing requests
+sent to the Kube API as well as to the Git provider. It also supports
+a few UI operations.
+
+### Kube API
+
+Argo CD controllers will connect to the Kubernetes API in order to run
+the reconciliation loop.
+
+### Git
+
+As a gitops tool Argo CD requires that the desired state of the
+Kubernetes resources to be provided in a Git repository.
+
+### Dex
+
+Argo CD relies on Dex to provide authentication with external OIDC
+providers. However other tools can be used instead of Dex. Check the
+[user management
+documentation](../../operator-manual/user-management/index.md) for
+more details.
+
+
