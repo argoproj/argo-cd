@@ -1,4 +1,5 @@
 import {DropDown} from 'argo-ui';
+import * as classNames from 'classnames';
 import * as React from 'react';
 
 import * as models from '../../../shared/models';
@@ -26,13 +27,18 @@ export const ApplicationResourceList = ({
                 <div className='columns small-1 xxxlarge-2'>SYNC ORDER</div>
                 <div className='columns small-2 xxxlarge-2'>NAMESPACE</div>
                 <div className='columns small-2 xxxlarge-2'>CREATED AT</div>
-                <div className='columns small-1 xxxlarge-1'>STATUS</div>
+                <div className='columns small-2 xxxlarge-2'>STATUS</div>
             </div>
         </div>
         {resources
             .sort((first, second) => -createdOrNodeKey(first).localeCompare(createdOrNodeKey(second)))
             .map(res => (
-                <div key={nodeKey(res)} className='argo-table-list__row' onClick={() => onNodeClick(nodeKey(res))}>
+                <div
+                    key={nodeKey(res)}
+                    className={classNames('argo-table-list__row', {
+                        'application-resource-tree__node--orphaned': res.orphaned
+                    })}
+                    onClick={() => onNodeClick(nodeKey(res))}>
                     <div className='row'>
                         <div className='columns small-1 xxxlarge-1'>
                             <div className='application-details__resource-icon'>
@@ -47,7 +53,7 @@ export const ApplicationResourceList = ({
                                 <Consumer>
                                     {ctx => (
                                         <span className='application-details__external_link'>
-                                            <a href={ctx.baseHref + 'applications/' + res.name} title='Open application'>
+                                            <a href={ctx.baseHref + 'applications/' + res.namespace + '/' + res.name} title='Open application'>
                                                 <i className='fa fa-external-link-alt' />
                                             </a>
                                         </span>
@@ -59,7 +65,7 @@ export const ApplicationResourceList = ({
                         <div className='columns small-1 xxxlarge-2'>{res.syncWave || '-'}</div>
                         <div className='columns small-2 xxxlarge-2'>{res.namespace}</div>
                         <div className='columns small-2 xxxlarge-2'>{res.createdAt}</div>
-                        <div className='columns small-1 xxxlarge-1'>
+                        <div className='columns small-2 xxxlarge-2'>
                             {res.health && (
                                 <React.Fragment>
                                     <HealthStatusIcon state={res.health} /> {res.health.status} &nbsp;
@@ -75,19 +81,17 @@ export const ApplicationResourceList = ({
                                             <i className='fa fa-ellipsis-v' />
                                         </button>
                                     )}>
-                                    {() =>
-                                        nodeMenu({
-                                            name: res.name,
-                                            version: res.version,
-                                            kind: res.kind,
-                                            namespace: res.namespace,
-                                            group: res.group,
-                                            info: null,
-                                            uid: '',
-                                            resourceVersion: null,
-                                            parentRefs: []
-                                        })
-                                    }
+                                    {nodeMenu({
+                                        name: res.name,
+                                        version: res.version,
+                                        kind: res.kind,
+                                        namespace: res.namespace,
+                                        group: res.group,
+                                        info: null,
+                                        uid: '',
+                                        resourceVersion: null,
+                                        parentRefs: []
+                                    })}
                                 </DropDown>
                             </div>
                         </div>

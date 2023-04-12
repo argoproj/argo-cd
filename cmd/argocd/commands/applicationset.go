@@ -95,7 +95,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					fmt.Println()
 				}
 				if showParams {
-					printHelmParams(appSet.Spec.Template.Spec.Source.Helm)
+					printHelmParams(appSet.Spec.Template.Spec.GetSource().Helm)
 				}
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
@@ -317,7 +317,7 @@ func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string
 			conditions,
 		}
 		if *output == "wide" {
-			vals = append(vals, app.Spec.Template.Spec.Source.RepoURL, app.Spec.Template.Spec.Source.Path, app.Spec.Template.Spec.Source.TargetRevision)
+			vals = append(vals, app.Spec.Template.Spec.GetSource().RepoURL, app.Spec.Template.Spec.GetSource().Path, app.Spec.Template.Spec.GetSource().TargetRevision)
 		}
 		_, _ = fmt.Fprintf(w, fmtStr, vals...)
 	}
@@ -333,25 +333,29 @@ func getServerForAppSet(appSet *arogappsetv1.ApplicationSet) string {
 }
 
 func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
+	source := appSet.Spec.Template.Spec.GetSource()
 	fmt.Printf(printOpFmtStr, "Name:", appSet.Name)
 	fmt.Printf(printOpFmtStr, "Project:", appSet.Spec.Template.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServerForAppSet(appSet))
 	fmt.Printf(printOpFmtStr, "Namespace:", appSet.Spec.Template.Spec.Destination.Namespace)
-	fmt.Printf(printOpFmtStr, "Repo:", appSet.Spec.Template.Spec.Source.RepoURL)
-	fmt.Printf(printOpFmtStr, "Target:", appSet.Spec.Template.Spec.Source.TargetRevision)
-	fmt.Printf(printOpFmtStr, "Path:", appSet.Spec.Template.Spec.Source.Path)
-	printAppSourceDetails(&appSet.Spec.Template.Spec.Source)
+	fmt.Printf(printOpFmtStr, "Repo:", source.RepoURL)
+	fmt.Printf(printOpFmtStr, "Target:", source.TargetRevision)
+	fmt.Printf(printOpFmtStr, "Path:", source.Path)
+	printAppSourceDetails(&source)
 
-	var syncPolicy string
-	if appSet.Spec.SyncPolicy != nil && appSet.Spec.Template.Spec.SyncPolicy.Automated != nil {
-		syncPolicy = "Automated"
-		if appSet.Spec.Template.Spec.SyncPolicy.Automated.Prune {
-			syncPolicy += " (Prune)"
+	var (
+		syncPolicyStr string
+		syncPolicy    = appSet.Spec.Template.Spec.SyncPolicy
+	)
+	if syncPolicy != nil && syncPolicy.Automated != nil {
+		syncPolicyStr = "Automated"
+		if syncPolicy.Automated.Prune {
+			syncPolicyStr += " (Prune)"
 		}
 	} else {
-		syncPolicy = "<none>"
+		syncPolicyStr = "<none>"
 	}
-	fmt.Printf(printOpFmtStr, "SyncPolicy:", syncPolicy)
+	fmt.Printf(printOpFmtStr, "SyncPolicy:", syncPolicyStr)
 
 }
 

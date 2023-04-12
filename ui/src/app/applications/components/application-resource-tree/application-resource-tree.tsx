@@ -3,6 +3,7 @@ import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
 import Moment from 'react-moment';
+import * as moment from 'moment';
 
 import * as models from '../../../shared/models';
 
@@ -16,7 +17,6 @@ import {
     ComparisonStatusIcon,
     deletePodAction,
     getAppOverridesCount,
-    getExternalUrls,
     HealthStatusIcon,
     isAppNode,
     isYoungerThanXMinutes,
@@ -110,7 +110,7 @@ function getGraphSize(nodes: dagre.Node[]): {width: number; height: number} {
     return {width, height};
 }
 
-function groupNodes(nodes: any[], graph: dagre.graphlib.Graph) {
+function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph) {
     function getNodeGroupingInfo(nodeId: string) {
         const node = graph.node(nodeId);
         return {
@@ -174,22 +174,34 @@ function groupNodes(nodes: any[], graph: dagre.graphlib.Graph) {
         groupedNodesArr.forEach((obj: {kind: string; nodeIds: string[]; parentIds: dagre.Node[]}) => {
             const {nodeIds, kind, parentIds} = obj;
             const groupedNodeIds: string[] = [];
+            const podGroupIds: string[] = [];
             nodeIds.forEach((nodeId: string) => {
                 const index = nodes.findIndex(node => nodeId === node.uid || nodeId === nodeKey(node));
-                if (index > -1) {
+                const graphNode = graph.node(nodeId);
+                if (!graphNode.podGroup && index > -1) {
                     groupedNodeIds.push(nodeId);
+                } else {
+                    podGroupIds.push(nodeId);
                 }
-                graph.removeNode(nodeId);
             });
-            graph.setNode(`${parentIds[0].toString()}/child/${kind}`, {
-                kind,
-                groupedNodeIds,
-                height: NODE_HEIGHT,
-                width: NODE_WIDTH,
-                count: nodeIds.length,
-                type: NODE_TYPES.groupedNodes
-            });
-            graph.setEdge(parentIds[0].toString(), `${parentIds[0].toString()}/child/${kind}`);
+            const reducedNodeIds = nodeIds.reduce((acc, aNodeId) => {
+                if (podGroupIds.findIndex(i => i === aNodeId) < 0) {
+                    acc.push(aNodeId);
+                }
+                return acc;
+            }, []);
+            if (groupedNodeIds.length > 1) {
+                groupedNodeIds.forEach(n => graph.removeNode(n));
+                graph.setNode(`${parentIds[0].toString()}/child/${kind}`, {
+                    kind,
+                    groupedNodeIds,
+                    height: NODE_HEIGHT,
+                    width: NODE_WIDTH,
+                    count: reducedNodeIds.length,
+                    type: NODE_TYPES.groupedNodes
+                });
+                graph.setEdge(parentIds[0].toString(), `${parentIds[0].toString()}/child/${kind}`);
+            }
         });
     }
 }
@@ -216,6 +228,14 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
             return '';
         }
         return value.replace(/^Rev:/, '');
+    }
+    if (first.kind === 'ReplicaSet') {
+        return (
+            orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
+            compareRevision(getRevision(second), getRevision(first)) ||
+            nodeKey(first).localeCompare(nodeKey(second)) ||
+            0
+        );
     }
     return (
         orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
@@ -376,10 +396,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
-    let extLinks: string[] = props.app.status.summary.externalURLs;
-    if (rootNode) {
-        extLinks = getExternalUrls(props.app.metadata.annotations, props.app.status.summary.externalURLs);
-    }
+    const extLinks: string[] = props.app.status.summary.externalURLs;
     const podGroupChildren = childMap.get(treeNodeKey(node));
     const nonPodChildren = podGroupChildren?.reduce((acc, child) => {
         if (child.kind !== 'Pod') {
@@ -432,7 +449,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         {appNode && !rootNode && (
                             <Consumer>
                                 {ctx => (
-                                    <a href={ctx.baseHref + 'applications/' + node.name} title='Open application'>
+                                    <a href={ctx.baseHref + 'applications/' + node.namespace + '/' + node.name} title='Open application'>
                                         <i className='fa fa-external-link-alt' />
                                     </a>
                                 )}
@@ -595,6 +612,61 @@ function expandCollapse(node: ResourceTreeNode, props: ApplicationResourceTreePr
     props.setNodeExpansion(node.uid, isExpanded);
 }
 
+function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: string}) {
+    if (kind === 'Pod') {
+        const val = `${tag.name}`;
+        if (val === 'Status Reason') {
+            if (`${tag.value}` !== 'ImagePullBackOff')
+                return (
+                    <span className='application-resource-tree__node-label' title={`Status: ${tag.value}`}>
+                        {tag.value}
+                    </span>
+                );
+            else {
+                return (
+                    <span
+                        className='application-resource-tree__node-label'
+                        title='One of the containers may have the incorrect image name/tag, or you may be fetching from the incorrect repository, or the repository requires authentication.'>
+                        {tag.value}
+                    </span>
+                );
+            }
+        } else if (val === 'Containers') {
+            const arr = `${tag.value}`.split('/');
+            const title = `Number of containers in total: ${arr[1]} \nNumber of ready containers: ${arr[0]}`;
+            return (
+                <span className='application-resource-tree__node-label' title={`${title}`}>
+                    {tag.value}
+                </span>
+            );
+        } else if (val === 'Restart Count') {
+            return (
+                <span className='application-resource-tree__node-label' title={`The total number of restarts of the containers: ${tag.value}`}>
+                    {tag.value}
+                </span>
+            );
+        } else if (val === 'Revision') {
+            return (
+                <span className='application-resource-tree__node-label' title={`The revision in which pod present is: ${tag.value}`}>
+                    {tag.value}
+                </span>
+            );
+        } else {
+            return (
+                <span className='application-resource-tree__node-label' title={`${tag.name}: ${tag.value}`}>
+                    {tag.value}
+                </span>
+            );
+        }
+    } else {
+        return (
+            <span className='application-resource-tree__node-label' title={`${tag.name}: ${tag.value}`}>
+                {tag.value}
+            </span>
+        );
+    }
+}
+
 function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node, nodesHavingChildren: Map<string, number>) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
@@ -605,11 +677,8 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
-    let extLinks: string[] = props.app.status.summary.externalURLs;
+    const extLinks: string[] = props.app.status.summary.externalURLs;
     const childCount = nodesHavingChildren.get(node.uid);
-    if (rootNode) {
-        extLinks = getExternalUrls(props.app.metadata.annotations, props.app.status.summary.externalURLs);
-    }
     return (
         <div
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
@@ -651,7 +720,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     {appNode && !rootNode && (
                         <Consumer>
                             {ctx => (
-                                <a href={ctx.baseHref + 'applications/' + node.name} title='Open application'>
+                                <a href={ctx.baseHref + 'applications/' + node.namespace + '/' + node.name} title='Open application'>
                                     <i className='fa fa-external-link-alt' />
                                 </a>
                             )}
@@ -672,18 +741,18 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
             </div>
             <div className='application-resource-tree__node-labels'>
                 {node.createdAt || rootNode ? (
-                    <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
-                        {node.createdAt || props.app.metadata.creationTimestamp}
-                    </Moment>
+                    <span title={`${node.kind} was created ${moment(node.createdAt).fromNow()}`}>
+                        <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
+                            {node.createdAt || props.app.metadata.creationTimestamp}
+                        </Moment>
+                    </span>
                 ) : null}
                 {(node.info || [])
                     .filter(tag => !tag.name.includes('Node'))
                     .slice(0, 4)
-                    .map((tag, i) => (
-                        <span className='application-resource-tree__node-label' title={`${tag.name}:${tag.value}`} key={i}>
-                            {tag.value}
-                        </span>
-                    ))}
+                    .map((tag, i) => {
+                        return <NodeInfoDetails tag={tag} kind={node.kind} key={i} />;
+                    })}
                 {(node.info || []).length > 4 && (
                     <Tooltip
                         content={(node.info || []).map(i => (
