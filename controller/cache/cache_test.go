@@ -6,10 +6,11 @@ import (
 	"net/url"
 	"testing"
 
-	apierr "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	"github.com/stretchr/testify/assert"
+	"k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
@@ -152,4 +153,52 @@ func TestIsRetryableError(t *testing.T) {
 	t.Run("ConnectionReset", func(t *testing.T) {
 		assert.True(t, isRetryableError(connectionReset))
 	})
+}
+
+func Test_asResourceNode_owner_refs(t *testing.T) {
+	resNode := asResourceNode(&cache.Resource{
+		ResourceVersion: "",
+		Ref: v1.ObjectReference{
+			APIVersion: "v1",
+		},
+		OwnerRefs: []metav1.OwnerReference{
+			{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       "cm-1",
+			},
+			{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       "cm-2",
+			},
+		},
+		CreationTimestamp: nil,
+		Info:              nil,
+		Resource:          nil,
+	})
+	expected := appv1.ResourceNode{
+		ResourceRef: appv1.ResourceRef{
+			Version: "v1",
+		},
+		ParentRefs: []appv1.ResourceRef{
+			{
+				Group: "",
+				Kind:  "ConfigMap",
+				Name:  "cm-1",
+			},
+			{
+				Group: "",
+				Kind:  "ConfigMap",
+				Name:  "cm-2",
+			},
+		},
+		Info:            nil,
+		NetworkingInfo:  nil,
+		ResourceVersion: "",
+		Images:          nil,
+		Health:          nil,
+		CreatedAt:       nil,
+	}
+	assert.Equal(t, expected, resNode)
 }

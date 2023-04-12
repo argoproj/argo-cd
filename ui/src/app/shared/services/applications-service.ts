@@ -3,6 +3,7 @@ import {Observable} from 'rxjs';
 import {map, repeat, retry} from 'rxjs/operators';
 
 import * as models from '../models';
+import {isValidURL} from '../utils';
 import requests from './requests';
 
 interface QueryOptions {
@@ -226,25 +227,27 @@ export class ApplicationsService {
         resource: {group: string; kind: string; name: string},
         containerName: string
     ): string {
-        const search = this.getLogsQuery(namespace, appNamespace, podName, resource, containerName, null, false);
+        const search = this.getLogsQuery({namespace, appNamespace, podName, resource, containerName, follow: false});
         search.set('download', 'true');
         return `api/v1/applications/${applicationName}/logs?${search.toString()}`;
     }
 
-    public getContainerLogs(
-        applicationName: string,
-        appNamespace: string,
-        namespace: string,
-        podName: string,
-        resource: {group: string; kind: string; name: string},
-        containerName: string,
-        tail?: number,
-        follow?: boolean,
-        untilTime?: string,
-        filter?: string,
-        previous?: boolean
-    ): Observable<models.LogEntry> {
-        const search = this.getLogsQuery(namespace, appNamespace, podName, resource, containerName, tail, follow, untilTime, filter, previous);
+    public getContainerLogs(query: {
+        applicationName: string;
+        appNamespace: string;
+        namespace: string;
+        podName: string;
+        resource: {group: string; kind: string; name: string};
+        containerName: string;
+        tail?: number;
+        follow?: boolean;
+        sinceSeconds?: number;
+        untilTime?: string;
+        filter?: string;
+        previous?: boolean;
+    }): Observable<models.LogEntry> {
+        const {applicationName} = query;
+        const search = this.getLogsQuery(query);
         const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).pipe(map(data => JSON.parse(data).result as models.LogEntry));
         let first = true;
         return new Observable(observer => {
@@ -288,10 +291,11 @@ export class ApplicationsService {
             .then(res => JSON.parse(res.manifest) as models.State);
     }
 
-    public getResourceActions(name: string, appNamspace: string, resource: models.ResourceNode): Promise<models.ResourceAction[]> {
+    public getResourceActions(name: string, appNamespace: string, resource: models.ResourceNode): Promise<models.ResourceAction[]> {
         return requests
             .get(`/applications/${name}/resource/actions`)
             .query({
+                appNamespace,
                 namespace: resource.namespace,
                 resourceName: resource.name,
                 version: resource.version,
@@ -305,10 +309,11 @@ export class ApplicationsService {
             });
     }
 
-    public runResourceAction(name: string, appNamspace: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
+    public runResourceAction(name: string, appNamespace: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
         return requests
             .post(`/applications/${name}/resource/actions`)
             .query({
+                appNamespace,
                 namespace: resource.namespace,
                 resourceName: resource.name,
                 version: resource.version,
@@ -386,22 +391,59 @@ export class ApplicationsService {
     public terminateOperation(applicationName: string, appNamespace: string): Promise<boolean> {
         return requests
             .delete(`/applications/${applicationName}/operation`)
+            .query({appNamespace})
             .send()
             .then(() => true);
     }
 
-    private getLogsQuery(
-        namespace: string,
-        appNamespace: string,
-        podName: string,
-        resource: {group: string; kind: string; name: string},
-        containerName: string,
-        tail?: number,
-        follow?: boolean,
-        untilTime?: string,
-        filter?: string,
-        previous?: boolean
-    ): URLSearchParams {
+    public getLinks(applicationName: string): Promise<models.LinksResponse> {
+        return requests
+            .get(`/applications/${applicationName}/links`)
+            .send()
+            .then(res => res.body as models.LinksResponse);
+    }
+
+    public getResourceLinks(applicationName: string, appNamespace: string, resource: models.ResourceNode): Promise<models.LinksResponse> {
+        return requests
+            .get(`/applications/${applicationName}/resource/links`)
+            .query({
+                name: resource.name,
+                appNamespace,
+                namespace: resource.namespace,
+                resourceName: resource.name,
+                version: resource.version,
+                kind: resource.kind,
+                group: resource.group || '' // The group query param must be present even if empty.
+            })
+            .send()
+            .then(res => {
+                const links = res.body as models.LinksResponse;
+                const items: models.LinkInfo[] = [];
+                (links?.items || []).forEach(link => {
+                    if (isValidURL(link.url)) {
+                        items.push(link);
+                    }
+                });
+                links.items = items;
+                return links;
+            });
+    }
+
+    private getLogsQuery(query: {
+        namespace: string;
+        appNamespace: string;
+        podName: string;
+        resource: {group: string; kind: string; name: string};
+        containerName: string;
+        tail?: number;
+        follow?: boolean;
+        sinceSeconds?: number;
+        untilTime?: string;
+        filter?: string;
+        previous?: boolean;
+    }): URLSearchParams {
+        const {appNamespace, containerName, namespace, podName, resource, tail, sinceSeconds, untilTime, filter, previous} = query;
+        let {follow} = query;
         if (follow === undefined || follow === null) {
             follow = true;
         }
@@ -419,6 +461,9 @@ export class ApplicationsService {
         }
         if (tail) {
             search.set('tailLines', tail.toString());
+        }
+        if (sinceSeconds) {
+            search.set('sinceSeconds', sinceSeconds.toString());
         }
         if (untilTime) {
             search.set('untilTime', untilTime);

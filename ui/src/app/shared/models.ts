@@ -123,6 +123,8 @@ export interface ResourceResult {
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
 export const AnnotationHookKey = 'argocd.argoproj.io/hook';
 export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
+export const AnnotationDefaultView = 'pref.argocd.argoproj.io/default-view';
+export const AnnotationDefaultPodSort = 'pref.argocd.argoproj.io/default-pod-sort';
 
 export interface Application {
     apiVersion?: string;
@@ -203,6 +205,7 @@ export interface ApplicationSourceKustomize {
     nameSuffix: string;
     images: string[];
     version: string;
+    namespace: string;
 }
 export interface EnvEntry {
     name: string;
@@ -259,6 +262,7 @@ export interface Info {
 export interface ApplicationSpec {
     project: string;
     source: ApplicationSource;
+    sources: ApplicationSource[];
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
     ignoreDifferences?: ResourceIgnoreDifferences[];
@@ -282,6 +286,8 @@ export interface RevisionHistory {
     id: number;
     revision: string;
     source: ApplicationSource;
+    revisions: string[];
+    sources: ApplicationSource[];
     deployStartedAt: models.Time;
     deployedAt: models.Time;
 }
@@ -312,6 +318,10 @@ export interface HealthStatus {
 
 export type State = models.TypeMeta & {metadata: models.ObjectMeta} & {status: any; spec: any};
 
+export type ReadinessGate = {
+    conditionType: string;
+};
+
 export interface ResourceStatus {
     group: string;
     version: string;
@@ -324,6 +334,7 @@ export interface ResourceStatus {
     hook?: boolean;
     requiresPruning?: boolean;
     syncWave?: number;
+    orphaned?: boolean;
 }
 
 export interface ResourceRef {
@@ -387,6 +398,7 @@ export interface SyncStatus {
     comparedTo: ApplicationSource;
     status: SyncStatusCode;
     revision: string;
+    revisions: string[];
 }
 
 export interface ApplicationCondition {
@@ -455,7 +467,6 @@ export interface AuthSettings {
         chatText: string;
         binaryUrls: Record<string, string>;
     };
-    plugins: Plugin[];
     userLoginsDisabled: boolean;
     kustomizeVersions: string[];
     uiCssURL: string;
@@ -512,6 +523,8 @@ export interface Repository {
     insecure?: boolean;
     enableLfs?: boolean;
     githubAppId?: string;
+    forceHttpBasicAuth?: boolean;
+    enableOCI: boolean;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
@@ -602,6 +615,7 @@ export interface HelmAppSpec {
 export interface KustomizeAppSpec {
     path: string;
     images?: string[];
+    namespace?: string;
 }
 
 export interface PluginAppSpec {
@@ -920,4 +934,15 @@ export enum PodPhase {
 
 export interface NotificationChunk {
     name: string;
+}
+
+export interface LinkInfo {
+    title: string;
+    url: string;
+    description?: string;
+    iconClass?: string;
+}
+
+export interface LinksResponse {
+    items: LinkInfo[];
 }

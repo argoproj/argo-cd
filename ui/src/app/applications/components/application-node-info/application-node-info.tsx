@@ -1,21 +1,93 @@
 import {Checkbox, DataLoader, Tab, Tabs} from 'argo-ui';
+import classNames from 'classnames';
 import * as deepMerge from 'deepmerge';
-import * as moment from 'moment';
 import * as React from 'react';
 
 import {YamlEditor, ClipboardText} from '../../../shared/components';
+import {DeepLinks} from '../../../shared/components/deep-links';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
-import {ComparisonStatusIcon, formatCreationTimestamp, getPodStateReason, HealthStatusIcon} from '../utils';
-
+import {
+    ComparisonStatusIcon,
+    formatCreationTimestamp,
+    getPodReadinessGatesState,
+    getPodReadinessGatesState as _getPodReadinessGatesState,
+    getPodStateReason,
+    HealthStatusIcon
+} from '../utils';
 import './application-node-info.scss';
+import {ReadinessGatesFailedWarning} from './readiness-gates-failed-warning';
+
+const RenderContainerState = (props: {container: any}) => {
+    const state = (props.container.state?.waiting && 'waiting') || (props.container.state?.terminated && 'terminated') || (props.container.state?.running && 'running');
+    const status = props.container.state.waiting?.reason || props.container.state.terminated?.reason || props.container.state.running?.reason;
+    const lastState = props.container.lastState?.terminated;
+    const msg = props.container.state.waiting?.message || props.container.state.terminated?.message || props.container.state.running?.message;
+
+    return (
+        <div className='application-node-info__container'>
+            <div className='application-node-info__container--name'>{props.container.name}</div>
+            <div>
+                {state && (
+                    <>
+                        Container is <span className='application-node-info__container--highlight'>{state}</span>
+                        {status && ' because of '}
+                    </>
+                )}
+                <span title={msg || ''}>
+                    {status && (
+                        <span
+                            className={classNames('application-node-info__container--highlight', {
+                                'application-node-info__container--hint': !!msg
+                            })}>
+                            {status}
+                        </span>
+                    )}
+                </span>
+                {'.'}
+                {(props.container.state.terminated?.exitCode === 0 || props.container.state.terminated?.exitCode) && (
+                    <>
+                        {' '}
+                        It exited with <span className='application-node-info__container--highlight'>exit code {props.container.state.terminated.exitCode}.</span>
+                    </>
+                )}
+                <>
+                    {' '}
+                    It is <span className='application-node-info__container--highlight'>{props.container?.started ? 'started' : 'not started'}</span> and
+                    <span className='application-node-info__container--highlight'>{props.container?.ready ? ' ready.' : ' not ready.'}</span>
+                </>
+                <br />
+                {lastState && (
+                    <>
+                        <>
+                            The container last terminated with <span className='application-node-info__container--highlight'>exit code {lastState?.exitCode}</span>
+                        </>
+                        {lastState?.reason && ' because of '}
+                        <span title={props.container.lastState?.message || ''}>
+                            {lastState?.reason && (
+                                <span
+                                    className={classNames('application-node-info__container--highlight', {
+                                        'application-node-info__container--hint': !!props.container.lastState?.message
+                                    })}>
+                                    {lastState?.reason}
+                                </span>
+                            )}
+                        </span>
+                        {'.'}
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
 
 export const ApplicationNodeInfo = (props: {
     application: models.Application;
     node: models.ResourceNode;
     live: models.State;
+    links: models.LinksResponse;
     controlled: {summary: models.ResourceStatus; state: models.ResourceDiff};
 }) => {
     const attributes: {title: string; value: any}[] = [
@@ -45,10 +117,22 @@ export const ApplicationNodeInfo = (props: {
     }
     if (props.live) {
         if (props.node.kind === 'Pod') {
-            const {reason, message} = getPodStateReason(props.live);
+            const {reason, message, netContainerStatuses} = getPodStateReason(props.live);
             attributes.push({title: 'STATE', value: reason});
             if (message) {
                 attributes.push({title: 'STATE DETAILS', value: message});
+            }
+            if (netContainerStatuses.length > 0) {
+                attributes.push({
+                    title: 'CONTAINER STATE',
+                    value: (
+                        <div className='application-node-info__labels'>
+                            {netContainerStatuses.map((container, i) => {
+                                return <RenderContainerState key={i} container={container} />;
+                            })}
+                        </div>
+                    )
+                });
             }
         } else if (props.node.kind === 'Service') {
             attributes.push({title: 'TYPE', value: props.live.spec.type});
@@ -59,7 +143,7 @@ export const ApplicationNodeInfo = (props: {
             }
             attributes.push({title: 'HOSTNAMES', value: hostNames});
         } else if (props.node.kind === 'ReplicaSet') {
-            attributes.push({title: 'REPLICAS', value: `${props.live.spec?.replicas || 0}/${props.live.status?.readyReplicas || 0}/${props.live.spec?.replicas || 0}`});
+            attributes.push({title: 'REPLICAS', value: `${props.live.spec?.replicas || 0}/${props.live.status?.readyReplicas || 0}/${props.live.status?.replicas || 0}`});
         }
     }
 
@@ -99,6 +183,13 @@ export const ApplicationNodeInfo = (props: {
                 )
             } as any);
         }
+    }
+
+    if (props.links) {
+        attributes.push({
+            title: 'LINKS',
+            value: <DeepLinks links={props.links.items} />
+        });
     }
 
     const tabs: Tab[] = [
@@ -158,8 +249,17 @@ export const ApplicationNodeInfo = (props: {
         });
     }
 
+    const readinessGatesState = React.useMemo(() => {
+        if (props.live && props.node?.kind === 'Pod') {
+            return getPodReadinessGatesState(props.live);
+        }
+
+        return null;
+    }, [props.live, props.node]);
+
     return (
         <div>
+            {Boolean(readinessGatesState) && <ReadinessGatesFailedWarning readinessGatesState={readinessGatesState} />}
             <div className='white-box'>
                 <div className='white-box__details'>
                     {attributes.map(attr => (

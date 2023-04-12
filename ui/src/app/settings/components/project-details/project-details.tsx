@@ -16,6 +16,7 @@ import {ProjectEvents} from '../project-events/project-events';
 import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit-panel';
 import {ProjectSyncWindowsEditPanel} from '../project-sync-windows-edit-panel/project-sync-windows-edit-panel';
 import {ResourceListsPanel} from './resource-lists-panel';
+import {DeepLinks} from '../../../shared/components/deep-links';
 
 require('./project-details.scss');
 
@@ -575,6 +576,14 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 .map(label => `${label}=${proj.metadata.labels[label]}`)
                                 .join(' '),
                             edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.labels' component={MapInputField} />
+                        },
+                        {
+                            title: 'LINKS',
+                            view: (
+                                <div style={{margin: '8px 0'}}>
+                                    <DataLoader load={() => services.projects.getLinks(proj.metadata.name)}>{links => <DeepLinks links={links.items} />}</DataLoader>
+                                </div>
+                            )
                         }
                     ]}
                 />
