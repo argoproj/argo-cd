@@ -196,6 +196,9 @@ func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
 		}
 
 		apiURL := payload.Repository.URL
+		if apiURL == "" {
+			apiURL = payload.Repository.HTMLURL // fallback for Github "compatible" implementations such as Gitea
+		}
 		urlObj, err := url.Parse(apiURL)
 		if err != nil {
 			log.Errorf("Failed to parse repoURL '%s'", apiURL)
@@ -335,23 +338,40 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 		return true
 	}
 
-	if gen.Github != nil && info.Github != nil {
-		if gen.Github.Owner != info.Github.Owner {
-			return false
-		}
-		if gen.Github.Repo != info.Github.Repo {
-			return false
-		}
-		api := gen.Github.API
-		if api == "" {
-			api = "https://api.github.com/"
-		}
-		if !info.Github.APIRegexp.MatchString(api) {
-			log.Debugf("%s does not match %s", api, info.Github.APIRegexp.String())
-			return false
-		}
+	if info.Github != nil {
+		if gen.Github != nil {
+			if gen.Github.Owner != info.Github.Owner {
+				return false
+			}
+			if gen.Github.Repo != info.Github.Repo {
+				return false
+			}
+			api := gen.Github.API
+			if api == "" {
+				api = "https://api.github.com/"
+			}
+			if !info.Github.APIRegexp.MatchString(api) {
+				log.Debugf("%s does not match %s", api, info.Github.APIRegexp.String())
+				return false
+			}
 
-		return true
+			return true
+		}
+		if gen.Gitea != nil {
+			if gen.Gitea.Owner != info.Github.Owner {
+				return false
+			}
+			if gen.Gitea.Repo != info.Github.Repo {
+				return false
+			}
+			api := gen.Gitea.API
+			if !info.Github.APIRegexp.MatchString(api) {
+				log.Debugf("%s does not match %s", api, info.Github.APIRegexp.String())
+				return false
+			}
+
+			return true
+		}
 	}
 
 	return false
