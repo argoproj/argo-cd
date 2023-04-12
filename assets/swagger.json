@@ -6187,6 +6187,13 @@
           "type": "string",
           "title": "Namespace sets the namespace that Kustomize adds to all resources"
         },
+        "replicas": {
+          "type": "array",
+          "title": "Replicas is a list of Kustomize Replicas override specifications",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KustomizeReplica"
+          }
+        },
         "version": {
           "type": "string",
           "title": "Version controls which version of Kustomize to use for rendering manifests"
@@ -7016,6 +7023,18 @@
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
+        }
+      }
+    },
+    "v1alpha1KustomizeReplica": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "$ref": "#/definitions/intstrIntOrString"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name of Deployment or StatefulSet"
         }
       }
     },

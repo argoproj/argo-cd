@@ -30,7 +30,7 @@ func NewCommand() *cobra.Command {
 	var command = cobra.Command{
 		Use:               cliName,
 		Short:             "Run ArgoCD ConfigManagementPlugin Server",
-		Long:              "ArgoCD ConfigManagementPlugin Server is an internal service which runs as sidecar container in reposerver deployment. It can be configured by following options.",
+		Long:              "ArgoCD ConfigManagementPlugin Server is an internal service which runs as sidecar container in reposerver deployment. The following configuration options are available:",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			ctx := c.Context()
