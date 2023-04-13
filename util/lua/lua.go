@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -177,14 +176,6 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 			impactedResources, err = UnmarshalToImpactedResources(string(jsonBytes))
 			if err != nil {
 				return nil, err
-			}
-
-			// Make sure all the operations are supported
-			for _, impactedResource := range impactedResources {
-				supportedOperations := []string{"create", "patch"}
-				if !strings.Contains(strings.Join(supportedOperations, ","), impactedResource.K8SOperation) {
-					return nil, fmt.Errorf("unsupported operation: %s", impactedResource.K8SOperation)
-				}
 			}
 		} else {
 			// The string represents an old-style action object output

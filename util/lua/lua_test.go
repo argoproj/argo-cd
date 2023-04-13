@@ -392,7 +392,7 @@ func TestExecuteOldStyleResourceAction(t *testing.T) {
 	newObjects, err := vm.ExecuteResourceAction(testObj, validActionLua)
 	assert.Nil(t, err)
 	assert.Equal(t, len(newObjects), 1)
-	assert.Equal(t, newObjects[0].K8SOperation, "patch")
+	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
 	assert.Equal(t, expectedLuaUpdatedObj, newObjects[0].UnstructuredObj)
 }
 
@@ -673,7 +673,7 @@ func TestCleanPatch(t *testing.T) {
 	newObjects, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua)
 	assert.Nil(t, err)
 	assert.Equal(t, len(newObjects), 1)
-	assert.Equal(t, newObjects[0].K8SOperation, "patch")
+	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
 	assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
 }
 

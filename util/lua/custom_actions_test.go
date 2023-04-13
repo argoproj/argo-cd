@@ -150,6 +150,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					assert.NotNil(t, expectedObj)
 
 					switch impactedResource.K8SOperation {
+					// No default case since a not supported operation would have failed upon unmarshaling earlier
 					case "patch":
 						// Patching is only allowed for the source resource, so the GVK + name + ns must be the same as the impacted resource
 						assert.EqualValues(t, sourceObj.GroupVersionKind(), result.GroupVersionKind())
@@ -157,8 +158,6 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						assert.EqualValues(t, sourceObj.GetNamespace(), result.GetNamespace())
 					case "create":
 						// no special logic to test for now
-					default:
-						t.Error("Operation not supported: " + impactedResource.K8SOperation)
 					}
 					// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
 					diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
