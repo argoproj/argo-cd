@@ -25,7 +25,7 @@ jobs:
       image-tag: ${{ steps.image.outputs.tag}}
       platforms: ${{ steps.platforms.outputs.platforms }}
     steps:
-      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
 
       - name: Set image tag for ghcr
         run: echo "tag=$(cat ./VERSION)-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
@@ -104,7 +104,7 @@ jobs:
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.3.0
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
         env:
           TOKEN: ${{ secrets.TOKEN }}

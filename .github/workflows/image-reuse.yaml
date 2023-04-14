@@ -58,14 +58,14 @@ jobs:
       image-digest: ${{ steps.image.outputs.digest }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.3.0
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.3.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
         if: ${{ github.ref_type == 'tag'}}
 
       - name: Checkout code
-        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.3.0
         if: ${{ github.ref_type != 'tag'}}
 
       - name: Setup Golang
