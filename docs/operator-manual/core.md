@@ -13,9 +13,13 @@ installation:
 - Argo CD RBAC model
 - Argo CD API
 - OIDC based authentication
-- Argo CD web application
+
+The following features will be partially available (see the
+[usage](#using) section below for more details):
+
+- Argo CD Web UI
 - Argo CD CLI
-- Multi-tenancy
+- Multi-tenancy (strictly GitOps based on git push permissions)
 
 A few use-cases that justify running Argo CD core are:
 
