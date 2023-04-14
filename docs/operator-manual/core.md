@@ -91,5 +91,5 @@ locally by running the following command:
 argocd admin dashboard -n argocd
 ```
 
-Argo CD API will be available at `http://localhost:8080`
+Argo CD Web UI will be available at `http://localhost:8080`
 
