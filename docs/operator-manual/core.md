@@ -2,10 +2,10 @@
 
 ## Introduction
 
-Argo CD Core is mainly a different installation that makes Argo CD run
-in headless mode. With this installation you will have a fully
-functional gitops engine capable of getting the desired state from Git
-repositories and applying it in Kubernetes.
+Argo CD Core is a different installation that runs Argo CD in headless
+mode. With this installation, you will have a fully functional GitOps
+engine capable of getting the desired state from Git repositories and
+applying it in Kubernetes.
 
 The following groups of features won't be available in this
 installation:
@@ -30,7 +30,7 @@ A few use-cases that justify running Argo CD core are:
 
 Because Argo CD is designed with a component based architecture in
 mind, it is possible to have a more minimalist installation. In this
-case fewer components are installed and yet the main gitops
+case fewer components are installed and yet the main GitOps
 functionality remains operational.
 
 In the diagram below, the Core box, shows the components that will be
@@ -38,8 +38,8 @@ installed while opting for Argo CD Core:
 
 ![Argo CD Core](../assets/argocd-core-components.png)
 
-Note that even if Argo CD controller can run without Redis, it isn't
-recommended. Redis is used by Argo CD controller as an important
+Note that even if the Argo CD controller can run without Redis, it
+isn't recommended. The Argo CD controller uses Redis as an important
 caching mechanism reducing the load on Kube API and in Git. For this
 reason, Redis is also included in this installation method.
 
@@ -59,8 +59,8 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/$A
 ## Using
 
 Once Argo CD Core is installed, users will be able to interact with it
-by relying on Gitops. The available Kubernetes resources will be the
-Application and the ApplicationSet CRDs. By using those resources,
+by relying on GitOps. The available Kubernetes resources will be the
+`Application` and the `ApplicationSet` CRDs. By using those resources,
 users will be able to deploy and manage applications in Kubernetes.
 
 It is still possible to use Argo CD CLI even when running Argo CD
@@ -70,11 +70,11 @@ the local API Server process will also be terminated. This happens
 transparently for the user with no additional command required. Note
 that Argo CD Core will rely only on Kubernetes RBAC and the user (or
 the process) invoking the CLI needs to have access to the Argo CD
-namespace with the proper permission in the Application and
-ApplicationSet resources for executing a given command.
+namespace with the proper permission in the `Application` and
+`ApplicationSet` resources for executing a given command.
 
-In order to use Argo CD CLI in core mode it is necessary to pass a
-special flag `--core` in the login command.
+To use Argo CD CLI in core mode, it is required to pass the `--core`
+flag with the `login` subcommand.
 
 Example:
 

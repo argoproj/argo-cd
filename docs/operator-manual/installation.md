@@ -48,12 +48,12 @@ High Availability installation is recommended for production use. This bundle in
 
 ## Core
 
-Argo CD Core installation is mainly deplying Argo CD in headless mode.
-This type of installation is most suitable for cluster administrators
-who independently use Argo CD and don't need multi-tenancy features.
-This installation includes fewer components and is easier to setup.
-The bundle does not include the API server or UI, and installs the
-lightweight (non-HA) version of each component.
+The Argo CD Core installation is primarily used to deploy Argo CD in
+headless mode. This type of installation is most suitable for cluster
+administrators who independently use Argo CD and don't need
+multi-tenancy features. This installation includes fewer components
+and is easier to setup. The bundle does not include the API server or
+UI, and installs the lightweight (non-HA) version of each component.
 
 Installation manifest is available at [core-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/core-install.yaml).
 
