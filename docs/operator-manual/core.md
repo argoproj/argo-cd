@@ -33,10 +33,15 @@ mind, it is possible to have a more minimalist installation. In this
 case fewer components are installed and yet the main gitops
 functionality remains operational.
 
-The diagram below shows the components that will be installed while
-opting for Argo CD Core:
+The diagram below, the Core box, shows the components that will be
+installed while opting for Argo CD Core:
 
 ![Argo CD Core](../assets/argocd-core-components.png)
+
+Note that even if Argo CD controller can run without Redis, it isn't
+recommended. Redis is used by Argo CD controller as an important
+caching mechanism reducing the load on Kube API and in Git. For this
+reason, Redis is also included in this installation method.
 
 ## Installing
 
