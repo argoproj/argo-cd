@@ -33,7 +33,7 @@ mind, it is possible to have a more minimalist installation. In this
 case fewer components are installed and yet the main gitops
 functionality remains operational.
 
-The diagram below, the Core box, shows the components that will be
+In the diagram below, the Core box, shows the components that will be
 installed while opting for Argo CD Core:
 
 ![Argo CD Core](../assets/argocd-core-components.png)
