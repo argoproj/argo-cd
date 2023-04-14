@@ -2498,6 +2498,7 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 
 	// check the cache and return the results if present
 	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision); err == nil {
+		log.Debugf("cache hit for repo: %s revision: %s", repo.Repo, revision)
 		return &apiclient.GitFilesResponse{
 			Map: cachedFiles,
 		}, nil
@@ -2516,6 +2517,7 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to list files. repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
+	log.Debugf("listed %d git files from %s under %s", len(gitFiles), repo.Repo, gitPath)
 
 	res := make(map[string][]byte)
 	for _, filePath := range gitFiles {
@@ -2551,6 +2553,7 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 
 	// check the cache and return the results if present
 	if cachedPaths, err := s.cache.GetGitDirectories(repo.Repo, revision); err == nil {
+		log.Debugf("cache hit for repo: %s revision: %s", repo.Repo, revision)
 		return &apiclient.GitDirectoriesResponse{
 			Paths: cachedPaths,
 		}, nil
@@ -2596,6 +2599,7 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 		return nil, err
 	}
 
+	log.Debugf("found %d git paths from %s", len(paths), repo.Repo)
 	err = s.cache.SetGitDirectories(repo.Repo, revision, paths)
 	if err != nil {
 		log.Warnf("error caching git directories for repo %s with revision %s: %v", repo.Repo, revision, err)
