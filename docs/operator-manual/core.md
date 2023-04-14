@@ -21,7 +21,7 @@ The following features will be partially available (see the
 - Argo CD CLI
 - Multi-tenancy (strictly GitOps based on git push permissions)
 
-A few use-cases that justify running Argo CD core are:
+A few use-cases that justify running Argo CD Core are:
 
 - As a cluster admin, I want to rely on Kubernetes RBAC only.
 - As a devops engineer, I don't want to learn a new API or depend on
@@ -55,7 +55,7 @@ contains all the required resources.
 Example:
 
 ```
-export ARGOCD_VERSION=<desired argo cd release version>
+export ARGOCD_VERSION=<desired argo cd release version (e.g. v2.7.0)>
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/$ARGOCD_VERSION/manifests/core-install.yaml
 ```
