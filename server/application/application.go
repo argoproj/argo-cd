@@ -2111,16 +2111,32 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, fmt.Errorf("error executing Lua resource action: %w", err)
 	}
 
-	// First, make sure all the returned resources are permitted, no matter for which operation.
+	// First, make sure all the returned resources are permitted, for each operation.
+	// Also perform create with dry-runs for all create-operation resources.
+	// This is performed separately to reduce the risk of only some of the resources being successfully created later.
+	// TODO: when apply/delete operations would be supported for custom actions,
+	// the dry-run for relevant apply/delete operation would have to be invoked as well.
 	for _, impactedResource := range newObjects {
 		newObj := impactedResource.UnstructuredObj
 		err := s.verifyResourcePermitted(ctx, app, newObj)
 		if err != nil {
 			return nil, err
 		}
+		switch impactedResource.K8SOperation {
+		case lua.CreateOperation:
+			createOptions := metav1.CreateOptions{DryRun: []string{"All"}}
+			_, err := s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj, createOptions)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
-	// Now, perform the actual operations
+	// Now, perform the actual operations.
+	// The creation itself is not transactional.
+	// TODO: maybe create a k8s list representation of the resources,
+	// and invoke create on this list resource to make it semi-transactional (there is still patch operation that is separate,
+	// thus can fail separately from create).
 	for _, impactedResource := range newObjects {
 		newObj := impactedResource.UnstructuredObj
 		newObjBytes, err := json.Marshal(newObj)
@@ -2131,12 +2147,12 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 
 		switch impactedResource.K8SOperation {
 		// No default case since a not supported operation would have failed upon unmarshaling earlier
-		case "patch":
+		case lua.PatchOperation:
 			_, err := s.patchResource(ctx, config, liveObjBytes, newObjBytes, newObj)
 			if err != nil {
 				return nil, err
 			}
-		case "create":
+		case lua.CreateOperation:
 			_, err := s.createResource(ctx, config, app, newObj)
 			if err != nil {
 				return nil, err
@@ -2222,7 +2238,7 @@ func (s *Server) verifyResourcePermitted(ctx context.Context, app *appv1.Applica
 
 func (s *Server) createResource(ctx context.Context, config *rest.Config, app *appv1.Application, newObj *unstructured.Unstructured) (*application.ApplicationResponse, error) {
 	// Create the resource
-	_, err := s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj)
+	_, err := s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error creating resource: %w", err)
 	}

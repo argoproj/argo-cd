@@ -185,12 +185,12 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 			}
 			// Wrap the old-style action output with a single-member array.
 			// The default definition of the old-style action is a "patch" one.
-			impactedResources = append(impactedResources, ImpactedResource{newObj, "patch"})
+			impactedResources = append(impactedResources, ImpactedResource{newObj, PatchOperation})
 		}
 
 		for _, impactedResource := range impactedResources {
 			// Cleaning the resource is only relevant to "patch"
-			if impactedResource.K8SOperation == "patch" {
+			if impactedResource.K8SOperation == PatchOperation {
 				impactedResource.UnstructuredObj.Object = cleanReturnedObj(impactedResource.UnstructuredObj.Object, obj.Object)
 			}
 

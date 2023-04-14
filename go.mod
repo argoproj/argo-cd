@@ -299,4 +299,4 @@ replace (
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.24.2
 )
 
-replace github.com/argoproj/gitops-engine v0.7.1-0.20230214165351-ed70eac8b7bd => github.com/reggie-k/gitops-engine v0.0.0-20230313191414-ee2415c2f390
+replace github.com/argoproj/gitops-engine v0.7.1-0.20230214165351-ed70eac8b7bd => github.com/reggie-k/gitops-engine v0.0.0-20230413172702-9601b03cb268

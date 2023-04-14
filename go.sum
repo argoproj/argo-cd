@@ -913,8 +913,8 @@ github.com/r3labs/diff v1.1.0/go.mod h1:7WjXasNzi0vJetRcB/RqNl5dlIsmXcTTLmF5IoH6
 github.com/redis/go-redis/v9 v9.0.0-rc.4/go.mod h1:Vo3EsyWnicKnSKCA7HhgnvnyA74wOA69Cd2Meli5mmA=
 github.com/redis/go-redis/v9 v9.0.2 h1:BA426Zqe/7r56kCcvxYLWe1mkaz71LKF77GwgFzSxfE=
 github.com/redis/go-redis/v9 v9.0.2/go.mod h1:/xDTe9EF1LM61hek62Poq2nzQSGj0xSrEtEHbBQevps=
-github.com/reggie-k/gitops-engine v0.0.0-20230313191414-ee2415c2f390 h1:47IKb6USJNlvb0Gf/m1cOTA0UCnaGOnQh91TI+ylQJk=
-github.com/reggie-k/gitops-engine v0.0.0-20230313191414-ee2415c2f390/go.mod h1:WpA/B7tgwfz+sdNE3LqrTrb7ArEY1FOPI2pAGI0hfPc=
+github.com/reggie-k/gitops-engine v0.0.0-20230413172702-9601b03cb268 h1:Yi4S4n446+drtWd7owYpp2gnGng+EsW8TezOpFFep7w=
+github.com/reggie-k/gitops-engine v0.0.0-20230413172702-9601b03cb268/go.mod h1:WpA/B7tgwfz+sdNE3LqrTrb7ArEY1FOPI2pAGI0hfPc=
 github.com/remyoudompheng/bigfft v0.0.0-20170806203942-52369c62f446/go.mod h1:uYEyJGbgTkfkS4+E/PavXkNJcbFIpEtjt2B0KDQ5+9M=
 github.com/rivo/tview v0.0.0-20200219210816-cd38d7432498/go.mod h1:6lkG1x+13OShEf0EaOCaTQYyB7d5nSbb181KtjlS+84=
 github.com/rivo/uniseg v0.1.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=

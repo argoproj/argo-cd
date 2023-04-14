@@ -549,7 +549,7 @@ argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --a
 					result := impactedResource.UnstructuredObj
 					switch impactedResource.K8SOperation {
 					// No default case since a not supported operation would have failed upon unmarshaling earlier
-					case "patch":
+					case lua.PatchOperation:
 						if reflect.DeepEqual(&res, modifiedRes) {
 							_, _ = fmt.Printf("No fields had been changed by action: \n%s\n", action.Name)
 							return
@@ -557,7 +557,7 @@ argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --a
 
 						_, _ = fmt.Printf("Following fields have been changed:\n\n")
 						_ = cli.PrintDiff(res.GetName(), &res, result)
-					case "create":
+					case lua.CreateOperation:
 						yamlBytes, err := yaml.Marshal(impactedResource.UnstructuredObj)
 						errors.CheckError(err)
 						fmt.Println("Following resource was created:")
