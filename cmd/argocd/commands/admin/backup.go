@@ -132,7 +132,6 @@ func NewImportCommand() *cobra.Command {
 			errors.CheckError(err)
 			config.QPS = 100
 			config.Burst = 50
-			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 			acdClients := newArgoCDClientsets(config, namespace)

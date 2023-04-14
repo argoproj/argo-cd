@@ -64,6 +64,18 @@ func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
 	return a
 }
 
+func (a *Actions) AddSignedTag(name string) *Actions {
+	a.context.t.Helper()
+	fixture.AddSignedTag(name)
+	return a
+}
+
+func (a *Actions) AddTag(name string) *Actions {
+	a.context.t.Helper()
+	fixture.AddTag(name)
+	return a
+}
+
 func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
 	tmpFile, err := os.CreateTemp("", "")
@@ -350,6 +362,12 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 
 	a.runCli("app", "get", a.context.AppQualifiedName(), flag)
 
+	return a
+}
+
+func (a *Actions) Get() *Actions {
+	a.context.t.Helper()
+	a.runCli("app", "get", a.context.AppQualifiedName())
 	return a
 }
 
