@@ -66,7 +66,7 @@ See [Web-based Terminal](web_based_terminal.md) for more info.
 
 #### The `applicationsets` resource
 
-[ApplicationSets](applicationset) provide a declarative way to automatically create/update/delete Applications.
+[ApplicationSets](applicationset/index.md) provide a declarative way to automatically create/update/delete Applications.
 
 Granting `applicationsets, create` effectively grants the ability to create Applications. While it doesn't allow the 
 user to create Applications directly, they can create Applications via an ApplicationSet.
