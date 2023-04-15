@@ -437,6 +437,8 @@ metadata:
   name: argocd-cm
 ---
 apiVersion: v1
+data:
+  redis.server: argocd-redis-ha-haproxy:6379
 kind: ConfigMap
 metadata:
   labels:
@@ -1919,8 +1921,6 @@ spec:
       containers:
       - args:
         - /usr/local/bin/argocd-repo-server
-        - --redis
-        - argocd-redis-ha-haproxy:6379
         env:
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
@@ -2182,8 +2182,6 @@ spec:
       containers:
       - args:
         - /usr/local/bin/argocd-server
-        - --redis
-        - argocd-redis-ha-haproxy:6379
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: "2"
@@ -2490,8 +2488,6 @@ spec:
       containers:
       - args:
         - /usr/local/bin/argocd-application-controller
-        - --redis
-        - argocd-redis-ha-haproxy:6379
         env:
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "1"

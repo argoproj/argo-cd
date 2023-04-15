@@ -17338,8 +17338,6 @@ spec:
       containers:
       - args:
         - /usr/local/bin/argocd-repo-server
-        - --redis
-        - $(ARGOCD_REDIS_SERVICE):6379
         env:
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
