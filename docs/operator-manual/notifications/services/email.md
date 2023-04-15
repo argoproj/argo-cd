@@ -44,6 +44,8 @@ data:
     from: $email-username
 ```
 
+Note: You need to install the trigger from the [triggers catalog](../index.md#getting-started) too.
+
 ## Template
 
 [Notification templates](../templates.md) support specifying subject for email notifications:

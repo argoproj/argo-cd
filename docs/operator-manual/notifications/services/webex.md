@@ -39,3 +39,5 @@ The Webex Teams notification service configuration includes following settings:
     annotations:
         notifications.argoproj.io/subscribe.<trigger-name>.webex: <personal email or room id>
     ```
+
+Note: Install the trigger from the [triggers catalog](../index.md#getting-started) and [a template](../templates.md).

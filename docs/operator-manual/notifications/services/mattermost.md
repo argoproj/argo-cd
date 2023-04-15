@@ -48,11 +48,13 @@ metadata:
     notifications.argoproj.io/subscribe.<trigger-name>.mattermost: <channel-id>
 ```
 
+Note: Install the trigger from the [triggers catalog](../index.md#getting-started) and the [template below](#templates).
+
 ## Templates
 
 ![](https://user-images.githubusercontent.com/18019529/111502636-5fa74880-8789-11eb-97c5-5eac22c00a37.png)
 
-You can reuse the template of slack.  
+You can reuse the template of slack.
 Mattermost is compatible with attachments of Slack. See [Mattermost Integration Guide](https://docs.mattermost.com/developer/message-attachments.html).
 
 ```yaml

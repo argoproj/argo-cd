@@ -64,3 +64,5 @@ metadata:
   annotations:
     notifications.argoproj.io/subscribe.on-rollout-aborted.pagerduty: "<serviceID for Pagerduty>"
 ```
+
+Note: Install the trigger from the [triggers catalog](../index.md#getting-started) and the [template](#template).

@@ -46,7 +46,7 @@ data:
   template.github-commit-status: |
     webhook:
       <webhook-name>:
-        method: POST # one of: GET, POST, PUT, PATCH. Default value: GET 
+        method: POST # one of: GET, POST, PUT, PATCH. Default value: GET
         path: <optional-path-template>
         body: |
           <optional-body-template>
@@ -64,6 +64,8 @@ metadata:
   annotations:
     notifications.argoproj.io/subscribe.<trigger-name>.<webhook-name>: ""
 ```
+
+Note: Install the trigger from the [triggers catalog](../index.md#getting-started) and [a template from the examples](#examples).
 
 ## Examples
 

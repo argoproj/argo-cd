@@ -44,6 +44,8 @@ metadata:
     notifications.argoproj.io/subscribe.on-sync-succeeded.teams: channelName
 ```
 
+Note: Remember to install the `on-sync-succeeded` trigger from the [triggers catalog](../index.md#getting-started) and the [template from below](#templates).
+
 ## Templates
 
 ![](https://user-images.githubusercontent.com/18019529/114271500-9d2b8880-9a4c-11eb-85c1-f6935f0431d5.png)
@@ -113,7 +115,7 @@ template.app-sync-succeeded: |
 
 ### summary field
 
-You can set a summary of the message that will be shown on Notifcation & Activity Feed 
+You can set a summary of the message that will be shown on Notifcation & Activity Feed
 
 ![](https://user-images.githubusercontent.com/6957724/116587921-84c4d480-a94d-11eb-9da4-f365151a12e7.jpg)
 

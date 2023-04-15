@@ -54,6 +54,8 @@ metadata:
     notifications.argoproj.io/subscribe.<trigger-name>.github: ""
 ```
 
+Note: Install the trigger from the [triggers catalog](../index.md#getting-started) and the [template below](#templates).
+
 ## Templates
 
 ![](https://user-images.githubusercontent.com/18019529/108520497-168ce180-730e-11eb-93cb-b0b91f99bdc5.png)

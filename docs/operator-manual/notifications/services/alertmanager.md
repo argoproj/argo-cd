@@ -101,7 +101,7 @@ data:
     insecureSkipVerify: true
     basicAuth:
       username: $alertmanager-username
-      password: $alertmanager-password   
+      password: $alertmanager-password
 ```
 
 - with bearerToken
@@ -162,3 +162,5 @@ template.app-deployed: |
 ```
 
 There is a special label `alertname`. If you don’t set its value, it will be equal to the template name by default.
+
+Note: You need to install the trigger from the [triggers catalog](../index.md#getting-started) too.

@@ -26,7 +26,7 @@ The Rocket.Chat notification service configuration includes following settings:
 5. Create a public or private channel, or a team, for this example `my_channel`
 6. Add your bot to this channel **otherwise it won't work**
 7. Store email and password in argocd_notifications-secret Secret
- 
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -37,7 +37,7 @@ stringData:
   rocketchat-password: <password>
 ```
 
-8. Finally, use these credentials to configure the RocketChat integration in the `argocd-configmap` config map: 
+8. Finally, use these credentials to configure the RocketChat integration in the `argocd-configmap` config map:
 
 ```yaml
 apiVersion: v1
@@ -61,6 +61,8 @@ metadata:
   annotations:
     notifications.argoproj.io/subscribe.on-sync-succeeded.rocketchat: #my_channel
 ```
+
+Install the trigger from the [triggers catalog](../index.md#getting-started) and the [template below](#templates).
 
 ## Templates
 

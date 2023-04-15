@@ -32,7 +32,7 @@ kind: Secret
 metadata:
   name: <secret-name>
 stringData:
-  space-webhook-url: https://chat.googleapis.com/v1/spaces/<space_id>/messages?key=<key>&token=<token>  
+  space-webhook-url: https://chat.googleapis.com/v1/spaces/<space_id>/messages?key=<key>&token=<token>
 ```
 
 6. Create a subscription for your space
@@ -44,6 +44,9 @@ metadata:
   annotations:
     notifications.argoproj.io/subscribe.on-sync-succeeded.googlechat: spaceName
 ```
+
+Note: Install the trigger from the [triggers catalog](../index.md#getting-started) and the [template below](#templates).
+
 
 ## Templates
 

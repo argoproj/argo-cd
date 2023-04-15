@@ -33,3 +33,5 @@ metadata:
   annotations:
     notifications.argoproj.io/subscribe.on-sync-succeeded.telegram: -1000000000000
 ```
+
+Note: Install the trigger from the [triggers catalog](../index.md#getting-started) and [a template](../templates.md).
