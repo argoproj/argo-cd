@@ -13,3 +13,18 @@ images:
 - name: quay.io/argoproj/argocd
   newName: quay.io/argoproj/argocd
   newTag: latest
+
+replacements:
+- source:
+    fieldPath: metadata.name
+    kind: Service
+    name: argocd-redis
+    version: v1
+  targets:
+  - fieldPaths:
+    - spec.template.spec.containers.[name=argocd-repo-server].args.2
+    options:
+      delimiter: ':'
+    select:
+      kind: Deployment
+      name: argocd-repo-server
