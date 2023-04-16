@@ -130,7 +130,6 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 	switch trackingMethod {
 	case TrackingMethodLabel:
 		argokube.SetAppInstanceLabel(un, key, val)
-		return nil
 	case TrackingMethodAnnotation:
 		return setAppInstanceAnnotation()
 	case TrackingMethodAnnotationAndLabel:
@@ -142,11 +141,10 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 			val = val[:LabelMaxLength]
 		}
 		argokube.SetAppInstanceLabel(un, key, val)
-		return nil
 	default:
 		argokube.SetAppInstanceLabel(un, key, val)
-		return nil
 	}
+	return nil
 }
 
 //BuildAppInstanceValue build resource tracking id in format <application-name>;<group>/<kind>/<namespace>/<name>
