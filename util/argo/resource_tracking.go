@@ -123,20 +123,17 @@ func UnstructuredToAppInstanceValue(un *unstructured.Unstructured, appName, name
 
 // SetAppInstance set label/annotation base on tracking method
 func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error {
-	setAppInstanceAnnotation := func() error {
+	setAppInstanceAnnotation := func() {
 		appInstanceValue := UnstructuredToAppInstanceValue(un, val, namespace)
-		return argokube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
+		argokube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
 	}
 	switch trackingMethod {
 	case TrackingMethodLabel:
 		argokube.SetAppInstanceLabel(un, key, val)
 	case TrackingMethodAnnotation:
-		return setAppInstanceAnnotation()
+		setAppInstanceAnnotation()
 	case TrackingMethodAnnotationAndLabel:
-		err := setAppInstanceAnnotation()
-		if err != nil {
-			return err
-		}
+		setAppInstanceAnnotation()
 		if len(val) > LabelMaxLength {
 			val = val[:LabelMaxLength]
 		}
@@ -192,10 +189,7 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 	}
 
 	annotation := argokube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
-	err := argokube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
-	if err != nil {
-		return err
-	}
+	argokube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
 
 	if argokube.GetAppInstanceLabel(config, labelKey) == "" {
 		argokube.RemoveLabel(live, labelKey)

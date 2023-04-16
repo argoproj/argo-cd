@@ -116,8 +116,7 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
-	assert.Nil(t, err)
+	SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
 
 	manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
 	assert.Nil(t, err)
@@ -138,8 +137,7 @@ func TestGetAppInstanceAnnotation(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
-	assert.Nil(t, err)
+	SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
 
 	assert.Equal(t, "my-app", GetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance))
 }
