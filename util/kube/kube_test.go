@@ -60,8 +60,7 @@ func TestSetLabels(t *testing.T) {
 		err := yaml.Unmarshal([]byte(yamlStr), &obj)
 		assert.Nil(t, err)
 
-		err = SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
-		assert.Nil(t, err)
+		SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
 
 		manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
 		assert.Nil(t, err)
@@ -89,8 +88,7 @@ func TestSetSvcLabel(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	err = SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
-	assert.Nil(t, err)
+	SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
 
 	manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
 	assert.Nil(t, err)
@@ -152,8 +150,7 @@ func TestGetAppInstanceLabel(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	err = SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
-	assert.Nil(t, err)
+	SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
 	assert.Equal(t, "my-app", GetAppInstanceLabel(&obj, common.LabelKeyAppInstance))
 }
 

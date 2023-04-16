@@ -129,7 +129,8 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 	}
 	switch trackingMethod {
 	case TrackingMethodLabel:
-		return argokube.SetAppInstanceLabel(un, key, val)
+		argokube.SetAppInstanceLabel(un, key, val)
+		return nil
 	case TrackingMethodAnnotation:
 		return setAppInstanceAnnotation()
 	case TrackingMethodAnnotationAndLabel:
@@ -140,9 +141,11 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		if len(val) > LabelMaxLength {
 			val = val[:LabelMaxLength]
 		}
-		return argokube.SetAppInstanceLabel(un, key, val)
+		argokube.SetAppInstanceLabel(un, key, val)
+		return nil
 	default:
-		return argokube.SetAppInstanceLabel(un, key, val)
+		argokube.SetAppInstanceLabel(un, key, val)
+		return nil
 	}
 }
 
