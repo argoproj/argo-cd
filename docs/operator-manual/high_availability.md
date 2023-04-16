@@ -60,7 +60,7 @@ reconciliation. In this case, we advise to use the preferred resource version in
 * The controller polls Git every 3m by default. You can change this duration using the `timeout.reconciliation` setting in the `argocd-cm` ConfigMap. The value of `timeout.reconciliation` is a duration string e.g `60s`, `1m`, `1h` or `1d`.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
-controller replicas. To enable sharding increase the number of replicas in `argocd-application-controller` `StatefulSet`
+controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller` `StatefulSet`
 and repeat the number of replicas in the `ARGOCD_CONTROLLER_REPLICAS` environment variable. The strategic merge patch below
 demonstrates changes required to configure two controller replicas.
 
@@ -79,6 +79,7 @@ spec:
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "2"
 ```
+* In order to manually set the cluster's shard number, specify the optional `shard` property when creating a cluster. If not specified, it will be calculated on the fly by the application controller.
 
 * `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` - environment variable that enables collecting RPC performance metrics. Enable it if you need to troubleshoot performance issues. Note: This metric is expensive to both query and store!
 
