@@ -11,7 +11,6 @@ import (
 
 	"github.com/gosimple/slug"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
 	pullrequest "github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -66,7 +65,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		return nil, fmt.Errorf("failed to select pull request service provider: %v", err)
 	}
 
-	pulls, err := pull_request.ListPullRequests(ctx, svc, appSetGenerator.PullRequest.Filters)
+	pulls, err := pullrequest.ListPullRequests(ctx, svc, appSetGenerator.PullRequest.Filters)
 	if err != nil {
 		return nil, fmt.Errorf("error listing repos: %v", err)
 	}
