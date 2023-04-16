@@ -84,18 +84,25 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	}
 
 	var shortSHALength int
+	var shortSHALength7 int
 	for _, pull := range pulls {
 		shortSHALength = 8
 		if len(pull.HeadSHA) < 8 {
 			shortSHALength = len(pull.HeadSHA)
 		}
 
+		shortSHALength7 = 7
+		if len(pull.HeadSHA) < 7 {
+			shortSHALength7 = len(pull.HeadSHA)
+		}
+
 		paramMap := map[string]interface{}{
-			"number":         strconv.Itoa(pull.Number),
-			"branch":         pull.Branch,
-			"branch_slug":    slug.Make(pull.Branch),
-			"head_sha":       pull.HeadSHA,
-			"head_short_sha": pull.HeadSHA[:shortSHALength],
+			"number":           strconv.Itoa(pull.Number),
+			"branch":           pull.Branch,
+			"branch_slug":      slug.Make(pull.Branch),
+			"head_sha":         pull.HeadSHA,
+			"head_short_sha":   pull.HeadSHA[:shortSHALength],
+			"head_short_sha_7": pull.HeadSHA[:shortSHALength7],
 		}
 
 		// PR lables will only be supported for Go Template appsets, since fasttemplate will be deprecated.
