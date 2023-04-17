@@ -11,14 +11,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	testutils "github.com/argoproj/argo-cd/v2/applicationset/utils/test"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestMatchValues(t *testing.T) {
@@ -69,16 +68,16 @@ func TestMatchValues(t *testing.T) {
 				"List": listGenerator,
 			}
 
-			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{},
+				Spec: v1alpha1.ApplicationSetSpec{},
 			}
 
-			results, err := Transform(argoprojiov1alpha1.ApplicationSetGenerator{
+			results, err := Transform(v1alpha1.ApplicationSetGenerator{
 				Selector: testCase.selector,
-				List: &argoprojiov1alpha1.ListGenerator{
+				List: &v1alpha1.ListGenerator{
 					Elements: testCase.elements,
 					Template: &apiextensionsv1.JSON{Raw: []byte("{}")},
 				}},
@@ -168,8 +167,8 @@ func TestGetRelevantGenerators(t *testing.T) {
 	testGenerators["Merge"] = NewMergeGenerator(testGenerators)
 	testGenerators["List"] = NewListGenerator()
 
-	requestedGenerator := &argoprojiov1alpha1.ApplicationSetGenerator{
-		List: &argoprojiov1alpha1.ListGenerator{
+	requestedGenerator := &v1alpha1.ApplicationSetGenerator{
+		List: &v1alpha1.ListGenerator{
 			Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
 		}}
 
@@ -177,8 +176,8 @@ func TestGetRelevantGenerators(t *testing.T) {
 	assert.Len(t, relevantGenerators, 1)
 	assert.IsType(t, &ListGenerator{}, relevantGenerators[0])
 
-	requestedGenerator = &argoprojiov1alpha1.ApplicationSetGenerator{
-		Clusters: &argoprojiov1alpha1.ClusterGenerator{
+	requestedGenerator = &v1alpha1.ApplicationSetGenerator{
+		Clusters: &v1alpha1.ClusterGenerator{
 			Selector: metav1.LabelSelector{},
 			Template: &apiextensionsv1.JSON{Raw: []byte("{}")},
 			Values:   nil,
@@ -189,8 +188,8 @@ func TestGetRelevantGenerators(t *testing.T) {
 	assert.Len(t, relevantGenerators, 1)
 	assert.IsType(t, &ClusterGenerator{}, relevantGenerators[0])
 
-	requestedGenerator = &argoprojiov1alpha1.ApplicationSetGenerator{
-		Git: &argoprojiov1alpha1.GitGenerator{
+	requestedGenerator = &v1alpha1.ApplicationSetGenerator{
+		Git: &v1alpha1.GitGenerator{
 			RepoURL:             "",
 			Directories:         nil,
 			Files:               nil,
@@ -206,8 +205,8 @@ func TestGetRelevantGenerators(t *testing.T) {
 }
 
 func TestInterpolateGenerator(t *testing.T) {
-	requestedGenerator := &argoprojiov1alpha1.ApplicationSetGenerator{
-		Clusters: &argoprojiov1alpha1.ClusterGenerator{
+	requestedGenerator := &v1alpha1.ApplicationSetGenerator{
+		Clusters: &v1alpha1.ClusterGenerator{
 			Selector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"argocd.argoproj.io/secret-type": "cluster",
@@ -233,16 +232,16 @@ func TestInterpolateGenerator(t *testing.T) {
 	assert.Equal(t, "p1", interpolatedGenerator.Clusters.Selector.MatchLabels["path-zero"])
 	assert.Equal(t, "p1/p2/app3", interpolatedGenerator.Clusters.Selector.MatchLabels["path-full"])
 
-	fileNamePath := argoprojiov1alpha1.GitFileGeneratorItem{
+	fileNamePath := v1alpha1.GitFileGeneratorItem{
 		Path: "{{name}}",
 	}
-	fileServerPath := argoprojiov1alpha1.GitFileGeneratorItem{
+	fileServerPath := v1alpha1.GitFileGeneratorItem{
 		Path: "{{server}}",
 	}
 
-	requestedGenerator = &argoprojiov1alpha1.ApplicationSetGenerator{
-		Git: &argoprojiov1alpha1.GitGenerator{
-			Files:    append([]argoprojiov1alpha1.GitFileGeneratorItem{}, fileNamePath, fileServerPath),
+	requestedGenerator = &v1alpha1.ApplicationSetGenerator{
+		Git: &v1alpha1.GitGenerator{
+			Files:    append([]v1alpha1.GitFileGeneratorItem{}, fileNamePath, fileServerPath),
 			Template: &apiextensionsv1.JSON{Raw: []byte("{}")},
 		},
 	}
@@ -259,8 +258,8 @@ func TestInterpolateGenerator(t *testing.T) {
 }
 
 func TestInterpolateGenerator_go(t *testing.T) {
-	requestedGenerator := &argoprojiov1alpha1.ApplicationSetGenerator{
-		Clusters: &argoprojiov1alpha1.ClusterGenerator{
+	requestedGenerator := &v1alpha1.ApplicationSetGenerator{
+		Clusters: &v1alpha1.ClusterGenerator{
 			Selector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"argocd.argoproj.io/secret-type": "cluster",
@@ -287,16 +286,16 @@ func TestInterpolateGenerator_go(t *testing.T) {
 	assert.Equal(t, "p1", interpolatedGenerator.Clusters.Selector.MatchLabels["path-zero"])
 	assert.Equal(t, "p1/p2/app3", interpolatedGenerator.Clusters.Selector.MatchLabels["path-full"])
 
-	fileNamePath := argoprojiov1alpha1.GitFileGeneratorItem{
+	fileNamePath := v1alpha1.GitFileGeneratorItem{
 		Path: "{{.name}}",
 	}
-	fileServerPath := argoprojiov1alpha1.GitFileGeneratorItem{
+	fileServerPath := v1alpha1.GitFileGeneratorItem{
 		Path: "{{.server}}",
 	}
 
-	requestedGenerator = &argoprojiov1alpha1.ApplicationSetGenerator{
-		Git: &argoprojiov1alpha1.GitGenerator{
-			Files:    append([]argoprojiov1alpha1.GitFileGeneratorItem{}, fileNamePath, fileServerPath),
+	requestedGenerator = &v1alpha1.ApplicationSetGenerator{
+		Git: &v1alpha1.GitGenerator{
+			Files:    append([]v1alpha1.GitFileGeneratorItem{}, fileNamePath, fileServerPath),
 			Template: &apiextensionsv1.JSON{Raw: []byte(`{"project":"project"}`)},
 		},
 	}

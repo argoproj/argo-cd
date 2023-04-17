@@ -647,12 +647,24 @@ type unsetOpts struct {
 	kustomizeVersion        bool
 	kustomizeNamespace      bool
 	kustomizeImages         []string
+	kustomizeReplicas       []string
 	parameters              []string
 	valuesFiles             []string
 	valuesLiteral           bool
 	ignoreMissingValueFiles bool
 	pluginEnvs              []string
 	passCredentials         bool
+}
+
+// IsZero returns true when the Application options for kustomize are considered empty
+func (o *unsetOpts) KustomizeIsZero() bool {
+	return o == nil ||
+		!o.namePrefix &&
+			!o.nameSuffix &&
+			!o.kustomizeVersion &&
+			!o.kustomizeNamespace &&
+			len(o.kustomizeImages) == 0 &&
+			len(o.kustomizeReplicas) == 0
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -713,6 +725,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().BoolVar(&opts.kustomizeVersion, "kustomize-version", false, "Kustomize version")
 	command.Flags().BoolVar(&opts.kustomizeNamespace, "kustomize-namespace", false, "Kustomize namespace")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)")
+	command.Flags().StringArrayVar(&opts.kustomizeReplicas, "kustomize-replica", []string{}, "Kustomize replicas name (e.g. --kustomize-replica my-deployment --kustomize-replica my-statefulset)")
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
 	command.Flags().BoolVar(&opts.passCredentials, "pass-credentials", false, "Unset passCredentials")
 	return command
@@ -720,7 +733,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, nothingToUnset bool) {
 	if source.Kustomize != nil {
-		if !opts.namePrefix && !opts.nameSuffix && !opts.kustomizeVersion && !opts.kustomizeNamespace && len(opts.kustomizeImages) == 0 {
+		if opts.KustomizeIsZero() {
 			return false, true
 		}
 
@@ -754,6 +767,17 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 					a[len(a)-1] = ""     // Erase last element (write zero value).
 					a = a[:len(a)-1]     // Truncate slice.
 					source.Kustomize.Images = a
+				}
+			}
+		}
+
+		for _, kustomizeReplica := range opts.kustomizeReplicas {
+			kustomizeReplicas := source.Kustomize.Replicas
+			for i, item := range kustomizeReplicas {
+				if kustomizeReplica == item.Name {
+					source.Kustomize.Replicas = append(kustomizeReplicas[0:i], kustomizeReplicas[i+1:]...)
+					updated = true
+					break
 				}
 			}
 		}

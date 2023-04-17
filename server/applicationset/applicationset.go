@@ -28,7 +28,6 @@ import (
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
-	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/session"
@@ -89,7 +88,7 @@ func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQue
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
 
-	rbacName, err := argoutil.AppSetRBACName(a)
+	rbacName, err := argo.AppSetRBACName(a)
 
 	if err != nil {
 		return nil, err
@@ -118,7 +117,7 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 	newItems := make([]v1alpha1.ApplicationSet, 0)
 	for _, a := range appsetList.Items {
 
-		rbacName, err := argoutil.AppSetRBACName(&a)
+		rbacName, err := argo.AppSetRBACName(&a)
 
 		if err != nil {
 			return nil, err
@@ -129,7 +128,7 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 		}
 	}
 
-	newItems = argoutil.FilterAppSetsByProjects(newItems, q.Projects)
+	newItems = argo.FilterAppSetsByProjects(newItems, q.Projects)
 
 	// Sort found applicationsets by name
 	sort.Slice(newItems, func(i, j int) bool {
@@ -196,7 +195,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 		return nil, status.Errorf(codes.InvalidArgument, "existing ApplicationSet spec is different, use upsert flag to force update")
 	}
 
-	rbacName, err := argoutil.AppSetRBACName(appset)
+	rbacName, err := argo.AppSetRBACName(appset)
 
 	if err != nil {
 		return nil, err
@@ -241,7 +240,7 @@ func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alph
 
 	if appset != nil && projectName != newProjectName {
 
-		newRbacName, err := argoutil.AppSetRBACName(newAppset)
+		newRbacName, err := argo.AppSetRBACName(newAppset)
 
 		if err != nil {
 			return nil, err
@@ -252,7 +251,7 @@ func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alph
 			return nil, err
 		}
 
-		rbacName, err := argoutil.AppSetRBACName(appset)
+		rbacName, err := argo.AppSetRBACName(appset)
 
 		if err != nil {
 			return nil, err
@@ -299,7 +298,7 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 		return nil, fmt.Errorf("error getting ApplicationSets: %w", err)
 	}
 
-	rbacName, err := argoutil.AppSetRBACName(appset)
+	rbacName, err := argo.AppSetRBACName(appset)
 
 	if err != nil {
 		return nil, err
@@ -351,7 +350,7 @@ func (s *Server) validateAppSet(ctx context.Context, appset *v1alpha1.Applicatio
 
 func (s *Server) checkCreatePermissions(ctx context.Context, appset *v1alpha1.ApplicationSet, projectName string) error {
 
-	if rbacName, err := argoutil.AppSetRBACName(appset); err != nil {
+	if rbacName, err := argo.AppSetRBACName(appset); err != nil {
 		return err
 	} else if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, rbacName); err != nil {
 		return err

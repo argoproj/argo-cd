@@ -8,17 +8,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	testutils "github.com/argoproj/argo-cd/v2/test"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 func TestListMatrixGenerator(t *testing.T) {
-	generateExpectedApp := func(cluster, name string) argov1alpha1.Application {
-		return argov1alpha1.Application{
+	generateExpectedApp := func(cluster, name string) v1alpha1.Application {
+		return v1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
@@ -26,14 +27,14 @@ func TestListMatrixGenerator(t *testing.T) {
 				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: argov1alpha1.ApplicationSpec{
+			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: &argov1alpha1.ApplicationSource{
+				Source: &v1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
-				Destination: argov1alpha1.ApplicationDestination{
+				Destination: v1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: name,
 				},
@@ -41,7 +42,7 @@ func TestListMatrixGenerator(t *testing.T) {
 		}
 	}
 
-	expectedApps := []argov1alpha1.Application{
+	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook"),
 		generateExpectedApp("cluster1", "helm-guestbook"),
 		generateExpectedApp("cluster1", "ksonnet-guestbook"),
@@ -51,8 +52,8 @@ func TestListMatrixGenerator(t *testing.T) {
 		generateExpectedApp("cluster2", "ksonnet-guestbook"),
 	}
 
-	var expectedAppsNewNamespace []argov1alpha1.Application
-	var expectedAppsNewMetadata []argov1alpha1.Application
+	var expectedAppsNewNamespace []v1alpha1.Application
+	var expectedAppsNewMetadata []v1alpha1.Application
 
 	Given(t).
 		// Create a ClusterGenerator-based ApplicationSet
@@ -63,14 +64,14 @@ func TestListMatrixGenerator(t *testing.T) {
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: testutils.ToApiExtenstionsJSON(v1alpha1.Application{
 					ObjectMeta: metav1.ObjectMeta{Name: "{{values.name}}-{{path.basename}}"},
-					Spec: argov1alpha1.ApplicationSpec{
+					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &argov1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
-						Destination: argov1alpha1.ApplicationDestination{
+						Destination: v1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "{{path.basename}}",
 						},
@@ -139,10 +140,10 @@ func TestListMatrixGenerator(t *testing.T) {
 }
 
 func TestClusterMatrixGenerator(t *testing.T) {
-	generateExpectedApp := func(cluster, name string) argov1alpha1.Application {
-		return argov1alpha1.Application{
+	generateExpectedApp := func(cluster, name string) v1alpha1.Application {
+		return v1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
@@ -150,14 +151,14 @@ func TestClusterMatrixGenerator(t *testing.T) {
 				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: argov1alpha1.ApplicationSpec{
+			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: &argov1alpha1.ApplicationSource{
+				Source: &v1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
-				Destination: argov1alpha1.ApplicationDestination{
+				Destination: v1alpha1.ApplicationDestination{
 					Name:      cluster,
 					Namespace: name,
 				},
@@ -165,7 +166,7 @@ func TestClusterMatrixGenerator(t *testing.T) {
 		}
 	}
 
-	expectedApps := []argov1alpha1.Application{
+	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook"),
 		generateExpectedApp("cluster1", "helm-guestbook"),
 		generateExpectedApp("cluster1", "ksonnet-guestbook"),
@@ -175,8 +176,8 @@ func TestClusterMatrixGenerator(t *testing.T) {
 		generateExpectedApp("cluster2", "ksonnet-guestbook"),
 	}
 
-	var expectedAppsNewNamespace []argov1alpha1.Application
-	var expectedAppsNewMetadata []argov1alpha1.Application
+	var expectedAppsNewNamespace []v1alpha1.Application
+	var expectedAppsNewMetadata []v1alpha1.Application
 
 	Given(t).
 		// Create a ClusterGenerator-based ApplicationSet
@@ -189,14 +190,14 @@ func TestClusterMatrixGenerator(t *testing.T) {
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: testutils.ToApiExtenstionsJSON(v1alpha1.Application{
 					ObjectMeta: metav1.ObjectMeta{Name: "{{name}}-{{path.basename}}"},
-					Spec: argov1alpha1.ApplicationSpec{
+					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &argov1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
-						Destination: argov1alpha1.ApplicationDestination{
+						Destination: v1alpha1.ApplicationDestination{
 							Name:      "{{name}}",
 							Namespace: "{{path.basename}}",
 						},
