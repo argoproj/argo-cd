@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {Diff, Hunk} from 'react-diff-view';
 import 'react-diff-view/style/index.css';
 
@@ -10,11 +10,15 @@ export interface IndividualDiffSectionProps {
     showPath: boolean;
     whiteBox: string;
     viewType: string;
+    collapseAll: boolean;
 }
 
 export const IndividualDiffSection = (props: IndividualDiffSectionProps) => {
-    const {file, showPath, whiteBox, viewType} = props;
-    const [collapsed, setCollapsed] = useState(false);
+    const {file, showPath, whiteBox, viewType, collapseAll} = props;
+    const [collapsed, setCollapsed] = useState(collapseAll);
+    useEffect(() => {
+        setCollapsed(collapseAll);
+    }, [collapseAll]);
     return (
         <div className={`${whiteBox} application-component-diff__diff`}>
             {showPath && (

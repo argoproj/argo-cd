@@ -42,9 +42,26 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.
             const showPath = props.states.length > 1;
             const files = parseDiff(diffText);
             const viewType = pref.appDetails.inlineDiff ? 'unified' : 'split';
+            const showCollapseCheckbox = props.states.length > 1;
+            const collapseAll = showCollapseCheckbox ? pref.appDetails.collapseAll : false;
             return (
                 <div className='application-resources-diff'>
                     <div className={whiteBox + ' application-resources-diff__checkboxes'}>
+                        {showCollapseCheckbox && (
+                            <Checkbox
+                                id='collapseAll'
+                                checked={pref.appDetails.collapseAll}
+                                onChange={() =>
+                                    services.viewPreferences.updatePreferences({
+                                        appDetails: {
+                                            ...pref.appDetails,
+                                            collapseAll: !pref.appDetails.collapseAll
+                                        }
+                                    })
+                                }
+                            />
+                        )}
+                        {showCollapseCheckbox && <label htmlFor='collapseAll'>Collapse all</label>}
                         <Checkbox
                             id='compactDiff'
                             checked={pref.appDetails.compactDiff}
@@ -75,7 +92,7 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.
                     {files
                         .sort((a: any, b: any) => a.newPath.localeCompare(b.newPath))
                         .map((file: any) => (
-                            <IndividualDiffSection key={file.newPath} file={file} showPath={showPath} whiteBox={whiteBox} viewType={viewType} />
+                            <IndividualDiffSection key={file.newPath} file={file} showPath={showPath} whiteBox={whiteBox} viewType={viewType} collapseAll={collapseAll} />
                         ))}
                 </div>
             );

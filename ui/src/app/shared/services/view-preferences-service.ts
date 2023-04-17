@@ -18,6 +18,7 @@ export interface AppDetailsPreferences {
     resourceView: 'manifest' | 'diff' | 'desiredManifest';
     inlineDiff: boolean;
     compactDiff: boolean;
+    collapseAll: boolean;
     hideManagedFields?: boolean;
     orphanedResources: boolean;
     podView: PodViewPreferences;
@@ -110,6 +111,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         resourceFilter: [],
         inlineDiff: false,
         compactDiff: false,
+        collapseAll: false,
         hideManagedFields: true,
         resourceView: 'manifest',
         orphanedResources: false,
