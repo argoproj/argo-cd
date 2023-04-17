@@ -421,9 +421,22 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     const margin = 8;
     let topExtra = 0;
     const podGroup = node.podGroup;
-    const podGroupHealthy = (podGroup?.pods || []).filter(pod => pod.health === 'Healthy');
-    const podGroupDegraded = (podGroup?.pods || []).filter(pod => pod.health === 'Degraded');
-    const podGroupInProgress = (podGroup?.pods || []).filter(pod => pod.health === 'Progressing');
+    const podGroupHealthy = [];
+    const podGroupDegraded = [];
+    const podGroupInProgress = [];
+
+    for (const pod of podGroup?.pods || []) {
+        switch (pod.health) {
+            case 'Healthy':
+                podGroupHealthy.push(pod);
+                break;
+            case 'Degraded':
+                podGroupDegraded.push(pod);
+                break;
+            case 'Progressing':
+                podGroupInProgress.push(pod);
+        }
+    }
 
     const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
     const numberOfRows = showPodGroupByStatus
