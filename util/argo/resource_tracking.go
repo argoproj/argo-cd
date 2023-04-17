@@ -25,7 +25,7 @@ var LabelMaxLength = 63
 type ResourceTracking interface {
 	GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string
 	GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue
-	SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error
+	SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod)
 	BuildAppInstanceValue(value AppInstanceValue) string
 	ParseAppInstanceValue(value string) (*AppInstanceValue, error)
 	Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error
@@ -122,7 +122,7 @@ func UnstructuredToAppInstanceValue(un *unstructured.Unstructured, appName, name
 }
 
 // SetAppInstance set label/annotation base on tracking method
-func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error {
+func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) {
 	setAppInstanceAnnotation := func() {
 		appInstanceValue := UnstructuredToAppInstanceValue(un, val, namespace)
 		argokube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
@@ -141,7 +141,6 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 	default:
 		argokube.SetAppInstanceLabel(un, key, val)
 	}
-	return nil
 }
 
 //BuildAppInstanceValue build resource tracking id in format <application-name>;<group>/<kind>/<namespace>/<name>

@@ -1378,10 +1378,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 		for _, target := range targets {
 			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
-				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, q.Namespace, v1alpha1.TrackingMethod(q.TrackingMethod))
-				if err != nil {
-					return nil, err
-				}
+				resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, q.Namespace, v1alpha1.TrackingMethod(q.TrackingMethod))
 			}
 			manifestStr, err := json.Marshal(target.Object)
 			if err != nil {
