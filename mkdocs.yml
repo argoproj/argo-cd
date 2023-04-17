@@ -21,6 +21,7 @@ nav:
   - operator-manual/index.md
   - operator-manual/architecture.md
   - operator-manual/installation.md
+  - operator-manual/core.md
   - operator-manual/declarative-setup.md
   - operator-manual/app-any-namespace.md
   - operator-manual/ingress.md

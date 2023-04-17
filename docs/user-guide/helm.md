@@ -117,7 +117,7 @@ Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Ar
 | `helm.sh/hook: test-success` | Not supported. No equivalent in Argo CD. |
 | `helm.sh/hook: test-failure` | Not supported. No equivalent in Argo CD. |
 | `helm.sh/hook-delete-policy` | Supported. See also `argocd.argoproj.io/hook-delete-policy`). |
-| `helm.sh/hook-delete-timeout` | No supported. Never used in Helm stable |
+| `helm.sh/hook-delete-timeout` | Not supported. Never used in Helm stable |
 | `helm.sh/hook-weight` | Supported as equivalent to `argocd.argoproj.io/sync-wave`. |
 
 Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl apply`, rather than `kubectl create`. This means that if the hook is named and already exists, it will not change unless you have annotated it with `before-hook-creation`.
