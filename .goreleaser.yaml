@@ -32,7 +32,7 @@ builds:
     ignore:
       - goos: darwin
         goarch: s390x
-      - goos: darmwin
+      - goos: darwin
         goarch: ppc64le
       - goos: windows
         goarch: s390x
