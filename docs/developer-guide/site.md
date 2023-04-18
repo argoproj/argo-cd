@@ -11,12 +11,6 @@ make serve-docs
 ```
 Once running, you can view your locally built documentation at [http://0.0.0.0:8000/](http://0.0.0.0:8000/). 
 
-Check for broken external links:
-
-```bash
-make build-docs
-```
-
 ## Deploying
 
 ```bash
