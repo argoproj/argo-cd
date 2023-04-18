@@ -28,6 +28,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	// load the azure plugin (required to authenticate with AKS clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 // NewProjectAllowListGenCommand generates a project from clusterRole
@@ -151,7 +153,7 @@ func generateProjectAllowList(serverResources []*metav1.APIResourceList, cluster
 	}
 	globalProj := v1alpha1.AppProject{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "AppProject",
+			Kind:       application.AppProjectKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{Name: projName},

@@ -5,6 +5,7 @@ FROM docker.io/library/redis:7.0.9@sha256:e50c7e23f79ae81351beacb20e004720d4bed6
 # architecture, so we create a symlink here to facilitate copying.
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu 
 
+# Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
 FROM docker.io/library/node:18.15.0@sha256:8d9a875ee427897ef245302e31e2319385b092f1c3368b497e89790f240368f5 as node
 
 FROM docker.io/library/golang:1.19.6@sha256:7ce31d15a3a4dbf20446cccffa4020d3a2974ad2287d96123f55caf22c7adb71 as golang
@@ -84,7 +85,7 @@ COPY --from=registry /etc/docker/registry/config.yml /etc/docker/registry/config
 # Copy node binaries
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=node /usr/local/bin/node /usr/local/bin
-COPY --from=node /opt/yarn-v1.22.4 /opt/yarn-v1.22.4
+COPY --from=node /opt/yarn-v1.22.19 /opt/yarn-v1.22.19
 
 # Entrypoint is required for container's user management
 COPY ./test/container/entrypoint.sh /usr/local/bin
@@ -110,8 +111,8 @@ RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
-    ln -s /opt/yarn-v1.22.4/bin/yarn /usr/local/bin/yarn && \
-    ln -s /opt/yarn-v1.22.4/bin/yarnpkg /usr/local/bin/yarnpkg && \
+    ln -s /opt/yarn-v1.22.19/bin/yarn /usr/local/bin/yarn && \
+    ln -s /opt/yarn-v1.22.19/bin/yarnpkg /usr/local/bin/yarnpkg && \
     mkdir -p /var/lib/registry
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

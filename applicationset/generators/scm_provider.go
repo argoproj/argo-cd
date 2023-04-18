@@ -142,10 +142,16 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	}
 	params := make([]map[string]interface{}, 0, len(repos))
 	var shortSHALength int
+	var shortSHALength7 int
 	for _, repo := range repos {
 		shortSHALength = 8
 		if len(repo.SHA) < 8 {
 			shortSHALength = len(repo.SHA)
+		}
+
+		shortSHALength7 = 7
+		if len(repo.SHA) < 7 {
+			shortSHALength7 = len(repo.SHA)
 		}
 
 		params = append(params, map[string]interface{}{
@@ -155,6 +161,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"branch":           repo.Branch,
 			"sha":              repo.SHA,
 			"short_sha":        repo.SHA[:shortSHALength],
+			"short_sha_7":      repo.SHA[:shortSHALength7],
 			"labels":           strings.Join(repo.Labels, ","),
 			"branchNormalized": utils.SanitizeName(repo.Branch),
 		})
