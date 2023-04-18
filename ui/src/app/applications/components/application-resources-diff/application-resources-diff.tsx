@@ -48,10 +48,8 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.
                 <div className='application-resources-diff'>
                     <div className={whiteBox + ' application-resources-diff__checkboxes'}>
                         {showCollapseCheckbox && (
-                            <Checkbox
-                                id='collapseAll'
-                                checked={pref.appDetails.collapseAll}
-                                onChange={() =>
+                            <button
+                                onClick={() =>
                                     services.viewPreferences.updatePreferences({
                                         appDetails: {
                                             ...pref.appDetails,
@@ -59,9 +57,11 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.
                                         }
                                     })
                                 }
-                            />
+                                style={{marginLeft: 'auto', marginRight: '12px'}}
+                                className='argo-button'>
+                                <span>{!collapseAll ? 'Collapse all' : 'Expand all'}</span>
+                            </button>
                         )}
-                        {showCollapseCheckbox && <label htmlFor='collapseAll'>Collapse all</label>}
                         <Checkbox
                             id='compactDiff'
                             checked={pref.appDetails.compactDiff}
