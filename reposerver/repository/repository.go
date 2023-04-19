@@ -33,7 +33,6 @@ import (
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/ghodss/yaml"
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/google/go-jsonnet"
 	"github.com/google/uuid"
@@ -45,6 +44,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
