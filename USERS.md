@@ -198,6 +198,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Productboard](https://www.productboard.com/)
 1. [Prudential](https://prudential.com.sg)
 1. [PUBG](https://www.pubg.com)
+1. [Puzzle ITC](https://www.puzzle.ch/)
 1. [Qonto](https://qonto.com)
 1. [QuintoAndar](https://quintoandar.com.br)
 1. [Quipper](https://www.quipper.com/)
