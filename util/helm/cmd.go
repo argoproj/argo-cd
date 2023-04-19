@@ -247,6 +247,10 @@ func (c *Cmd) inspectValues(values string) (string, error) {
 	return c.run(c.showCommand, "values", values)
 }
 
+func (c *Cmd) InspectChart() (string, error) {
+	return c.run(c.showCommand, "chart", ".")
+}
+
 type TemplateOpts struct {
 	Name        string
 	Namespace   string
