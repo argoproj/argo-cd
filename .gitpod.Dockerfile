@@ -1,4 +1,4 @@
-FROM gitpod/workspace-full@sha256:d5787229cd062aceae91109f1690013d3f25062916492fb7f444d13de3186178
+FROM gitpod/workspace-full@sha256:b0c677395ba852867588dc8b04d64c60bb79a74fb3950f92a73200c0da9eb0a2
 
 USER root
 
