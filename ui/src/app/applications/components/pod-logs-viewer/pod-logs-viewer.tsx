@@ -212,6 +212,14 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                             // show the log content, highlight the filter text
                                             log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
 
+                                        // logs are in 14px wide fixed width font
+                                        const width =
+                                            14 *
+                                            logs
+                                                .map(renderLog)
+                                                .map(v => v.length)
+                                                .reduce((a, b) => Math.max(a, b));
+
                                         const rowRenderer = ({index, key, style}: {index: number; key: string; style: React.CSSProperties}) => {
                                             return (
                                                 <pre key={key} style={style} className='noscroll'>
@@ -229,7 +237,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                             <>
                                                 <AutoSizer>
                                                     {({height}: {width: number; height: number}) => (
-                                                        <List ref={list} rowCount={logs.length} rowRenderer={rowRenderer} width={4096} height={height - 20} rowHeight={20} />
+                                                        <List ref={list} rowCount={logs.length} rowRenderer={rowRenderer} width={width} height={height - 20} rowHeight={20} />
                                                     )}
                                                 </AutoSizer>
                                             </>
