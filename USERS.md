@@ -259,6 +259,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Unifonic Inc](https://www.unifonic.com/)
 1. [Universidad Mesoamericana](https://www.umes.edu.gt/)
 1. [Vectra](https://www.vectra.ai)
+1. [Veepee](https://www.veepee.com)
 1. [Viaduct](https://www.viaduct.ai/)
 1. [Vinted](https://vinted.com/)
 1. [Virtuo](https://www.govirtuo.com/)
@@ -271,7 +272,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Wehkamp](https://www.wehkamp.nl/)
 1. [WeMaintain](https://www.wemaintain.com/)
 1. [WeMo Scooter](https://www.wemoscooter.com/)
-1. [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli
+1.  [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli
 1. [Witick](https://witick.io/)
 1. [Wolffun Game](https://www.wolffungame.com/)
 1. [WooliesX](https://wooliesx.com.au/)
