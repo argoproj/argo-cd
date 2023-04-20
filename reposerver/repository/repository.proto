@@ -152,6 +152,15 @@ message RepoServerRevisionMetadataRequest {
     bool checkSignature = 3;
 }
 
+message RepoServerRevisionChartDetailsRequest {
+    // the repo
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+    // the chart
+    string name = 2;
+    // the revision within the chart
+    string revision = 3;
+}
+
 // HelmAppSpec contains helm app name  in source repo
 message HelmAppSpec {
     string name = 1;
@@ -276,6 +285,10 @@ service RepoServerService {
 
     // Get the meta-data (author, date, tags, message) for a specific revision of the repo
     rpc GetRevisionMetadata(RepoServerRevisionMetadataRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RevisionMetadata) {
+    }
+    
+    // Get the chart details (author, date, tags, message) for a specific revision of the repo
+    rpc GetRevisionChartDetails(RepoServerRevisionChartDetailsRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ChartDetails) {
     }
 
     // GetHelmCharts returns list of helm charts in the specified repository

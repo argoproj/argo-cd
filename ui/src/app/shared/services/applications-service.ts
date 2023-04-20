@@ -60,6 +60,13 @@ export class ApplicationsService {
             .then(res => res.body as models.RevisionMetadata);
     }
 
+    public revisionChartDetails(name: string, appNamespace: string, revision: string): Promise<models.ChartDetails> {
+        return requests
+            .get(`/applications/${name}/revisions/${revision || 'HEAD'}/chartdetails`)
+            .query({appNamespace})
+            .then(res => res.body as models.ChartDetails);
+    }
+
     public resourceTree(name: string, appNamespace: string): Promise<models.ApplicationTree> {
         return requests
             .get(`/applications/${name}/resource-tree`)
