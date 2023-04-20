@@ -59,6 +59,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [CyberAgent](https://www.cyberagent.co.jp/en/)
 1. [Cybozu](https://cybozu-global.com)
 1. [D2iQ](https://www.d2iq.com)
+1. [DaoCloud](https://daocloud.io/)
 1. [Datarisk](https://www.datarisk.io/)
 1. [Deloitte](https://www.deloitte.com/)
 1. [Deutsche Telekom AG](https://telekom.com)
