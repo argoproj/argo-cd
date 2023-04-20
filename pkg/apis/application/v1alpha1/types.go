@@ -1212,6 +1212,15 @@ type RevisionMetadata struct {
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
 }
 
+// ChartDetails contains helm chart metadata for a specific version
+type ChartDetails struct {
+	Description string `json:"description,omitempty" protobuf:"bytes,1,opt,name=description"`
+	// The URL of this projects home page, e.g. "http://example.com"
+	Home string `json:"home,omitempty" protobuf:"bytes,2,opt,name=home"`
+	// List of maintainer details, name and email, e.g. ["John Doe <john_doe@my-company.com>"]
+	Maintainers []string `json:"maintainers,omitempty" protobuf:"bytes,3,opt,name=maintainers"`
+}
+
 // SyncOperationResult represent result of sync operation
 type SyncOperationResult struct {
 	// Resources contains a list of sync result items for each individual resource in a sync operation
