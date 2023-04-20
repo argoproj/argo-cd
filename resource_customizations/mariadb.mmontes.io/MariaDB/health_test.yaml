@@ -19,3 +19,7 @@ tests:
     status: Progressing
     message: "Restoring backup"
   inputPath: testdata/restore_not_complete.yaml
+- healthStatus:
+    status: Degraded
+    message: "Error creating ConfigMap"
+  inputPath: testdata/mariadb_error.yaml

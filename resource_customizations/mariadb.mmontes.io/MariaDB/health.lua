@@ -7,6 +7,10 @@ if obj.status ~= nil and obj.status.conditions ~= nil then
         health_status.message = condition.message
 
         if condition.status == "False" then
+            if condition.reason == "Failed" then
+                health_status.status = "Degraded"
+                return health_status
+            end
             health_status.status = "Progressing"
             return health_status
         end
