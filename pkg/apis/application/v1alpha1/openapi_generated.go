@@ -54,6 +54,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationWatchEvent":               schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Backoff":                             schema_pkg_apis_application_v1alpha1_Backoff(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer":            schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ChartDetails":                        schema_pkg_apis_application_v1alpha1_ChartDetails(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Cluster":                             schema_pkg_apis_application_v1alpha1_Cluster(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterCacheInfo":                    schema_pkg_apis_application_v1alpha1_ClusterCacheInfo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterConfig":                       schema_pkg_apis_application_v1alpha1_ClusterConfig(ref),
@@ -2287,6 +2288,47 @@ func schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref common.Re
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ChartDetails(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ChartDetails contains helm chart metadata for a specific version",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"home": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The URL of this projects home page, e.g. \"http://example.com\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"maintainers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of maintainer details, name and email, e.g. [\"John Doe <john_doe@my-company.com>\"]",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

@@ -75,6 +75,9 @@ resources:
 - github.com/argoproj/argo-cd/manifests/ha?ref=v2.6.2
 ```
 
+For an example of this, see the [kustomization.yaml](https://github.com/argoproj/argoproj-deployments/blob/master/argocd/kustomization.yaml)
+used to deploy the [Argoproj CI/CD infrastructure](https://github.com/argoproj/argoproj-deployments#argoproj-deployments).
+
 ## Helm
 
 The Argo CD can be installed using [Helm](https://helm.sh/). The Helm chart is currently community maintained and available at

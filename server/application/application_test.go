@@ -728,10 +728,13 @@ func TestNoAppEnumeration(t *testing.T) {
 	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 
 	t.Run("Get", func(t *testing.T) {
+		// nolint:staticcheck
 		_, err := appServer.Get(adminCtx, &application.ApplicationQuery{Name: pointer.String("test")})
 		assert.NoError(t, err)
+		// nolint:staticcheck
 		_, err = appServer.Get(noRoleCtx, &application.ApplicationQuery{Name: pointer.String("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		// nolint:staticcheck
 		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: pointer.String("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 	})
