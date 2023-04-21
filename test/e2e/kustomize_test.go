@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -146,7 +147,7 @@ func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 		Path(guestbookPath).
 		And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
-				"-n", fixture.ArgoCDNamespace,
+				"-n", fixture.TestNamespace(),
 				"-p", `{ "data": { "kustomize.buildOptions": "--load-restrictor LoadRestrictionsNone" } }`))
 		}).
 		When().
@@ -160,7 +161,7 @@ func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 		Given().
 		And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
-				"-n", fixture.ArgoCDNamespace,
+				"-n", fixture.TestNamespace(),
 				"-p", `{ "data": { "kustomize.buildOptions": "" } }`))
 		})
 }
@@ -177,6 +178,45 @@ func TestKustomizeImages(t *testing.T) {
 		And(func(app *Application) {
 			assert.Contains(t, app.Spec.GetSource().Kustomize.Images, KustomizeImage("alpine:bar"))
 		})
+}
+
+// make sure we we can invoke the CLI to replace replicas and actual deployment is set to correct value
+func TestKustomizeReplicas2AppSource(t *testing.T) {
+	deploymentName := "guestbook-ui"
+	deploymentReplicas := 2
+	checkReplicasFor := func(kind string) func(app *Application) {
+		return func(app *Application) {
+			name := deploymentName
+			replicas, err := fixture.Run(
+				"", "kubectl", "-n="+fixture.DeploymentNamespace(),
+				"get", kind, name,
+				"-ojsonpath={.spec.replicas}")
+			assert.NoError(t, err)
+			assert.Equal(t, strconv.Itoa(deploymentReplicas), replicas, "wrong value of replicas %s %s", kind, name)
+		}
+	}
+
+	Given(t).
+		Path("guestbook").
+		When().
+		CreateApp().
+		AppSet("--kustomize-replica", deploymentName+"=2").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, deploymentName, app.Spec.Source.Kustomize.Replicas[0].Name)
+		}).
+		And(func(app *Application) {
+			assert.Equal(t, deploymentReplicas, int(app.Spec.Source.Kustomize.Replicas[0].Count.IntVal))
+		}). // check Kustomize CLI
+		Expect(Success("")).
+		When().
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(checkReplicasFor("Deployment"))
 }
 
 // make sure we we can invoke the CLI to set namesuffix
@@ -221,5 +261,29 @@ func TestKustomizeUnsetOverride(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			assert.Nil(t, app.Spec.GetSource().Kustomize)
+		})
+}
+
+// make sure we we can invoke the CLI to set and unset Deployment
+func TestKustomizeUnsetOverrideDeployment(t *testing.T) {
+	deploymentName := "guestbook-ui"
+	deploymentReplicas := int32(2)
+	Given(t).
+		Path("guestbook").
+		When(). // Replicas
+		CreateApp().
+		AppSet("--kustomize-replica", deploymentName+"=2").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, deploymentName, app.Spec.Source.Kustomize.Replicas[0].Name)
+		}).
+		And(func(app *Application) {
+			assert.Equal(t, deploymentReplicas, app.Spec.Source.Kustomize.Replicas[0].Count.IntVal)
+		}).
+		When().
+		AppUnSet("--kustomize-replica", deploymentName).
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.Source.Kustomize)
 		})
 }

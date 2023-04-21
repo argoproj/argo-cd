@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	"strings"
 	"time"
 
@@ -16,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 	"github.com/argoproj/argo-cd/v2/util/clusterauth"
@@ -73,7 +73,7 @@ func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clu
 	// Look for a service account matching '*application-controller*'
 	err := wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
 
-		serviceAccountList, err := fixtureClient.KubeClientset.CoreV1().ServiceAccounts(utils.ArgoCDNamespace).List(context.Background(), metav1.ListOptions{})
+		serviceAccountList, err := fixtureClient.KubeClientset.CoreV1().ServiceAccounts(fixture.TestNamespace()).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			fmt.Println("Unable to retrieve ServiceAccount list", err)
 			return false, nil
@@ -100,16 +100,16 @@ func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clu
 
 	if err == nil {
 		var bearerToken string
-		bearerToken, err = clusterauth.GetServiceAccountBearerToken(fixtureClient.KubeClientset, utils.ArgoCDNamespace, serviceAccountName, common.BearerTokenTimeout)
+		bearerToken, err = clusterauth.GetServiceAccountBearerToken(fixtureClient.KubeClientset, fixture.TestNamespace(), serviceAccountName, common.BearerTokenTimeout)
 
 		// bearerToken
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      secretName,
-				Namespace: utils.ArgoCDNamespace,
+				Namespace: fixture.TestNamespace(),
 				Labels: map[string]string{
-					argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
-					utils.TestingLabel:            "true",
+					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+					utils.TestingLabel:        "true",
 				},
 			},
 			Data: map[string][]byte{
@@ -141,7 +141,7 @@ func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clu
 // DeleteClusterSecret deletes a faux cluster secret
 func (a *Actions) DeleteClusterSecret(secretName string) *Actions {
 
-	err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(utils.ArgoCDNamespace).Delete(context.Background(), secretName, metav1.DeleteOptions{})
+	err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Delete(context.Background(), secretName, metav1.DeleteOptions{})
 
 	a.describeAction = fmt.Sprintf("deleting cluster Secret '%s'", secretName)
 	a.lastOutput, a.lastError = "", err
@@ -153,7 +153,7 @@ func (a *Actions) DeleteClusterSecret(secretName string) *Actions {
 // DeleteConfigMap deletes a faux cluster secret
 func (a *Actions) DeleteConfigMap(configMapName string) *Actions {
 
-	err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().ConfigMaps(utils.ArgoCDNamespace).Delete(context.Background(), configMapName, metav1.DeleteOptions{})
+	err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().ConfigMaps(fixture.TestNamespace()).Delete(context.Background(), configMapName, metav1.DeleteOptions{})
 
 	a.describeAction = fmt.Sprintf("deleting configMap '%s'", configMapName)
 	a.lastOutput, a.lastError = "", err
@@ -165,7 +165,7 @@ func (a *Actions) DeleteConfigMap(configMapName string) *Actions {
 // DeletePlacementDecision deletes a faux cluster secret
 func (a *Actions) DeletePlacementDecision(placementDecisionName string) *Actions {
 
-	err := utils.GetE2EFixtureK8sClient().DynamicClientset.Resource(pdGVR).Namespace(utils.ArgoCDNamespace).Delete(context.Background(), placementDecisionName, metav1.DeleteOptions{})
+	err := utils.GetE2EFixtureK8sClient().DynamicClientset.Resource(pdGVR).Namespace(fixture.TestNamespace()).Delete(context.Background(), placementDecisionName, metav1.DeleteOptions{})
 
 	a.describeAction = fmt.Sprintf("deleting placement decision '%s'", placementDecisionName)
 	a.lastOutput, a.lastError = "", err
@@ -218,8 +218,8 @@ func (a *Actions) CreatePlacementRoleAndRoleBinding() *Actions {
 
 	var err error
 
-	_, err = fixtureClient.KubeClientset.RbacV1().Roles(utils.ArgoCDNamespace).Create(context.Background(), &v1.Role{
-		ObjectMeta: metav1.ObjectMeta{Name: "placement-role", Namespace: utils.ArgoCDNamespace},
+	_, err = fixtureClient.KubeClientset.RbacV1().Roles(fixture.TestNamespace()).Create(context.Background(), &v1.Role{
+		ObjectMeta: metav1.ObjectMeta{Name: "placement-role", Namespace: fixture.TestNamespace()},
 		Rules: []v1.PolicyRule{
 			{
 				Verbs:     []string{"get", "list", "watch"},
@@ -233,13 +233,13 @@ func (a *Actions) CreatePlacementRoleAndRoleBinding() *Actions {
 	}
 
 	if err == nil {
-		_, err = fixtureClient.KubeClientset.RbacV1().RoleBindings(utils.ArgoCDNamespace).Create(context.Background(),
+		_, err = fixtureClient.KubeClientset.RbacV1().RoleBindings(fixture.TestNamespace()).Create(context.Background(),
 			&v1.RoleBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "placement-role-binding", Namespace: utils.ArgoCDNamespace},
+				ObjectMeta: metav1.ObjectMeta{Name: "placement-role-binding", Namespace: fixture.TestNamespace()},
 				Subjects: []v1.Subject{
 					{
 						Name:      "argocd-applicationset-controller",
-						Namespace: utils.ArgoCDNamespace,
+						Namespace: fixture.TestNamespace(),
 						Kind:      "ServiceAccount",
 					},
 				},
@@ -267,14 +267,14 @@ func (a *Actions) CreatePlacementDecisionConfigMap(configMapName string) *Action
 
 	fixtureClient := utils.GetE2EFixtureK8sClient()
 
-	_, err := fixtureClient.KubeClientset.CoreV1().ConfigMaps(utils.ArgoCDNamespace).Get(context.Background(), configMapName, metav1.GetOptions{})
+	_, err := fixtureClient.KubeClientset.CoreV1().ConfigMaps(fixture.TestNamespace()).Get(context.Background(), configMapName, metav1.GetOptions{})
 
 	// Don't do anything if it exists
 	if err == nil {
 		return a
 	}
 
-	_, err = fixtureClient.KubeClientset.CoreV1().ConfigMaps(utils.ArgoCDNamespace).Create(context.Background(),
+	_, err = fixtureClient.KubeClientset.CoreV1().ConfigMaps(fixture.TestNamespace()).Create(context.Background(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: configMapName,
@@ -299,7 +299,7 @@ func (a *Actions) CreatePlacementDecision(placementDecisionName string) *Actions
 
 	fixtureClient := utils.GetE2EFixtureK8sClient().DynamicClientset
 
-	_, err := fixtureClient.Resource(pdGVR).Namespace(utils.ArgoCDNamespace).Get(
+	_, err := fixtureClient.Resource(pdGVR).Namespace(fixture.TestNamespace()).Get(
 		context.Background(),
 		placementDecisionName,
 		metav1.GetOptions{})
@@ -312,7 +312,7 @@ func (a *Actions) CreatePlacementDecision(placementDecisionName string) *Actions
 		Object: map[string]interface{}{
 			"metadata": map[string]interface{}{
 				"name":      placementDecisionName,
-				"namespace": utils.ArgoCDNamespace,
+				"namespace": fixture.TestNamespace(),
 			},
 			"kind":       "PlacementDecision",
 			"apiVersion": "cluster.open-cluster-management.io/v1alpha1",
@@ -320,7 +320,7 @@ func (a *Actions) CreatePlacementDecision(placementDecisionName string) *Actions
 		},
 	}
 
-	_, err = fixtureClient.Resource(pdGVR).Namespace(utils.ArgoCDNamespace).Create(
+	_, err = fixtureClient.Resource(pdGVR).Namespace(fixture.TestNamespace()).Create(
 		context.Background(),
 		placementDecision,
 		metav1.CreateOptions{})
@@ -336,7 +336,7 @@ func (a *Actions) StatusUpdatePlacementDecision(placementDecisionName string, cl
 	a.context.t.Helper()
 
 	fixtureClient := utils.GetE2EFixtureK8sClient().DynamicClientset
-	placementDecision, err := fixtureClient.Resource(pdGVR).Namespace(utils.ArgoCDNamespace).Get(
+	placementDecision, err := fixtureClient.Resource(pdGVR).Namespace(fixture.TestNamespace()).Get(
 		context.Background(),
 		placementDecisionName,
 		metav1.GetOptions{})
@@ -346,7 +346,7 @@ func (a *Actions) StatusUpdatePlacementDecision(placementDecisionName string, cl
 	}
 
 	if err == nil {
-		_, err = fixtureClient.Resource(pdGVR).Namespace(utils.ArgoCDNamespace).UpdateStatus(
+		_, err = fixtureClient.Resource(pdGVR).Namespace(fixture.TestNamespace()).UpdateStatus(
 			context.Background(),
 			placementDecision,
 			metav1.UpdateOptions{})
