@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myconfigmap
+data:
+  $ARGOCD_ENV_REPLACE_ME: my-value
+  replace-me: $ARGOCD_ENV_REPLACE_ME
+  not-set: $ARGOCD_ENV_NOT_SET
+  not-allowed: $NON_ARGOCD_ENV

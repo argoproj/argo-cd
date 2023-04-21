@@ -75,6 +75,7 @@ const (
 	repoSourceFile                 = ".argocd-source.yaml"
 	appSourceFile                  = ".argocd-source-%s.yaml"
 	ociPrefix                      = "oci://"
+	allowedEnvVarPrefix            = "ARGOCD_ENV_"
 )
 
 var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
@@ -1384,6 +1385,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 				}
 			}
 			manifestStr, err := json.Marshal(target.Object)
+			manifestStr = replaceEnvVarsInManifest(manifestStr)
 			if err != nil {
 				return nil, err
 			}
@@ -1411,6 +1413,31 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.ApplicationSource.Path},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
 	}
+}
+
+// replaceEnvVarsInManifest replaces all env vars in the manifest with values from matched
+// env vars (with the prefix ARGOCD_ENV)
+func replaceEnvVarsInManifest(manifest []byte) []byte {
+	envVars := getArgoUserEnvVars()
+
+	stringManifest := string(manifest)
+	for k, v := range envVars {
+		stringManifest = strings.Replace(stringManifest, fmt.Sprintf("$%s", k), v, -1)
+	}
+	return []byte(stringManifest)
+}
+
+// getArgoUserEnvVars returns a map of all env vars that start with ARGOCD_ENV
+func getArgoUserEnvVars() map[string]string {
+	envVars := make(map[string]string)
+	for _, envVar := range os.Environ() {
+		envVarSplit := strings.Split(envVar, "=")
+
+		if strings.HasPrefix(envVarSplit[0], allowedEnvVarPrefix) {
+			envVars[envVarSplit[0]] = envVarSplit[1]
+		}
+	}
+	return envVars
 }
 
 // mergeSourceParameters merges parameter overrides from one or more files in

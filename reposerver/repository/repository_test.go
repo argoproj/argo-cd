@@ -279,6 +279,32 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 	assert.True(t, len(res.Manifests) > 0)
 }
 
+func TestGenerateManifests_UserEnvVarSubsitions(t *testing.T) {
+	service := newService(".")
+	os.Setenv("ARGOCD_ENV_REPLACE_ME", "replaced")
+	os.Setenv("NON_ARGOCD_ENV", "not-replaced")
+
+	defer func() {
+		os.Unsetenv("ARGOCD_ENV_REPLACE_ME")
+		os.Unsetenv("NON_ARGOCD_ENV")
+	}()
+
+	src := argoappv1.ApplicationSource{Path: "./testdata/envsubst"}
+
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
+
+	res, err := service.GenerateManifest(context.Background(), &q)
+	assert.Nil(t, err)
+
+	assert.Equal(t, &apiclient.ManifestResponse{
+		Manifests:  []string{"{\"apiVersion\":\"v1\",\"data\":{\"replaced\":\"my-value\",\"not-allowed\":\"$NON_ARGOCD_ENV\",\"not-set\":\"$ARGOCD_ENV_NOT_SET\",\"replace-me\":\"replaced\"},\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"myconfigmap\"}}"},
+		Namespace:  "",
+		Server:     "",
+		Revision:   "mock.Anything",
+		SourceType: "Directory",
+	}, res)
+}
+
 // ensure we can use a semver constraint range (>= 1.0.0) and get back the correct chart (1.0.0)
 func TestHelmManifestFromChartRepo(t *testing.T) {
 	service := newService(".")
