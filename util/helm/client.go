@@ -415,7 +415,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 		}}
 		repo.Client = &auth.Client{
 			Client: client,
-			Cache:  auth.DefaultCache,
+			Cache:  nil,
 			Credential: auth.StaticCredential(c.repoURL, auth.Credential{
 				Username: c.creds.Username,
 				Password: c.creds.Password,
