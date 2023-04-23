@@ -116,6 +116,7 @@ func printClientVersion(version *common.Version, short bool) string {
 	output += fmt.Sprintf("  GoVersion: %s\n", version.GoVersion)
 	output += fmt.Sprintf("  Compiler: %s\n", version.Compiler)
 	output += fmt.Sprintf("  Platform: %s\n", version.Platform)
+	output += fmt.Sprintf("  ExtraBuildInfo : %s\n", version.ExtraBuildInfo)
 	return output
 }
 
@@ -158,6 +159,9 @@ func printServerVersion(version *version.VersionMessage, short bool) string {
 	}
 	if version.JsonnetVersion != "" {
 		output += fmt.Sprintf("  Jsonnet Version: %s\n", version.JsonnetVersion)
+	}
+	if version.ExtraBuildInfo != "" {
+		output += fmt.Sprintf("  Extra Build Information: %s\n", version.ExtraBuildInfo)
 	}
 	return output
 }
