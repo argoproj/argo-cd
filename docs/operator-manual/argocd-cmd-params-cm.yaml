@@ -57,6 +57,8 @@ data:
   controller.resource.health.persist: "true"
   # Cache expiration default (default 24h0m0s)
   controller.default.cache.expiration: "24h0m0s"
+  # Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.
+  controller.kubectl.parallelism.limit: "20"
 
   ## Server properties
   # Run server without TLS
@@ -104,6 +106,8 @@ data:
   server.app.state.cache.expiration: "1h0m0s"
   # Cache expiration default (default 24h0m0s)
   server.default.cache.expiration: "24h0m0s"
+  # Enable the experimental proxy extension feature
+  server.enable.proxy.extension: "false"
 
   ## Repo-server properties
   # Set the logging format. One of: text|json (default "text")
@@ -150,7 +154,7 @@ data:
   applicationsetcontroller.enable.leader.election: "false"
   # Argo CD repo namespace (default: argocd)
   applicationsetcontroller.namespace: ""
-  # "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion)"
+  # "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion), 'create-delete' (no update)"
   applicationsetcontroller.policy: "sync"
   # Print debug logs. Takes precedence over loglevel
   applicationsetcontroller.debug: "false"
@@ -162,3 +166,5 @@ data:
   applicationsetcontroller.dryrun: "false"
   # Enable git submodule support
   applicationsetcontroller.enable.git.submodule: "true"
+  # Enables use of the Progressive Syncs capability
+  applicationsetcontroller.enable.progressive.syncs: "false"

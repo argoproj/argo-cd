@@ -1,7 +1,6 @@
 package generators
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	testutils "github.com/argoproj/argo-cd/v2/applicationset/utils/test"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -20,38 +20,11 @@ import (
 // 	return io.NewCloser(func() error { return nil }), c.RepoServerServiceClient, nil
 // }
 
-type argoCDServiceMock struct {
-	mock *mock.Mock
-}
-
-func (a argoCDServiceMock) GetApps(ctx context.Context, repoURL string, revision string) ([]string, error) {
-	args := a.mock.Called(ctx, repoURL, revision)
-
-	return args.Get(0).([]string), args.Error(1)
-}
-
-func (a argoCDServiceMock) GetFiles(ctx context.Context, repoURL string, revision string, pattern string) (map[string][]byte, error) {
-	args := a.mock.Called(ctx, repoURL, revision, pattern)
-
-	return args.Get(0).(map[string][]byte), args.Error(1)
-}
-
-func (a argoCDServiceMock) GetFileContent(ctx context.Context, repoURL string, revision string, path string) ([]byte, error) {
-	args := a.mock.Called(ctx, repoURL, revision, path)
-
-	return args.Get(0).([]byte), args.Error(1)
-}
-
-func (a argoCDServiceMock) GetDirectories(ctx context.Context, repoURL string, revision string) ([]string, error) {
-	args := a.mock.Called(ctx, repoURL, revision)
-	return args.Get(0).([]string), args.Error(1)
-}
-
 func Test_generateParamsFromGitFile(t *testing.T) {
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`), false)
+`), false, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,11 +42,33 @@ foo:
 	}, params)
 }
 
+func Test_generatePrefixedParamsFromGitFile(t *testing.T) {
+	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
+foo:
+  bar: baz
+`), false, "myRepo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, []map[string]interface{}{
+		{
+			"foo.bar":                        "baz",
+			"myRepo.path":                    "path/dir",
+			"myRepo.path.basename":           "dir",
+			"myRepo.path.filename":           "file_name.yaml",
+			"myRepo.path.basenameNormalized": "dir",
+			"myRepo.path.filenameNormalized": "file-name.yaml",
+			"myRepo.path[0]":                 "path",
+			"myRepo.path[1]":                 "dir",
+		},
+	}, params)
+}
+
 func Test_generateParamsFromGitFileGoTemplate(t *testing.T) {
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`), true)
+`), true, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,15 +92,46 @@ foo:
 	}, params)
 }
 
+func Test_generatePrefixedParamsFromGitFileGoTemplate(t *testing.T) {
+	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
+foo:
+  bar: baz
+`), true, "myRepo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, []map[string]interface{}{
+		{
+			"foo": map[string]interface{}{
+				"bar": "baz",
+			},
+			"myRepo": map[string]interface{}{
+				"path": map[string]interface{}{
+					"path":               "path/dir",
+					"basename":           "dir",
+					"filename":           "file_name.yaml",
+					"basenameNormalized": "dir",
+					"filenameNormalized": "file-name.yaml",
+					"segments": []string{
+						"path",
+						"dir",
+					},
+				},
+			},
+		},
+	}, params)
+}
+
 func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 	cases := []struct {
-		name          string
-		directories   []argoprojiov1alpha1.GitDirectoryGeneratorItem
-		repoApps      []string
-		repoError     error
-		expected      []map[string]interface{}
-		expectedError error
+		name            string
+		directories     []argoprojiov1alpha1.GitDirectoryGeneratorItem
+		pathParamPrefix string
+		repoApps        []string
+		repoError       error
+		expected        []map[string]interface{}
+		expectedError   error
 	}{
 		{
 			name:        "happy flow - created apps",
@@ -121,6 +147,24 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1"},
 				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "path[0]": "app2"},
 				{"path": "app_3", "path.basename": "app_3", "path.basenameNormalized": "app-3", "path[0]": "app_3"},
+			},
+			expectedError: nil,
+		},
+		{
+			name:            "It prefixes path parameters with PathParamPrefix",
+			directories:     []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			pathParamPrefix: "myRepo",
+			repoApps: []string{
+				"app1",
+				"app2",
+				"app_3",
+				"p1/app4",
+			},
+			repoError: nil,
+			expected: []map[string]interface{}{
+				{"myRepo.path": "app1", "myRepo.path.basename": "app1", "myRepo.path.basenameNormalized": "app1", "myRepo.path[0]": "app1"},
+				{"myRepo.path": "app2", "myRepo.path.basename": "app2", "myRepo.path.basenameNormalized": "app2", "myRepo.path[0]": "app2"},
+				{"myRepo.path": "app_3", "myRepo.path.basename": "app_3", "myRepo.path.basenameNormalized": "app-3", "myRepo.path[0]": "app_3"},
 			},
 			expectedError: nil,
 		},
@@ -200,9 +244,9 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := argoCDServiceMock{mock: &mock.Mock{}}
+			argoCDServiceMock := testutils.ArgoCDServiceMock{Mock: &mock.Mock{}}
 
-			argoCDServiceMock.mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.Mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
 			var gitGenerator = NewGitGenerator(argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
@@ -212,9 +256,10 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{
 					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
 						Git: &argoprojiov1alpha1.GitGenerator{
-							RepoURL:     "RepoURL",
-							Revision:    "Revision",
-							Directories: testCaseCopy.directories,
+							RepoURL:         "RepoURL",
+							Revision:        "Revision",
+							Directories:     testCaseCopy.directories,
+							PathParamPrefix: testCaseCopy.pathParamPrefix,
 						},
 					}},
 				},
@@ -229,7 +274,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 
-			argoCDServiceMock.mock.AssertExpectations(t)
+			argoCDServiceMock.Mock.AssertExpectations(t)
 		})
 	}
 }
@@ -237,12 +282,13 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 	cases := []struct {
-		name          string
-		directories   []argoprojiov1alpha1.GitDirectoryGeneratorItem
-		repoApps      []string
-		repoError     error
-		expected      []map[string]interface{}
-		expectedError error
+		name            string
+		directories     []argoprojiov1alpha1.GitDirectoryGeneratorItem
+		pathParamPrefix string
+		repoApps        []string
+		repoError       error
+		expected        []map[string]interface{}
+		expectedError   error
 	}{
 		{
 			name:        "happy flow - created apps",
@@ -282,6 +328,57 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 						"basenameNormalized": "app-3",
 						"segments": []string{
 							"app_3",
+						},
+					},
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name:            "It prefixes path parameters with PathParamPrefix",
+			directories:     []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			pathParamPrefix: "myRepo",
+			repoApps: []string{
+				"app1",
+				"app2",
+				"app_3",
+				"p1/app4",
+			},
+			repoError: nil,
+			expected: []map[string]interface{}{
+				{
+					"myRepo": map[string]interface{}{
+						"path": map[string]interface{}{
+							"path":               "app1",
+							"basename":           "app1",
+							"basenameNormalized": "app1",
+							"segments": []string{
+								"app1",
+							},
+						},
+					},
+				},
+				{
+					"myRepo": map[string]interface{}{
+						"path": map[string]interface{}{
+							"path":               "app2",
+							"basename":           "app2",
+							"basenameNormalized": "app2",
+							"segments": []string{
+								"app2",
+							},
+						},
+					},
+				},
+				{
+					"myRepo": map[string]interface{}{
+						"path": map[string]interface{}{
+							"path":               "app_3",
+							"basename":           "app_3",
+							"basenameNormalized": "app-3",
+							"segments": []string{
+								"app_3",
+							},
 						},
 					},
 				},
@@ -442,9 +539,9 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := argoCDServiceMock{mock: &mock.Mock{}}
+			argoCDServiceMock := testutils.ArgoCDServiceMock{Mock: &mock.Mock{}}
 
-			argoCDServiceMock.mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.Mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
 			var gitGenerator = NewGitGenerator(argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
@@ -455,9 +552,10 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					GoTemplate: true,
 					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
 						Git: &argoprojiov1alpha1.GitGenerator{
-							RepoURL:     "RepoURL",
-							Revision:    "Revision",
-							Directories: testCaseCopy.directories,
+							RepoURL:         "RepoURL",
+							Revision:        "Revision",
+							Directories:     testCaseCopy.directories,
+							PathParamPrefix: testCaseCopy.pathParamPrefix,
 						},
 					}},
 				},
@@ -472,7 +570,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 
-			argoCDServiceMock.mock.AssertExpectations(t)
+			argoCDServiceMock.Mock.AssertExpectations(t)
 		})
 	}
 
@@ -732,8 +830,8 @@ cluster:
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := argoCDServiceMock{mock: &mock.Mock{}}
-			argoCDServiceMock.mock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock := testutils.ArgoCDServiceMock{Mock: &mock.Mock{}}
+			argoCDServiceMock.Mock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			var gitGenerator = NewGitGenerator(argoCDServiceMock)
@@ -762,7 +860,7 @@ cluster:
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
 
-			argoCDServiceMock.mock.AssertExpectations(t)
+			argoCDServiceMock.Mock.AssertExpectations(t)
 		})
 	}
 }
@@ -1081,8 +1179,8 @@ cluster:
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := argoCDServiceMock{mock: &mock.Mock{}}
-			argoCDServiceMock.mock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock := testutils.ArgoCDServiceMock{Mock: &mock.Mock{}}
+			argoCDServiceMock.Mock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			var gitGenerator = NewGitGenerator(argoCDServiceMock)
@@ -1112,7 +1210,7 @@ cluster:
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
 
-			argoCDServiceMock.mock.AssertExpectations(t)
+			argoCDServiceMock.Mock.AssertExpectations(t)
 		})
 	}
 }

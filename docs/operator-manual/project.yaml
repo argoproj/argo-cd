@@ -15,9 +15,11 @@ spec:
   - '*'
 
   # Only permit applications to deploy to the guestbook namespace in the same cluster
+  # Destination clusters can be identified by 'server', 'name', or both.
   destinations:
   - namespace: guestbook
     server: https://kubernetes.default.svc
+    name: in-cluster
 
   # Deny all cluster-scoped resources from being created, except for Namespace
   clusterResourceWhitelist:

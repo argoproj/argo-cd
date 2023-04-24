@@ -108,6 +108,11 @@ type ArgoCDSettings struct {
 	// token verification to pass despite the OIDC provider having an invalid certificate. Only set to `true` if you
 	// understand the risks.
 	OIDCTLSInsecureSkipVerify bool `json:"oidcTLSInsecureSkipVerify"`
+	// AppsInAnyNamespaceEnabled indicates whether applications are allowed to be created in any namespace
+	AppsInAnyNamespaceEnabled bool `json:"appsInAnyNamespaceEnabled"`
+	// ExtensionConfig configurations related to ArgoCD proxy extensions. The value
+	// is a yaml string defined in extension.ExtensionConfigs struct.
+	ExtensionConfig string `json:"extensionConfig,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -128,6 +133,33 @@ type Help struct {
 	ChatText string `json:"chatText,omitempty"`
 	// the URLs for downloading argocd binaries
 	BinaryURLs map[string]string `json:"binaryUrl,omitempty"`
+}
+
+// oidcConfig is the same as the public OIDCConfig, except the public one excludes the AllowedAudiences and the
+// SkipAudienceCheckWhenTokenHasNoAudience fields.
+// AllowedAudiences should be accessed via ArgoCDSettings.OAuth2AllowedAudiences.
+// SkipAudienceCheckWhenTokenHasNoAudience should be accessed via ArgoCDSettings.SkipAudienceCheckWhenTokenHasNoAudience.
+type oidcConfig struct {
+	OIDCConfig
+	AllowedAudiences                        []string `json:"allowedAudiences,omitempty"`
+	SkipAudienceCheckWhenTokenHasNoAudience *bool    `json:"skipAudienceCheckWhenTokenHasNoAudience,omitempty"`
+}
+
+func (o *oidcConfig) toExported() *OIDCConfig {
+	if o == nil {
+		return nil
+	}
+	return &OIDCConfig{
+		Name:                   o.Name,
+		Issuer:                 o.Issuer,
+		ClientID:               o.ClientID,
+		ClientSecret:           o.ClientSecret,
+		CLIClientID:            o.CLIClientID,
+		RequestedScopes:        o.RequestedScopes,
+		RequestedIDTokenClaims: o.RequestedIDTokenClaims,
+		LogoutURL:              o.LogoutURL,
+		RootCA:                 o.RootCA,
+	}
 }
 
 type OIDCConfig struct {
@@ -286,6 +318,10 @@ type Repository struct {
 	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
 	Proxy string `json:"proxy,omitempty"`
+	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
+	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -314,6 +350,24 @@ type RepositoryCredentials struct {
 	EnableOCI bool `json:"enableOCI,omitempty"`
 	// the type of the repositoryCredentials, "git" or "helm", assumed to be "git" if empty or absent
 	Type string `json:"type,omitempty"`
+	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
+	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
+}
+
+// DeepLink structure
+type DeepLink struct {
+	// URL that the deep link will redirect to
+	URL string `json:"url"`
+	// Title that will be displayed in the UI corresponding to that link
+	Title string `json:"title"`
+	// Description (optional) a description for what the deep link is about
+	Description *string `json:"description,omitempty"`
+	// IconClass (optional) a font-awesome icon class to be used when displaying the links in dropdown menus.
+	IconClass *string `json:"icon.class,omitempty"`
+	// Condition (optional) a conditional statement depending on which the deep link shall be rendered
+	Condition *string `json:"if,omitempty"`
 }
 
 const (
@@ -367,6 +421,8 @@ const (
 	resourceExclusionsKey = "resource.exclusions"
 	// resourceInclusions is the key to the list of explicitly watched resources
 	resourceInclusionsKey = "resource.inclusions"
+	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
+	resourceCustomLabelsKey = "resource.customLabels"
 	// configManagementPluginsKey is the key to the list of config management plugins
 	configManagementPluginsKey = "configManagementPlugins"
 	// kustomizeBuildOptionsKey is a string of kustomize build parameters
@@ -419,6 +475,13 @@ const (
 	execShellsKey = "exec.shells"
 	// oidcTLSInsecureSkipVerifyKey is the key to configure whether TLS cert verification is skipped for OIDC connections
 	oidcTLSInsecureSkipVerifyKey = "oidc.tls.insecure.skip.verify"
+	// ApplicationDeepLinks is the application deep link key
+	ApplicationDeepLinks = "application.links"
+	// ProjectDeepLinks is the project deep link key
+	ProjectDeepLinks = "project.links"
+	// ResourceDeepLinks is the resource deep link key
+	ResourceDeepLinks = "resource.links"
+	extensionConfig   = "extension.config"
 )
 
 var (
@@ -695,6 +758,21 @@ func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManag
 		}
 	}
 	return plugins, nil
+}
+
+func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	deepLinks := make([]DeepLink, 0)
+	if value, ok := argoCDCM.Data[deeplinkType]; ok {
+		err := yaml.Unmarshal([]byte(value), &deepLinks)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return deepLinks, nil
 }
 
 func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
@@ -1090,8 +1168,12 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	if !ok {
 		chatText = "Chat now!"
 	}
+	chatURL, ok := argoCDCM.Data[helpChatURL]
+	if !ok {
+		chatText = ""
+	}
 	return &Help{
-		ChatURL:    argoCDCM.Data[helpChatURL],
+		ChatURL:    chatURL,
 		ChatText:   chatText,
 		BinaryURLs: getDownloadBinaryUrlsFromConfigMap(argoCDCM),
 	}, nil
@@ -1290,6 +1372,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	}
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
+	settings.ExtensionConfig = argoCDCM.Data[extensionConfig]
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
@@ -1576,7 +1659,7 @@ func (a *ArgoCDSettings) IsDexConfigured() bool {
 	}
 	dexCfg, err := UnmarshalDexConfig(a.DexConfig)
 	if err != nil {
-		log.Warn("invalid dex yaml config")
+		log.Warnf("invalid dex yaml config: %s", err.Error())
 		return false
 	}
 	return len(dexCfg) > 0
@@ -1593,24 +1676,37 @@ func UnmarshalDexConfig(config string) (map[string]interface{}, error) {
 	return dexCfg, err
 }
 
-func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
+func (a *ArgoCDSettings) oidcConfig() *oidcConfig {
 	if a.OIDCConfigRAW == "" {
 		return nil
 	}
-	oidcConfig, err := UnmarshalOIDCConfig(a.OIDCConfigRAW)
+	config, err := unmarshalOIDCConfig(a.OIDCConfigRAW)
 	if err != nil {
 		log.Warnf("invalid oidc config: %v", err)
 		return nil
 	}
-	oidcConfig.ClientSecret = ReplaceStringSecret(oidcConfig.ClientSecret, a.Secrets)
-	oidcConfig.ClientID = ReplaceStringSecret(oidcConfig.ClientID, a.Secrets)
-	return &oidcConfig
+	config.ClientSecret = ReplaceStringSecret(config.ClientSecret, a.Secrets)
+	config.ClientID = ReplaceStringSecret(config.ClientID, a.Secrets)
+	return &config
 }
 
-func UnmarshalOIDCConfig(config string) (OIDCConfig, error) {
-	var oidcConfig OIDCConfig
-	err := yaml.Unmarshal([]byte(config), &oidcConfig)
-	return oidcConfig, err
+func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
+	config := a.oidcConfig()
+	if config == nil {
+		return nil
+	}
+	return config.toExported()
+}
+
+func unmarshalOIDCConfig(configStr string) (oidcConfig, error) {
+	var config oidcConfig
+	err := yaml.Unmarshal([]byte(configStr), &config)
+	return config, err
+}
+
+func ValidateOIDCConfig(configStr string) error {
+	_, err := unmarshalOIDCConfig(configStr)
+	return err
 }
 
 // TLSConfig returns a tls.Config with the configured certificates
@@ -1647,6 +1743,37 @@ func (a *ArgoCDSettings) OAuth2ClientID() string {
 		return common.ArgoCDClientAppID
 	}
 	return ""
+}
+
+// OAuth2AllowedAudiences returns a list of audiences that are allowed for the OAuth2 client. If the user has not
+// explicitly configured the list of audiences (or has configured an empty list), then the OAuth2 client ID is returned
+// as the only allowed audience. When using the bundled Dex, that client ID is always "argo-cd".
+func (a *ArgoCDSettings) OAuth2AllowedAudiences() []string {
+	if config := a.oidcConfig(); config != nil {
+		if len(config.AllowedAudiences) == 0 {
+			allowedAudiences := []string{config.ClientID}
+			if config.CLIClientID != "" {
+				allowedAudiences = append(allowedAudiences, config.CLIClientID)
+			}
+			return allowedAudiences
+		}
+		return config.AllowedAudiences
+	}
+	if a.DexConfig != "" {
+		return []string{common.ArgoCDClientAppID, common.ArgoCDCLIClientAppID}
+	}
+	return nil
+}
+
+func (a *ArgoCDSettings) SkipAudienceCheckWhenTokenHasNoAudience() bool {
+	if config := a.oidcConfig(); config != nil {
+		if config.SkipAudienceCheckWhenTokenHasNoAudience != nil {
+			return *config.SkipAudienceCheckWhenTokenHasNoAudience
+		}
+		return false
+	}
+	// When using the bundled Dex, the audience check is required. Dex will always send JWTs with an audience.
+	return false
 }
 
 func (a *ArgoCDSettings) OAuth2ClientSecret() string {
@@ -1884,4 +2011,16 @@ func (mgr *SettingsManager) GetGlobalProjectsSettings() ([]GlobalProjectSettings
 
 func (mgr *SettingsManager) GetNamespace() string {
 	return mgr.namespace
+}
+
+func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return []string{}, fmt.Errorf("failed getting configmap: %v", err)
+	}
+	labels := argoCDCM.Data[resourceCustomLabelsKey]
+	if labels != "" {
+		return strings.Split(labels, ","), nil
+	}
+	return []string{}, nil
 }
