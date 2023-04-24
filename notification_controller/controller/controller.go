@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
@@ -38,8 +39,8 @@ var (
 	appProjects  = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.AppProjectPlural}
 )
 
-func newAppProjClient(client dynamic.Interface, namespace string) dynamic.ResourceInterface {
-	resClient := client.Resource(appProjects).Namespace(namespace)
+func newAppProjClient(client dynamic.Interface) dynamic.ResourceInterface {
+	resClient := client.Resource(appProjects)
 	return resClient
 }
 
@@ -53,14 +54,15 @@ func NewController(
 	client dynamic.Interface,
 	argocdService service.Service,
 	namespace string,
+	applicationNamespaces []string,
 	appLabelSelector string,
 	registry *controller.MetricsRegistry,
 	secretName string,
 	configMapName string,
 ) *notificationController {
 	appClient := client.Resource(applications)
-	appInformer := newInformer(appClient.Namespace(namespace), appLabelSelector)
-	appProjInformer := newInformer(newAppProjClient(client, namespace), "")
+	appInformer := newInformer(appClient, namespace, applicationNamespaces, appLabelSelector)
+	appProjInformer := newInformer(newAppProjClient(client), namespace, applicationNamespaces, "")
 	secretInformer := k8s.NewSecretInformer(k8sClient, namespace, secretName)
 	configMapInformer := k8s.NewConfigMapInformer(k8sClient, namespace, configMapName)
 	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, secretName, configMapName), namespace, secretInformer, configMapInformer)
@@ -97,32 +99,51 @@ func (c *notificationController) alterDestinations(obj v1.Object, destinations s
 	return destinations
 }
 
-func newInformer(resClient dynamic.ResourceInterface, selector string) cache.SharedIndexInformer {
+func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string, applicationNamespaces []string, selector string) cache.SharedIndexInformer {
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (object runtime.Object, err error) {
+			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+				// We are only interested in apps that exist in namespaces the
+				// user wants to be enabled.
 				options.LabelSelector = selector
-				return resClient.List(context.Background(), options)
+				appList, err := resClient.List(context.TODO(), options)
+				if err != nil {
+					return nil, err
+				}
+				newItems := []unstructured.Unstructured{}
+				for _, res := range appList.Items {
+					if controllerNamespace == res.GetNamespace() || glob.MatchStringInList(applicationNamespaces, res.GetNamespace(), false) {
+						newItems = append(newItems, res)
+					}
+				}
+				appList.Items = newItems
+				return appList, nil
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				options.LabelSelector = selector
-				return resClient.Watch(context.Background(), options)
+				return resClient.Watch(context.TODO(), options)
 			},
 		},
 		&unstructured.Unstructured{},
 		resyncPeriod,
-		cache.Indexers{},
+		cache.Indexers{
+			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
+				return cache.MetaNamespaceIndexFunc(obj)
+			},
+		},
 	)
 	return informer
 }
 
 type notificationController struct {
-	apiFactory        api.Factory
-	ctrl              controller.NotificationController
-	appInformer       cache.SharedIndexInformer
-	appProjInformer   cache.SharedIndexInformer
-	secretInformer    cache.SharedIndexInformer
-	configMapInformer cache.SharedIndexInformer
+	namespace             string
+	applicationNamespaces []string
+	apiFactory            api.Factory
+	ctrl                  controller.NotificationController
+	appInformer           cache.SharedIndexInformer
+	appProjInformer       cache.SharedIndexInformer
+	secretInformer        cache.SharedIndexInformer
+	configMapInformer     cache.SharedIndexInformer
 }
 
 func (c *notificationController) Init(ctx context.Context) error {
