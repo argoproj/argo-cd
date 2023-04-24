@@ -56,7 +56,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	return func() (*Cache, error) {
 		cache, err := repoFactory()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error adding cache flags to cmd: %w", err)
 		}
 		return NewCache(cache, repoCacheExpiration, revisionCacheExpiration), nil
 	}
@@ -302,6 +302,19 @@ func (c *Cache) GetRevisionMetadata(repoURL, revision string) (*appv1.RevisionMe
 
 func (c *Cache) SetRevisionMetadata(repoURL, revision string, item *appv1.RevisionMetadata) error {
 	return c.cache.SetItem(revisionMetadataKey(repoURL, revision), item, c.repoCacheExpiration, false)
+}
+
+func revisionChartDetailsKey(repoURL, chart, revision string) string {
+	return fmt.Sprintf("chartdetails|%s|%s|%s", repoURL, chart, revision)
+}
+
+func (c *Cache) GetRevisionChartDetails(repoURL, chart, revision string) (*appv1.ChartDetails, error) {
+	item := &appv1.ChartDetails{}
+	return item, c.cache.GetItem(revisionChartDetailsKey(repoURL, chart, revision), item)
+}
+
+func (c *Cache) SetRevisionChartDetails(repoURL, chart, revision string, item *appv1.ChartDetails) error {
+	return c.cache.SetItem(revisionChartDetailsKey(repoURL, chart, revision), item, c.repoCacheExpiration, false)
 }
 
 func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {

@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -168,7 +169,7 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz1")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
 		require.NoError(t, err)
@@ -191,11 +192,31 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz2")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "illegal filepath in symlink")
+	})
+
+	t.Run("preserves file mode", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		tgzFile := createTgz(t, filepath.Join(getTestDataDir(t), "executable"), tmpDir)
+		defer tgzFile.Close()
+
+		destDir := filepath.Join(tmpDir, "untgz1")
+
+		// when
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
+		require.NoError(t, err)
+
+		// then
+
+		scriptFileInfo, err := os.Stat(path.Join(destDir, "script.sh"))
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0755), scriptFileInfo.Mode())
 	})
 }
 

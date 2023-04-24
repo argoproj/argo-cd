@@ -471,6 +471,12 @@ message ApplicationSourceKustomize {
 
   // Namespace sets the namespace that Kustomize adds to all resources
   optional string namespace = 9;
+
+  // CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
+  optional bool commonAnnotationsEnvsubst = 10;
+
+  // Replicas is a list of Kustomize Replicas override specifications
+  repeated KustomizeReplica replicas = 11;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -621,6 +627,17 @@ message BasicAuthBitbucketServer {
 
   // Password (or personal access token) reference.
   optional SecretRef passwordRef = 2;
+}
+
+// ChartDetails contains helm chart metadata for a specific version
+message ChartDetails {
+  optional string description = 1;
+
+  // The URL of this projects home page, e.g. "http://example.com"
+  optional string home = 2;
+
+  // List of maintainer details, name and email, e.g. ["John Doe <john_doe@my-company.com>"]
+  repeated string maintainers = 3;
 }
 
 // Cluster is the definition of a cluster resource
@@ -1004,6 +1021,14 @@ message KustomizeOptions {
 
   // BinaryPath holds optional path to kustomize binary
   optional string binaryPath = 2;
+}
+
+message KustomizeReplica {
+  // Name of Deployment or StatefulSet
+  optional string name = 1;
+
+  // Number of replicas
+  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString count = 2;
 }
 
 // ListGenerator include items info

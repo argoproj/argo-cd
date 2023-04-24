@@ -1502,6 +1502,51 @@
         }
       }
     },
+    "/api/v1/applications/{name}/revisions/{revision}/chartdetails": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Get the chart metadata (description, maintainers, home) for a specific revision of the application",
+        "operationId": "ApplicationService_RevisionChartDetails",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the application's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the revision of the app",
+            "name": "revision",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ChartDetails"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/revisions/{revision}/metadata": {
       "get": {
         "tags": [
@@ -6145,6 +6190,10 @@
             "type": "string"
           }
         },
+        "commonAnnotationsEnvsubst": {
+          "type": "boolean",
+          "title": "CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values"
+        },
         "commonLabels": {
           "type": "object",
           "title": "CommonLabels is a list of additional labels to add to rendered manifests",
@@ -6178,6 +6227,13 @@
         "namespace": {
           "type": "string",
           "title": "Namespace sets the namespace that Kustomize adds to all resources"
+        },
+        "replicas": {
+          "type": "array",
+          "title": "Replicas is a list of Kustomize Replicas override specifications",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KustomizeReplica"
+          }
         },
         "version": {
           "type": "string",
@@ -6426,6 +6482,26 @@
         "username": {
           "type": "string",
           "title": "Username for Basic auth"
+        }
+      }
+    },
+    "v1alpha1ChartDetails": {
+      "type": "object",
+      "title": "ChartDetails contains helm chart metadata for a specific version",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "home": {
+          "type": "string",
+          "title": "The URL of this projects home page, e.g. \"http://example.com\""
+        },
+        "maintainers": {
+          "type": "array",
+          "title": "List of maintainer details, name and email, e.g. [\"John Doe <john_doe@my-company.com>\"]",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -7008,6 +7084,18 @@
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
+        }
+      }
+    },
+    "v1alpha1KustomizeReplica": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "$ref": "#/definitions/intstrIntOrString"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name of Deployment or StatefulSet"
         }
       }
     },
