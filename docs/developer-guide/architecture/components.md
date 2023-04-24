@@ -104,6 +104,9 @@ the reconciliation loop.
 As a gitops tool Argo CD requires that the desired state of the
 Kubernetes resources to be provided in a Git repository.
 
+We use "git" here to stand in for an actual git repo, a Helm repo,
+or an OCI artifact repo. Argo CD supports all those options.
+
 ### Dex
 
 Argo CD relies on Dex to provide authentication with external OIDC
