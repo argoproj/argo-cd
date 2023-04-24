@@ -7148,6 +7148,14 @@
         }
       }
     },
+    "v1alpha1KustomizationConfig": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1KustomizeOptions": {
       "type": "object",
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
@@ -8464,6 +8472,20 @@
         }
       }
     },
+    "v1alpha1SecretReferece": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1SignatureKey": {
       "type": "object",
       "title": "SignatureKey is the specification of a key required to verify commit signatures with",
@@ -8783,6 +8805,45 @@
         "updateStrategy": {
           "type": "string",
           "title": "UpdateStrategy determines common strategy that Image Updater will use to find new versions of all application image to be updated\nDefault strategy is \"semver\"\n+optional"
+        },
+        "writeBackConfig": {
+          "$ref": "#/definitions/v1alpha1WriteBackConfig"
+        }
+      }
+    },
+    "v1alpha1WriteBackConfig": {
+      "type": "object",
+      "title": "WriteBackConfig holds configuration to write back image updates to source",
+      "properties": {
+        "baseBranch": {
+          "type": "string",
+          "title": "BaseBranch specifies the branch to checkout and commit to if different from revision tracked in application spec\n+optional"
+        },
+        "commitBranch": {
+          "type": "string",
+          "title": "CommitBranch specifies the branch to commit to if there is need for separate read/write branches. Supports templating\n+optional"
+        },
+        "kustomization": {
+          "$ref": "#/definitions/v1alpha1KustomizationConfig"
+        },
+        "method": {
+          "type": "string",
+          "title": "Method is the write back method to be used by Image Updater\nDefault method is \"argocd\"\n+optional"
+        },
+        "path": {
+          "type": "string",
+          "title": "Path is a directory path within the Git repository that would contain the target file to be written/updated if Application is configured with multiple sources\n+optional"
+        },
+        "repoURL": {
+          "type": "string",
+          "title": "RepoURL is the URL to the repository (Git or Helm) that should be commited back to if Application is configured with multiple sources\n+optional"
+        },
+        "secret": {
+          "$ref": "#/definitions/v1alpha1SecretReferece"
+        },
+        "target": {
+          "type": "string",
+          "title": "Target determins the target file Image Updater writes back to\nDefault target is \"default\"\n+optional"
         }
       }
     },

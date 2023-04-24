@@ -320,6 +320,9 @@ type Updates struct {
 	// PullSecret allows configuration of a common pull secret to be used to pull all application images
 	// +optional
 	PullSecret *PullSecret `json:"pullSecret,omitempty" protobuf:"bytes,6,opt,name=pullSecret"`
+	// WriteBackConfig holds configuration to write back image updates to source
+	// +optional
+	WriteBackConfig *WriteBackConfig `json:"writeBackConfig,omitempty" protobuf:"bytes,7,opt,name=writeBackConfig"`
 }
 
 // ImageList contains a list of image specific configurations

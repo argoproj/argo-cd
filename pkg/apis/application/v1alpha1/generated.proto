@@ -2244,6 +2244,10 @@ message Updates {
   // PullSecret allows configuration of a common pull secret to be used to pull all application images
   // +optional
   optional PullSecret pullSecret = 6;
+
+  // WriteBackConfig holds configuration to write back image updates to source
+  // +optional
+  optional WriteBackConfig writeBackConfig = 7;
 }
 
 // WriteBackConfig holds configuration to write back image updates to source

@@ -4209,6 +4209,11 @@ func (in *Updates) DeepCopyInto(out *Updates) {
 		*out = new(PullSecret)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.WriteBackConfig != nil {
+		in, out := &in.WriteBackConfig, &out.WriteBackConfig
+		*out = new(WriteBackConfig)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

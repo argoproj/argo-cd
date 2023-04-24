@@ -230,6 +230,38 @@ spec:
                                           type: object
                                         updateStrategy:
                                           type: string
+                                        writeBackConfig:
+                                          properties:
+                                            baseBranch:
+                                              type: string
+                                            commitBranch:
+                                              type: string
+                                            kustomization:
+                                              properties:
+                                                path:
+                                                  type: string
+                                              type: object
+                                            method:
+                                              type: string
+                                            path:
+                                              type: string
+                                            repoURL:
+                                              type: string
+                                            secret:
+                                              properties:
+                                                field:
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            target:
+                                              type: string
+                                          type: object
                                       required:
                                       - imageList
                                       type: object
@@ -854,6 +886,38 @@ spec:
                                           type: object
                                         updateStrategy:
                                           type: string
+                                        writeBackConfig:
+                                          properties:
+                                            baseBranch:
+                                              type: string
+                                            commitBranch:
+                                              type: string
+                                            kustomization:
+                                              properties:
+                                                path:
+                                                  type: string
+                                              type: object
+                                            method:
+                                              type: string
+                                            path:
+                                              type: string
+                                            repoURL:
+                                              type: string
+                                            secret:
+                                              properties:
+                                                field:
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            target:
+                                              type: string
+                                          type: object
                                       required:
                                       - imageList
                                       type: object
@@ -1482,6 +1546,38 @@ spec:
                                           type: object
                                         updateStrategy:
                                           type: string
+                                        writeBackConfig:
+                                          properties:
+                                            baseBranch:
+                                              type: string
+                                            commitBranch:
+                                              type: string
+                                            kustomization:
+                                              properties:
+                                                path:
+                                                  type: string
+                                              type: object
+                                            method:
+                                              type: string
+                                            path:
+                                              type: string
+                                            repoURL:
+                                              type: string
+                                            secret:
+                                              properties:
+                                                field:
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            target:
+                                              type: string
+                                          type: object
                                       required:
                                       - imageList
                                       type: object
@@ -2086,6 +2182,38 @@ spec:
                                           type: object
                                         updateStrategy:
                                           type: string
+                                        writeBackConfig:
+                                          properties:
+                                            baseBranch:
+                                              type: string
+                                            commitBranch:
+                                              type: string
+                                            kustomization:
+                                              properties:
+                                                path:
+                                                  type: string
+                                              type: object
+                                            method:
+                                              type: string
+                                            path:
+                                              type: string
+                                            repoURL:
+                                              type: string
+                                            secret:
+                                              properties:
+                                                field:
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            target:
+                                              type: string
+                                          type: object
                                       required:
                                       - imageList
                                       type: object
@@ -2718,6 +2846,38 @@ spec:
                                                     type: object
                                                   updateStrategy:
                                                     type: string
+                                                  writeBackConfig:
+                                                    properties:
+                                                      baseBranch:
+                                                        type: string
+                                                      commitBranch:
+                                                        type: string
+                                                      kustomization:
+                                                        properties:
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      method:
+                                                        type: string
+                                                      path:
+                                                        type: string
+                                                      repoURL:
+                                                        type: string
+                                                      secret:
+                                                        properties:
+                                                          field:
+                                                            type: string
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      target:
+                                                        type: string
+                                                    type: object
                                                 required:
                                                 - imageList
                                                 type: object
@@ -3342,6 +3502,38 @@ spec:
                                                     type: object
                                                   updateStrategy:
                                                     type: string
+                                                  writeBackConfig:
+                                                    properties:
+                                                      baseBranch:
+                                                        type: string
+                                                      commitBranch:
+                                                        type: string
+                                                      kustomization:
+                                                        properties:
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      method:
+                                                        type: string
+                                                      path:
+                                                        type: string
+                                                      repoURL:
+                                                        type: string
+                                                      secret:
+                                                        properties:
+                                                          field:
+                                                            type: string
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      target:
+                                                        type: string
+                                                    type: object
                                                 required:
                                                 - imageList
                                                 type: object
@@ -3970,6 +4162,38 @@ spec:
                                                     type: object
                                                   updateStrategy:
                                                     type: string
+                                                  writeBackConfig:
+                                                    properties:
+                                                      baseBranch:
+                                                        type: string
+                                                      commitBranch:
+                                                        type: string
+                                                      kustomization:
+                                                        properties:
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      method:
+                                                        type: string
+                                                      path:
+                                                        type: string
+                                                      repoURL:
+                                                        type: string
+                                                      secret:
+                                                        properties:
+                                                          field:
+                                                            type: string
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      target:
+                                                        type: string
+                                                    type: object
                                                 required:
                                                 - imageList
                                                 type: object
@@ -4574,6 +4798,38 @@ spec:
                                                     type: object
                                                   updateStrategy:
                                                     type: string
+                                                  writeBackConfig:
+                                                    properties:
+                                                      baseBranch:
+                                                        type: string
+                                                      commitBranch:
+                                                        type: string
+                                                      kustomization:
+                                                        properties:
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      method:
+                                                        type: string
+                                                      path:
+                                                        type: string
+                                                      repoURL:
+                                                        type: string
+                                                      secret:
+                                                        properties:
+                                                          field:
+                                                            type: string
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      target:
+                                                        type: string
+                                                    type: object
                                                 required:
                                                 - imageList
                                                 type: object
@@ -5294,6 +5550,38 @@ spec:
                                                     type: object
                                                   updateStrategy:
                                                     type: string
+                                                  writeBackConfig:
+                                                    properties:
+                                                      baseBranch:
+                                                        type: string
+                                                      commitBranch:
+                                                        type: string
+                                                      kustomization:
+                                                        properties:
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      method:
+                                                        type: string
+                                                      path:
+                                                        type: string
+                                                      repoURL:
+                                                        type: string
+                                                      secret:
+                                                        properties:
+                                                          field:
+                                                            type: string
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      target:
+                                                        type: string
+                                                    type: object
                                                 required:
                                                 - imageList
                                                 type: object
@@ -6061,6 +6349,38 @@ spec:
                                                     type: object
                                                   updateStrategy:
                                                     type: string
+                                                  writeBackConfig:
+                                                    properties:
+                                                      baseBranch:
+                                                        type: string
+                                                      commitBranch:
+                                                        type: string
+                                                      kustomization:
+                                                        properties:
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      method:
+                                                        type: string
+                                                      path:
+                                                        type: string
+                                                      repoURL:
+                                                        type: string
+                                                      secret:
+                                                        properties:
+                                                          field:
+                                                            type: string
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      target:
+                                                        type: string
+                                                    type: object
                                                 required:
                                                 - imageList
                                                 type: object
@@ -6679,6 +6999,38 @@ spec:
                                           type: object
                                         updateStrategy:
                                           type: string
+                                        writeBackConfig:
+                                          properties:
+                                            baseBranch:
+                                              type: string
+                                            commitBranch:
+                                              type: string
+                                            kustomization:
+                                              properties:
+                                                path:
+                                                  type: string
+                                              type: object
+                                            method:
+                                              type: string
+                                            path:
+                                              type: string
+                                            repoURL:
+                                              type: string
+                                            secret:
+                                              properties:
+                                                field:
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            target:
+                                              type: string
+                                          type: object
                                       required:
                                       - imageList
                                       type: object
@@ -7311,6 +7663,38 @@ spec:
                                                     type: object
                                                   updateStrategy:
                                                     type: string
+                                                  writeBackConfig:
+                                                    properties:
+                                                      baseBranch:
+                                                        type: string
+                                                      commitBranch:
+                                                        type: string
+                                                      kustomization:
+                                                        properties:
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      method:
+                                                        type: string
+                                                      path:
+                                                        type: string
+                                                      repoURL:
+                                                        type: string
+                                                      secret:
+                                                        properties:
+                                                          field:
+                                                            type: string
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      target:
+                                                        type: string
+                                                    type: object
                                                 required:
                                                 - imageList
                                                 type: object
@@ -7935,6 +8319,38 @@ spec:
                                                     type: object
                                                   updateStrategy:
                                                     type: string
+                                                  writeBackConfig:
+                                                    properties:
+                                                      baseBranch:
+                                                        type: string
+                                                      commitBranch:
+                                                        type: string
+                                                      kustomization:
+                                                        properties:
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      method:
+                                                        type: string
+                                                      path:
+                                                        type: string
+                                                      repoURL:
+                                                        type: string
+                                                      secret:
+                                                        properties:
+                                                          field:
+                                                            type: string
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      target:
+                                                        type: string
+                                                    type: object
                                                 required:
                                                 - imageList
                                                 type: object
@@ -8563,6 +8979,38 @@ spec:
                                                     type: object
                                                   updateStrategy:
                                                     type: string
+                                                  writeBackConfig:
+                                                    properties:
+                                                      baseBranch:
+                                                        type: string
+                                                      commitBranch:
+                                                        type: string
+                                                      kustomization:
+                                                        properties:
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      method:
+                                                        type: string
+                                                      path:
+                                                        type: string
+                                                      repoURL:
+                                                        type: string
+                                                      secret:
+                                                        properties:
+                                                          field:
+                                                            type: string
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      target:
+                                                        type: string
+                                                    type: object
                                                 required:
                                                 - imageList
                                                 type: object
@@ -9167,6 +9615,38 @@ spec:
                                                     type: object
                                                   updateStrategy:
                                                     type: string
+                                                  writeBackConfig:
+                                                    properties:
+                                                      baseBranch:
+                                                        type: string
+                                                      commitBranch:
+                                                        type: string
+                                                      kustomization:
+                                                        properties:
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      method:
+                                                        type: string
+                                                      path:
+                                                        type: string
+                                                      repoURL:
+                                                        type: string
+                                                      secret:
+                                                        properties:
+                                                          field:
+                                                            type: string
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      target:
+                                                        type: string
+                                                    type: object
                                                 required:
                                                 - imageList
                                                 type: object
@@ -9887,6 +10367,38 @@ spec:
                                                     type: object
                                                   updateStrategy:
                                                     type: string
+                                                  writeBackConfig:
+                                                    properties:
+                                                      baseBranch:
+                                                        type: string
+                                                      commitBranch:
+                                                        type: string
+                                                      kustomization:
+                                                        properties:
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      method:
+                                                        type: string
+                                                      path:
+                                                        type: string
+                                                      repoURL:
+                                                        type: string
+                                                      secret:
+                                                        properties:
+                                                          field:
+                                                            type: string
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      target:
+                                                        type: string
+                                                    type: object
                                                 required:
                                                 - imageList
                                                 type: object
@@ -10654,6 +11166,38 @@ spec:
                                                     type: object
                                                   updateStrategy:
                                                     type: string
+                                                  writeBackConfig:
+                                                    properties:
+                                                      baseBranch:
+                                                        type: string
+                                                      commitBranch:
+                                                        type: string
+                                                      kustomization:
+                                                        properties:
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      method:
+                                                        type: string
+                                                      path:
+                                                        type: string
+                                                      repoURL:
+                                                        type: string
+                                                      secret:
+                                                        properties:
+                                                          field:
+                                                            type: string
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      target:
+                                                        type: string
+                                                    type: object
                                                 required:
                                                 - imageList
                                                 type: object
@@ -11276,6 +11820,38 @@ spec:
                                           type: object
                                         updateStrategy:
                                           type: string
+                                        writeBackConfig:
+                                          properties:
+                                            baseBranch:
+                                              type: string
+                                            commitBranch:
+                                              type: string
+                                            kustomization:
+                                              properties:
+                                                path:
+                                                  type: string
+                                              type: object
+                                            method:
+                                              type: string
+                                            path:
+                                              type: string
+                                            repoURL:
+                                              type: string
+                                            secret:
+                                              properties:
+                                                field:
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            target:
+                                              type: string
+                                          type: object
                                       required:
                                       - imageList
                                       type: object
@@ -11993,6 +12569,38 @@ spec:
                                           type: object
                                         updateStrategy:
                                           type: string
+                                        writeBackConfig:
+                                          properties:
+                                            baseBranch:
+                                              type: string
+                                            commitBranch:
+                                              type: string
+                                            kustomization:
+                                              properties:
+                                                path:
+                                                  type: string
+                                              type: object
+                                            method:
+                                              type: string
+                                            path:
+                                              type: string
+                                            repoURL:
+                                              type: string
+                                            secret:
+                                              properties:
+                                                field:
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            target:
+                                              type: string
+                                          type: object
                                       required:
                                       - imageList
                                       type: object
@@ -12760,6 +13368,38 @@ spec:
                                           type: object
                                         updateStrategy:
                                           type: string
+                                        writeBackConfig:
+                                          properties:
+                                            baseBranch:
+                                              type: string
+                                            commitBranch:
+                                              type: string
+                                            kustomization:
+                                              properties:
+                                                path:
+                                                  type: string
+                                              type: object
+                                            method:
+                                              type: string
+                                            path:
+                                              type: string
+                                            repoURL:
+                                              type: string
+                                            secret:
+                                              properties:
+                                                field:
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            target:
+                                              type: string
+                                          type: object
                                       required:
                                       - imageList
                                       type: object
@@ -13423,6 +14063,38 @@ spec:
                                 type: object
                               updateStrategy:
                                 type: string
+                              writeBackConfig:
+                                properties:
+                                  baseBranch:
+                                    type: string
+                                  commitBranch:
+                                    type: string
+                                  kustomization:
+                                    properties:
+                                      path:
+                                        type: string
+                                    type: object
+                                  method:
+                                    type: string
+                                  path:
+                                    type: string
+                                  repoURL:
+                                    type: string
+                                  secret:
+                                    properties:
+                                      field:
+                                        type: string
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - name
+                                    - namespace
+                                    type: object
+                                  target:
+                                    type: string
+                                type: object
                             required:
                             - imageList
                             type: object

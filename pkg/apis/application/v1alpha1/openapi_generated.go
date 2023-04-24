@@ -7545,12 +7545,18 @@ func schema_pkg_apis_application_v1alpha1_Updates(ref common.ReferenceCallback) 
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret"),
 						},
 					},
+					"writeBackConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "WriteBackConfig holds configuration to write back image updates to source",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.WriteBackConfig"),
+						},
+					},
 				},
 				Required: []string{"imageList"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AllowTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.IgnoreTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ImageConfiguration", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AllowTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.IgnoreTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ImageConfiguration", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.WriteBackConfig"},
 	}
 }
 
