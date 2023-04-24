@@ -11,7 +11,7 @@ to have the following benefits:
   also possible to run the system without certain components if a
   specific group of functionality isn't desired.
 - **Single responsibility**: Helps to determine where the different
-  types of functionality should be implementation which drives for
+  types of functionality should be implemented which drives for
   better system cohesiveness.
 - **Reusability**: Clearly defined interfaces helps in functionality
   discoverability which benefits reusability of services.
