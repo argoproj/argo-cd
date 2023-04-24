@@ -14,7 +14,7 @@ if obj.status ~= nil then
   end
 
   if obj.status.state == "paused" then
-    hs.status = "Degraded"
+    hs.status = "Unknown"
     hs.message = "Cluster is paused"
     return hs
   end
@@ -33,6 +33,6 @@ if obj.status ~= nil then
 
 end
 
-hs.status = "Progressing"
-hs.message = "Waiting for cluster state"
+hs.status = "Unknown"
+hs.message = "Cluster status is unknown. Ensure your ArgoCD is current and then check for/file a bug report: https://github.com/argoproj/argo-cd/issues"
 return hs
