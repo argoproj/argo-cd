@@ -26,7 +26,7 @@ componentized architecture.
 
 ## Dependencies
 
-The diagram below have represented all dependencies between the
+The diagram below has represented all dependencies between the
 different components used by the default Argo CD installation:
 
 ![Components Diagram](../../assets/argocd-components.png)
