@@ -57,6 +57,8 @@ data:
   controller.resource.health.persist: "true"
   # Cache expiration default (default 24h0m0s)
   controller.default.cache.expiration: "24h0m0s"
+  # Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.
+  controller.kubectl.parallelism.limit: "20"
 
   ## Server properties
   # Run server without TLS

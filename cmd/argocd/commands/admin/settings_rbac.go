@@ -292,11 +292,9 @@ func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string, string) {
 	if !ok {
 		userPolicy = ""
 	}
-	if defaultRole == "" {
-		defaultRole, ok = cm.Data[rbac.ConfigMapPolicyDefaultKey]
-		if !ok {
-			defaultRole = ""
-		}
+	defaultRole, ok = cm.Data[rbac.ConfigMapPolicyDefaultKey]
+	if !ok {
+		defaultRole = ""
 	}
 
 	return userPolicy, defaultRole, cm.Data[rbac.ConfigMapMatchModeKey]
