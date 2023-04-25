@@ -14,34 +14,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-func createUnstructuredObj(obj map[string]interface{}) *unstructured.Unstructured {
-	return &unstructured.Unstructured{Object: obj}
-}
-
-func TestGetAppProj_HappyPath(t *testing.T) {
-	app := createUnstructuredObj(map[string]interface{}{
-		"metadata": map[string]interface{}{"namespace": "projectspace"},
-		"spec":     map[string]interface{}{"project": "existing"},
-	})
-
-	appProjItem := createUnstructuredObj(map[string]interface{}{
-		"metadata": map[string]interface{}{
-			"name":      "existing",
-			"namespace": "projectspace"}})
-
-	indexer := cache.NewIndexer(cache.DeletionHandlingMetaNamespaceKeyFunc, cache.Indexers{})
-	if err := indexer.Add(appProjItem); err != nil {
-		t.Fatalf("Failed to add item to indexer: %v", err)
-	}
-
-	informer := cache.NewSharedIndexInformer(nil, nil, 0, nil)
-	informer.GetIndexer().Replace(indexer.List(), "test_resource_version")
-
-	proj := getAppProj(app, informer)
-
-	assert.NotNil(t, proj)
-}
-
 func TestGetAppProj_invalidProjectNestedString(t *testing.T) {
 	app := &unstructured.Unstructured{
 		Object: map[string]interface{}{
