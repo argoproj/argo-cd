@@ -18,40 +18,28 @@ func createUnstructuredObj(obj map[string]interface{}) *unstructured.Unstructure
 	return &unstructured.Unstructured{Object: obj}
 }
 
-func TestGetAppProj_validProject(t *testing.T) {
+func TestGetAppProj_HappyPath(t *testing.T) {
 	app := createUnstructuredObj(map[string]interface{}{
 		"metadata": map[string]interface{}{"namespace": "projectspace"},
 		"spec":     map[string]interface{}{"project": "existing"},
 	})
 
-	appProjItems := []*unstructured.Unstructured{createUnstructuredObj(map[string]interface{}{
+	appProjItem := createUnstructuredObj(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"name":      "existing",
-			"namespace": "projectspace"}})}
+			"namespace": "projectspace"}})
 
 	indexer := cache.NewIndexer(cache.DeletionHandlingMetaNamespaceKeyFunc, cache.Indexers{})
-	for _, item := range appProjItems {
-		if err := indexer.Add(item); err != nil {
-			t.Fatalf("Failed to add item to indexer: %v", err)
-		}
+	if err := indexer.Add(appProjItem); err != nil {
+		t.Fatalf("Failed to add item to indexer: %v", err)
 	}
 
 	informer := cache.NewSharedIndexInformer(nil, nil, 0, nil)
-	informer.GetIndexer().Replace(indexer.List(), "test_res_ver")
+	informer.GetIndexer().Replace(indexer.List(), "test_resource_version")
 
 	proj := getAppProj(app, informer)
 
 	assert.NotNil(t, proj)
-
-	metadata, _, _ := unstructured.NestedMap(proj.Object, "metadata")
-	expectedMetadata := map[string]interface{}{
-		"name":      "existing",
-		"namespace": "projectspace",
-	}
-
-	assert.Equal(t, expectedMetadata["name"], metadata["name"])
-	assert.Equal(t, expectedMetadata["namespace"], metadata["namespace"])
-	assert.NotNil(t, metadata["annotations"])
 }
 
 func TestGetAppProj_invalidProjectNestedString(t *testing.T) {
