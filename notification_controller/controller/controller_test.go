@@ -7,10 +7,24 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
 )
+
+func TestGetAppProj_invalidProjectNestedString(t *testing.T) {
+	app := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"spec": map[string]interface{}{},
+		},
+	}
+	informer := cache.NewSharedIndexInformer(nil, nil, 0, nil)
+	proj := getAppProj(app, informer)
+
+	assert.Nil(t, proj)
+}
 
 func TestInit(t *testing.T) {
 	scheme := runtime.NewScheme()
