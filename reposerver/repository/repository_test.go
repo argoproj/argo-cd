@@ -2772,3 +2772,11 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		})
 	}
 }
+
+func Test_getRepoSanitizerRegex(t *testing.T) {
+	r := getRepoSanitizerRegex("/tmp/_argocd-repo")
+	msg := r.ReplaceAllString("error message containing /tmp/_argocd-repo/SENSITIVE and other stuff", "<path to cached source>")
+	assert.Equal(t, "error message containing <path to cached source> and other stuff", msg)
+	msg = r.ReplaceAllString("error message containing /tmp/_argocd-repo/SENSITIVE/with/trailing/path and other stuff", "<path to cached source>")
+	assert.Equal(t, "error message containing <path to cached source>/with/trailing/path and other stuff", msg)
+}
