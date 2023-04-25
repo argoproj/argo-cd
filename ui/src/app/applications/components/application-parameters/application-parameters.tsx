@@ -319,7 +319,7 @@ export const ApplicationParameters = (props: {
             const liveParam = app.spec.source.plugin?.parameters?.find(param => param.name === name);
             const pluginIcon =
                 announcement && liveParam ? 'This parameter has been provided by plugin, but is overridden in application manifest.' : 'This parameter is provided by the plugin.';
-            const isPluginPar = announcement ? true : false;
+            const isPluginPar = !!announcement;
             if ((announcement?.collectionType === undefined && liveParam?.map) || announcement?.collectionType === 'map') {
                 let liveParamMap;
                 if (liveParam) {
@@ -351,7 +351,7 @@ export const ApplicationParameters = (props: {
                         <FormField
                             field='spec.source.plugin.parameters'
                             componentProps={{
-                                name: announcement?.title ?? announcement?.name ?? name,
+                                name: announcement?.name ?? name,
                                 defaultVal: announcement?.map,
                                 isPluginPar,
                                 setAppParamsDeletedState
@@ -388,7 +388,7 @@ export const ApplicationParameters = (props: {
                         <FormField
                             field='spec.source.plugin.parameters'
                             componentProps={{
-                                name: announcement?.title ?? announcement?.name ?? name,
+                                name: announcement?.name ?? name,
                                 defaultVal: announcement?.array,
                                 isPluginPar,
                                 setAppParamsDeletedState
@@ -429,7 +429,7 @@ export const ApplicationParameters = (props: {
                         <FormField
                             field='spec.source.plugin.parameters'
                             componentProps={{
-                                name: announcement?.title ?? announcement?.name ?? name,
+                                name: announcement?.name ?? name,
                                 defaultVal: announcement?.string,
                                 isPluginPar,
                                 setAppParamsDeletedState
