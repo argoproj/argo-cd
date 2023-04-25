@@ -91,7 +91,9 @@ func TestGetAppProj(t *testing.T) {
 			informer := cache.NewSharedIndexInformer(nil, nil, 0, nil)
 			indexer := cache.NewIndexer(cache.DeletionHandlingMetaNamespaceKeyFunc, cache.Indexers{})
 			for _, item := range tc.appProjItems {
-				indexer.Add(item)
+				if err := indexer.Add(item); err != nil {
+					t.Fatalf("Failed to add item to indexer: %v", err)
+				}
 			}
 			informer.GetIndexer().Replace(indexer.List(), "test_res_ver")
 			proj := getAppProj(tc.app, informer)
