@@ -153,7 +153,7 @@ spec:
     # The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
     namespace: guestbook
     
-  # Extra information to show in the ArgoCD Application details tab
+  # Extra information to show in the Argo CD Application details tab
   info:
     - name: 'Example:'
       value: 'https://example.com'
