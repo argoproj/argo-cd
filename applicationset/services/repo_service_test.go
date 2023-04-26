@@ -85,11 +85,10 @@ func TestGetDirectories(t *testing.T) {
 			}
 
 			a := &argoCDService{
-				repositoriesDB:   mockDb,
-				storecreds:       tt.fields.storecreds,
-				submoduleEnabled: tt.fields.submoduleEnabled,
-				repoServerClient: mockRepoClient,
-				closer:           tt.fields.closer,
+				repositoriesDB:      mockDb,
+				storecreds:          tt.fields.storecreds,
+				submoduleEnabled:    tt.fields.submoduleEnabled,
+				repoServerClientSet: &repo_mocks.Clientset{RepoServerServiceClient: mockRepoClient},
 			}
 			got, err := a.GetDirectories(tt.args.ctx, tt.args.repoURL, tt.args.revision)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetDirectories(%v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision)) {
@@ -174,11 +173,10 @@ func TestGetFiles(t *testing.T) {
 			}
 
 			a := &argoCDService{
-				repositoriesDB:   mockDb,
-				storecreds:       tt.fields.storecreds,
-				submoduleEnabled: tt.fields.submoduleEnabled,
-				repoServerClient: mockRepoClient,
-				closer:           tt.fields.closer,
+				repositoriesDB:      mockDb,
+				storecreds:          tt.fields.storecreds,
+				submoduleEnabled:    tt.fields.submoduleEnabled,
+				repoServerClientSet: &repo_mocks.Clientset{RepoServerServiceClient: mockRepoClient},
 			}
 			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern)) {
@@ -193,5 +191,4 @@ func TestNewArgoCDService(t *testing.T) {
 	service, err := NewArgoCDService(&db_mocks.ArgoDB{}, git.NoopCredsStore{}, false, &repo_mocks.Clientset{})
 	assert.NoError(t, err, err)
 	assert.NotNil(t, service)
-	service.Close()
 }
