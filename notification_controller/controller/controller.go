@@ -136,14 +136,12 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 }
 
 type notificationController struct {
-	namespace             string
-	applicationNamespaces []string
-	apiFactory            api.Factory
-	ctrl                  controller.NotificationController
-	appInformer           cache.SharedIndexInformer
-	appProjInformer       cache.SharedIndexInformer
-	secretInformer        cache.SharedIndexInformer
-	configMapInformer     cache.SharedIndexInformer
+	apiFactory        api.Factory
+	ctrl              controller.NotificationController
+	appInformer       cache.SharedIndexInformer
+	appProjInformer   cache.SharedIndexInformer
+	secretInformer    cache.SharedIndexInformer
+	configMapInformer cache.SharedIndexInformer
 }
 
 func (c *notificationController) Init(ctx context.Context) error {
