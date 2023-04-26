@@ -19,11 +19,10 @@ type RepositoryDB interface {
 }
 
 type argoCDService struct {
-	repositoriesDB   RepositoryDB
-	storecreds       git.CredsStore
-	submoduleEnabled bool
-	repoServerClient apiclient.RepoServerServiceClient
-	closer           io.Closer
+	repositoriesDB      RepositoryDB
+	storecreds          git.CredsStore
+	submoduleEnabled    bool
+	repoServerClientSet repoapiclient.Clientset
 }
 
 type Repos interface {
@@ -33,29 +32,21 @@ type Repos interface {
 
 	// GetDirectories returns a list of directories (not files) within the target repo
 	GetDirectories(ctx context.Context, repoURL string, revision string) ([]string, error)
-
-	// Close any open connections
-	Close()
 }
 
 func NewArgoCDService(db db.ArgoDB, gitCredStore git.CredsStore, submoduleEnabled bool, repoClientset repoapiclient.Clientset) (Repos, error) {
-	closer, repoClient, err := repoClientset.NewRepoServerClient()
-	if err != nil {
-		return nil, err
-	}
 	return &argoCDService{
-		repositoriesDB:   db.(RepositoryDB),
-		storecreds:       gitCredStore,
-		submoduleEnabled: submoduleEnabled,
-		repoServerClient: repoClient,
-		closer:           closer,
+		repositoriesDB:      db.(RepositoryDB),
+		storecreds:          gitCredStore,
+		submoduleEnabled:    submoduleEnabled,
+		repoServerClientSet: repoClientset,
 	}, nil
 }
 
 func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision string, pattern string) (map[string][]byte, error) {
 	repo, err := a.repositoriesDB.GetRepository(ctx, repoURL)
 	if err != nil {
-		return nil, fmt.Errorf("Error in GetRepository: %w", err)
+		return nil, fmt.Errorf("error in GetRepository: %w", err)
 	}
 
 	fileRequest := &apiclient.GitFilesRequest{
@@ -64,8 +55,13 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision s
 		Revision:         revision,
 		Path:             pattern,
 	}
+	closer, client, err := a.repoServerClientSet.NewRepoServerClient()
+	if err != nil {
+		return nil, err
+	}
+	defer io.Close(closer)
 
-	fileResponse, err := a.repoServerClient.GetGitFiles(ctx, fileRequest)
+	fileResponse, err := client.GetGitFiles(ctx, fileRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +69,6 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision s
 }
 
 func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revision string) ([]string, error) {
-
 	repo, err := a.repositoriesDB.GetRepository(ctx, repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("error in GetRepository: %w", err)
@@ -85,14 +80,16 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revi
 		Revision:         revision,
 	}
 
-	dirResponse, err := a.repoServerClient.GetGitDirectories(ctx, dirRequest)
+	closer, client, err := a.repoServerClientSet.NewRepoServerClient()
+	if err != nil {
+		return nil, err
+	}
+	defer io.Close(closer)
+
+	dirResponse, err := client.GetGitDirectories(ctx, dirRequest)
 	if err != nil {
 		return nil, err
 	}
 	return dirResponse.GetPaths(), nil
 
-}
-
-func (a *argoCDService) Close() {
-	io.Close(a.closer)
 }
