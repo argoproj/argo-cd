@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -13,6 +14,79 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 )
+
+func TestIsAppSyncStatusRefreshed(t *testing.T) {
+	logger, _ := test.NewNullLogger()
+	logEntry := logger.WithField("", "")
+
+	tests := []struct {
+		name          string
+		app           *unstructured.Unstructured
+		expectedValue bool
+	}{
+		{
+			name: "No OperationState",
+			app: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"status": map[string]interface{}{},
+				},
+			},
+			expectedValue: true,
+		},
+		{
+			name: "No FinishedAt, Completed Phase",
+			app: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"status": map[string]interface{}{
+						"operationState": map[string]interface{}{
+							"phase": "Succeeded",
+						},
+					},
+				},
+			},
+			expectedValue: false,
+		},
+		{
+			name: "FinishedAt After ReconciledAt & ObservedAt",
+			app: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"status": map[string]interface{}{
+						"operationState": map[string]interface{}{
+							"finishedAt": "2021-01-01T01:05:00Z",
+							"phase":      "Succeeded",
+						},
+						"reconciledAt": "2021-01-01T01:02:00Z",
+						"observedAt":   "2021-01-01T01:04:00Z",
+					},
+				},
+			},
+			expectedValue: false,
+		},
+		{
+			name: "FinishedAt Before ReconciledAt & ObservedAt",
+			app: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"status": map[string]interface{}{
+						"operationState": map[string]interface{}{
+							"finishedAt": "2021-01-01T01:02:00Z",
+							"phase":      "Succeeded",
+						},
+						"reconciledAt": "2021-01-01T01:04:00Z",
+						"observedAt":   "2021-01-01T01:06:00Z",
+					},
+				},
+			},
+			expectedValue: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actualValue := isAppSyncStatusRefreshed(test.app, logEntry)
+			assert.Equal(t, test.expectedValue, actualValue)
+		})
+	}
+}
 
 func TestGetAppProj_invalidProjectNestedString(t *testing.T) {
 	app := &unstructured.Unstructured{
