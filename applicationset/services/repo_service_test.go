@@ -10,7 +10,6 @@ import (
 	repo_mocks "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	db_mocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/argo-cd/v2/util/git"
-	utils "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -24,7 +23,6 @@ func TestGetDirectories(t *testing.T) {
 		storecreds            git.CredsStore
 		submoduleEnabled      bool
 		repoServerClientFuncs []func(*repo_mocks.RepoServerServiceClient)
-		closer                utils.Closer
 	}
 	type args struct {
 		ctx      context.Context
@@ -105,7 +103,6 @@ func TestGetFiles(t *testing.T) {
 		storecreds            git.CredsStore
 		submoduleEnabled      bool
 		repoServerClientFuncs []func(*repo_mocks.RepoServerServiceClient)
-		closer                utils.Closer
 	}
 	type args struct {
 		ctx      context.Context
