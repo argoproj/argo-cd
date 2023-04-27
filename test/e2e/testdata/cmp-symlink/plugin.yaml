@@ -8,7 +8,3 @@ spec:
     command: [kustomize, version]
   generate:
     command: [sh, -c, 'kustomize build --load-restrictor LoadRestrictionsNone']
-#  discover:
-#    find:
-#      command: [sh, -c, find . -name kustomization.yaml]
-#      glob: "**/kustomization.yaml"
