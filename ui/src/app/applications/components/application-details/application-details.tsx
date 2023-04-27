@@ -352,7 +352,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         toolbar={{
                                             breadcrumbs: [
                                                 {title: 'Applications', path: '/applications'},
-                                                {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />},
+                                                {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
                                             ],
                                             actionMenu: {items: this.getApplicationActionMenu(application, true)},
                                             tools: (
@@ -404,7 +404,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             ))}
                                                     </div>
                                                 </React.Fragment>
-                                            ),
+                                            )
                                         }}>
                                         <div className='application-details__status-panel'>
                                             <ApplicationStatusPanel
@@ -441,7 +441,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             <i
                                                                 className={classNames({
                                                                     'fa fa-align-right': this.state.truncateNameOnRight,
-                                                                    'fa fa-align-left': !this.state.truncateNameOnRight,
+                                                                    'fa fa-align-left': !this.state.truncateNameOnRight
                                                                 })}
                                                             />
                                                         </a>
