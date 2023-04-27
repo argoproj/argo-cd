@@ -1918,7 +1918,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	}
 
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, pluginName, env, tarExcludedGlobs)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, repoPath, pluginName, env, tarExcludedGlobs)
 	if err != nil {
 		return nil, err
 	}
@@ -2169,7 +2169,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 		pluginName = q.Source.Plugin.Name
 	}
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, pluginName, env, tarExcludedGlobs)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, repoPath, pluginName, env, tarExcludedGlobs)
 	if err != nil {
 		return fmt.Errorf("failed to detect CMP for app: %w", err)
 	}
