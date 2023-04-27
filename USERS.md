@@ -196,6 +196,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Polarpoint.io](https://polarpoint.io)
 1. [PostFinance](https://github.com/postfinance)
 1. [Preferred Networks](https://preferred.jp/en/)
+1. [Previder BV](https://previder.nl)
 1. [Productboard](https://www.productboard.com/)
 1. [Prudential](https://prudential.com.sg)
 1. [PUBG](https://www.pubg.com)
