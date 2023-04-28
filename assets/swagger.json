@@ -7406,6 +7406,9 @@
       "description": "PullRequestGenerator defines a generator that scrapes a PullRequest API to find candidate pull requests.",
       "type": "object",
       "properties": {
+        "azuredevops": {
+          "$ref": "#/definitions/v1alpha1PullRequestGeneratorAzureDevOps"
+        },
         "bitbucketServer": {
           "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucketServer"
         },
@@ -7432,6 +7435,38 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        }
+      }
+    },
+    "v1alpha1PullRequestGeneratorAzureDevOps": {
+      "description": "PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.",
+      "type": "object",
+      "properties": {
+        "api": {
+          "description": "The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.",
+          "type": "string"
+        },
+        "labels": {
+          "type": "array",
+          "title": "Labels is used to filter the PRs that you want to target",
+          "items": {
+            "type": "string"
+          }
+        },
+        "organization": {
+          "description": "Azure DevOps org to scan. Required.",
+          "type": "string"
+        },
+        "project": {
+          "description": "Azure DevOps project name to scan. Required.",
+          "type": "string"
+        },
+        "repo": {
+          "description": "Azure DevOps repo name to scan. Required.",
+          "type": "string"
+        },
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
         }
       }
     },

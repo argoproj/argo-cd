@@ -180,6 +180,46 @@ If you want to access a private repository, you must also provide the credential
 * `username`: The username to authenticate with. It only needs read access to the relevant repo.
 * `passwordRef`: A `Secret` name and key containing the password or personal access token to use for requests.
 
+## Azure DevOps
+
+Specify the organization, project and repository from which you want to fetch pull requests.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+  - pullRequest:
+      azuredevops:
+        # Azure DevOps org to scan. Required.
+        organization: myorg
+        # Azure DevOps project name to scan. Required.
+        project: myproject
+        # Azure DevOps repo name to scan. Required.
+        repo: myrepository
+        # The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.
+        api: https://dev.azure.com/
+        # Reference to a Secret containing an access token. (optional)
+        tokenRef:
+          secretName: azure-devops-token
+          key: token
+        # Labels is used to filter the PRs that you want to target. (optional)
+        labels:
+        - preview
+      requeueAfterSeconds: 1800
+  template:
+  # ...
+```
+
+* `organization`: Required name of the Azure DevOps organization.
+* `project`: Required name of the Azure DevOps project.
+* `repo`: Required name of the Azure DevOps repository.
+* `api`: If using self-hosted Azure DevOps Repos, the URL to access it. (Optional)
+* `tokenRef`: A `Secret` name and key containing the Azure DevOps access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
+* `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
+
 ## Filters
 
 Filters allow selecting which pull requests to generate for. Each filter can declare one or more conditions, all of which must pass. If multiple filters are present, any can match for a repository to be included. If no filters are specified, all pull requests will be processed.

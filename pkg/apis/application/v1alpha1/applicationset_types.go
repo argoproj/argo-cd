@@ -491,6 +491,8 @@ type PullRequestGenerator struct {
 	// Standard parameters.
 	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,6,opt,name=requeueAfterSeconds"`
 	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,7,opt,name=template"`
+	// Additional provider to use and config for it.
+	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,8,opt,name=azuredevops"`
 }
 
 // PullRequestGenerator defines connection info specific to Gitea.
@@ -505,6 +507,22 @@ type PullRequestGeneratorGitea struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`
 	// Allow insecure tls, for self-signed certificates; default: false.
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+}
+
+// PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
+type PullRequestGeneratorAzureDevOps struct {
+	// Azure DevOps org to scan. Required.
+	Organization string `json:"organization" protobuf:"bytes,1,opt,name=organization"`
+	// Azure DevOps project name to scan. Required.
+	Project string `json:"project" protobuf:"bytes,2,opt,name=project"`
+	// Azure DevOps repo name to scan. Required.
+	Repo string `json:"repo" protobuf:"bytes,3,opt,name=repo"`
+	// The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.
+	API string `json:"api,omitempty" protobuf:"bytes,4,opt,name=api"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,5,opt,name=tokenRef"`
+	// Labels is used to filter the PRs that you want to target
+	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
 }
 
 // PullRequestGenerator defines connection info specific to GitHub.
