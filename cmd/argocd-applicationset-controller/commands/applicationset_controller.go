@@ -20,7 +20,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/webhook"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/github_app"
 
@@ -122,7 +121,6 @@ func NewCommand() *cobra.Command {
 			appSetConfig := appclientset.NewForConfigOrDie(mgr.GetConfig())
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
 
-			askPassServer := askpass.NewServer()
 			scmAuth := generators.SCMAuthProviders{
 				GitHubApps: github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)),
 			}
@@ -142,7 +140,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
-			argoCDService, err := services.NewArgoCDService(argoCDDB, askPassServer, getSubmoduleEnabled(), repoClientset)
+			argoCDService, err := services.NewArgoCDService(argoCDDB, getSubmoduleEnabled(), repoClientset)
 			errors.CheckError(err)
 
 			terminalGenerators := map[string]generators.Generator{
@@ -185,7 +183,6 @@ func NewCommand() *cobra.Command {
 				startWebhookServer(webhookHandler, webhookAddr)
 			}
 
-			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
 			if err = (&controllers.ApplicationSetReconciler{
 				Generators:             topLevelGenerators,
 				Client:                 mgr.GetClient(),

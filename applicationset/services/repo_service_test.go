@@ -185,7 +185,7 @@ func TestGetFiles(t *testing.T) {
 }
 
 func TestNewArgoCDService(t *testing.T) {
-	service, err := NewArgoCDService(&db_mocks.ArgoDB{}, git.NoopCredsStore{}, false, &repo_mocks.Clientset{})
+	service, err := NewArgoCDService(&db_mocks.ArgoDB{}, false, &repo_mocks.Clientset{})
 	assert.NoError(t, err, err)
 	assert.NotNil(t, service)
 }

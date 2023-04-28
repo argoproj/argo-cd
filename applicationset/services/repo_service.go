@@ -34,10 +34,9 @@ type Repos interface {
 	GetDirectories(ctx context.Context, repoURL string, revision string) ([]string, error)
 }
 
-func NewArgoCDService(db db.ArgoDB, gitCredStore git.CredsStore, submoduleEnabled bool, repoClientset repoapiclient.Clientset) (Repos, error) {
+func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset repoapiclient.Clientset) (Repos, error) {
 	return &argoCDService{
 		repositoriesDB:      db.(RepositoryDB),
-		storecreds:          gitCredStore,
 		submoduleEnabled:    submoduleEnabled,
 		repoServerClientSet: repoClientset,
 	}, nil
