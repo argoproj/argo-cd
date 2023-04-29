@@ -207,8 +207,21 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 	if err != nil {
 		return nil, fmt.Errorf("error listing apps with selectors: %w", err)
 	}
+
+	filteredApps := apps
+	// Filter applications by name
+	if q.Name != nil {
+		filteredApps = argoutil.FilterByNameP(filteredApps, *q.Name)
+	}
+
+	// Filter applications by projects
+	filteredApps = argoutil.FilterByProjectsP(filteredApps, getProjectsFromApplicationQuery(*q))
+
+	// Filter applications by source repo URL
+	filteredApps = argoutil.FilterByRepoP(filteredApps, q.GetRepo())
+
 	newItems := make([]appv1.Application, 0)
-	for _, a := range apps {
+	for _, a := range filteredApps {
 		// Skip any application that is neither in the control plane's namespace
 		// nor in the list of enabled namespaces.
 		if a.Namespace != s.ns && !glob.MatchStringInList(s.enabledNamespaces, a.Namespace, false) {
@@ -218,19 +231,6 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 			newItems = append(newItems, *a)
 		}
 	}
-
-	if q.Name != nil {
-		newItems, err = argoutil.FilterByName(newItems, *q.Name)
-		if err != nil {
-			return nil, fmt.Errorf("error filtering applications by name: %w", err)
-		}
-	}
-
-	// Filter applications by projects
-	newItems = argoutil.FilterByProjects(newItems, getProjectsFromApplicationQuery(*q))
-
-	// Filter applications by source repo URL
-	newItems = argoutil.FilterByRepo(newItems, q.GetRepo())
 
 	// Sort found applications by name
 	sort.Slice(newItems, func(i, j int) bool {
@@ -1363,6 +1363,36 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		Repo:           repo,
 		Revision:       q.GetRevision(),
 		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
+	})
+}
+
+// RevisionChartDetails returns the helm chart metadata, as fetched from the reposerver
+func (s *Server) RevisionChartDetails(ctx context.Context, q *application.RevisionMetadataQuery) (*appv1.ChartDetails, error) {
+	appName := q.GetName()
+	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
+	a, err := s.appLister.Applications(appNs).Get(appName)
+	if err != nil {
+		return nil, fmt.Errorf("error getting app by name: %w", err)
+	}
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
+		return nil, fmt.Errorf("error enforcing claims: %w", err)
+	}
+	if a.Spec.Source.Chart == "" {
+		return nil, fmt.Errorf("no chart found for application: %v", appName)
+	}
+	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
+	if err != nil {
+		return nil, fmt.Errorf("error getting repository by URL: %w", err)
+	}
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, fmt.Errorf("error creating repo server client: %w", err)
+	}
+	defer ioutil.Close(conn)
+	return repoClient.GetRevisionChartDetails(ctx, &apiclient.RepoServerRevisionChartDetailsRequest{
+		Repo:     repo,
+		Name:     a.Spec.Source.Chart,
+		Revision: q.GetRevision(),
 	})
 }
 

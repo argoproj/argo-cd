@@ -1067,12 +1067,12 @@ func TestFilterAppResources(t *testing.T) {
 		selectedResources []*argoappv1.SyncOperationResource
 		expectedResult    []*argoappv1.SyncOperationResource
 	}{
-		//--resource apps:ReplicaSet:replicaSet-name1 --resource *:Service:*
+		// --resource apps:ReplicaSet:replicaSet-name1 --resource *:Service:*
 		{testName: "Include ReplicaSet replicaSet-name1 resouce and all service resources",
 			selectedResources: []*argoappv1.SyncOperationResource{&includeAllServiceResources, &includeReplicaSet1Resource},
 			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1, &service1, &service2},
 		},
-		//--resource apps:ReplicaSet:replicaSet-name1 --resource !*:Service:*
+		// --resource apps:ReplicaSet:replicaSet-name1 --resource !*:Service:*
 		{testName: "Include ReplicaSet replicaSet-name1 resouce and exclude all service resources",
 			selectedResources: []*argoappv1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSet1Resource},
 			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
