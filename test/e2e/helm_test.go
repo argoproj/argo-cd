@@ -412,7 +412,7 @@ func TestHelmWithMultipleDependenciesPermissionDenied(t *testing.T) {
 		Create().
 		AddSource(RepoURL(RepoURLTypeFile))
 
-	expectedErr := fmt.Sprintf("helm repo https://localhost:9444/argo-e2e/testdata.git/helm-repo/local is not permitted in project '%s'", projName)
+	expectedErr := fmt.Sprintf("helm repos https://localhost:9444/argo-e2e/testdata.git/helm-repo/local are not permitted in project '%s'", projName)
 	GivenWithSameState(t).
 		Project(projName).
 		Path("helm-with-multiple-dependencies").

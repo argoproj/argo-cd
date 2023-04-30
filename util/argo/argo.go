@@ -699,7 +699,25 @@ func GetAppProject(app *argoappv1.Application, projLister applicationsv1.AppProj
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
-func verifyGenerateManifests(ctx context.Context, db db.ArgoDB, helmRepos argoappv1.Repositories, helmOptions *argoappv1.HelmOptions, name string, dest argoappv1.ApplicationDestination, proj *argoappv1.AppProject, sources []argoappv1.ApplicationSource, repoClient apiclient.RepoServerServiceClient, plugins []*argoappv1.ConfigManagementPlugin, kubeVersion string, apiVersions []string, repositoryCredentials []*argoappv1.RepoCreds, enableGenerateManifests map[string]bool, settingsMgr *settings.SettingsManager, hasMultipleSources bool, refSources argoappv1.RefTargetRevisionMapping) []argoappv1.ApplicationCondition {
+func verifyGenerateManifests(
+	ctx context.Context,
+	db db.ArgoDB,
+	helmRepos argoappv1.Repositories,
+	helmOptions *argoappv1.HelmOptions,
+	name string,
+	dest argoappv1.ApplicationDestination,
+	proj *argoappv1.AppProject,
+	sources []argoappv1.ApplicationSource,
+	repoClient apiclient.RepoServerServiceClient,
+	plugins []*argoappv1.ConfigManagementPlugin,
+	kubeVersion string,
+	apiVersions []string,
+	repositoryCredentials []*argoappv1.RepoCreds,
+	enableGenerateManifests map[string]bool,
+	settingsMgr *settings.SettingsManager,
+	hasMultipleSources bool,
+	refSources argoappv1.RefTargetRevisionMapping,
+) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
 	if dest.Server == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
