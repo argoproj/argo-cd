@@ -8657,6 +8657,9 @@
         "Compiler": {
           "type": "string"
         },
+        "ExtraBuildInfo": {
+          "type": "string"
+        },
         "GitCommit": {
           "type": "string"
         },
