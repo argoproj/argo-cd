@@ -21,7 +21,7 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-git/go-git/v5 v5.6.1
-	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/logr v1.2.4
 	github.com/go-openapi/loads v0.21.2
 	github.com/go-openapi/runtime v0.25.0
 	github.com/go-openapi/spec v0.20.6 // indirect
@@ -65,7 +65,7 @@ require (
 	github.com/soheilhy/cmux v0.1.5
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0
 	github.com/xanzy/go-gitlab v0.60.0
@@ -106,7 +106,7 @@ require (
 	github.com/gosimple/slug v1.13.1
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.31.0
-	go.opentelemetry.io/otel v1.11.1
+	go.opentelemetry.io/otel v1.15.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.11.1
 	go.opentelemetry.io/otel/sdk v1.11.1
 )
@@ -229,7 +229,7 @@ require (
 	go.mongodb.org/mongo-driver v1.10.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.11.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.11.1 // indirect
-	go.opentelemetry.io/otel/trace v1.11.1 // indirect
+	go.opentelemetry.io/otel/trace v1.15.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	golang.org/x/mod v0.7.0 // indirect
