@@ -155,6 +155,7 @@ nav:
   - user-guide/best_practices.md
   - user-guide/status-badge.md
   - user-guide/external-url.md
+  - user-guide/extra_info.md
   - Notification subscriptions: user-guide/subscriptions.md
   - Command Reference: user-guide/commands/argocd.md
 - Developer Guide:
