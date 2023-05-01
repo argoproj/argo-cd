@@ -56,7 +56,7 @@ metadata:
   name: argocd-styles-cm
 data:
   my-styles.css: |
-    .nav-bar {
+    .sidebar {
       background: linear-gradient(to bottom, #999, #777, #333, #222, #111);
     }
 ```
