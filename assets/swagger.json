@@ -401,6 +401,11 @@
             "type": "boolean",
             "name": "validate",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -462,6 +467,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -522,6 +532,11 @@
           {
             "type": "string",
             "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -649,6 +664,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -737,6 +757,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -772,6 +797,11 @@
           {
             "type": "string",
             "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -885,6 +915,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -935,6 +970,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -970,6 +1010,11 @@
           {
             "type": "string",
             "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -1084,6 +1129,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1153,6 +1203,11 @@
           {
             "type": "string",
             "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -1226,6 +1281,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1295,6 +1355,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1355,6 +1420,11 @@
           {
             "type": "string",
             "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -1423,6 +1493,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1484,6 +1559,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1529,6 +1609,11 @@
             "description": "the application's namespace.",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1573,6 +1658,11 @@
             "type": "string",
             "description": "the application's namespace.",
             "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -1662,6 +1752,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1736,6 +1831,11 @@
           {
             "type": "string",
             "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -3815,6 +3915,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3980,6 +4085,9 @@
         },
         "name": {
           "type": "string"
+        },
+        "project": {
+          "type": "string"
         }
       }
     },
@@ -4008,6 +4116,9 @@
           "type": "string"
         },
         "patchType": {
+          "type": "string"
+        },
+        "project": {
           "type": "string"
         }
       }
@@ -4039,6 +4150,9 @@
         "name": {
           "type": "string"
         },
+        "project": {
+          "type": "string"
+        },
         "prune": {
           "type": "boolean"
         }
@@ -4067,6 +4181,9 @@
           }
         },
         "name": {
+          "type": "string"
+        },
+        "project": {
           "type": "string"
         },
         "prune": {
