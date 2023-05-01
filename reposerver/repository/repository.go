@@ -2539,23 +2539,23 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	// check the cache and return the results if present
-	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision); err == nil {
-		log.Debugf("get git files cache hit for repo: %s revision: %s", repo.Repo, revision)
-		return &apiclient.GitFilesResponse{
-			Map: cachedFiles,
-		}, nil
-	}
-
-	// cache miss, generate the results
 	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
+	// check the cache and return the results if present
+	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision); err == nil {
+		log.Debugf("cache hit for repo: %s revision: %s", repo.Repo, revision)
+		return &apiclient.GitFilesResponse{
+			Map: cachedFiles,
+		}, nil
+	}
+
 	s.metricsServer.IncPendingRepoRequest(repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
+	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
 	})
@@ -2597,23 +2597,23 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	// check the cache and return the results if present
-	if cachedPaths, err := s.cache.GetGitDirectories(repo.Repo, revision); err == nil {
-		log.Debugf("get git dir cache hit for repo: %s revision: %s", repo.Repo, revision)
-		return &apiclient.GitDirectoriesResponse{
-			Paths: cachedPaths,
-		}, nil
-	}
-
-	// cache miss, generate the results
 	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
+	// check the cache and return the results if present
+	if cachedPaths, err := s.cache.GetGitDirectories(repo.Repo, revision); err == nil {
+		log.Debugf("cache hit for repo: %s revision: %s", repo.Repo, revision)
+		return &apiclient.GitDirectoriesResponse{
+			Paths: cachedPaths,
+		}, nil
+	}
+
 	s.metricsServer.IncPendingRepoRequest(repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
+	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
 	})
