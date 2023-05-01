@@ -1,0 +1,33 @@
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: contour-corp
+  labels:
+    app.kubernetes.io/instance: app
+    binding: app
+spec:
+  routes:
+    - 'adobe:perFilterConfig':
+        envoy.filters.http.header_size:
+          header_size:
+            max_bytes: 12288
+      conditions:
+        - prefix: /
+      healthCheckPolicy:
+        healthyThresholdCount: 1
+        intervalSeconds: 60
+        path: /healthz
+        timeoutSeconds: 5
+        unhealthyThresholdCount: 3
+      permitInsecure: true
+      services:
+        - name: ea9d7ab0e80ee
+          port: 8080
+          weight: 50
+      timeoutPolicy:
+        idle: 5m0s
+        response: 1m0s
+status:
+  currentStatus: valid
+  description: valid HTTPProxy
