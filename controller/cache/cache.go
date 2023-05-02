@@ -395,6 +395,11 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("error getting custom label: %w", err)
 	}
 
+	respectRBAC, err := c.settingsMgr.RespectRBAC()
+	if err != nil {
+		return nil, fmt.Errorf("error getting value for %v: %w", settings.RespectRBAC, err)
+	}
+
 	clusterCacheConfig := cluster.RESTConfig()
 	// Controller dynamically fetches all resource types available on the cluster
 	// using a discovery API that may contain deprecated APIs.
@@ -438,6 +443,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		}),
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
+		clustercache.SetRespectRBAC(respectRBAC),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)

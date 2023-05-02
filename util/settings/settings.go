@@ -482,6 +482,8 @@ const (
 	// ResourceDeepLinks is the resource deep link key
 	ResourceDeepLinks = "resource.links"
 	extensionConfig   = "extension.config"
+	// RespectRBAC is the key to configure argocd to respect rbac while watching for resources
+	RespectRBAC = "resource.respectRBAC"
 )
 
 var (
@@ -540,6 +542,18 @@ func (mgr *SettingsManager) onRepoOrClusterChanged() {
 	if mgr.reposOrClusterChanged != nil {
 		go mgr.reposOrClusterChanged()
 	}
+}
+
+func (mgr *SettingsManager) RespectRBAC() (bool, error) {
+	cm, err := mgr.getConfigMap()
+	if err != nil {
+		return false, err
+	}
+	if cm.Data[RespectRBAC] != "" {
+		val, _ := strconv.ParseBool(cm.Data[RespectRBAC])
+		return val, nil
+	}
+	return false, nil
 }
 
 func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
