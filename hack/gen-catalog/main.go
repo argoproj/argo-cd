@@ -150,7 +150,7 @@ func generateBuiltInTriggersDocs(out io.Writer, triggers map[string][]triggers.C
 }
 
 func generateCommandsDocs(out io.Writer) error {
-    // create parents so that CommandPath() is correctly resolved
+	// create parents so that CommandPath() is correctly resolved
 	mainCmd := &cobra.Command{Use: "argocd"}
 	adminCmd := &cobra.Command{Use: "admin"}
 	toolCmd := admin.NewNotificationsCommand()

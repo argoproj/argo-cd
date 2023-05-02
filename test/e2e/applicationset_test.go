@@ -18,6 +18,8 @@ import (
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 var (
@@ -143,12 +145,12 @@ func TestSimpleListGenerator(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -235,12 +237,12 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -328,12 +330,12 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
@@ -437,12 +439,12 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
@@ -548,12 +550,12 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
@@ -657,12 +659,12 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
@@ -1080,12 +1082,12 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "argo-cd-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -1153,12 +1155,12 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "argo-cd-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -1222,12 +1224,12 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 func TestCustomApplicationFinalizers(t *testing.T) {
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -1288,12 +1290,12 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -1388,12 +1390,12 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "guestbook-1",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -1463,12 +1465,12 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "guestbook-1",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			Labels:     map[string]string{"app": "preview"},
 		},
@@ -1539,12 +1541,12 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
@@ -1614,12 +1616,12 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
 			Spec: argov1alpha1.ApplicationSpec{

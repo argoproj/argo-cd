@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"testing"
@@ -380,7 +381,7 @@ func Test_getParametersAnnouncement_empty_command(t *testing.T) {
 		Command: []string{"echo"},
 		Args:    []string{`[]`},
 	}
-	res, err := getParametersAnnouncement(context.Background(), "", *static, command)
+	res, err := getParametersAnnouncement(context.Background(), "", *static, command, []*apiclient.EnvEntry{})
 	require.NoError(t, err)
 	assert.Equal(t, []*repoclient.ParameterAnnouncement{{Name: "static-a"}, {Name: "static-b"}}, res.ParameterAnnouncements)
 }
@@ -394,7 +395,7 @@ func Test_getParametersAnnouncement_no_command(t *testing.T) {
 	err := yaml.Unmarshal([]byte(staticYAML), static)
 	require.NoError(t, err)
 	command := Command{}
-	res, err := getParametersAnnouncement(context.Background(), "", *static, command)
+	res, err := getParametersAnnouncement(context.Background(), "", *static, command, []*apiclient.EnvEntry{})
 	require.NoError(t, err)
 	assert.Equal(t, []*repoclient.ParameterAnnouncement{{Name: "static-a"}, {Name: "static-b"}}, res.ParameterAnnouncements)
 }
@@ -411,7 +412,7 @@ func Test_getParametersAnnouncement_static_and_dynamic(t *testing.T) {
 		Command: []string{"echo"},
 		Args:    []string{`[{"name": "dynamic-a"}, {"name": "dynamic-b"}]`},
 	}
-	res, err := getParametersAnnouncement(context.Background(), "", *static, command)
+	res, err := getParametersAnnouncement(context.Background(), "", *static, command, []*apiclient.EnvEntry{})
 	require.NoError(t, err)
 	expected := []*repoclient.ParameterAnnouncement{
 		{Name: "dynamic-a"},
@@ -427,7 +428,7 @@ func Test_getParametersAnnouncement_invalid_json(t *testing.T) {
 		Command: []string{"echo"},
 		Args:    []string{`[`},
 	}
-	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command)
+	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unexpected end of JSON input")
 }
@@ -437,7 +438,7 @@ func Test_getParametersAnnouncement_bad_command(t *testing.T) {
 		Command: []string{"exit"},
 		Args:    []string{"1"},
 	}
-	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command)
+	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error executing dynamic parameter output command")
 }
@@ -729,16 +730,17 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("successful response", func(t *testing.T) {
-		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", nil)
+		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", []string{"MUST_BE_SET=yep"})
 		require.NoError(t, err)
 		err = service.GetParametersAnnouncement(s)
 		require.NoError(t, err)
 		require.NotNil(t, s.response)
-		require.Len(t, s.response.ParameterAnnouncements, 1)
-		assert.Equal(t, repoclient.ParameterAnnouncement{Name: "test-param", String_: "test-value"}, *s.response.ParameterAnnouncements[0])
+		require.Len(t, s.response.ParameterAnnouncements, 2)
+		assert.Equal(t, repoclient.ParameterAnnouncement{Name: "dynamic-test-param", String_: "yep"}, *s.response.ParameterAnnouncements[0])
+		assert.Equal(t, repoclient.ParameterAnnouncement{Name: "test-param", String_: "test-value"}, *s.response.ParameterAnnouncements[1])
 	})
 	t.Run("out of bounds app", func(t *testing.T) {
-		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", nil)
+		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", []string{"MUST_BE_SET=yep"})
 		require.NoError(t, err)
 		// set a malicious app path on the metadata
 		s.metadataRequest.Request.(*apiclient.AppStreamRequest_Metadata).Metadata.AppRelPath = "../out-of-bounds"
@@ -746,4 +748,38 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 		require.ErrorContains(t, err, "illegal appPath")
 		require.Nil(t, s.response)
 	})
+	t.Run("fails when script fails", func(t *testing.T) {
+		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", []string{"WRONG_ENV_VAR=oops"})
+		require.NoError(t, err)
+		err = service.GetParametersAnnouncement(s)
+		require.ErrorContains(t, err, "error executing dynamic parameter output command")
+		require.Nil(t, s.response)
+	})
+}
+
+func Test_getCommandArgsToLog(t *testing.T) {
+	testCases := []struct {
+		name     string
+		args     []string
+		expected string
+	}{
+		{
+			name:     "no spaces",
+			args:     []string{"sh", "-c", "cat"},
+			expected: "sh -c cat",
+		},
+		{
+			name:     "spaces",
+			args:     []string{"sh", "-c", `echo "hello world"`},
+			expected: `sh -c "echo \"hello world\""`,
+		},
+	}
+
+	for _, tc := range testCases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tcc.expected, getCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
+		})
+	}
 }

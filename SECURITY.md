@@ -1,6 +1,6 @@
 # Security Policy for Argo CD
 
-Version: **v1.4 (2022-01-23)**
+Version: **v1.5 (2023-03-06)**
 
 ## Preface
 
@@ -68,6 +68,20 @@ findings (unless you prefer to stay anonymous, of course).
 Please report vulnerabilities by e-mail to the following address:
 
 * cncf-argo-security@lists.cncf.io
+
+## Internet Bug Bounty collaboration
+
+We're happy to announce that the Argo project is collaborating with the great
+folks over at
+[Hacker One](https://hackerone.com/) and their
+[Internet Bug Bounty program](https://hackerone.com/ibb)
+to reward the awesome people who find security vulnerabilities in the four
+main Argo projects (CD, Events, Rollouts and Workflows) and then work with
+us to fix and disclose them in a responsible manner.
+
+If you report a vulnerability to us as outlined in this security policy, we
+will work together with you to find out whether your finding is eligible for
+claiming a bounty, and also on how to claim it.
 
 ## Securing your Argo CD Instance
 
