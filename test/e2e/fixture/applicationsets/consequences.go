@@ -3,8 +3,9 @@ package applicationsets
 import (
 	"context"
 	"encoding/json"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -79,11 +80,11 @@ func (c *Consequences) apps() []v1alpha1.Application {
 	if c.context.useExternalNamespace {
 		namespace = utils.ArgoCDExternalNamespace
 	} else {
-		namespace = utils.ArgoCDNamespace
+		namespace = fixture.TestNamespace()
 	}
 
 	fixtureClient := utils.GetE2EFixtureK8sClient()
-	list, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).List(context.Background(), metav1.ListOptions{})
+	list, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), metav1.ListOptions{})
 	errors.CheckError(err)
 
 	if list == nil {
