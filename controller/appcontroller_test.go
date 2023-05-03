@@ -1528,4 +1528,10 @@ func Test_syncDeleteOption(t *testing.T) {
 		delete := ctrl.shouldBeDeleted(app, cmObj)
 		assert.False(t, delete)
 	})
+	t.Run("with delete set to false object is retained", func(t *testing.T) {
+		cmObj := kube.MustToUnstructured(&cm)
+		cmObj.SetAnnotations(map[string]string{"helm.sh/resource-policy": "keep"})
+		delete := ctrl.shouldBeDeleted(app, cmObj)
+		assert.False(t, delete)
+	})
 }
