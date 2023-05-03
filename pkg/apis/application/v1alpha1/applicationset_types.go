@@ -183,8 +183,8 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 // ListGenerator include items info
 type ListGenerator struct {
 	Elements     []apiextensionsv1.JSON `json:"elements" protobuf:"bytes,1,name=elements"`
-	ElementsYaml string                 `json:"elementsYaml,omitempty" protobuf:"bytes,2,opt,name=elementsYaml"`
-	Template     ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,3,name=template"`
+	Template     ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
+	ElementsYaml string                 `json:"elementsYaml,omitempty" protobuf:"bytes,3,opt,name=elementsYaml"`
 }
 
 // MatrixGenerator generates the cartesian product of two sets of parameters. The parameters are defined by two nested
