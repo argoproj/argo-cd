@@ -140,11 +140,18 @@ spec:
           - linux/amd64
           - linux/arm64
 
-          # (optional) pull secret for image 
-          pullSecret: 
-            namespace: argocd
-            name: image-updater-pull-secret
-            field: pull-secret-creds
+          # (optional) pull credentials for image 
+          credentials:
+            # generic secret containing pull credentials in <username>:<password> format 
+            secret:
+              name: generic-secret
+              namespace: argocd
+              field: imagePullCreds
+            
+            # alternatively, use a docker pull secret containing valid Docker config in JSON format in the field .dockerconfigjson
+            pullSecret:
+              name: docker-pullsecret
+              namespace: argocd
             
             # alternatively, if using an env var instead of secrets
             env: DOCKER_HUB_CREDDS
@@ -178,12 +185,17 @@ spec:
             - <pattern 2>
       forceUpdate: true/false
       updateStrategy: semver/digest/lexical/most-recently-built      
-      pullSecret: 
-        namespace: <ns_name>
-        name: <secret_name>
-        field: <secret_field>
-        env: <VARIABLE_NAME>
-        ext: <path/to/script>
+      credentials:
+        secret:
+          name: generic-secret
+          namespace: argocd
+          field: imagePullCreds
+        pullSecret:
+          name: docker-pullsecret
+          namespace: argocd
+        env: DOCKER_HUB_CREDDS
+        ext: <path/to/script>        
+        credsExpire: <timestamp for when credentials expire>
       
       # (optional) configuration for application-wide write-back strategy. Default write back method is argocd 
       writeBack:
