@@ -5,6 +5,7 @@ import {useEffect, useRef, useState} from 'react';
 import {bufferTime, delay, filter as rxfilter, map, retryWhen, scan} from 'rxjs/operators';
 
 import * as models from '../../../shared/models';
+import {LogEntry} from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
 
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
@@ -26,7 +27,6 @@ import {SinceSecondsSelector} from './since-seconds-selector';
 import {TailSelector} from './tail-selector';
 import {PodNamesToggleButton} from './pod-names-toggle-button';
 import Ansi from 'ansi-to-react';
-import {LogEntry} from '../../../shared/models';
 
 export interface PodLogsProps {
     namespace: string;
@@ -210,11 +210,19 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                                 ? (lineNum === 0 || logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : ' '.repeat(log.timeStampStr.length)) + ' '
                                                 : '') +
                                             // show the log content, highlight the filter text
-                                            log.content.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
+                                            log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
+
+                                        // logs are in 14px wide fixed width font
+                                        const width =
+                                            14 *
+                                            logs
+                                                .map(renderLog)
+                                                .map(v => v.length)
+                                                .reduce((a, b) => Math.max(a, b));
 
                                         const rowRenderer = ({index, key, style}: {index: number; key: string; style: React.CSSProperties}) => {
                                             return (
-                                                <pre key={key} style={style}>
+                                                <pre key={key} style={style} className='noscroll'>
                                                     <Ansi>{renderLog(logs[index], index)}</Ansi>
                                                 </pre>
                                             );
@@ -229,7 +237,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                             <>
                                                 <AutoSizer>
                                                     {({height}: {width: number; height: number}) => (
-                                                        <List ref={list} rowCount={logs.length} rowRenderer={rowRenderer} width={4096} height={height - 20} rowHeight={20} />
+                                                        <List ref={list} rowCount={logs.length} rowRenderer={rowRenderer} width={width} height={height - 20} rowHeight={20} />
                                                     )}
                                                 </AutoSizer>
                                             </>
