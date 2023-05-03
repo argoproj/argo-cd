@@ -437,6 +437,8 @@ metadata:
   name: argocd-cm
 ---
 apiVersion: v1
+data:
+  redis.server: argocd-redis-ha-haproxy:6379
 kind: ConfigMap
 metadata:
   labels:
@@ -1579,6 +1581,18 @@ spec:
               key: applicationsetcontroller.enable.progressive.syncs
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.server.plaintext
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.server.strict.tls
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -1607,6 +1621,8 @@ spec:
           name: gpg-keyring
         - mountPath: /tmp
           name: tmp
+        - mountPath: /app/config/reposerver/tls
+          name: argocd-repo-server-tls
       serviceAccountName: argocd-applicationset-controller
       volumes:
       - configMap:
@@ -1622,6 +1638,17 @@ spec:
         name: gpg-keyring
       - emptyDir: {}
         name: tmp
+      - name: argocd-repo-server-tls
+        secret:
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: argocd-repo-server-tls
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -1817,7 +1844,7 @@ spec:
                 app.kubernetes.io/name: argocd-redis-ha-haproxy
             topologyKey: kubernetes.io/hostname
       containers:
-      - image: haproxy:2.6.9-alpine
+      - image: haproxy:2.6.12-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -1853,7 +1880,7 @@ spec:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: haproxy:2.6.9-alpine
+        image: haproxy:2.6.12-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -1919,9 +1946,12 @@ spec:
       containers:
       - args:
         - /usr/local/bin/argocd-repo-server
-        - --redis
-        - argocd-redis-ha-haproxy:6379
         env:
+        - name: ARGOCD_REDIS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.server
+              name: argocd-cmd-params-cm
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
@@ -2182,11 +2212,14 @@ spec:
       containers:
       - args:
         - /usr/local/bin/argocd-server
-        - --redis
-        - argocd-redis-ha-haproxy:6379
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: "2"
+        - name: ARGOCD_REDIS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.server
+              name: argocd-cmd-params-cm
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
             configMapKeyRef:
@@ -2490,9 +2523,12 @@ spec:
       containers:
       - args:
         - /usr/local/bin/argocd-application-controller
-        - --redis
-        - argocd-redis-ha-haproxy:6379
         env:
+        - name: ARGOCD_REDIS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.server
+              name: argocd-cmd-params-cm
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "1"
         - name: ARGOCD_RECONCILIATION_TIMEOUT
@@ -2698,7 +2734,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:7.0.9-alpine
+        image: redis:7.0.11-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -2751,7 +2787,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:7.0.9-alpine
+        image: redis:7.0.11-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -2803,7 +2839,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.9-alpine
+        image: redis:7.0.11-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -2832,7 +2868,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.9-alpine
+        image: redis:7.0.11-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -3048,6 +3084,9 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: argocd-notifications-controller
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-applicationset-controller
     ports:
     - port: 8081
       protocol: TCP

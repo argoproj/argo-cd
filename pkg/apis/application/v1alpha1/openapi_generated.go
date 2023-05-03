@@ -55,6 +55,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationWatchEvent":               schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Backoff":                             schema_pkg_apis_application_v1alpha1_Backoff(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer":            schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ChartDetails":                        schema_pkg_apis_application_v1alpha1_ChartDetails(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Cluster":                             schema_pkg_apis_application_v1alpha1_Cluster(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterCacheInfo":                    schema_pkg_apis_application_v1alpha1_ClusterCacheInfo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterConfig":                       schema_pkg_apis_application_v1alpha1_ClusterConfig(ref),
@@ -110,6 +111,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings":    schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OverrideIgnoreDiff":                  schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ProjectRole":                         schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullCredentials":                     schema_pkg_apis_application_v1alpha1_PullCredentials(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator":                schema_pkg_apis_application_v1alpha1_PullRequestGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorBitbucketServer": schema_pkg_apis_application_v1alpha1_PullRequestGeneratorBitbucketServer(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorFilter":          schema_pkg_apis_application_v1alpha1_PullRequestGeneratorFilter(ref),
@@ -2352,6 +2354,47 @@ func schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref common.Re
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_ChartDetails(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ChartDetails contains helm chart metadata for a specific version",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"home": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The URL of this projects home page, e.g. \"http://example.com\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"maintainers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of maintainer details, name and email, e.g. [\"John Doe <john_doe@my-company.com>\"]",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3626,10 +3669,10 @@ func schema_pkg_apis_application_v1alpha1_ImageConfiguration(ref common.Referenc
 							},
 						},
 					},
-					"pullSecret": {
+					"credentials": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PullSecret allows configuration of a pull secret to be used to pull target images",
-							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret"),
+							Description: "Credentials hold configuration of credentials to pull an image Can be either a secret, pullsecret, env var or external script",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullCredentials"),
 						},
 					},
 					"helm": {
@@ -3648,7 +3691,7 @@ func schema_pkg_apis_application_v1alpha1_ImageConfiguration(ref common.Referenc
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AllowTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameterConfig", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.IgnoreTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeParameterConfig", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AllowTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameterConfig", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.IgnoreTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeParameterConfig", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullCredentials"},
 	}
 }
 
@@ -3993,16 +4036,16 @@ func schema_pkg_apis_application_v1alpha1_ListGenerator(ref common.ReferenceCall
 							},
 						},
 					},
-					"elementsYaml": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
 					"template": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
+						},
+					},
+					"elementsYaml": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 				},
@@ -4607,6 +4650,52 @@ func schema_pkg_apis_application_v1alpha1_ProjectRole(ref common.ReferenceCallba
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_PullCredentials(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"secret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Refrences a secret containing credentials to pull target image",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"),
+						},
+					},
+					"pullSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Refrences a docker pullsecret to pull target image",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret"),
+						},
+					},
+					"env": {
+						SchemaProps: spec.SchemaProps{
+							Description: "References an environment variable for the secret",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"ext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "References an external script mounted to the Image Updater controller to generate credentials",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"credsExpire": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CredsExpire specifies a timestamp for when the pullsecret credentials expire",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_PullRequestGenerator(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4922,47 +5011,22 @@ func schema_pkg_apis_application_v1alpha1_PullSecret(ref common.ReferenceCallbac
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"namespace": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"field": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"env": {
-						SchemaProps: spec.SchemaProps{
-							Description: "References an environment variable for the secret",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"ext": {
-						SchemaProps: spec.SchemaProps{
-							Description: "References an external script mounted to the Image Updater controller to generate credentials",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"credsExpire": {
-						SchemaProps: spec.SchemaProps{
-							Description: "CredsExpire specifies a timestamp for when the pullsecret credentials expire",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 				},
+				Required: []string{"name", "namespace"},
 			},
 		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -7539,10 +7603,10 @@ func schema_pkg_apis_application_v1alpha1_Updates(ref common.ReferenceCallback) 
 							Format:      "",
 						},
 					},
-					"pullSecret": {
+					"credentials": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PullSecret allows configuration of a common pull secret to be used to pull all application images",
-							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret"),
+							Description: "Credentials hold configuration of credentials to pull an image Can be either a secret, pullsecret, env var or external script",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullCredentials"),
 						},
 					},
 					"writeBackConfig": {
@@ -7556,7 +7620,7 @@ func schema_pkg_apis_application_v1alpha1_Updates(ref common.ReferenceCallback) 
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AllowTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.IgnoreTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ImageConfiguration", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullSecret", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.WriteBackConfig"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AllowTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.IgnoreTags", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ImageConfiguration", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullCredentials", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.WriteBackConfig"},
 	}
 }
 

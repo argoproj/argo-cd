@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">April 2nd 2023, 12:20:37 am</p>
+                <p class="timestamp">April 16th 2023, 12:20:50 am</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -641,12 +641,12 @@
             </div>
         
         </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2023-0465</h2>
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Certificate Validation</h2>
             <div class="card__section">
         
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
                 </div>
         
                 <hr/>
@@ -778,7 +778,14 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine:3.17</code>.</em>
         <em>See <code>How to fix?</code> for <code>Alpine:3.17</code> relevant fixed versions and status.</em></p>
-        <p>Applications that use a non-default option when verifying certificates may be vulnerable to an attack from a malicious CA to circumvent certain checks. Invalid certificate policies in leaf certificates are silently ignored by OpenSSL and other certificate policy checks are skipped for that certificate. A malicious CA could use this to deliberately assert invalid certificate policies in order to circumvent policy checking on the certificate altogether. Policy processing is disabled by default but can be enabled by passing the <code>-policy&amp;#39; argument to the command line utilities or by calling the </code>X509_VERIFY_PARAM_set1_policies()&#39; function.</p>
+        <p>Applications that use a non-default option when verifying certificates may be
+        vulnerable to an attack from a malicious CA to circumvent certain checks.</p>
+        <p>Invalid certificate policies in leaf certificates are silently ignored by
+        OpenSSL and other certificate policy checks are skipped for that certificate.
+        A malicious CA could use this to deliberately assert invalid certificate policies
+        in order to circumvent policy checking on the certificate altogether.</p>
+        <p>Policy processing is disabled by default but can be enabled by passing
+        the <code>-policy&amp;#39; argument to the command line utilities or by calling the </code>X509_VERIFY_PARAM_set1_policies()&#39; function.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Alpine:3.17</code> <code>openssl</code> to version 3.0.8-r2 or higher.</p>
         <h2 id="references">References</h2>
@@ -788,6 +795,7 @@
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=b013765abfa80036dc779dd0e50602c57bb3bf95">openssl-security@openssl.org</a></li>
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=facfb1ab745646e97a1920977ae4a9965ea61d5c">openssl-security@openssl.org</a></li>
         <li><a href="https://www.openssl.org/news/secadv/20230328.txt">openssl-security@openssl.org</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20230414-0001/">openssl-security@openssl.org</a></li>
         </ul>
         
               <hr/>
@@ -797,12 +805,12 @@
             </div>
         
         </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2023-0466</h2>
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Certificate Validation</h2>
             <div class="card__section">
         
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
                 </div>
         
                 <hr/>
@@ -934,7 +942,20 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine:3.17</code>.</em>
         <em>See <code>How to fix?</code> for <code>Alpine:3.17</code> relevant fixed versions and status.</em></p>
-        <p>The function X509_VERIFY_PARAM_add0_policy() is documented to implicitly enable the certificate policy check when doing certificate verification. However the implementation of the function does not enable the check which allows certificates with invalid or incorrect policies to pass the certificate verification. As suddenly enabling the policy check could break existing deployments it was decided to keep the existing behavior of the X509_VERIFY_PARAM_add0_policy() function. Instead the applications that require OpenSSL to perform certificate policy check need to use X509_VERIFY_PARAM_set1_policies() or explicitly enable the policy check by calling X509_VERIFY_PARAM_set_flags() with the X509_V_FLAG_POLICY_CHECK flag argument. Certificate policy checks are disabled by default in OpenSSL and are not commonly used by applications.</p>
+        <p>The function X509_VERIFY_PARAM_add0_policy() is documented to
+        implicitly enable the certificate policy check when doing certificate
+        verification. However the implementation of the function does not
+        enable the check which allows certificates with invalid or incorrect
+        policies to pass the certificate verification.</p>
+        <p>As suddenly enabling the policy check could break existing deployments it was
+        decided to keep the existing behavior of the X509_VERIFY_PARAM_add0_policy()
+        function.</p>
+        <p>Instead the applications that require OpenSSL to perform certificate
+        policy check need to use X509_VERIFY_PARAM_set1_policies() or explicitly
+        enable the policy check by calling X509_VERIFY_PARAM_set_flags() with
+        the X509_V_FLAG_POLICY_CHECK flag argument.</p>
+        <p>Certificate policy checks are disabled by default in OpenSSL and are not
+        commonly used by applications.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Alpine:3.17</code> <code>openssl</code> to version 3.0.8-r3 or higher.</p>
         <h2 id="references">References</h2>
@@ -944,6 +965,7 @@
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=73398dea26de9899fb4baa94098ad0a61f435c72">openssl-security@openssl.org</a></li>
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=fc814a30fc4f0bc54fcea7d9a7462f5457aab061">openssl-security@openssl.org</a></li>
         <li><a href="https://www.openssl.org/news/secadv/20230328.txt">openssl-security@openssl.org</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20230414-0001/">openssl-security@openssl.org</a></li>
         </ul>
         
               <hr/>

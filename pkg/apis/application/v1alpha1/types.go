@@ -317,9 +317,10 @@ type Updates struct {
 	// Default strategy is "semver"
 	// +optional
 	UpdateStrategy *UpdateStrategy `json:"updateStrategy,omitempty" protobuf:"bytes,5,opt,name=updateStrategy"`
-	// PullSecret allows configuration of a common pull secret to be used to pull all application images
+	// Credentials hold configuration of credentials to pull an image
+	// Can be either a secret, pullsecret, env var or external script
 	// +optional
-	PullSecret *PullSecret `json:"pullSecret,omitempty" protobuf:"bytes,6,opt,name=pullSecret"`
+	Credentials *PullCredentials `json:"credentials,omitempty" protobuf:"bytes,8,opt,name=credentials"`
 	// WriteBackConfig holds configuration to write back image updates to source
 	// +optional
 	WriteBackConfig *WriteBackConfig `json:"writeBackConfig,omitempty" protobuf:"bytes,7,opt,name=writeBackConfig"`
@@ -349,9 +350,10 @@ type ImageConfiguration struct {
 	UpdateStrategy *UpdateStrategy `json:"updateStrategy,omitempty" protobuf:"bytes,6,opt,name=updateStrategy"`
 	// ImagePlatforms specifies a list of allowed architectures for a specific image
 	ImagePlatforms []string `json:"imagePlatforms,omitempty" protobuf:"bytes,7,opt,name=imagePlatforms"`
-	// PullSecret allows configuration of a pull secret to be used to pull target images
+	// Credentials hold configuration of credentials to pull an image
+	// Can be either a secret, pullsecret, env var or external script
 	// +optional
-	PullSecret *PullSecret `json:"pullSecret,omitempty" protobuf:"bytes,8,opt,name=pullSecret"`
+	Credentials *PullCredentials `json:"credentials,omitempty" protobuf:"bytes,8,opt,name=credentials"`
 	// Helm holds configurations related to helm parameters that will be written back to by Image Updater
 	// +optional
 	Helm *HelmParameterConfig `json:"helm,omitempty" protobuf:"bytes,9,opt,name=helm"`
@@ -398,22 +400,33 @@ type IgnoreTags struct {
 	MatchList []string `json:"matchList,omitempty" protobuf:"bytes,2,opt,name=matchList"`
 }
 
-type PullSecret struct {
+type PullCredentials struct {
+	// Refrences a secret containing credentials to pull target image
 	// +optional
-	Name *string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Secret *SecretRef `json:"secret,omitempty" protobuf:"bytes,6,opt,name=secret"`
+	// Refrences a docker pullsecret to pull target image
 	// +optional
-	Namespace *string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
-	// +optional
-	Field *string `json:"field,omitempty" protobuf:"bytes,3,opt,name=field"`
+	PullSecret *PullSecret `json:"pullSecret,omitempty" protobuf:"bytes,7,opt,name=pullSecret"`
 	// References an environment variable for the secret
 	// +optional
-	Env *string `json:"env,omitempty" protobuf:"bytes,4,opt,name=env"`
+	Env *string `json:"env,omitempty" protobuf:"bytes,3,opt,name=env"`
 	// References an external script mounted to the Image Updater controller to generate credentials
 	// +optional
-	Ext *string `json:"ext,omitempty" protobuf:"bytes,5,opt,name=ext"`
+	Ext *string `json:"ext,omitempty" protobuf:"bytes,4,opt,name=ext"`
 	// CredsExpire specifies a timestamp for when the pullsecret credentials expire
 	// +optional
-	CredsExpire *metav1.Time `json:"credsExpire,omitempty" protobuf:"bytes,6,opt,name=credsExpire"`
+	CredsExpire *metav1.Time `json:"credsExpire,omitempty" protobuf:"bytes,5,opt,name=credsExpire"`
+}
+
+type PullSecret struct {
+	Name      string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Namespace string `json:"namespace" protobuf:"bytes,2,opt,name=namespace"`
+}
+
+type SecretReferece struct {
+	Name      string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Namespace string `json:"namespace" protobuf:"bytes,2,opt,name=namespace"`
+	Field     string `json:"field,omitempty" protobuf:"bytes,3,opt,name=field"`
 }
 
 // HelmParameterConfig holds the names of helm parameters that Image Updater should set with appropriate/updated values in `.spec.source.helm.parameters`
@@ -433,12 +446,6 @@ type HelmParameterConfig struct {
 type KustomizeParameterConfig struct {
 	// Original image to be overridden through kustomize
 	ImageName string `json:"imageName,omitempty" protobuf:"bytes,1,opt,name=imageName"`
-}
-
-type SecretReferece struct {
-	Name      string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	Namespace string `json:"namespace" protobuf:"bytes,2,opt,name=namespace"`
-	Field     string `json:"field,omitempty" protobuf:"bytes,3,opt,name=field"`
 }
 
 type KustomizationConfig struct {
@@ -1415,6 +1422,15 @@ type RevisionMetadata struct {
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
+}
+
+// ChartDetails contains helm chart metadata for a specific version
+type ChartDetails struct {
+	Description string `json:"description,omitempty" protobuf:"bytes,1,opt,name=description"`
+	// The URL of this projects home page, e.g. "http://example.com"
+	Home string `json:"home,omitempty" protobuf:"bytes,2,opt,name=home"`
+	// List of maintainer details, name and email, e.g. ["John Doe <john_doe@my-company.com>"]
+	Maintainers []string `json:"maintainers,omitempty" protobuf:"bytes,3,opt,name=maintainers"`
 }
 
 // SyncOperationResult represent result of sync operation

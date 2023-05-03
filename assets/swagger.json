@@ -1502,6 +1502,51 @@
         }
       }
     },
+    "/api/v1/applications/{name}/revisions/{revision}/chartdetails": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Get the chart metadata (description, maintainers, home) for a specific revision of the application",
+        "operationId": "ApplicationService_RevisionChartDetails",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the application's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the revision of the app",
+            "name": "revision",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ChartDetails"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/revisions/{revision}/metadata": {
       "get": {
         "tags": [
@@ -6467,6 +6512,26 @@
         }
       }
     },
+    "v1alpha1ChartDetails": {
+      "type": "object",
+      "title": "ChartDetails contains helm chart metadata for a specific version",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "home": {
+          "type": "string",
+          "title": "The URL of this projects home page, e.g. \"http://example.com\""
+        },
+        "maintainers": {
+          "type": "array",
+          "title": "List of maintainer details, name and email, e.g. [\"John Doe <john_doe@my-company.com>\"]",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1Cluster": {
       "type": "object",
       "title": "Cluster is the definition of a cluster resource",
@@ -7009,6 +7074,9 @@
           "type": "string",
           "title": "Constraint holds semver constraints to be applied filtering through image tags\n+optional"
         },
+        "credentials": {
+          "$ref": "#/definitions/v1alpha1PullCredentials"
+        },
         "forceUpdate": {
           "type": "boolean",
           "title": "ForceUpdate determines if Image Updater should update images not exposed in Application status"
@@ -7032,9 +7100,6 @@
         },
         "kustomize": {
           "$ref": "#/definitions/v1alpha1KustomizeParameterConfig"
-        },
-        "pullSecret": {
-          "$ref": "#/definitions/v1alpha1PullSecret"
         },
         "updateStrategy": {
           "type": "string",
@@ -7424,6 +7489,28 @@
         }
       }
     },
+    "v1alpha1PullCredentials": {
+      "type": "object",
+      "properties": {
+        "credsExpire": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "env": {
+          "type": "string",
+          "title": "References an environment variable for the secret\n+optional"
+        },
+        "ext": {
+          "type": "string",
+          "title": "References an external script mounted to the Image Updater controller to generate credentials\n+optional"
+        },
+        "pullSecret": {
+          "$ref": "#/definitions/v1alpha1PullSecret"
+        },
+        "secret": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
     "v1alpha1PullRequestGenerator": {
       "description": "PullRequestGenerator defines a generator that scrapes a PullRequest API to find candidate pull requests.",
       "type": "object",
@@ -7575,28 +7662,11 @@
     "v1alpha1PullSecret": {
       "type": "object",
       "properties": {
-        "credsExpire": {
-          "$ref": "#/definitions/v1Time"
-        },
-        "env": {
-          "type": "string",
-          "title": "References an environment variable for the secret\n+optional"
-        },
-        "ext": {
-          "type": "string",
-          "title": "References an external script mounted to the Image Updater controller to generate credentials\n+optional"
-        },
-        "field": {
-          "type": "string",
-          "title": "+optional"
-        },
         "name": {
-          "type": "string",
-          "title": "+optional"
+          "type": "string"
         },
         "namespace": {
-          "type": "string",
-          "title": "+optional"
+          "type": "string"
         }
       }
     },
@@ -8785,6 +8855,9 @@
         "allowTags": {
           "$ref": "#/definitions/v1alpha1AllowTags"
         },
+        "credentials": {
+          "$ref": "#/definitions/v1alpha1PullCredentials"
+        },
         "forceUpdate": {
           "type": "boolean",
           "title": "ForceUpdate determines if Image Updater should force update all application images"
@@ -8798,9 +8871,6 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ImageConfiguration"
           }
-        },
-        "pullSecret": {
-          "$ref": "#/definitions/v1alpha1PullSecret"
         },
         "updateStrategy": {
           "type": "string",
@@ -8855,6 +8925,9 @@
           "type": "string"
         },
         "Compiler": {
+          "type": "string"
+        },
+        "ExtraBuildInfo": {
           "type": "string"
         },
         "GitCommit": {

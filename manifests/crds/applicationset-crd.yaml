@@ -136,6 +136,36 @@ spec:
                                             matchType:
                                               type: string
                                           type: object
+                                        credentials:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            pullSecret:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            secret:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                secretName:
+                                                  type: string
+                                              required:
+                                              - key
+                                              - secretName
+                                              type: object
+                                          type: object
                                         forceUpdate:
                                           type: boolean
                                         ignoreTags:
@@ -161,6 +191,36 @@ spec:
                                                 type: object
                                               constraint:
                                                 type: string
+                                              credentials:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  pullSecret:
+                                                    properties:
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    required:
+                                                    - name
+                                                    - namespace
+                                                    type: object
+                                                  secret:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      secretName:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - secretName
+                                                    type: object
+                                                type: object
                                               forceUpdate:
                                                 type: boolean
                                               helm:
@@ -192,42 +252,10 @@ spec:
                                                   imageName:
                                                     type: string
                                                 type: object
-                                              pullSecret:
-                                                properties:
-                                                  credsExpire:
-                                                    format: date-time
-                                                    type: string
-                                                  env:
-                                                    type: string
-                                                  ext:
-                                                    type: string
-                                                  field:
-                                                    type: string
-                                                  name:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
-                                                type: object
                                               updateStrategy:
                                                 type: string
                                             type: object
                                           type: array
-                                        pullSecret:
-                                          properties:
-                                            credsExpire:
-                                              format: date-time
-                                              type: string
-                                            env:
-                                              type: string
-                                            ext:
-                                              type: string
-                                            field:
-                                              type: string
-                                            name:
-                                              type: string
-                                            namespace:
-                                              type: string
-                                          type: object
                                         updateStrategy:
                                           type: string
                                         writeBackConfig:
@@ -792,6 +820,36 @@ spec:
                                             matchType:
                                               type: string
                                           type: object
+                                        credentials:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            pullSecret:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            secret:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                secretName:
+                                                  type: string
+                                              required:
+                                              - key
+                                              - secretName
+                                              type: object
+                                          type: object
                                         forceUpdate:
                                           type: boolean
                                         ignoreTags:
@@ -817,6 +875,36 @@ spec:
                                                 type: object
                                               constraint:
                                                 type: string
+                                              credentials:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  pullSecret:
+                                                    properties:
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    required:
+                                                    - name
+                                                    - namespace
+                                                    type: object
+                                                  secret:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      secretName:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - secretName
+                                                    type: object
+                                                type: object
                                               forceUpdate:
                                                 type: boolean
                                               helm:
@@ -848,42 +936,10 @@ spec:
                                                   imageName:
                                                     type: string
                                                 type: object
-                                              pullSecret:
-                                                properties:
-                                                  credsExpire:
-                                                    format: date-time
-                                                    type: string
-                                                  env:
-                                                    type: string
-                                                  ext:
-                                                    type: string
-                                                  field:
-                                                    type: string
-                                                  name:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
-                                                type: object
                                               updateStrategy:
                                                 type: string
                                             type: object
                                           type: array
-                                        pullSecret:
-                                          properties:
-                                            credsExpire:
-                                              format: date-time
-                                              type: string
-                                            env:
-                                              type: string
-                                            ext:
-                                              type: string
-                                            field:
-                                              type: string
-                                            name:
-                                              type: string
-                                            namespace:
-                                              type: string
-                                          type: object
                                         updateStrategy:
                                           type: string
                                         writeBackConfig:
@@ -1452,6 +1508,36 @@ spec:
                                             matchType:
                                               type: string
                                           type: object
+                                        credentials:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            pullSecret:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            secret:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                secretName:
+                                                  type: string
+                                              required:
+                                              - key
+                                              - secretName
+                                              type: object
+                                          type: object
                                         forceUpdate:
                                           type: boolean
                                         ignoreTags:
@@ -1477,6 +1563,36 @@ spec:
                                                 type: object
                                               constraint:
                                                 type: string
+                                              credentials:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  pullSecret:
+                                                    properties:
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    required:
+                                                    - name
+                                                    - namespace
+                                                    type: object
+                                                  secret:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      secretName:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - secretName
+                                                    type: object
+                                                type: object
                                               forceUpdate:
                                                 type: boolean
                                               helm:
@@ -1508,42 +1624,10 @@ spec:
                                                   imageName:
                                                     type: string
                                                 type: object
-                                              pullSecret:
-                                                properties:
-                                                  credsExpire:
-                                                    format: date-time
-                                                    type: string
-                                                  env:
-                                                    type: string
-                                                  ext:
-                                                    type: string
-                                                  field:
-                                                    type: string
-                                                  name:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
-                                                type: object
                                               updateStrategy:
                                                 type: string
                                             type: object
                                           type: array
-                                        pullSecret:
-                                          properties:
-                                            credsExpire:
-                                              format: date-time
-                                              type: string
-                                            env:
-                                              type: string
-                                            ext:
-                                              type: string
-                                            field:
-                                              type: string
-                                            name:
-                                              type: string
-                                            namespace:
-                                              type: string
-                                          type: object
                                         updateStrategy:
                                           type: string
                                         writeBackConfig:
@@ -2088,6 +2172,36 @@ spec:
                                             matchType:
                                               type: string
                                           type: object
+                                        credentials:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            pullSecret:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            secret:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                secretName:
+                                                  type: string
+                                              required:
+                                              - key
+                                              - secretName
+                                              type: object
+                                          type: object
                                         forceUpdate:
                                           type: boolean
                                         ignoreTags:
@@ -2113,6 +2227,36 @@ spec:
                                                 type: object
                                               constraint:
                                                 type: string
+                                              credentials:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  pullSecret:
+                                                    properties:
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    required:
+                                                    - name
+                                                    - namespace
+                                                    type: object
+                                                  secret:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      secretName:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - secretName
+                                                    type: object
+                                                type: object
                                               forceUpdate:
                                                 type: boolean
                                               helm:
@@ -2144,42 +2288,10 @@ spec:
                                                   imageName:
                                                     type: string
                                                 type: object
-                                              pullSecret:
-                                                properties:
-                                                  credsExpire:
-                                                    format: date-time
-                                                    type: string
-                                                  env:
-                                                    type: string
-                                                  ext:
-                                                    type: string
-                                                  field:
-                                                    type: string
-                                                  name:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
-                                                type: object
                                               updateStrategy:
                                                 type: string
                                             type: object
                                           type: array
-                                        pullSecret:
-                                          properties:
-                                            credsExpire:
-                                              format: date-time
-                                              type: string
-                                            env:
-                                              type: string
-                                            ext:
-                                              type: string
-                                            field:
-                                              type: string
-                                            name:
-                                              type: string
-                                            namespace:
-                                              type: string
-                                          type: object
                                         updateStrategy:
                                           type: string
                                         writeBackConfig:
@@ -2752,6 +2864,36 @@ spec:
                                                       matchType:
                                                         type: string
                                                     type: object
+                                                  credentials:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      pullSecret:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      secret:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          secretName:
+                                                            type: string
+                                                        required:
+                                                        - key
+                                                        - secretName
+                                                        type: object
+                                                    type: object
                                                   forceUpdate:
                                                     type: boolean
                                                   ignoreTags:
@@ -2777,6 +2919,36 @@ spec:
                                                           type: object
                                                         constraint:
                                                           type: string
+                                                        credentials:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            pullSecret:
+                                                              properties:
+                                                                name:
+                                                                  type: string
+                                                                namespace:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - namespace
+                                                              type: object
+                                                            secret:
+                                                              properties:
+                                                                key:
+                                                                  type: string
+                                                                secretName:
+                                                                  type: string
+                                                              required:
+                                                              - key
+                                                              - secretName
+                                                              type: object
+                                                          type: object
                                                         forceUpdate:
                                                           type: boolean
                                                         helm:
@@ -2808,42 +2980,10 @@ spec:
                                                             imageName:
                                                               type: string
                                                           type: object
-                                                        pullSecret:
-                                                          properties:
-                                                            credsExpire:
-                                                              format: date-time
-                                                              type: string
-                                                            env:
-                                                              type: string
-                                                            ext:
-                                                              type: string
-                                                            field:
-                                                              type: string
-                                                            name:
-                                                              type: string
-                                                            namespace:
-                                                              type: string
-                                                          type: object
                                                         updateStrategy:
                                                           type: string
                                                       type: object
                                                     type: array
-                                                  pullSecret:
-                                                    properties:
-                                                      credsExpire:
-                                                        format: date-time
-                                                        type: string
-                                                      env:
-                                                        type: string
-                                                      ext:
-                                                        type: string
-                                                      field:
-                                                        type: string
-                                                      name:
-                                                        type: string
-                                                      namespace:
-                                                        type: string
-                                                    type: object
                                                   updateStrategy:
                                                     type: string
                                                   writeBackConfig:
@@ -3408,6 +3548,36 @@ spec:
                                                       matchType:
                                                         type: string
                                                     type: object
+                                                  credentials:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      pullSecret:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      secret:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          secretName:
+                                                            type: string
+                                                        required:
+                                                        - key
+                                                        - secretName
+                                                        type: object
+                                                    type: object
                                                   forceUpdate:
                                                     type: boolean
                                                   ignoreTags:
@@ -3433,6 +3603,36 @@ spec:
                                                           type: object
                                                         constraint:
                                                           type: string
+                                                        credentials:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            pullSecret:
+                                                              properties:
+                                                                name:
+                                                                  type: string
+                                                                namespace:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - namespace
+                                                              type: object
+                                                            secret:
+                                                              properties:
+                                                                key:
+                                                                  type: string
+                                                                secretName:
+                                                                  type: string
+                                                              required:
+                                                              - key
+                                                              - secretName
+                                                              type: object
+                                                          type: object
                                                         forceUpdate:
                                                           type: boolean
                                                         helm:
@@ -3464,42 +3664,10 @@ spec:
                                                             imageName:
                                                               type: string
                                                           type: object
-                                                        pullSecret:
-                                                          properties:
-                                                            credsExpire:
-                                                              format: date-time
-                                                              type: string
-                                                            env:
-                                                              type: string
-                                                            ext:
-                                                              type: string
-                                                            field:
-                                                              type: string
-                                                            name:
-                                                              type: string
-                                                            namespace:
-                                                              type: string
-                                                          type: object
                                                         updateStrategy:
                                                           type: string
                                                       type: object
                                                     type: array
-                                                  pullSecret:
-                                                    properties:
-                                                      credsExpire:
-                                                        format: date-time
-                                                        type: string
-                                                      env:
-                                                        type: string
-                                                      ext:
-                                                        type: string
-                                                      field:
-                                                        type: string
-                                                      name:
-                                                        type: string
-                                                      namespace:
-                                                        type: string
-                                                    type: object
                                                   updateStrategy:
                                                     type: string
                                                   writeBackConfig:
@@ -4068,6 +4236,36 @@ spec:
                                                       matchType:
                                                         type: string
                                                     type: object
+                                                  credentials:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      pullSecret:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      secret:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          secretName:
+                                                            type: string
+                                                        required:
+                                                        - key
+                                                        - secretName
+                                                        type: object
+                                                    type: object
                                                   forceUpdate:
                                                     type: boolean
                                                   ignoreTags:
@@ -4093,6 +4291,36 @@ spec:
                                                           type: object
                                                         constraint:
                                                           type: string
+                                                        credentials:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            pullSecret:
+                                                              properties:
+                                                                name:
+                                                                  type: string
+                                                                namespace:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - namespace
+                                                              type: object
+                                                            secret:
+                                                              properties:
+                                                                key:
+                                                                  type: string
+                                                                secretName:
+                                                                  type: string
+                                                              required:
+                                                              - key
+                                                              - secretName
+                                                              type: object
+                                                          type: object
                                                         forceUpdate:
                                                           type: boolean
                                                         helm:
@@ -4124,42 +4352,10 @@ spec:
                                                             imageName:
                                                               type: string
                                                           type: object
-                                                        pullSecret:
-                                                          properties:
-                                                            credsExpire:
-                                                              format: date-time
-                                                              type: string
-                                                            env:
-                                                              type: string
-                                                            ext:
-                                                              type: string
-                                                            field:
-                                                              type: string
-                                                            name:
-                                                              type: string
-                                                            namespace:
-                                                              type: string
-                                                          type: object
                                                         updateStrategy:
                                                           type: string
                                                       type: object
                                                     type: array
-                                                  pullSecret:
-                                                    properties:
-                                                      credsExpire:
-                                                        format: date-time
-                                                        type: string
-                                                      env:
-                                                        type: string
-                                                      ext:
-                                                        type: string
-                                                      field:
-                                                        type: string
-                                                      name:
-                                                        type: string
-                                                      namespace:
-                                                        type: string
-                                                    type: object
                                                   updateStrategy:
                                                     type: string
                                                   writeBackConfig:
@@ -4704,6 +4900,36 @@ spec:
                                                       matchType:
                                                         type: string
                                                     type: object
+                                                  credentials:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      pullSecret:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      secret:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          secretName:
+                                                            type: string
+                                                        required:
+                                                        - key
+                                                        - secretName
+                                                        type: object
+                                                    type: object
                                                   forceUpdate:
                                                     type: boolean
                                                   ignoreTags:
@@ -4729,6 +4955,36 @@ spec:
                                                           type: object
                                                         constraint:
                                                           type: string
+                                                        credentials:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            pullSecret:
+                                                              properties:
+                                                                name:
+                                                                  type: string
+                                                                namespace:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - namespace
+                                                              type: object
+                                                            secret:
+                                                              properties:
+                                                                key:
+                                                                  type: string
+                                                                secretName:
+                                                                  type: string
+                                                              required:
+                                                              - key
+                                                              - secretName
+                                                              type: object
+                                                          type: object
                                                         forceUpdate:
                                                           type: boolean
                                                         helm:
@@ -4760,42 +5016,10 @@ spec:
                                                             imageName:
                                                               type: string
                                                           type: object
-                                                        pullSecret:
-                                                          properties:
-                                                            credsExpire:
-                                                              format: date-time
-                                                              type: string
-                                                            env:
-                                                              type: string
-                                                            ext:
-                                                              type: string
-                                                            field:
-                                                              type: string
-                                                            name:
-                                                              type: string
-                                                            namespace:
-                                                              type: string
-                                                          type: object
                                                         updateStrategy:
                                                           type: string
                                                       type: object
                                                     type: array
-                                                  pullSecret:
-                                                    properties:
-                                                      credsExpire:
-                                                        format: date-time
-                                                        type: string
-                                                      env:
-                                                        type: string
-                                                      ext:
-                                                        type: string
-                                                      field:
-                                                        type: string
-                                                      name:
-                                                        type: string
-                                                      namespace:
-                                                        type: string
-                                                    type: object
                                                   updateStrategy:
                                                     type: string
                                                   writeBackConfig:
@@ -5456,6 +5680,36 @@ spec:
                                                       matchType:
                                                         type: string
                                                     type: object
+                                                  credentials:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      pullSecret:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      secret:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          secretName:
+                                                            type: string
+                                                        required:
+                                                        - key
+                                                        - secretName
+                                                        type: object
+                                                    type: object
                                                   forceUpdate:
                                                     type: boolean
                                                   ignoreTags:
@@ -5481,6 +5735,36 @@ spec:
                                                           type: object
                                                         constraint:
                                                           type: string
+                                                        credentials:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            pullSecret:
+                                                              properties:
+                                                                name:
+                                                                  type: string
+                                                                namespace:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - namespace
+                                                              type: object
+                                                            secret:
+                                                              properties:
+                                                                key:
+                                                                  type: string
+                                                                secretName:
+                                                                  type: string
+                                                              required:
+                                                              - key
+                                                              - secretName
+                                                              type: object
+                                                          type: object
                                                         forceUpdate:
                                                           type: boolean
                                                         helm:
@@ -5512,42 +5796,10 @@ spec:
                                                             imageName:
                                                               type: string
                                                           type: object
-                                                        pullSecret:
-                                                          properties:
-                                                            credsExpire:
-                                                              format: date-time
-                                                              type: string
-                                                            env:
-                                                              type: string
-                                                            ext:
-                                                              type: string
-                                                            field:
-                                                              type: string
-                                                            name:
-                                                              type: string
-                                                            namespace:
-                                                              type: string
-                                                          type: object
                                                         updateStrategy:
                                                           type: string
                                                       type: object
                                                     type: array
-                                                  pullSecret:
-                                                    properties:
-                                                      credsExpire:
-                                                        format: date-time
-                                                        type: string
-                                                      env:
-                                                        type: string
-                                                      ext:
-                                                        type: string
-                                                      field:
-                                                        type: string
-                                                      name:
-                                                        type: string
-                                                      namespace:
-                                                        type: string
-                                                    type: object
                                                   updateStrategy:
                                                     type: string
                                                   writeBackConfig:
@@ -6255,6 +6507,36 @@ spec:
                                                       matchType:
                                                         type: string
                                                     type: object
+                                                  credentials:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      pullSecret:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      secret:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          secretName:
+                                                            type: string
+                                                        required:
+                                                        - key
+                                                        - secretName
+                                                        type: object
+                                                    type: object
                                                   forceUpdate:
                                                     type: boolean
                                                   ignoreTags:
@@ -6280,6 +6562,36 @@ spec:
                                                           type: object
                                                         constraint:
                                                           type: string
+                                                        credentials:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            pullSecret:
+                                                              properties:
+                                                                name:
+                                                                  type: string
+                                                                namespace:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - namespace
+                                                              type: object
+                                                            secret:
+                                                              properties:
+                                                                key:
+                                                                  type: string
+                                                                secretName:
+                                                                  type: string
+                                                              required:
+                                                              - key
+                                                              - secretName
+                                                              type: object
+                                                          type: object
                                                         forceUpdate:
                                                           type: boolean
                                                         helm:
@@ -6311,42 +6623,10 @@ spec:
                                                             imageName:
                                                               type: string
                                                           type: object
-                                                        pullSecret:
-                                                          properties:
-                                                            credsExpire:
-                                                              format: date-time
-                                                              type: string
-                                                            env:
-                                                              type: string
-                                                            ext:
-                                                              type: string
-                                                            field:
-                                                              type: string
-                                                            name:
-                                                              type: string
-                                                            namespace:
-                                                              type: string
-                                                          type: object
                                                         updateStrategy:
                                                           type: string
                                                       type: object
                                                     type: array
-                                                  pullSecret:
-                                                    properties:
-                                                      credsExpire:
-                                                        format: date-time
-                                                        type: string
-                                                      env:
-                                                        type: string
-                                                      ext:
-                                                        type: string
-                                                      field:
-                                                        type: string
-                                                      name:
-                                                        type: string
-                                                      namespace:
-                                                        type: string
-                                                    type: object
                                                   updateStrategy:
                                                     type: string
                                                   writeBackConfig:
@@ -6905,6 +7185,36 @@ spec:
                                             matchType:
                                               type: string
                                           type: object
+                                        credentials:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            pullSecret:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            secret:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                secretName:
+                                                  type: string
+                                              required:
+                                              - key
+                                              - secretName
+                                              type: object
+                                          type: object
                                         forceUpdate:
                                           type: boolean
                                         ignoreTags:
@@ -6930,6 +7240,36 @@ spec:
                                                 type: object
                                               constraint:
                                                 type: string
+                                              credentials:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  pullSecret:
+                                                    properties:
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    required:
+                                                    - name
+                                                    - namespace
+                                                    type: object
+                                                  secret:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      secretName:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - secretName
+                                                    type: object
+                                                type: object
                                               forceUpdate:
                                                 type: boolean
                                               helm:
@@ -6961,42 +7301,10 @@ spec:
                                                   imageName:
                                                     type: string
                                                 type: object
-                                              pullSecret:
-                                                properties:
-                                                  credsExpire:
-                                                    format: date-time
-                                                    type: string
-                                                  env:
-                                                    type: string
-                                                  ext:
-                                                    type: string
-                                                  field:
-                                                    type: string
-                                                  name:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
-                                                type: object
                                               updateStrategy:
                                                 type: string
                                             type: object
                                           type: array
-                                        pullSecret:
-                                          properties:
-                                            credsExpire:
-                                              format: date-time
-                                              type: string
-                                            env:
-                                              type: string
-                                            ext:
-                                              type: string
-                                            field:
-                                              type: string
-                                            name:
-                                              type: string
-                                            namespace:
-                                              type: string
-                                          type: object
                                         updateStrategy:
                                           type: string
                                         writeBackConfig:
@@ -7569,6 +7877,36 @@ spec:
                                                       matchType:
                                                         type: string
                                                     type: object
+                                                  credentials:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      pullSecret:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      secret:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          secretName:
+                                                            type: string
+                                                        required:
+                                                        - key
+                                                        - secretName
+                                                        type: object
+                                                    type: object
                                                   forceUpdate:
                                                     type: boolean
                                                   ignoreTags:
@@ -7594,6 +7932,36 @@ spec:
                                                           type: object
                                                         constraint:
                                                           type: string
+                                                        credentials:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            pullSecret:
+                                                              properties:
+                                                                name:
+                                                                  type: string
+                                                                namespace:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - namespace
+                                                              type: object
+                                                            secret:
+                                                              properties:
+                                                                key:
+                                                                  type: string
+                                                                secretName:
+                                                                  type: string
+                                                              required:
+                                                              - key
+                                                              - secretName
+                                                              type: object
+                                                          type: object
                                                         forceUpdate:
                                                           type: boolean
                                                         helm:
@@ -7625,42 +7993,10 @@ spec:
                                                             imageName:
                                                               type: string
                                                           type: object
-                                                        pullSecret:
-                                                          properties:
-                                                            credsExpire:
-                                                              format: date-time
-                                                              type: string
-                                                            env:
-                                                              type: string
-                                                            ext:
-                                                              type: string
-                                                            field:
-                                                              type: string
-                                                            name:
-                                                              type: string
-                                                            namespace:
-                                                              type: string
-                                                          type: object
                                                         updateStrategy:
                                                           type: string
                                                       type: object
                                                     type: array
-                                                  pullSecret:
-                                                    properties:
-                                                      credsExpire:
-                                                        format: date-time
-                                                        type: string
-                                                      env:
-                                                        type: string
-                                                      ext:
-                                                        type: string
-                                                      field:
-                                                        type: string
-                                                      name:
-                                                        type: string
-                                                      namespace:
-                                                        type: string
-                                                    type: object
                                                   updateStrategy:
                                                     type: string
                                                   writeBackConfig:
@@ -8225,6 +8561,36 @@ spec:
                                                       matchType:
                                                         type: string
                                                     type: object
+                                                  credentials:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      pullSecret:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      secret:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          secretName:
+                                                            type: string
+                                                        required:
+                                                        - key
+                                                        - secretName
+                                                        type: object
+                                                    type: object
                                                   forceUpdate:
                                                     type: boolean
                                                   ignoreTags:
@@ -8250,6 +8616,36 @@ spec:
                                                           type: object
                                                         constraint:
                                                           type: string
+                                                        credentials:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            pullSecret:
+                                                              properties:
+                                                                name:
+                                                                  type: string
+                                                                namespace:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - namespace
+                                                              type: object
+                                                            secret:
+                                                              properties:
+                                                                key:
+                                                                  type: string
+                                                                secretName:
+                                                                  type: string
+                                                              required:
+                                                              - key
+                                                              - secretName
+                                                              type: object
+                                                          type: object
                                                         forceUpdate:
                                                           type: boolean
                                                         helm:
@@ -8281,42 +8677,10 @@ spec:
                                                             imageName:
                                                               type: string
                                                           type: object
-                                                        pullSecret:
-                                                          properties:
-                                                            credsExpire:
-                                                              format: date-time
-                                                              type: string
-                                                            env:
-                                                              type: string
-                                                            ext:
-                                                              type: string
-                                                            field:
-                                                              type: string
-                                                            name:
-                                                              type: string
-                                                            namespace:
-                                                              type: string
-                                                          type: object
                                                         updateStrategy:
                                                           type: string
                                                       type: object
                                                     type: array
-                                                  pullSecret:
-                                                    properties:
-                                                      credsExpire:
-                                                        format: date-time
-                                                        type: string
-                                                      env:
-                                                        type: string
-                                                      ext:
-                                                        type: string
-                                                      field:
-                                                        type: string
-                                                      name:
-                                                        type: string
-                                                      namespace:
-                                                        type: string
-                                                    type: object
                                                   updateStrategy:
                                                     type: string
                                                   writeBackConfig:
@@ -8885,6 +9249,36 @@ spec:
                                                       matchType:
                                                         type: string
                                                     type: object
+                                                  credentials:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      pullSecret:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      secret:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          secretName:
+                                                            type: string
+                                                        required:
+                                                        - key
+                                                        - secretName
+                                                        type: object
+                                                    type: object
                                                   forceUpdate:
                                                     type: boolean
                                                   ignoreTags:
@@ -8910,6 +9304,36 @@ spec:
                                                           type: object
                                                         constraint:
                                                           type: string
+                                                        credentials:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            pullSecret:
+                                                              properties:
+                                                                name:
+                                                                  type: string
+                                                                namespace:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - namespace
+                                                              type: object
+                                                            secret:
+                                                              properties:
+                                                                key:
+                                                                  type: string
+                                                                secretName:
+                                                                  type: string
+                                                              required:
+                                                              - key
+                                                              - secretName
+                                                              type: object
+                                                          type: object
                                                         forceUpdate:
                                                           type: boolean
                                                         helm:
@@ -8941,42 +9365,10 @@ spec:
                                                             imageName:
                                                               type: string
                                                           type: object
-                                                        pullSecret:
-                                                          properties:
-                                                            credsExpire:
-                                                              format: date-time
-                                                              type: string
-                                                            env:
-                                                              type: string
-                                                            ext:
-                                                              type: string
-                                                            field:
-                                                              type: string
-                                                            name:
-                                                              type: string
-                                                            namespace:
-                                                              type: string
-                                                          type: object
                                                         updateStrategy:
                                                           type: string
                                                       type: object
                                                     type: array
-                                                  pullSecret:
-                                                    properties:
-                                                      credsExpire:
-                                                        format: date-time
-                                                        type: string
-                                                      env:
-                                                        type: string
-                                                      ext:
-                                                        type: string
-                                                      field:
-                                                        type: string
-                                                      name:
-                                                        type: string
-                                                      namespace:
-                                                        type: string
-                                                    type: object
                                                   updateStrategy:
                                                     type: string
                                                   writeBackConfig:
@@ -9521,6 +9913,36 @@ spec:
                                                       matchType:
                                                         type: string
                                                     type: object
+                                                  credentials:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      pullSecret:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      secret:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          secretName:
+                                                            type: string
+                                                        required:
+                                                        - key
+                                                        - secretName
+                                                        type: object
+                                                    type: object
                                                   forceUpdate:
                                                     type: boolean
                                                   ignoreTags:
@@ -9546,6 +9968,36 @@ spec:
                                                           type: object
                                                         constraint:
                                                           type: string
+                                                        credentials:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            pullSecret:
+                                                              properties:
+                                                                name:
+                                                                  type: string
+                                                                namespace:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - namespace
+                                                              type: object
+                                                            secret:
+                                                              properties:
+                                                                key:
+                                                                  type: string
+                                                                secretName:
+                                                                  type: string
+                                                              required:
+                                                              - key
+                                                              - secretName
+                                                              type: object
+                                                          type: object
                                                         forceUpdate:
                                                           type: boolean
                                                         helm:
@@ -9577,42 +10029,10 @@ spec:
                                                             imageName:
                                                               type: string
                                                           type: object
-                                                        pullSecret:
-                                                          properties:
-                                                            credsExpire:
-                                                              format: date-time
-                                                              type: string
-                                                            env:
-                                                              type: string
-                                                            ext:
-                                                              type: string
-                                                            field:
-                                                              type: string
-                                                            name:
-                                                              type: string
-                                                            namespace:
-                                                              type: string
-                                                          type: object
                                                         updateStrategy:
                                                           type: string
                                                       type: object
                                                     type: array
-                                                  pullSecret:
-                                                    properties:
-                                                      credsExpire:
-                                                        format: date-time
-                                                        type: string
-                                                      env:
-                                                        type: string
-                                                      ext:
-                                                        type: string
-                                                      field:
-                                                        type: string
-                                                      name:
-                                                        type: string
-                                                      namespace:
-                                                        type: string
-                                                    type: object
                                                   updateStrategy:
                                                     type: string
                                                   writeBackConfig:
@@ -10273,6 +10693,36 @@ spec:
                                                       matchType:
                                                         type: string
                                                     type: object
+                                                  credentials:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      pullSecret:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      secret:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          secretName:
+                                                            type: string
+                                                        required:
+                                                        - key
+                                                        - secretName
+                                                        type: object
+                                                    type: object
                                                   forceUpdate:
                                                     type: boolean
                                                   ignoreTags:
@@ -10298,6 +10748,36 @@ spec:
                                                           type: object
                                                         constraint:
                                                           type: string
+                                                        credentials:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            pullSecret:
+                                                              properties:
+                                                                name:
+                                                                  type: string
+                                                                namespace:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - namespace
+                                                              type: object
+                                                            secret:
+                                                              properties:
+                                                                key:
+                                                                  type: string
+                                                                secretName:
+                                                                  type: string
+                                                              required:
+                                                              - key
+                                                              - secretName
+                                                              type: object
+                                                          type: object
                                                         forceUpdate:
                                                           type: boolean
                                                         helm:
@@ -10329,42 +10809,10 @@ spec:
                                                             imageName:
                                                               type: string
                                                           type: object
-                                                        pullSecret:
-                                                          properties:
-                                                            credsExpire:
-                                                              format: date-time
-                                                              type: string
-                                                            env:
-                                                              type: string
-                                                            ext:
-                                                              type: string
-                                                            field:
-                                                              type: string
-                                                            name:
-                                                              type: string
-                                                            namespace:
-                                                              type: string
-                                                          type: object
                                                         updateStrategy:
                                                           type: string
                                                       type: object
                                                     type: array
-                                                  pullSecret:
-                                                    properties:
-                                                      credsExpire:
-                                                        format: date-time
-                                                        type: string
-                                                      env:
-                                                        type: string
-                                                      ext:
-                                                        type: string
-                                                      field:
-                                                        type: string
-                                                      name:
-                                                        type: string
-                                                      namespace:
-                                                        type: string
-                                                    type: object
                                                   updateStrategy:
                                                     type: string
                                                   writeBackConfig:
@@ -11072,6 +11520,36 @@ spec:
                                                       matchType:
                                                         type: string
                                                     type: object
+                                                  credentials:
+                                                    properties:
+                                                      credsExpire:
+                                                        format: date-time
+                                                        type: string
+                                                      env:
+                                                        type: string
+                                                      ext:
+                                                        type: string
+                                                      pullSecret:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          namespace:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - namespace
+                                                        type: object
+                                                      secret:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          secretName:
+                                                            type: string
+                                                        required:
+                                                        - key
+                                                        - secretName
+                                                        type: object
+                                                    type: object
                                                   forceUpdate:
                                                     type: boolean
                                                   ignoreTags:
@@ -11097,6 +11575,36 @@ spec:
                                                           type: object
                                                         constraint:
                                                           type: string
+                                                        credentials:
+                                                          properties:
+                                                            credsExpire:
+                                                              format: date-time
+                                                              type: string
+                                                            env:
+                                                              type: string
+                                                            ext:
+                                                              type: string
+                                                            pullSecret:
+                                                              properties:
+                                                                name:
+                                                                  type: string
+                                                                namespace:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - namespace
+                                                              type: object
+                                                            secret:
+                                                              properties:
+                                                                key:
+                                                                  type: string
+                                                                secretName:
+                                                                  type: string
+                                                              required:
+                                                              - key
+                                                              - secretName
+                                                              type: object
+                                                          type: object
                                                         forceUpdate:
                                                           type: boolean
                                                         helm:
@@ -11128,42 +11636,10 @@ spec:
                                                             imageName:
                                                               type: string
                                                           type: object
-                                                        pullSecret:
-                                                          properties:
-                                                            credsExpire:
-                                                              format: date-time
-                                                              type: string
-                                                            env:
-                                                              type: string
-                                                            ext:
-                                                              type: string
-                                                            field:
-                                                              type: string
-                                                            name:
-                                                              type: string
-                                                            namespace:
-                                                              type: string
-                                                          type: object
                                                         updateStrategy:
                                                           type: string
                                                       type: object
                                                     type: array
-                                                  pullSecret:
-                                                    properties:
-                                                      credsExpire:
-                                                        format: date-time
-                                                        type: string
-                                                      env:
-                                                        type: string
-                                                      ext:
-                                                        type: string
-                                                      field:
-                                                        type: string
-                                                      name:
-                                                        type: string
-                                                      namespace:
-                                                        type: string
-                                                    type: object
                                                   updateStrategy:
                                                     type: string
                                                   writeBackConfig:
@@ -11726,6 +12202,36 @@ spec:
                                             matchType:
                                               type: string
                                           type: object
+                                        credentials:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            pullSecret:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            secret:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                secretName:
+                                                  type: string
+                                              required:
+                                              - key
+                                              - secretName
+                                              type: object
+                                          type: object
                                         forceUpdate:
                                           type: boolean
                                         ignoreTags:
@@ -11751,6 +12257,36 @@ spec:
                                                 type: object
                                               constraint:
                                                 type: string
+                                              credentials:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  pullSecret:
+                                                    properties:
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    required:
+                                                    - name
+                                                    - namespace
+                                                    type: object
+                                                  secret:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      secretName:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - secretName
+                                                    type: object
+                                                type: object
                                               forceUpdate:
                                                 type: boolean
                                               helm:
@@ -11782,42 +12318,10 @@ spec:
                                                   imageName:
                                                     type: string
                                                 type: object
-                                              pullSecret:
-                                                properties:
-                                                  credsExpire:
-                                                    format: date-time
-                                                    type: string
-                                                  env:
-                                                    type: string
-                                                  ext:
-                                                    type: string
-                                                  field:
-                                                    type: string
-                                                  name:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
-                                                type: object
                                               updateStrategy:
                                                 type: string
                                             type: object
                                           type: array
-                                        pullSecret:
-                                          properties:
-                                            credsExpire:
-                                              format: date-time
-                                              type: string
-                                            env:
-                                              type: string
-                                            ext:
-                                              type: string
-                                            field:
-                                              type: string
-                                            name:
-                                              type: string
-                                            namespace:
-                                              type: string
-                                          type: object
                                         updateStrategy:
                                           type: string
                                         writeBackConfig:
@@ -12475,6 +12979,36 @@ spec:
                                             matchType:
                                               type: string
                                           type: object
+                                        credentials:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            pullSecret:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            secret:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                secretName:
+                                                  type: string
+                                              required:
+                                              - key
+                                              - secretName
+                                              type: object
+                                          type: object
                                         forceUpdate:
                                           type: boolean
                                         ignoreTags:
@@ -12500,6 +13034,36 @@ spec:
                                                 type: object
                                               constraint:
                                                 type: string
+                                              credentials:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  pullSecret:
+                                                    properties:
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    required:
+                                                    - name
+                                                    - namespace
+                                                    type: object
+                                                  secret:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      secretName:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - secretName
+                                                    type: object
+                                                type: object
                                               forceUpdate:
                                                 type: boolean
                                               helm:
@@ -12531,42 +13095,10 @@ spec:
                                                   imageName:
                                                     type: string
                                                 type: object
-                                              pullSecret:
-                                                properties:
-                                                  credsExpire:
-                                                    format: date-time
-                                                    type: string
-                                                  env:
-                                                    type: string
-                                                  ext:
-                                                    type: string
-                                                  field:
-                                                    type: string
-                                                  name:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
-                                                type: object
                                               updateStrategy:
                                                 type: string
                                             type: object
                                           type: array
-                                        pullSecret:
-                                          properties:
-                                            credsExpire:
-                                              format: date-time
-                                              type: string
-                                            env:
-                                              type: string
-                                            ext:
-                                              type: string
-                                            field:
-                                              type: string
-                                            name:
-                                              type: string
-                                            namespace:
-                                              type: string
-                                          type: object
                                         updateStrategy:
                                           type: string
                                         writeBackConfig:
@@ -13274,6 +13806,36 @@ spec:
                                             matchType:
                                               type: string
                                           type: object
+                                        credentials:
+                                          properties:
+                                            credsExpire:
+                                              format: date-time
+                                              type: string
+                                            env:
+                                              type: string
+                                            ext:
+                                              type: string
+                                            pullSecret:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - namespace
+                                              type: object
+                                            secret:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                secretName:
+                                                  type: string
+                                              required:
+                                              - key
+                                              - secretName
+                                              type: object
+                                          type: object
                                         forceUpdate:
                                           type: boolean
                                         ignoreTags:
@@ -13299,6 +13861,36 @@ spec:
                                                 type: object
                                               constraint:
                                                 type: string
+                                              credentials:
+                                                properties:
+                                                  credsExpire:
+                                                    format: date-time
+                                                    type: string
+                                                  env:
+                                                    type: string
+                                                  ext:
+                                                    type: string
+                                                  pullSecret:
+                                                    properties:
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                    required:
+                                                    - name
+                                                    - namespace
+                                                    type: object
+                                                  secret:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      secretName:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - secretName
+                                                    type: object
+                                                type: object
                                               forceUpdate:
                                                 type: boolean
                                               helm:
@@ -13330,42 +13922,10 @@ spec:
                                                   imageName:
                                                     type: string
                                                 type: object
-                                              pullSecret:
-                                                properties:
-                                                  credsExpire:
-                                                    format: date-time
-                                                    type: string
-                                                  env:
-                                                    type: string
-                                                  ext:
-                                                    type: string
-                                                  field:
-                                                    type: string
-                                                  name:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
-                                                type: object
                                               updateStrategy:
                                                 type: string
                                             type: object
                                           type: array
-                                        pullSecret:
-                                          properties:
-                                            credsExpire:
-                                              format: date-time
-                                              type: string
-                                            env:
-                                              type: string
-                                            ext:
-                                              type: string
-                                            field:
-                                              type: string
-                                            name:
-                                              type: string
-                                            namespace:
-                                              type: string
-                                          type: object
                                         updateStrategy:
                                           type: string
                                         writeBackConfig:
@@ -13969,6 +14529,36 @@ spec:
                                   matchType:
                                     type: string
                                 type: object
+                              credentials:
+                                properties:
+                                  credsExpire:
+                                    format: date-time
+                                    type: string
+                                  env:
+                                    type: string
+                                  ext:
+                                    type: string
+                                  pullSecret:
+                                    properties:
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - name
+                                    - namespace
+                                    type: object
+                                  secret:
+                                    properties:
+                                      key:
+                                        type: string
+                                      secretName:
+                                        type: string
+                                    required:
+                                    - key
+                                    - secretName
+                                    type: object
+                                type: object
                               forceUpdate:
                                 type: boolean
                               ignoreTags:
@@ -13994,6 +14584,36 @@ spec:
                                       type: object
                                     constraint:
                                       type: string
+                                    credentials:
+                                      properties:
+                                        credsExpire:
+                                          format: date-time
+                                          type: string
+                                        env:
+                                          type: string
+                                        ext:
+                                          type: string
+                                        pullSecret:
+                                          properties:
+                                            name:
+                                              type: string
+                                            namespace:
+                                              type: string
+                                          required:
+                                          - name
+                                          - namespace
+                                          type: object
+                                        secret:
+                                          properties:
+                                            key:
+                                              type: string
+                                            secretName:
+                                              type: string
+                                          required:
+                                          - key
+                                          - secretName
+                                          type: object
+                                      type: object
                                     forceUpdate:
                                       type: boolean
                                     helm:
@@ -14025,42 +14645,10 @@ spec:
                                         imageName:
                                           type: string
                                       type: object
-                                    pullSecret:
-                                      properties:
-                                        credsExpire:
-                                          format: date-time
-                                          type: string
-                                        env:
-                                          type: string
-                                        ext:
-                                          type: string
-                                        field:
-                                          type: string
-                                        name:
-                                          type: string
-                                        namespace:
-                                          type: string
-                                      type: object
                                     updateStrategy:
                                       type: string
                                   type: object
                                 type: array
-                              pullSecret:
-                                properties:
-                                  credsExpire:
-                                    format: date-time
-                                    type: string
-                                  env:
-                                    type: string
-                                  ext:
-                                    type: string
-                                  field:
-                                    type: string
-                                  name:
-                                    type: string
-                                  namespace:
-                                    type: string
-                                type: object
                               updateStrategy:
                                 type: string
                               writeBackConfig:
