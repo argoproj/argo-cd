@@ -2048,7 +2048,8 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "AppSet-branch1-1",
 						Labels: map[string]string{
-							"app1": "label1",
+							"app1":                 "label1",
+							LabelKeyAppSetInstance: "",
 						},
 					},
 					Spec: v1alpha1.ApplicationSpec{

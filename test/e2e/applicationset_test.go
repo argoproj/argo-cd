@@ -43,6 +43,7 @@ var (
 			Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
 		},
 	}
+	LabelKeyAppSetInstance = "app.kubernetes.io/appset-instance"
 )
 
 func TestSimpleListGenerator(t *testing.T) {
@@ -53,8 +54,11 @@ func TestSimpleListGenerator(t *testing.T) {
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
+			Name:      "my-cluster-guestbook",
+			Namespace: fixture.TestNamespace(),
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-list-generator",
+			},
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -148,6 +152,9 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-list-generator",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -241,6 +248,9 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -350,6 +360,9 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -461,6 +474,9 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -570,6 +586,9 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -1066,6 +1085,9 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 			Name:       "argo-cd-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-scm-provider-generator",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1135,6 +1157,9 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-list-generator",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1201,6 +1226,9 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-list-generator",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1301,6 +1329,9 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 			Name:       "guestbook-1",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-pull-request-generator",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1376,7 +1407,10 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 			Name:       "guestbook-1",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels:     map[string]string{"app": "preview"},
+			Labels: map[string]string{
+				"app":                  "preview",
+				LabelKeyAppSetInstance: "simple-pull-request-generator",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1452,6 +1486,9 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator-private",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -1527,6 +1564,9 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator-private",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",

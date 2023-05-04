@@ -58,7 +58,7 @@ const (
 	NotifiedAnnotationKey             = "notified.notifications.argoproj.io"
 	ReconcileRequeueOnValidationError = time.Minute * 3
 
-	// LabelKeyAppInstance is the label key to use to uniquely identify the apps of an applicationset
+	// LabelKeyAppSetInstance is the label key to use to uniquely identify the apps of an applicationset
 	// The ArgoCD applicationset name is used as the instance name
 	LabelKeyAppSetInstance = "app.kubernetes.io/appset-instance"
 )
