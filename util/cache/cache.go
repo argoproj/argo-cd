@@ -96,7 +96,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	cmd.Flags().StringVar(&redisClientKey, "redis-client-key", "", "Path to Redis client key (e.g. /etc/certs/redis/client.crt).")
 	cmd.Flags().BoolVar(&insecureRedis, "redis-insecure-skip-tls-verify", false, "Skip Redis server certificate validation.")
 	cmd.Flags().StringVar(&redisCACertificate, "redis-ca-certificate", "", "Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.")
-	cmd.Flags().StringVar(&compressionStr, "redis-compress", env.StringFromEnv("REDIS_COMPRESSION", string(RedisCompressionNone)), "Enable compression for data sent to Redis with the required compression algorithm. (possible values: none, gzip)")
+	cmd.Flags().StringVar(&compressionStr, "redis-compress", env.StringFromEnv("REDIS_COMPRESSION", string(RedisCompressionGZip)), "Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none)")
 	return func() (*Cache, error) {
 		var tlsConfig *tls.Config = nil
 		if redisUseTLS {
