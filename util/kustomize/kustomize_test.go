@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/pkg/exec"
+	"github.com/erhudy/goboolstr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -55,7 +56,7 @@ func TestKustomizeBuild(t *testing.T) {
 			"app.kubernetes.io/part-of":    "${ARGOCD_APP_NAME}",
 		},
 		Namespace:                 namespace,
-		CommonAnnotationsEnvsubst: true,
+		CommonAnnotationsEnvsubst: goboolstr.True(),
 		Replicas: []v1alpha1.KustomizeReplica{
 			{
 				Name:  "nginx-deployment",
@@ -182,7 +183,7 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 		{
 			TestData: kustomization3,
 			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
-				ForceCommonLabels: true,
+				ForceCommonLabels: goboolstr.True(),
 				CommonLabels: map[string]string{
 					"foo":  "edited",
 					"test": "${ARGOCD_APP_NAME}",
@@ -203,7 +204,7 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 		{
 			TestData: kustomization3,
 			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
-				ForceCommonLabels: false,
+				ForceCommonLabels: goboolstr.False(),
 				CommonLabels: map[string]string{
 					"foo": "edited",
 				},
@@ -246,13 +247,13 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 		{
 			TestData: kustomization3,
 			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
-				ForceCommonAnnotations: true,
+				ForceCommonAnnotations: goboolstr.True(),
 				CommonAnnotations: map[string]string{
 					"one":   "edited",
 					"two":   "${test}",
 					"three": "$ARGOCD_APP_NAME",
 				},
-				CommonAnnotationsEnvsubst: false,
+				CommonAnnotationsEnvsubst: goboolstr.False(),
 			},
 			ExpectedAnnotations: map[string]string{
 				"baz":   "quux",
@@ -270,13 +271,13 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 		{
 			TestData: kustomization3,
 			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
-				ForceCommonAnnotations: true,
+				ForceCommonAnnotations: goboolstr.True(),
 				CommonAnnotations: map[string]string{
 					"one":   "edited",
 					"two":   "${test}",
 					"three": "$ARGOCD_APP_NAME",
 				},
-				CommonAnnotationsEnvsubst: true,
+				CommonAnnotationsEnvsubst: goboolstr.True(),
 			},
 			ExpectedAnnotations: map[string]string{
 				"baz":   "quux",
@@ -294,11 +295,11 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 		{
 			TestData: kustomization3,
 			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
-				ForceCommonAnnotations: false,
+				ForceCommonAnnotations: goboolstr.False(),
 				CommonAnnotations: map[string]string{
 					"one": "edited",
 				},
-				CommonAnnotationsEnvsubst: true,
+				CommonAnnotationsEnvsubst: goboolstr.True(),
 			},
 			ExpectErr: true,
 			Env: &v1alpha1.Env{

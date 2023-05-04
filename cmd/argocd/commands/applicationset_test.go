@@ -7,6 +7,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	arogappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/erhudy/goboolstr"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -114,7 +115,7 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 	appSetTemplateSpecSyncPolicy := baseAppSet.DeepCopy()
 	appSetTemplateSpecSyncPolicy.Spec.Template.Spec.SyncPolicy = &arogappsetv1.SyncPolicy{
 		Automated: &arogappsetv1.SyncPolicyAutomated{
-			SelfHeal: true,
+			SelfHeal: goboolstr.True(),
 		},
 	}
 
@@ -124,7 +125,7 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 	}
 	appSetBothSyncPolicies.Spec.Template.Spec.SyncPolicy = &arogappsetv1.SyncPolicy{
 		Automated: &arogappsetv1.SyncPolicyAutomated{
-			SelfHeal: true,
+			SelfHeal: goboolstr.True(),
 		},
 	}
 

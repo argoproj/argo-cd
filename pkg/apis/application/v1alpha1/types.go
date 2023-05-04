@@ -18,6 +18,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/erhudy/goboolstr"
 	"github.com/ghodss/yaml"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
@@ -305,9 +306,9 @@ type ApplicationSourceHelm struct {
 	// Version is the Helm version to use for templating ("3")
 	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
 	// PassCredentials pass credentials to all domains (Helm's --pass-credentials)
-	PassCredentials bool `json:"passCredentials,omitempty" protobuf:"bytes,7,opt,name=passCredentials"`
+	PassCredentials goboolstr.BoolOrString `json:"passCredentials,omitempty" protobuf:"bytes,7,opt,name=passCredentials"`
 	// IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values
-	IgnoreMissingValueFiles bool `json:"ignoreMissingValueFiles,omitempty" protobuf:"bytes,8,opt,name=ignoreMissingValueFiles"`
+	IgnoreMissingValueFiles goboolstr.BoolOrString `json:"ignoreMissingValueFiles,omitempty" protobuf:"bytes,8,opt,name=ignoreMissingValueFiles"`
 	// SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
 	SkipCrds bool `json:"skipCrds,omitempty" protobuf:"bytes,9,opt,name=skipCrds"`
 }
@@ -319,7 +320,7 @@ type HelmParameter struct {
 	// Value is the value for the Helm parameter
 	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 	// ForceString determines whether to tell Helm to interpret booleans and numbers as strings
-	ForceString bool `json:"forceString,omitempty" protobuf:"bytes,3,opt,name=forceString"`
+	ForceString goboolstr.BoolOrString `json:"forceString,omitempty" protobuf:"bytes,3,opt,name=forceString"`
 }
 
 // HelmFileParameter is a file parameter that's passed to helm template during manifest generation
@@ -341,7 +342,7 @@ func NewHelmParameter(text string, forceString bool) (*HelmParameter, error) {
 	return &HelmParameter{
 		Name:        parts[0],
 		Value:       helmParameterRx.ReplaceAllString(parts[1], `$1\,`),
-		ForceString: forceString,
+		ForceString: goboolstr.FromBool(forceString),
 	}, nil
 }
 
@@ -391,7 +392,7 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 
 // IsZero Returns true if the Helm options in an application source are considered zero
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == "" && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == "" && !h.PassCredentials.AsBool() && !h.IgnoreMissingValueFiles.AsBool() && !h.SkipCrds
 }
 
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
@@ -443,13 +444,13 @@ type ApplicationSourceKustomize struct {
 	// CommonAnnotations is a list of additional annotations to add to rendered manifests
 	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty" protobuf:"bytes,6,opt,name=commonAnnotations"`
 	// ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps
-	ForceCommonLabels bool `json:"forceCommonLabels,omitempty" protobuf:"bytes,7,opt,name=forceCommonLabels"`
+	ForceCommonLabels goboolstr.BoolOrString `json:"forceCommonLabels,omitempty" protobuf:"bytes,7,opt,name=forceCommonLabels"`
 	// ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
-	ForceCommonAnnotations bool `json:"forceCommonAnnotations,omitempty" protobuf:"bytes,8,opt,name=forceCommonAnnotations"`
+	ForceCommonAnnotations goboolstr.BoolOrString `json:"forceCommonAnnotations,omitempty" protobuf:"bytes,8,opt,name=forceCommonAnnotations"`
 	// Namespace sets the namespace that Kustomize adds to all resources
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,9,opt,name=namespace"`
 	// CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
-	CommonAnnotationsEnvsubst bool `json:"commonAnnotationsEnvsubst,omitempty" protobuf:"bytes,10,opt,name=commonAnnotationsEnvsubst"`
+	CommonAnnotationsEnvsubst goboolstr.BoolOrString `json:"commonAnnotationsEnvsubst,omitempty" protobuf:"bytes,10,opt,name=commonAnnotationsEnvsubst"`
 	// Replicas is a list of Kustomize Replicas override specifications
 	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,11,opt,name=replicas"`
 }
@@ -550,18 +551,18 @@ func (rs KustomizeReplicas) FindByName(name string) int {
 
 // JsonnetVar represents a variable to be passed to jsonnet during manifest generation
 type JsonnetVar struct {
-	Name  string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
-	Code  bool   `json:"code,omitempty" protobuf:"bytes,3,opt,name=code"`
+	Name  string                 `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Value string                 `json:"value" protobuf:"bytes,2,opt,name=value"`
+	Code  goboolstr.BoolOrString `json:"code,omitempty" protobuf:"bytes,3,opt,name=code"`
 }
 
 // NewJsonnetVar parses a Jsonnet variable from a string in the format name=value
 func NewJsonnetVar(s string, code bool) JsonnetVar {
 	parts := strings.SplitN(s, "=", 2)
 	if len(parts) == 2 {
-		return JsonnetVar{Name: parts[0], Value: parts[1], Code: code}
+		return JsonnetVar{Name: parts[0], Value: parts[1], Code: goboolstr.FromBool(code)}
 	} else {
-		return JsonnetVar{Name: s, Code: code}
+		return JsonnetVar{Name: s, Code: goboolstr.FromBool(code)}
 	}
 }
 
@@ -583,7 +584,7 @@ func (j *ApplicationSourceJsonnet) IsZero() bool {
 // ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet
 type ApplicationSourceDirectory struct {
 	// Recurse specifies whether to scan a directory recursively for manifests
-	Recurse bool `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
+	Recurse goboolstr.BoolOrString `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
 	// Jsonnet holds options specific to Jsonnet
 	Jsonnet ApplicationSourceJsonnet `json:"jsonnet,omitempty" protobuf:"bytes,2,opt,name=jsonnet"`
 	// Exclude contains a glob pattern to match paths against that should be explicitly excluded from being used during manifest generation
@@ -594,7 +595,7 @@ type ApplicationSourceDirectory struct {
 
 // IsZero returns true if the ApplicationSourceDirectory is considered empty
 func (d *ApplicationSourceDirectory) IsZero() bool {
-	return d == nil || !d.Recurse && d.Jsonnet.IsZero()
+	return d == nil || !d.Recurse.AsBool() && d.Jsonnet.IsZero()
 }
 
 type OptionalMap struct {
@@ -1151,11 +1152,11 @@ type Backoff struct {
 // SyncPolicyAutomated controls the behavior of an automated sync
 type SyncPolicyAutomated struct {
 	// Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
-	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
+	Prune goboolstr.BoolOrString `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
 	// SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)
-	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
+	SelfHeal goboolstr.BoolOrString `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
-	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
+	AllowEmpty goboolstr.BoolOrString `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed
@@ -1171,9 +1172,9 @@ func (m *SyncStrategy) Force() bool {
 	if m == nil {
 		return false
 	} else if m.Apply != nil {
-		return m.Apply.Force
+		return m.Apply.Force.AsBool()
 	} else if m.Hook != nil {
-		return m.Hook.Force
+		return m.Hook.Force.AsBool()
 	} else {
 		return false
 	}
@@ -1184,7 +1185,7 @@ type SyncStrategyApply struct {
 	// Force indicates whether or not to supply the --force flag to `kubectl apply`.
 	// The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
 	// retried for 5 times.
-	Force bool `json:"force,omitempty" protobuf:"bytes,1,opt,name=force"`
+	Force goboolstr.BoolOrString `json:"force,omitempty" protobuf:"bytes,1,opt,name=force"`
 }
 
 // SyncStrategyHook will perform a sync using hooks annotations.

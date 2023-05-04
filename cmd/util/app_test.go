@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/erhudy/goboolstr"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +44,7 @@ func Test_setHelmOpt(t *testing.T) {
 	t.Run("HelmSetStrings", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{helmSetStrings: []string{"foo=bar"}})
-		assert.Equal(t, []v1alpha1.HelmParameter{{Name: "foo", Value: "bar", ForceString: true}}, src.Helm.Parameters)
+		assert.Equal(t, []v1alpha1.HelmParameter{{Name: "foo", Value: "bar", ForceString: goboolstr.True()}}, src.Helm.Parameters)
 	})
 	t.Run("HelmSetFiles", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}

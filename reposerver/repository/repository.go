@@ -354,7 +354,7 @@ func (s *Service) runRepoOperation(
 		}
 		helmPassCredentials := false
 		if source.Helm != nil {
-			helmPassCredentials = source.Helm.PassCredentials
+			helmPassCredentials = source.Helm.PassCredentials.AsBool()
 		}
 		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials)
 		if err != nil {
@@ -1080,7 +1080,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			templateOpts.Name = appHelm.ReleaseName
 		}
 
-		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles)
+		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles.AsBool())
 		if err != nil {
 			return nil, err
 		}
@@ -1107,7 +1107,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 
 		for _, p := range appHelm.Parameters {
-			if p.ForceString {
+			if p.ForceString.AsBool() {
 				templateOpts.SetString[p.Name] = p.Value
 			} else {
 				templateOpts.Set[p.Name] = p.Value
@@ -1120,7 +1120,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			}
 			templateOpts.SetFile[p.Name] = resolvedPath
 		}
-		passCredentials = appHelm.PassCredentials
+		passCredentials = appHelm.PassCredentials.AsBool()
 		templateOpts.SkipCrds = appHelm.SkipCrds
 	}
 	if templateOpts.Name == "" {
@@ -1530,7 +1530,7 @@ var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
 func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool, maxCombinedManifestQuantity resource.Quantity) ([]*unstructured.Unstructured, error) {
 	// Validate the directory before loading any manifests to save memory.
-	potentiallyValidManifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, directory.Recurse, directory.Include, directory.Exclude, maxCombinedManifestQuantity)
+	potentiallyValidManifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, directory.Recurse.AsBool(), directory.Include, directory.Exclude, maxCombinedManifestQuantity)
 	if err != nil {
 		logCtx.Errorf("failed to get potentially valid manifests: %s", err)
 		return nil, fmt.Errorf("failed to get potentially valid manifests: %w", err)
@@ -1776,14 +1776,14 @@ func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 		sourceJsonnet.ExtVars[i].Value = env.Envsubst(j.Value)
 	}
 	for _, arg := range sourceJsonnet.TLAs {
-		if arg.Code {
+		if arg.Code.AsBool() {
 			vm.TLACode(arg.Name, arg.Value)
 		} else {
 			vm.TLAVar(arg.Name, arg.Value)
 		}
 	}
 	for _, extVar := range sourceJsonnet.ExtVars {
-		if extVar.Code {
+		if extVar.Code.AsBool() {
 			vm.ExtCode(extVar.Name, extVar.Value)
 		} else {
 			vm.ExtVar(extVar.Name, extVar.Value)
@@ -2042,7 +2042,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 		if q.Source.Helm.Version != "" {
 			version = q.Source.Helm.Version
 		}
-		passCredentials = q.Source.Helm.PassCredentials
+		passCredentials = q.Source.Helm.PassCredentials.AsBool()
 	}
 	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false, version, q.Repo.Proxy, passCredentials)
 	if err != nil {
@@ -2063,7 +2063,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	}
 	ignoreMissingValueFiles := false
 	if q.Source.Helm != nil {
-		ignoreMissingValueFiles = q.Source.Helm.IgnoreMissingValueFiles
+		ignoreMissingValueFiles = q.Source.Helm.IgnoreMissingValueFiles.AsBool()
 	}
 	resolvedSelectedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, &v1alpha1.Env{}, q.GetValuesFileSchemes(), selectedValueFiles, q.RefSources, gitRepoPaths, ignoreMissingValueFiles)
 	if err != nil {

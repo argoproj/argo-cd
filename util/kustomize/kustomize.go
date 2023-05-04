@@ -141,7 +141,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if len(opts.CommonLabels) > 0 {
 			//  edit add label foo:bar
 			args := []string{"edit", "add", "label"}
-			if opts.ForceCommonLabels {
+			if opts.ForceCommonLabels.AsBool() {
 				args = append(args, "--force")
 			}
 			commonLabels := map[string]string{}
@@ -159,11 +159,11 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if len(opts.CommonAnnotations) > 0 {
 			//  edit add annotation foo:bar
 			args := []string{"edit", "add", "annotation"}
-			if opts.ForceCommonAnnotations {
+			if opts.ForceCommonAnnotations.AsBool() {
 				args = append(args, "--force")
 			}
 			var commonAnnotations map[string]string
-			if opts.CommonAnnotationsEnvsubst {
+			if opts.CommonAnnotationsEnvsubst.AsBool() {
 				commonAnnotations = map[string]string{}
 				for name, value := range opts.CommonAnnotations {
 					commonAnnotations[name] = envVars.Envsubst(value)

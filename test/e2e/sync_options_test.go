@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/erhudy/goboolstr"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -60,7 +61,7 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 			})
 		}).
 		CreateFromFile(func(app *Application) {
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: true}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: goboolstr.True()}}
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -86,7 +87,7 @@ func TestSyncWithSkipHook(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		CreateFromFile(func(app *Application) {
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: true}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: goboolstr.True()}}
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).

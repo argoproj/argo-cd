@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/erhudy/goboolstr"
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/pointer"
 
@@ -861,12 +862,12 @@ func TestExplicitTypeWithDirectory(t *testing.T) {
 func TestAppSourceEquality(t *testing.T) {
 	left := &ApplicationSource{
 		Directory: &ApplicationSourceDirectory{
-			Recurse: true,
+			Recurse: goboolstr.True(),
 		},
 	}
 	right := left.DeepCopy()
 	assert.True(t, left.Equals(right))
-	right.Directory.Recurse = false
+	right.Directory.Recurse = goboolstr.FromBool(false)
 	assert.False(t, left.Equals(right))
 }
 
@@ -1152,9 +1153,9 @@ func TestSyncStrategy_Force(t *testing.T) {
 	}{
 		{"TestZero", fields{}, false},
 		{"TestApply", fields{Apply: &SyncStrategyApply{}}, false},
-		{"TestForceApply", fields{Apply: &SyncStrategyApply{Force: true}}, true},
+		{"TestForceApply", fields{Apply: &SyncStrategyApply{Force: goboolstr.True()}}, true},
 		{"TestHook", fields{Hook: &SyncStrategyHook{}}, false},
-		{"TestForceHook", fields{Hook: &SyncStrategyHook{SyncStrategyApply{Force: true}}}, true},
+		{"TestForceHook", fields{Hook: &SyncStrategyHook{SyncStrategyApply{Force: goboolstr.True()}}}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1264,7 +1265,7 @@ func TestApplicationSource_IsZero(t *testing.T) {
 		{"TargetRevision", &ApplicationSource{TargetRevision: "foo"}, false},
 		{"Helm", &ApplicationSource{Helm: &ApplicationSourceHelm{ReleaseName: "foo"}}, false},
 		{"Kustomize", &ApplicationSource{Kustomize: &ApplicationSourceKustomize{Images: KustomizeImages{""}}}, false},
-		{"Directory", &ApplicationSource{Directory: &ApplicationSourceDirectory{Recurse: true}}, false},
+		{"Directory", &ApplicationSource{Directory: &ApplicationSourceDirectory{Recurse: goboolstr.True()}}, false},
 		{"Plugin", &ApplicationSource{Plugin: &ApplicationSourcePlugin{Name: "foo"}}, false},
 	}
 	for _, tt := range tests {
@@ -1313,7 +1314,7 @@ func TestNewHelmParameter(t *testing.T) {
 	t.Run("String", func(t *testing.T) {
 		p, err := NewHelmParameter("foo=bar", true)
 		assert.NoError(t, err)
-		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar", ForceString: true}, p)
+		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar", ForceString: goboolstr.True()}, p)
 	})
 }
 
@@ -1475,7 +1476,7 @@ func TestApplicationSourceDirectory_IsZero(t *testing.T) {
 	}{
 		{"Nil", nil, true},
 		{"Empty", &ApplicationSourceDirectory{}, true},
-		{"Recurse", &ApplicationSourceDirectory{Recurse: true}, false},
+		{"Recurse", &ApplicationSourceDirectory{Recurse: goboolstr.True()}, false},
 		{"Jsonnet", &ApplicationSourceDirectory{Jsonnet: ApplicationSourceJsonnet{ExtVars: []JsonnetVar{{}}}}, false},
 	}
 	for _, tt := range tests {
@@ -2632,8 +2633,8 @@ func newTestApp() *Application {
 func TestNewJsonnetVar(t *testing.T) {
 	assert.Equal(t, JsonnetVar{}, NewJsonnetVar("", false))
 	assert.Equal(t, JsonnetVar{Name: "a"}, NewJsonnetVar("a=", false))
-	assert.Equal(t, JsonnetVar{Name: "a", Code: true}, NewJsonnetVar("a=", true))
-	assert.Equal(t, JsonnetVar{Name: "a", Value: "b", Code: true}, NewJsonnetVar("a=b", true))
+	assert.Equal(t, JsonnetVar{Name: "a", Code: goboolstr.True()}, NewJsonnetVar("a=", true))
+	assert.Equal(t, JsonnetVar{Name: "a", Value: "b", Code: goboolstr.True()}, NewJsonnetVar("a=b", true))
 }
 
 func testCond(t ApplicationConditionType, msg string, lastTransitionTime *metav1.Time) ApplicationCondition {

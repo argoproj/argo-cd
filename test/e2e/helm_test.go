@@ -10,6 +10,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/erhudy/goboolstr"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -298,7 +299,7 @@ func TestHelmSetString(t *testing.T) {
 		AppSet("--helm-set-string", "foo=bar", "--helm-set-string", "foo=baz", "--helm-set-string", "app=$ARGOCD_APP_NAME").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz", ForceString: true}, {Name: "app", Value: "$ARGOCD_APP_NAME", ForceString: true}}, app.Spec.GetSource().Helm.Parameters)
+			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz", ForceString: goboolstr.True()}, {Name: "app", Value: "$ARGOCD_APP_NAME", ForceString: goboolstr.True()}}, app.Spec.GetSource().Helm.Parameters)
 		})
 }
 

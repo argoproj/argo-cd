@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/erhudy/goboolstr"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -190,9 +191,9 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setHelmOpt(source, helmOpts{skipCrds: appOpts.helmSkipCrds})
 		case "directory-recurse":
 			if source.Directory != nil {
-				source.Directory.Recurse = appOpts.directoryRecurse
+				source.Directory.Recurse = goboolstr.FromBool(appOpts.directoryRecurse)
 			} else {
-				source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
+				source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: goboolstr.FromBool(appOpts.directoryRecurse)}
 			}
 		case "directory-exclude":
 			if source.Directory != nil {
@@ -314,19 +315,19 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
 			log.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
 		}
-		spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
+		spec.SyncPolicy.Automated.Prune = goboolstr.FromBool(appOpts.autoPrune)
 	}
 	if flags.Changed("self-heal") {
 		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
 			log.Fatal("Cannot set --self-heal: application not configured with automatic sync")
 		}
-		spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
+		spec.SyncPolicy.Automated.SelfHeal = goboolstr.FromBool(appOpts.selfHeal)
 	}
 	if flags.Changed("allow-empty") {
 		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
 			log.Fatal("Cannot set --allow-empty: application not configured with automatic sync")
 		}
-		spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
+		spec.SyncPolicy.Automated.AllowEmpty = goboolstr.FromBool(appOpts.allowEmpty)
 	}
 
 	return visited
@@ -368,10 +369,10 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 		src.Kustomize.CommonAnnotations = opts.commonAnnotations
 	}
 	if opts.forceCommonLabels {
-		src.Kustomize.ForceCommonLabels = opts.forceCommonLabels
+		src.Kustomize.ForceCommonLabels = goboolstr.FromBool(opts.forceCommonLabels)
 	}
 	if opts.forceCommonAnnotations {
-		src.Kustomize.ForceCommonAnnotations = opts.forceCommonAnnotations
+		src.Kustomize.ForceCommonAnnotations = goboolstr.FromBool(opts.forceCommonAnnotations)
 	}
 	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
@@ -424,7 +425,7 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 		src.Helm.ValueFiles = opts.valueFiles
 	}
 	if opts.ignoreMissingValueFiles {
-		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
+		src.Helm.IgnoreMissingValueFiles = goboolstr.FromBool(opts.ignoreMissingValueFiles)
 	}
 	if len(opts.values) > 0 {
 		src.Helm.Values = opts.values
@@ -436,7 +437,7 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 		src.Helm.Version = opts.version
 	}
 	if opts.passCredentials {
-		src.Helm.PassCredentials = opts.passCredentials
+		src.Helm.PassCredentials = goboolstr.FromBool(opts.passCredentials)
 	}
 	if opts.skipCrds {
 		src.Helm.SkipCrds = opts.skipCrds

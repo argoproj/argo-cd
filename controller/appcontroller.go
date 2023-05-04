@@ -1642,7 +1642,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return nil
 	}
 
-	if !app.Spec.SyncPolicy.Automated.Prune {
+	if !app.Spec.SyncPolicy.Automated.Prune.AsBool() {
 		requirePruneOnly := true
 		for _, r := range resources {
 			if r.Status != appv1.SyncStatusCodeSynced && !r.RequiresPruning {
@@ -1663,7 +1663,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
 			Revision:    desiredCommitSHA,
-			Prune:       app.Spec.SyncPolicy.Automated.Prune,
+			Prune:       app.Spec.SyncPolicy.Automated.Prune.AsBool(),
 			SyncOptions: app.Spec.SyncPolicy.SyncOptions,
 			Revisions:   desiredCommitSHAsMS,
 		},
@@ -1677,7 +1677,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an
 	// application in an infinite loop. To detect this, we only attempt the Sync if the revision
 	// and parameter overrides are different from our most recent sync operation.
-	if alreadyAttempted && (!selfHeal || !attemptPhase.Successful()) {
+	if alreadyAttempted && (!selfHeal.AsBool() || !attemptPhase.Successful()) {
 		if !attemptPhase.Successful() {
 			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s", desiredCommitSHA)
 			message := fmt.Sprintf("Failed sync attempt to %s: %s", desiredCommitSHA, app.Status.OperationState.Message)
@@ -1685,7 +1685,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 		logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredCommitSHA)
 		return nil
-	} else if alreadyAttempted && selfHeal {
+	} else if alreadyAttempted && selfHeal.AsBool() {
 		if shouldSelfHeal, retryAfter := ctrl.shouldSelfHeal(app); shouldSelfHeal {
 			for _, resource := range resources {
 				if resource.Status != appv1.SyncStatusCodeSynced {
@@ -1704,7 +1704,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 	}
 
-	if app.Spec.SyncPolicy.Automated.Prune && !app.Spec.SyncPolicy.Automated.AllowEmpty {
+	if app.Spec.SyncPolicy.Automated.Prune.AsBool() && !app.Spec.SyncPolicy.Automated.AllowEmpty.AsBool() {
 		bAllNeedPrune := true
 		for _, r := range resources {
 			if !r.RequiresPruning {
@@ -1971,14 +1971,14 @@ func automatedSyncEnabled(oldApp *appv1.Application, newApp *appv1.Application) 
 	oldSelfHealEnabled := false
 	if oldApp.Spec.SyncPolicy != nil && oldApp.Spec.SyncPolicy.Automated != nil {
 		oldEnabled = true
-		oldSelfHealEnabled = oldApp.Spec.SyncPolicy.Automated.SelfHeal
+		oldSelfHealEnabled = oldApp.Spec.SyncPolicy.Automated.SelfHeal.AsBool()
 	}
 
 	newEnabled := false
 	newSelfHealEnabled := false
 	if newApp.Spec.SyncPolicy != nil && newApp.Spec.SyncPolicy.Automated != nil {
 		newEnabled = true
-		newSelfHealEnabled = newApp.Spec.SyncPolicy.Automated.SelfHeal
+		newSelfHealEnabled = newApp.Spec.SyncPolicy.Automated.SelfHeal.AsBool()
 	}
 	if !oldEnabled && newEnabled {
 		return true

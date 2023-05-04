@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/erhudy/goboolstr"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -135,7 +136,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 	}
 
 	if a.context.directoryRecurse {
-		source.Directory = &ApplicationSourceDirectory{Recurse: true}
+		source.Directory = &ApplicationSourceDirectory{Recurse: goboolstr.True()}
 	}
 	app.Spec.Source = &source
 
@@ -171,7 +172,7 @@ func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 			},
 			SyncPolicy: &SyncPolicy{
 				Automated: &SyncPolicyAutomated{
-					SelfHeal: true,
+					SelfHeal: goboolstr.True(),
 				},
 			},
 		},

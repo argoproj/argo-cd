@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/erhudy/goboolstr"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -362,7 +363,7 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 func TestGenerateManifestsUseExactRevision(t *testing.T) {
 	service, gitClient := newServiceWithMocks(".", false)
 
-	src := argoappv1.ApplicationSource{Path: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
+	src := argoappv1.ApplicationSource{Path: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: goboolstr.True()}}
 
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, Revision: "abc"}
 
@@ -375,7 +376,7 @@ func TestGenerateManifestsUseExactRevision(t *testing.T) {
 func TestRecurseManifestsInDir(t *testing.T) {
 	service := newService(".")
 
-	src := argoappv1.ApplicationSource{Path: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
+	src := argoappv1.ApplicationSource{Path: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: goboolstr.True()}}
 
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
@@ -387,7 +388,7 @@ func TestRecurseManifestsInDir(t *testing.T) {
 func TestInvalidManifestsInDir(t *testing.T) {
 	service := newService(".")
 
-	src := argoappv1.ApplicationSource{Path: "./testdata/invalid-manifests", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
+	src := argoappv1.ApplicationSource{Path: "./testdata/invalid-manifests", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: goboolstr.True()}}
 
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
@@ -404,8 +405,8 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 			Path: "./testdata/jsonnet",
 			Directory: &argoappv1.ApplicationSourceDirectory{
 				Jsonnet: argoappv1.ApplicationSourceJsonnet{
-					ExtVars: []argoappv1.JsonnetVar{{Name: "extVarString", Value: "extVarString"}, {Name: "extVarCode", Value: "\"extVarCode\"", Code: true}},
-					TLAs:    []argoappv1.JsonnetVar{{Name: "tlaString", Value: "tlaString"}, {Name: "tlaCode", Value: "\"tlaCode\"", Code: true}},
+					ExtVars: []argoappv1.JsonnetVar{{Name: "extVarString", Value: "extVarString"}, {Name: "extVarCode", Value: "\"extVarCode\"", Code: goboolstr.True()}},
+					TLAs:    []argoappv1.JsonnetVar{{Name: "tlaString", Value: "tlaString"}, {Name: "tlaCode", Value: "\"tlaCode\"", Code: goboolstr.True()}},
 					Libs:    []string{"testdata/jsonnet/vendor"},
 				},
 			},
@@ -425,8 +426,8 @@ func TestGenerateJsonnetManifestInRootDir(t *testing.T) {
 			Path: ".",
 			Directory: &argoappv1.ApplicationSourceDirectory{
 				Jsonnet: argoappv1.ApplicationSourceJsonnet{
-					ExtVars: []argoappv1.JsonnetVar{{Name: "extVarString", Value: "extVarString"}, {Name: "extVarCode", Value: "\"extVarCode\"", Code: true}},
-					TLAs:    []argoappv1.JsonnetVar{{Name: "tlaString", Value: "tlaString"}, {Name: "tlaCode", Value: "\"tlaCode\"", Code: true}},
+					ExtVars: []argoappv1.JsonnetVar{{Name: "extVarString", Value: "extVarString"}, {Name: "extVarCode", Value: "\"extVarCode\"", Code: goboolstr.True()}},
+					TLAs:    []argoappv1.JsonnetVar{{Name: "tlaString", Value: "tlaString"}, {Name: "tlaCode", Value: "\"tlaCode\"", Code: goboolstr.True()}},
 					Libs:    []string{"."},
 				},
 			},
@@ -835,7 +836,7 @@ func TestHelmWithMissingValueFiles(t *testing.T) {
 	assert.Contains(t, err.Error(), fmt.Sprintf("%s: no such file or directory", missingValuesFile))
 
 	// Should template without error even if defining a non-existent values file
-	req.ApplicationSource.Helm.IgnoreMissingValueFiles = true
+	req.ApplicationSource.Helm.IgnoreMissingValueFiles = goboolstr.True()
 	_, err = service.GenerateManifest(context.Background(), req)
 	assert.NoError(t, err)
 }
@@ -1858,7 +1859,7 @@ func TestFindResources(t *testing.T) {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			objs, err := findManifests(&log.Entry{}, "testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
-				Recurse: true,
+				Recurse: goboolstr.True(),
 				Include: tc.include,
 				Exclude: tc.exclude,
 			}, map[string]bool{}, resource.MustParse("0"))
@@ -1876,7 +1877,7 @@ func TestFindResources(t *testing.T) {
 
 func TestFindManifests_Exclude(t *testing.T) {
 	objs, err := findManifests(&log.Entry{}, "testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
-		Recurse: true,
+		Recurse: goboolstr.True(),
 		Exclude: "subdir/deploymentSub.yaml",
 	}, map[string]bool{}, resource.MustParse("0"))
 
@@ -1889,7 +1890,7 @@ func TestFindManifests_Exclude(t *testing.T) {
 
 func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 	objs, err := findManifests(&log.Entry{}, "testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
-		Recurse: true,
+		Recurse: goboolstr.True(),
 		Exclude: "nothing.yaml",
 	}, map[string]bool{}, resource.MustParse("0"))
 
@@ -2217,7 +2218,7 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 
 func Test_findManifests(t *testing.T) {
 	logCtx := log.WithField("test", "test")
-	noRecurse := argoappv1.ApplicationSourceDirectory{Recurse: false}
+	noRecurse := argoappv1.ApplicationSourceDirectory{Recurse: goboolstr.False()}
 
 	t.Run("unreadable file throws error", func(t *testing.T) {
 		appDir := t.TempDir()
@@ -2245,7 +2246,7 @@ func Test_findManifests(t *testing.T) {
 	})
 
 	t.Run("recursion when recursion is enabled", func(t *testing.T) {
-		recurse := argoappv1.ApplicationSourceDirectory{Recurse: true}
+		recurse := argoappv1.ApplicationSourceDirectory{Recurse: goboolstr.True()}
 		manifests, err := findManifests(logCtx, "./testdata/recurse", "./testdata/recurse", nil, recurse, nil, resource.MustParse("0"))
 		assert.Len(t, manifests, 4)
 		assert.NoError(t, err)

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/erhudy/goboolstr"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -21,7 +22,7 @@ func TestAutoSyncSelfHealDisabled(t *testing.T) {
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: false}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: goboolstr.False()}}
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -49,7 +50,7 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
 			app.Spec.SyncPolicy = &SyncPolicy{
-				Automated: &SyncPolicyAutomated{SelfHeal: true},
+				Automated: &SyncPolicyAutomated{SelfHeal: goboolstr.True()},
 				Retry:     &RetryStrategy{Limit: 0},
 			}
 		}).

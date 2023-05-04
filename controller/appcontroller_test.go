@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
+	"github.com/erhudy/goboolstr"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
@@ -360,7 +361,7 @@ func TestAutoSync(t *testing.T) {
 
 func TestAutoSyncNotAllowEmpty(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.SyncPolicy.Automated.Prune = true
+	app.Spec.SyncPolicy.Automated.Prune = goboolstr.True()
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 	syncStatus := argoappv1.SyncStatus{
 		Status:   argoappv1.SyncStatusCodeOutOfSync,
@@ -372,8 +373,8 @@ func TestAutoSyncNotAllowEmpty(t *testing.T) {
 
 func TestAutoSyncAllowEmpty(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.SyncPolicy.Automated.Prune = true
-	app.Spec.SyncPolicy.Automated.AllowEmpty = true
+	app.Spec.SyncPolicy.Automated.Prune = goboolstr.True()
+	app.Spec.SyncPolicy.Automated.AllowEmpty = goboolstr.True()
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 	syncStatus := argoappv1.SyncStatus{
 		Status:   argoappv1.SyncStatusCodeOutOfSync,

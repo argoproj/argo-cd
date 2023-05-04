@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/erhudy/goboolstr"
 	"github.com/ghodss/yaml"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/mattn/go-isatty"
@@ -487,7 +488,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	var syncPolicy string
 	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
 		syncPolicy = "Automated"
-		if app.Spec.SyncPolicy.Automated.Prune {
+		if app.Spec.SyncPolicy.Automated.Prune.AsBool() {
 			syncPolicy += " (Prune)"
 		}
 	} else {
@@ -810,12 +811,12 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 				}
 			}
 		}
-		if opts.ignoreMissingValueFiles && source.Helm.IgnoreMissingValueFiles {
-			source.Helm.IgnoreMissingValueFiles = false
+		if opts.ignoreMissingValueFiles && source.Helm.IgnoreMissingValueFiles.AsBool() {
+			source.Helm.IgnoreMissingValueFiles = goboolstr.False()
 			updated = true
 		}
-		if opts.passCredentials && source.Helm.PassCredentials {
-			source.Helm.PassCredentials = false
+		if opts.passCredentials && source.Helm.PassCredentials.AsBool() {
+			source.Helm.PassCredentials = goboolstr.False()
 			updated = true
 		}
 	}
@@ -1342,7 +1343,7 @@ func formatSyncPolicy(app argoappv1.Application) string {
 		return "<none>"
 	}
 	policy := "Auto"
-	if app.Spec.SyncPolicy.Automated.Prune {
+	if app.Spec.SyncPolicy.Automated.Prune.AsBool() {
 		policy = policy + "-Prune"
 	}
 	return policy
@@ -1727,10 +1728,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				switch strategy {
 				case "apply":
 					syncReq.Strategy = &argoappv1.SyncStrategy{Apply: &argoappv1.SyncStrategyApply{}}
-					syncReq.Strategy.Apply.Force = force
+					syncReq.Strategy.Apply.Force = goboolstr.FromBool(force)
 				case "", "hook":
 					syncReq.Strategy = &argoappv1.SyncStrategy{Hook: &argoappv1.SyncStrategyHook{}}
-					syncReq.Strategy.Hook.Force = force
+					syncReq.Strategy.Hook.Force = goboolstr.FromBool(force)
 				default:
 					log.Fatalf("Unknown sync strategy: '%s'", strategy)
 				}
