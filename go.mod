@@ -23,7 +23,7 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20220301131131-8e7ed04b843e
 	github.com/go-git/go-git/v5 v5.6.1
-	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/logr v1.2.4
 	github.com/go-openapi/loads v0.21.2
 	github.com/go-openapi/runtime v0.25.0
 	github.com/go-redis/cache/v9 v9.0.0
@@ -65,15 +65,15 @@ require (
 	github.com/soheilhy/cmux v0.1.5
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0
 	github.com/xanzy/go-gitlab v0.60.0
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.31.0
-	go.opentelemetry.io/otel v1.11.1
+	go.opentelemetry.io/otel v1.15.1
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.11.1
-	go.opentelemetry.io/otel/sdk v1.11.1
+	go.opentelemetry.io/otel/sdk v1.15.1
 	golang.org/x/crypto v0.6.0
 	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094
 	golang.org/x/sync v0.1.0
@@ -216,12 +216,12 @@ require (
 	go.mongodb.org/mongo-driver v1.10.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.11.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.11.1 // indirect
-	go.opentelemetry.io/otel/trace v1.11.1 // indirect
+	go.opentelemetry.io/otel/trace v1.15.1 // indirect
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/sys v0.7.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	golang.org/x/tools v0.4.0 // indirect
