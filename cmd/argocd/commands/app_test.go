@@ -12,6 +12,7 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/erhudy/goboolstr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
@@ -348,7 +349,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: goboolstr.True(),
 					},
 				},
 			},
@@ -369,7 +370,7 @@ func TestFormatConditionSummary(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: goboolstr.True(),
 					},
 				},
 			},
@@ -495,7 +496,7 @@ func TestPrintAppSummaryTable(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: goboolstr.True(),
 					},
 				},
 				Project:     "default",
@@ -767,7 +768,7 @@ func Test_unset(t *testing.T) {
 
 	helmSource := &v1alpha1.ApplicationSource{
 		Helm: &v1alpha1.ApplicationSourceHelm{
-			IgnoreMissingValueFiles: true,
+			IgnoreMissingValueFiles: goboolstr.True(),
 			Parameters: []v1alpha1.HelmParameter{
 				{
 					Name:  "name-1",
@@ -778,7 +779,7 @@ func Test_unset(t *testing.T) {
 					Value: "value-2",
 				},
 			},
-			PassCredentials: true,
+			PassCredentials: goboolstr.True(),
 			Values:          "some: yaml",
 			ValueFiles: []string{
 				"values-1.yaml",

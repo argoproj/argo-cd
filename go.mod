@@ -115,6 +115,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/antonmedv/expr v1.9.0
 	github.com/coreos/go-oidc/v3 v3.4.0
+	github.com/erhudy/goboolstr v0.0.0-20230504180832-acaa7a9271ce
 	github.com/go-redis/cache/v9 v9.0.0
 	github.com/robfig/cron/v3 v3.0.1
 )
@@ -154,7 +155,6 @@ require (
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
-	github.com/erhudy/goboolstr v0.0.0-20230504130530-7524a6ac9433 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect

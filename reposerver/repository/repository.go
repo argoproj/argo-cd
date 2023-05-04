@@ -1121,7 +1121,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			templateOpts.SetFile[p.Name] = resolvedPath
 		}
 		passCredentials = appHelm.PassCredentials.AsBool()
-		templateOpts.SkipCrds = appHelm.SkipCrds
+		templateOpts.SkipCrds = appHelm.SkipCrds.AsBool()
 	}
 	if templateOpts.Name == "" {
 		templateOpts.Name = q.AppName

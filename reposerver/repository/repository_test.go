@@ -1141,7 +1141,7 @@ func TestGenerateHelmWithFileParameter(t *testing.T) {
 				ValueFiles: []string{"values-production.yaml"},
 				Values:     `cluster: {slaveCount: 2}`,
 				FileParameters: []argoappv1.HelmFileParameter{
-					argoappv1.HelmFileParameter{
+					{
 						Name: "passwordContent",
 						Path: "../external/external-secret.txt",
 					},

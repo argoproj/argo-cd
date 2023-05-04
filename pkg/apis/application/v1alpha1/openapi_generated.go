@@ -1485,8 +1485,8 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceDirectory(ref common.
 					"recurse": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Recurse specifies whether to scan a directory recursively for manifests",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/erhudy/goboolstr.BoolOrString"),
 						},
 					},
 					"jsonnet": {
@@ -1514,7 +1514,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceDirectory(ref common.
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceJsonnet"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceJsonnet", "github.com/erhudy/goboolstr.BoolOrString"},
 	}
 }
 
@@ -1592,29 +1592,29 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 					"passCredentials": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PassCredentials pass credentials to all domains (Helm's --pass-credentials)",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/erhudy/goboolstr.BoolOrString"),
 						},
 					},
 					"ignoreMissingValueFiles": {
 						SchemaProps: spec.SchemaProps{
 							Description: "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/erhudy/goboolstr.BoolOrString"),
 						},
 					},
 					"skipCrds": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/erhudy/goboolstr.BoolOrString"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmFileParameter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmFileParameter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter", "github.com/erhudy/goboolstr.BoolOrString"},
 	}
 }
 
@@ -1754,15 +1754,15 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 					"forceCommonLabels": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/erhudy/goboolstr.BoolOrString"),
 						},
 					},
 					"forceCommonAnnotations": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/erhudy/goboolstr.BoolOrString"),
 						},
 					},
 					"namespace": {
@@ -1775,8 +1775,8 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 					"commonAnnotationsEnvsubst": {
 						SchemaProps: spec.SchemaProps{
 							Description: "CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/erhudy/goboolstr.BoolOrString"),
 						},
 					},
 					"replicas": {
@@ -1797,7 +1797,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeReplica"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeReplica", "github.com/erhudy/goboolstr.BoolOrString"},
 	}
 }
 
@@ -3361,13 +3361,15 @@ func schema_pkg_apis_application_v1alpha1_HelmParameter(ref common.ReferenceCall
 					"forceString": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ForceString determines whether to tell Helm to interpret booleans and numbers as strings",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/erhudy/goboolstr.BoolOrString"),
 						},
 					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/erhudy/goboolstr.BoolOrString"},
 	}
 }
 
@@ -3585,14 +3587,16 @@ func schema_pkg_apis_application_v1alpha1_JsonnetVar(ref common.ReferenceCallbac
 					},
 					"code": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/erhudy/goboolstr.BoolOrString"),
 						},
 					},
 				},
 				Required: []string{"name", "value"},
 			},
 		},
+		Dependencies: []string{
+			"github.com/erhudy/goboolstr.BoolOrString"},
 	}
 }
 
@@ -6828,27 +6832,29 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 					"prune": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/erhudy/goboolstr.BoolOrString"),
 						},
 					},
 					"selfHeal": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/erhudy/goboolstr.BoolOrString"),
 						},
 					},
 					"allowEmpty": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AllowEmpty allows apps have zero live resources (default: false)",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/erhudy/goboolstr.BoolOrString"),
 						},
 					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/erhudy/goboolstr.BoolOrString"},
 	}
 }
 
@@ -6942,13 +6948,15 @@ func schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref common.Reference
 					"force": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Force indicates whether or not to supply the --force flag to `kubectl apply`. The --force flag deletes and re-create the resource, when PATCH encounters conflict and has retried for 5 times.",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/erhudy/goboolstr.BoolOrString"),
 						},
 					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/erhudy/goboolstr.BoolOrString"},
 	}
 }
 
@@ -6962,13 +6970,15 @@ func schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref common.ReferenceC
 					"force": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Force indicates whether or not to supply the --force flag to `kubectl apply`. The --force flag deletes and re-create the resource, when PATCH encounters conflict and has retried for 5 times.",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/erhudy/goboolstr.BoolOrString"),
 						},
 					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/erhudy/goboolstr.BoolOrString"},
 	}
 }
 

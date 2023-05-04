@@ -6096,8 +6096,7 @@
           "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet"
         },
         "recurse": {
-          "type": "boolean",
-          "title": "Recurse specifies whether to scan a directory recursively for manifests"
+          "$ref": "#/definitions/v1alpha1BoolOrString"
         }
       }
     },
@@ -6113,8 +6112,7 @@
           }
         },
         "ignoreMissingValueFiles": {
-          "type": "boolean",
-          "title": "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values"
+          "$ref": "#/definitions/v1alpha1BoolOrString"
         },
         "parameters": {
           "type": "array",
@@ -6124,8 +6122,7 @@
           }
         },
         "passCredentials": {
-          "type": "boolean",
-          "title": "PassCredentials pass credentials to all domains (Helm's --pass-credentials)"
+          "$ref": "#/definitions/v1alpha1BoolOrString"
         },
         "releaseName": {
           "type": "string",
@@ -6191,8 +6188,7 @@
           }
         },
         "commonAnnotationsEnvsubst": {
-          "type": "boolean",
-          "title": "CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values"
+          "$ref": "#/definitions/v1alpha1BoolOrString"
         },
         "commonLabels": {
           "type": "object",
@@ -6202,12 +6198,10 @@
           }
         },
         "forceCommonAnnotations": {
-          "type": "boolean",
-          "title": "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps"
+          "$ref": "#/definitions/v1alpha1BoolOrString"
         },
         "forceCommonLabels": {
-          "type": "boolean",
-          "title": "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps"
+          "$ref": "#/definitions/v1alpha1BoolOrString"
         },
         "images": {
           "type": "array",
@@ -6482,6 +6476,20 @@
         "username": {
           "type": "string",
           "title": "Username for Basic auth"
+        }
+      }
+    },
+    "v1alpha1BoolOrString": {
+      "type": "object",
+      "properties": {
+        "boolVal": {
+          "type": "boolean"
+        },
+        "strVal": {
+          "type": "string"
+        },
+        "type": {
+          "type": "boolean"
         }
       }
     },
@@ -6940,8 +6948,7 @@
       "title": "HelmParameter is a parameter that's passed to helm template during manifest generation",
       "properties": {
         "forceString": {
-          "type": "boolean",
-          "title": "ForceString determines whether to tell Helm to interpret booleans and numbers as strings"
+          "$ref": "#/definitions/v1alpha1BoolOrString"
         },
         "name": {
           "type": "string",
@@ -7051,7 +7058,7 @@
       "title": "JsonnetVar represents a variable to be passed to jsonnet during manifest generation",
       "properties": {
         "code": {
-          "type": "boolean"
+          "$ref": "#/definitions/v1alpha1BoolOrString"
         },
         "name": {
           "type": "string"
@@ -8499,16 +8506,13 @@
       "title": "SyncPolicyAutomated controls the behavior of an automated sync",
       "properties": {
         "allowEmpty": {
-          "type": "boolean",
-          "title": "AllowEmpty allows apps have zero live resources (default: false)"
+          "$ref": "#/definitions/v1alpha1BoolOrString"
         },
         "prune": {
-          "type": "boolean",
-          "title": "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)"
+          "$ref": "#/definitions/v1alpha1BoolOrString"
         },
         "selfHeal": {
-          "type": "boolean",
-          "title": "SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)"
+          "$ref": "#/definitions/v1alpha1BoolOrString"
         }
       }
     },
@@ -8553,8 +8557,7 @@
       "title": "SyncStrategyApply uses `kubectl apply` to perform the apply",
       "properties": {
         "force": {
-          "description": "Force indicates whether or not to supply the --force flag to `kubectl apply`.\nThe --force flag deletes and re-create the resource, when PATCH encounters conflict and has\nretried for 5 times.",
-          "type": "boolean"
+          "$ref": "#/definitions/v1alpha1BoolOrString"
         }
       }
     },

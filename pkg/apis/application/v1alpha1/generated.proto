@@ -389,7 +389,7 @@ message ApplicationSource {
 // ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet
 message ApplicationSourceDirectory {
   // Recurse specifies whether to scan a directory recursively for manifests
-  optional bool recurse = 1;
+  optional BoolOrString recurse = 1;
 
   // Jsonnet holds options specific to Jsonnet
   optional ApplicationSourceJsonnet jsonnet = 2;
@@ -422,10 +422,10 @@ message ApplicationSourceHelm {
   optional string version = 6;
 
   // PassCredentials pass credentials to all domains (Helm's --pass-credentials)
-  optional bool passCredentials = 7;
+  optional BoolOrString passCredentials = 7;
 
   // IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values
-  optional bool ignoreMissingValueFiles = 8;
+  optional BoolOrString ignoreMissingValueFiles = 8;
 
   // SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
   optional bool skipCrds = 9;
@@ -464,16 +464,16 @@ message ApplicationSourceKustomize {
   map<string, string> commonAnnotations = 6;
 
   // ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps
-  optional bool forceCommonLabels = 7;
+  optional BoolOrString forceCommonLabels = 7;
 
   // ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
-  optional bool forceCommonAnnotations = 8;
+  optional BoolOrString forceCommonAnnotations = 8;
 
   // Namespace sets the namespace that Kustomize adds to all resources
   optional string namespace = 9;
 
   // CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
-  optional bool commonAnnotationsEnvsubst = 10;
+  optional BoolOrString commonAnnotationsEnvsubst = 10;
 
   // Replicas is a list of Kustomize Replicas override specifications
   repeated KustomizeReplica replicas = 11;
@@ -942,7 +942,7 @@ message HelmParameter {
   optional string value = 2;
 
   // ForceString determines whether to tell Helm to interpret booleans and numbers as strings
-  optional bool forceString = 3;
+  optional BoolOrString forceString = 3;
 }
 
 // HostInfo holds host name and resources metrics
@@ -1002,7 +1002,7 @@ message JsonnetVar {
 
   optional string value = 2;
 
-  optional bool code = 3;
+  optional BoolOrString code = 3;
 }
 
 // KnownTypeField contains mapping between CRD field and known Kubernetes type.
@@ -1985,13 +1985,13 @@ message SyncPolicy {
 // SyncPolicyAutomated controls the behavior of an automated sync
 message SyncPolicyAutomated {
   // Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
-  optional bool prune = 1;
+  optional BoolOrString prune = 1;
 
   // SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)
-  optional bool selfHeal = 2;
+  optional BoolOrString selfHeal = 2;
 
   // AllowEmpty allows apps have zero live resources (default: false)
-  optional bool allowEmpty = 3;
+  optional BoolOrString allowEmpty = 3;
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application
@@ -2023,7 +2023,7 @@ message SyncStrategyApply {
   // Force indicates whether or not to supply the --force flag to `kubectl apply`.
   // The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
   // retried for 5 times.
-  optional bool force = 1;
+  optional BoolOrString force = 1;
 }
 
 // SyncStrategyHook will perform a sync using hooks annotations.
@@ -2082,5 +2082,13 @@ message TLSClientConfig {
   // CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
   // CAData takes precedence over CAFile
   optional bytes caData = 5;
+}
+
+message BoolOrString {
+  optional bool type = 1;
+
+  optional bool boolVal = 2;
+
+  optional string strVal = 3;
 }
 

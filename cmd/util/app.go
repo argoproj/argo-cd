@@ -440,7 +440,7 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 		src.Helm.PassCredentials = goboolstr.FromBool(opts.passCredentials)
 	}
 	if opts.skipCrds {
-		src.Helm.SkipCrds = opts.skipCrds
+		src.Helm.SkipCrds = goboolstr.FromBool(opts.skipCrds)
 	}
 	for _, text := range opts.helmSets {
 		p, err := argoappv1.NewHelmParameter(text, false)
