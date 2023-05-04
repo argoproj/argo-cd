@@ -499,6 +499,9 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 
 		for _, a := range t {
 			tmplApplication := getTempApplication(a.Template)
+			if tmplApplication.Labels == nil {
+				tmplApplication.Labels = make(map[string]string)
+			}
 			tmplApplication.Labels[LabelKeyAppSetInstance] = applicationSetInfo.Name
 
 			for _, p := range a.Params {
