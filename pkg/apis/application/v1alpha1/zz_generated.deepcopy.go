@@ -933,6 +933,7 @@ func (in *ApplicationSourceHelm) DeepCopyInto(out *ApplicationSourceHelm) {
 	}
 	out.PassCredentials = in.PassCredentials
 	out.IgnoreMissingValueFiles = in.IgnoreMissingValueFiles
+	out.SkipCrds = in.SkipCrds
 	return
 }
 

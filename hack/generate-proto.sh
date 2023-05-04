@@ -30,6 +30,7 @@ PACKAGES=(
     github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1
 )
 APIMACHINERY_PKGS=(
+    github.com/erhudy/goboolstr
     +k8s.io/apimachinery/pkg/util/intstr
     +k8s.io/apimachinery/pkg/api/resource
     +k8s.io/apimachinery/pkg/runtime/schema

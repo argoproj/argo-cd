@@ -4457,6 +4457,21 @@
         }
       }
     },
+    "goboolstrBoolOrString": {
+      "type": "object",
+      "title": "+protobuf=true\n+protobuf.options.(gogoproto.goproto_stringer)=false",
+      "properties": {
+        "boolVal": {
+          "type": "boolean"
+        },
+        "strVal": {
+          "type": "string"
+        },
+        "type": {
+          "type": "boolean"
+        }
+      }
+    },
     "gpgkeyGnuPGPublicKeyCreateResponse": {
       "type": "object",
       "title": "Response to a public key creation request",
@@ -6096,7 +6111,7 @@
           "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet"
         },
         "recurse": {
-          "$ref": "#/definitions/v1alpha1BoolOrString"
+          "$ref": "#/definitions/goboolstrBoolOrString"
         }
       }
     },
@@ -6112,7 +6127,7 @@
           }
         },
         "ignoreMissingValueFiles": {
-          "$ref": "#/definitions/v1alpha1BoolOrString"
+          "$ref": "#/definitions/goboolstrBoolOrString"
         },
         "parameters": {
           "type": "array",
@@ -6122,15 +6137,14 @@
           }
         },
         "passCredentials": {
-          "$ref": "#/definitions/v1alpha1BoolOrString"
+          "$ref": "#/definitions/goboolstrBoolOrString"
         },
         "releaseName": {
           "type": "string",
           "title": "ReleaseName is the Helm release name to use. If omitted it will use the application name"
         },
         "skipCrds": {
-          "type": "boolean",
-          "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
+          "$ref": "#/definitions/goboolstrBoolOrString"
         },
         "valueFiles": {
           "type": "array",
@@ -6188,7 +6202,7 @@
           }
         },
         "commonAnnotationsEnvsubst": {
-          "$ref": "#/definitions/v1alpha1BoolOrString"
+          "$ref": "#/definitions/goboolstrBoolOrString"
         },
         "commonLabels": {
           "type": "object",
@@ -6198,10 +6212,10 @@
           }
         },
         "forceCommonAnnotations": {
-          "$ref": "#/definitions/v1alpha1BoolOrString"
+          "$ref": "#/definitions/goboolstrBoolOrString"
         },
         "forceCommonLabels": {
-          "$ref": "#/definitions/v1alpha1BoolOrString"
+          "$ref": "#/definitions/goboolstrBoolOrString"
         },
         "images": {
           "type": "array",
@@ -6476,20 +6490,6 @@
         "username": {
           "type": "string",
           "title": "Username for Basic auth"
-        }
-      }
-    },
-    "v1alpha1BoolOrString": {
-      "type": "object",
-      "properties": {
-        "boolVal": {
-          "type": "boolean"
-        },
-        "strVal": {
-          "type": "string"
-        },
-        "type": {
-          "type": "boolean"
         }
       }
     },
@@ -6948,7 +6948,7 @@
       "title": "HelmParameter is a parameter that's passed to helm template during manifest generation",
       "properties": {
         "forceString": {
-          "$ref": "#/definitions/v1alpha1BoolOrString"
+          "$ref": "#/definitions/goboolstrBoolOrString"
         },
         "name": {
           "type": "string",
@@ -7058,7 +7058,7 @@
       "title": "JsonnetVar represents a variable to be passed to jsonnet during manifest generation",
       "properties": {
         "code": {
-          "$ref": "#/definitions/v1alpha1BoolOrString"
+          "$ref": "#/definitions/goboolstrBoolOrString"
         },
         "name": {
           "type": "string"
@@ -8506,13 +8506,13 @@
       "title": "SyncPolicyAutomated controls the behavior of an automated sync",
       "properties": {
         "allowEmpty": {
-          "$ref": "#/definitions/v1alpha1BoolOrString"
+          "$ref": "#/definitions/goboolstrBoolOrString"
         },
         "prune": {
-          "$ref": "#/definitions/v1alpha1BoolOrString"
+          "$ref": "#/definitions/goboolstrBoolOrString"
         },
         "selfHeal": {
-          "$ref": "#/definitions/v1alpha1BoolOrString"
+          "$ref": "#/definitions/goboolstrBoolOrString"
         }
       }
     },
@@ -8557,7 +8557,7 @@
       "title": "SyncStrategyApply uses `kubectl apply` to perform the apply",
       "properties": {
         "force": {
-          "$ref": "#/definitions/v1alpha1BoolOrString"
+          "$ref": "#/definitions/goboolstrBoolOrString"
         }
       }
     },
