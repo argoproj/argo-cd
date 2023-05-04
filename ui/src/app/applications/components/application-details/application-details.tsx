@@ -346,9 +346,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             return (
                                 <div
                                     className={`application-details ${
-                                        typeof application.metadata.labels != 'undefined'
-                                            ? application.metadata.labels[appModels.LabelCustomCSSKey]
-                                            : this.props.match.params.name
+                                        typeof application.metadata.labels !== 'undefined' ? application.metadata.labels[appModels.LabelCustomCSSKey] : this.props.match.params.name
                                     }`}>
                                     <Page
                                         title={this.props.match.params.name + ' - ' + this.getPageTitle(pref.view)}

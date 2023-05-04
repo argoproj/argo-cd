@@ -118,3 +118,20 @@ data:
 ```
 
 ![banner with link](../assets/banner.png)
+
+### Customize the application interface using application label key/value
+The style specified in the injected CSS file can be applied to the application interface using label value.
+Use a custom style value for the label key `argoproj.io/app-class-name` to customize the interface.
+
+Label key/value: 
+`argoproj.io/app-class-name: <custom-css>`
+
+Example:
+```
+argoproj.io/app-class-name: application-details-custom-css`
+.custom-styles:has(.application-details):has([class$=application-details-custom-css]) .ui-banner a {
+    font-weight: 500;
+    color: #ffffff; ##Change the color of the banner
+}
+```
+
