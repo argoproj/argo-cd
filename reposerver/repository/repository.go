@@ -2526,3 +2526,134 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 		}, nil
 	}
 }
+
+func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+	repo := request.GetRepo()
+	revision := request.GetRevision()
+	gitPath := request.GetPath()
+	if gitPath == "" {
+		gitPath = "."
+	}
+
+	if repo == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
+	}
+
+	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
+	}
+
+	// check the cache and return the results if present
+	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision); err == nil {
+		log.Debugf("cache hit for repo: %s revision: %s", repo.Repo, revision)
+		return &apiclient.GitFilesResponse{
+			Map: cachedFiles,
+		}, nil
+	}
+
+	// cache miss, generate the results
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+	}
+	defer io.Close(closer)
+
+	gitFiles, err := gitClient.LsFiles(gitPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to list files. repo %s with revision %s: %v", repo.Repo, revision, err)
+	}
+	log.Debugf("listed %d git files from %s under %s", len(gitFiles), repo.Repo, gitPath)
+
+	res := make(map[string][]byte)
+	for _, filePath := range gitFiles {
+		fileContents, err := os.ReadFile(filepath.Join(gitClient.Root(), filePath))
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "unable to read files. repo %s with revision %s: %v", repo.Repo, revision, err)
+		}
+		res[filePath] = fileContents
+	}
+
+	err = s.cache.SetGitFiles(repo.Repo, revision, res)
+	if err != nil {
+		log.Warnf("error caching git files for repo %s with revision %s: %v", repo.Repo, revision, err)
+	}
+
+	return &apiclient.GitFilesResponse{
+		Map: res,
+	}, nil
+}
+
+func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+	repo := request.GetRepo()
+	revision := request.GetRevision()
+
+	if repo == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
+	}
+
+	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
+	}
+
+	// check the cache and return the results if present
+	if cachedPaths, err := s.cache.GetGitDirectories(repo.Repo, revision); err == nil {
+		log.Debugf("cache hit for repo: %s revision: %s", repo.Repo, revision)
+		return &apiclient.GitDirectoriesResponse{
+			Paths: cachedPaths,
+		}, nil
+	}
+
+	// cache miss, generate the results
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+	}
+	defer io.Close(closer)
+
+	repoRoot := gitClient.Root()
+	var paths []string
+	if err := filepath.WalkDir(repoRoot, func(path string, entry fs.DirEntry, fnErr error) error {
+		if fnErr != nil {
+			return fmt.Errorf("error walking the file tree: %w", fnErr)
+		}
+		if !entry.IsDir() { // Skip files: directories only
+			return nil
+		}
+
+		fname := entry.Name()
+		if strings.HasPrefix(fname, ".") { // Skip all folders starts with "."
+			return filepath.SkipDir
+		}
+
+		relativePath, err := filepath.Rel(repoRoot, path)
+		if err != nil {
+			return fmt.Errorf("error constructing relative repo path: %w", err)
+		}
+
+		if relativePath == "." { // Exclude '.' from results
+			return nil
+		}
+
+		paths = append(paths, relativePath)
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	log.Debugf("found %d git paths from %s", len(paths), repo.Repo)
+	err = s.cache.SetGitDirectories(repo.Repo, revision, paths)
+	if err != nil {
+		log.Warnf("error caching git directories for repo %s with revision %s: %v", repo.Repo, revision, err)
+	}
+
+	return &apiclient.GitDirectoriesResponse{
+		Paths: paths,
+	}, nil
+}
