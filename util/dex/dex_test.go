@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
+	"sigs.k8s.io/yaml"
 
 	// "github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -64,7 +64,7 @@ staticClients:
   name: Argo Workflow
   redirectURIs:
   - https://argo/oauth2/callback
-  secret:  $dex.acme.clientSecret  
+  secret:  $dex.acme.clientSecret
 `
 var badDexConfig = `
 connectors:
