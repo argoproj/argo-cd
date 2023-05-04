@@ -104,6 +104,15 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, v1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(updatedApp.Status.History))
+
+	// because BoolOrString is a composite type that contains both a bool and string representation of the bool,
+	// when it is created as a default the string representation will be "" instead of "false", and so
+	// this comparison fails unless we tweak one side or the other to match by setting the string representation
+	// (the boolean itself is set correctly to false and that is what really matters)
+	source.Helm.SkipCrds.StrVal = "false"
+	source.Helm.IgnoreMissingValueFiles.StrVal = "false"
+	source.Helm.PassCredentials.StrVal = "false"
+
 	assert.Equal(t, source, updatedApp.Status.History[0].Source)
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
 }

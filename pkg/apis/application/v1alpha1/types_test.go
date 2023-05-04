@@ -1306,10 +1306,15 @@ func TestNewHelmParameter(t *testing.T) {
 		_, err := NewHelmParameter("garbage", false)
 		assert.EqualError(t, err, "Expected helm parameter of the form: param=value. Received: garbage")
 	})
-	t.Run("NonString", func(t *testing.T) {
+	t.Run("NonStringDefaulted", func(t *testing.T) {
 		p, err := NewHelmParameter("foo=bar", false)
 		assert.NoError(t, err)
-		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar"}, p)
+		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar", ForceString: goboolstr.BoolOrString{BoolVal: false, StrVal: ""}}, p)
+	})
+	t.Run("NonStringExplicit", func(t *testing.T) {
+		p, err := NewHelmParameter("foo=bar", false)
+		assert.NoError(t, err)
+		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar", ForceString: goboolstr.False()}, p)
 	})
 	t.Run("String", func(t *testing.T) {
 		p, err := NewHelmParameter("foo=bar", true)
