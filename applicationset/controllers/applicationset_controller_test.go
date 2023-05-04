@@ -164,11 +164,14 @@ func TestExtractApplications(t *testing.T) {
 			if cc.generateParamsError == nil {
 				for _, p := range cc.params {
 
+					tmpApplication := getTempApplication(cc.template)
+					tmpApplication.Labels[LabelKeyAppSetInstance] = appSet.Name
+
 					if cc.rendererError != nil {
-						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p, false).
+						rendererMock.On("RenderTemplateParams", tmpApplication, p, false).
 							Return(nil, cc.rendererError)
 					} else {
-						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p, false).
+						rendererMock.On("RenderTemplateParams", tmpApplication, p, false).
 							Return(&app, nil)
 						expectedApps = append(expectedApps, app)
 					}
@@ -285,7 +288,21 @@ func TestMergeTemplateApplications(t *testing.T) {
 
 			rendererMock := rendererMock{}
 
-			rendererMock.On("RenderTemplateParams", getTempApplication(cc.expectedMerged), cc.params[0], false).
+			appSet := &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{generator},
+					Template:   cc.template,
+				},
+			}
+
+			tmpApplication := getTempApplication(cc.expectedMerged)
+			tmpApplication.Labels[LabelKeyAppSetInstance] = appSet.Name
+
+			rendererMock.On("RenderTemplateParams", tmpApplication, cc.params[0], false).
 				Return(&cc.expectedApps[0], nil)
 
 			r := ApplicationSetReconciler{
@@ -299,17 +316,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 				KubeClientset: kubefake.NewSimpleClientset(),
 			}
 
-			got, _, _ := r.generateApplications(v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Generators: []v1alpha1.ApplicationSetGenerator{generator},
-					Template:   cc.template,
-				},
-			},
-			)
+			got, _, _ := r.generateApplications(*appSet)
 
 			assert.Equal(t, cc.expectedApps, got)
 		})
