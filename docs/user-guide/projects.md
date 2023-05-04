@@ -294,7 +294,7 @@ stringData:
 
 All the examples above talk about Git repositories, but the same principles apply to clusters as well.
 
-With cluster-scoped clusters we can also restrict projects to only allow applications whose destinations belong to the 
+With project-scoped clusters we can also restrict projects to only allow applications whose destinations belong to the 
 same project. The default behavior allows for applications to be installed onto clusters which are not a part of the same 
 project, as the example below demonstrates:
 
