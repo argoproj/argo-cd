@@ -213,7 +213,7 @@ func TestCMPDiscoverWithFileName(t *testing.T) {
 			time.Sleep(1 * time.Second)
 			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
 		}).
-		Path(pluginName).
+		Path(pluginName + "/subdir").
 		When().
 		CreateApp().
 		Sync().
