@@ -586,6 +586,33 @@ stringData:
     }
 ```
 
+Cluster secret example using argocd-k8s-auth and [Projected Volume with a `serviceAccountToken`](https://kubernetes.io/docs/concepts/storage/projected-volumes/#serviceaccounttoken):
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  name: mycluster.com
+  server: https://mycluster.com
+  config: |
+    {
+      "execProviderConfig": {
+        "command": "argocd-k8s-auth",
+        "args": ["token-file", "--file", "/var/run/secrets/kubernetes.io/serviceaccount/token"],
+        "apiVersion": "client.authentication.k8s.io/v1beta1"
+      },
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }
+    }
+```
+
 GKE cluster secret example using argocd-k8s-auth and [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity):
 
 ```yaml
