@@ -2552,6 +2552,9 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		}, nil
 	}
 
+	s.metricsServer.IncPendingRepoRequest(repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
+
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
@@ -2606,6 +2609,9 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 			Paths: cachedPaths,
 		}, nil
 	}
+
+	s.metricsServer.IncPendingRepoRequest(repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
