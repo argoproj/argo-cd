@@ -1030,6 +1030,9 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 			Name:       "argo-cd-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-scm-provider-generator",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
