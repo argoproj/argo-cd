@@ -91,17 +91,29 @@ spec:
                   key: applicationsetcontroller.enable.progressive.syncs
                   name: argocd-cmd-params-cm
                   optional: true
-            - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_PLAINTEXT
               valueFrom:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
-                  key: controller.repo.server.plaintext
+                  key: applicationsetcontroller.repo.server.plaintext
                   optional: true
-            - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS
               valueFrom:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
-                  key: controller.repo.server.strict.tls
+                  key: applicationsetcontroller.repo.server.strict.tls
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.repo.server.timeout.seconds
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.concurrent.reconciliations.max
                   optional: true
           volumeMounts:
             - mountPath: /app/config/ssh
