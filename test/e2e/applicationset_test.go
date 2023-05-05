@@ -43,7 +43,7 @@ var (
 			Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
 		},
 	}
-	LabelKeyAppSetInstance = "app.kubernetes.io/appset-instance"
+	LabelKeyAppSetInstance = "argocd.argoproj.io/appset-instance"
 )
 
 func TestSimpleListGenerator(t *testing.T) {
@@ -125,7 +125,10 @@ func TestSimpleListGenerator(t *testing.T) {
 		And(func() {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+				LabelKeyAppSetInstance: "simple-list-generator",
+				"label-key":            "label-value",
+			}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
@@ -221,7 +224,10 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 		And(func() {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+				LabelKeyAppSetInstance: "simple-list-generator",
+				"label-key":            "label-value",
+			}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
@@ -332,7 +338,10 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+					"label-key":            "label-value",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -445,7 +454,10 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+					"label-key":            "label-value",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -557,7 +569,10 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+					"label-key":            "label-value",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -670,7 +685,10 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+					"label-key":            "label-value",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
