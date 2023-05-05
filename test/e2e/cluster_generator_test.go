@@ -100,7 +100,10 @@ func TestSimpleClusterGenerator(t *testing.T) {
 		And(func() {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+				LabelKeyAppSetInstance: "simple-cluster-generator",
+				"label-key":            "label-value",
+			}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
