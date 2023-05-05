@@ -1139,7 +1139,7 @@ func TestDownloadArgoCDBinaryUrls(t *testing.T) {
 func TestSecretKeyRef(t *testing.T) {
 	data := map[string]string{
 		"oidc.config": `name: Okta
-issuer: https://dev-123456.oktapreview.com
+issuer: $acme:issuerSecret
 clientID: aaaabbbbccccddddeee
 clientSecret: $acme:clientSecret
 # Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
@@ -1176,6 +1176,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 			},
 		},
 		Data: map[string][]byte{
+			"issuerSecret": []byte("https://dev-123456.oktapreview.com"),
 			"clientSecret": []byte("deadbeef"),
 		},
 	}
@@ -1186,6 +1187,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 	assert.NoError(t, err)
 
 	oidcConfig := settings.OIDCConfig()
+	assert.Equal(t, oidcConfig.Issuer, "https://dev-123456.oktapreview.com")
 	assert.Equal(t, oidcConfig.ClientSecret, "deadbeef")
 }
 
