@@ -11,6 +11,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.4.0",
     "@types/react-virtualized": "^9.21.21",
     "@types/superagent": "^4.1.15",
     "ansi-to-react": "^6.1.6",
@@ -19,9 +20,11 @@
     "classnames": "^2.2.5",
     "color": "^3.2.1",
     "dagre": "^0.8.5",
+    "date-fns": "^2.30.0",
     "deepmerge": "^3.2.0",
     "foundation-sites": "^6.7.4",
     "git-url-parse": "^13.1.0",
+    "history": "^5.3.0",
     "js-yaml": "^3.14.1",
     "json-merge-patch": "^0.2.3",
     "lodash-es": "^4.17.21",
