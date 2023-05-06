@@ -1,0 +1,35 @@
+.application-sync-panel__resource {
+    margin-top: 0.5em;
+    white-space: nowrap;
+
+    .container {
+        max-width: 32em;
+        white-space: nowrap;
+        display: inline-block;
+        margin-right: 0.3em;
+
+        label {
+            cursor: pointer;
+        }
+
+        label::before,
+        label::after {
+            vertical-align: middle;
+            display: inline-block;
+            max-width: 50%;
+            overflow: hidden;
+            white-space: pre;
+        }
+
+        label::before {
+            content: attr(content-start);
+            text-overflow: ellipsis;
+        }
+
+        label::after {
+            content: attr(content-end);
+            text-overflow: clip;
+            direction: rtl; // This is to help put the ellipsis in the middle instead of at the end of the resource path
+        }
+    }
+}

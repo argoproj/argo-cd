@@ -87,6 +87,47 @@ export class AppsListPreferences {
     public favoritesAppList: string[];
 }
 
+export class AppSetsListPreferences {
+    public static countEnabledFilters(pref: AppSetsListPreferences) {
+        return [pref.labelsFilter].reduce(
+            (count, filter) => {
+                if (filter && filter.length > 0) {
+                    return count + 1;
+                }
+                return count;
+            },
+            0
+        );
+    }
+
+    public static clearFilters(pref: AppSetsListPreferences) {
+        // pref.clustersFilter = [];
+        // pref.healthFilter = [];
+        pref.labelsFilter = [];
+        // pref.namespacesFilter = [];
+        // pref.projectsFilter = [];
+        // pref.reposFilter = [];
+        // pref.syncFilter = [];
+        // pref.autoSyncFilter = [];
+        pref.showFavorites = false;
+    }
+
+    public labelsFilter: string[];
+    public projectsFilter: string[];
+    public reposFilter: string[];
+    public syncFilter: string[];
+    public autoSyncFilter: string[];
+    public healthFilter: string[];
+    public namespacesFilter: string[];
+    public clustersFilter: string[];
+    public view: AppsListViewType;
+    public hideFilters: boolean;
+    public statusBarView: HealthStatusBarPreferences;
+    public showFavorites: boolean;
+    public favoritesAppList: string[];
+}
+
+
 export interface ViewPreferences {
     version: number;
     appDetails: AppDetailsPreferences;

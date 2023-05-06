@@ -1,5 +1,6 @@
 import {AccountsService} from './accounts-service';
 import {ApplicationsService} from './applications-service';
+import {ApplicationSetsService} from './applicationsets-service';
 import {AuthService} from './auth-service';
 import {CertificatesService} from './cert-service';
 import {ClustersService} from './clusters-service';
@@ -14,6 +15,7 @@ import {VersionService} from './version-service';
 import {ViewPreferencesService} from './view-preferences-service';
 export interface Services {
     applications: ApplicationsService;
+    applicationSets: ApplicationSetsService;
     users: UserService;
     authService: AuthService;
     certs: CertificatesService;
@@ -31,6 +33,7 @@ export interface Services {
 
 export const services: Services = {
     applications: new ApplicationsService(),
+    applicationSets: new ApplicationSetsService(),
     authService: new AuthService(),
     clusters: new ClustersService(),
     users: new UserService(),

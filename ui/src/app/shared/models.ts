@@ -16,6 +16,7 @@ interface ItemsList<T> {
 }
 
 export interface ApplicationList extends ItemsList<Application> {}
+export interface ApplicationSetList extends ItemsList<ApplicationSet> {}
 
 export interface SyncOperationResource {
     group: string;
@@ -147,6 +148,11 @@ export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
 export interface ApplicationWatchEvent {
     type: WatchType;
     application: Application;
+}
+
+export interface ApplicationSetWatchEvent {
+    type: WatchType;
+    applicationSet: ApplicationSet;
 }
 
 export interface ComponentParameter {
@@ -297,6 +303,68 @@ export interface RevisionHistory {
     deployStartedAt: models.Time;
     deployedAt: models.Time;
 }
+
+export interface ApplicationSet {
+    apiVersion?: string;
+    kind?: string;
+    metadata: models.ObjectMeta;
+    spec: ApplicationSetSpec;
+    status: ApplicationSetStatus;
+}
+
+export interface ApplicationSetSpec {
+    goTemplate: boolean;
+    // generators: ApplicationSetGenerator[];
+    // template: ApplicationSetTemplate;
+    syncPolicy?: ApplicationSetSyncPolicy;
+    // strategy: ApplicationSetStrategy;
+    preservedFields: ApplicationPreservedFields;
+}
+
+export interface ApplicationSetSyncPolicy{
+    preserveResourcesOnDeletion: boolean;
+}
+
+export interface ApplicationPreservedFields {
+    annotations: string[];
+}
+
+export interface ApplicationSetStatus {
+    conditions?: ApplicationSetCondition[];
+    applicationStatus: ApplicationSetApplicationStatus[];
+}
+
+export interface ApplicationSetCondition {
+    type: ApplicationSetConditionType;
+    message: string;
+    status: ApplicationSetConditionStatus;
+    reason: string;
+}
+
+export interface ApplicationSetApplicationStatus {
+    application: string;
+    message: string;
+    status: string;
+    step: string;
+}
+
+export type ApplicationSetConditionType = 'ErrorOccurred' | 'ParametersGenerated' | 'ResourcesUpToDate' | 'RolloutProgressing';
+
+export const ApplicationSetConditionTypes = {
+    ErrorOccurred: 'ErrorOccurred' as ApplicationSetConditionType,
+    ParametersGenerated: 'ParametersGenerated' as ApplicationSetConditionType,
+    ResourcesUpToDate: 'ResourcesUpToDate' as ApplicationSetConditionType,
+    RolloutProgressing: 'RolloutProgressing' as ApplicationSetConditionType,
+};
+
+export type ApplicationSetConditionStatus = 'True' | 'False' | 'Unknown';
+
+export const ApplicationSetConditionStatuses = {
+    True: 'True' as ApplicationSetConditionStatus,
+    False: 'False' as ApplicationSetConditionStatus,
+    Unknown: 'Unknown' as ApplicationSetConditionStatus,
+};
+
 
 export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
 

@@ -1,0 +1,28 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.application-create-panel {
+
+    &__yaml-button {
+        position: absolute;
+        right: 1em;
+        top: 1em;
+    }
+
+    &__sync-params {
+        padding-top: 5px;
+    }
+
+    .checkbox-container {
+        margin: 0.5em ;
+    }
+
+    pre {
+        font-family: monospace;
+        line-height: normal;
+        white-space: pre;
+    }
+
+    .row.argo-form-row .columns {
+        padding-left: 0;
+    }
+}

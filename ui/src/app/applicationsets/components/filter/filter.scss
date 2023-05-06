@@ -1,0 +1,143 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/foundation-sites/scss/util/util';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+$sidebar-color: #30303d;
+$slate: #191826;
+
+.filter {
+    border-radius: 5px;
+    margin-bottom: 1em;
+    width: 100%;
+    color: #818d94;
+    font-weight: 500;
+
+    &__header {
+        font-size: 13px;
+        color: $argo-color-gray-5;
+        font-weight: 500;
+        margin-bottom: 0.5em;
+        height: 28px;
+        position: relative;
+        display: flex;
+        align-items: center;
+
+        .argo-button {
+            margin-left: auto;
+            background: $slate;
+            font-size: 10px;
+            font-weight: bold;
+
+            i {
+                margin-right: 2px;
+            }
+
+            &:hover {
+                background: $sidebar-color !important;
+            }
+        }
+    }
+
+    &__collapse {
+        position: absolute;
+        right: 0;
+        cursor: pointer;
+        margin-left: auto;
+        color: $argo-color-gray-7;
+        font-size: 20px;
+    }
+
+    &__error {
+        color: $argo-failed-color-dark;
+
+        &__retry {
+            color: $argo-running-color;
+            cursor: pointer;
+        }
+    }
+
+    &__loading {
+        color: $argo-running-color;
+    }
+
+    &__error,
+    &__loading {
+        text-align: center;
+    }
+
+    &__item {
+        height: 2em;
+        padding: 0 5px;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        margin: 0.15em 0;
+        cursor: pointer;
+        flex-wrap: nowrap;
+
+        i.fa {
+            width: 25px;
+            text-align: center;
+        }
+
+        &__label {
+            text-overflow: ellipsis;
+            flex-grow: 0;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        &--selected {
+            background-color: $slate;
+            color: white;
+            font-weight: 500;
+        }
+    }
+}
+
+.filters-group {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 2em;
+    &__toggle {
+        display: none;
+        cursor: pointer;
+        position: absolute;
+        left: 16em;
+        color: $argo-color-gray-6;
+    }
+
+    .fa-filter {
+        float: left;
+        margin-right: 1em;
+    }
+
+    &__content {
+        margin-left: 220px;
+        width: 100%;
+    }
+
+    &__header {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        height: 1.5em;
+        margin-bottom: 0em;
+        margin-top: -1.5em;
+
+        .argo-button {
+            margin-left: auto;
+            background: $slate;
+            font-size: 10px;
+            font-weight: bold;
+
+            i {
+                margin-right: 2px;
+            }
+
+            &:hover {
+                background: $sidebar-color !important;
+            }
+        }
+    }
+}
