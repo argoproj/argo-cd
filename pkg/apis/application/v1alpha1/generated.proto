@@ -1064,14 +1064,11 @@ message ImageUpdate {
   // LastTransitionTime records the time at which the last successful update operation was carried out for a specific image
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 2;
 
-  // OldTag represents the tag of the image that was deployed before the update operation was carried out
+  // OldTag represents the name of the tag that was replaced
   optional string oldTag = 3;
 
-  // NewTag represents the tag of the image that was deployed after the update operation was carried out
+  // NewTag represents the name of the updated tag
   optional string newTag = 4;
-
-  // Digest represents the image that was deployed after the update operation was carried out
-  optional string digest = 5;
 }
 
 message Info {

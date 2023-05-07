@@ -3717,23 +3717,36 @@ func schema_pkg_apis_application_v1alpha1_ImageUpdate(ref common.ReferenceCallba
 					},
 					"oldTag": {
 						SchemaProps: spec.SchemaProps{
-							Description: "OldTag represents the tag of the image that was deployed before the update operation was carried out",
+							Description: "OldTag represents the name of the tag that was replaced",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"newTag": {
 						SchemaProps: spec.SchemaProps{
-							Description: "NewTag represents the tag of the image that was deployed after the update operation was carried out",
+							Description: "NewTag represents the name of the updated tag",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"digest": {
+					"oldDigest": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Digest represents the image that was deployed after the update operation was carried out",
+							Description: "oldDigest represents the digest was replaced",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"newDigest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "newDigest represents the updated digest",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"buildDate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "buildDate represents the new tag's build date",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 				},

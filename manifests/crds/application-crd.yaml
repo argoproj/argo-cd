@@ -3967,9 +3967,9 @@ spec:
                         update operations that have been conducted against container
                         images used by an application
                       properties:
-                        digest:
-                          description: Digest represents the image that was deployed
-                            after the update operation was carried out
+                        buildDate:
+                          description: buildDate represents the new tag's build date
+                          format: date-time
                           type: string
                         image:
                           description: Image holds the reference to the image whose
@@ -3981,13 +3981,18 @@ spec:
                             a specific image
                           format: date-time
                           type: string
+                        newDigest:
+                          description: newDigest represents the updated digest
+                          type: string
                         newTag:
-                          description: NewTag represents the tag of the image that
-                            was deployed after the update operation was carried out
+                          description: NewTag represents the name of the updated tag
+                          type: string
+                        oldDigest:
+                          description: oldDigest represents the digest was replaced
                           type: string
                         oldTag:
-                          description: OldTag represents the tag of the image that
-                            was deployed before the update operation was carried out
+                          description: OldTag represents the name of the tag that
+                            was replaced
                           type: string
                       type: object
                     type: array

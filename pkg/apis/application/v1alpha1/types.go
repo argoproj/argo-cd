@@ -1706,12 +1706,16 @@ type ImageUpdate struct {
 	Image string `json:"image,omitempty" protobuf:"bytes,1,opt,name=image"`
 	// LastTransitionTime records the time at which the last successful update operation was carried out for a specific image
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,2,opt,name=lastTransitionTime"`
-	// OldTag represents the tag of the image that was deployed before the update operation was carried out
-	OldTag string `json:"oldTag,omitempty" protobuf:"bytes,3,opt,name=oldTag"`
-	// NewTag represents the tag of the image that was deployed after the update operation was carried out
-	NewTag string `json:"newTag,omitempty" protobuf:"bytes,4,opt,name=newTag"`
-	// Digest represents the image that was deployed after the update operation was carried out
-	Digest string `json:"digest,omitempty" protobuf:"bytes,5,opt,name=digest"`
+	// OldTag represents the name of the tag that was replaced
+	OldTag *string `json:"oldTag,omitempty" protobuf:"bytes,3,opt,name=oldTag"`
+	// NewTag represents the name of the updated tag
+	NewTag *string `json:"newTag,omitempty" protobuf:"bytes,4,opt,name=newTag"`
+	// oldDigest represents the digest was replaced
+	oldDigest *string `json:"oldDigest,omitempty" protobuf:"bytes,5,opt,name=oldDigest"`
+	// newDigest represents the updated digest
+	newDigest *string `json:"newDigest,omitempty" protobuf:"bytes,6,opt,name=newDigest"`
+	// buildDate represents the new tag's build date
+	buildDate *metav1.Time `json:"buildDate,omitempty" protobuf:"bytes,7,opt,name=buildDate"`
 }
 
 // TODO: Document purpose of this method

@@ -2150,6 +2150,30 @@ func (in *ImageUpdate) DeepCopyInto(out *ImageUpdate) {
 		in, out := &in.LastTransitionTime, &out.LastTransitionTime
 		*out = (*in).DeepCopy()
 	}
+	if in.OldTag != nil {
+		in, out := &in.OldTag, &out.OldTag
+		*out = new(string)
+		**out = **in
+	}
+	if in.NewTag != nil {
+		in, out := &in.NewTag, &out.NewTag
+		*out = new(string)
+		**out = **in
+	}
+	if in.oldDigest != nil {
+		in, out := &in.oldDigest, &out.oldDigest
+		*out = new(string)
+		**out = **in
+	}
+	if in.newDigest != nil {
+		in, out := &in.newDigest, &out.newDigest
+		*out = new(string)
+		**out = **in
+	}
+	if in.buildDate != nil {
+		in, out := &in.buildDate, &out.buildDate
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 
