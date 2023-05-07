@@ -415,6 +415,19 @@ func TestHelmWithMultipleDependenciesPermissionDenied(t *testing.T) {
 	expectedErr := fmt.Sprintf("helm repos https://localhost:9444/argo-e2e/testdata.git/helm-repo/local are not permitted in project '%s'", projName)
 	GivenWithSameState(t).
 		Project(projName).
+		Path("helm-oci-with-dependencies").
+		CustomCACertAdded().
+		HelmHTTPSCredentialsUserPassAdded().
+		HelmPassCredentials().
+		When().
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(Error("", expectedErr))
+
+	expectedErr = fmt.Sprintf("helm repos https://localhost:9444/argo-e2e/testdata.git/helm-repo/local, oci://localhost:5000/myrepo are not permitted in project '%s'", projName)
+	GivenWithSameState(t).
+		Project(projName).
 		Path("helm-with-multiple-dependencies").
 		CustomCACertAdded().
 		HelmHTTPSCredentialsUserPassAdded().

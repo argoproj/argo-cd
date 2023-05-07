@@ -1,7 +1,10 @@
 apiVersion: v2
-name: helm-with-dependencies
+name: helm-with-multiple-dependencies
 version: v1.0.0
 dependencies:
   - name: helm
     repository: "https://localhost:9444/argo-e2e/testdata.git/helm-repo/local"
     version: v1.0.0
+  - name: helm-values
+    repository: "oci://localhost:5000/myrepo"
+    version: 1.0.0
