@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="0 known vulnerabilities found in 0 vulnerable dependency paths.">
+  <meta name="description" content="1 known vulnerabilities found in 9 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,26 +456,205 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">May 7th 2023, 12:14:02 am</p>
+                <p class="timestamp">May 7th 2023, 12:14:54 am</p>
               </div>
               <div class="source-panel">
-                <span>Scanned the following paths:</span>
+                <span>Scanned the following path:</span>
                 <ul>
-                  <li class="paths">/argo-cd/argoproj/argo-cd/v2 (gomodules)</li><li class="paths">/argo-cd (yarn)</li>
+                  <li class="paths">redis:7.0.11-alpine (apk)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>0</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>0 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>1748</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>1</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>9 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>18</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
-
+      <section class="layout-container">
+          <table class="metatable">
+              <tbody>
+              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|redis</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">redis:7.0.11-alpine</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Package Manager</th> <td class="meta-row-value">apk</td></tr>
+              
+              </tbody>
+          </table>
+      </section>
     <div class="layout-container" style="padding-top: 35px;">
-      No known vulnerabilities detected.
+      <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Out-of-bounds Read</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.17
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|redis@7.0.11-alpine and openssl/libcrypto3@3.0.8-r3
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20230417.225152
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.10-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r29
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20230417.225152
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.10-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r29
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r3
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine:3.17</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.17</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: The AES-XTS cipher decryption implementation for 64 bit ARM
+        platform contains a bug that could cause it to read past the input buffer,
+        leading to a crash.</p>
+        <p>Impact summary: Applications that use the AES-XTS algorithm on the 64 bit ARM
+        platform can crash in rare circumstances. The AES-XTS algorithm is usually
+        used for disk encryption.</p>
+        <p>The AES-XTS cipher decryption implementation for 64 bit ARM platform will read
+        past the end of the ciphertext buffer if the ciphertext size is 4 mod 5 in 16
+        byte blocks, e.g. 144 bytes or 1024 bytes. If the memory after the ciphertext
+        buffer is unmapped, this will trigger a crash which results in a denial of
+        service.</p>
+        <p>If an attacker can control the size and location of the ciphertext buffer
+        being decrypted by an application using AES-XTS on 64 bit ARM, the
+        application is affected. This is fairly unlikely making this issue
+        a Low severity one.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.17</code> <code>openssl</code> to version 3.0.8-r4 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=02ac9c9420275868472f33b01def01218742b8bb">openssl-security@openssl.org</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=bc2f61ad70971869b242fc1cb445b98bad50074a">openssl-security@openssl.org</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20230419.txt">openssl-security@openssl.org</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/04/20/13">openssl-security@openssl.org</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE317-OPENSSL-5438697">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+      </div><!-- cards -->
     </div>
   </main><!-- .layout-stacked__content -->
 </body>
