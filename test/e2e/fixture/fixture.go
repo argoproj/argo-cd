@@ -514,7 +514,30 @@ func SetParamInNotificationsConfigMap(key, value string) {
 	})
 }
 
-func EnsureCleanState(t *testing.T) {
+type TestOption func(option *testOption)
+
+type testOption struct {
+	testdata string
+}
+
+func newTestOption(opts ...TestOption) *testOption {
+	to := &testOption{
+		testdata: "testdata",
+	}
+	for _, opt := range opts {
+		opt(to)
+	}
+	return to
+}
+
+func WithTestData(testdata string) TestOption {
+	return func(option *testOption) {
+		option.testdata = testdata
+	}
+}
+
+func EnsureCleanState(t *testing.T, opts ...TestOption) {
+	opt := newTestOption(opts...)
 	// In large scenarios, we can skip tests that already run
 	SkipIfAlreadyRun(t)
 	// Register this test after it has been run & was successfull
@@ -632,7 +655,7 @@ func EnsureCleanState(t *testing.T) {
 	}
 
 	// set-up tmp repo, must have unique name
-	FailOnErr(Run("", "cp", "-Rf", "testdata", repoDirectory()))
+	FailOnErr(Run("", "cp", "-Rf", opt.testdata, repoDirectory()))
 	FailOnErr(Run(repoDirectory(), "chmod", "777", "."))
 	FailOnErr(Run(repoDirectory(), "git", "init"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
