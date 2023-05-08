@@ -5,6 +5,6 @@ dependencies:
   - name: helm
     repository: "https://localhost:9444/argo-e2e/testdata.git/helm-repo/local"
     version: v1.0.0
-  - name: helm-values
-    repository: "oci://localhost:5000/myrepo"
-    version: 1.0.0
+  - name: helm2
+    repository: "https://localhost:9444/argo-e2e/testdata.git/helm-repo/local2"
+    version: v1.0.0
