@@ -33,7 +33,6 @@ import (
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/ghodss/yaml"
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/google/go-jsonnet"
 	"github.com/google/uuid"
@@ -45,6 +44,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -2545,25 +2545,28 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	}
 
 	// check the cache and return the results if present
-	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision); err == nil {
-		log.Debugf("cache hit for repo: %s revision: %s", repo.Repo, revision)
+	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, gitPath); err == nil {
+		log.Debugf("cache hit for repo: %s revision: %s pattern: %s", repo.Repo, revision, gitPath)
 		return &apiclient.GitFilesResponse{
 			Map: cachedFiles,
 		}, nil
 	}
+
+	s.metricsServer.IncPendingRepoRequest(repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
 	}
 	defer io.Close(closer)
 
 	gitFiles, err := gitClient.LsFiles(gitPath)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to list files. repo %s with revision %s: %v", repo.Repo, revision, err)
+		return nil, status.Errorf(codes.Internal, "unable to list files. repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
 	}
 	log.Debugf("listed %d git files from %s under %s", len(gitFiles), repo.Repo, gitPath)
 
@@ -2571,14 +2574,14 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	for _, filePath := range gitFiles {
 		fileContents, err := os.ReadFile(filepath.Join(gitClient.Root(), filePath))
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "unable to read files. repo %s with revision %s: %v", repo.Repo, revision, err)
+			return nil, status.Errorf(codes.Internal, "unable to read files. repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
 		}
 		res[filePath] = fileContents
 	}
 
-	err = s.cache.SetGitFiles(repo.Repo, revision, res)
+	err = s.cache.SetGitFiles(repo.Repo, revision, gitPath, res)
 	if err != nil {
-		log.Warnf("error caching git files for repo %s with revision %s: %v", repo.Repo, revision, err)
+		log.Warnf("error caching git files for repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
 	}
 
 	return &apiclient.GitFilesResponse{
@@ -2606,6 +2609,9 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 			Paths: cachedPaths,
 		}, nil
 	}
+
+	s.metricsServer.IncPendingRepoRequest(repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
