@@ -5,6 +5,7 @@ resources:
 - argocd-applicationset-controller-rolebinding.yaml
 - argocd-applicationset-controller-sa.yaml
 - argocd-applicationset-controller-deployment.yaml
+- argocd-applicationset-controller-metrics.yaml
 - argocd-applicationset-controller-role.yaml
 - argocd-applicationset-controller-service.yaml
 - argocd-applicationset-controller-network-policy.yaml

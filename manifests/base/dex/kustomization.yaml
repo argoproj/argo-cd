@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
 - argocd-dex-server-deployment.yaml
+- argocd-dex-server-metrics.yaml
 - argocd-dex-server-role.yaml
 - argocd-dex-server-rolebinding.yaml
 - argocd-dex-server-sa.yaml

@@ -1528,7 +1528,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-metrics\",namespace=~\"$namespace\"}",
+              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-application-controller-metrics\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{namespace}}",
@@ -1625,7 +1625,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "irate(process_cpu_seconds_total{job=\"argocd-metrics\",namespace=~\"$namespace\"}[1m])",
+              "expr": "irate(process_cpu_seconds_total{job=\"argocd-application-controller-metrics\",namespace=~\"$namespace\"}[1m])",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{namespace}}",
@@ -1723,7 +1723,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "go_goroutines{job=\"argocd-metrics\",namespace=~\"$namespace\"}",
+              "expr": "go_goroutines{job=\"argocd-application-controller-metrics\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{namespace}}",
@@ -2435,7 +2435,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-repo-server\",namespace=~\"$namespace\"}",
+              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-repo-server-metrics\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
@@ -2526,7 +2526,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "go_goroutines{job=\"argocd-repo-server\",namespace=~\"$namespace\"}",
+              "expr": "go_goroutines{job=\"argocd-repo-server-metrics\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
@@ -3594,7 +3594,7 @@
     },
     {
       "collapsed": true,
-      "datasource": null,
+      "datasource": "$datasource",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3608,7 +3608,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": null,
+          "datasource": "$datasource",
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
