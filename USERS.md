@@ -38,6 +38,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Boticario](https://www.boticario.com.br/)
 1. [Bulder Bank](https://bulderbank.no)
 1. [Camptocamp](https://camptocamp.com)
+1. [Candis](https://www.candis.io)
 1. [Capital One](https://www.capitalone.com)
 1. [CARFAX](https://www.carfax.com)
 1. [CARFAX Europe](https://www.carfax.eu)
