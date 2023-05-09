@@ -294,6 +294,9 @@ type ClusterGenerator struct {
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,3,name=values"`
+
+	// URLs gives the possibility of selecting clusters by their urls
+	URLs []string `json:"urls,omitempty" protobuf:"bytes,4,name=urls"`
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.

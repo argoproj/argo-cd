@@ -3,6 +3,9 @@ package generators
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/common"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -16,11 +19,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-)
-
-const (
-	ArgoCDSecretTypeLabel   = "argocd.argoproj.io/secret-type"
-	ArgoCDSecretTypeCluster = "cluster"
 )
 
 var _ Generator = (*ClusterGenerator)(nil)
@@ -204,18 +202,33 @@ func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1
 	// List all Clusters:
 	clusterSecretList := &corev1.SecretList{}
 
-	selector := metav1.AddLabelToSelector(&appSetGenerator.Clusters.Selector, ArgoCDSecretTypeLabel, ArgoCDSecretTypeCluster)
+	selector := metav1.AddLabelToSelector(&appSetGenerator.Clusters.Selector, common.LabelKeySecretType, common.LabelValueSecretTypeCluster)
 	secretSelector, err := metav1.LabelSelectorAsSelector(selector)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := g.Client.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
-		return nil, err
-	}
-	log.Debug("clusters matching labels", "count", len(clusterSecretList.Items))
-
 	res := map[string]corev1.Secret{}
+
+	if len(appSetGenerator.Clusters.URLs) > 0 {
+		for _, url := range appSetGenerator.Clusters.URLs {
+			cluster := corev1.Secret{}
+			err := g.Client.Get(context.Background(), types.NamespacedName{Name: url}, &cluster)
+			if err != nil {
+				return nil, err
+			}
+
+			if secretSelector.Matches(labels.Set(cluster.Labels)) {
+				clusterSecretList.Items = append(clusterSecretList.Items, cluster)
+			}
+		}
+		log.Debug("clusters matching urls", "count", len(clusterSecretList.Items))
+	} else {
+		if err := g.Client.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
+			return nil, err
+		}
+		log.Debug("clusters matching labels", "count", len(clusterSecretList.Items))
+	}
 
 	for _, cluster := range clusterSecretList.Items {
 		clusterName := string(cluster.Data["name"])

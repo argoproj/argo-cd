@@ -6624,6 +6624,13 @@
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
         },
+        "urls": {
+          "type": "array",
+          "title": "URLs gives the possibility of selecting clusters by their urls",
+          "items": {
+            "type": "string"
+          }
+        },
         "values": {
           "type": "object",
           "title": "Values contains key/value pairs which are passed directly as parameters to the template",

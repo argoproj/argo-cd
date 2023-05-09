@@ -5405,6 +5405,10 @@ spec:
                           - metadata
                           - spec
                           type: object
+                        urls:
+                          items:
+                            type: string
+                          type: array
                         values:
                           additionalProperties:
                             type: string
@@ -7449,6 +7453,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  urls:
+                                    items:
+                                      type: string
+                                    type: array
                                   values:
                                     additionalProperties:
                                       type: string
@@ -11265,6 +11273,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  urls:
+                                    items:
+                                      type: string
+                                    type: array
                                   values:
                                     additionalProperties:
                                       type: string

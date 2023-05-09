@@ -2585,6 +2585,21 @@ func schema_pkg_apis_application_v1alpha1_ClusterGenerator(ref common.ReferenceC
 							},
 						},
 					},
+					"urls": {
+						SchemaProps: spec.SchemaProps{
+							Description: "URLs gives the possibility of selecting clusters by their urls",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

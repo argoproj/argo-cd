@@ -730,6 +730,9 @@ message ClusterGenerator {
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 3;
+
+  // URLs gives the possibility of selecting clusters by their urls
+  repeated string urls = 4;
 }
 
 // ClusterInfo contains information about the cluster

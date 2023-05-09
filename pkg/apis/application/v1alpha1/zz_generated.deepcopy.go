@@ -1481,6 +1481,11 @@ func (in *ClusterGenerator) DeepCopyInto(out *ClusterGenerator) {
 			(*out)[key] = val
 		}
 	}
+	if in.URLs != nil {
+		in, out := &in.URLs, &out.URLs
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
