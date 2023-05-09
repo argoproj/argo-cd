@@ -177,7 +177,7 @@ func TestWebhookHandler(t *testing.T) {
 			h, err := NewWebhookHandler(namespace, set, fc, mockGenerators())
 			assert.Nil(t, err)
 
-			req := httptest.NewRequest("POST", "/api/webhook", nil)
+			req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 			req.Header.Set(test.headerKey, test.headerValue)
 			eventJSON, err := os.ReadFile(filepath.Join("testdata", test.payloadFile))
 			assert.NoError(t, err)

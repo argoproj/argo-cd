@@ -7,7 +7,11 @@ spec:
     spec:
       containers:
       - name: argocd-application-controller
-        command:
-        - argocd-application-controller
-        - --redis
-        - "argocd-redis-ha-haproxy:6379"
+        args:
+        - /usr/local/bin/argocd-application-controller
+        env:
+        - name: ARGOCD_REDIS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: redis.server

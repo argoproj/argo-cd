@@ -122,6 +122,15 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Azure Devops service: %v", err)
 		}
+	} else if providerConfig.Bitbucket != nil {
+		appPassword, err := g.getSecretRef(ctx, providerConfig.Bitbucket.AppPasswordRef, applicationSetInfo.Namespace)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching Bitbucket cloud appPassword: %v", err)
+		}
+		provider, err = scm_provider.NewBitBucketCloudProvider(ctx, providerConfig.Bitbucket.Owner, providerConfig.Bitbucket.User, appPassword, providerConfig.Bitbucket.AllBranches)
+		if err != nil {
+			return nil, fmt.Errorf("error initializing Bitbucket cloud service: %v", err)
+		}
 	} else {
 		return nil, fmt.Errorf("no SCM provider implementation configured")
 	}
@@ -133,10 +142,16 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	}
 	params := make([]map[string]interface{}, 0, len(repos))
 	var shortSHALength int
+	var shortSHALength7 int
 	for _, repo := range repos {
 		shortSHALength = 8
 		if len(repo.SHA) < 8 {
 			shortSHALength = len(repo.SHA)
+		}
+
+		shortSHALength7 = 7
+		if len(repo.SHA) < 7 {
+			shortSHALength7 = len(repo.SHA)
 		}
 
 		params = append(params, map[string]interface{}{
@@ -146,6 +161,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"branch":           repo.Branch,
 			"sha":              repo.SHA,
 			"short_sha":        repo.SHA[:shortSHALength],
+			"short_sha_7":      repo.SHA[:shortSHALength7],
 			"labels":           strings.Join(repo.Labels, ","),
 			"branchNormalized": utils.SanitizeName(repo.Branch),
 		})

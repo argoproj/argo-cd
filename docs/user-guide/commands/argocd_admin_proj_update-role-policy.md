@@ -40,6 +40,7 @@ argocd admin proj update-role-policy PROJECT_GLOB MODIFICATION ACTION [flags]
       --resource string                Resource e.g. 'applications'
       --role string                    Role name pattern e.g. '*deployer*' (default "*")
       --scope string                   Resource scope e.g. '*'
+      --server string                  The address and port of the Kubernetes API server
       --tls-server-name string         If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                   Bearer token for authentication to the API server
       --user string                    The name of the kubeconfig user to use
@@ -65,7 +66,6 @@ argocd admin proj update-role-policy PROJECT_GLOB MODIFICATION ACTION [flags]
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
-      --server string                   Argo CD server address
       --server-crt string               Server certificate file
 ```
 

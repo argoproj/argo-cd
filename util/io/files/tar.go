@@ -58,7 +58,7 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 //   - a full path
 //   - points to an empty directory or
 //   - points to a non existing directory
-func Untgz(dstPath string, r io.Reader, maxSize int64) error {
+func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
 	if !filepath.IsAbs(dstPath) {
 		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
 	}
@@ -90,9 +90,14 @@ func Untgz(dstPath string, r io.Reader, maxSize int64) error {
 			return fmt.Errorf("illegal filepath in archive: %s", target)
 		}
 
+		var mode os.FileMode = 0755
+		if preserveFileMode {
+			mode = os.FileMode(header.Mode)
+		}
+
 		switch header.Typeflag {
 		case tar.TypeDir:
-			err := os.MkdirAll(target, 0755)
+			err := os.MkdirAll(target, mode)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
@@ -118,7 +123,7 @@ func Untgz(dstPath string, r io.Reader, maxSize int64) error {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
 
-			f, err := os.Create(target)
+			f, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, mode)
 			if err != nil {
 				return fmt.Errorf("error creating file %q: %w", target, err)
 			}

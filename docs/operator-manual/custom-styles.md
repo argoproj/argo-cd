@@ -100,7 +100,7 @@ experience, you may wish to build a separate project using the [Argo CD UI dev s
 
 ## Banners
 
-Argo CD can optionally display a banner that can be used to notify your users of upcoming maintenance and operational changes. This feature can be enabled by specifying the banner message using the `ui.bannercontent` field in the `argocd-cm` ConfigMap and Argo CD will display this message at the top of every UI page. You can optionally add a link to this message by setting `ui.bannerurl`.
+Argo CD can optionally display a banner that can be used to notify your users of upcoming maintenance and operational changes. This feature can be enabled by specifying the banner message using the `ui.bannercontent` field in the `argocd-cm` ConfigMap and Argo CD will display this message at the top of every UI page. You can optionally add a link to this message by setting `ui.bannerurl`. You can also make the banner sticky (permanent) by setting `ui.bannerpermanent` to `true` and change it's position to the bottom by using `ui.bannerposition: "bottom"` 
 
 ### argocd-cm
 ```yaml
@@ -113,6 +113,8 @@ metadata:
 data:
     ui.bannercontent: "Banner message linked to a URL"
     ui.bannerurl: "www.bannerlink.com"
+    ui.bannerpermanent: "true"
+    ui.bannerposition: "bottom"
 ```
 
 ![banner with link](../assets/banner.png)

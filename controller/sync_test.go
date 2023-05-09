@@ -50,12 +50,12 @@ func TestPersistRevisionHistory(t *testing.T) {
 	}}
 	ctrl.appStateManager.SyncAppState(app, opState)
 	// Ensure we record spec.source into sync result
-	assert.Equal(t, app.Spec.Source, opState.SyncResult.Source)
+	assert.Equal(t, app.Spec.GetSource(), opState.SyncResult.Source)
 
 	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, v1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(updatedApp.Status.History))
-	assert.Equal(t, app.Spec.Source, updatedApp.Status.History[0].Source)
+	assert.Equal(t, app.Spec.GetSource(), updatedApp.Status.History[0].Source)
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
 }
 

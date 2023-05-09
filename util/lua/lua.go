@@ -16,6 +16,7 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/resource_customizations"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 )
 
 const (
@@ -122,10 +123,24 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 
 // GetHealthScript attempts to read lua script from config and then filesystem for that resource
 func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, bool, error) {
+	// first, search the gvk as is in the ResourceOverrides
 	key := GetConfigMapKey(obj.GroupVersionKind())
+
 	if script, ok := vm.ResourceOverrides[key]; ok && script.HealthLua != "" {
 		return script.HealthLua, script.UseOpenLibs, nil
 	}
+
+	// if not found as is, perhaps it matches wildcard entries in the configmap
+	wildcardKey := GetWildcardConfigMapKey(vm, obj.GroupVersionKind())
+
+	if wildcardKey != "" {
+		if wildcardScript, ok := vm.ResourceOverrides[wildcardKey]; ok && wildcardScript.HealthLua != "" {
+			return wildcardScript.HealthLua, wildcardScript.UseOpenLibs, nil
+		}
+	}
+
+	// if not found in the ResourceOverrides at all, search it as is in the built-in scripts
+	// (as built-in scripts are files in folders, named after the GVK, currently there is no wildcard support for them)
 	builtInScript, err := vm.getPredefinedLuaScripts(key, healthScriptFile)
 	// standard libraries will be enabled for all built-in scripts
 	return builtInScript, true, err
@@ -331,6 +346,17 @@ func GetConfigMapKey(gvk schema.GroupVersionKind) string {
 		return gvk.Kind
 	}
 	return fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)
+}
+
+func GetWildcardConfigMapKey(vm VM, gvk schema.GroupVersionKind) string {
+	gvkKeyToMatch := GetConfigMapKey(gvk)
+
+	for key := range vm.ResourceOverrides {
+		if glob.Match(key, gvkKeyToMatch) {
+			return key
+		}
+	}
+	return ""
 }
 
 func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, error) {

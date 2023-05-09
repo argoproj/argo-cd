@@ -17,6 +17,8 @@ Configure the client by setting the __Access Type__ to _confidential_ and set th
 hostname. It should be https://{hostname}/auth/callback (you can also leave the default less secure https://{hostname}/* ). You can also set the
 __Base URL__ to _/applications_.
 
+If you want to allow command line access, __Access Type__ must be set to _public_ and you also need to add http://localhost:8085/auth/callback in the list of Valid Redirect URIs. Then users can login using `argocd login {hostname} --sso`.
+
 ![Keycloak configure client](../../assets/keycloak-configure-client.png "Keycloak configure client")
 
 Make sure to click __Save__. You should now have a new tab called __Credentials__. You can copy the Secret that we'll use in our ArgoCD 
@@ -92,8 +94,9 @@ data:
 ```
 
 Make sure that:
+
 - __issuer__ ends with the correct realm (in this example _master_)
-- __issuer__ on Keycloak releases older than version 17 the URL must include /auth (in this expample /auth/realms/master)
+- __issuer__ on Keycloak releases older than version 17 the URL must include /auth (in this example /auth/realms/master)
 - __clientID__ is set to the Client ID you configured in Keycloak
 - __clientSecret__ points to the right key you created in the _argocd-secret_ Secret
 - __requestedScopes__ contains the _groups_ claim if you didn't add it to the Default scopes

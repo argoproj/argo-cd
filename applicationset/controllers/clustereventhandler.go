@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	log "github.com/sirupsen/logrus"
 
@@ -46,7 +47,6 @@ type addRateLimitingInterface interface {
 }
 
 func (h *clusterSecretEventHandler) queueRelatedAppGenerators(q addRateLimitingInterface, object client.Object) {
-
 	// Check for label, lookup all ApplicationSets that might match the cluster, queue them all
 	if object.GetLabels()[generators.ArgoCDSecretTypeLabel] != generators.ArgoCDSecretTypeCluster {
 		return
@@ -73,6 +73,40 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(q addRateLimitingI
 				foundClusterGenerator = true
 				break
 			}
+
+			if generator.Matrix != nil {
+				ok, err := nestedGeneratorsHaveClusterGenerator(generator.Matrix.Generators)
+				if err != nil {
+					h.Log.
+						WithFields(log.Fields{
+							"namespace": appSet.GetNamespace(),
+							"name":      appSet.GetName(),
+						}).
+						WithError(err).
+						Error("Unable to check if ApplicationSet matrix generators have cluster generator")
+				}
+				if ok {
+					foundClusterGenerator = true
+					break
+				}
+			}
+
+			if generator.Merge != nil {
+				ok, err := nestedGeneratorsHaveClusterGenerator(generator.Merge.Generators)
+				if err != nil {
+					h.Log.
+						WithFields(log.Fields{
+							"namespace": appSet.GetNamespace(),
+							"name":      appSet.GetName(),
+						}).
+						WithError(err).
+						Error("Unable to check if ApplicationSet merge generators have cluster generator")
+				}
+				if ok {
+					foundClusterGenerator = true
+					break
+				}
+			}
 		}
 		if foundClusterGenerator {
 
@@ -81,4 +115,51 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(q addRateLimitingI
 			q.Add(req)
 		}
 	}
+}
+
+// nestedGeneratorsHaveClusterGenerator iterate over provided nested generators to check if they have a cluster generator.
+func nestedGeneratorsHaveClusterGenerator(generators []argoprojiov1alpha1.ApplicationSetNestedGenerator) (bool, error) {
+	for _, generator := range generators {
+		if ok, err := nestedGeneratorHasClusterGenerator(generator); ok || err != nil {
+			return ok, err
+		}
+	}
+	return false, nil
+}
+
+// nestedGeneratorHasClusterGenerator checks if the provided generator has a cluster generator.
+func nestedGeneratorHasClusterGenerator(nested argoprojiov1alpha1.ApplicationSetNestedGenerator) (bool, error) {
+	if nested.Clusters != nil {
+		return true, nil
+	}
+
+	if nested.Matrix != nil {
+		nestedMatrix, err := argoprojiov1alpha1.ToNestedMatrixGenerator(nested.Matrix)
+		if err != nil {
+			return false, fmt.Errorf("unable to get nested matrix generator: %w", err)
+		}
+		if nestedMatrix != nil {
+			hasClusterGenerator, err := nestedGeneratorsHaveClusterGenerator(nestedMatrix.ToMatrixGenerator().Generators)
+			if err != nil {
+				return false, fmt.Errorf("error evaluating nested matrix generator: %w", err)
+			}
+			return hasClusterGenerator, nil
+		}
+	}
+
+	if nested.Merge != nil {
+		nestedMerge, err := argoprojiov1alpha1.ToNestedMergeGenerator(nested.Merge)
+		if err != nil {
+			return false, fmt.Errorf("unable to get nested merge generator: %w", err)
+		}
+		if nestedMerge != nil {
+			hasClusterGenerator, err := nestedGeneratorsHaveClusterGenerator(nestedMerge.ToMergeGenerator().Generators)
+			if err != nil {
+				return false, fmt.Errorf("error evaluating nested merge generator: %w", err)
+			}
+			return hasClusterGenerator, nil
+		}
+	}
+
+	return false, nil
 }

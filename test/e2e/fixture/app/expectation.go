@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -84,6 +85,39 @@ func NoConditions() Expectation {
 			return succeeded, message
 		}
 		return pending, message
+	}
+}
+
+func NoStatus() Expectation {
+	return func(c *Consequences) (state, string) {
+		message := "no status"
+		if reflect.ValueOf(c.app().Status).IsZero() {
+			return succeeded, message
+		}
+		return pending, message
+	}
+}
+
+func StatusExists() Expectation {
+	return func(c *Consequences) (state, string) {
+		message := "status exists"
+		if !reflect.ValueOf(c.app().Status).IsZero() {
+			return succeeded, message
+		}
+		return pending, message
+	}
+}
+
+func Namespace(name string, block func(app *Application, ns *v1.Namespace)) Expectation {
+	return func(c *Consequences) (state, string) {
+		ns, err := namespace(name)
+
+		if err != nil {
+			return failed, fmt.Sprintf("namespace not found %s", err.Error())
+		}
+
+		block(c.app(), ns)
+		return succeeded, fmt.Sprintf("namespace %s assertions passed", name)
 	}
 }
 
@@ -218,6 +252,23 @@ func pods() (*v1.PodList, error) {
 	return pods, err
 }
 
+func NoNamespace(name string) Expectation {
+	return func(c *Consequences) (state, string) {
+		_, err := namespace(name)
+
+		if err != nil {
+			return succeeded, "namespace not found"
+		}
+
+		return failed, fmt.Sprintf("found namespace %s", name)
+	}
+}
+
+func namespace(name string) (*v1.Namespace, error) {
+	fixture.KubeClientset.CoreV1()
+	return fixture.KubeClientset.CoreV1().Namespaces().Get(context.Background(), name, metav1.GetOptions{})
+}
+
 func event(namespace string, reason string, message string) Expectation {
 	return func(c *Consequences) (state, string) {
 		list, err := fixture.KubeClientset.CoreV1().Events(namespace).List(context.Background(), metav1.ListOptions{
@@ -241,20 +292,31 @@ func event(namespace string, reason string, message string) Expectation {
 }
 
 func Event(reason string, message string) Expectation {
-	return event(fixture.ArgoCDNamespace, reason, message)
+	return event(fixture.TestNamespace(), reason, message)
 }
 
 func NamespacedEvent(namespace string, reason string, message string) Expectation {
 	return event(namespace, reason, message)
 }
 
-// asserts that the last command was successful
-func Success(message string) Expectation {
+// Success asserts that the last command was successful and that the output contains the given message.
+func Success(message string, matchers ...func(string, string) bool) Expectation {
+	if len(matchers) == 0 {
+		matchers = append(matchers, strings.Contains)
+	}
+	match := func(actual, expected string) bool {
+		for i := range matchers {
+			if !matchers[i](actual, expected) {
+				return false
+			}
+		}
+		return true
+	}
 	return func(c *Consequences) (state, string) {
 		if c.actions.lastError != nil {
 			return failed, "error"
 		}
-		if !strings.Contains(c.actions.lastOutput, message) {
+		if !match(c.actions.lastOutput, message) {
 			return failed, fmt.Sprintf("output did not contain '%s'", message)
 		}
 		return succeeded, fmt.Sprintf("no error and output contained '%s'", message)
@@ -291,6 +353,13 @@ func Error(message, err string, matchers ...func(string, string) bool) Expectati
 // ErrorRegex asserts that the last command was an error that matches given regex epxression
 func ErrorRegex(messagePattern, err string) Expectation {
 	return Error(messagePattern, err, func(actual, expected string) bool {
+		return regexp.MustCompile(expected).MatchString(actual)
+	})
+}
+
+// SuccessRegex asserts that the last command was successful and output matches given regex expression
+func SuccessRegex(messagePattern string) Expectation {
+	return Success(messagePattern, func(actual, expected string) bool {
 		return regexp.MustCompile(expected).MatchString(actual)
 	})
 }

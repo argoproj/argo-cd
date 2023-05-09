@@ -11,6 +11,8 @@ By combining both generators parameters, to produce every possible combination, 
 
 Any set of generators may be used, with the combined values of those generators inserted into the `template` parameters, as usual.
 
+**Note**: If both child generators are Git generators, one or both of them must use the `pathParamPrefix` option to avoid conflicts when merging the child generators’ items.
+
 ## Example: Git Directory generator + Cluster generator
 
 As an example, imagine that we have two clusters:
@@ -165,6 +167,102 @@ In the 2nd child generator, the label selector with label `kubernetes.io/environ
 
 So in the above example, clusters with the label `kubernetes.io/environment: prod` will have only prod-specific configuration (ie. `prod/config.json`) applied to it, wheres clusters
 with the label `kubernetes.io/environment: dev` will have only dev-specific configuration (ie. `dev/config.json`)
+
+## Example: Two Git Generators Using `pathParamPrefix`
+
+The matrix generator will fail if its children produce results containing identical keys with differing values.
+This poses a problem for matrix generators where both children are Git generators since they auto-populate `path`-related parameters in their outputs.
+To avoid this problem, specify a `pathParamPrefix` on one or both of the child generators to avoid conflicting parameter keys in the output.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: two-gits-with-path-param-prefix
+spec:
+  generators:
+    - matrix:
+        generators:
+          # git file generator referencing files containing details about each
+          # app to be deployed (e.g., `appName`).
+          - git:
+              repoURL: https://github.com/some-org/some-repo.git
+              revision: HEAD
+              files:
+                - path: "apps/*.json"
+              pathParamPrefix: app
+          # git file generator referencing files containing details about
+          # locations to which each app should deploy (e.g., `region` and
+          # `clusterName`).
+          - git:
+              repoURL: https://github.com/some-org/some-repo.git
+              revision: HEAD
+              files:
+                - path: "targets/{{appName}}/*.json"
+              pathParamPrefix: target
+  template: {} # ...
+```
+
+Then, given the following file structure/content:
+
+```
+├── apps
+│   ├── app-one.json
+│   │   { "appName": "app-one" }
+│   └── app-two.json
+│       { "appName": "app-two" }
+└── targets
+    ├── app-one
+    │   ├── east-cluster-one.json
+    │   │   { "region": "east", "clusterName": "cluster-one" }
+    │   └── east-cluster-two.json
+    │       { "region": "east", "clusterName": "cluster-two" }
+    └── app-two
+        ├── east-cluster-one.json
+        │   { "region": "east", "clusterName": "cluster-one" }
+        └── west-cluster-three.json
+            { "region": "west", "clusterName": "cluster-three" }
+```
+
+…the matrix generator above would yield the following results:
+
+```yaml
+- appName: app-one
+  app.path: /apps
+  app.path.filename: app-one.json
+  # plus additional path-related parameters from the first child generator, all
+  # prefixed with "app".
+  region: east
+  clusterName: cluster-one
+  target.path: /targets/app-one
+  target.path.filename: east-cluster-one.json
+  # plus additional path-related parameters from the second child generator, all
+  # prefixed with "target".
+
+- appName: app-one
+  app.path: /apps
+  app.path.filename: app-one.json
+  region: east
+  clusterName: cluster-two
+  target.path: /targets/app-one
+  target.path.filename: east-cluster-two.json
+
+- appName: app-two
+  app.path: /apps
+  app.path.filename: app-two.json
+  region: east
+  clusterName: cluster-one
+  target.path: /targets/app-two
+  target.path.filename: east-cluster-one.json
+
+- appName: app-two
+  app.path: /apps
+  app.path.filename: app-two.json
+  region: west
+  clusterName: cluster-three
+  target.path: /targets/app-two
+  target.path.filename: west-cluster-three.json
+```
 
 ## Restrictions
 
