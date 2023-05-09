@@ -16,7 +16,7 @@ import {
     BASE_COLORS,
     ComparisonStatusIcon,
     deletePodAction,
-    getAppOverridesCount,
+    // getAppOverridesCount,
     HealthStatusIcon,
     isAppNode,
     isYoungerThanXMinutes,
@@ -47,7 +47,7 @@ export interface ResourceTreeNode extends models.ResourceNode {
 }
 
 export interface ApplicationResourceTreeProps {
-    app: models.Application;
+    app: models.ApplicationSet;
     tree: models.ApplicationTree;
     useNetworkingHierarchy: boolean;
     nodeFilter: (node: ResourceTreeNode) => boolean;
@@ -246,7 +246,7 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
     );
 }
 
-function appNodeKey(app: models.Application) {
+function appNodeKey(app: models.ApplicationSet) {
     return nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
 }
 
@@ -409,7 +409,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
-    const extLinks: string[] = props.app.status.summary.externalURLs;
+    // const extLinks: string[] = props.app.status.summary.externalURLs;
     const podGroupChildren = childMap.get(treeNodeKey(node));
     const nonPodChildren = podGroupChildren?.reduce((acc, child) => {
         if (child.kind !== 'Pod') {
@@ -495,7 +495,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                                 )}
                             </Consumer>
                         )}
-                        <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
+                        {/* <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} /> */}
                     </span>
                     {childCount > 0 && (
                         <>
@@ -744,7 +744,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
-    const extLinks: string[] = props.app.status.summary.externalURLs;
+    // const extLinks: string[] = props.app.status.summary.externalURLs;
     const childCount = nodesHavingChildren.get(node.uid);
     return (
         <div
@@ -793,7 +793,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                             )}
                         </Consumer>
                     )}
-                    <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
+                    {/* <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} /> */}
                 </div>
                 {childCount > 0 && (
                     <div
@@ -871,7 +871,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const graph = new dagre.graphlib.Graph();
     graph.setGraph({nodesep: 25, rankdir: 'LR', marginy: 45, marginx: -100, ranksep: 80});
     graph.setDefaultEdgeLabel(() => ({}));
-    const overridesCount = getAppOverridesCount(props.app);
+    // const overridesCount = getAppOverridesCount(props.app);
     const appNode = {
         kind: props.app.kind,
         name: props.app.metadata.name,
@@ -880,10 +880,10 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         group: 'argoproj.io',
         version: '',
         children: Array(),
-        status: props.app.status.sync.status,
-        health: props.app.status.health,
+        // status: props.app.status.sync.status,
+        // health: props.app.status.health,
         uid: props.app.kind + '-' + props.app.metadata.namespace + '-' + props.app.metadata.name,
-        info:
+      /*  info:
             overridesCount > 0
                 ? [
                       {
@@ -892,10 +892,11 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                       }
                   ]
                 : []
+                */
     };
 
     const statusByKey = new Map<string, models.ResourceStatus>();
-    props.app.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
+    // props.app.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
     const nodeByKey = new Map<string, ResourceTreeNode>();
     props.tree.nodes
         .map(node => ({...node, orphaned: false}))
@@ -944,7 +945,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
     }, [props.setShowCompactNodes, props.showCompactNodes, defaultCompactView]);
 
-    function filterGraph(app: models.Application, filteredIndicatorParent: string, graphNodesFilter: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
+    function filterGraph(app: models.ApplicationSet, filteredIndicatorParent: string, graphNodesFilter: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
         const appKey = appNodeKey(app);
         let filtered = 0;
         graphNodesFilter.nodes().forEach(nodeId => {
@@ -1067,7 +1068,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
     } else {
         // Tree view
-        const managedKeys = new Set(props.app.status.resources.map(nodeKey));
+        // const managedKeys = new Set(props.app.status.resources.map(nodeKey));
         const orphanedKeys = new Set(props.tree.orphanedNodes?.map(nodeKey));
         const orphans: ResourceTreeNode[] = [];
         let allChildNodes: ResourceTreeNode[] = [];
@@ -1075,7 +1076,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         if (props.getNodeExpansion(appNode.uid)) {
             nodes.forEach(node => {
                 allChildNodes = [];
-                if ((node.parentRefs || []).length === 0 || managedKeys.has(nodeKey(node))) {
+                if ((node.parentRefs || []).length === 0  /* || managedKeys.has(nodeKey(node)) */) {
                     roots.push(node);
                 } else {
                     if (orphanedKeys.has(nodeKey(node))) {

@@ -5,14 +5,14 @@ import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppOperationState} from '../utils';
-import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, helpTip} from '../utils';
+import { ComparisonStatusIcon} from '../utils';
+import {getConditionCategory, HealthStatusIcon,  helpTip} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
 import './application-status-panel.scss';
 
 interface Props {
-    application: models.Application;
+    application: models.ApplicationSet;
     showDiff?: () => any;
     showOperation?: () => any;
     showConditions?: () => any;
@@ -45,17 +45,17 @@ const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?:
     );
 };
 
-export const ApplicationStatusPanel = ({application, showDiff, showOperation, showConditions, showMetadataInfo}: Props) => {
+/* export const ApplicationStatusPanel = ({application, showDiff, showOperation, showConditions, showMetadataInfo}: Props) => {
     const today = new Date();
 
     let daysSinceLastSynchronized = 0;
-    const history = application.status.history || [];
+    // const history = application.status.history || [];
     if (history.length > 0) {
-        const deployDate = new Date(history[history.length - 1].deployedAt);
-        daysSinceLastSynchronized = Math.round(Math.abs((today.getTime() - deployDate.getTime()) / (24 * 60 * 60 * 1000)));
+        // const deployDate = new Date(history[history.length - 1].deployedAt);
+        // daysSinceLastSynchronized = Math.round(Math.abs((today.getTime() - deployDate.getTime()) / (24 * 60 * 60 * 1000)));
     }
     const cntByCategory = (application.status.conditions || []).reduce(
-        (map, next) => map.set(getConditionCategory(next), (map.get(getConditionCategory(next)) || 0) + 1),
+        // (map, next) => map.set(getConditionCategory(next), (map.get(getConditionCategory(next)) || 0) + 1),
         new Map<string, number>()
     );
     const appOperationState = getAppOperationState(application);
@@ -208,3 +208,4 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
         </div>
     );
 };
+*/

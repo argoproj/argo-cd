@@ -3,10 +3,10 @@ import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {Context} from '../../../shared/context';
 import {Application, ApplicationSet, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncPolicy, SyncStatusCode, SyncStatuses} from '../../../shared/models';
-import {AppSetsListPreferences, services} from '../../../shared/services';
+import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 
 export interface FilterResult {
     // repos: boolean;
@@ -30,7 +30,7 @@ function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
     return 'Enabled';
 }
 
-export function getFilterResults(applications: ApplicationSet[], pref: AppSetsListPreferences): FilteredAppSet[] {
+export function getFilterResults(applications: ApplicationSet[], pref: AppsListPreferences): FilteredAppSet[] {
     return applications.map(app => ({
         ...app,
         filterResult: {
@@ -67,8 +67,8 @@ const optionsFrom = (options: string[], filter: string[]) => {
 
 interface AppFilterProps {
     apps: FilteredAppSet[];
-    pref: AppSetsListPreferences;
-    onChange: (newPrefs: AppSetsListPreferences) => void;
+    pref: AppsListPreferences;
+    onChange: (newPrefs: AppsListPreferences) => void;
     children?: React.ReactNode;
     collapsed?: boolean;
 }

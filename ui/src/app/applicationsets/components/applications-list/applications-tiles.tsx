@@ -7,7 +7,7 @@ import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState} from '../utils';
+// import {getAppDefaultSource, OperationState} from '../utils';
 import {services} from '../../../shared/services';
 
 import './applications-tiles.scss';
@@ -121,7 +121,8 @@ export const ApplicationSetTiles = ({applicationSets, deleteApplicationSet}: App
                                                     className='row'
                                                     onClick={e =>
                                                         ctx.navigation.goto(
-                                                            `/applicationsets/${appSet.metadata.namespace}/${appSet.metadata.name}`,
+                                                            // `/applicationsets/${appSet.metadata.namespace}/${appSet.metadata.name}`,
+                                                            `/applicationsets/${appSet.metadata.name}`,
                                                             {view: pref.appDetails.view},
                                                             {event: e}
                                                         )

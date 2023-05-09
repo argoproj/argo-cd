@@ -5,9 +5,9 @@ import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 import {Context} from '../../../shared/context';
-import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
+import {Application,ApplicationSet,  ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ResourceTabExtension} from '../../../shared/services/extensions-service';
+import {ResourceTabExtension, AppSetResourceTabExtension} from '../../../shared/services/extensions-service';
 import {NodeInfo, SelectNode} from '../application-details/application-details';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
@@ -26,8 +26,8 @@ const jsonMergePatch = require('json-merge-patch');
 
 interface ResourceDetailsProps {
     selectedNode: ResourceNode;
-    updateApp: (app: Application, query: {validate?: boolean}) => Promise<any>;
-    application: Application;
+    updateApp: (app: ApplicationSet, query: {validate?: boolean}) => Promise<any>;
+    application: ApplicationSet;
     isAppSelected: boolean;
     tree: ApplicationTree;
     tab?: string;
@@ -46,11 +46,11 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         state: State,
         podState: State,
         events: Event[],
-        extensionTabs: ResourceTabExtension[],
+        extensionTabs: AppSetResourceTabExtension[],
         tabs: Tab[],
         execEnabled: boolean,
-        execAllowed: boolean,
-        logsAllowed: boolean
+        // execAllowed: boolean,
+        // logsAllowed: boolean
     ) => {
         if (!node || node === undefined) {
             return [];
@@ -90,7 +90,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 SelectNode(selectedNodeKey, activeContainer, activeTab, appContext);
             };
 
-            if (logsAllowed) {
+          /*  if (logsAllowed) {
                 tabs = tabs.concat([
                     {
                         key: 'logs',
@@ -114,8 +114,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         )
                     }
                 ]);
-            }
-            if (selectedNode.kind === 'Pod' && execEnabled && execAllowed) {
+            }*/
+          /*  if (selectedNode.kind === 'Pod' && execEnabled && execAllowed) {
                 tabs = tabs.concat([
                     {
                         key: 'exec',
@@ -135,6 +135,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     }
                 ]);
             }
+            */
         }
         if (state) {
             extensionTabs.forEach((tabExtensions, i) => {
@@ -155,12 +156,12 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
     const getApplicationTabs = () => {
         const tabs: Tab[] = [
-            {
+         /*    {
                 title: 'SUMMARY',
                 key: 'summary',
                 content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />
             },
-            {
+           {
                 title: 'PARAMETERS',
                 key: 'parameters',
                 content: (
@@ -183,6 +184,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     </DataLoader>
                 )
             },
+            */
             {
                 title: 'MANIFEST',
                 key: 'manifest',
@@ -199,7 +201,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             }
         ];
 
-        if (application.status.sync.status !== SyncStatuses.Synced) {
+     /*  if (application.status.sync.status !== SyncStatuses.Synced) {
             tabs.push({
                 icon: 'fa fa-file-medical',
                 title: 'DIFF',
@@ -217,14 +219,16 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 )
             });
         }
+        
 
         tabs.push({
             title: 'EVENTS',
             key: 'event',
             content: <ApplicationResourceEvents applicationName={application.metadata.name} applicationNamespace={application.metadata.namespace} />
         });
+        */
 
-        const extensionTabs = services.extensions.getResourceTabs('argoproj.io', 'Application').map((ext, i) => ({
+        const extensionTabs = services.extensions.getAppSetResourceTabs('argoproj.io', 'ApplicationSet').map((ext, i) => ({
             title: ext.title,
             key: `extension-${i}`,
             content: <ext.component resource={application} tree={tree} application={application} />,
@@ -234,7 +238,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         return tabs.concat(extensionTabs);
     };
 
-    const extensions = selectedNode?.kind ? services.extensions.getResourceTabs(selectedNode?.group || '', selectedNode?.kind) : [];
+    const extensions = selectedNode?.kind ? services.extensions.getAppSetResourceTabs(selectedNode?.group || '', selectedNode?.kind) : [];
 
     return (
         <div style={{width: '100%', height: '100%'}}>
@@ -252,8 +256,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             }
                         });
                         const controlled = managedResources.find(item => AppUtils.isSameNode(selectedNode, item));
-                        const summary = application.status.resources.find(item => AppUtils.isSameNode(selectedNode, item));
-                        const controlledState = (controlled && summary && {summary, state: controlled}) || null;
+                        // const summary = application.status.resources.find(item => AppUtils.isSameNode(selectedNode, item));
+                        // const controlledState = (controlled && summary && {summary, state: controlled}) || null;
                         const resQuery = {...selectedNode};
                         if (controlled && controlled.targetState) {
                             resQuery.version = AppUtils.parseApiVersion(controlled.targetState.apiVersion).version;
@@ -279,10 +283,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
                         const settings = await services.authService.settings();
                         const execEnabled = settings.execEnabled;
-                        const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
-                        const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
-                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
-                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links};
+                        // const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
+                        // const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
+                        // const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
+                        return {/*controlledState,*/ liveState, events, podState, execEnabled /* , execAllowed, logsAllowed, links*/};
                     }}>
                     {data => (
                         <React.Fragment>
@@ -292,13 +296,13 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     {ResourceLabel({kind: selectedNode.kind})}
                                 </div>
                                 <h1>{selectedNode.name}</h1>
-                                {data.controlledState && (
+                                {/* {data.controlledState && ( 
                                     <React.Fragment>
                                         <span style={{marginRight: '5px'}}>
                                             <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
                                         </span>
                                     </React.Fragment>
-                                )}
+                                )}*/}
                                 {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
                                 <button
                                     onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
@@ -339,16 +343,16 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                                 <ApplicationNodeInfo
                                                     application={application}
                                                     live={data.liveState}
-                                                    controlled={data.controlledState}
+                                                    // controlled={data.controlledState}
                                                     node={selectedNode}
-                                                    links={data.links}
+                                                    // links={data.links}
                                                 />
                                             )
                                         }
                                     ],
-                                    data.execEnabled,
-                                    data.execAllowed,
-                                    data.logsAllowed
+                                    data.execEnabled
+                                    // data.execAllowed,
+                                    // data.logsAllowed
                                 )}
                                 selectedTabKey={props.tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}

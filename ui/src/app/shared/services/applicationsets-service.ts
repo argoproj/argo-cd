@@ -99,7 +99,7 @@ export class ApplicationSetsService {
             .then(res => res.body as models.ApplicationSpec);
     }
 
-    public update(app: models.Application, query: {validate?: boolean} = {}): Promise<models.ApplicationSet> {
+    public update(app: models.ApplicationSet, query: {validate?: boolean} = {}): Promise<models.ApplicationSet> {
         return requests
             .put(`/applicationsets/${app.metadata.name}`)
             .query(query)

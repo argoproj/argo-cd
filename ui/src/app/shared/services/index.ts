@@ -13,6 +13,7 @@ import {RepoCredsService} from './repocreds-service';
 import {UserService} from './user-service';
 import {VersionService} from './version-service';
 import {ViewPreferencesService} from './view-preferences-service';
+import {ViewAppSetPreferencesService} from './view-preferences-service';
 export interface Services {
     applications: ApplicationsService;
     applicationSets: ApplicationSetsService;
@@ -24,6 +25,7 @@ export interface Services {
     clusters: ClustersService;
     projects: ProjectsService;
     viewPreferences: ViewPreferencesService;
+    viewAppSetPreferences: ViewAppSetPreferencesService;
     version: VersionService;
     accounts: AccountsService;
     gpgkeys: GnuPGPublicKeyService;
@@ -42,6 +44,7 @@ export const services: Services = {
     repocreds: new RepoCredsService(),
     projects: new ProjectsService(),
     viewPreferences: new ViewPreferencesService(),
+    viewAppSetPreferences: new ViewAppSetPreferencesService(),
     version: new VersionService(),
     accounts: new AccountsService(),
     gpgkeys: new GnuPGPublicKeyService(),

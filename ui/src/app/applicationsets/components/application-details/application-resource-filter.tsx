@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {Checkbox} from 'argo-ui/v2';
 import {ApplicationTree, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
-import {AppDetailsPreferences, services} from '../../../shared/services';
+import {AppSetDetailsPreferences, services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
 import {Filter, FiltersGroup} from '../filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
@@ -16,7 +16,7 @@ function toOption(label: string) {
 
 export interface FiltersProps {
     children?: React.ReactNode;
-    pref: AppDetailsPreferences;
+    pref: AppSetDetailsPreferences;
     tree: ApplicationTree;
     resourceNodes: models.ResourceStatus[];
     onSetFilter: (items: string[]) => void;
@@ -84,12 +84,12 @@ export const Filters = (props: FiltersProps) => {
     // otherwise the user will not be able to clear them from this panel
     const alreadyFilteredOn = (prefix: string) => resourceFilter.filter(f => f.startsWith(prefix + ':')).map(removePrefix(prefix));
 
-    const kinds = tree.nodes
+    /*const kinds = tree.nodes
         .map(x => x.kind)
         .concat(alreadyFilteredOn('kind'))
         .filter(uniq)
         .sort();
-
+*/
     const names = tree.nodes
         .map(x => x.name)
         .concat(alreadyFilteredOn('name'))
@@ -107,7 +107,7 @@ export const Filters = (props: FiltersProps) => {
         return groupedFilters[prefix] ? groupedFilters[prefix].split(',').map(removePrefix(prefix)) : [];
     };
 
-    const getOptionCount = (label: string, filterType: string): number => {
+    /* const getOptionCount = (label: string, filterType: string): number => {
         switch (filterType) {
             case 'Sync':
                 return props.resourceNodes.filter(res => res.status === SyncStatuses[label]).length;
@@ -119,11 +119,12 @@ export const Filters = (props: FiltersProps) => {
                 return 0;
         }
     };
+    */
 
     return (
         <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
             {ResourceFilter({label: 'NAME', prefix: 'name', options: names.map(toOption), field: true})}
-            {ResourceFilter({
+            {/* {ResourceFilter({ 
                 label: 'KINDS',
                 prefix: 'kind',
                 options: kinds.map(label => ({
@@ -151,8 +152,9 @@ export const Filters = (props: FiltersProps) => {
                     icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
                 }))
             })}
+            */}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
-            {(tree.orphanedNodes || []).length > 0 && (
+            {/* {(tree.orphanedNodes || []).length > 0 && ( 
                 <div className={`filter filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
                     <Checkbox
                         value={!!pref.orphanedResources}
@@ -168,6 +170,7 @@ export const Filters = (props: FiltersProps) => {
                     <div className='filter__item__label'>Show Orphaned</div>
                 </div>
             )}
+            */}
         </FiltersGroup>
     );
 };

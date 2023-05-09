@@ -8,7 +8,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
-import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
+import {ComparisonStatusIcon,  nodeKey} from '../utils';
 
 import './application-sync-panel.scss';
 
@@ -21,7 +21,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
     const syncResIndex = appResources.findIndex(item => nodeKey(item) === selectedResource);
     const syncStrategy = {} as models.SyncStrategy;
     const [isPending, setPending] = React.useState(false);
-    const source = getAppDefaultSource(application);
+    // const source = getAppDefaultSource(application);
 
     return (
         <Consumer>
@@ -48,7 +48,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                     {isVisible && (
                         <Form
                             defaultValues={{
-                                revision: new URLSearchParams(ctx.history.location.search).get('revision') || source.targetRevision || 'HEAD',
+                                revision: new URLSearchParams(ctx.history.location.search).get('revision') || /* source.targetRevision  || */ 'HEAD',
                                 resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
                                 syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : []
                             }}
@@ -119,9 +119,9 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                             getApi={setForm}>
                             {formApi => (
                                 <form role='form' className='width-control' onSubmit={formApi.submitForm}>
-                                    <h6>
+                                    {/* <h6>
                                         Synchronizing application manifests from <a href={source.repoURL}>{source.repoURL}</a>
-                                    </h6>
+                                    </h6> */}
                                     <div className='argo-form-row'>
                                         <FormField formApi={formApi} label='Revision' field='revision' component={Text} />
                                     </div>

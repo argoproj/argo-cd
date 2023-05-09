@@ -84,11 +84,11 @@ const RenderContainerState = (props: {container: any}) => {
 };
 
 export const ApplicationNodeInfo = (props: {
-    application: models.Application;
+    application: models.ApplicationSet;
     node: models.ResourceNode;
     live: models.State;
-    links: models.LinksResponse;
-    controlled: {summary: models.ResourceStatus; state: models.ResourceDiff};
+    // links: models.LinksResponse;
+    // controlled: {summary: models.ResourceStatus; state: models.ResourceDiff};
 }) => {
     const attributes: {title: string; value: any}[] = [
         {title: 'KIND', value: props.node.kind},
@@ -147,7 +147,7 @@ export const ApplicationNodeInfo = (props: {
         }
     }
 
-    if (props.controlled) {
+  /*  if (props.controlled) {
         if (!props.controlled.summary.hook) {
             attributes.push({
                 title: 'STATUS',
@@ -171,7 +171,7 @@ export const ApplicationNodeInfo = (props: {
                 attributes.push({title: 'HEALTH DETAILS', value: props.controlled.summary.health.message});
             }
         }
-    } else if (props.node && (props.node as ResourceTreeNode).health) {
+    } else */ if (props.node && (props.node as ResourceTreeNode).health) {
         const treeNode = props.node as ResourceTreeNode;
         if (treeNode && treeNode.health) {
             attributes.push({
@@ -185,12 +185,12 @@ export const ApplicationNodeInfo = (props: {
         }
     }
 
-    if (props.links) {
-        attributes.push({
-            title: 'LINKS',
-            value: <DeepLinks links={props.links.items} />
-        });
-    }
+    // if (props.links) {
+    //     attributes.push({
+    //         title: 'LINKS',
+    //         value: <DeepLinks links={props.links.items} />
+    //     });
+    // }
 
     const tabs: Tab[] = [
         {
@@ -235,19 +235,19 @@ export const ApplicationNodeInfo = (props: {
             )
         }
     ];
-    if (props.controlled && !props.controlled.summary.hook) {
-        tabs.push({
-            key: 'diff',
-            icon: 'fa fa-file-medical',
-            title: 'Diff',
-            content: <ApplicationResourcesDiff states={[props.controlled.state]} />
-        });
-        tabs.push({
-            key: 'desiredManifest',
-            title: 'Desired Manifest',
-            content: <YamlEditor input={props.controlled.state.targetState} hideModeButtons={true} />
-        });
-    }
+    // if (props.controlled && !props.controlled.summary.hook) {
+    //     tabs.push({
+    //         key: 'diff',
+    //         icon: 'fa fa-file-medical',
+    //         title: 'Diff',
+    //         content: <ApplicationResourcesDiff states={[props.controlled.state]} />
+    //     });
+    //     tabs.push({
+    //         key: 'desiredManifest',
+    //         title: 'Desired Manifest',
+    //         content: <YamlEditor input={props.controlled.state.targetState} hideModeButtons={true} />
+    //     });
+    // }
 
     const readinessGatesState = React.useMemo(() => {
         if (props.live && props.node?.kind === 'Pod') {

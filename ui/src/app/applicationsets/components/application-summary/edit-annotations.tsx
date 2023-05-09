@@ -5,7 +5,7 @@ import * as models from '../../../shared/models';
 import {MapInputField} from '../../../shared/components';
 import {notificationSubscriptionsParser} from './edit-notification-subscriptions';
 
-export const EditAnnotations = (props: {formApi: FormApi; app: models.Application}) => {
+export const EditAnnotations = (props: {formApi: FormApi; app: models.ApplicationSet}) => {
     const once = React.useRef(false);
 
     const removeNotificationSubscriptionRelatedAnnotations = () => {

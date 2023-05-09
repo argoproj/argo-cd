@@ -21,7 +21,7 @@ import {services} from '../../../shared/services';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource, helpTip} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon,  urlPattern, formatCreationTimestamp,  helpTip} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
@@ -38,25 +38,25 @@ function swap(array: any[], a: number, b: number) {
 }
 
 export interface ApplicationSummaryProps {
-    app: models.Application;
-    updateApp: (app: models.Application, query: {validate?: boolean}) => Promise<any>;
+    app: models.ApplicationSet;
+    updateApp: (app: models.ApplicationSet, query: {validate?: boolean}) => Promise<any>;
 }
 
 export const ApplicationSummary = (props: ApplicationSummaryProps) => {
-    const app = JSON.parse(JSON.stringify(props.app)) as models.Application;
-    const source = getAppDefaultSource(app);
-    const isHelm = source.hasOwnProperty('chart');
-    const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
-    const [destFormat, setDestFormat] = React.useState(initialState);
+    const app = JSON.parse(JSON.stringify(props.app)) as models.ApplicationSet;
+    // const source = getAppDefaultSource(app);
+    // const isHelm = source.hasOwnProperty('chart');
+    // const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
+    // const [destFormat, setDestFormat] = React.useState(initialState);
     const [changeSync, setChangeSync] = React.useState(false);
 
     const notificationSubscriptions = useEditNotificationSubscriptions(app.metadata.annotations || {});
     const updateApp = notificationSubscriptions.withNotificationSubscriptions(props.updateApp);
 
-    const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
+    // const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
 
     const attributes = [
-        {
+       /* {
             title: 'PROJECT',
             view: <Link to={'/settings/projects/' + app.spec.project}>{app.spec.project}</Link>,
             edit: (formApi: FormApi) => (
@@ -65,6 +65,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 </DataLoader>
             )
         },
+        */
         {
             title: 'LABELS',
             view: Object.keys(app.metadata.labels || {})
@@ -88,7 +89,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             view: false, // eventually the subscription input values will be merged in 'ANNOTATIONS', therefore 'ANNOATIONS' section is responsible to represent subscription values,
             edit: () => <EditNotificationSubscriptions {...notificationSubscriptions} />
         },
-        {
+      /*  {
             title: 'CLUSTER',
             view: <Cluster server={app.spec.destination.server} name={app.spec.destination.name} showUrl={true} />,
             edit: (formApi: FormApi) => (
@@ -149,16 +150,18 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 </DataLoader>
             )
         },
+        
         {
             title: 'NAMESPACE',
             view: <ClipboardText text={app.spec.destination.namespace} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
+        */
         {
             title: 'CREATED AT',
             view: formatCreationTimestamp(app.metadata.creationTimestamp)
         },
-        {
+       /* {
             title: 'REPO URL',
             view: <Repo url={source.repoURL} />,
             edit: (formApi: FormApi) =>
@@ -324,9 +327,10 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 </DataLoader>
             )
         }
+        */
     ];
 
-    const urls = app.status.summary.externalURLs || [];
+   /* const urls = app.status.summary.externalURLs || [];
     if (urls.length > 0) {
         attributes.push({
             title: 'URLs',
@@ -399,8 +403,9 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             }
         }
     }
+    */
 
-    const items = app.spec.info || [];
+    /*const items = app.spec.info || [];
     const [adjustedCount, setAdjustedCount] = React.useState(0);
 
     const added = new Array<{name: string; value: string; key: string}>();
@@ -472,10 +477,10 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             view: null as any,
             edit: null
         });
-
+*/
     return (
         <div className='application-summary'>
-            <EditablePanel
+            {/* <EditablePanel 
                 save={updateApp}
                 validate={input => ({
                     'spec.project': !input.spec.project && 'Project name is required',
@@ -589,6 +594,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     </div>
                 )}
             </Consumer>
+            
             <BadgePanel app={props.app.metadata.name} />
             <EditablePanel
                 save={updateApp}
@@ -600,6 +606,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     notificationSubscriptions.onResetNotificationSubscriptions();
                 }}
             />
+            */}
         </div>
     );
 };

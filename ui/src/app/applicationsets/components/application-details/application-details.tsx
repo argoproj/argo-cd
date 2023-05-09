@@ -11,26 +11,27 @@ import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
-import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
+import {AppSetDetailsPreferences, AppSetsDetailsViewKey, AppSetsDetailsViewType, services} from '../../../shared/services';
+import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType} from '../../../shared/services';
 
 import {ApplicationConditions} from '../application-conditions/application-conditions';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
 import {PodGroupType, PodView} from '../application-pod-view/pod-view';
 import {ApplicationResourceTree, ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
-import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
+// import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters, FiltersProps} from './application-resource-filter';
-import {getAppDefaultSource, urlPattern, helpTip} from '../utils';
+import {urlPattern, helpTip} from '../utils';
 import {ChartDetails, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
-import {AppViewExtension} from '../../../shared/services/extensions-service';
+import {AppViewExtension, AppSetViewExtension} from '../../../shared/services/extensions-service';
 
 interface ApplicationDetailsState {
     page: number;
@@ -40,8 +41,8 @@ interface ApplicationDetailsState {
     filteredGraph?: any[];
     truncateNameOnRight?: boolean;
     collapsedNodes?: string[];
-    extensions?: AppViewExtension[];
-    extensionsMap?: {[key: string]: AppViewExtension};
+    extensions?: AppSetViewExtension[];
+    extensionsMap?: {[key: string]: AppSetViewExtension};
 }
 
 interface FilterInput {
@@ -77,13 +78,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         apis: PropTypes.object
     };
 
-    private appChanged = new BehaviorSubject<appModels.Application>(null);
+    private appChanged = new BehaviorSubject<appModels.ApplicationSet>(null);
     private appNamespace: string;
 
     constructor(props: RouteComponentProps<{appnamespace: string; name: string}>) {
         super(props);
-        const extensions = services.extensions.getAppViewExtensions();
-        const extensionsMap: {[key: string]: AppViewExtension} = {};
+        const extensions = services.extensions.getAppSetViewExtensions();
+        const extensionsMap: {[key: string]: AppSetViewExtension} = {};
         extensions.forEach(ext => {
             extensionsMap[ext.title] = ext;
         });
@@ -147,21 +148,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         this.setState({slidingPanelPage: 0});
     }
 
-    private toggleCompactView(pref: AppDetailsPreferences) {
-        services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: !pref.groupNodes}});
+    private toggleCompactView(pref: AppSetDetailsPreferences) {
+        services.viewAppSetPreferences.updatePreferences({appDetails: {...pref, groupNodes: !pref.groupNodes}});
     }
 
     private getPageTitle(view: string) {
-        const {Tree, Pods, Network, List} = AppsDetailsViewKey;
+        const {Tree, List} = AppSetsDetailsViewKey;
         switch (view) {
             case Tree:
-                return 'Application Details Tree';
-            case Network:
-                return 'Application Details Network';
-            case Pods:
-                return 'Application Details Pods';
+                return 'ApplicationSet Details Tree';
             case List:
-                return 'Application Details List';
+                return 'ApplicationSet Details List';
         }
         return '';
     }
@@ -171,8 +168,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             <ObservableQuery>
                 {q => (
                     <DataLoader
-                        errorRenderer={error => <Page title='Application Details'>{error}</Page>}
-                        loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
+                        errorRenderer={error => <Page title='ApplicationSet Details'>{error}</Page>}
+                        loadingRenderer={() => <Page title='ApplicationSet Details'>Loading...</Page>}
                         input={this.props.match.params.name}
                         load={name =>
                             combineLatest([this.loadAppInfo(name, this.appNamespace), services.viewPreferences.getPreferences(), q]).pipe(
@@ -187,11 +184,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             .filter(item => !!item);
                                     }
                                     if (params.get('view') != null) {
-                                        pref.view = params.get('view') as AppsDetailsViewType;
+                                        pref.view = params.get('view') as AppSetsDetailsViewType;
                                     } else {
                                         const appDefaultView = (application.metadata &&
                                             application.metadata.annotations &&
-                                            application.metadata.annotations[appModels.AnnotationDefaultView]) as AppsDetailsViewType;
+                                            application.metadata.annotations[appModels.AnnotationDefaultView]) as AppSetsDetailsViewType;
                                         if (appDefaultView != null) {
                                             pref.view = appDefaultView;
                                         }
@@ -213,7 +210,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 })
                             )
                         }>
-                        {({application, tree, pref}: {application: appModels.Application; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
+                        {({application, tree, pref}: {application: appModels.ApplicationSet; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
                             tree.nodes = tree.nodes || [];
                             const treeFilter = this.getTreeFilter(pref.resourceFilter);
                             const setFilter = (items: string[]) => {
@@ -226,14 +223,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             const selectedItem = (this.selectedNodeKey && appNodesByName.get(this.selectedNodeKey)) || null;
                             const isAppSelected = selectedItem === application;
                             const selectedNode = !isAppSelected && (selectedItem as appModels.ResourceNode);
-                            const operationState = application.status.operationState;
+                            // const operationState = application.status.operationState;
                             const conditions = application.status.conditions || [];
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
-                            const source = getAppDefaultSource(application);
+                            // const source = getAppDefaultSource(application);
                             const resourceNodes = (): any[] => {
                                 const statusByKey = new Map<string, models.ResourceStatus>();
-                                application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
+                                // application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
                                 const resources = new Map<string, any>();
                                 tree.nodes
                                     .map(node => ({...node, orphaned: false}))
@@ -279,7 +276,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         part + ' '
                                     )
                                 );
-                            const {Tree, Pods, Network, List} = AppsDetailsViewKey;
+                            const {Tree,  List} = AppSetsDetailsViewKey;
                             const zoomNum = (pref.zoom * 100).toFixed(0);
                             const setZoom = (s: number) => {
                                 let targetZoom: number = pref.zoom + s;
@@ -322,8 +319,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                     });
                                     this.setState({collapsedNodes: collapsedNodesList});
                                 } else {
-                                    const managedKeys = new Set(application.status.resources.map(AppUtils.nodeKey));
-                                    nodes.forEach(node => {
+                                    // const managedKeys = new Set(application.status.resources.map(AppUtils.nodeKey));
+                                  /*  nodes.forEach(node => {
                                         if (!((node.parentRefs || []).length === 0 || managedKeys.has(AppUtils.nodeKey(node)))) {
                                             node.parentRefs.forEach(parent => {
                                                 const parentId = parent.uid;
@@ -333,6 +330,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             });
                                         }
                                     });
+                                    */
                                     collapsedNodesList.push(application.kind + '-' + application.metadata.namespace + '-' + application.metadata.name);
                                     this.setState({collapsedNodes: collapsedNodesList});
                                 }
@@ -351,7 +349,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         topBarTitle={this.getPageTitle(pref.view)}
                                         toolbar={{
                                             breadcrumbs: [
-                                                {title: 'Applications', path: '/applicationsets'},
+                                                {title: 'ApplicationSets', path: '/applicationsets'},
                                                 {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
                                             ],
                                             actionMenu: {items: this.getApplicationActionMenu(application, true)},
@@ -366,7 +364,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: Tree}});
                                                             }}
                                                         />
-                                                        <i
+                                                        {/* <i
                                                             className={classNames('fa fa-th', {selected: pref.view === Pods})}
                                                             title='Pods'
                                                             onClick={() => {
@@ -381,7 +379,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                 this.appContext.apis.navigation.goto('.', {view: Network});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: Network}});
                                                             }}
-                                                        />
+                                                        /> */}
                                                         <i
                                                             className={classNames('fa fa-th-list', {selected: pref.view === List})}
                                                             title='List'
@@ -406,7 +404,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 </React.Fragment>
                                             )
                                         }}>
-                                        <div className='application-details__status-panel'>
+                                        {/* <div className='application-details__status-panel'> 
                                             <ApplicationStatusPanel
                                                 application={application}
                                                 showDiff={() => this.selectNode(appFullName, 0, 'diff')}
@@ -414,7 +412,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 showConditions={() => this.setConditionsStatusVisible(true)}
                                                 showMetadataInfo={revision => this.setState({...this.state, revision})}
                                             />
-                                        </div>
+                                        </div> */}
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
@@ -499,7 +497,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     />
                                                 </>
                                             )) ||
-                                                (pref.view === 'pods' && (
+                                               /* (pref.view === 'pods' && (
                                                     <PodView
                                                         tree={tree}
                                                         app={application}
@@ -511,7 +509,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         }
                                                         quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext.apis, this.appChanged)}
                                                     />
-                                                )) ||
+                                                )) ||  */
                                                 (this.state.extensionsMap[pref.view] != null && (
                                                     <ExtensionView extension={this.state.extensionsMap[pref.view]} application={application} tree={tree} />
                                                 )) || (
@@ -588,17 +586,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 tree={tree}
                                                 application={application}
                                                 isAppSelected={isAppSelected}
-                                                updateApp={(app: models.Application, query: {validate?: boolean}) => this.updateApp(app, query)}
+                                                updateApp={(app: models.ApplicationSet, query: {validate?: boolean}) => this.updateApp(app, query)}
                                                 selectedNode={selectedNode}
                                                 tab={tab}
                                             />
                                         </SlidingPanel>
-                                        <ApplicationSyncPanel
+                                        {/* <ApplicationSyncPanel
                                             application={application}
                                             hide={() => AppUtils.showDeploy(null, null, this.appContext.apis)}
                                             selectedResource={syncResourceKey}
-                                        />
-                                        <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
+                                        /> */}
+                                        {/* <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
                                             {this.selectedRollbackDeploymentIndex > -1 && (
                                                 <ApplicationDeploymentHistory
                                                     app={application}
@@ -607,14 +605,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     selectDeployment={i => this.setRollbackPanelVisible(i)}
                                                 />
                                             )}
-                                        </SlidingPanel>
-                                        <SlidingPanel isShown={this.showOperationState && !!operationState} onClose={() => this.setOperationStatusVisible(false)}>
+                                        </SlidingPanel> */}
+                                        {/* <SlidingPanel isShown={this.showOperationState && !!operationState} onClose={() => this.setOperationStatusVisible(false)}>
                                             {operationState && <ApplicationOperationState application={application} operationState={operationState} />}
-                                        </SlidingPanel>
-                                        <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
+                                        </SlidingPanel> */}
+                                        {/* <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
                                             {conditions && <ApplicationConditions conditions={conditions} />}
-                                        </SlidingPanel>
-                                        <SlidingPanel isShown={!!this.state.revision} isMiddle={true} onClose={() => this.setState({revision: null})}>
+                                        </SlidingPanel> */}
+                                        {/* <SlidingPanel isShown={!!this.state.revision} isMiddle={true} onClose={() => this.setState({revision: null})}>
                                             {this.state.revision &&
                                                 (source.chart ? (
                                                     <DataLoader
@@ -710,7 +708,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         )}
                                                     </DataLoader>
                                                 ))}
-                                        </SlidingPanel>
+                                        </SlidingPanel> */}
                                     </Page>
                                 </div>
                             );
@@ -721,22 +719,22 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         );
     }
 
-    private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
+    private getApplicationActionMenu(app: appModels.ApplicationSet, needOverlapLabelOnNarrowScreen: boolean) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
-        const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
+        // const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
         return [
             {
                 iconClassName: 'fa fa-info-circle',
-                title: <ActionMenuItem actionLabel='App Details' />,
+                title: <ActionMenuItem actionLabel='AppSet Details' />,
                 action: () => this.selectNode(fullName)
             },
-            {
+          /*  {
                 iconClassName: 'fa fa-file-medical',
                 title: <ActionMenuItem actionLabel='App Diff' />,
                 action: () => this.selectNode(fullName, 0, 'diff'),
-                disabled: app.status.sync.status === appModels.SyncStatuses.Synced
+                // disabled: app.status.sync.status === appModels.SyncStatuses.Synced
             },
             {
                 iconClassName: 'fa fa-sync',
@@ -747,11 +745,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='Sync Status' />,
                 action: () => this.setOperationStatusVisible(true),
-                disabled: !app.status.operationState
+                // disabled: !app.status.operationState
             },
-            {
-                iconClassName: 'fa fa-history',
-                title: hasMultipleSources ? (
+             {
+                 iconClassName: 'fa fa-history',
+                 title: hasMultipleSources ? (
                     <React.Fragment>
                         <ActionMenuItem actionLabel=' History and rollback' />
                         {helpTip('Rollback is not supported for apps with multiple sources')}
@@ -764,12 +762,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 },
                 disabled: !app.status.operationState || hasMultipleSources
             },
+            */
             {
                 iconClassName: 'fa fa-times-circle',
                 title: <ActionMenuItem actionLabel='Delete' />,
                 action: () => this.deleteApplication()
             },
-            {
+           /* {
                 iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
                 title: (
                     <React.Fragment>
@@ -788,12 +787,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 disabled: !!refreshing,
                 action: () => {
                     if (!refreshing) {
-                        services.applications.get(app.metadata.name, app.metadata.namespace, 'normal');
-                        AppUtils.setAppRefreshing(app);
+                        services.applicationSets.get(app.metadata.name, app.metadata.namespace, 'normal');
+                        // AppUtils.setAppRefreshing(app);
                         this.appChanged.next(app);
                     }
                 }
             }
+            */
         ];
     }
 
@@ -838,12 +838,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    private loadAppInfo(name: string, appNamespace: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {
-        return from(services.applications.get(name, appNamespace))
+    private loadAppInfo(name: string, appNamespace: string): Observable<{application: appModels.ApplicationSet, tree: appModels.ApplicationTree}> {
+        return from(services.applicationSets.get(name, appNamespace))
             .pipe(
                 mergeMap(app => {
                     const fallbackTree = {
-                        nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
+                        // nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
                         orphanedNodes: [],
                         hosts: []
                     } as appModels.ApplicationTree;
@@ -852,14 +852,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             from([app]),
                             this.appChanged.pipe(filter(item => !!item)),
                             AppUtils.handlePageVisibility(() =>
-                                services.applications
+                                services.applicationSets
                                     .watch({name, appNamespace})
                                     .pipe(
                                         map(watchEvent => {
                                             if (watchEvent.type === 'DELETED') {
                                                 this.onAppDeleted();
                                             }
-                                            return watchEvent.application;
+                                            return watchEvent.applicationSet;
                                         })
                                     )
                                     .pipe(repeat())
@@ -868,9 +868,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                         ),
                         merge(
                             from([fallbackTree]),
-                            services.applications.resourceTree(name, appNamespace).catch(() => fallbackTree),
+                            services.applicationSets.resourceTree(name, appNamespace).catch(() => fallbackTree),
                             AppUtils.handlePageVisibility(() =>
-                                services.applications
+                                services.applicationSets
                                     .watchResourceTree(name, appNamespace)
                                     .pipe(repeat())
                                     .pipe(retryWhen(errors => errors.pipe(delay(500))))
@@ -888,17 +888,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         this.appContext.apis.navigation.goto('/applications');
     }
 
-    private async updateApp(app: appModels.Application, query: {validate?: boolean}) {
-        const latestApp = await services.applications.get(app.metadata.name, app.metadata.namespace);
+    private async updateApp(app: appModels.ApplicationSet, query: {validate?: boolean}) {
+        const latestApp = await services.applicationSets.get(app.metadata.name, app.metadata.namespace);
         latestApp.metadata.labels = app.metadata.labels;
         latestApp.metadata.annotations = app.metadata.annotations;
         latestApp.spec = app.spec;
-        const updatedApp = await services.applications.update(latestApp, query);
+        const updatedApp = await services.applicationSets.update(latestApp, query);
         this.appChanged.next(updatedApp);
     }
 
-    private groupAppNodesByKey(application: appModels.Application, tree: appModels.ApplicationTree) {
-        const nodeByKey = new Map<string, appModels.ResourceDiff | appModels.ResourceNode | appModels.Application>();
+    private groupAppNodesByKey(application: appModels.ApplicationSet, tree: appModels.ApplicationTree) {
+        const nodeByKey = new Map<string, appModels.ResourceDiff | appModels.ResourceNode | appModels.ApplicationSet>();
         tree.nodes.concat(tree.orphanedNodes || []).forEach(node => nodeByKey.set(AppUtils.nodeKey(node), node));
         nodeByKey.set(AppUtils.nodeKey({group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace}), application);
         return nodeByKey;
@@ -966,7 +966,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                     await services.applications.update(update);
                 }
                 await services.applications.rollback(this.props.match.params.name, this.appNamespace, revisionHistory.id);
-                this.appChanged.next(await services.applications.get(this.props.match.params.name, this.appNamespace));
+                this.appChanged.next(await services.applicationSets.get(this.props.match.params.name, this.appNamespace));
                 this.setRollbackPanelVisible(-1);
             }
         } catch (e) {
@@ -986,7 +986,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
     }
 }
 
-const ExtensionView = (props: {extension: AppViewExtension; application: models.Application; tree: models.ApplicationTree}) => {
+const ExtensionView = (props: {extension: AppSetViewExtension; application: models.ApplicationSet; tree: models.ApplicationTree}) => {
     const {extension, application, tree} = props;
     return <extension.component application={application} tree={tree} />;
 };
