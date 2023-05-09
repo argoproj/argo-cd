@@ -1151,7 +1151,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	}
 
 	if len(reposNotPermitted) > 0 {
-		return nil, status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ","), q.ProjectName)
+		return nil, status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
 	}
 
 	helmRepos, err := getHelmRepos(appPath, q.Repos, q.HelmRepoCreds)
