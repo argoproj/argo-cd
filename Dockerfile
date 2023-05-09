@@ -88,7 +88,7 @@ FROM --platform=$BUILDPLATFORM docker.io/library/node:20.6.1@sha256:14bd39208dbc
 WORKDIR /src
 COPY ["ui/package.json", "ui/yarn.lock", "./"]
 
-RUN yarn install --network-timeout 200000 && \
+RUN NODE_OPTIONS=--use-openssl-ca yarn install --network-timeout 200000 && \
     yarn cache clean
 
 COPY ["ui/", "."]
@@ -96,7 +96,7 @@ COPY ["ui/", "."]
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
 ARG TARGETARCH
-RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 yarn build
+RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS='--max_old_space_size=8192 --use-openssl-ca' yarn build
 
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries

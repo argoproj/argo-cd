@@ -17,7 +17,7 @@ test-results
 node_modules/
 .kube/
 ./test/cmp/*.sock
-.envrc.remote
+.envrc*.remote
 .*.swp
 
 # ignore built binaries
