@@ -849,8 +849,15 @@ export class ReposList extends React.Component<
     private async disconnectRepo(repo: string) {
         const confirmed = await this.appContext.apis.popup.confirm('Disconnect repository', `Are you sure you want to disconnect '${repo}'?`);
         if (confirmed) {
-            await services.repos.delete(repo);
-            this.repoLoader.reload();
+            try {
+                await services.repos.delete(repo);
+                this.repoLoader.reload();
+            } catch (e) {
+                this.appContext.apis.notifications.show({
+                    content: <ErrorNotification title='Unable to disconnect repository' e={e} />,
+                    type: NotificationType.Error
+                });
+            }
         }
     }
 
@@ -858,8 +865,15 @@ export class ReposList extends React.Component<
     private async removeRepoCreds(url: string) {
         const confirmed = await this.appContext.apis.popup.confirm('Remove repository credentials', `Are you sure you want to remove credentials for URL prefix '${url}'?`);
         if (confirmed) {
-            await services.repocreds.delete(url);
-            this.credsLoader.reload();
+            try {
+                await services.repocreds.delete(url);
+                this.credsLoader.reload();
+            } catch (e) {
+                this.appContext.apis.notifications.show({
+                    content: <ErrorNotification title='Unable to remove repository credentials' e={e} />,
+                    type: NotificationType.Error
+                });
+            }
         }
     }
 
