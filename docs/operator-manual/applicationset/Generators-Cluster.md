@@ -96,6 +96,55 @@ metadata:
 
 The cluster selector also supports set-based requirements, as used by [several core Kubernetes resources](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#resources-that-support-set-based-requirements).
 
+### URL selector
+
+A URL selector may be used to narrow the scope of targeted clusters to only those matching a specific set of URLs:
+
+```yaml
+kind: ApplicationSet
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  generators:
+  - clusters:
+      urls:
+        - https://cluster1.com
+  template:
+  # (...)
+```
+
+This would match an Argo CD cluster secret containing:
+```yaml
+kind: Secret
+data:
+  # (... fields as above ...)
+metadata:
+  name: https://cluster1.com
+# (...)
+```
+
+This can be combined with the label selector above. For example, if one were to do
+
+```yaml
+kind: ApplicationSet
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  generators:
+  - clusters:
+      urls:
+        - https://cluster1.com
+      selector:
+        matchLabels:
+          staging: true
+  template:
+  # (...)
+```
+
+This would match the cluster with url `https://cluster1.com` only if that cluster has a label `staging: true` set on it.
+
 ### Deploying to the local cluster
 
 In Argo CD, the 'local cluster' is the cluster upon which Argo CD (and the ApplicationSet controller) is installed. This is to distinguish it from 'remote clusters', which are those that are added to Argo CD [declaratively](../../declarative-setup/#clusters) or via the [Argo CD CLI](../../getting_started.md/#5-register-a-cluster-to-deploy-apps-to-optional).
