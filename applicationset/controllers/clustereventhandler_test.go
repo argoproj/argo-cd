@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"github.com/argoproj/argo-cd/v2/common"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -14,7 +15,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -41,7 +41,7 @@ func TestClusterEventHandler(t *testing.T) {
 					Namespace: "argocd",
 					Name:      "my-secret",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 				},
 			},
@@ -69,7 +69,7 @@ func TestClusterEventHandler(t *testing.T) {
 					Namespace: "argocd",
 					Name:      "my-secret",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 				},
 			},
@@ -112,7 +112,7 @@ func TestClusterEventHandler(t *testing.T) {
 					Namespace: "argocd",
 					Name:      "my-secret",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 				},
 			},
@@ -156,7 +156,7 @@ func TestClusterEventHandler(t *testing.T) {
 					Namespace: "argocd",
 					Name:      "my-secret",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 				},
 			},
@@ -217,7 +217,7 @@ func TestClusterEventHandler(t *testing.T) {
 					Namespace: "argocd",
 					Name:      "my-secret",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 				},
 			},
@@ -253,7 +253,7 @@ func TestClusterEventHandler(t *testing.T) {
 					Namespace: "argocd",
 					Name:      "my-secret",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 				},
 			},
@@ -303,7 +303,7 @@ func TestClusterEventHandler(t *testing.T) {
 					Namespace: "argocd",
 					Name:      "my-secret",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 				},
 			},
@@ -354,7 +354,7 @@ func TestClusterEventHandler(t *testing.T) {
 					Namespace: "argocd",
 					Name:      "my-secret",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 				},
 			},
@@ -388,7 +388,7 @@ func TestClusterEventHandler(t *testing.T) {
 					Namespace: "argocd",
 					Name:      "my-secret",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 				},
 			},
@@ -424,7 +424,7 @@ func TestClusterEventHandler(t *testing.T) {
 					Namespace: "argocd",
 					Name:      "my-secret",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 				},
 			},
@@ -474,7 +474,7 @@ func TestClusterEventHandler(t *testing.T) {
 					Namespace: "argocd",
 					Name:      "my-secret",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 				},
 			},
@@ -525,7 +525,7 @@ func TestClusterEventHandler(t *testing.T) {
 					Namespace: "argocd",
 					Name:      "my-secret",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 				},
 			},

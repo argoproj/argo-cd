@@ -31,6 +31,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 
+	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v2/util/collections"
@@ -1004,7 +1005,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 					Name:      "my-secret",
 					Namespace: "namespace",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
 					},
 				},
 				Data: map[string][]byte{
@@ -1165,7 +1166,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 					Name:      "my-secret",
 					Namespace: "namespace",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
 					},
 				},
 				Data: map[string][]byte{
@@ -1778,7 +1779,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					Name:      "my-secret",
 					Namespace: "namespace",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
 					},
 				},
 				Data: map[string][]byte{
