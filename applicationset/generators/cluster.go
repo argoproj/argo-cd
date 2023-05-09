@@ -72,7 +72,7 @@ func (g *ClusterGenerator) GenerateParams(
 
 	// Do not include the local cluster in the cluster parameters IF there is a non-empty selector
 	// - Since local clusters do not have secrets, they do not have labels to match against
-	ignoreLocalClusters := len(appSetGenerator.Clusters.Selector.MatchExpressions) > 0 || len(appSetGenerator.Clusters.Selector.MatchLabels) > 0
+	ignoreLocalClusters := len(appSetGenerator.Clusters.Selector.MatchExpressions) > 0 || len(appSetGenerator.Clusters.Selector.MatchLabels) > 0 || len(appSetGenerator.Clusters.URLs) > 0
 
 	// ListCluster from Argo CD's util/db package will include the local cluster in the list of clusters
 	clustersFromArgoCD, err := utils.ListClusters(g.ctx, g.clientset, g.namespace)
@@ -213,7 +213,7 @@ func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1
 	if len(appSetGenerator.Clusters.URLs) > 0 {
 		for _, url := range appSetGenerator.Clusters.URLs {
 			cluster := corev1.Secret{}
-			err := g.Client.Get(context.Background(), types.NamespacedName{Name: url}, &cluster)
+			err := g.Client.Get(context.Background(), types.NamespacedName{Name: url, Namespace: g.namespace}, &cluster)
 			if err != nil {
 				return nil, err
 			}

@@ -85,6 +85,7 @@ func TestGenerateParams(t *testing.T) {
 	testCases := []struct {
 		name     string
 		selector metav1.LabelSelector
+		urls     []string
 		values   map[string]string
 		expected []map[string]interface{}
 		// clientError is true if a k8s client error should be simulated
@@ -111,6 +112,17 @@ func TestGenerateParams(t *testing.T) {
 					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging"},
 
 				{"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "{{ metadata.annotations.foo.argoproj.io }}", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "{{ metadata.labels.environment }}", "values.aaa": "https://kubernetes.default.svc", "nameNormalized": "in-cluster", "name": "in-cluster", "server": "https://kubernetes.default.svc"},
+			},
+			clientError:   false,
+			expectedError: nil,
+		},
+		{
+			name:   "explicit url, no label selector",
+			urls:   []string{"staging-01"},
+			values: nil,
+			expected: []map[string]interface{}{
+				{"name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging"},
 			},
 			clientError:   false,
 			expectedError: nil,
@@ -244,6 +256,7 @@ func TestGenerateParams(t *testing.T) {
 				Clusters: &argoprojiov1alpha1.ClusterGenerator{
 					Selector: testCase.selector,
 					Values:   testCase.values,
+					URLs:     testCase.urls,
 				},
 			}, &applicationSetInfo)
 
@@ -313,6 +326,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 		name     string
 		selector metav1.LabelSelector
 		values   map[string]string
+		urls     []string
 		expected []map[string]interface{}
 		// clientError is true if a k8s client error should be simulated
 		clientError   bool
@@ -394,6 +408,30 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 						"bat":   "",
 						"aaa":   "https://kubernetes.default.svc",
 						"no-op": "<no value>",
+					},
+				},
+			},
+			clientError:   false,
+			expectedError: nil,
+		},
+		{
+			name:   "explicit url, no label selector",
+			urls:   []string{"staging-01"},
+			values: nil,
+			expected: []map[string]interface{}{
+				{
+					"name":           "staging-01",
+					"nameNormalized": "staging-01",
+					"server":         "https://staging-01.example.com",
+					"metadata": map[string]interface{}{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "staging",
+							"org":                            "foo",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "staging",
+						},
 					},
 				},
 			},
@@ -618,6 +656,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 
 			got, err := clusterGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
 				Clusters: &argoprojiov1alpha1.ClusterGenerator{
+					URLs:     testCase.urls,
 					Selector: testCase.selector,
 					Values:   testCase.values,
 				},
