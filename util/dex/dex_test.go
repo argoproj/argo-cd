@@ -429,5 +429,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		assert.NoError(t, err)
 		_, err = rt.RoundTrip(req)
 		assert.NoError(t, err)
+		target, _ := url.Parse(server.URL)
+		assert.Equal(t, req.Host, target.Host)
 	})
 }
