@@ -86,7 +86,7 @@ It is possible send both simple text and card messages in a chat thread by speci
 
 ```yaml
 template.app-sync-succeeded: |
-  message: The app {{ .app.metadata.name }} has succesfully synced!
+  message: The app {{ .app.metadata.name }} has successfully synced!
   googlechat:
     threadKey: {{ .app.metadata.name }}
 ```
