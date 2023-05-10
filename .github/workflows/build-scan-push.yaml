@@ -1,4 +1,4 @@
-name: Build and Push Docker Image to ECR
+name: Build, Scan, and Push ArgoCD to ghcr.io
 
 on:
   push:
@@ -11,7 +11,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build:
+  build_scan_push:
     runs-on: ubuntu-latest
 
     steps:
@@ -32,13 +32,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Login to Quay.io
-      #   uses: docker/login-action@v2
-      #   with:
-      #     registry: quay.io
-      #     username: ${{ secrets.QUAY_USERNAME }}
-      #     password: ${{ secrets.QUAY_ROBOT_TOKEN }}
-
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
@@ -56,3 +49,6 @@ jobs:
           pcc_user: ${{ secrets.PCC_USER }}
           pcc_pass: ${{ secrets.PCC_PASS }}
           image_name: ${{ env.IMAGE_NAME }}
+
+      - name: Push to ghcr.io
+        run: docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
