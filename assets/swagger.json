@@ -1502,6 +1502,51 @@
         }
       }
     },
+    "/api/v1/applications/{name}/revisions/{revision}/chartdetails": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Get the chart metadata (description, maintainers, home) for a specific revision of the application",
+        "operationId": "ApplicationService_RevisionChartDetails",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the application's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the revision of the app",
+            "name": "revision",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ChartDetails"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/revisions/{revision}/metadata": {
       "get": {
         "tags": [
@@ -6440,6 +6485,26 @@
         }
       }
     },
+    "v1alpha1ChartDetails": {
+      "type": "object",
+      "title": "ChartDetails contains helm chart metadata for a specific version",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "home": {
+          "type": "string",
+          "title": "The URL of this projects home page, e.g. \"http://example.com\""
+        },
+        "maintainers": {
+          "type": "array",
+          "title": "List of maintainer details, name and email, e.g. [\"John Doe <john_doe@my-company.com>\"]",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1Cluster": {
       "type": "object",
       "title": "Cluster is the definition of a cluster resource",
@@ -8586,6 +8651,9 @@
           "type": "string"
         },
         "Compiler": {
+          "type": "string"
+        },
+        "ExtraBuildInfo": {
           "type": "string"
         },
         "GitCommit": {
