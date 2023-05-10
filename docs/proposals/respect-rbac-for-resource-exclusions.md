@@ -38,8 +38,8 @@ using argocd without having to manually configure resource exclusions for all th
 The configuration for this will be present in the `argocd-cm`, we will add new boolean field `resource.respectRBAC` in the
 cm which can be set to `true` to enable this feature, by default the feature is disabled.
 
-The feature will also modify `gitops-engine` pkg to add a `SelfSubjectAccessReview` request before adding any resource to the watch list, 
-which will make sure that argocd only monitors resources that it has access to.
+The feature will also modify `gitops-engine` pkg to check for forbidden/unauthorized errors when listing for resources,
+if error is found argocd will skip those resources making sure that argocd only monitors resources that it has access to.
 
 ## Security Considerations and Risks
 
