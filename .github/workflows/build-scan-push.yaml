@@ -51,4 +51,6 @@ jobs:
           image_name: ${{ env.IMAGE_NAME }}
 
       - name: Push to ghcr.io
-        run: docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        run: |
+          docker tag $IMAGE_NAME ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
