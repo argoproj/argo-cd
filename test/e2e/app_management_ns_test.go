@@ -242,6 +242,8 @@ func TestNamespacedSyncToSignedCommitWKK(t *testing.T) {
 		SetTrackingMethod("annotation").
 		Project("gpg").
 		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
 		When().
 		AddSignedFile("test.yaml", "null").
 		IgnoreErrors().
