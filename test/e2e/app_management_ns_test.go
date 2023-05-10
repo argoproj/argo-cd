@@ -242,14 +242,21 @@ func TestNamespacedSyncToSignedCommitWKK(t *testing.T) {
 		SetTrackingMethod("annotation").
 		Project("gpg").
 		Path(guestbookPath).
-		GPGPublicKeyAdded().
-		Sleep(2).
 		When().
 		AddSignedFile("test.yaml", "null").
 		IgnoreErrors().
 		CreateApp().
 		Sync().
 		Then().
+		And(func(app *Application) {
+			if app.Status.Sync.Status == SyncStatusCodeUnknown {
+				fixture.RestartRepoServer()
+				time.Sleep(500 * time.Millisecond)
+
+				_, err := RunCliWithRetry(1, "sync", "app", app.QualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+				assert.NoError(t, err)
+			}
+		}).
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(HealthIs(health.HealthStatusMissing))
