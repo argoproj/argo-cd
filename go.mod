@@ -1,4 +1,4 @@
-module github.com/argoproj/argo-cd/v2
+module github.com/betterup/argo-cd
 
 go 1.19
 
