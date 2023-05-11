@@ -38,14 +38,16 @@ using argocd without having to manually configure resource exclusions for all th
 The configuration for this will be present in the `argocd-cm`, we will add new boolean field `resource.respectRBAC` in the
 cm which can be set to `true` to enable this feature, by default the feature is disabled.
 
-For the implementation there are 2 proposals :
+For the implementation there are 3 proposals :
 
-1. Modify `gitops-engine` pkg to make a `SelfSubjectAccessReview` request before adding any resource to the watch list, in this approach we are making an extra 
-   api server call to check if controller has access to the resource, this does increase the no. of kubeapi calls made but is more accurate. 
-2. Modify `gitops-engine` pkg to check for forbidden/unauthorized errors when listing for resources, this is more efficient approach as the 
-   no. of kubeapi calls made does not change, but there is a chance of false positives as similar errors can be returned from kubeapi server or env specific proxies in other situations 
+1. Modify `gitops-engine` pkg to make a `SelfSubjectAccessReview` request before adding any resource to the watch list, in this approach we are making an extra
+   api server call to check if controller has access to the resource, this does increase the no. of kubeapi calls made but is more accurate.
+2. Modify `gitops-engine` pkg to check for forbidden/unauthorized errors when listing for resources, this is more efficient approach as the
+   no. of kubeapi calls made does not change, but there is a chance of false positives as similar errors can be returned from kubeapi server or env specific proxies in other situations
+3. Combine approaches 1 and 2, in this controller will check the api response for the list call, and if it receives forbidden/unauthorized it will make the `SelfSubjectAccessReview` call.
+   This approach is accurate and at the same time, only makes extra api calls if the list calls fail in the first place.
 
-In both solutions, once controller determines that it does not have access to the resource it will stop monitoring it.
+In all solutions, once controller determines that it does not have access to the resource it will stop monitoring it.
 
 ## Security Considerations and Risks
 
