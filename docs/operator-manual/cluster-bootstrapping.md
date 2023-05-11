@@ -98,7 +98,7 @@ Then select the "out of sync" apps and sync:
 Or, via the CLI: 
 
 ```bash
-argocd app sync -l app.kubernetes.io/instance=apps
+argocd app sync -l argocd.argoproj.io/instance=apps
 ```
 
 View [the example on GitHub](https://github.com/argoproj/argocd-example-apps/tree/master/apps).
