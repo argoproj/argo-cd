@@ -529,7 +529,7 @@ type BasicAuthBitbucketServer struct {
 // pass for a pull request to be included.
 type PullRequestGeneratorFilter struct {
 	BranchMatch       *string `json:"branchMatch,omitempty" protobuf:"bytes,1,opt,name=branchMatch"`
-	TargetBranchMatch *string `json:"targetBranchMatch,omitempty" protobuf:"bytes,1,opt,name=targetBranchMatch"`
+	TargetBranchMatch *string `json:"targetBranchMatch,omitempty" protobuf:"bytes,2,opt,name=targetBranchMatch"`
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
