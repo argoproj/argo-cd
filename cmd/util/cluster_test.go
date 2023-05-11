@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,6 +11,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )

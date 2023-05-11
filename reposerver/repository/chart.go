@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 func getChartDetails(chartYAML string) (*v1alpha1.ChartDetails, error) {

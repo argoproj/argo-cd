@@ -20,13 +20,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -1188,15 +1188,15 @@ func TestGenerateNullList(t *testing.T) {
 }
 
 func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
-	sourceType, err := GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml", "testapp", map[string]bool{}, []string{})
+	sourceType, err := GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml", "./testdata", "testapp", map[string]bool{}, []string{})
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yml", "testapp", map[string]bool{}, []string{})
+	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yml", "./testdata", "testapp", map[string]bool{}, []string{})
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/Kustomization", "testapp", map[string]bool{}, []string{})
+	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/Kustomization", "./testdata", "testapp", map[string]bool{}, []string{})
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 }
