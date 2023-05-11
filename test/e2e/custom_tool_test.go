@@ -213,7 +213,7 @@ func TestCMPDiscoverWithFileName(t *testing.T) {
 			time.Sleep(1 * time.Second)
 			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
 		}).
-		Path(pluginName).
+		Path(pluginName + "/subdir").
 		When().
 		CreateApp().
 		Sync().
@@ -349,4 +349,55 @@ func TestPreserveFileModeForCMP(t *testing.T) {
 			require.Len(t, app.Status.Resources, 1)
 			assert.Equal(t, "ConfigMap", app.Status.Resources[0].Kind)
 		})
+}
+
+func TestCMPWithSymlinkPartialFiles(t *testing.T) {
+	Given(t, WithTestData("testdata2")).
+		And(func() {
+			go startCMPServer("./testdata2/cmp-symlink")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("guestbook-partial-symlink-files").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestCMPWithSymlinkFiles(t *testing.T) {
+	Given(t, WithTestData("testdata2")).
+		And(func() {
+			go startCMPServer("./testdata2/cmp-symlink")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("guestbook-symlink-files").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestCMPWithSymlinkFolder(t *testing.T) {
+	Given(t, WithTestData("testdata2")).
+		And(func() {
+			go startCMPServer("./testdata2/cmp-symlink")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("guestbook-symlink-folder").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
 }
