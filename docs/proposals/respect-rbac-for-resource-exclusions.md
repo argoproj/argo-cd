@@ -38,8 +38,14 @@ using argocd without having to manually configure resource exclusions for all th
 The configuration for this will be present in the `argocd-cm`, we will add new boolean field `resource.respectRBAC` in the
 cm which can be set to `true` to enable this feature, by default the feature is disabled.
 
-The feature will also modify `gitops-engine` pkg to check for forbidden/unauthorized errors when listing for resources,
-if error is found argocd will skip those resources making sure that argocd only monitors resources that it has access to.
+For the implementation there are 2 proposals :
+
+1. Modify `gitops-engine` pkg to make a `SelfSubjectAccessReview` request before adding any resource to the watch list, in this approach we are making an extra 
+   api server call to check if controller has access to the resource, this does increase the no. of kubeapi calls made but is more accurate. 
+2. Modify `gitops-engine` pkg to check for forbidden/unauthorized errors when listing for resources, this is more efficient approach as the 
+   no. of kubeapi calls made does not change, but there is a chance of false positives as similar errors can be returned from kubeapi server or env specific proxies in other situations 
+
+In both solutions, once controller determines that it does not have access to the resource it will stop monitoring it.
 
 ## Security Considerations and Risks
 
