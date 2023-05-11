@@ -96,18 +96,18 @@ type ApplicationsSyncPolicy string
 
 // sync / create-only / create-update / create-delete
 const (
-	ApplicationsSyncPolicyPolicyCreateOnly   ApplicationsSyncPolicy = "create-only"
-	ApplicationsSyncPolicyPolicyCreateUpdate ApplicationsSyncPolicy = "create-update"
-	ApplicationsSyncPolicyPolicyCreateDelete ApplicationsSyncPolicy = "create-delete"
-	ApplicationsSyncPolicyPolicySync         ApplicationsSyncPolicy = "sync"
+	ApplicationsSyncPolicyCreateOnly   ApplicationsSyncPolicy = "create-only"
+	ApplicationsSyncPolicyCreateUpdate ApplicationsSyncPolicy = "create-update"
+	ApplicationsSyncPolicyCreateDelete ApplicationsSyncPolicy = "create-delete"
+	ApplicationsSyncPolicySync         ApplicationsSyncPolicy = "sync"
 )
 
-func (s ApplicationsSyncPolicy) Update() bool {
-	return s == ApplicationsSyncPolicyPolicyCreateUpdate || s == ApplicationsSyncPolicyPolicySync
+func (s ApplicationsSyncPolicy) AllowUpdate() bool {
+	return s == ApplicationsSyncPolicyCreateUpdate || s == ApplicationsSyncPolicySync
 }
 
-func (s ApplicationsSyncPolicy) Delete() bool {
-	return s == ApplicationsSyncPolicyPolicySync || s == ApplicationsSyncPolicyPolicyCreateDelete
+func (s ApplicationsSyncPolicy) AllowDelete() bool {
+	return s == ApplicationsSyncPolicySync || s == ApplicationsSyncPolicyCreateDelete
 }
 
 // ApplicationSetSyncPolicy configures how generated Applications will relate to their

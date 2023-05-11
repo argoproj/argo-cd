@@ -214,7 +214,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.AllowPolicyOverride).Update() {
+	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.AllowPolicyOverride).AllowUpdate() {
 		err = r.createOrUpdateInCluster(ctx, applicationSetInfo, validApps)
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,
@@ -244,7 +244,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.AllowPolicyOverride).Delete() {
+	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.AllowPolicyOverride).AllowDelete() {
 		err = r.deleteInCluster(ctx, applicationSetInfo, desiredApplications)
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,

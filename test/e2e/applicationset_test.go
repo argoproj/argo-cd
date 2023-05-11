@@ -314,7 +314,7 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyPolicyCreateUpdate
+			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyCreateUpdate
 			appset.Spec.SyncPolicy = &argov1alpha1.ApplicationSetSyncPolicy{
 				ApplicationsSync: &applicationsSyncPolicy,
 			}
@@ -414,7 +414,7 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyPolicyCreateDelete
+			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyCreateDelete
 			appset.Spec.SyncPolicy = &argov1alpha1.ApplicationSetSyncPolicy{
 				ApplicationsSync: &applicationsSyncPolicy,
 			}
@@ -514,7 +514,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyPolicyCreateOnly
+			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyCreateOnly
 			appset.Spec.SyncPolicy = &argov1alpha1.ApplicationSetSyncPolicy{
 				ApplicationsSync: &applicationsSyncPolicy,
 			}

@@ -1915,7 +1915,7 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 		ArgoDB:           &argoDBMock,
 		ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 		KubeClientset:    kubeclientset,
-		Policy:           v1alpha1.ApplicationsSyncPolicyPolicySync,
+		Policy:           v1alpha1.ApplicationsSyncPolicySync,
 	}
 
 	req := ctrl.Request{
@@ -2064,7 +2064,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		ArgoDB:              &argoDBMock,
 		ArgoAppClientset:    appclientset.NewSimpleClientset(argoObjs...),
 		KubeClientset:       kubeclientset,
-		Policy:              v1alpha1.ApplicationsSyncPolicyPolicySync,
+		Policy:              v1alpha1.ApplicationsSyncPolicySync,
 		AllowPolicyOverride: allowPolicyOverride,
 	}
 
@@ -2115,7 +2115,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 func TestUpdateNotPerformedWithSyncPolicyCreateOnly(t *testing.T) {
 
-	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyPolicyCreateOnly
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateOnly
 
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 1, true)
 
@@ -2126,7 +2126,7 @@ func TestUpdateNotPerformedWithSyncPolicyCreateOnly(t *testing.T) {
 
 func TestUpdateNotPerformedWithSyncPolicyCreateDelete(t *testing.T) {
 
-	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyPolicyCreateDelete
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateDelete
 
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 1, true)
 
@@ -2137,7 +2137,7 @@ func TestUpdateNotPerformedWithSyncPolicyCreateDelete(t *testing.T) {
 
 func TestUpdatePerformedWithSyncPolicyCreateUpdate(t *testing.T) {
 
-	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyPolicyCreateUpdate
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateUpdate
 
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 2, true)
 
@@ -2148,7 +2148,7 @@ func TestUpdatePerformedWithSyncPolicyCreateUpdate(t *testing.T) {
 
 func TestUpdatePerformedWithSyncPolicySync(t *testing.T) {
 
-	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyPolicySync
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicySync
 
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 2, true)
 
@@ -2159,7 +2159,7 @@ func TestUpdatePerformedWithSyncPolicySync(t *testing.T) {
 
 func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
 
-	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyPolicyCreateOnly
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateOnly
 
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 2, false)
 
@@ -2234,7 +2234,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		ArgoDB:              &argoDBMock,
 		ArgoAppClientset:    appclientset.NewSimpleClientset(argoObjs...),
 		KubeClientset:       kubeclientset,
-		Policy:              v1alpha1.ApplicationsSyncPolicyPolicySync,
+		Policy:              v1alpha1.ApplicationsSyncPolicySync,
 		AllowPolicyOverride: allowPolicyOverride,
 	}
 
@@ -2286,7 +2286,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 func TestDeleteNotPerformedWithSyncPolicyCreateOnly(t *testing.T) {
 
-	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyPolicyCreateOnly
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateOnly
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 1, true)
 
@@ -2295,7 +2295,7 @@ func TestDeleteNotPerformedWithSyncPolicyCreateOnly(t *testing.T) {
 
 func TestDeleteNotPerformedWithSyncPolicyCreateUpdate(t *testing.T) {
 
-	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyPolicyCreateUpdate
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateUpdate
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 2, true)
 
@@ -2304,7 +2304,7 @@ func TestDeleteNotPerformedWithSyncPolicyCreateUpdate(t *testing.T) {
 
 func TestDeletePerformedWithSyncPolicyCreateDelete(t *testing.T) {
 
-	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyPolicyCreateDelete
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateDelete
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, true)
 
@@ -2313,7 +2313,7 @@ func TestDeletePerformedWithSyncPolicyCreateDelete(t *testing.T) {
 
 func TestDeletePerformedWithSyncPolicySync(t *testing.T) {
 
-	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyPolicySync
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicySync
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, true)
 
@@ -2322,7 +2322,7 @@ func TestDeletePerformedWithSyncPolicySync(t *testing.T) {
 
 func TestDeletePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
 
-	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyPolicyCreateOnly
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateOnly
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, false)
 

@@ -6,17 +6,17 @@ import (
 
 // Policies is a registry of available policies.
 var Policies = map[string]argov1alpha1.ApplicationsSyncPolicy{
-	"create-only":   argov1alpha1.ApplicationsSyncPolicyPolicyCreateOnly,
-	"create-update": argov1alpha1.ApplicationsSyncPolicyPolicyCreateUpdate,
-	"create-delete": argov1alpha1.ApplicationsSyncPolicyPolicyCreateDelete,
-	"sync":          argov1alpha1.ApplicationsSyncPolicyPolicySync,
+	"create-only":   argov1alpha1.ApplicationsSyncPolicyCreateOnly,
+	"create-update": argov1alpha1.ApplicationsSyncPolicyCreateUpdate,
+	"create-delete": argov1alpha1.ApplicationsSyncPolicyCreateDelete,
+	"sync":          argov1alpha1.ApplicationsSyncPolicySync,
 	// Default is "sync"
-	"": argov1alpha1.ApplicationsSyncPolicyPolicySync,
+	"": argov1alpha1.ApplicationsSyncPolicySync,
 }
 
-func DefaultPolicy(appSetSyncPolicy *argov1alpha1.ApplicationSetSyncPolicy, defaultPolicy argov1alpha1.ApplicationsSyncPolicy, allowPolicyOverride bool) argov1alpha1.ApplicationsSyncPolicy {
+func DefaultPolicy(appSetSyncPolicy *argov1alpha1.ApplicationSetSyncPolicy, controllerPolicy argov1alpha1.ApplicationsSyncPolicy, allowPolicyOverride bool) argov1alpha1.ApplicationsSyncPolicy {
 	if appSetSyncPolicy == nil || appSetSyncPolicy.ApplicationsSync == nil || !allowPolicyOverride {
-		return defaultPolicy
+		return controllerPolicy
 	}
 	return *appSetSyncPolicy.ApplicationsSync
 }

@@ -39,14 +39,14 @@ func newTestAppSet(name, namespace, repo string) *ApplicationSet {
 }
 
 func TestApplicationsSyncPolicy(t *testing.T) {
-	assert.False(t, ApplicationsSyncPolicyPolicyCreateOnly.Delete())
-	assert.False(t, ApplicationsSyncPolicyPolicyCreateOnly.Update())
+	assert.False(t, ApplicationsSyncPolicyCreateOnly.AllowDelete())
+	assert.False(t, ApplicationsSyncPolicyCreateOnly.AllowUpdate())
 
-	assert.False(t, ApplicationsSyncPolicyPolicyCreateUpdate.Delete())
-	assert.True(t, ApplicationsSyncPolicyPolicyCreateUpdate.Update())
+	assert.False(t, ApplicationsSyncPolicyCreateUpdate.AllowDelete())
+	assert.True(t, ApplicationsSyncPolicyCreateUpdate.AllowUpdate())
 
-	assert.True(t, ApplicationsSyncPolicyPolicySync.Delete())
-	assert.True(t, ApplicationsSyncPolicyPolicySync.Update())
+	assert.True(t, ApplicationsSyncPolicySync.AllowDelete())
+	assert.True(t, ApplicationsSyncPolicySync.AllowUpdate())
 }
 
 func TestApplicationSetSetConditions(t *testing.T) {
