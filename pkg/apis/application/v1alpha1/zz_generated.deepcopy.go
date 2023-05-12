@@ -2594,6 +2594,11 @@ func (in *PullRequestGeneratorFilter) DeepCopyInto(out *PullRequestGeneratorFilt
 		*out = new(string)
 		**out = **in
 	}
+	if in.TargetBranchMatch != nil {
+		in, out := &in.TargetBranchMatch, &out.TargetBranchMatch
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 
