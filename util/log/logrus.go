@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	adapter "github.com/bombsimon/logrusr/v2"
+	adapter "github.com/voidspooks/logrusr/v4"
 	"github.com/go-logr/logr"
 	"github.com/voidspooks/logrus"
 

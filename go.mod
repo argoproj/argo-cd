@@ -14,7 +14,6 @@ require (
 	github.com/argoproj/notifications-engine v0.4.1-0.20230228182525-f754726f03da
 	github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d
 	github.com/aws/aws-sdk-go v1.44.164
-	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.1.0
 	github.com/casbin/casbin/v2 v2.60.0
 	github.com/coreos/go-oidc/v3 v3.4.0
@@ -67,6 +66,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/voidspooks/logrus v1.9.2
+	github.com/voidspooks/logrusr/v4 v4.0.2
 	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0
 	github.com/xanzy/go-gitlab v0.60.0
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
