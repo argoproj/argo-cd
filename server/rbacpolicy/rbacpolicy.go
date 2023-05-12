@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	jwt "github.com/golang-jwt/jwt/v4"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"

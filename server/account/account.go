@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/kubectl/pkg/util/slice"

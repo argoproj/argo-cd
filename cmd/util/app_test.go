@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 

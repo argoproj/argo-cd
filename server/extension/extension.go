@@ -20,7 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/gorilla/mux"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 )
 

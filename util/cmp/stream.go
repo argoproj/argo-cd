@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"

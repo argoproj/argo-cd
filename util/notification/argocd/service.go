@@ -5,7 +5,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/notification/expression/shared"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"

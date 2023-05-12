@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/voidspooks/logrus"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

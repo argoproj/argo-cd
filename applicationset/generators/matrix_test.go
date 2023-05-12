@@ -2,7 +2,7 @@ package generators
 
 import (
 	"context"
-	"github.com/voidspooks/logrus"
+	"github.com/sirupsen/logrus"
 	"testing"
 	"time"
 

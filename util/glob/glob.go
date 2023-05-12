@@ -2,7 +2,7 @@ package glob
 
 import (
 	"github.com/gobwas/glob"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 func Match(pattern, text string, separators ...rune) bool {

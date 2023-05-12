@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/errors"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"

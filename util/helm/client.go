@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/sync"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/v2/common"

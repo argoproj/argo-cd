@@ -15,7 +15,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"

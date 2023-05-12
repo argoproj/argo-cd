@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
 	"github.com/argoproj/argo-cd/v2/util/security"

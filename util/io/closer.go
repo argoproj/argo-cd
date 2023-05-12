@@ -1,6 +1,6 @@
 package io
 
-import log "github.com/voidspooks/logrus"
+import log "github.com/sirupsen/logrus"
 
 var (
 	NopCloser = NewCloser(func() error {

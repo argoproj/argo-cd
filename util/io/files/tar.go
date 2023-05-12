@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type tgz struct {

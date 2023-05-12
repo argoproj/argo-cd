@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/redis/go-redis/v9"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 const NoSuchHostErr = "no such host"

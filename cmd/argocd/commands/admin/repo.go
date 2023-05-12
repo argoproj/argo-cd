@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

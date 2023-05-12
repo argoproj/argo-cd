@@ -1,7 +1,7 @@
 package log
 
 import (
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // used to switch logging to debug level for a single func

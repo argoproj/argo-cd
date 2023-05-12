@@ -8,7 +8,7 @@ import (
 
 	timeutil "github.com/argoproj/pkg/time"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // Helper function to parse a number from an environment variable. Returns a

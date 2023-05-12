@@ -11,7 +11,7 @@ import (
 	"time"
 
 	timeutil "github.com/argoproj/pkg/time"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"sigs.k8s.io/yaml"

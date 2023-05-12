@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"

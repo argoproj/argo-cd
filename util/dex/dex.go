@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/errors"

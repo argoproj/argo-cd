@@ -18,7 +18,7 @@ import (
 	"time"
 
 	timeutil "github.com/argoproj/pkg/time"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

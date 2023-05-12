@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/voidspooks/logrus"
-	logtest "github.com/voidspooks/logrus/hooks/test"
+	"github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

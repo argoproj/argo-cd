@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

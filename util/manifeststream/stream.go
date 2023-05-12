@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"

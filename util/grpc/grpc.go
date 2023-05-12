@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/voidspooks/logrus"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"

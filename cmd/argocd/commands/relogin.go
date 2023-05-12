@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"

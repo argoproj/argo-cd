@@ -8,7 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/mattn/go-isatty"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"

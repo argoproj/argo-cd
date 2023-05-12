@@ -16,7 +16,7 @@ import (
 	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
 	"github.com/argoproj/gitops-engine/pkg/sync/syncwaves"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"

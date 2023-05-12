@@ -13,7 +13,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

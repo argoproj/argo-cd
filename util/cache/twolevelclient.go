@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // NewTwoLevelClient creates cache client that proxies requests to given external cache and tries to minimize

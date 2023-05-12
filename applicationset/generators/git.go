@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/jeremywohl/flatten"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services"

@@ -3,7 +3,7 @@ package errors
 import (
 	"os"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 const (

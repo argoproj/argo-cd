@@ -3,7 +3,7 @@ package helm
 import (
 	"fmt"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/Masterminds/semver/v3"
 )

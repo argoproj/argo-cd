@@ -3,6 +3,7 @@ module github.com/argoproj/argo-cd/v2
 go 1.19
 
 require (
+	github.com/sirupsen/logrus v1.9.0
 	code.gitea.io/sdk/gitea v0.15.1
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
 	github.com/Masterminds/semver/v3 v3.2.0
@@ -65,7 +66,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
 	github.com/valyala/fasttemplate v1.2.2
-	github.com/voidspooks/logrus v1.9.2
+	github.com/sirupsen/logrus v1.9.2
 	github.com/voidspooks/logrusr/v4 v4.0.2
 	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0
 	github.com/xanzy/go-gitlab v0.60.0
@@ -259,6 +260,9 @@ replace (
 
 	// Avoid CVE-2022-28948
 	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
+
+	// Logrus Patch
+	github.com/sirupsen/logrus => github.com/voidspooks/logrus v1.9.2
 
 	// https://github.com/kubernetes/kubernetes/issues/79384#issuecomment-505627280
 	k8s.io/api => k8s.io/api v0.24.2

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"runtime"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // Version information set by link flags during build. We fall back to these sane

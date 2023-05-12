@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/argoproj/argo-cd/v2/util/io/files"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 func CloseAndDelete(f *os.File) {

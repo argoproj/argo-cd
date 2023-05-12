@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/client-go/rest"

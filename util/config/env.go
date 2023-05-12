@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/kballard/go-shellquote"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 var flags map[string]string

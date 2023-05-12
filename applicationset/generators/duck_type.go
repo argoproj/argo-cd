@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
 

@@ -19,7 +19,7 @@ import (
 	"github.com/casbin/casbin/v2/util"
 	"github.com/golang-jwt/jwt/v4"
 	gocache "github.com/patrickmn/go-cache"
-	log "github.com/voidspooks/logrus"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apiv1 "k8s.io/api/core/v1"
