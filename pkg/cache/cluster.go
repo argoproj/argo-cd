@@ -540,8 +540,8 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 
 		// load API initial state if no resource version provided
 		if resourceVersion == "" {
+			var items []*Resource
 			resourceVersion, err = c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
-				var items []*Resource
 				err := listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
 					if un, ok := obj.(*unstructured.Unstructured); !ok {
 						return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
@@ -554,16 +554,16 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 				if err != nil {
 					return fmt.Errorf("failed to load initial state of resource %s: %v", api.GroupKind.String(), err)
 				}
-
-				return runSynced(&c.lock, func() error {
-					c.replaceResourceCache(api.GroupKind, items, ns)
-					return nil
-				})
+				return nil
 			})
 
 			if err != nil {
 				return err
 			}
+
+			c.lock.Lock()
+			c.replaceResourceCache(api.GroupKind, items, ns)
+			c.lock.Unlock()
 		}
 
 		w, err := watchutil.NewRetryWatcher(resourceVersion, &cache.ListWatch{
