@@ -691,9 +691,9 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_auth.StreamServerInterceptor(a.Authenticate),
 		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
-		// grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
-		// 	return !sensitiveMethods[fullMethodName]
-		// }),
+		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
+			return !sensitiveMethods[fullMethodName]
+		}),
 		grpc_util.ErrorCodeK8sStreamServerInterceptor(),
 		grpc_util.ErrorCodeGitStreamServerInterceptor(),
 		grpc_util.PanicLoggerStreamServerInterceptor(a.log),
@@ -705,9 +705,9 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc_prometheus.UnaryServerInterceptor,
 		grpc_auth.UnaryServerInterceptor(a.Authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
-		// grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
-		// 	return !sensitiveMethods[fullMethodName]
-		// }),
+		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
+			return !sensitiveMethods[fullMethodName]
+		}),
 		grpc_util.ErrorCodeK8sUnaryServerInterceptor(),
 		grpc_util.ErrorCodeGitUnaryServerInterceptor(),
 		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
