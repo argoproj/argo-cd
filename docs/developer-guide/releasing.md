@@ -49,8 +49,9 @@ and choose which branch you would like to work from.
 
 ![GitHub Release Action](../assets/release-action.png)
 
-1. When the action is completed a pull request will be generated that contains the updated manifest and `Version` file.
-2. Merge the pull request and proceed to step 2.
+When the action is completed a pull request will be generated that contains the updated manifest and `Version` file.
+
+5. Merge the pull request and proceed to step 2.
 
 ### Step 2 - Tag Release Branch
 
@@ -70,11 +71,11 @@ Example:
 ```
 
 !!! tip
-    The tag must be in one of the following formats to trigger the GH workflow:
-    * GA: `v<MAJOR>.<MINOR>.<PATCH>`
+    The tag must be in one of the following formats to trigger the GH workflow:<br>
+    * GA: `v<MAJOR>.<MINOR>.<PATCH>`<br>
     * Pre-release: `v<MAJOR>.<MINOR>.<PATCH>-rc<RC#>`
 
-Once the script is executed successfully, the GitHub workflow will start
+Once the script is executed successfully, a GitHub workflow will start
 execution. You can follow its progress under the [Actions](https://github.com/argoproj/argo-cd/actions/workflows/release.yaml) tab, the name of the action is `Publish ArgoCD Release`. 
 
 !!! warning
