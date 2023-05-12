@@ -59,7 +59,8 @@ export const ApplicationSetsTable = (props: {
                 applications-list__entry applications-list__entry--health-${appSet.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
                                         <div
                                             className={`row applications-list__table-row`}
-                                            onClick={e => ctx.navigation.goto(`/applicationsets/${appSet.metadata.namespace}/${appSet.metadata.name}`, {}, {event: e})}>
+                                            // onClick={e => ctx.navigation.goto(`/applicationsets/${appSet.metadata.namespace}/${appSet.metadata.name}`, {}, {event: e})}>
+                                            onClick={e => ctx.navigation.goto(`/applicationsets/${appSet.metadata.name}`, {}, {event: e})}>                                                
                                             <div className='columns small-4'>
                                                 <div className='row'>
                                                     <div className=' columns small-2'>

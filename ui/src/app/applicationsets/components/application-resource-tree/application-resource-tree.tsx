@@ -19,6 +19,7 @@ import {
     // getAppOverridesCount,
     HealthStatusIcon,
     isAppNode,
+    isAppSetNode,
     isYoungerThanXMinutes,
     NodeId,
     nodeKey,
@@ -743,6 +744,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
         healthState = node.health;
     }
     const appNode = isAppNode(node);
+    const appSetNode = isAppSetNode(node);
     const rootNode = !node.root;
     // const extLinks: string[] = props.app.status.summary.externalURLs;
     const childCount = nodesHavingChildren.get(node.uid);
@@ -791,7 +793,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                                     <i className='fa fa-external-link-alt' />
                                 </a>
                             )}
-                        </Consumer>
+                        </Consumer>  
                     )}
                     {/* <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} /> */}
                 </div>

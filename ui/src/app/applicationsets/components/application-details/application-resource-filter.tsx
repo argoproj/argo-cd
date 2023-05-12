@@ -84,12 +84,12 @@ export const Filters = (props: FiltersProps) => {
     // otherwise the user will not be able to clear them from this panel
     const alreadyFilteredOn = (prefix: string) => resourceFilter.filter(f => f.startsWith(prefix + ':')).map(removePrefix(prefix));
 
-    /*const kinds = tree.nodes
+    const kinds = tree.nodes
         .map(x => x.kind)
         .concat(alreadyFilteredOn('kind'))
         .filter(uniq)
         .sort();
-*/
+
     const names = tree.nodes
         .map(x => x.name)
         .concat(alreadyFilteredOn('name'))
@@ -107,24 +107,25 @@ export const Filters = (props: FiltersProps) => {
         return groupedFilters[prefix] ? groupedFilters[prefix].split(',').map(removePrefix(prefix)) : [];
     };
 
-    /* const getOptionCount = (label: string, filterType: string): number => {
+     const getOptionCount = (label: string, filterType: string): number => {
         switch (filterType) {
-            case 'Sync':
+          /*  case 'Sync':
                 return props.resourceNodes.filter(res => res.status === SyncStatuses[label]).length;
             case 'Health':
                 return props.resourceNodes.filter(res => res.health?.status === HealthStatuses[label]).length;
+                */
             case 'Kind':
                 return props.resourceNodes.filter(res => res.kind === label).length;
             default:
                 return 0;
         }
     };
-    */
+    
 
     return (
         <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
             {ResourceFilter({label: 'NAME', prefix: 'name', options: names.map(toOption), field: true})}
-            {/* {ResourceFilter({ 
+             {ResourceFilter({ 
                 label: 'KINDS',
                 prefix: 'kind',
                 options: kinds.map(label => ({
@@ -134,6 +135,7 @@ export const Filters = (props: FiltersProps) => {
                 abbreviations: resources,
                 field: true
             })}
+            {/*
             {ResourceFilter({
                 label: 'SYNC STATUS',
                 prefix: 'sync',
@@ -143,6 +145,7 @@ export const Filters = (props: FiltersProps) => {
                     icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
                 }))
             })}
+             */}
             {ResourceFilter({
                 label: 'HEALTH STATUS',
                 prefix: 'health',
@@ -152,7 +155,7 @@ export const Filters = (props: FiltersProps) => {
                     icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
                 }))
             })}
-            */}
+           
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
             {/* {(tree.orphanedNodes || []).length > 0 && ( 
                 <div className={`filter filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
