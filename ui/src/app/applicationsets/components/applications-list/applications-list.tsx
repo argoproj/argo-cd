@@ -404,7 +404,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<{}>) => {
                                             </div>
                                         )}>
                                         {(applications: models.ApplicationSet[]) => {
-                                            // const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
+                                            const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
                                             const {filteredApps, filterResults} = filterApps(applications, pref, pref.search);
                                             return (
                                                 <React.Fragment>
@@ -413,7 +413,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<{}>) => {
                                                             tools: (
                                                                 <React.Fragment key='app-list-tools'>
                                                                     <Query>{q => <SearchBar content={q.get('search')} apps={applications} ctx={ctx} />}</Query>
-                                                                    {/* <Tooltip content='Toggle Health Status Bar'> 
+                                                                     <Tooltip content='Toggle Health Status Bar'> 
                                                                         <button
                                                                             className={`applications-list__accordion argo-button argo-button--base${
                                                                                 healthBarPrefs.showHealthStatusBar ? '-o' : ''
@@ -434,7 +434,6 @@ export const ApplicationSetsList = (props: RouteComponentProps<{}>) => {
                                                                             <i className={`fas fa-ruler-horizontal`} />
                                                                         </button>
                                                                     </Tooltip>
-                                                                    */}
                                                                     <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
                                                                         <i
                                                                             className={classNames('fa fa-th', {selected: pref.view === Tiles}, 'menu_icon')}
@@ -516,8 +515,8 @@ export const ApplicationSetsList = (props: RouteComponentProps<{}>) => {
 
                                                                 {(pref.view === 'summary' && <ApplicationSetsSummary applications={filteredApps} />) || (
                                                                     <Paginate
-                                                                        // header={filteredApps.length > 1 && <ApplicationsStatusBar applications={filteredApps} />}
-                                                                        // showHeader={healthBarPrefs.showHealthStatusBar}
+                                                                        header={filteredApps.length > 1 && <ApplicationsStatusBar applications={filteredApps} />}
+                                                                        showHeader={healthBarPrefs.showHealthStatusBar}
                                                                         preferencesKey='applications-list'
                                                                         page={pref.page}
                                                                         emptyState={() => (

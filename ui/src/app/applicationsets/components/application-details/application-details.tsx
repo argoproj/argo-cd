@@ -19,7 +19,7 @@ import {ApplicationDeploymentHistory} from '../application-deployment-history/ap
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
 import {PodGroupType, PodView} from '../application-pod-view/pod-view';
 import {ApplicationResourceTree, ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
-// import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
+import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
@@ -404,7 +404,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 </React.Fragment>
                                             )
                                         }}>
-                                        {/* <div className='application-details__status-panel'> 
+                                        <div className='application-details__status-panel'> 
                                             <ApplicationStatusPanel
                                                 application={application}
                                                 showDiff={() => this.selectNode(appFullName, 0, 'diff')}
@@ -412,7 +412,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 showConditions={() => this.setConditionsStatusVisible(true)}
                                                 showMetadataInfo={revision => this.setState({...this.state, revision})}
                                             />
-                                        </div> */}
+                                        </div>
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                             {((pref.view === 'tree' || pref.view === 'network') && (

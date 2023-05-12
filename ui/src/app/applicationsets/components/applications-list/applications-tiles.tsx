@@ -114,7 +114,7 @@ export const ApplicationSetTiles = ({applicationSets, deleteApplicationSet}: App
                                         <div key={AppUtils.appSetInstanceName(appSet)} className='column column-block'>
                                             <div
                                                 ref={appRef.set ? null : appRef.ref}
-                                                className={`argo-table-list__row applications-list__entry applications-list__entry--health-${appSet.status} ${
+                                                className={`argo-table-list__row applications-list__entry applications-list__entry--health-${appSet.status.conditions[0].status} ${
                                                     selectedAppSet === i ? 'applications-tiles__selected' : ''
                                                 }`}>
                                                 <div
@@ -199,17 +199,17 @@ export const ApplicationSetTiles = ({applicationSets, deleteApplicationSet}: App
                                                             </div>
                                                         </div>
                                                         <div className='row'>
-                                                        {/*     <div className='columns small-3' title='Status:'>
+                                                             <div className='columns small-3' title='Status:'>
                                                                 Status:
                                                             </div>
                                                            <div className='columns small-9' qe-id='applications-tiles-health-status'>
-                                                                <AppUtils.AppSetHealthStatusIcon state={appSet.status} /> {appSet.status}
+                                                                <AppUtils.AppSetHealthStatusIcon state={appSet.status} /> {appSet.status.conditions[0].status}
                                                                 &nbsp;
-                                                                <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
+                                                                {/* <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
                                                                 &nbsp;
-                                                                <OperationState app={app} quiet={true} />
+                                                                <OperationState app={app} quiet={true} /> */}
                                                                 
-                                                            </div>*/}
+                                                            </div>
                                                         </div>
                                                    {/*     <div className='row'>
                                                             <div className='columns small-3' title='Repository:'>

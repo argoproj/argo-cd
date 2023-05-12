@@ -6,7 +6,7 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import { ComparisonStatusIcon} from '../utils';
-import {getConditionCategory, HealthStatusIcon,  helpTip} from '../utils';
+import {getConditionCategory, HealthStatusIcon,  helpTip, AppSetHealthStatusIcon} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
 import './application-status-panel.scss';
@@ -45,7 +45,7 @@ const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?:
     );
 };
 
-/* export const ApplicationStatusPanel = ({application, showDiff, showOperation, showConditions, showMetadataInfo}: Props) => {
+ export const ApplicationStatusPanel = ({application, showDiff, showOperation, showConditions, showMetadataInfo}: Props) => {
     const today = new Date();
 
     let daysSinceLastSynchronized = 0;
@@ -55,31 +55,33 @@ const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?:
         // daysSinceLastSynchronized = Math.round(Math.abs((today.getTime() - deployDate.getTime()) / (24 * 60 * 60 * 1000)));
     }
     const cntByCategory = (application.status.conditions || []).reduce(
-        // (map, next) => map.set(getConditionCategory(next), (map.get(getConditionCategory(next)) || 0) + 1),
+        (map, next) => map.set(getConditionCategory(next), (map.get(getConditionCategory(next)) || 0) + 1),
         new Map<string, number>()
     );
-    const appOperationState = getAppOperationState(application);
+   /* const appOperationState = getAppOperationState(application);
     if (application.metadata.deletionTimestamp && !appOperationState) {
         showOperation = null;
     }
+    */
 
     const infos = cntByCategory.get('info');
     const warnings = cntByCategory.get('warning');
     const errors = cntByCategory.get('error');
-    const source = getAppDefaultSource(application);
+   /* const source = getAppDefaultSource(application);
     const hasMultipleSources = application.spec.sources && application.spec.sources.length > 0;
+    */
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
                 <div style={{marginBottom: '1em'}}>{sectionLabel({title: 'APP HEALTH', helpContent: 'The health status of your app'})}</div>
                 <div className='application-status-panel__item-value'>
-                    <HealthStatusIcon state={application.status.health} />
+                    <AppSetHealthStatusIcon state={application.status} />
                     &nbsp;
-                    {application.status.health.status}
+                    {application.status.conditions[0].status}
                 </div>
-                {application.status.health.message && <div className='application-status-panel__item-name'>{application.status.health.message}</div>}
+                {application.status.conditions[0].message && <div className='application-status-panel__item-name'>{application.status.conditions[0].message}</div>}
             </div>
-            <div className='application-status-panel__item'>
+            {/* <div className='application-status-panel__item'>
                 <React.Fragment>
                     {sectionHeader(
                         {
@@ -117,8 +119,8 @@ const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?:
                         </div>
                     )}
                 </React.Fragment>
-            </div>
-            {appOperationState && (
+            </div> */}
+            {/* {/* {appOperationState && (
                 <div className='application-status-panel__item'>
                     <React.Fragment>
                         {sectionHeader(
@@ -156,7 +158,7 @@ const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?:
                         )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
                     </React.Fragment>
                 </div>
-            )}
+            )} */}
             {application.status.conditions && (
                 <div className={`application-status-panel__item`}>
                     {sectionLabel({title: 'APP CONDITIONS'})}
@@ -179,7 +181,7 @@ const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?:
                     </div>
                 </div>
             )}
-            <DataLoader
+            {/* <DataLoader
                 noLoaderOnInputChange={true}
                 input={application}
                 load={async app => {
@@ -204,8 +206,7 @@ const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?:
                         )}
                     </React.Fragment>
                 )}
-            </DataLoader>
+            </DataLoader> */}
         </div>
     );
 };
-*/

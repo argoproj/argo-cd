@@ -2,17 +2,17 @@ import {useData, Checkbox} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {Context} from '../../../shared/context';
-import {Application, ApplicationSet, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncPolicy, SyncStatusCode, SyncStatuses} from '../../../shared/models';
+import { ApplicationSetConditionStatuses, Application, ApplicationSet, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncPolicy, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {AppSetHealthStatusIcon, ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 
 export interface FilterResult {
     // repos: boolean;
     // sync: boolean;
     // autosync: boolean;
-    // health: boolean;
+    health: boolean;
     // namespaces: boolean;
     // clusters: boolean;
     favourite: boolean;
@@ -37,7 +37,7 @@ export function getFilterResults(applications: ApplicationSet[], pref: AppsListP
             // repos: pref.reposFilter.length === 0 || pref.reposFilter.includes(getAppDefaultSource(app).repoURL),
             // sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             // autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
-            // health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
+            health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.conditions[0].status),
             // namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
             favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
     /*        clusters:
@@ -112,7 +112,7 @@ const getOptions = (apps: FilteredAppSet[], filterType: keyof FilterResult, filt
         )}
     />
 );
-
+*/
 
 const HealthFilter = (props: AppFilterProps) => (
     <Filter
@@ -122,15 +122,15 @@ const HealthFilter = (props: AppFilterProps) => (
         options={getOptions(
             props.apps,
             'health',
-            app => app.status.health.status,
-            Object.keys(HealthStatuses),
-            s => (
-                <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
-            )
+            app => app.status.conditions[0].status,
+            Object.keys(ApplicationSetConditionStatuses),
+            // s => (
+            //     <AppSetHealthStatusIcon state={{status: s as ApplicationSetConditionStatus, message: ''}} noSpin={true} />
+            // )
         )}
     />
 );
-*/
+
 const LabelsFilter = (props: AppFilterProps) => {
     const labels = new Map<string, Set<string>>();
     props.apps
@@ -284,7 +284,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
         <FiltersGroup content={props.children} collapsed={props.collapsed}>
             <FavoriteFilter {...props} />
             {/* <SyncFilter {...props} /> */}
-            {/* <HealthFilter {...props} /> */}
+            <HealthFilter {...props} />
             <LabelsFilter {...props} />
             {/* <ProjectFilter {...props} /> */}
             {/* <ClusterFilter {...props} /> */}

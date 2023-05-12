@@ -350,19 +350,19 @@ export interface ApplicationSetApplicationStatus {
 
 export type ApplicationSetConditionType = 'ErrorOccurred' | 'ParametersGenerated' | 'ResourcesUpToDate' | 'RolloutProgressing';
 
-export const ApplicationSetConditionTypes = {
-    ErrorOccurred: 'ErrorOccurred' as ApplicationSetConditionType,
-    ParametersGenerated: 'ParametersGenerated' as ApplicationSetConditionType,
-    ResourcesUpToDate: 'ResourcesUpToDate' as ApplicationSetConditionType,
-    RolloutProgressing: 'RolloutProgressing' as ApplicationSetConditionType,
+export const ApplicationSetConditionTypes: {[key: string]: ApplicationSetConditionType} = {
+    ErrorOccurred: 'ErrorOccurred',
+    ParametersGenerated: 'ParametersGenerated',
+    ResourcesUpToDate: 'ResourcesUpToDate',
+    RolloutProgressing: 'RolloutProgressing',
 };
 
 export type ApplicationSetConditionStatus = 'True' | 'False' | 'Unknown';
 
-export const ApplicationSetConditionStatuses = {
-    True: 'True' as ApplicationSetConditionStatus,
-    False: 'False' as ApplicationSetConditionStatus,
-    Unknown: 'Unknown' as ApplicationSetConditionStatus,
+export const ApplicationSetConditionStatuses: {[key: string]: ApplicationSetConditionStatus} = {
+    True: 'True',
+    False: 'False',
+    Unknown: 'Unknown',
 };
 
 

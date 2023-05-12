@@ -7,27 +7,28 @@ import * as models from '../../../shared/models';
 import './applications-status-bar.scss';
 
 export interface ApplicationsStatusBarProps {
-    applications: models.Application[];
+    applications: models.ApplicationSet[];
 }
 
 export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps) => {
     const readings = [
         {
             name: 'Healthy',
-            value: applications.filter(app => app.status.health.status === 'Healthy').length,
+            value: applications.filter(app => app.status.conditions[0].status === 'True').length,
             color: COLORS.health.healthy
         },
-        {
+      /*  {
             name: 'Progressing',
             value: applications.filter(app => app.status.health.status === 'Progressing').length,
             color: COLORS.health.progressing
         },
+        */
         {
             name: 'Degraded',
-            value: applications.filter(app => app.status.health.status === 'Degraded').length,
+            value: applications.filter(app => app.status.conditions[0].status === 'False').length,
             color: COLORS.health.degraded
         },
-        {
+        /*{
             name: 'Suspended',
             value: applications.filter(app => app.status.health.status === 'Suspended').length,
             color: COLORS.health.suspended
@@ -37,9 +38,10 @@ export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps
             value: applications.filter(app => app.status.health.status === 'Missing').length,
             color: COLORS.health.missing
         },
+        */
         {
             name: 'Unknown',
-            value: applications.filter(app => app.status.health.status === 'Unknown').length,
+            value: applications.filter(app => app.status.conditions[0].status === 'Unknown').length,
             color: COLORS.health.unknown
         }
     ];

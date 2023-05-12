@@ -701,36 +701,38 @@ export const AppSetHealthStatusIcon = ({state, noSpin}: {state: appModels.Applic
     let color = COLORS.health.unknown;
     let icon = 'fa-question-circle';
 
-   /* switch (state.applicationStatus[0].status) {
-        case appModels.HealthStatuses.Healthy:
+    switch (state.conditions[0].status) {
+        case appModels.ApplicationSetConditionStatuses.True:
             color = COLORS.health.healthy;
             icon = 'fa-heart';
             break;
-        case appModels.HealthStatuses.Suspended:
+      /*  case appModels.HealthStatuses.Suspended:
             color = COLORS.health.suspended;
             icon = 'fa-pause-circle';
             break;
-        case appModels.HealthStatuses.Degraded:
+            */
+        case appModels.ApplicationSetConditionStatuses.False:
             color = COLORS.health.degraded;
             icon = 'fa-heart-broken';
             break;
-        case appModels.HealthStatuses.Progressing:
+      /*  case appModels.HealthStatuses.Progressing:
             color = COLORS.health.progressing;
             icon = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
             break;
-        case appModels.HealthStatuses.Missing:
+            */
+        case appModels.ApplicationSetConditionStatuses.Unknown:
             color = COLORS.health.missing;
             icon = 'fa-ghost';
             break;
     }
-    let title: string = state.applicationStatus[0].message;
+    let title: string = state.conditions[0].message;
     
-    if (state.applicationStatus[0].message) {
-        title = `${state.applicationStatus[0].status}: ${state.applicationStatus[0].message}`;
+    if (state.conditions[0].message) {
+        title = `${state.conditions[0].status}: ${state.conditions[0].message}`;
     }
 
-    */
-    let title: string = "kuku"
+    
+    // let title: string = "kuku"
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
 
@@ -1036,7 +1038,7 @@ export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingCon
     };
 };
 
-export function getConditionCategory(condition: appModels.ApplicationCondition): 'error' | 'warning' | 'info' {
+export function getConditionCategory(condition: appModels.ApplicationSetCondition): 'error' | 'warning' | 'info' {
     if (condition.type.endsWith('Error')) {
         return 'error';
     } else if (condition.type.endsWith('Warning')) {
@@ -1047,7 +1049,7 @@ export function getConditionCategory(condition: appModels.ApplicationCondition):
 }
 
 export function isAppNode(node: appModels.ResourceNode) {
-    return node.kind === 'Application' && node.group === 'argoproj.io';
+    return node.kind === 'ApplicationSet' && node.group === 'argoproj.io';
 }
 
 /*export function getAppOverridesCount(app: appModels.Application) {

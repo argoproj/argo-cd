@@ -56,7 +56,7 @@ export const ApplicationSetsTable = (props: {
                                     <div
                                         key={AppUtils.appSetInstanceName(appSet)}
                                         className={`argo-table-list__row
-                applications-list__entry applications-list__entry--health-${appSet.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
+                applications-list__entry applications-list__entry--health-${appSet.status.conditions[0].status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
                                         <div
                                             className={`row applications-list__table-row`}
                                             // onClick={e => ctx.navigation.goto(`/applicationsets/${appSet.metadata.namespace}/${appSet.metadata.name}`, {}, {event: e})}>
@@ -131,7 +131,8 @@ export const ApplicationSetsTable = (props: {
                                             </div>
 
                                             <div className='columns small-2'>
-                                                {/* <AppUtils.AppSetHealthStatusIcon state={appSet.status} /> <span>{appSet.status}</span> <br /> */}
+                                            {/* <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br /> */}
+                                                  <AppUtils.AppSetHealthStatusIcon state={appSet.status} /> <span>{appSet.status.conditions[0].status}</span> <br /> 
                                                 {/* <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> */}
                                                 {/* <span>{app.status.sync.status}</span> <OperationState app={appSet} quiet={true} /> */}
                                                 <DropDownMenu

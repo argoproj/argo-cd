@@ -43,6 +43,10 @@
             border-left-color: $argo-success-color;
         }
 
+        &--health-True {
+            border-left-color: $argo-success-color;
+        }
+
         // intermediate statuses
         &--health-Progressing {
             border-left-color: $argo-running-color;
@@ -56,6 +60,11 @@
         &--health-Degraded {
             border-left-color: $argo-failed-color;
         }
+
+        &--health-False {
+            border-left-color: $argo-failed-color;
+        }
+
 
         &--health-Unknown {
             border-left-color: $argo-color-gray-4;
