@@ -254,8 +254,8 @@ jobs:
           set -xue
           SOURCE_TAG=${{ github.ref_name }}
           VERSION_REF="${SOURCE_TAG#*v}"
-          if echo "$VERSION_REF" | grep -E -- '^[0-9]+\.[0-9]+\.0$';then
-            VERSION=$(awk 'BEGIN {FS=OFS="."} {$2++; print}' <<< "${VERSION_REF}")
+          if echo "$VERSION_REF" | grep -E -- '^[0-9]+\.[0-9]+\.0-rc1';then
+            VERSION=$(awk 'BEGIN {FS=OFS="."} {$2++; print}' <<< "${VERSION_REF%-rc1}")
             echo "Updating VERSION to: $VERSION"
             echo "UPDATE_VERSION=true" >> $GITHUB_ENV
             echo "NEW_VERSION=$VERSION" >> $GITHUB_ENV
