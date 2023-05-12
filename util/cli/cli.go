@@ -15,7 +15,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/google/shlex"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	terminal "golang.org/x/term"

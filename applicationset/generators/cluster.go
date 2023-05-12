@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
 

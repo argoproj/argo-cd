@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"github.com/spf13/cobra"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

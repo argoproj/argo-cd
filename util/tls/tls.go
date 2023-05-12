@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/util/env"

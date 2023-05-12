@@ -11,7 +11,7 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/triggers"
 	"github.com/argoproj/notifications-engine/pkg/util/text"
 	jsonpatch "github.com/evanphx/json-patch"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 )

@@ -25,7 +25,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/mattn/go-zglob"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 )
 
 // cmpTimeoutBuffer is the amount of time before the request deadline to timeout server-side work. It makes sure there's

@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	gogsclient "github.com/gogits/go-gogs-client"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"gopkg.in/go-playground/webhooks.v5/bitbucket"
 	bitbucketserver "gopkg.in/go-playground/webhooks.v5/bitbucket-server"
 	"gopkg.in/go-playground/webhooks.v5/github"

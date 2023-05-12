@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"github.com/stretchr/testify/assert"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 
 	"github.com/argoproj/argo-cd/v2/util/gpg"
 )

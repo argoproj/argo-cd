@@ -25,7 +25,7 @@ import (
 
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 
-	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/voidspooks/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 

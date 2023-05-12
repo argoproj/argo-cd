@@ -15,7 +15,7 @@ import (
 
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"

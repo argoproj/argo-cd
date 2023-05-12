@@ -7,7 +7,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierr "k8s.io/apimachinery/pkg/api/errors"

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/stats"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"github.com/spf13/cobra"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"

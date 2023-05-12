@@ -16,7 +16,7 @@ import (
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"golang.org/x/oauth2"
 
 	"github.com/argoproj/argo-cd/v2/common"

@@ -10,7 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"

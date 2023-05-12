@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"hash/fnv"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apiv1 "k8s.io/api/core/v1"

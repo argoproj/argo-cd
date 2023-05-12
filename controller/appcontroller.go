@@ -21,7 +21,7 @@ import (
 	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"

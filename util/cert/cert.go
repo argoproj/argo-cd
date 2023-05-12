@@ -16,7 +16,7 @@ import (
 	"regexp"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/argoproj/argo-cd/v2/common"

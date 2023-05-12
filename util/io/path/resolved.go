@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 )
 
 // ResolvedFilePath represents a resolved file path and is intended to prevent unintentional use of an unverified file

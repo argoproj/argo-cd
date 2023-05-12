@@ -15,7 +15,7 @@ import (
 	"github.com/Masterminds/sprig/v3"
 	"github.com/valyala/fasttemplate"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )

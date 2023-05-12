@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/util/config"

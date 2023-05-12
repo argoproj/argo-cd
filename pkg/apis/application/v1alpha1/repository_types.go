@@ -8,7 +8,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

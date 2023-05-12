@@ -8,7 +8,7 @@ import (
 
 	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"

@@ -12,7 +12,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 )
 
 const maxCookieLength = 4093

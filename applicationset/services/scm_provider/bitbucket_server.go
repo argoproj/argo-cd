@@ -6,7 +6,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	bitbucketv1 "github.com/gfleury/go-bitbucket-v1"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 )
 
 type BitbucketServerProvider struct {

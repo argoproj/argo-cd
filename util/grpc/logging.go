@@ -11,7 +11,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	grpc_logging "github.com/grpc-ecosystem/go-grpc-middleware/logging"
 	ctx_logrus "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus"
-	"github.com/sirupsen/logrus"
+	"github.com/voidspooks/logrus"
 	"google.golang.org/grpc"
 )
 

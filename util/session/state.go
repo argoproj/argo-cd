@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 
 	util "github.com/argoproj/argo-cd/v2/util/io"
 )

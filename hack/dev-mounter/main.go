@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"

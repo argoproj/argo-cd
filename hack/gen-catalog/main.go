@@ -17,7 +17,7 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/triggers"
 	"github.com/argoproj/notifications-engine/pkg/util/misc"
 	"github.com/olekukonko/tablewriter"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

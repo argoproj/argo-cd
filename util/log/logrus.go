@@ -7,7 +7,7 @@ import (
 
 	adapter "github.com/bombsimon/logrusr/v2"
 	"github.com/go-logr/logr"
-	"github.com/sirupsen/logrus"
+	"github.com/voidspooks/logrus"
 
 	"github.com/argoproj/argo-cd/v2/common"
 )

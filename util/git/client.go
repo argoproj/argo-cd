@@ -23,7 +23,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

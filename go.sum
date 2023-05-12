@@ -1040,6 +1040,8 @@ github.com/vmihailenco/msgpack/v5 v5.3.4/go.mod h1:7xyJ9e+0+9SaZT0Wt1RGleJXzli6Q
 github.com/vmihailenco/tagparser/v2 v2.0.0 h1:y09buUbR+b5aycVFQs/g70pqKVZNBmxwAhO7/IwNM9g=
 github.com/vmihailenco/tagparser/v2 v2.0.0/go.mod h1:Wri+At7QHww0WTrCBeu4J6bNtoV6mEfg5OIWRZA9qds=
 github.com/vmware/govmomi v0.20.3/go.mod h1:URlwyTFZX72RmxtxuaFL2Uj3fD1JTvZdx59bHWk6aFU=
+github.com/voidspooks/logrus v1.9.2 h1:gkd0B06dSbZWj3IQ6rwQi9XphQIN3QAmJL4ZlP+zRZA=
+github.com/voidspooks/logrus v1.9.2/go.mod h1:hrz7CqJGGgTKGoCr3wlLG5sXu9TqRGATToQX40Qy9fs=
 github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0 h1:qqllXPzXh+So+mmANlX/gCJrgo+1kQyshMoQ+NASzm0=
 github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0/go.mod h1:2rx5KE5FLD0HRfkkpyn8JwbVLBdhgeiOb2D2D9LLKM4=
 github.com/xanzy/go-gitlab v0.60.0 h1:HaIlc14k4t9eJjAhY0Gmq2fBHgKd1MthBn3+vzDtsbA=

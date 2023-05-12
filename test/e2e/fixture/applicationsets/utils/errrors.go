@@ -4,7 +4,7 @@ import (
 	"os"
 	"runtime/debug"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 )
 
 const (

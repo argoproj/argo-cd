@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"

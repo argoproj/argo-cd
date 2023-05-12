@@ -10,7 +10,7 @@ import (
 
 	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"k8s.io/apimachinery/pkg/api/resource"

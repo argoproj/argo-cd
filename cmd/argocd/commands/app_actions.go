@@ -10,7 +10,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/cmd/util"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/yaml"

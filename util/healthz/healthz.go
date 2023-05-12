@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 )
 
 // ServeHealthCheck serves the health check endpoint.

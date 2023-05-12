@@ -8,7 +8,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/cmd/util"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"

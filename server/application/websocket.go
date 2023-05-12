@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	log "github.com/sirupsen/logrus"
+	log "github.com/voidspooks/logrus"
 	"k8s.io/client-go/tools/remotecommand"
 )
 

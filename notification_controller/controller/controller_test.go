@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/voidspooks/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
