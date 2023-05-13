@@ -132,6 +132,8 @@ const (
 	LabelKeyLegacyApplicationName = "applications.argoproj.io/app-name"
 	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster', 'repository', 'repo-config' or 'repo-creds')
 	LabelKeySecretType = "argocd.argoproj.io/secret-type"
+	// TODO: todo
+	LabelKeyUrlHash = "argocd.argoproj.io/url-hash"
 	// LabelValueSecretTypeCluster indicates a secret type of cluster
 	LabelValueSecretTypeCluster = "cluster"
 	// LabelValueSecretTypeRepository indicates a secret type of repository

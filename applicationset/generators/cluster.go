@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/hash"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/selection"
+	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -211,18 +213,31 @@ func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1
 	res := map[string]corev1.Secret{}
 
 	if len(appSetGenerator.Clusters.URLs) > 0 {
+		var urlHashes []string
 		for _, url := range appSetGenerator.Clusters.URLs {
-			cluster := corev1.Secret{}
-			err := g.Client.Get(context.Background(), types.NamespacedName{Name: url, Namespace: g.namespace}, &cluster)
-			if err != nil {
-				return nil, err
-			}
+			urlHashes = append(urlHashes, strconv.FormatUint(uint64(hash.FNVa(url)), 10))
+		}
 
+		urlRequirement, err := labels.NewRequirement(common.LabelKeyUrlHash, selection.In, urlHashes)
+		if err != nil {
+			return nil, fmt.Errorf("bad url requirements: %v", err)
+		}
+		secretRequirement, _ := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
+		wat := labels.NewSelector().Add(*urlRequirement).Add(*secretRequirement)
+
+		tmpList := &corev1.SecretList{}
+
+		if err := g.Client.List(context.Background(), tmpList, client.MatchingLabelsSelector{Selector: wat}); err != nil {
+			return nil, err
+		}
+
+		for _, cluster := range tmpList.Items {
 			if secretSelector.Matches(labels.Set(cluster.Labels)) {
 				clusterSecretList.Items = append(clusterSecretList.Items, cluster)
 			}
 		}
-		log.Debug("clusters matching urls", "count", len(clusterSecretList.Items))
+
+		log.Debug("clusters matching urls and labels", "count", len(clusterSecretList.Items))
 	} else {
 		if err := g.Client.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
 			return nil, err

@@ -45,6 +45,7 @@ func TestGenerateParams(t *testing.T) {
 					"argocd.argoproj.io/secret-type": "cluster",
 					"environment":                    "staging",
 					"org":                            "foo",
+					"argocd.argoproj.io/url-hash":    "1453614746",
 				},
 				Annotations: map[string]string{
 					"foo.argoproj.io": "staging",
@@ -69,6 +70,7 @@ func TestGenerateParams(t *testing.T) {
 					"argocd.argoproj.io/secret-type": "cluster",
 					"environment":                    "production",
 					"org":                            "bar",
+					"argocd.argoproj.io/url-hash":    "4208699120",
 				},
 				Annotations: map[string]string{
 					"foo.argoproj.io": "production",
@@ -106,10 +108,10 @@ func TestGenerateParams(t *testing.T) {
 				"no-op": "{{ this-does-not-exist }}",
 			}, expected: []map[string]interface{}{
 				{"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "production", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "production", "values.aaa": "https://production-01.example.com", "name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production"},
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production", "metadata.labels.argocd.argoproj.io/url-hash": "4208699120"},
 
 				{"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "staging", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "staging", "values.aaa": "https://staging-01.example.com", "name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging"},
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging", "metadata.labels.argocd.argoproj.io/url-hash": "1453614746"},
 
 				{"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "{{ metadata.annotations.foo.argoproj.io }}", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "{{ metadata.labels.environment }}", "values.aaa": "https://kubernetes.default.svc", "nameNormalized": "in-cluster", "name": "in-cluster", "server": "https://kubernetes.default.svc"},
 			},
@@ -118,11 +120,25 @@ func TestGenerateParams(t *testing.T) {
 		},
 		{
 			name:   "explicit url, no label selector",
-			urls:   []string{"staging-01"},
+			urls:   []string{"https://staging-01.example.com"},
 			values: nil,
 			expected: []map[string]interface{}{
 				{"name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging"},
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging", "metadata.labels.argocd.argoproj.io/url-hash": "1453614746"},
+			},
+			clientError:   false,
+			expectedError: nil,
+		},
+		{
+			name:   "explicit urls, no label selector",
+			urls:   []string{"https://staging-01.example.com", "https://production-01.example.com"},
+			values: nil,
+			expected: []map[string]interface{}{
+				{"name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production", "metadata.labels.argocd.argoproj.io/url-hash": "4208699120"},
+
+				{"name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging", "metadata.labels.argocd.argoproj.io/url-hash": "1453614746"},
 			},
 			clientError:   false,
 			expectedError: nil,
@@ -137,10 +153,10 @@ func TestGenerateParams(t *testing.T) {
 			values: nil,
 			expected: []map[string]interface{}{
 				{"name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production"},
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production", "metadata.labels.argocd.argoproj.io/url-hash": "4208699120"},
 
 				{"name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging"},
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging", "metadata.labels.argocd.argoproj.io/url-hash": "1453614746"},
 			},
 			clientError:   false,
 			expectedError: nil,
@@ -157,7 +173,7 @@ func TestGenerateParams(t *testing.T) {
 			},
 			expected: []map[string]interface{}{
 				{"values.foo": "bar", "name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production"},
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production", "metadata.labels.argocd.argoproj.io/url-hash": "4208699120"},
 			},
 			clientError:   false,
 			expectedError: nil,
@@ -181,9 +197,9 @@ func TestGenerateParams(t *testing.T) {
 			},
 			expected: []map[string]interface{}{
 				{"values.foo": "bar", "name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging"},
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging", "metadata.labels.argocd.argoproj.io/url-hash": "1453614746"},
 				{"values.foo": "bar", "name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production"},
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production", "metadata.labels.argocd.argoproj.io/url-hash": "4208699120"},
 			},
 			clientError:   false,
 			expectedError: nil,
@@ -210,7 +226,7 @@ func TestGenerateParams(t *testing.T) {
 			},
 			expected: []map[string]interface{}{
 				{"values.name": "baz", "name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging"},
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging", "metadata.labels.argocd.argoproj.io/url-hash": "1453614746"},
 			},
 			clientError:   false,
 			expectedError: nil,
@@ -285,6 +301,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 					"argocd.argoproj.io/secret-type": "cluster",
 					"environment":                    "staging",
 					"org":                            "foo",
+					"argocd.argoproj.io/url-hash":    "1453614746",
 				},
 				Annotations: map[string]string{
 					"foo.argoproj.io": "staging",
@@ -309,6 +326,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 					"argocd.argoproj.io/secret-type": "cluster",
 					"environment":                    "production",
 					"org":                            "bar",
+					"argocd.argoproj.io/url-hash":    "4208699120",
 				},
 				Annotations: map[string]string{
 					"foo.argoproj.io": "production",
@@ -354,6 +372,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 							"argocd.argoproj.io/secret-type": "cluster",
 							"environment":                    "production",
 							"org":                            "bar",
+							"argocd.argoproj.io/url-hash":    "4208699120",
 						},
 						"annotations": map[string]string{
 							"foo.argoproj.io": "production",
@@ -379,6 +398,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 							"argocd.argoproj.io/secret-type": "cluster",
 							"environment":                    "staging",
 							"org":                            "foo",
+							"argocd.argoproj.io/url-hash":    "1453614746",
 						},
 						"annotations": map[string]string{
 							"foo.argoproj.io": "staging",
@@ -416,7 +436,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 		},
 		{
 			name:   "explicit url, no label selector",
-			urls:   []string{"staging-01"},
+			urls:   []string{"https://staging-01.example.com"},
 			values: nil,
 			expected: []map[string]interface{}{
 				{
@@ -428,6 +448,48 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 							"argocd.argoproj.io/secret-type": "cluster",
 							"environment":                    "staging",
 							"org":                            "foo",
+							"argocd.argoproj.io/url-hash":    "1453614746",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "staging",
+						},
+					},
+				},
+			},
+			clientError:   false,
+			expectedError: nil,
+		},
+		{
+			name:   "explicit urls, no label selector",
+			urls:   []string{"https://staging-01.example.com", "https://production-01.example.com"},
+			values: nil,
+			expected: []map[string]interface{}{
+				{
+					"name":           "production_01/west",
+					"nameNormalized": "production-01-west",
+					"server":         "https://production-01.example.com",
+					"metadata": map[string]interface{}{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "production",
+							"org":                            "bar",
+							"argocd.argoproj.io/url-hash":    "4208699120",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "production",
+						},
+					},
+				},
+				{
+					"name":           "staging-01",
+					"nameNormalized": "staging-01",
+					"server":         "https://staging-01.example.com",
+					"metadata": map[string]interface{}{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "staging",
+							"org":                            "foo",
+							"argocd.argoproj.io/url-hash":    "1453614746",
 						},
 						"annotations": map[string]string{
 							"foo.argoproj.io": "staging",
@@ -456,6 +518,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 							"argocd.argoproj.io/secret-type": "cluster",
 							"environment":                    "production",
 							"org":                            "bar",
+							"argocd.argoproj.io/url-hash":    "4208699120",
 						},
 						"annotations": map[string]string{
 							"foo.argoproj.io": "production",
@@ -471,6 +534,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 							"argocd.argoproj.io/secret-type": "cluster",
 							"environment":                    "staging",
 							"org":                            "foo",
+							"argocd.argoproj.io/url-hash":    "1453614746",
 						},
 						"annotations": map[string]string{
 							"foo.argoproj.io": "staging",
@@ -501,6 +565,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 							"argocd.argoproj.io/secret-type": "cluster",
 							"environment":                    "production",
 							"org":                            "bar",
+							"argocd.argoproj.io/url-hash":    "4208699120",
 						},
 						"annotations": map[string]string{
 							"foo.argoproj.io": "production",
@@ -541,6 +606,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 							"argocd.argoproj.io/secret-type": "cluster",
 							"environment":                    "production",
 							"org":                            "bar",
+							"argocd.argoproj.io/url-hash":    "4208699120",
 						},
 						"annotations": map[string]string{
 							"foo.argoproj.io": "production",
@@ -559,7 +625,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 							"argocd.argoproj.io/secret-type": "cluster",
 							"environment":                    "staging",
 							"org":                            "foo",
-						},
+							"argocd.argoproj.io/url-hash":    "1453614746"},
 						"annotations": map[string]string{
 							"foo.argoproj.io": "staging",
 						},
@@ -602,6 +668,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 							"argocd.argoproj.io/secret-type": "cluster",
 							"environment":                    "staging",
 							"org":                            "foo",
+							"argocd.argoproj.io/url-hash":    "1453614746",
 						},
 						"annotations": map[string]string{
 							"foo.argoproj.io": "staging",

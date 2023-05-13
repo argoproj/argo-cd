@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/hash"
 	"strconv"
 	"strings"
 	"sync"
@@ -40,11 +41,6 @@ var (
 		ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
 	}
 	initLocalCluster sync.Once
-)
-
-const (
-	ArgoCDSecretTypeLabel   = "argocd.argoproj.io/secret-type"
-	ArgoCDSecretTypeCluster = "cluster"
 )
 
 // ValidateDestination checks:
@@ -111,6 +107,15 @@ func ListClusters(ctx context.Context, clientset kubernetes.Interface, namespace
 	}
 	hasInClusterCredentials := false
 	for i, clusterSecret := range clusterSecrets {
+		urlHash := strconv.FormatUint(uint64(hash.FNVa(string(clusterSecret.Data["server"]))), 10)
+		if clusterSecret.Labels[common.LabelKeyUrlHash] != urlHash {
+			clusterSecret.Labels[common.LabelKeyUrlHash] = urlHash
+			_, err := clientset.CoreV1().Secrets(namespace).Update(ctx, &clusterSecret, metav1.UpdateOptions{})
+			if err != nil {
+				return nil, fmt.Errorf("unable to persist latest url hash to cluster secret '%s': %v", clusterSecret.Name, err)
+			}
+		}
+
 		// This line has changed from the original Argo CD code: now receives an error, and handles it
 		cluster, err := secretToCluster(&clusterSecret)
 		if err != nil || cluster == nil {
