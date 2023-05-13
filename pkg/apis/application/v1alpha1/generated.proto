@@ -1764,6 +1764,25 @@ message SCMProviderGenerator {
   optional int64 requeueAfterSeconds = 9;
 
   optional ApplicationSetTemplate template = 10;
+
+  optional SCMProviderGeneratorAWSCodeCommit awsCodeCommit = 11;
+}
+
+// SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.
+message SCMProviderGeneratorAWSCodeCommit {
+  // TagFilters provides the tag filter(s) for repo discovery
+  repeated TagFilter tagFilters = 1;
+
+  // Role provides the AWS IAM role to assume, for cross-account repo discovery
+  // if not provided, AppSet controller will use its pod/node identity to discover.
+  optional string role = 2;
+
+  // Region provides the AWS region to discover repos.
+  // if not provided, AppSet controller will infer the current region from environment.
+  optional string region = 3;
+
+  // Scan all branches instead of just the default branch.
+  optional bool allBranches = 4;
 }
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
@@ -2085,5 +2104,11 @@ message TLSClientConfig {
   // CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
   // CAData takes precedence over CAFile
   optional bytes caData = 5;
+}
+
+message TagFilter {
+  optional string key = 1;
+
+  optional string value = 2;
 }
 

@@ -8126,6 +8126,9 @@
       "description": "SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.",
       "type": "object",
       "properties": {
+        "awsCodeCommit": {
+          "$ref": "#/definitions/v1alpha1SCMProviderGeneratorAWSCodeCommit"
+        },
         "azureDevOps": {
           "$ref": "#/definitions/v1alpha1SCMProviderGeneratorAzureDevOps"
         },
@@ -8162,6 +8165,31 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        }
+      }
+    },
+    "v1alpha1SCMProviderGeneratorAWSCodeCommit": {
+      "description": "SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.",
+      "type": "object",
+      "properties": {
+        "allBranches": {
+          "description": "Scan all branches instead of just the default branch.",
+          "type": "boolean"
+        },
+        "region": {
+          "description": "Region provides the AWS region to discover repos.\nif not provided, AppSet controller will infer the current region from environment.",
+          "type": "string"
+        },
+        "role": {
+          "description": "Role provides the AWS IAM role to assume, for cross-account repo discovery\nif not provided, AppSet controller will use its pod/node identity to discover.",
+          "type": "string"
+        },
+        "tagFilters": {
+          "type": "array",
+          "title": "TagFilters provides the tag filter(s) for repo discovery",
+          "items": {
+            "$ref": "#/definitions/v1alpha1TagFilter"
+          }
         }
       }
     },
@@ -8642,6 +8670,17 @@
         },
         "serverName": {
           "description": "ServerName is passed to the server for SNI and is used in the client to check server\ncertificates against. If ServerName is empty, the hostname used to contact the\nserver is used.",
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1TagFilter": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
           "type": "string"
         }
       }
