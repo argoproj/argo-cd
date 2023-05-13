@@ -144,6 +144,22 @@ func TestGenerateParams(t *testing.T) {
 			expectedError: nil,
 		},
 		{
+			name: "explicit urls, with label selector",
+			urls: []string{"https://staging-01.example.com", "https://production-01.example.com"},
+			selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"environment": "production",
+				},
+			},
+			values: nil,
+			expected: []map[string]interface{}{
+				{"name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production", "metadata.labels.argocd.argoproj.io/url-hash": "4208699120"},
+			},
+			clientError:   false,
+			expectedError: nil,
+		},
+		{
 			name: "secret type label selector",
 			selector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
@@ -493,6 +509,36 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 						},
 						"annotations": map[string]string{
 							"foo.argoproj.io": "staging",
+						},
+					},
+				},
+			},
+			clientError:   false,
+			expectedError: nil,
+		},
+		{
+			name: "explicit urls, with label selector",
+			urls: []string{"https://staging-01.example.com", "https://production-01.example.com"},
+			selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"environment": "production",
+				},
+			},
+			values: nil,
+			expected: []map[string]interface{}{
+				{
+					"name":           "production_01/west",
+					"nameNormalized": "production-01-west",
+					"server":         "https://production-01.example.com",
+					"metadata": map[string]interface{}{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "production",
+							"org":                            "bar",
+							"argocd.argoproj.io/url-hash":    "4208699120",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "production",
 						},
 					},
 				},

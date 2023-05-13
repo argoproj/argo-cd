@@ -222,28 +222,15 @@ func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1
 		if err != nil {
 			return nil, fmt.Errorf("bad url requirements: %v", err)
 		}
-		secretRequirement, _ := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
-		wat := labels.NewSelector().Add(*urlRequirement).Add(*secretRequirement)
 
-		tmpList := &corev1.SecretList{}
-
-		if err := g.Client.List(context.Background(), tmpList, client.MatchingLabelsSelector{Selector: wat}); err != nil {
-			return nil, err
-		}
-
-		for _, cluster := range tmpList.Items {
-			if secretSelector.Matches(labels.Set(cluster.Labels)) {
-				clusterSecretList.Items = append(clusterSecretList.Items, cluster)
-			}
-		}
-
-		log.Debug("clusters matching urls and labels", "count", len(clusterSecretList.Items))
-	} else {
-		if err := g.Client.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
-			return nil, err
-		}
-		log.Debug("clusters matching labels", "count", len(clusterSecretList.Items))
+		secretSelector = secretSelector.Add(*urlRequirement)
 	}
+
+	if err := g.Client.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
+		return nil, err
+	}
+
+	log.Debug("clusters matching urls and labels", "count", len(clusterSecretList.Items))
 
 	for _, cluster := range clusterSecretList.Items {
 		clusterName := string(cluster.Data["name"])
