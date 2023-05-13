@@ -152,7 +152,6 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 			codeCommitClient := mocks.NewAWSCodeCommitClient(t)
 			taggingClient := mocks.NewAWSTaggingClient(t)
 			ctx := context.Background()
-			repoArns := make([]string, 0)
 			codecommitRepoNameIdPairs := make([]*codecommit.RepositoryNameIdPair, 0)
 			resourceTaggings := make([]*resourcegroupstaggingapi.ResourceTagMapping, 0)
 			validRepositories := make([]*awsCodeCommitTestRepository, 0)
@@ -170,7 +169,6 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 						RepositoryId:   aws.String(repo.id),
 						RepositoryName: aws.String(repo.name),
 					}}, repo.getRepositoryError)
-				repoArns = append(repoArns, repo.arn)
 				repoNameIdPairs[repo.name] = repo.arn
 				codecommitRepoNameIdPairs = append(codecommitRepoNameIdPairs, &codecommit.RepositoryNameIdPair{
 					RepositoryId:   aws.String(repo.id),

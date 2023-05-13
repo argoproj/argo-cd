@@ -354,7 +354,7 @@ func createAWSDiscoveryClients(_ context.Context, role string, region string) (*
 	} else {
 		log.Debugf("role is not provided for AWS CodeCommit discovery, using pod role")
 	}
-	// assume role if provided - this allows cross region CodeCommit repo discovery.
+	// use region explicitly if provided  - this allows cross region CodeCommit repo discovery.
 	if region != "" {
 		log.Debugf("region %s is provided for AWS CodeCommit discovery", region)
 		discoverySession = discoverySession.Copy(&aws.Config{
