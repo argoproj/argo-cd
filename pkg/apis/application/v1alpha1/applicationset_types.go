@@ -346,8 +346,9 @@ type SCMProviderGenerator struct {
 	// necessarily support all protocols.
 	CloneProtocol string `json:"cloneProtocol,omitempty" protobuf:"bytes,8,opt,name=cloneProtocol"`
 	// Standard parameters.
-	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,9,opt,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,10,opt,name=template"`
+	RequeueAfterSeconds *int64                             `json:"requeueAfterSeconds,omitempty" protobuf:"varint,9,opt,name=requeueAfterSeconds"`
+	Template            ApplicationSetTemplate             `json:"template,omitempty" protobuf:"bytes,10,opt,name=template"`
+	AWSCodeCommit       *SCMProviderGeneratorAWSCodeCommit `json:"awsCodeCommit,omitempty" protobuf:"bytes,11,opt,name=awsCodeCommit"`
 }
 
 // SCMProviderGeneratorGitea defines a connection info specific to Gitea.
@@ -428,6 +429,25 @@ type SCMProviderGeneratorAzureDevOps struct {
 	AccessTokenRef *SecretRef `json:"accessTokenRef" protobuf:"bytes,8,opt,name=accessTokenRef"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,9,opt,name=allBranches"`
+}
+
+type TagFilter struct {
+	Key   string `json:"key" protobuf:"bytes,1,opt,name=key"`
+	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
+}
+
+// SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.
+type SCMProviderGeneratorAWSCodeCommit struct {
+	// TagFilters provides the tag filter(s) for repo discovery
+	TagFilters []*TagFilter `json:"tagFilters,omitempty" protobuf:"bytes,1,opt,name=tagFilters"`
+	// Role provides the AWS IAM role to assume, for cross-account repo discovery
+	// if not provided, AppSet controller will use its pod/node identity to discover.
+	Role string `json:"role,omitempty" protobuf:"bytes,2,opt,name=role"`
+	// Region provides the AWS region to discover repos.
+	// if not provided, AppSet controller will infer the current region from environment.
+	Region string `json:"region,omitempty" protobuf:"bytes,3,opt,name=region"`
+	// Scan all branches instead of just the default branch.
+	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
 }
 
 // SCMProviderGeneratorFilter is a single repository filter.
