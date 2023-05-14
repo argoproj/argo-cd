@@ -18,12 +18,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # - name: Login to Ironbank Registry
-      #   uses: docker/login-action@v1
-      #   with:
-      #     registry: ${{ env.IRONBANK_REGISTRY }}
-      #     username: ${{ secrets.IRONBANK_USERNAME }}
-      #     password: ${{ secrets.IRONBANK_PASSWORD }}
+      - name: Login to Ironbank Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.IRONBANK_REGISTRY }}
+          username: ${{ secrets.IRONBANK_USERNAME }}
+          password: ${{ secrets.IRONBANK_PASSWORD }}
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1

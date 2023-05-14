@@ -118,18 +118,61 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make argocd-all
 ####################################################################################################
 # Final image
 ####################################################################################################
-FROM argocd-base
-COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
+ARG BASE_REGISTRY=registry1.dso.mil
+ARG BASE_IMAGE=ironbank/redhat/ubi/ubi8
+ARG BASE_TAG=8.7
 
-USER root
-RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
+FROM argocd-base
+
+FROM amazon/aws-cli:2.11.19 as awscli
+
+FROM ${BASE_REGISTRY}/${BASE_IMAGE}:${BASE_TAG}
+
+ENV HOME=/home/argocd \
+    USER=argocd
+
+RUN groupadd -g 1000 argocd && \
+    useradd -r -u 1000 -m -s /sbin/nologin -g argocd argocd && \
+    chown argocd:argocd ${HOME} && \
+    chmod g=u ${HOME} && \
+    dnf update -y && \
+    dnf install --nodocs -y git git-lfs nss_wrapper && \
+    dnf clean all && \
+    rm -rf /var/cache/dnf
+
+COPY --from=argocd-base --chown=root:root /usr/local/bin/argocd /usr/local/bin/
+COPY --from=argocd-base --chown=root:root /usr/local/bin/helm* /usr/local/bin/
+COPY --from=argocd-base --chown=root:root /usr/local/bin/kustomize /usr/local/bin/kustomize
+COPY --from=argocd-base --chown=root:root /usr/bin/tini /usr/bin/tini
+COPY --from=awscli --chown=root:root /usr/local/aws-cli /usr/local/aws-cli
+COPY scripts/* /usr/local/bin/
+
+RUN mkdir -p /app/config/ssh /app/config/tls && \
+    mkdir -p /app/config/gpg/{source,keys} && \
+    chown argocd:0 /app/config/gpg/keys && \
+    chmod 0700 /app/config/gpg/keys && \
+    chmod 0755 /usr/local/bin/*.sh && \
+    touch /app/config/ssh/ssh_known_hosts && \
+    ln -s /app/config/ssh/ssh_known_hosts /etc/ssh/ssh_known_hosts && \
+    ln -s /usr/local/aws-cli/v2/current/bin/aws /usr/local/bin/aws && \
+    ln -s /usr/local/aws-cli/v2/current/bin/aws_completer /usr/local/bin/aws_completer && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server && \
-    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-cmp-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-cmp-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-notifications && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-applicationset-controller && \
-    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-k8s-auth
+    ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh && \
+    chmod -s /usr/libexec/openssh/ssh-keysign
 
-USER $ARGOCD_USER_ID
-ENTRYPOINT ["/usr/bin/tini", "--"]
+RUN chmod 750 -R /home/argocd
+
+USER 1000
+WORKDIR ${HOME}
+
+HEALTHCHECK --start-period=3s \
+  CMD curl -f http://localhost:8080/healthz || exit 1
+
+ENTRYPOINT ["entrypoint.sh"]
+CMD ["argocd-server"]
