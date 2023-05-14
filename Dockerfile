@@ -116,11 +116,28 @@ ARG TARGETARCH
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make argocd-all
 
 ####################################################################################################
-# Final image
+# argocd-final
 ####################################################################################################
-FROM argocd-base as argocd
+FROM argocd-base AS argocd-final
+COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
 
-FROM amazon/aws-cli:2.11.19 as awscli
+USER root
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-cmp-server && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-notifications && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-applicationset-controller && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-k8s-auth
+
+####################################################################################################
+# Final Image
+####################################################################################################
+
+FROM argocd-final AS argocd
+
+FROM amazon/aws-cli:2.11.19 AS awscli
 
 FROM registry1.dso.mil/ironbank/redhat/ubi/ubi8:8.7
 
