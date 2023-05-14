@@ -160,6 +160,19 @@ func TestGenerateParams(t *testing.T) {
 			expectedError: nil,
 		},
 		{
+			name: "non-existent cluster urls, with label selector",
+			urls: []string{"https://does-not-exist-01.example.com"},
+			selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"environment": "production",
+				},
+			},
+			values:        nil,
+			expected:      []map[string]interface{}{},
+			clientError:   false,
+			expectedError: nil,
+		},
+		{
 			name: "secret type label selector",
 			selector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
@@ -543,6 +556,19 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 					},
 				},
 			},
+			clientError:   false,
+			expectedError: nil,
+		},
+		{
+			name: "non-existent cluster urls, with label selector",
+			urls: []string{"https://does-not-exist-01.example.com"},
+			selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"environment": "production",
+				},
+			},
+			values:        nil,
+			expected:      []map[string]interface{}{},
 			clientError:   false,
 			expectedError: nil,
 		},
