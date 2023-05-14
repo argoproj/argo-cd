@@ -118,15 +118,11 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make argocd-all
 ####################################################################################################
 # Final image
 ####################################################################################################
-ARG BASE_REGISTRY=registry1.dso.mil
-ARG BASE_IMAGE=ironbank/redhat/ubi/ubi8
-ARG BASE_TAG=8.7
-
 FROM argocd-base as argocd
 
 FROM amazon/aws-cli:2.11.19 as awscli
 
-FROM ${BASE_REGISTRY}/${BASE_IMAGE}:${BASE_TAG}
+FROM registry1.dso.mil/ironbank/redhat/ubi/ubi8:8.7
 
 ENV HOME=/home/argocd \
     USER=argocd
