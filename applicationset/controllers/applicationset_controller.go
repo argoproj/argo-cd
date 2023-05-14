@@ -671,7 +671,9 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, applicat
 	// settingsMgr := settings.NewSettingsManager(context.TODO(), r.KubeClientset, applicationSet.Namespace)
 	// argoDB := db.NewDB(applicationSet.Namespace, settingsMgr, r.KubeClientset)
 	// clusterList, err := argoDB.ListClusters(ctx)
-	clusterList, err := utils.ListClusters(ctx, r.KubeClientset, applicationSet.Namespace)
+	clusterList, err := utils.ListClusters(ctx, r.KubeClientset, applicationSet.Namespace, func(secret *corev1.Secret) error {
+		return nil
+	})
 	if err != nil {
 		return fmt.Errorf("error listing clusters: %w", err)
 	}

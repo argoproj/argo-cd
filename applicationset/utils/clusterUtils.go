@@ -70,7 +70,9 @@ func getDestinationServer(ctx context.Context, clusterName string, clientset kub
 	// settingsMgr := settings.NewSettingsManager(context.TODO(), clientset, namespace)
 	// argoDB := db.NewDB(namespace, settingsMgr, clientset)
 	// clusterList, err := argoDB.ListClusters(ctx)
-	clusterList, err := ListClusters(ctx, clientset, namespace)
+	clusterList, err := ListClusters(ctx, clientset, namespace, func(secret *corev1.Secret) error {
+		return nil
+	})
 	if err != nil {
 		return "", err
 	}
@@ -88,7 +90,25 @@ func getDestinationServer(ctx context.Context, clusterName string, clientset kub
 	return servers[0], nil
 }
 
-func ListClusters(ctx context.Context, clientset kubernetes.Interface, namespace string) (*appv1.ClusterList, error) {
+// ConditionallyUpdateClusterSecret updates a cluster secret, in case it is not in-sync with the current state. Currently,
+// this updates the argocd.argoproj.io/url-hash label with the hashed value of its server. This is done to enable the
+// use case to fetch clusters by their urls with the cluster generator.
+func ConditionallyUpdateClusterSecret(ctx context.Context, clientset kubernetes.Interface, namespace string) func(clusterSecret *corev1.Secret) error {
+	return func(clusterSecret *corev1.Secret) error {
+		urlHash := strconv.FormatUint(uint64(hash.FNVa(string(clusterSecret.Data["server"]))), 10)
+		if clusterSecret.Labels[common.LabelKeyUrlHash] != urlHash {
+			clusterSecret.Labels[common.LabelKeyUrlHash] = urlHash
+			_, err := clientset.CoreV1().Secrets(namespace).Update(ctx, clusterSecret, metav1.UpdateOptions{})
+			if err != nil {
+				return fmt.Errorf("unable to persist latest url hash to cluster secret '%s': %v", clusterSecret.Name, err)
+			}
+		}
+
+		return nil
+	}
+}
+
+func ListClusters(ctx context.Context, clientset kubernetes.Interface, namespace string, secretCallback func(*corev1.Secret) error) (*appv1.ClusterList, error) {
 
 	clusterSecretsList, err := clientset.CoreV1().Secrets(namespace).List(ctx,
 		metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
@@ -107,13 +127,8 @@ func ListClusters(ctx context.Context, clientset kubernetes.Interface, namespace
 	}
 	hasInClusterCredentials := false
 	for i, clusterSecret := range clusterSecrets {
-		urlHash := strconv.FormatUint(uint64(hash.FNVa(string(clusterSecret.Data["server"]))), 10)
-		if clusterSecret.Labels[common.LabelKeyUrlHash] != urlHash {
-			clusterSecret.Labels[common.LabelKeyUrlHash] = urlHash
-			_, err := clientset.CoreV1().Secrets(namespace).Update(ctx, &clusterSecret, metav1.UpdateOptions{})
-			if err != nil {
-				return nil, fmt.Errorf("unable to persist latest url hash to cluster secret '%s': %v", clusterSecret.Name, err)
-			}
+		if err := secretCallback(&clusterSecret); err != nil {
+			return nil, err
 		}
 
 		// This line has changed from the original Argo CD code: now receives an error, and handles it

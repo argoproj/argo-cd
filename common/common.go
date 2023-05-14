@@ -132,7 +132,7 @@ const (
 	LabelKeyLegacyApplicationName = "applications.argoproj.io/app-name"
 	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster', 'repository', 'repo-config' or 'repo-creds')
 	LabelKeySecretType = "argocd.argoproj.io/secret-type"
-	// TODO: todo
+	// LabelKeyUrlHash is a label containing the hashed value of a cluster secret's url
 	LabelKeyUrlHash = "argocd.argoproj.io/url-hash"
 	// LabelValueSecretTypeCluster indicates a secret type of cluster
 	LabelValueSecretTypeCluster = "cluster"
@@ -156,7 +156,7 @@ const (
 	// that links to the value given in the annotation.
 	// The annotation key must be followed by a unique identifier. Ex: link.argocd.argoproj.io/dashboard
 	// It's valid to have multiple annotations that match the prefix.
-	// Values can simply be a url or they can have
+	// Values can simply be a URL or they can have
 	// an optional link title separated by a "|"
 	// Ex: "http://grafana.example.com/d/yu5UH4MMz/deployments"
 	// Ex: "Go to Dashboard|http://grafana.example.com/d/yu5UH4MMz/deployments"
