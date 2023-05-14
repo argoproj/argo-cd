@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/common"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,7 +72,7 @@ func createClusterSecret(secretName string, clusterName string, clusterServer st
 			Name:      secretName,
 			Namespace: utils.ArgoCDNamespace,
 			Labels: map[string]string{
-				ArgoCDSecretTypeLabel: ArgoCDSecretTypeCluster,
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 		},
 		Data: map[string][]byte{

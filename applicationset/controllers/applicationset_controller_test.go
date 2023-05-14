@@ -1029,7 +1029,9 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			//settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
 			//argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
 			//clusterList, err := argoDB.ListClusters(context.Background())
-			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
+			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace", func(secret *corev1.Secret) error {
+				return nil
+			})
 			assert.NoError(t, err, "Unexpected error")
 
 			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
@@ -1190,7 +1192,9 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd")
 			// argoDB := db.NewDB("argocd", settingsMgr, r.KubeClientset)
 			// clusterList, err := argoDB.ListClusters(context.Background())
-			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
+			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace", func(secret *corev1.Secret) error {
+				return nil
+			})
 			assert.NoError(t, err, "Unexpected error")
 
 			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
