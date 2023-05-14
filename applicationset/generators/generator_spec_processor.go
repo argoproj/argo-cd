@@ -93,6 +93,28 @@ func keepOnlyStringValues(in map[string]interface{}) map[string]string {
 	for key, value := range in {
 		if _, ok := value.(string); ok {
 			out[key] = value.(string)
+			continue
+		}
+
+		// Check if value is a map which is likely with Go templates
+		if vt := reflect.TypeOf(value); vt.Kind() == reflect.Map {
+			if vt.Key().Kind() != reflect.String {
+				continue
+			}
+
+			var children map[string]interface{}
+			if x, ok := value.(map[string]interface{}); ok {
+				children = x
+			} else if x, ok := value.(map[string]string); ok {
+				children = make(map[string]interface{}, len(x))
+				for k, v := range x {
+					children[k] = v
+				}
+			}
+
+			for k, v := range keepOnlyStringValues(children) {
+				out[fmt.Sprintf("%s.%s", key, k)] = v
+			}
 		}
 	}
 
