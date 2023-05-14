@@ -1869,14 +1869,6 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Applicat
 		return s.db.GetProjectClusters(ctx, project)
 	}
 
-	permitted, err := proj.IsDestinationPermitted(app.Spec.Destination, getProjectClusters)
-	if err != nil {
-		return nil, nil, err
-	}
-	if !permitted {
-		return nil, nil, fmt.Errorf("error getting destination cluster")
-	}
-
 	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
 		log.WithFields(map[string]interface{}{
 			"application": app.GetName(),
@@ -1884,6 +1876,14 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Applicat
 			"destination": app.Spec.Destination,
 		}).Warnf("cannot validate cluster, error=%v", err.Error())
 		return nil, nil, nil
+	}
+
+	permitted, err := proj.IsDestinationPermitted(app.Spec.Destination, getProjectClusters)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !permitted {
+		return nil, nil, fmt.Errorf("error getting destination cluster")
 	}
 	clst, err := s.db.GetCluster(ctx, app.Spec.Destination.Server)
 	if err != nil {
