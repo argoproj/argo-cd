@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">April 16th 2023, 12:22:49 am</p>
+                <p class="timestamp">May 14th 2023, 12:22:27 am</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -858,7 +858,28 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine:3.16</code>.</em>
         <em>See <code>How to fix?</code> for <code>Alpine:3.16</code> relevant fixed versions and status.</em></p>
-        <p>The public API function BIO_new_NDEF is a helper function used for streaming ASN.1 data via a BIO. It is primarily used internally to OpenSSL to support the SMIME, CMS and PKCS7 streaming capabilities, but may also be called directly by end user applications. The function receives a BIO from the caller, prepends a new BIO_f_asn1 filter BIO onto the front of it to form a BIO chain, and then returns the new head of the BIO chain to the caller. Under certain conditions, for example if a CMS recipient public key is invalid, the new filter BIO is freed and the function returns a NULL result indicating a failure. However, in this case, the BIO chain is not properly cleaned up and the BIO passed by the caller still retains internal pointers to the previously freed filter BIO. If the caller then goes on to call BIO_pop() on the BIO then a use-after-free will occur. This will most likely result in a crash. This scenario occurs directly in the internal function B64_write_ASN1() which may cause BIO_new_NDEF() to be called and will subsequently call BIO_pop() on the BIO. This internal function is in turn called by the public API functions PEM_write_bio_ASN1_stream, PEM_write_bio_CMS_stream, PEM_write_bio_PKCS7_stream, SMIME_write_ASN1, SMIME_write_CMS and SMIME_write_PKCS7. Other public API functions that may be impacted by this include i2d_ASN1_bio_stream, BIO_new_CMS, BIO_new_PKCS7, i2d_CMS_bio_stream and i2d_PKCS7_bio_stream. The OpenSSL cms and smime command line applications are similarly affected.</p>
+        <p>The public API function BIO_new_NDEF is a helper function used for streaming
+        ASN.1 data via a BIO. It is primarily used internally to OpenSSL to support the
+        SMIME, CMS and PKCS7 streaming capabilities, but may also be called directly by
+        end user applications.</p>
+        <p>The function receives a BIO from the caller, prepends a new BIO_f_asn1 filter
+        BIO onto the front of it to form a BIO chain, and then returns the new head of
+        the BIO chain to the caller. Under certain conditions, for example if a CMS
+        recipient public key is invalid, the new filter BIO is freed and the function
+        returns a NULL result indicating a failure. However, in this case, the BIO chain
+        is not properly cleaned up and the BIO passed by the caller still retains
+        internal pointers to the previously freed filter BIO. If the caller then goes on
+        to call BIO_pop() on the BIO then a use-after-free will occur. This will most
+        likely result in a crash.</p>
+        <p>This scenario occurs directly in the internal function B64_write_ASN1() which
+        may cause BIO_new_NDEF() to be called and will subsequently call BIO_pop() on
+        the BIO. This internal function is in turn called by the public API functions
+        PEM_write_bio_ASN1_stream, PEM_write_bio_CMS_stream, PEM_write_bio_PKCS7_stream,
+        SMIME_write_ASN1, SMIME_write_CMS and SMIME_write_PKCS7.</p>
+        <p>Other public API functions that may be impacted by this include
+        i2d_ASN1_bio_stream, BIO_new_CMS, BIO_new_PKCS7, i2d_CMS_bio_stream and
+        i2d_PKCS7_bio_stream.</p>
+        <p>The OpenSSL cms and smime command line applications are similarly affected.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Alpine:3.16</code> <code>openssl</code> to version 1.1.1t-r0 or higher.</p>
         <h2 id="references">References</h2>
@@ -867,6 +888,8 @@
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=8818064ce3c3c0f1b740a5aaba2a987e75bfbafd">openssl-security@openssl.org</a></li>
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=9816136fe31d92ace4037d5da5257f763aeeb4eb">openssl-security@openssl.org</a></li>
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=c3829dd8825c654652201e16f8a0a0c46ee3f344">openssl-security@openssl.org</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20230427-0007/">openssl-security@openssl.org</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20230427-0009/">openssl-security@openssl.org</a></li>
         </ul>
         
               <hr/>
@@ -1156,8 +1179,8 @@
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/golang.org/x/net@v0.0.0-20211209100829-84cba5454caf/http2#section-readme">golang.org/x/net/http2</a> is a work-in-progress HTTP/2 implementation for Go.
-        Affected versions of this package are vulnerable to Denial of Service (DoS) such that a maliciously crafted HTTP/2 stream could cause excessive CPU consumption in the <code>HPACK</code> decoder.</p>
+        <p><a href="https://pkg.go.dev/golang.org/x/net@v0.0.0-20211209100829-84cba5454caf/http2#section-readme">golang.org/x/net/http2</a> is a work-in-progress HTTP/2 implementation for Go.</p>
+        <p>Affected versions of this package are vulnerable to Denial of Service (DoS) such that a maliciously crafted HTTP/2 stream could cause excessive CPU consumption in the <code>HPACK</code> decoder.</p>
         <h2 id="details">Details</h2>
         <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
         <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
@@ -1659,8 +1682,8 @@
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/golang.org/x/net@v0.0.0-20211209100829-84cba5454caf/http2#section-readme">golang.org/x/net/http2</a> is a work-in-progress HTTP/2 implementation for Go.
-        Affected versions of this package are vulnerable to Denial of Service (DoS) due to improper checks and limitations for the number of entries in the cache, which can allow an attacker to consume unbounded amounts of memory by sending a small number of very large keys.</p>
+        <p><a href="https://pkg.go.dev/golang.org/x/net@v0.0.0-20211209100829-84cba5454caf/http2#section-readme">golang.org/x/net/http2</a> is a work-in-progress HTTP/2 implementation for Go.</p>
+        <p>Affected versions of this package are vulnerable to Denial of Service (DoS) due to improper checks and limitations for the number of entries in the cache, which can allow an attacker to consume unbounded amounts of memory by sending a small number of very large keys.</p>
         <h2 id="details">Details</h2>
         <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
         <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
