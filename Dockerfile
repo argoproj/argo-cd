@@ -122,7 +122,7 @@ ARG BASE_REGISTRY=registry1.dso.mil
 ARG BASE_IMAGE=ironbank/redhat/ubi/ubi8
 ARG BASE_TAG=8.7
 
-FROM argocd-base
+FROM argocd-base as argocd
 
 FROM amazon/aws-cli:2.11.19 as awscli
 
@@ -140,10 +140,10 @@ RUN groupadd -g 1000 argocd && \
     dnf clean all && \
     rm -rf /var/cache/dnf
 
-COPY --from=argocd-base --chown=root:root /usr/local/bin/argocd /usr/local/bin/
-COPY --from=argocd-base --chown=root:root /usr/local/bin/helm* /usr/local/bin/
-COPY --from=argocd-base --chown=root:root /usr/local/bin/kustomize /usr/local/bin/kustomize
-COPY --from=argocd-base --chown=root:root /usr/bin/tini /usr/bin/tini
+COPY --from=argocd --chown=root:root /usr/local/bin/argocd /usr/local/bin/
+COPY --from=argocd --chown=root:root /usr/local/bin/helm* /usr/local/bin/
+COPY --from=argocd --chown=root:root /usr/local/bin/kustomize /usr/local/bin/kustomize
+COPY --from=argocd --chown=root:root /usr/bin/tini /usr/bin/tini
 COPY --from=awscli --chown=root:root /usr/local/aws-cli /usr/local/aws-cli
 COPY scripts/* /usr/local/bin/
 
