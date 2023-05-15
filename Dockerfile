@@ -145,12 +145,12 @@ ENV HOME=/home/argocd \
     USER=argocd
 
 RUN addgroup -g 1000 argocd && \
-    adduser -u 1001 -s /sbin/nologin -G argocd argocd && \
+    adduser -D -u 1001 -s /sbin/nologin -G argocd argocd && \
     chown argocd:argocd ${HOME} && \
     chmod g=u ${HOME} && \
     apk update && \
     apk upgrade && \
-    apk add git git-lfs nss_wrapper
+    apk add git git-lfs nss_wrapper openssl
 
 COPY --from=argocd --chown=root:root /usr/local/bin/argocd /usr/local/bin/
 COPY --from=argocd --chown=root:root /usr/local/bin/helm* /usr/local/bin/
