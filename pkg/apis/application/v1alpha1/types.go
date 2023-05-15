@@ -18,7 +18,6 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/ghodss/yaml"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -33,6 +32,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/collections"
@@ -1210,6 +1210,15 @@ type RevisionMetadata struct {
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
+}
+
+// ChartDetails contains helm chart metadata for a specific version
+type ChartDetails struct {
+	Description string `json:"description,omitempty" protobuf:"bytes,1,opt,name=description"`
+	// The URL of this projects home page, e.g. "http://example.com"
+	Home string `json:"home,omitempty" protobuf:"bytes,2,opt,name=home"`
+	// List of maintainer details, name and email, e.g. ["John Doe <john_doe@my-company.com>"]
+	Maintainers []string `json:"maintainers,omitempty" protobuf:"bytes,3,opt,name=maintainers"`
 }
 
 // SyncOperationResult represent result of sync operation

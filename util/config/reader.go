@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 // UnmarshalReader is used to read manifests from stdin

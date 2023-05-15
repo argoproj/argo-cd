@@ -21,6 +21,7 @@ nav:
   - operator-manual/index.md
   - operator-manual/architecture.md
   - operator-manual/installation.md
+  - operator-manual/core.md
   - operator-manual/declarative-setup.md
   - operator-manual/app-any-namespace.md
   - operator-manual/ingress.md
@@ -165,12 +166,14 @@ nav:
   - user-guide/best_practices.md
   - user-guide/status-badge.md
   - user-guide/external-url.md
+  - user-guide/extra_info.md
   - Notification subscriptions: user-guide/subscriptions.md
   - Command Reference: user-guide/commands/argocd.md
 - Developer Guide:
   - developer-guide/index.md
   - Architecture:
     - developer-guide/architecture/authz-authn.md
+    - developer-guide/architecture/components.md
   - Code Contribution Guide: developer-guide/code-contributions.md
   - Toolchain Guide: developer-guide/toolchain-guide.md
   - developer-guide/contributors-quickstart.md
