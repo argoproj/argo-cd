@@ -60,7 +60,7 @@ require (
 	github.com/r3labs/diff v1.1.0
 	github.com/redis/go-redis/v9 v9.0.2
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/sirupsen/logrus v1.9.2
+	github.com/sirupsen/logrus v1.9.0
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/soheilhy/cmux v0.1.5
 	github.com/spf13/cobra v1.6.1
@@ -256,7 +256,7 @@ replace (
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 
 	// Logrus Patch
-	github.com/sirupsen/logrus => github.com/voidspooks/logrus v1.9.2
+	github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.9.1-0.20230515103106-6acd90375868
 
 	// Avoid CVE-2022-3064
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
