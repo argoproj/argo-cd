@@ -1366,6 +1366,36 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	})
 }
 
+// RevisionChartDetails returns the helm chart metadata, as fetched from the reposerver
+func (s *Server) RevisionChartDetails(ctx context.Context, q *application.RevisionMetadataQuery) (*appv1.ChartDetails, error) {
+	appName := q.GetName()
+	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
+	a, err := s.appLister.Applications(appNs).Get(appName)
+	if err != nil {
+		return nil, fmt.Errorf("error getting app by name: %w", err)
+	}
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
+		return nil, fmt.Errorf("error enforcing claims: %w", err)
+	}
+	if a.Spec.Source.Chart == "" {
+		return nil, fmt.Errorf("no chart found for application: %v", appName)
+	}
+	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
+	if err != nil {
+		return nil, fmt.Errorf("error getting repository by URL: %w", err)
+	}
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, fmt.Errorf("error creating repo server client: %w", err)
+	}
+	defer ioutil.Close(conn)
+	return repoClient.GetRevisionChartDetails(ctx, &apiclient.RepoServerRevisionChartDetailsRequest{
+		Repo:     repo,
+		Name:     a.Spec.Source.Chart,
+		Revision: q.GetRevision(),
+	})
+}
+
 func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) bool {
 	return (q.GetName() == "" || q.GetName() == key.Name) &&
 		(q.GetNamespace() == "" || q.GetNamespace() == key.Namespace) &&
@@ -1839,14 +1869,6 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Applicat
 		return s.db.GetProjectClusters(ctx, project)
 	}
 
-	permitted, err := proj.IsDestinationPermitted(app.Spec.Destination, getProjectClusters)
-	if err != nil {
-		return nil, nil, err
-	}
-	if !permitted {
-		return nil, nil, fmt.Errorf("error getting destination cluster")
-	}
-
 	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
 		log.WithFields(map[string]interface{}{
 			"application": app.GetName(),
@@ -1854,6 +1876,14 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Applicat
 			"destination": app.Spec.Destination,
 		}).Warnf("cannot validate cluster, error=%v", err.Error())
 		return nil, nil, nil
+	}
+
+	permitted, err := proj.IsDestinationPermitted(app.Spec.Destination, getProjectClusters)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !permitted {
+		return nil, nil, fmt.Errorf("error getting destination cluster")
 	}
 	clst, err := s.db.GetCluster(ctx, app.Spec.Destination.Server)
 	if err != nil {
