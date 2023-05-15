@@ -150,7 +150,7 @@ RUN addgroup -g 1000 argocd && \
     chmod g=u ${HOME} && \
     apk update && \
     apk upgrade && \
-    apk add git git-lfs nss_wrapper openssl
+    apk add git git-lfs nss_wrapper openssl openssh-keysign
 
 COPY --from=argocd --chown=root:root /usr/local/bin/argocd /usr/local/bin/
 COPY --from=argocd --chown=root:root /usr/local/bin/helm* /usr/local/bin/
@@ -176,7 +176,7 @@ RUN mkdir -p /app/config/ssh /app/config/tls && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-notifications && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-applicationset-controller && \
     ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh && \
-    chmod -s /usr/libexec/openssh/ssh-keysign
+    chmod -s /usr/lib/ssh/ssh-keysign
 
 RUN chmod 750 -R /home/argocd
 
