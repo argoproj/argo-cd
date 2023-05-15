@@ -150,12 +150,12 @@ RUN addgroup -g 1000 argocd && \
     chmod g=u ${HOME} && \
     apk update && \
     apk upgrade && \
-    apk add git git-lfs nss_wrapper openssl openssh-keysign
+    apk add git git-lfs nss_wrapper openssl openssh-keysign tini
 
 COPY --from=argocd --chown=root:root /usr/local/bin/argocd /usr/local/bin/
 COPY --from=argocd --chown=root:root /usr/local/bin/helm* /usr/local/bin/
 COPY --from=argocd --chown=root:root /usr/local/bin/kustomize /usr/local/bin/kustomize
-COPY --from=argocd --chown=root:root /usr/bin/tini /usr/bin/tini
+# COPY --from=argocd --chown=root:root /usr/bin/tini /usr/bin/tini
 COPY --from=awscli --chown=root:root /usr/local/aws-cli /usr/local/aws-cli
 COPY scripts/* /usr/local/bin/
 
