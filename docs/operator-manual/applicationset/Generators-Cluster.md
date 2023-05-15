@@ -119,8 +119,8 @@ This would match an Argo CD cluster secret containing:
 kind: Secret
 data:
   # (... fields as above ...)
+  server: https://cluster1.com
 metadata:
-  name: https://cluster1.com
 # (...)
 ```
 
