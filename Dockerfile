@@ -139,7 +139,7 @@ FROM argocd-final AS argocd
 
 FROM amazon/aws-cli:2.11.19 AS awscli
 
-FROM registry1.dso.mil/ironbank/redhat/ubi/ubi9@sha256:5b070abd073229bb6427e83e1158435bbfc49d7e9bb15fb6a44685142d4e017e
+FROM registry1.dso.mil/ironbank/redhat/ubi/ubi8:8.7
 
 ENV HOME=/home/argocd \
     USER=argocd
