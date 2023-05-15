@@ -139,19 +139,18 @@ FROM argocd-final AS argocd
 
 FROM amazon/aws-cli:2.11.19 AS awscli
 
-FROM registry1.dso.mil/ironbank/redhat/ubi/ubi8:8.7
+FROM registry1.dso.mil/ironbank/opensource/alpinelinux/alpine:3.18.0
 
 ENV HOME=/home/argocd \
     USER=argocd
 
-RUN groupadd -g 1000 argocd && \
-    useradd -r -u 1000 -m -s /sbin/nologin -g argocd argocd && \
+RUN addgroup -g 1000 argocd && \
+    adduser -u 1001 -s /sbin/nologin -G argocd argocd && \
     chown argocd:argocd ${HOME} && \
     chmod g=u ${HOME} && \
-    dnf update -y && \
-    dnf install --nodocs -y git git-lfs nss_wrapper && \
-    dnf clean all && \
-    rm -rf /var/cache/dnf
+    apk update && \
+    apk upgrade && \
+    apk add git git-lfs nss_wrapper
 
 COPY --from=argocd --chown=root:root /usr/local/bin/argocd /usr/local/bin/
 COPY --from=argocd --chown=root:root /usr/local/bin/helm* /usr/local/bin/
@@ -181,7 +180,7 @@ RUN mkdir -p /app/config/ssh /app/config/tls && \
 
 RUN chmod 750 -R /home/argocd
 
-USER 1000
+USER 1001
 WORKDIR ${HOME}
 
 HEALTHCHECK --start-period=3s \
