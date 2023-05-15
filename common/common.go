@@ -108,7 +108,7 @@ const (
 	LegacyShardingAlgorithm = "legacy"
 	//RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
 	RoundRobinShardingAlgorithm = "round-robin"
-	DefaultShardingAlgorthim    = LegacyShardingAlgorithm
+	DefaultShardingAlgorithm    = LegacyShardingAlgorithm
 )
 
 // Dex related constants

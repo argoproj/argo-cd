@@ -20,8 +20,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Make it overridable for testing
+var osHostnameFunction = os.Hostname
+
 func InferShard() (int, error) {
-	hostname, err := os.Hostname()
+	hostname, err := osHostnameFunction()
 	if err != nil {
 		return 0, err
 	}
@@ -54,23 +57,22 @@ func GetClusterFilter(distributionFunction DistributionFunction, shard int) Clus
 	}
 }
 
-func GetDistributionFunction(db db.ArgoDB) DistributionFunction {
-	filterFunctionName := env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.LegacyShardingAlgorithm)
-	log.Infof("Using filter function:  %s", filterFunctionName)
+func GetDistributionFunction(db db.ArgoDB, shardingAlgorithm string) DistributionFunction {
+	log.Infof("Using filter function:  %s", shardingAlgorithm)
 	distributionFunction := GetShardByIdUsingHashDistributionFunction()
 	switch {
-	case filterFunctionName == common.RoundRobinShardingAlgorithm:
-		distributionFunction = GetShardByIndexModuloReplicasCountDistributionFunction(db)
-	case filterFunctionName == common.LegacyShardingAlgorithm:
+	case shardingAlgorithm == common.RoundRobinShardingAlgorithm:
+		distributionFunction = GetShardByIndexModuloReplicasCountDistributionFunction(db, shardingAlgorithm)
+	case shardingAlgorithm == common.LegacyShardingAlgorithm:
 		distributionFunction = GetShardByIdUsingHashDistributionFunction()
 	default:
 		distributionFunctionName := runtime.FuncForPC(reflect.ValueOf(distributionFunction).Pointer())
-		log.Warnf("distribution type %s is not supported, defaulting to %s", filterFunctionName, distributionFunctionName)
+		log.Warnf("distribution type %s is not supported, defaulting to %s", shardingAlgorithm, distributionFunctionName)
 	}
 	return distributionFunction
 }
 
-func GetShardByIndexModuloReplicasCountDistributionFunction(db db.ArgoDB) DistributionFunction {
+func GetShardByIndexModuloReplicasCountDistributionFunction(db db.ArgoDB, shardingAlgorithm string) DistributionFunction {
 	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	return func(c *v1alpha1.Cluster) int {
 		if replicas > 0 {

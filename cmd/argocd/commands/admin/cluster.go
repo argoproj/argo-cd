@@ -119,7 +119,7 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 			clusterShard := 0
 			cluster := batch[i]
 			if replicas > 0 {
-				distributionFunction := sharding.GetDistributionFunction(argoDB)
+				distributionFunction := sharding.GetDistributionFunction(argoDB, common.DefaultShardingAlgorithm)
 				distributionFunction(&cluster)
 				cluster.Shard = pointer.Int64Ptr(int64(clusterShard))
 				log.Infof("Cluster with uid: %s will be processed by shard %d", cluster.ID, clusterShard)
