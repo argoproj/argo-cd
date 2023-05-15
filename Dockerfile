@@ -160,7 +160,7 @@ COPY --from=awscli --chown=root:root /usr/local/aws-cli /usr/local/aws-cli
 COPY scripts/* /usr/local/bin/
 
 RUN mkdir -p /app/config/ssh /app/config/tls && \
-    mkdir -p /app/config/gpg/{source,keys} && \
+    mkdir -p /app/config/gpg/source /app/config/gpg/keys && \
     chown argocd:0 /app/config/gpg/keys && \
     chmod 0700 /app/config/gpg/keys && \
     chmod 0755 /usr/local/bin/*.sh && \
