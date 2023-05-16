@@ -82,7 +82,7 @@ func init() {%s
 				}
 			}
 
-			return os.WriteFile(outputPath, []byte(res), 0644)
+			return os.WriteFile(outputPath, []byte(res+"\n"), 0644)
 		},
 	}
 	command.Flags().StringVar(&docsOutputPath, "docs", "", "Docs output file path")

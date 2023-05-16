@@ -1,10 +1,9 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"reflect"
-
-	"context"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -187,15 +186,16 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 			}
 			// remove secrets
 			items = append(items, &appsv1.Repository{
-				Repo:      repo.Repo,
-				Type:      rType,
-				Name:      repo.Name,
-				Username:  repo.Username,
-				Insecure:  repo.IsInsecure(),
-				EnableLFS: repo.EnableLFS,
-				EnableOCI: repo.EnableOCI,
-				Proxy:     repo.Proxy,
-				Project:   repo.Project,
+				Repo:               repo.Repo,
+				Type:               rType,
+				Name:               repo.Name,
+				Username:           repo.Username,
+				Insecure:           repo.IsInsecure(),
+				EnableLFS:          repo.EnableLFS,
+				EnableOCI:          repo.EnableOCI,
+				Proxy:              repo.Proxy,
+				Project:            repo.Project,
+				ForceHttpBasicAuth: repo.ForceHttpBasicAuth,
 			})
 		}
 	}
@@ -558,7 +558,8 @@ func (s *Server) isRepoPermittedInProject(ctx context.Context, repo string, proj
 // isSourceInHistory checks if the supplied application source is either our current application
 // source, or was something which we synced to previously.
 func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource) bool {
-	if source.Equals(app.Spec.GetSource()) {
+	appSource := app.Spec.GetSource()
+	if source.Equals(&appSource) {
 		return true
 	}
 	// Iterate history. When comparing items in our history, use the actual synced revision to
@@ -567,7 +568,7 @@ func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSou
 	// history[].revision will contain the explicit SHA
 	for _, h := range app.Status.History {
 		h.Source.TargetRevision = h.Revision
-		if source.Equals(h.Source) {
+		if source.Equals(&h.Source) {
 			return true
 		}
 	}

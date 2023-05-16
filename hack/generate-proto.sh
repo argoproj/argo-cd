@@ -93,7 +93,6 @@ done
 # collect_swagger gathers swagger files into a subdirectory
 collect_swagger() {
     SWAGGER_ROOT="$1"
-    EXPECTED_COLLISIONS="$2"
     SWAGGER_OUT="${PROJECT_ROOT}/assets/swagger.json"
     PRIMARY_SWAGGER=$(mktemp)
     COMBINED_SWAGGER=$(mktemp)
@@ -112,8 +111,14 @@ EOF
 
     rm -f "${SWAGGER_OUT}"
 
-    find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin -c "${EXPECTED_COLLISIONS}" "${PRIMARY_SWAGGER}" '{}' \+ > "${COMBINED_SWAGGER}"
-    jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) | del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title)' "${COMBINED_SWAGGER}" > "${SWAGGER_OUT}"
+    find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin --ignore-conflicts "${PRIMARY_SWAGGER}" '{}' \+ > "${COMBINED_SWAGGER}"
+    jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) | del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title) |
+      # The "array" and "map" fields have custom unmarshaling. Modify the swagger to reflect this.
+      .definitions.v1alpha1ApplicationSourcePluginParameter.properties.array = {"description":"Array is the value of an array type parameter.","type":"array","items":{"type":"string"}} |
+      del(.definitions.v1alpha1OptionalArray) |
+      .definitions.v1alpha1ApplicationSourcePluginParameter.properties.map = {"description":"Map is the value of a map type parameter.","type":"object","additionalProperties":{"type":"string"}} |
+      del(.definitions.v1alpha1OptionalMap)
+    ' "${COMBINED_SWAGGER}" > "${SWAGGER_OUT}"
 
     /bin/rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
 }
@@ -124,10 +129,9 @@ clean_swagger() {
     find "${SWAGGER_ROOT}" -name '*.swagger.json' -delete
 }
 
-echo "If additional types are added, the number of expected collisions may need to be increased"
-EXPECTED_COLLISION_COUNT=95
-collect_swagger server ${EXPECTED_COLLISION_COUNT}
+collect_swagger server
 clean_swagger server
 clean_swagger reposerver
 clean_swagger controller
 clean_swagger cmpserver
+

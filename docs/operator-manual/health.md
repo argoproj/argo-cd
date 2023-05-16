@@ -5,7 +5,7 @@ Argo CD provides built-in health assessment for several standard Kubernetes type
 surfaced to the overall Application health status as a whole. The following checks are made for
 specific types of kubernetes resources:
 
-### Deployment, ReplicaSet, StatefulSet DaemonSet
+### Deployment, ReplicaSet, StatefulSet, DaemonSet
 * Observed generation is equal to desired generation.
 * Number of **updated** replicas equals the number of desired replicas.
 
@@ -114,12 +114,13 @@ In order to prevent duplication of the custom health check for potentially multi
 
 ```yaml
   resource.customizations: |
-    *.aws.crossplane.io/*:
+    "*.aws.crossplane.io/*":
       health.lua: | 
         ...
 ```
 
-
+!!!important
+    Please note the required quotes in the resource customization health section, if the wildcard starts with `*`.
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 The custom health check might return one of the following health statuses:

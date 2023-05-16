@@ -133,7 +133,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Infof("Webhook processing failed: %s", err)
 		status := http.StatusBadRequest
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			status = http.StatusMethodNotAllowed
 		}
 		http.Error(w, fmt.Sprintf("Webhook processing failed: %s", html.EscapeString(err.Error())), status)

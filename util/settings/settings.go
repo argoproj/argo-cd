@@ -18,7 +18,6 @@ import (
 	"time"
 
 	timeutil "github.com/argoproj/pkg/time"
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +29,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -320,6 +320,8 @@ type Repository struct {
 	Proxy string `json:"proxy,omitempty"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
+	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -350,6 +352,8 @@ type RepositoryCredentials struct {
 	Type string `json:"type,omitempty"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
+	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
 }
 
 // DeepLink structure
@@ -1164,8 +1168,12 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	if !ok {
 		chatText = "Chat now!"
 	}
+	chatURL, ok := argoCDCM.Data[helpChatURL]
+	if !ok {
+		chatText = ""
+	}
 	return &Help{
-		ChatURL:    argoCDCM.Data[helpChatURL],
+		ChatURL:    chatURL,
 		ChatText:   chatText,
 		BinaryURLs: getDownloadBinaryUrlsFromConfigMap(argoCDCM),
 	}, nil
@@ -1743,12 +1751,16 @@ func (a *ArgoCDSettings) OAuth2ClientID() string {
 func (a *ArgoCDSettings) OAuth2AllowedAudiences() []string {
 	if config := a.oidcConfig(); config != nil {
 		if len(config.AllowedAudiences) == 0 {
-			return []string{config.ClientID}
+			allowedAudiences := []string{config.ClientID}
+			if config.CLIClientID != "" {
+				allowedAudiences = append(allowedAudiences, config.CLIClientID)
+			}
+			return allowedAudiences
 		}
 		return config.AllowedAudiences
 	}
 	if a.DexConfig != "" {
-		return []string{common.ArgoCDClientAppID}
+		return []string{common.ArgoCDClientAppID, common.ArgoCDCLIClientAppID}
 	}
 	return nil
 }
@@ -1758,7 +1770,7 @@ func (a *ArgoCDSettings) SkipAudienceCheckWhenTokenHasNoAudience() bool {
 		if config.SkipAudienceCheckWhenTokenHasNoAudience != nil {
 			return *config.SkipAudienceCheckWhenTokenHasNoAudience
 		}
-		return true
+		return false
 	}
 	// When using the bundled Dex, the audience check is required. Dex will always send JWTs with an audience.
 	return false

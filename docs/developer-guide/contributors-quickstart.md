@@ -9,22 +9,13 @@ and the [toolchain guide](toolchain-guide.md).
 
 ### Install Go
 
-- Install version 1.18 or newer (Verify version by running `go version`)
-
-- Get current value of `GOPATH` env:
-   ```shell
-   go env | grep path
-   ```
-- Change directory into that path
-   ```shell
-   cd <path>
-   ```
+Install version 1.18 or newer (Verify version by running `go version`)
 
 ### Clone the Argo CD repo
 
 ```shell
-mkdir -p src/github.com/argoproj/ &&
-cd src/github.com/argoproj &&
+mkdir -p $GOPATH/src/github.com/argoproj/ &&
+cd $GOPATH/src/github.com/argoproj &&
 git clone https://github.com/argoproj/argo-cd.git
 ```
 
@@ -71,7 +62,7 @@ cd argo-cd
 make start-local ARGOCD_GPG_ENABLED=false
 ```
 
-- Navigate to <localhost:4000> to the ArgoCD UI on browser
+- Navigate to [localhost:4000](http://localhost:4000) in your browser to load the Argo CD UI
 - It may take a few minutes for the UI to be responsive
 
 !!! note

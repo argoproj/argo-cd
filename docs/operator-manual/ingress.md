@@ -190,6 +190,7 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
 spec:
   ingressClassName: nginx
+
   rules:
   - host: argocd.example.com
     http:
@@ -218,6 +219,7 @@ metadata:
   namespace: argocd
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
     # If you encounter a redirect loop or are getting a 307 response code
     # then you need to force the nginx ingress to connect to the backend using HTTPS.
@@ -225,6 +227,7 @@ metadata:
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
   ingressClassName: nginx
+
   rules:
   - host: argocd.example.com
     http:
@@ -239,7 +242,7 @@ spec:
   tls:
   - hosts:
     - argocd.example.com
-    secretName: argocd-server-tls # do not change, this is provided by Argo CD
+    secretName: argocd-server-tls # as expected by argocd-server
 ```
 
 ### Option 2: Multiple Ingress Objects And Hosts

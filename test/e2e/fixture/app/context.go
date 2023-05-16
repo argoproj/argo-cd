@@ -50,8 +50,8 @@ type ContextArgs struct {
 	AppNamespace string
 }
 
-func Given(t *testing.T) *Context {
-	fixture.EnsureCleanState(t)
+func Given(t *testing.T, opts ...fixture.TestOption) *Context {
+	fixture.EnsureCleanState(t, opts...)
 	return GivenWithSameState(t)
 }
 

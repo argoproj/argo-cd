@@ -343,16 +343,19 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 	fmt.Printf(printOpFmtStr, "Path:", source.Path)
 	printAppSourceDetails(&source)
 
-	var syncPolicy string
-	if appSet.Spec.SyncPolicy != nil && appSet.Spec.Template.Spec.SyncPolicy.Automated != nil {
-		syncPolicy = "Automated"
-		if appSet.Spec.Template.Spec.SyncPolicy.Automated.Prune {
-			syncPolicy += " (Prune)"
+	var (
+		syncPolicyStr string
+		syncPolicy    = appSet.Spec.Template.Spec.SyncPolicy
+	)
+	if syncPolicy != nil && syncPolicy.Automated != nil {
+		syncPolicyStr = "Automated"
+		if syncPolicy.Automated.Prune {
+			syncPolicyStr += " (Prune)"
 		}
 	} else {
-		syncPolicy = "<none>"
+		syncPolicyStr = "<none>"
 	}
-	fmt.Printf(printOpFmtStr, "SyncPolicy:", syncPolicy)
+	fmt.Printf(printOpFmtStr, "SyncPolicy:", syncPolicyStr)
 
 }
 

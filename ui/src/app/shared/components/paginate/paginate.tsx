@@ -96,7 +96,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                 if (sortOption) {
                     sortOptions
                         .filter(o => o.title === sortOption)
-                        .map(so => {
+                        .forEach(so => {
                             data.sort(so.compare);
                         });
                 }

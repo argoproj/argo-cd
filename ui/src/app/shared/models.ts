@@ -94,6 +94,12 @@ export interface RevisionMetadata {
     signatureInfo?: string;
 }
 
+export interface ChartDetails {
+    description?: string;
+    maintainers?: string[];
+    home?: string;
+}
+
 export interface SyncOperationResult {
     resources: ResourceResult[];
     revision: string;
@@ -205,6 +211,7 @@ export interface ApplicationSourceKustomize {
     nameSuffix: string;
     images: string[];
     version: string;
+    namespace: string;
 }
 export interface EnvEntry {
     name: string;
@@ -317,6 +324,10 @@ export interface HealthStatus {
 
 export type State = models.TypeMeta & {metadata: models.ObjectMeta} & {status: any; spec: any};
 
+export type ReadinessGate = {
+    conditionType: string;
+};
+
 export interface ResourceStatus {
     group: string;
     version: string;
@@ -329,6 +340,7 @@ export interface ResourceStatus {
     hook?: boolean;
     requiresPruning?: boolean;
     syncWave?: number;
+    orphaned?: boolean;
 }
 
 export interface ResourceRef {
@@ -517,6 +529,8 @@ export interface Repository {
     insecure?: boolean;
     enableLfs?: boolean;
     githubAppId?: string;
+    forceHttpBasicAuth?: boolean;
+    enableOCI: boolean;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
@@ -607,6 +621,7 @@ export interface HelmAppSpec {
 export interface KustomizeAppSpec {
     path: string;
     images?: string[];
+    namespace?: string;
 }
 
 export interface PluginAppSpec {
