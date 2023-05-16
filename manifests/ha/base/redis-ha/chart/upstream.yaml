@@ -902,6 +902,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   selector:
     release: argocd
     app: redis-ha
@@ -932,6 +936,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   selector:
     release: argocd
     app: redis-ha
@@ -962,6 +970,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   selector:
     release: argocd
     app: redis-ha
@@ -978,6 +990,7 @@ metadata:
     heritage: "Helm"
     release: "argocd"
     chart: redis-ha-4.22.3
+    exporter: enabled
   annotations:
 spec:
   type: ClusterIP
@@ -991,6 +1004,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter-port
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   selector:
     release: argocd
     app: redis-ha
@@ -1156,6 +1173,9 @@ spec:
     metadata:
       annotations:
         checksum/init-config: 69130412bda04eacad3530cb7bcf26cf121401e725e15d0959dd71a7380afe75
+        prometheus.io/port: "9121"
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
       labels:
         release: argocd
         app: redis-ha
@@ -1323,6 +1343,33 @@ spec:
           readOnly: true
         - mountPath: /data
           name: data
+      - name: redis-exporter
+        image: "public.ecr.aws/bitnami/redis-exporter:1.45.0"
+        imagePullPolicy: IfNotPresent
+        args:
+        env:
+          - name: REDIS_ADDR
+            value: redis://localhost:6379
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: 9121
+          initialDelaySeconds: 15
+          timeoutSeconds: 3
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 9121
+          initialDelaySeconds: 15
+          timeoutSeconds: 3
+          periodSeconds: 15
+        resources:
+          {}
+        ports:
+          - name: exporter-port
+            containerPort: 9121
+        volumeMounts:
       volumes:
       - name: config
         configMap:

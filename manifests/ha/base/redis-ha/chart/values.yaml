@@ -6,6 +6,10 @@ redis-ha:
     config:
       save: "\"\""
       bind: "0.0.0.0"
+  exporter:
+    enabled: true
+    image: public.ecr.aws/bitnami/redis-exporter
+    tag: "1.45.0"
   haproxy:
     enabled: true
     IPv6:
