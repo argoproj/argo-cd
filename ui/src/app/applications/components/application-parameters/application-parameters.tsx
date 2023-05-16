@@ -134,10 +134,10 @@ export const ApplicationParameters = (props: {
 
     let attributes: EditablePanelItem[] = [];
     let appValues: string;
-    if (app && app.spec && app.spec.source && app.spec.source.helm && app.spec.source.helm.values) {
-        isValuesRaw = typeof app.spec.source.helm.values !== 'string'; // nolint
-        appValues = isValuesRaw ? jsYaml.safeDump(app.spec.source.helm.values) : app.spec.source.helm.values;
-        app.spec.source.helm.values = appValues;
+    if (source && source.helm && source.helm.values) {
+        isValuesRaw = typeof source.helm.values !== 'string'; // nolint
+        appValues = isValuesRaw ? jsYaml.safeDump(source.helm.values) : source.helm.values;
+        source.helm.values = appValues;
     }
     const [appParamsDeletedState, setAppParamsDeletedState] = React.useState([]);
 
@@ -527,10 +527,8 @@ export const ApplicationParameters = (props: {
                         params = params.filter(param => !appParamsDeletedState.includes(param.name));
                         input.spec.source.plugin.parameters = params;
                     }
-                    if (input.spec.source.helm && input.spec.source.helm.values) {
-                        if (isValuesRaw) {
-                            input.spec.source.helm.values = jsYaml.safeLoad(input.spec.source.helm.values); // Load values as json
-                        }
+                    if (input.spec.source.helm && input.spec.source.helm.values && isValuesRaw) {
+                        input.spec.source.helm.values = jsYaml.safeLoad(input.spec.source.helm.values); // Load values as json
                     }
                     await props.save(input, {});
                     setRemovedOverrides(new Array<boolean>());
