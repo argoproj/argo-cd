@@ -6,8 +6,8 @@ import (
 	reflect "reflect"
 	"strings"
 
-	"github.com/ghodss/yaml"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 )
 
 // Set the ValuesObject property to the json representation of the yaml contained in value
