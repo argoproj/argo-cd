@@ -5,6 +5,7 @@ FROM docker.io/library/redis:7.0.11@sha256:f50031a49f41e493087fb95f96fdb3523bb25
 # architecture, so we create a symlink here to facilitate copying.
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu 
 
+
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
 FROM docker.io/library/node:18.15.0@sha256:8d9a875ee427897ef245302e31e2319385b092f1c3368b497e89790f240368f5 as node
 
