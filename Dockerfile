@@ -1,11 +1,12 @@
 ARG BASE_IMAGE=docker.io/library/ubuntu:22.04@sha256:9a0bdde4188b896a372804be2384015e90e3f84906b750c1a53539b585fbbe7f
-ARG SOPS_VERSION="3.7.3"
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
 FROM docker.io/library/golang:1.19.9@sha256:9613596d7405705447f36440a59a3a2a1d22384c7568ae1838d0129964c5ba13 AS builder
+
+ARG SOPS_VERSION="3.7.3"
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
