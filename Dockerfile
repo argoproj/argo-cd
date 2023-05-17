@@ -1,4 +1,5 @@
 ARG BASE_IMAGE=docker.io/library/ubuntu:22.04@sha256:9a0bdde4188b896a372804be2384015e90e3f84906b750c1a53539b585fbbe7f
+ARG SOPS_VERSION="3.7.3"
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
@@ -29,7 +30,11 @@ COPY hack/install.sh hack/tool-versions.sh ./
 COPY hack/installers installers
 
 RUN ./install.sh helm-linux && \
-    INSTALL_PATH=/usr/local/bin ./install.sh kustomize
+    INSTALL_PATH=/usr/local/bin ./install.sh kustomize && \
+    ./install.sh kubectl-linux
+
+RUN curl -fsSL https://github.com/mozilla/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux \
+    -o /usr/local/bin/sops && chmod +x /usr/local/bin/sops
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
@@ -141,6 +146,8 @@ FROM amazon/aws-cli:2.11.19 AS awscli
 
 FROM registry1.dso.mil/ironbank/opensource/alpinelinux/alpine:3.18.0
 
+ARG HELM_SECRETS_VERSION="4.4.2"
+
 ENV HOME=/home/argocd \
     USER=argocd
 
@@ -154,6 +161,7 @@ RUN addgroup -g 1000 argocd && \
 
 COPY --from=argocd --chown=root:root /usr/local/bin/argocd /usr/local/bin/
 COPY --from=argocd --chown=root:root /usr/local/bin/helm* /usr/local/bin/
+COPY --from=argocd --chown=root:root /usr/local/bin/sops /usr/local/bin/
 COPY --from=argocd --chown=root:root /usr/local/bin/kustomize /usr/local/bin/kustomize
 # COPY --from=argocd --chown=root:root /usr/bin/tini /usr/bin/tini
 COPY --from=awscli --chown=root:root /usr/local/aws-cli /usr/local/aws-cli
@@ -181,6 +189,15 @@ RUN mkdir -p /app/config/ssh /app/config/tls && \
 RUN chmod 750 -R /home/argocd
 
 USER 1001
+
+RUN helm plugin install --version ${HELM_SECRETS_VERSION} https://github.com/jkroepke/helm-secrets
+
+USER root
+
+RUN ln -sf "$(helm env HELM_PLUGINS)/helm-secrets/scripts/wrapper/helm.sh" /usr/local/sbin/helm
+
+USER 1001
+
 WORKDIR ${HOME}
 
 HEALTHCHECK --start-period=3s \
