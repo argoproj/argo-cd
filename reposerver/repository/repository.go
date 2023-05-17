@@ -930,12 +930,33 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 	return false, nil, nil
 }
 
-func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
-	repos := make([]helm.HelmRepository, 0)
+func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoCreds []*v1alpha1.RepoCreds) ([]helm.HelmRepository, error) {
+	dependencies, err := getHelmDependencyRepos(appPath)
+	if err != nil {
+		return nil, err
+	}
+	reposByUrl := make(map[string]*v1alpha1.Repository)
 	for _, repo := range repositories {
+		reposByUrl[repo.Repo] = repo
+	}
+
+	repos := make([]helm.HelmRepository, 0)
+	for _, dep := range dependencies {
+		repo, ok := reposByUrl[dep.Repo]
+		if !ok {
+			repo = &v1alpha1.Repository{Repo: dep.Repo, Name: dep.Name, EnableOCI: dep.EnableOCI}
+			if repositoryCredential := getRepoCredential(helmRepoCreds, dep.Repo); repositoryCredential != nil {
+				repo.EnableOCI = repositoryCredential.EnableOCI
+				repo.Password = repositoryCredential.Password
+				repo.Username = repositoryCredential.Username
+				repo.SSHPrivateKey = repositoryCredential.SSHPrivateKey
+				repo.TLSClientCertData = repositoryCredential.TLSClientCertData
+				repo.TLSClientCertKey = repositoryCredential.TLSClientCertKey
+			}
+		}
 		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds(), EnableOci: repo.EnableOCI})
 	}
-	return repos
+	return repos, nil
 }
 
 type dependencies struct {
@@ -961,7 +982,8 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	for _, r := range d.Dependencies {
 		if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
-				Repo:      r.Repository,
+				// trimming oci:// prefix since it is currently not supported by Argo CD (OCI repos just have no scheme)
+				Repo:      strings.TrimPrefix(r.Repository, "oci://"),
 				Name:      sanitizeRepoName(r.Repository),
 				EnableOCI: u.Scheme == "oci",
 			}
@@ -974,15 +996,6 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 
 func sanitizeRepoName(repoName string) string {
 	return strings.ReplaceAll(repoName, "/", "-")
-}
-
-func repoExists(repo string, repos []*v1alpha1.Repository) bool {
-	for _, r := range repos {
-		if strings.TrimPrefix(repo, ociPrefix) == strings.TrimPrefix(r.Repo, ociPrefix) {
-			return true
-		}
-	}
-	return false
 }
 
 func isConcurrencyAllowed(appPath string) bool {
@@ -1018,32 +1031,6 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 		return err
 	}
 	return os.WriteFile(markerFile, []byte("marker"), 0644)
-}
-
-func populateRequestRepos(appPath string, q *apiclient.ManifestRequest) error {
-	repos, err := getHelmDependencyRepos(appPath)
-	if err != nil {
-		return err
-	}
-
-	for _, r := range repos {
-		if !repoExists(r.Repo, q.Repos) {
-			repositoryCredential := getRepoCredential(q.HelmRepoCreds, r.Repo)
-			if repositoryCredential != nil {
-				if repositoryCredential.EnableOCI {
-					r.Repo = strings.TrimPrefix(r.Repo, ociPrefix)
-				}
-				r.EnableOCI = repositoryCredential.EnableOCI
-				r.Password = repositoryCredential.Password
-				r.Username = repositoryCredential.Username
-				r.SSHPrivateKey = repositoryCredential.SSHPrivateKey
-				r.TLSClientCertData = repositoryCredential.TLSClientCertData
-				r.TLSClientCertKey = repositoryCredential.TLSClientCertKey
-			}
-			q.Repos = append(q.Repos, r)
-		}
-	}
-	return nil
 }
 
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, error) {
@@ -1133,16 +1120,16 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		templateOpts.SetString[i] = env.Envsubst(j)
 	}
 
-	if err := populateRequestRepos(appPath, q); err != nil {
-		return nil, fmt.Errorf("failed parsing dependencies: %v", err)
-	}
-
 	var proxy string
 	if q.Repo != nil {
 		proxy = q.Repo.Proxy
 	}
 
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version, proxy, passCredentials)
+	helmRepos, err := getHelmRepos(appPath, q.Repos, q.HelmRepoCreds)
+	if err != nil {
+		return nil, err
+	}
+	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, passCredentials)
 	if err != nil {
 		return nil, err
 	}
@@ -2044,7 +2031,11 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 		}
 		passCredentials = q.Source.Helm.PassCredentials
 	}
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false, version, q.Repo.Proxy, passCredentials)
+	helmRepos, err := getHelmRepos(appPath, q.Repos, nil)
+	if err != nil {
+		return err
+	}
+	h, err := helm.NewHelmApp(appPath, helmRepos, false, version, q.Repo.Proxy, passCredentials)
 	if err != nil {
 		return err
 	}

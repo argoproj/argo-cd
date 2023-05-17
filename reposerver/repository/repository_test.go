@@ -2608,13 +2608,13 @@ func TestOCIDependencies(t *testing.T) {
 		{URL: "example.com", Username: "test", Password: "test", EnableOCI: true},
 	}}
 
-	err := populateRequestRepos("./testdata/oci-dependencies", &q)
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
 	assert.Nil(t, err)
 
-	assert.Equal(t, len(q.Repos), 1)
-	assert.Equal(t, q.Repos[0].Username, "test")
-	assert.Equal(t, q.Repos[0].EnableOCI, true)
-	assert.Equal(t, q.Repos[0].Repo, "example.com")
+	assert.Equal(t, len(helmRepos), 1)
+	assert.Equal(t, helmRepos[0].Username, "test")
+	assert.Equal(t, helmRepos[0].EnableOci, true)
+	assert.Equal(t, helmRepos[0].Repo, "example.com")
 }
 
 func Test_getResolvedValueFiles(t *testing.T) {
