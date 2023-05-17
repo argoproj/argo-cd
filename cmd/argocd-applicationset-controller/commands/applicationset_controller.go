@@ -55,7 +55,7 @@ func NewCommand() *cobra.Command {
 		namespace                    string
 		argocdRepoServer             string
 		policy                       string
-		allowPolicyOverride    bool
+		allowPolicyOverride          bool
 		debugLog                     bool
 		dryRun                       bool
 		enableProgressiveSyncs       bool
@@ -93,7 +93,7 @@ func NewCommand() *cobra.Command {
 
 			policyObj, exists := utils.Policies[policy]
 			if !exists {
-				log.Info("Policy value can be: sync, create-only, create-update, create-delete, '' (sync)")
+				log.Info("Policy value can be: sync, create-only, create-update, create-delete, default value: sync")
 				os.Exit(1)
 			}
 
@@ -192,7 +192,7 @@ func NewCommand() *cobra.Command {
 				Recorder:               mgr.GetEventRecorderFor("applicationset-controller"),
 				Renderer:               &utils.Render{},
 				Policy:                 policyObj,
-				AllowPolicyOverride: allowPolicyOverride,
+				AllowPolicyOverride:    allowPolicyOverride,
 				ArgoAppClientset:       appSetConfig,
 				KubeClientset:          k8sClient,
 				ArgoDB:                 argoCDDB,
