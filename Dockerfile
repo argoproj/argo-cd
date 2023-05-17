@@ -64,7 +64,7 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
 COPY hack/gpg-wrapper.sh /usr/local/bin/gpg-wrapper.sh
 COPY hack/git-verify-wrapper.sh /usr/local/bin/git-verify-wrapper.sh
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
-COPY --from=builder /usr/local/bin/kubectl /user/local/bin/kubectl
+COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
 COPY --from=builder /usr/local/bin/sops /usr/local/bin/sops
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
