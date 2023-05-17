@@ -35,6 +35,7 @@ spec:
 - Policy `create-only`: Prevents ApplicationSet controller from modifying or deleting Applications.
 - Policy `create-update`: Prevents ApplicationSet controller from deleting Applications. Update is allowed.
 - Policy `create-delete`: Prevents ApplicationSet controller from modifying Applications. Delete is allowed.
+- Policy `sync`: Update and Delete are allowed.
 
 If the controller parameter `--policy` is set, it takes precedence on the field `applicationsSync`. It is possible to allow per ApplicationSet sync policy by setting controller parameter `--allow-policy-override` (default to `false`).
 
