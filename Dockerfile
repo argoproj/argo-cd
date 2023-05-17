@@ -152,7 +152,14 @@ FROM registry1.dso.mil/ironbank/opensource/alpinelinux/alpine:3.18.0
 ARG HELM_SECRETS_VERSION="4.4.2"
 
 ENV HOME=/home/argocd \
-    USER=argocd
+    USER=argocd \
+    HELM_SECRETS_BACKEND="sops" \
+    HELM_SECRETS_HELM_PATH=/usr/local/bin/helm \
+    HELM_PLUGINS="/home/argocd/.local/share/helm/plugins/" \
+    HELM_SECRETS_VALUES_ALLOW_SYMLINKS=false \
+    HELM_SECRETS_VALUES_ALLOW_ABSOLUTE_PATH=false \
+    HELM_SECRETS_VALUES_ALLOW_PATH_TRAVERSAL=false \
+    HELM_SECRETS_WRAPPER_ENABLED=false
 
 RUN addgroup -g 1000 argocd && \
     adduser -D -u 1001 -s /sbin/nologin -G argocd argocd && \
@@ -198,7 +205,7 @@ RUN helm plugin install --version ${HELM_SECRETS_VERSION} https://github.com/jkr
 
 USER root
 
-RUN ln -sf "$(helm env HELM_PLUGINS)/helm-secrets/scripts/wrapper/helm.sh" /usr/local/sbin/helm
+RUN ln -sf "$(helm env HELM_PLUGINS)/helm-secrets/scripts/wrapper/helm.sh" /usr/local/bin/helm
 
 USER 1001
 
