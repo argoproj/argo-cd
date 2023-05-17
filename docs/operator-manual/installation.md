@@ -74,7 +74,7 @@ kind: Kustomization
 
 namespace: argocd
 resources:
-- github.com/argoproj/argo-cd/manifests/ha?ref=v2.6.2
+- github.com/argoproj/argo-cd/manifests/ha/base?ref=v2.6.2
 ```
 
 ## Helm
