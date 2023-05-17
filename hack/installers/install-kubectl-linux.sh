@@ -14,4 +14,4 @@ curl -LO https://dl.k8s.io/release/v${kubectl_version}/bin/linux/${ARCHITECTURE}
 chmod +x kubectl
 cp kubectl $BIN/kubectl
 #sudo install -m 0755 ${DOWNLOADS}/${TARGET_FILE} $BIN/kubectl
-kubectl version
+kubectl version --client
