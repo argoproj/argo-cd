@@ -1253,7 +1253,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetSyncPolicy(ref common.Re
 					},
 					"applicationsSync": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, sync",
+							Description: "ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, create-delete, sync",
 							Type:        []string{"string"},
 							Format:      "",
 						},
