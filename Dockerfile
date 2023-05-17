@@ -64,7 +64,9 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
 COPY hack/gpg-wrapper.sh /usr/local/bin/gpg-wrapper.sh
 COPY hack/git-verify-wrapper.sh /usr/local/bin/git-verify-wrapper.sh
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
+COPY --from=builder /usr/local/bin/kubectl /user/local/bin/kubectl
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
+COPY --from=builder /usr/local/bin/sops /usr/local/bin/sops
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 # keep uid_entrypoint.sh for backward compatibility
 RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
@@ -163,6 +165,7 @@ RUN addgroup -g 1000 argocd && \
 COPY --from=argocd --chown=root:root /usr/local/bin/argocd /usr/local/bin/
 COPY --from=argocd --chown=root:root /usr/local/bin/helm* /usr/local/bin/
 COPY --from=argocd --chown=root:root /usr/local/bin/sops /usr/local/bin/
+COPY --from=argocd --chown=root:root /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=argocd --chown=root:root /usr/local/bin/kustomize /usr/local/bin/kustomize
 # COPY --from=argocd --chown=root:root /usr/bin/tini /usr/bin/tini
 COPY --from=awscli --chown=root:root /usr/local/aws-cli /usr/local/aws-cli
