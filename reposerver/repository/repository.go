@@ -934,14 +934,21 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 	if err != nil {
 		return nil, err
 	}
+	reposByName := make(map[string]*v1alpha1.Repository)
 	reposByUrl := make(map[string]*v1alpha1.Repository)
 	for _, repo := range repositories {
 		reposByUrl[repo.Repo] = repo
+		if repo.Name != "" {
+			reposByName[repo.Name] = repo
+		}
 	}
 
 	repos := make([]helm.HelmRepository, 0)
 	for _, dep := range dependencies {
 		repo, ok := reposByUrl[dep.Repo]
+		if !ok && dep.Name != "" {
+			repo, ok = reposByName[dep.Name]
+		}
 		if !ok {
 			repo = &v1alpha1.Repository{Repo: dep.Repo, Name: dep.Name, EnableOCI: dep.EnableOCI}
 			if repositoryCredential := getRepoCredential(helmRepoCreds, dep.Repo); repositoryCredential != nil {
@@ -979,7 +986,11 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	}
 
 	for _, r := range d.Dependencies {
-		if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
+		if strings.HasPrefix(r.Repository, "@") {
+			repos = append(repos, &v1alpha1.Repository{
+				Name: r.Repository[1:],
+			})
+		} else if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
 				// trimming oci:// prefix since it is currently not supported by Argo CD (OCI repos just have no scheme)
 				Repo:      strings.TrimPrefix(r.Repository, "oci://"),
