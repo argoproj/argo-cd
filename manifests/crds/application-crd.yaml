@@ -820,6 +820,281 @@ spec:
                   - kind
                   type: object
                 type: array
+              image:
+                description: Image contains all the configuration that is related
+                  to the images deployed by a specific application
+                properties:
+                  updates:
+                    description: Updates contains all the configuration that is related
+                      to automatic image updatees for images deployed in applications
+                    properties:
+                      allowTags:
+                        description: AllowTags allows application-wide filtering of
+                          tags to be considered based on regex/wildcard expressions
+                        properties:
+                          matchList:
+                            description: MatchList defines a list of regex/wildcard
+                              expressions that are used to filter tags
+                            items:
+                              type: string
+                            type: array
+                          matchType:
+                            description: MatchType defines the type of matchList entries
+                            type: string
+                        type: object
+                      credentials:
+                        description: Credentials hold configuration of credentials
+                          to pull an image Can be either a secret, pullsecret, env
+                          var or external script
+                        properties:
+                          credsExpire:
+                            description: CredsExpire specifies a timestamp for when
+                              the pullsecret credentials expire
+                            format: date-time
+                            type: string
+                          env:
+                            description: References an environment variable for the
+                              secret
+                            type: string
+                          ext:
+                            description: References an external script mounted to
+                              the Image Updater controller to generate credentials
+                            type: string
+                          pullSecret:
+                            description: Refrences a docker pullsecret to pull target
+                              image
+                            properties:
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                            required:
+                            - name
+                            - namespace
+                            type: object
+                          secret:
+                            description: Refrences a secret containing credentials
+                              to pull target image
+                            properties:
+                              key:
+                                type: string
+                              secretName:
+                                type: string
+                            required:
+                            - key
+                            - secretName
+                            type: object
+                        type: object
+                      forceUpdate:
+                        description: ForceUpdate determines if Image Updater should
+                          force update all application images
+                        type: boolean
+                      ignoreTags:
+                        description: IgnoreTags allows application-wide filtering
+                          of tags to be ignored based on regex/wildcard expressions
+                        properties:
+                          matchList:
+                            description: MatchList defines a list of regex/wildcard
+                              expressions that are used to filter tags
+                            items:
+                              type: string
+                            type: array
+                          matchType:
+                            description: MatchType defines the type of matchList entries
+                            type: string
+                        type: object
+                      imageList:
+                        description: ImageList contains image specific configurations
+                          for each individual application image
+                        items:
+                          description: ImageConfiguration contains image specific
+                            update configuration for a given image
+                          properties:
+                            allowTags:
+                              description: AllowTags allows further filtering of tags
+                                to be considered based on regex/wildcard expressions
+                              properties:
+                                matchList:
+                                  description: MatchList defines a list of regex/wildcard
+                                    expressions that are used to filter tags
+                                  items:
+                                    type: string
+                                  type: array
+                                matchType:
+                                  description: MatchType defines the type of matchList
+                                    entries
+                                  type: string
+                              type: object
+                            constraint:
+                              description: Constraint holds semver constraints to
+                                be applied filtering through image tags
+                              type: string
+                            credentials:
+                              description: Credentials hold configuration of credentials
+                                to pull an image Can be either a secret, pullsecret,
+                                env var or external script
+                              properties:
+                                credsExpire:
+                                  description: CredsExpire specifies a timestamp for
+                                    when the pullsecret credentials expire
+                                  format: date-time
+                                  type: string
+                                env:
+                                  description: References an environment variable
+                                    for the secret
+                                  type: string
+                                ext:
+                                  description: References an external script mounted
+                                    to the Image Updater controller to generate credentials
+                                  type: string
+                                pullSecret:
+                                  description: Refrences a docker pullsecret to pull
+                                    target image
+                                  properties:
+                                    name:
+                                      type: string
+                                    namespace:
+                                      type: string
+                                  required:
+                                  - name
+                                  - namespace
+                                  type: object
+                                secret:
+                                  description: Refrences a secret containing credentials
+                                    to pull target image
+                                  properties:
+                                    key:
+                                      type: string
+                                    secretName:
+                                      type: string
+                                  required:
+                                  - key
+                                  - secretName
+                                  type: object
+                              type: object
+                            forceUpdate:
+                              description: ForceUpdate determines if Image Updater
+                                should update images not exposed in Application status
+                              type: boolean
+                            helm:
+                              description: Helm holds configurations related to helm
+                                parameters that will be written back to by Image Updater
+                              properties:
+                                imageName:
+                                  description: helm parameter name for image name
+                                  type: string
+                                imageSpec:
+                                  description: helm parameter name for image spec
+                                  type: string
+                                imageTag:
+                                  description: helm parameter name for image tag
+                                  type: string
+                              type: object
+                            ignoreTags:
+                              description: IgnoreTags allows further filtering of
+                                tags to be ignored based on regex/wildcard expressions
+                              properties:
+                                matchList:
+                                  description: MatchList defines a list of regex/wildcard
+                                    expressions that are used to filter tags
+                                  items:
+                                    type: string
+                                  type: array
+                                matchType:
+                                  description: MatchType defines the type of matchList
+                                    entries
+                                  type: string
+                              type: object
+                            image:
+                              description: Image contains the fully qualified image
+                                name
+                              type: string
+                            imagePlatforms:
+                              description: ImagePlatforms specifies a list of allowed
+                                architectures for a specific image
+                              items:
+                                type: string
+                              type: array
+                            kustomize:
+                              description: Kustomize holds configurations related
+                                to kustomize parameters that will be written back
+                                to by Image Updater
+                              properties:
+                                imageName:
+                                  description: Original image to be overridden through
+                                    kustomize
+                                  type: string
+                              type: object
+                            updateStrategy:
+                              description: UpdateStrategy determines how Image Updater
+                                will find new versions of an image to be updated Default
+                                strategy is "semver"
+                              type: string
+                          type: object
+                        type: array
+                      updateStrategy:
+                        description: UpdateStrategy determines common strategy that
+                          Image Updater will use to find new versions of all application
+                          image to be updated Default strategy is "semver"
+                        type: string
+                      writeBackConfig:
+                        description: WriteBackConfig holds configuration to write
+                          back image updates to source
+                        properties:
+                          baseBranch:
+                            description: BaseBranch specifies the branch to checkout
+                              and commit to if different from revision tracked in
+                              application spec
+                            type: string
+                          commitBranch:
+                            description: CommitBranch specifies the branch to commit
+                              to if there is need for separate read/write branches.
+                              Supports templating
+                            type: string
+                          kustomization:
+                            description: Kustomization specifies the path for target
+                              kustomziation file
+                            properties:
+                              path:
+                                type: string
+                            type: object
+                          method:
+                            description: Method is the write back method to be used
+                              by Image Updater Default method is "argocd"
+                            type: string
+                          path:
+                            description: Path is a directory path within the Git repository
+                              that would contain the target file to be written/updated
+                              if Application is configured with multiple sources
+                            type: string
+                          repoURL:
+                            description: RepoURL is the URL to the repository (Git
+                              or Helm) that should be commited back to if Application
+                              is configured with multiple sources
+                            type: string
+                          secret:
+                            description: Secret references an optional secret containing
+                              credentials to be used to write back to git
+                            properties:
+                              field:
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                            required:
+                            - name
+                            - namespace
+                            type: object
+                          target:
+                            description: Target determins the target file Image Updater
+                              writes back to Default target is "default"
+                            type: string
+                        type: object
+                    required:
+                    - imageList
+                    type: object
+                type: object
               info:
                 description: Info contains a list of information (URLs, email addresses,
                   and plain text) that relates to the application
@@ -3683,6 +3958,43 @@ spec:
                       child resources.
                     items:
                       type: string
+                    type: array
+                  imageUpdates:
+                    description: ImageUpdates holds the status information on image
+                      updates
+                    items:
+                      description: ImageUpdate contains status information about the
+                        update operations that have been conducted against container
+                        images used by an application
+                      properties:
+                        buildDate:
+                          description: buildDate represents the new tag's build date
+                          format: date-time
+                          type: string
+                        image:
+                          description: Image holds the reference to the image whose
+                            update status is being displayed
+                          type: string
+                        lastTransitionTime:
+                          description: LastTransitionTime records the time at which
+                            the last successful update operation was carried out for
+                            a specific image
+                          format: date-time
+                          type: string
+                        newDigest:
+                          description: newDigest represents the updated digest
+                          type: string
+                        newTag:
+                          description: NewTag represents the name of the updated tag
+                          type: string
+                        oldDigest:
+                          description: oldDigest represents the digest was replaced
+                          type: string
+                        oldTag:
+                          description: OldTag represents the name of the tag that
+                            was replaced
+                          type: string
+                      type: object
                     type: array
                   images:
                     description: Images holds all images of application child resources.
