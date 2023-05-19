@@ -133,6 +133,16 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 			},
 			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values": map[string]interface{}{"foo": "bar"}}},
 		},
+		{
+			name:     "values.0 should be bar",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":["bar"]}`)}},
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"values.0": "bar",
+				},
+			},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values": []interface{}{"bar"}}},
+		},
 	}
 
 	for _, testCase := range testCases {

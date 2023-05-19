@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/jeremywohl/flatten"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -71,7 +72,16 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 		}
 		var filterParams []map[string]interface{}
 		for _, param := range params {
-			flatParam := flattenParameters(param)
+			flatParam, err := flattenParameters(param)
+			if err != nil {
+				log.WithError(err).WithField("generator", g).
+					Error("error flattening params")
+				if firstError == nil {
+					firstError = err
+				}
+				continue
+			}
+
 			if requestedGenerator.Selector != nil && !selector.Matches(labels.Set(flatParam)) {
 				continue
 			}
@@ -107,6 +117,20 @@ func GetRelevantGenerators(requestedGenerator *argoprojiov1alpha1.ApplicationSet
 	}
 
 	return res
+}
+
+func flattenParameters(in map[string]interface{}) (map[string]string, error) {
+	flat, err := flatten.Flatten(in, "", flatten.DotStyle)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(map[string]string, len(flat))
+	for k, v := range flat {
+		out[k] = fmt.Sprintf("%v", v)
+	}
+
+	return out, nil
 }
 
 func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetTemplate argoprojiov1alpha1.ApplicationSetTemplate) (argoprojiov1alpha1.ApplicationSetTemplate, error) {
