@@ -416,8 +416,8 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		Git:                     g0.Git,
 		SCMProvider:             g0.SCMProvider,
 		ClusterDecisionResource: g0.ClusterDecisionResource,
-		Plugin:                  g0.Plugin,
 		PullRequest:             g0.PullRequest,
+		Plugin:                  g0.Plugin,
 		Matrix:                  matrixGenerator0,
 		Merge:                   mergeGenerator0,
 	}
@@ -471,8 +471,8 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		Git:                     g1.Git,
 		SCMProvider:             g1.SCMProvider,
 		ClusterDecisionResource: g1.ClusterDecisionResource,
-		Plugin:                  g1.Plugin,
 		PullRequest:             g1.PullRequest,
+		Plugin:                  g1.Plugin,
 		Matrix:                  matrixGenerator1,
 		Merge:                   mergeGenerator1,
 	}

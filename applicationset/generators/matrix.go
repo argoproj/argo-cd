@@ -103,8 +103,8 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 			Git:                     appSetBaseGenerator.Git,
 			SCMProvider:             appSetBaseGenerator.SCMProvider,
 			ClusterDecisionResource: appSetBaseGenerator.ClusterDecisionResource,
-			Plugin:                  appSetBaseGenerator.Plugin,
 			PullRequest:             appSetBaseGenerator.PullRequest,
+			Plugin:                  appSetBaseGenerator.Plugin,
 			Matrix:                  matrixGen,
 			Merge:                   mergeGen,
 			Selector:                appSetBaseGenerator.Selector,
@@ -143,6 +143,7 @@ func (m *MatrixGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 			Clusters:    r.Clusters,
 			Git:         r.Git,
 			PullRequest: r.PullRequest,
+			Plugin:      r.Plugin,
 			Matrix:      matrixGen,
 			Merge:       mergeGen,
 		}
