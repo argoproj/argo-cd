@@ -11,8 +11,13 @@
 # Use ./hack/installers/checksums/add-helm-checksums.sh and
 # add-kustomize-checksums.sh to help download checksums.
 ###############################################################################
+<<<<<<< HEAD
 helm3_version=3.12.1
 kubectl_version=1.27.1
+=======
+helm3_version=3.12.0
+kubectl_version=1.17.8
+>>>>>>> aed1be63881eb85ed9cb84615ee67395cfeca105
 kubectx_version=0.6.3
 kustomize5_version=5.0.3
 protoc_version=3.17.3

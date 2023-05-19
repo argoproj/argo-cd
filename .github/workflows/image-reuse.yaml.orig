@@ -68,8 +68,18 @@
 #         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.3.0
 #         if: ${{ github.ref_type != 'tag'}}
 
+<<<<<<< HEAD
 #       - name: Setup Golang
 #         uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
+#         with:
+#           go-version: ${{ inputs.go-version }}
+=======
+      - name: Setup Golang
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        with:
+          go-version: ${{ inputs.go-version }}
+>>>>>>> aed1be63881eb85ed9cb84615ee67395cfeca105
+
 #       - name: Install cosign
 #         uses: sigstore/cosign-installer@c3667d99424e7e6047999fb6246c0da843953c65 # v3.0.1
 #         with:

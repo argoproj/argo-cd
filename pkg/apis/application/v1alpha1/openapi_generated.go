@@ -544,7 +544,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref common.Refere
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ApplicationCondition contains details about an application condition, which is usally an error or warning",
+				Description: "ApplicationCondition contains details about an application condition, which is usually an error or warning",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"type": {
@@ -6761,12 +6761,18 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref common.Referen
 							},
 						},
 					},
+					"managedNamespaceMetadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManagedNamespaceMetadata contains the current sync state of managed namespace metadata",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata"),
+						},
+					},
 				},
 				Required: []string{"revision"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceResult"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceResult"},
 	}
 }
 
