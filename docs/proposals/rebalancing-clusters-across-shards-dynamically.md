@@ -62,15 +62,17 @@ Stateless applications scale horizontally very easily as compared to stateful ap
 
 Inorder to be able to accurately know which shards are being managed by which application-controller, especially in scenarios of redistribution of load, addition/removal of `application controller`, etc., we would need to have a mechanism to assign clusters to the shards. 
 
-The service account used by the application controller has read access to all the resources in the cluster. Thus, instead of setting the environment variable ARGOCD_CONTROLLER_REPLICAS representing the number of replicas, the number of replicas can be read directly from the number of healthy replicas of the application controller deployment.
+In most scenarios, the service account used by the application controller has read access to all the resources in the cluster. Thus, instead of setting the environment variable ARGOCD_CONTROLLER_REPLICAS representing the number of replicas, the number of replicas can be read directly from the number of healthy replicas of the application controller deployment.
 
-We would assign one application controller to manage one of the shards and we will store this assignment list in Redis. The mapping of Application Controller to Shard will store the below information:
+For other scenarios, some users install controller with only `argocd-application-controller-role` role and use it to manage remote clusters only. In this case, we would need to update the `argocd-application-controller-role` role and allow controller inspect it's own deployment and find out the number of replicas.
+
+We would assign one application controller to manage one of the shards and we will store this assignment list in ConfigMap. The mapping of Application Controller to Shard will store the below information:
 
 * Name/Id of the shard
 * Name of the Application Controller currently managing the shard
-* Last time of successful update to Redis (Heartbeat)
+* Last time of successful update to ConfigMap (Heartbeat)
 
-The mapping will be updated in Redis every X (heartbeat interval) seconds with the help of heartbeat process performed by every application controller. If the heartbeat was not performed by the application controller for a certain time, the application controller is assumed to be unhealthy and the number of healthy/managed shards would be reduced, that is, the number of healthy replicas of the application controller deployment changes.
+The mapping will be updated in ConfigMap every X (heartbeat interval) seconds with the help of heartbeat process performed by every application controller. If the heartbeat was not performed by the application controller for a certain time, the application controller is assumed to be unhealthy and the number of healthy/managed shards would be reduced, that is, the number of healthy replicas of the application controller deployment changes.
 
 The heartbeat interval will be a configurable parameter initialized while setting up the application controller. This way, users will be able to control the frequency at which they want the heartbeat process to take place.
 
@@ -87,12 +89,12 @@ The below logic can be used to perform application controller to shard assignmen
 2) In scenarios when one of the application controllers is identified to be unhealthy, the rest of the application controllers will re-distribute the load(clusters) managed by the application controller and start managing the orphaned applications. 
 
 How will this work? 
-* The application controller will query Redis for the status of all the application controllers and last updated heartbeat timestamp.
-* It will check if any application controller is flagged as Unhealthy or has not updated its status in Redis during the heartbeat process for a certain period of time.
+* The application controller will query the ConfigMap for the status of all the application controllers and last updated heartbeat timestamps.
+* It will check if any application controller is flagged as Unhealthy or has not updated its status in ConfigMap during the heartbeat process for a certain period of time.
 * If the status for an application controller was already flagged as Unhealthy, it will pick one of the clusters from its list and assign the cluster to itself.
 * If the status is not flagged and an application controller has not updated the last active timestamp in a long time, then we mark the Application Controller as Unhealthy. 
 
-This will continue to happen till the time the list of clusters is marked as empty. As soon as the list is marked as empty, the entry of the shard/application-controller is removed from Redis.
+This will continue to happen till the time the list of clusters is marked as empty. As soon as the list is marked as empty, the entry of the shard/application-controller is removed from ConfigMap.
 
 *Note:* We will continue to use the cluster to shard assignment approach being used today.
 
@@ -102,16 +104,17 @@ This will continue to happen till the time the list of clusters is marked as emp
 
 ### Cons
 
-* Possibility of race conditions while flagging the shard as Unhealthy during the heartbeat process. Although this can be handled using the [distributed locks](https://redis.io/docs/manual/patterns/distributed-locks/) in Redis.
+* ~~Possibility of race conditions while flagging the shard as Unhealthy during the heartbeat process. Although this can be handled using the [distributed locks](https://redis.io/docs/manual/patterns/distributed-locks/) in Redis.~~
+As we are using ConfigMap, this Con get's removed. Kubernetes would give conflict errors in case multiple edits are tried on the ConfigMap at the same time. We can leverage this error messages to avoid race conditions.
 
-* In scenarios when Redis becomes unavailable, the heartbeat mechanism will pause working till the redis comes back online again. This will also pause the dynamic redistribution of clusters till Redis comes back online. The redistribution of clusters will be triggered again when Redis comes back online.
+* ~~In scenarios when Redis becomes unavailable, the heartbeat mechanism will pause working till the redis comes back online again. This will also pause the dynamic redistribution of clusters till Redis comes back online. The redistribution of clusters will be triggered again when Redis comes back online.~~ We would not see this issue by using ConfigMap instead of Redis.
 
 
 ### Security Considerations
 
 * This would be a breaking change of converting StatefulSets to Deployments. Any automation done by customers which is based on the assumption that the controller is modelled as a StatefulSet would break with this change. 
 
-* We would rely on Redis to store the current Application Controller to Shard mapping. In case the Redis is not available, it would not affect the regular working of ArgoCD. The dynamic distribution of clusters among healthy shards would stop working with the heartbeat process till Redis comes back up online, but the application controllers will continue managing their workloads.
+* ~~We would rely on Redis to store the current Application Controller to Shard mapping. In case the Redis is not available, it would not affect the regular working of ArgoCD. The dynamic distribution of clusters among healthy shards would stop working with the heartbeat process till Redis comes back up online, but the application controllers will continue managing their workloads.~~ We would not rely on Redis by using ConfigMap avoiding this issue.
 
 
 ### Upgrade / Downgrade Strategy
@@ -130,12 +133,9 @@ If the leader goes down, the leader election process will be initiated among the
 
 One of the possible examples for selecting the leader is by checking the load handled by each healthy candidate and selecting the candidate which has the least load / number of resources running on it.
 
-#### Pros:
-We can refrain from performing multiple calls to Redis about the load and status of the shards and store it in a local cache within the leader while updating data in Redis on a timely manner (for e.g. every 10 mins). 
-
 ### Pros of Leader Election
 
-* We can refrain from performing multiple calls to Redis about the load and status of the shards and store it in a local cache within the leader while updating data in Redis on a timely manner (for e.g. every 10 mins). 
+* We can refrain from performing multiple calls to ConfigMap about the load and status of the shards and store it in a local cache within the leader while updating data in ConfigMap on a timely manner (for e.g. every 10 mins). 
 * Single leaders can easily offer clients consistency because they can see and control all the changes made to the state of the system.
 
 
