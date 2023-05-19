@@ -3,6 +3,8 @@
 .DS_Store
 vendor/
 dist/*
+*tmp*
+*.deb
 ui/dist/app/*
 !ui/dist/app/gitkeep
 site/

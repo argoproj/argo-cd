@@ -6,7 +6,7 @@ ARG BASE_IMAGE=docker.io/library/ubuntu:22.04@sha256:9a0bdde4188b896a372804be238
 ####################################################################################################
 FROM docker.io/library/golang:1.19.9@sha256:9613596d7405705447f36440a59a3a2a1d22384c7568ae1838d0129964c5ba13 AS builder
 
-ARG SOPS_VERSION="3.7.3"
+ARG SOPS_VERSION="3.7.4"
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
@@ -34,7 +34,7 @@ RUN ./install.sh helm-linux && \
     INSTALL_PATH=/usr/local/bin ./install.sh kustomize && \
     ./install.sh kubectl-linux
 
-RUN curl -fsSL https://github.com/mozilla/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux \
+RUN curl -fsSL https://github.com/voidspooks/sops/releases/download/v{SOPS_VERSION}/sops \
     -o /usr/local/bin/sops && chmod +x /usr/local/bin/sops
 
 ####################################################################################################
