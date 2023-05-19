@@ -5685,7 +5685,7 @@
     },
     "v1alpha1ApplicationCondition": {
       "type": "object",
-      "title": "ApplicationCondition contains details about an application condition, which is usally an error or warning",
+      "title": "ApplicationCondition contains details about an application condition, which is usually an error or warning",
       "properties": {
         "lastTransitionTime": {
           "$ref": "#/definitions/v1Time"
@@ -8442,6 +8442,9 @@
       "type": "object",
       "title": "SyncOperationResult represent result of sync operation",
       "properties": {
+        "managedNamespaceMetadata": {
+          "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata"
+        },
         "resources": {
           "type": "array",
           "title": "Resources contains a list of sync result items for each individual resource in a sync operation",

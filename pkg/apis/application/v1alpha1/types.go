@@ -1233,6 +1233,8 @@ type SyncOperationResult struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,4,opt,name=sources"`
 	// Revisions holds the revision this sync operation was performed for respective indexed source in sources field
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,5,opt,name=revisions"`
+	// ManagedNamespaceMetadata contains the current sync state of managed namespace metadata
+	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,6,opt,name=managedNamespaceMetadata"`
 }
 
 // ResourceResult holds the operation result details of a specific resource
@@ -1377,7 +1379,7 @@ const (
 	ApplicationConditionOrphanedResourceWarning = "OrphanedResourceWarning"
 )
 
-// ApplicationCondition contains details about an application condition, which is usally an error or warning
+// ApplicationCondition contains details about an application condition, which is usually an error or warning
 type ApplicationCondition struct {
 	// Type is an application condition type
 	Type ApplicationConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
@@ -2576,6 +2578,13 @@ func (app *Application) GetPropagationPolicy() string {
 		}
 	}
 	return ""
+}
+
+// HasChangedManagedNamespaceMetadata checks whether app.Spec.SyncPolicy.ManagedNamespaceMetadata differs from the
+// managed namespace metadata which has been stored app.Status.OperationState.SyncResult. If they differ a refresh should
+// be triggered.
+func (app *Application) HasChangedManagedNamespaceMetadata() bool {
+	return app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil && app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil && !reflect.DeepEqual(app.Spec.SyncPolicy.ManagedNamespaceMetadata, app.Status.OperationState.SyncResult.ManagedNamespaceMetadata)
 }
 
 // IsFinalizerPresent checks if the app has a given finalizer
