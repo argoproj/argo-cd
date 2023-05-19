@@ -8471,12 +8471,15 @@ spec:
                                   appendParamsToValues:
                                     type: boolean
                                   configMapRef:
-                                    type: string
-                                  name:
-                                    type: string
-                                  params:
+                                    properties:
+                                      name:
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                  parameters:
                                     additionalProperties:
-                                      type: string
+                                      x-kubernetes-preserve-unknown-fields: true
                                     type: object
                                   requeueAfterSeconds:
                                     format: int64
@@ -12786,12 +12789,15 @@ spec:
                                   appendParamsToValues:
                                     type: boolean
                                   configMapRef:
-                                    type: string
-                                  name:
-                                    type: string
-                                  params:
+                                    properties:
+                                      name:
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                  parameters:
                                     additionalProperties:
-                                      type: string
+                                      x-kubernetes-preserve-unknown-fields: true
                                     type: object
                                   requeueAfterSeconds:
                                     format: int64
@@ -15058,12 +15064,15 @@ spec:
                         appendParamsToValues:
                           type: boolean
                         configMapRef:
-                          type: string
-                        name:
-                          type: string
-                        params:
+                          properties:
+                            name:
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        parameters:
                           additionalProperties:
-                            type: string
+                            x-kubernetes-preserve-unknown-fields: true
                           type: object
                         requeueAfterSeconds:
                           format: int64

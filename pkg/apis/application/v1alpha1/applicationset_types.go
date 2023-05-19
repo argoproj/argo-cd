@@ -535,15 +535,19 @@ type PullRequestGeneratorFilter struct {
 	BranchMatch *string `json:"branchMatch,omitempty" protobuf:"bytes,1,opt,name=branchMatch"`
 }
 
+type PluginConfigMapRef struct {
+	// Name of the ConfigMap
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+}
+
 // PluginGenerator defines connection info specific to Plugin.
 type PluginGenerator struct {
-	Name                 string            `json:"name,omitempty" protobuf:"bytes,1,name=name"`
-	ConfigMapRef         string            `json:"configMapRef" protobuf:"bytes,2,name=configMapRef"`
-	Params               map[string]string `json:"params,omitempty" protobuf:"bytes,3,name=params"`
-	AppendParamsToValues bool              `json:"appendParamsToValues,omitempty" protobuf:"varint,4,opt,name=appendParamsToValues"`
+	ConfigMapRef         PluginConfigMapRef              `json:"configMapRef" protobuf:"bytes,1,name=configMapRef"`
+	Parameters           map[string]apiextensionsv1.JSON `json:"parameters,omitempty" protobuf:"bytes,2,name=parameters"`
+	AppendParamsToValues bool                            `json:"appendParamsToValues,omitempty" protobuf:"bool,3,opt,name=appendParamsToValues"`
 	// Standard parameters.
-	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,5,opt,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,6,name=template"`
+	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,4,opt,name=requeueAfterSeconds"`
+	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,5,name=template"`
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet

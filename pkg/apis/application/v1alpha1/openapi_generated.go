@@ -102,6 +102,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourceKey":                 schema_pkg_apis_application_v1alpha1_OrphanedResourceKey(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings":    schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OverrideIgnoreDiff":                  schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginConfigMapRef":                  schema_pkg_apis_application_v1alpha1_PluginConfigMapRef(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator":                     schema_pkg_apis_application_v1alpha1_PluginGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ProjectRole":                         schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator":                schema_pkg_apis_application_v1alpha1_PullRequestGenerator(ref),
@@ -4256,6 +4257,27 @@ func schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref common.Referenc
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_PluginConfigMapRef(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the ConfigMap",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_PluginGenerator(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4263,29 +4285,21 @@ func schema_pkg_apis_application_v1alpha1_PluginGenerator(ref common.ReferenceCa
 				Description: "PluginGenerator defines connection info specific to Plugin.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
 					"configMapRef": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginConfigMapRef"),
 						},
 					},
-					"params": {
+					"parameters": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
 									},
 								},
 							},
@@ -4315,7 +4329,7 @@ func schema_pkg_apis_application_v1alpha1_PluginGenerator(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginConfigMapRef", "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"},
 	}
 }
 

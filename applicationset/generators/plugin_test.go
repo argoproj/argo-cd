@@ -8,15 +8,17 @@ import (
 	"strings"
 	"testing"
 
-	plugin "github.com/argoproj/argo-cd/v2/applicationset/services/plugin"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/services/plugin"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestPluginGenerateParams(t *testing.T) {
@@ -24,7 +26,7 @@ func TestPluginGenerateParams(t *testing.T) {
 		name                 string
 		configmap            *v1.ConfigMap
 		secret               *v1.Secret
-		params               map[string]string
+		params               map[string]apiextensionsv1.JSON
 		gotemplate           bool
 		appendParamsToValues bool
 		expected             []map[string]interface{}
@@ -52,12 +54,12 @@ func TestPluginGenerateParams(t *testing.T) {
 					"plugin.token": []byte("my-secret"),
 				},
 			},
-			params: map[string]string{
-				"pkey1": "val1",
-				"pkey2": "val2",
+			params: map[string]apiextensionsv1.JSON{
+				"pkey1": {Raw: []byte(`"val1"`)},
+				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate: false,
-			content: []byte(`[{
+			content: []byte(`{"parameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -66,7 +68,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					}
 				},
 				"key3": 123
-			 }]`),
+			 }]}`),
 			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
@@ -98,12 +100,12 @@ func TestPluginGenerateParams(t *testing.T) {
 					"plugin.token": []byte("my-secret"),
 				},
 			},
-			params: map[string]string{
-				"pkey1": "val1",
-				"pkey2": "val2",
+			params: map[string]apiextensionsv1.JSON{
+				"pkey1": {Raw: []byte(`"val1"`)},
+				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate: true,
-			content: []byte(`[{
+			content: []byte(`{"parameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -112,7 +114,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					}
 				},
 				"key3": 123
-			 }]`),
+			 }]}`),
 			expected: []map[string]interface{}{
 				{
 					"key1": "val1",
@@ -148,13 +150,13 @@ func TestPluginGenerateParams(t *testing.T) {
 					"plugin.token": []byte("my-secret"),
 				},
 			},
-			params: map[string]string{
-				"pkey1": "val1",
-				"pkey2": "val2",
+			params: map[string]apiextensionsv1.JSON{
+				"pkey1": {Raw: []byte(`"val1"`)},
+				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate:           false,
 			appendParamsToValues: true,
-			content: []byte(`[{
+			content: []byte(`{"parameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -164,14 +166,14 @@ func TestPluginGenerateParams(t *testing.T) {
 				},
 				"key3": 123,
 				"pkey2": "valplugin"
-			 }]`),
+			 }]}`),
 			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
-					"pkey1":                "val1",
+					"pkey1":                apiextensionsv1.JSON{Raw: []byte(`"val1"`)},
 					"pkey2":                "valplugin",
 				},
 			},
@@ -198,9 +200,9 @@ func TestPluginGenerateParams(t *testing.T) {
 					"plugin.token": []byte("my-secret"),
 				},
 			},
-			params:     map[string]string{},
+			params:     map[string]apiextensionsv1.JSON{},
 			gotemplate: false,
-			content: []byte(`[{
+			content: []byte(`{"parameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -209,7 +211,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					}
 				},
 				"key3": 123
-			 }]`),
+			 }]}`),
 			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
@@ -241,9 +243,9 @@ func TestPluginGenerateParams(t *testing.T) {
 					"plugin.token": []byte("my-secret"),
 				},
 			},
-			params:        map[string]string{},
+			params:        map[string]apiextensionsv1.JSON{},
 			gotemplate:    false,
-			content:       []byte(`[]`),
+			content:       []byte(`{"parameters": []}`),
 			expected:      []map[string]interface{}{},
 			expectedError: nil,
 		},
@@ -268,11 +270,11 @@ func TestPluginGenerateParams(t *testing.T) {
 					"plugin.token": []byte("my-secret"),
 				},
 			},
-			params:        map[string]string{},
+			params:        map[string]apiextensionsv1.JSON{},
 			gotemplate:    false,
 			content:       []byte(`wrong body ...`),
 			expected:      []map[string]interface{}{},
-			expectedError: fmt.Errorf("error listing params : error get api 'wrong return': invalid character 'w' looking for beginning of value: wrong body ..."),
+			expectedError: fmt.Errorf("error listing params: error get api 'set': invalid character 'w' looking for beginning of value: wrong body ..."),
 		},
 		{
 			name: "external secret",
@@ -295,13 +297,13 @@ func TestPluginGenerateParams(t *testing.T) {
 					"plugin.token": []byte("my-secret"),
 				},
 			},
-			params: map[string]string{
-				"pkey1": "val1",
-				"pkey2": "val2",
+			params: map[string]apiextensionsv1.JSON{
+				"pkey1": {Raw: []byte(`"val1"`)},
+				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate:           false,
 			appendParamsToValues: true,
-			content: []byte(`[{
+			content: []byte(`{"parameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -311,14 +313,14 @@ func TestPluginGenerateParams(t *testing.T) {
 				},
 				"key3": 123,
 				"pkey2": "valplugin"
-			 }]`),
+			 }]}`),
 			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
-					"pkey1":                "val1",
+					"pkey1":                apiextensionsv1.JSON{Raw: []byte(`"val1"`)},
 					"pkey2":                "valplugin",
 				},
 			},
@@ -337,12 +339,12 @@ func TestPluginGenerateParams(t *testing.T) {
 				},
 			},
 			secret: &v1.Secret{},
-			params: map[string]string{
-				"pkey1": "val1",
-				"pkey2": "val2",
+			params: map[string]apiextensionsv1.JSON{
+				"pkey1": {Raw: []byte(`"val1"`)},
+				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate: false,
-			content: []byte(`[{
+			content: []byte(`{"parameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -351,7 +353,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					}
 				},
 				"key3": 123
-			 }]`),
+			 }]}`),
 			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
@@ -374,12 +376,12 @@ func TestPluginGenerateParams(t *testing.T) {
 					"plugin.token": []byte("my-secret"),
 				},
 			},
-			params: map[string]string{
-				"pkey1": "val1",
-				"pkey2": "val2",
+			params: map[string]apiextensionsv1.JSON{
+				"pkey1": {Raw: []byte(`"val1"`)},
+				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate: false,
-			content: []byte(`[{
+			content: []byte(`{"parameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -388,7 +390,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					}
 				},
 				"key3": 123
-			 }]`),
+			 }]}`),
 			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
@@ -419,12 +421,12 @@ func TestPluginGenerateParams(t *testing.T) {
 					"plugin.token": []byte("my-secret"),
 				},
 			},
-			params: map[string]string{
-				"pkey1": "val1",
-				"pkey2": "val2",
+			params: map[string]apiextensionsv1.JSON{
+				"pkey1": {Raw: []byte(`"val1"`)},
+				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate: false,
-			content: []byte(`[{
+			content: []byte(`{"parameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -433,7 +435,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					}
 				},
 				"key3": 123
-			 }]`),
+			 }]}`),
 			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
@@ -456,12 +458,12 @@ func TestPluginGenerateParams(t *testing.T) {
 				},
 			},
 			secret: &v1.Secret{},
-			params: map[string]string{
-				"pkey1": "val1",
-				"pkey2": "val2",
+			params: map[string]apiextensionsv1.JSON{
+				"pkey1": {Raw: []byte(`"val1"`)},
+				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate: false,
-			content: []byte(`[{
+			content: []byte(`{"parameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -470,7 +472,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					}
 				},
 				"key3": 123
-			 }]`),
+			 }]}`),
 			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
@@ -491,9 +493,8 @@ func TestPluginGenerateParams(t *testing.T) {
 
 			generatorConfig := argoprojiov1alpha1.ApplicationSetGenerator{
 				Plugin: &argoprojiov1alpha1.PluginGenerator{
-					Name:                 testCase.name,
-					ConfigMapRef:         testCase.configmap.Name,
-					Params:               testCase.params,
+					ConfigMapRef:         argoprojiov1alpha1.PluginConfigMapRef{Name: testCase.configmap.Name},
+					Parameters:           testCase.params,
 					AppendParamsToValues: testCase.appendParamsToValues,
 				},
 			}
@@ -509,7 +510,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				}
 
 				w.Header().Set("Content-Type", "application/json")
-				_, err := w.Write([]byte(testCase.content))
+				_, err := w.Write(testCase.content)
 				if err != nil {
 					assert.NoError(t, fmt.Errorf("Error Write %v", err))
 				}

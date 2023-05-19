@@ -12,7 +12,7 @@ import (
 )
 
 func TestPlugin(t *testing.T) {
-	expectedJSON := `[{"number":123,"digest":"sha256:942ae2dfd73088b54d7151a3c3fd5af038a51c50029bfcfd21f1e650d9579967"},{"number":456,"digest":"sha256:224e68cc69566e5cbbb76034b3c42cd2ed57c1a66720396e1c257794cb7d68c1"}]`
+	expectedJSON := `{"parameters": [{"number":123,"digest":"sha256:942ae2dfd73088b54d7151a3c3fd5af038a51c50029bfcfd21f1e650d9579967"},{"number":456,"digest":"sha256:224e68cc69566e5cbbb76034b3c42cd2ed57c1a66720396e1c257794cb7d68c1"}]}`
 	token := "0bc57212c3cbbec69d20b34c507284bd300def5b"
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -37,16 +37,16 @@ func TestPlugin(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	data, _, err := client.List(context.Background(), nil)
+	data, err := client.List(context.Background(), nil)
 
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	var expectedData []map[string]interface{}
+	var expectedData ServiceResponse
 	err = json.Unmarshal([]byte(expectedJSON), &expectedData)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, expectedData, data)
+	assert.Equal(t, &expectedData, data)
 }

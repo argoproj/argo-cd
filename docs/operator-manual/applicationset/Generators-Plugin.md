@@ -9,6 +9,9 @@ Plugins allow you to provide your own generator.
   release.
 * You can combine it with Matrix or Merge.
 
+To start working on your own plugin, you can generate a new repository based on the example 
+[applicationset-hello-plugin](https://github.com/argoproj-labs/applicationset-hello-plugin).
+
 ## Simple example
 
 Using a generator plugin without combining it with Matrix or Merge.
@@ -21,22 +24,27 @@ metadata:
 spec:
   generators:
     - plugin:
-        # The name of the plugin used
-        name: my-plugin
         # Specify the configMap where the plugin configuration is located
-        configMapRef: my-plugin
+        configMapRef: 
+          name: my-plugin
         # You can pass parameters included in the RPC call
-        params:
+        parameters:
           key1: "value1"
-          key1: "value1"
+          key2: "value2"
+          list: ["list", "of", "values"]
+          boolean: true
+          map:
+            key1: "value1"
+            key2: "value2"
+            key3: "value3"
+          
         # When using a Plugin generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
         requeueAfterSeconds: 30
         # ...
 ```
 
-* `name`: Required name of the Plugin.
-* `configMapRef`: A `ConfigMap` name containing the Plugin configuration to use for RPC call.
-* `params`: Parameters included in the RPC call. (Optional)
+* `configMapRef.name`: A `ConfigMap` name containing the Plugin configuration to use for RPC call.
+* `parameters`: Parameters included in the RPC call. (Optional)
 
 !!! note
     The concept of the plugin should not undermine the spirit of GitOps by externalizing data outside of Git. The goal is to be complementary in specific contexts.
@@ -49,9 +57,10 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: my-plugin
+  namespace: argocd
 data:
-  token: $plugin.myplugin.token # Alternatively $<some_K8S_secret>:plugin.myplugin.token
-  baseUrl: http://myplugin.plugin.svc.cluster.local.
+  token: "$plugin.myplugin.token" # Alternatively $<some_K8S_secret>:plugin.myplugin.token
+  baseUrl: "http://myplugin.plugin-ns.svc.cluster.local."
 ```
 
 * `token`: Pre-shared token used to authenticate HTTP request (points to the right key you created in the `argocd-secret` Secret)
@@ -70,11 +79,11 @@ metadata:
     app.kubernetes.io/part-of: argocd
 type: Opaque
 data:
-  ...
+  # ...
   # The secret value must be base64 encoded **once** 
   # this value corresponds to: `printf "strong-password" | base64`
   plugin.myplugin.token: "c3Ryb25nLXBhc3N3b3Jk"
-  ...
+  # ...
 ```
 
 #### Alternative
@@ -98,11 +107,11 @@ metadata:
     app.kubernetes.io/part-of: argocd
 type: Opaque
 data:
-  ...
+  # ...
   # Store client secret like below.
   # Ensure the secret is base64 encoded
   plugin.myplugin.token: <client-secret-base64-encoded>
-  ...
+  # ...
 ```
 
 ### HTTP server
@@ -122,7 +131,8 @@ import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 with open("/var/run/argo/token") as f:
-    token = f.read().strip()
+    plugin_token = f.read().strip()
+
 
 class Plugin(BaseHTTPRequestHandler):
 
@@ -143,12 +153,13 @@ class Plugin(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
-        if self.headers.get("Authorization") != "Bearer " + token:
+        if self.headers.get("Authorization") != "Bearer " + plugin_token:
             self.forbidden()
-        elif self.path == '/api/v1/getparams.execute':
-            args = self.args()
-            self.reply(
-                [
+            
+        if self.path == '/api/v1/getparams.execute':
+            args = self.args()['parameters']
+            self.reply({
+                "parameters": [
                     {
                         "digestFront": "sha256:a3f18c17771cc1051b790b453a0217b585723b37f14b413ad7c5b12d4534d411",
                         "digestBack": "sha256:4411417d614d5b1b479933b7420079671facd434fd42db196dc1f4cc55ba13ce"
@@ -158,7 +169,7 @@ class Plugin(BaseHTTPRequestHandler):
                         "digestBack": "sha256:e55e7e40700bbab9e542aba56c593cb87d680cefdfba3dd2ab9cfcb27ec384c2"
                     }
                 ]
-            )
+            })
         else:
             self.unsupported()
 
@@ -173,7 +184,10 @@ Execute getparams with curl :
 ```
 curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
 '{
-  "param1": "value1"
+  "applicationSetName": "fake-appset",
+  "parameters": {
+    "param1": "value1"
+  }
 }'
 ```
 
@@ -203,9 +217,9 @@ spec:
                 ...
               requeueAfterSeconds: 30
           - plugin:
-              configMapRef: cm-plugin
-              name: plugin-matrix
-              params:
+              configMapRef:
+                name: cm-plugin
+              parameters:
                 branch: "{{.branch}}" # provided by generator pull request
   template:
     metadata:

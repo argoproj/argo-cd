@@ -8,13 +8,15 @@ import (
 	"time"
 
 	"github.com/jeremywohl/flatten"
-
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	plugin "github.com/argoproj/argo-cd/v2/applicationset/services/plugin"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/services/plugin"
 )
 
 const (
@@ -68,17 +70,17 @@ func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	providerConfig := appSetGenerator.Plugin
 
-	plugin, err := g.getPluginFromGenerator(ctx, providerConfig)
+	pluginClient, err := g.getPluginFromGenerator(ctx, applicationSetInfo.Name, providerConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	list, _, err := plugin.List(ctx, providerConfig.Params)
+	list, err := pluginClient.List(ctx, providerConfig.Parameters)
 	if err != nil {
-		return nil, fmt.Errorf("error listing params : %v", err)
+		return nil, fmt.Errorf("error listing params: %w", err)
 	}
 
-	res, err := g.generateParams(list, appSetGenerator.Plugin.Params, appSetGenerator.Plugin.AppendParamsToValues, applicationSetInfo.Spec.GoTemplate)
+	res, err := g.generateParams(list.Parameters, appSetGenerator.Plugin.Parameters, appSetGenerator.Plugin.AppendParamsToValues, applicationSetInfo.Spec.GoTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -86,10 +88,10 @@ func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	return res, nil
 }
 
-func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, generatorConfig *argoprojiov1alpha1.PluginGenerator) (*plugin.PluginService, error) {
-	cm, err := g.getConfigMap(ctx, generatorConfig.ConfigMapRef)
+func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName string, generatorConfig *argoprojiov1alpha1.PluginGenerator) (*plugin.Service, error) {
+	cm, err := g.getConfigMap(ctx, generatorConfig.ConfigMapRef.Name)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching ConfigMap: %v", err)
+		return nil, fmt.Errorf("error fetching ConfigMap: %w", err)
 	}
 	token, err := g.getToken(ctx, cm["token"])
 	if err != nil {
@@ -101,18 +103,18 @@ func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, generatorC
 	if ok {
 		requestTimeout, err = strconv.Atoi(requestTimeoutStr)
 		if err != nil {
-			return nil, fmt.Errorf("error set requestTimeout : %v", err)
+			return nil, fmt.Errorf("error set requestTimeout : %w", err)
 		}
 	}
 
-	plugin, err := plugin.NewPluginService(ctx, generatorConfig.Name, cm["baseUrl"], token, requestTimeout)
+	pluginClient, err := plugin.NewPluginService(ctx, appSetName, cm["baseUrl"], token, requestTimeout)
 	if err != nil {
 		return nil, err
 	}
-	return plugin, nil
+	return pluginClient, nil
 }
 
-func (g *PluginGenerator) generateParams(objectsFound []map[string]interface{}, pluginParams map[string]string, appendParamsToValues bool, useGoTemplate bool) ([]map[string]interface{}, error) {
+func (g *PluginGenerator) generateParams(objectsFound []map[string]interface{}, pluginParams map[string]apiextensionsv1.JSON, appendParamsToValues bool, useGoTemplate bool) ([]map[string]interface{}, error) {
 	res := []map[string]interface{}{}
 
 	for _, objectFound := range objectsFound {
@@ -151,7 +153,7 @@ func (g *PluginGenerator) generateParams(objectsFound []map[string]interface{}, 
 func (g *PluginGenerator) getToken(ctx context.Context, tokenRef string) (string, error) {
 
 	if tokenRef == "" || !strings.HasPrefix(tokenRef, "$") {
-		return "", fmt.Errorf("token is empty, or does not reference a secret key starting with $ : %v", tokenRef)
+		return "", fmt.Errorf("token is empty, or does not reference a secret key starting with '$': %v", tokenRef)
 	}
 
 	secretName, tokenKey := plugin.ParseSecretKey(tokenRef)
@@ -175,7 +177,7 @@ func (g *PluginGenerator) getToken(ctx context.Context, tokenRef string) (string
 		secretValues[k] = string(v)
 	}
 
-	token := plugin.ReplaceStringSecret(tokenKey, secretValues)
+	token := settings.ReplaceStringSecret(tokenKey, secretValues)
 
 	return token, err
 }
