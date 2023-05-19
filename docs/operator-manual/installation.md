@@ -72,7 +72,7 @@ kind: Kustomization
 
 namespace: argocd
 resources:
-- github.com/argoproj/argo-cd/manifests/ha?ref=v2.6.2
+- github.com/argoproj/argo-cd/manifests/ha/base?ref=v2.6.2
 ```
 
 For an example of this, see the [kustomization.yaml](https://github.com/argoproj/argoproj-deployments/blob/master/argocd/kustomization.yaml)
