@@ -603,6 +603,21 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	diffConfigBuilder.WithGVKParser(gvkParser)
 	diffConfigBuilder.WithManager(common.ArgoCDSSAManager)
 
+	// TODO (SSD): Make serverSideDiff configurable via argocd-cm
+	// and resource annotation
+	serverSideDiff := true
+	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
+
+	if serverSideDiff {
+		resourceOps, cleanup, err := m.getResourceOperations(app.Spec.Destination.Server)
+		if err != nil {
+			log.Errorf("CompareAppState error getting resource operations: %s", err)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
+		}
+		defer cleanup()
+		diffConfigBuilder.WithResourceOperations(resourceOps)
+	}
+
 	// enable structured merge diff if application syncs with server-side apply
 	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption("ServerSideApply=true") {
 		diffConfigBuilder.WithStructuredMergeDiff(true)

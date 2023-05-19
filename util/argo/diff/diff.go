@@ -95,6 +95,16 @@ func (b *DiffConfigBuilder) WithManager(manager string) *DiffConfigBuilder {
 	return b
 }
 
+func (b *DiffConfigBuilder) WithResourceOperations(resourceOps kube.ResourceOperations) *DiffConfigBuilder {
+	b.diffConfig.resourceOperations = resourceOps
+	return b
+}
+
+func (b *DiffConfigBuilder) WithServerSideDiff(ssd bool) *DiffConfigBuilder {
+	b.diffConfig.serverSideDiff = ssd
+	return b
+}
+
 // Build will first validate the current state of the diff config and return the
 // DiffConfig implementation if no errors are found. Will return nil and the error
 // details otherwise.
@@ -140,6 +150,9 @@ type DiffConfig interface {
 	// Manager returns the manager that should be used by the diff while
 	// calculating the structured merge diff.
 	Manager() string
+
+	ResourceOperations() kube.ResourceOperations
+	ServerSideDiff() bool
 }
 
 // diffConfig defines the configurations used while applying diffs.
@@ -156,6 +169,8 @@ type diffConfig struct {
 	gvkParser             *k8smanagedfields.GvkParser
 	structuredMergeDiff   bool
 	manager               string
+	serverSideDiff        bool
+	resourceOperations    kube.ResourceOperations
 }
 
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
@@ -194,6 +209,12 @@ func (c *diffConfig) StructuredMergeDiff() bool {
 func (c *diffConfig) Manager() string {
 	return c.manager
 }
+func (c *diffConfig) ResourceOperations() kube.ResourceOperations {
+	return c.resourceOperations
+}
+func (c *diffConfig) ServerSideDiff() bool {
+	return c.serverSideDiff
+}
 
 // Validate will check the current state of this diffConfig and return
 // error if it finds any required configuration missing.
@@ -212,6 +233,9 @@ func (c *diffConfig) Validate() error {
 		if c.stateCache == nil {
 			return fmt.Errorf("%s: StateCache must be set when retrieving from cache", msg)
 		}
+	}
+	if c.serverSideDiff && c.resourceOperations == nil {
+		return fmt.Errorf("%s: restConfig must be set when using server side diff", msg)
 	}
 	return nil
 }
@@ -254,12 +278,17 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 		diff.WithStructuredMergeDiff(diffConfig.StructuredMergeDiff()),
 		diff.WithGVKParser(diffConfig.GVKParser()),
 		diff.WithManager(diffConfig.Manager()),
+		diff.WithServerSideDiff(diffConfig.ServerSideDiff()),
+		diff.WithKubeApplier(diffConfig.ResourceOperations()),
 	}
 
 	if diffConfig.Logger() != nil {
 		diffOpts = append(diffOpts, diff.WithLogr(*diffConfig.Logger()))
 	}
 
+	// TODO (SSD): ServerSideDiff needs to be configured to always rely on the
+	// cache to avoid hitting Kube API too frequently. Need to validate if the
+	// current cached diff is compatible with SSD.
 	useCache, cachedDiff := diffConfig.DiffFromCache(diffConfig.AppName())
 	if useCache && cachedDiff != nil {
 		cached, err := diffArrayCached(normResults.Targets, normResults.Lives, cachedDiff, diffOpts...)
@@ -282,9 +311,8 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 	}
 
 	diffByKey := map[kube.ResourceKey]*v1alpha1.ResourceDiff{}
-	for i := range cachedDiff {
-		res := cachedDiff[i]
-		diffByKey[kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)] = cachedDiff[i]
+	for _, res := range cachedDiff {
+		diffByKey[kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)] = res
 	}
 
 	diffResultList := diff.DiffResultList{
@@ -335,6 +363,8 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 		return false, nil
 	}
 	cachedDiff := make([]*v1alpha1.ResourceDiff, 0)
+	// TODO (SSD): Fix this code as it is swallowing errors if
+	// GetAppManagedResources fails to execute.
 	if c.stateCache != nil && c.stateCache.GetAppManagedResources(appName, &cachedDiff) == nil {
 		return true, cachedDiff
 	}
@@ -364,6 +394,9 @@ func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig Di
 			gvk := target.GetObjectKind().GroupVersionKind()
 			idc := NewIgnoreDiffConfig(diffConfig.Ignores(), diffConfig.Overrides())
 			ok, ignoreDiff := idc.HasIgnoreDifference(gvk.Group, gvk.Kind, target.GetName(), target.GetNamespace())
+			// TODO (SSD): This is likely unnecessary when ServerSideDiff is enabled
+			// as it seems that Kubernetes already takes care of it during dryrun apply.
+			// Need to validate and add condition if confirmed.
 			if ok && len(ignoreDiff.ManagedFieldsManagers) > 0 {
 				pt := scheme.ResolveParseableType(gvk, diffConfig.GVKParser())
 				var err error
