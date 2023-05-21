@@ -8511,7 +8511,7 @@
         },
         "selfHeal": {
           "type": "boolean",
-          "title": "SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)"
+          "title": "SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)"
         }
       }
     },
