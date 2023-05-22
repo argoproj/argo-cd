@@ -6840,7 +6840,7 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 					},
 					"selfHeal": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)",
+							Description: "SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
