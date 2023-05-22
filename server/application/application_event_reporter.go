@@ -105,9 +105,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 	ts string,
 	ignoreResourceCache bool,
 ) error {
-	var (
-		logCtx = log.WithField("app", a.Name)
-	)
+	logCtx := log.WithField("app", a.Name)
 
 	logCtx.WithField("ignoreResourceCache", ignoreResourceCache).Info("streaming application events")
 
@@ -116,36 +114,49 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		if strings.Contains(err.Error(), "context deadline exceeded") {
 			return fmt.Errorf("failed to get application tree: %w", err)
 		}
-		// we still need process app even without tree, it is in case if app yaml originally contain error,
-		// we still want show it on codefresh ui and erors that related to it
-		logCtx.WithError(err).Error("failed to get application tree")
+
+		// we still need process app even without tree, it is in case of app yaml originally contain error,
+		// we still want to show it the erorrs that related to it on codefresh ui
+		logCtx.WithError(err).Warn("failed to get application tree, resuming")
+	}
+
+	desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
+	if err != nil {
+		return err
 	}
 
 	if isChildApp(a) {
+		// will get here only for applications that are managed as a resource by another application
 		parentApp := a.Labels[common.LabelKeyAppInstance]
 
 		parentApplicationEntity, err := s.server.Get(ctx, &application.ApplicationQuery{
 			Name: &parentApp,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to get application event: %w", err)
+			return fmt.Errorf("failed to get parent application entity: %w", err)
 		}
 
 		rs := getAppAsResource(a)
 
-		desiredManifests, _, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
+		parentDesiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
+		if err != nil {
+			logCtx.WithError(err).Warn("failed to get parent application's desired manifests, resuming")
+		}
 
 		// helm app hasnt revision
 		// TODO: add check if it helm application
-		revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, parentApplicationEntity, getOperationRevision(parentApplicationEntity))
+		parentOperationRevision := getOperationRevision(parentApplicationEntity)
+		parentRevisionMetadata, err := s.getApplicationRevisionDetails(ctx, parentApplicationEntity, parentOperationRevision)
+		if err != nil {
+			logCtx.WithError(err).Warn("failed to get parent application's revision metadata, resuming")
+		}
 
-		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true)
+		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, stream, appTree, es, manifestGenErr, a, parentRevisionMetadata, true)
 		if err != nil {
 			return err
 		}
 	} else {
-		// application events for child apps would be sent by its parent app
-		// as resource event
+		// will get here only for root applications (not managed as a resource by another application)
 		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts)
 		if err != nil {
 			return fmt.Errorf("failed to get application event: %w", err)
@@ -156,15 +167,10 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			return nil
 		}
 
-		logWithAppStatus(a, logCtx, ts).Info("sending application event")
+		logWithAppStatus(a, logCtx, ts).Info("sending root application event")
 		if err := stream.Send(appEvent); err != nil {
-			return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
+			return fmt.Errorf("failed to send event for root application %s/%s: %w", a.Namespace, a.Name, err)
 		}
-	}
-
-	desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
-	if err != nil {
-		return err
 	}
 
 	revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, a, getOperationRevision(a))
@@ -174,6 +180,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		if isApp(rs) {
 			continue
 		}
+
 		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata, ignoreResourceCache)
 		if err != nil {
 			return err
@@ -235,9 +242,11 @@ func (s *applicationEventReporter) processResource(
 			if strings.Contains(err.Error(), "context deadline exceeded") {
 				return fmt.Errorf("failed to get actual state: %w", err)
 			}
-			logCtx.WithError(err).Error("failed to get actual state")
+
+			logCtx.WithError(err).Warn("failed to get actual state, resuming")
 			return nil
 		}
+
 		manifest := ""
 		// empty actual state
 		actualState = &application.ApplicationResourceResponse{Manifest: &manifest}
@@ -251,7 +260,7 @@ func (s *applicationEventReporter) processResource(
 
 	ev, err := getResourceEventPayload(parentApplication, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadata, originalAppRevisionMetadata)
 	if err != nil {
-		logCtx.WithError(err).Error("failed to get event payload")
+		logCtx.WithError(err).Warn("failed to get event payload, resuming")
 		return nil
 	}
 
@@ -264,15 +273,17 @@ func (s *applicationEventReporter) processResource(
 
 	if err := stream.Send(ev); err != nil {
 		if strings.Contains(err.Error(), "context deadline exceeded") {
-			return fmt.Errorf("failed to send event: %w", err)
+			return fmt.Errorf("failed to send resource event: %w", err)
 		}
-		logCtx.WithError(err).Error("failed to send event")
+
+		logCtx.WithError(err).Warn("failed to send resource event, resuming")
 		return nil
 	}
 
 	if err := s.server.cache.SetLastResourceEvent(parentApplication, rs, resourceEventCacheExpiration, getApplicationLatestRevision(parentApplication)); err != nil {
-		logCtx.WithError(err).Error("failed to cache resource event")
+		logCtx.WithError(err).Warn("failed to cache resource event")
 	}
+
 	return nil
 }
 
@@ -332,7 +343,6 @@ func logWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.E
 		"resourceVersion": a.ResourceVersion,
 		"ts":              ts,
 	})
-
 }
 
 func logWithResourceStatus(logCtx *log.Entry, rs appv1.ResourceStatus) *log.Entry {
