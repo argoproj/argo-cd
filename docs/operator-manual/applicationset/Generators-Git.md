@@ -288,6 +288,8 @@ The filename can always be accessed using `{{path.filename}}`.
 
 **Note**: If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `myRepo.path` instead of `path`. Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
 
+**Note**: The default behavior of the Git file generator is very greedy. Please see [Git File Generator Globbing](./Generators-Git-File-Globbing.md) for more information.
+
 ## Webhook Configuration
 
 When using a Git generator, ApplicationSet polls Git repositories every three minutes to detect changes. To eliminate
