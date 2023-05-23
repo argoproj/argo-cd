@@ -52,7 +52,12 @@ jobs:
       
       - name: Install Cosign
         uses: sigstore/cosign-installer@main
-      
+
+      - name: Push to ghcr.io
+        run: |
+          docker tag $IMAGE_NAME ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
       - name: Sign image with a key
         run: |
           cosign sign --key env://COSIGN_PRIVATE_KEY ${TAGS}
@@ -61,7 +66,3 @@ jobs:
           COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
           COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
 
-      - name: Push to ghcr.io
-        run: |
-          docker tag $IMAGE_NAME ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
