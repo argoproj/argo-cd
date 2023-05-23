@@ -1141,10 +1141,15 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		proxy = q.Repo.Proxy
 	}
 
+	helmRepos, err := getHelmRepos(appPath, q.Repos, q.HelmRepoCreds)
+	if err != nil {
+		return nil, err
+	}
+
 	var reposNotPermitted []string
 	// We do a sanity check here to give a nicer error message in case any of the Helm repositories are not permitted by
 	// the AppProject which the application is a part of
-	for _, repo := range q.Repos {
+	for _, repo := range helmRepos {
 		if !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
 			reposNotPermitted = append(reposNotPermitted, repo.Repo)
 		}
@@ -1153,13 +1158,6 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	if len(reposNotPermitted) > 0 {
 		return nil, status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
 	}
-
-	helmRepos, err := getHelmRepos(appPath, q.Repos, q.HelmRepoCreds)
-	if err != nil {
-		return nil, err
-	}
-
-
 
 	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, passCredentials)
 	if err != nil {
