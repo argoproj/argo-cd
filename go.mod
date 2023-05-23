@@ -128,11 +128,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
-<<<<<<< HEAD
 	github.com/emicklei/go-restful/v3 v3.10.2 // indirect
-=======
-	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
->>>>>>> aed1be63881eb85ed9cb84615ee67395cfeca105
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
