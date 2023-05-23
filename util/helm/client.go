@@ -304,6 +304,7 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 	tr := &http.Transport{
 		Proxy:           proxy.GetCallback(c.proxy),
 		TLSClientConfig: tlsConf,
+		DisableKeepAlives: true,
 	}
 	client := http.Client{Transport: tr}
 	resp, err := client.Do(req)
@@ -412,6 +413,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 		client := &http.Client{Transport: &http.Transport{
 			Proxy:           proxy.GetCallback(c.proxy),
 			TLSClientConfig: tlsConf,
+			DisableKeepAlives: true,
 		}}
 		repo.Client = &auth.Client{
 			Client: client,
