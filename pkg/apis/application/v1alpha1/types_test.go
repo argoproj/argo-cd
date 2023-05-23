@@ -2973,11 +2973,21 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 }
 
 func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
-	src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
-		NameSuffix: "test",
-	}}
+	t.Run("Has NameSuffix", func(t *testing.T) {
+		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+			NameSuffix: "test",
+		}}
 
-	assert.False(t, src.AllowsConcurrentProcessing())
+		assert.False(t, src.AllowsConcurrentProcessing())
+	})
+
+	t.Run("Has CommonAnnotations", func(t *testing.T) {
+		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+			CommonAnnotations: map[string]string{"foo": "bar"},
+		}}
+
+		assert.False(t, src.AllowsConcurrentProcessing())
+	})
 }
 
 func TestUnSetCascadedDeletion(t *testing.T) {
