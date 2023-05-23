@@ -49,6 +49,17 @@ jobs:
           pcc_user: ${{ secrets.PCC_USER }}
           pcc_pass: ${{ secrets.PCC_PASS }}
           image_name: ${{ env.IMAGE_NAME }}
+      
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@main
+      
+      - name: Sign image with a key
+        run: |
+          cosign sign --key env://COSIGN_PRIVATE_KEY ${TAGS}
+        env:
+          TAGS: ghcr.io/${{ env.IMAGE_NAME }}
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
+          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
 
       - name: Push to ghcr.io
         run: |
