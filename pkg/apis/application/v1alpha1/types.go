@@ -388,6 +388,7 @@ type ApplicationSourceKustomize struct {
 func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 	return len(k.Images) == 0 &&
 		len(k.CommonLabels) == 0 &&
+		len(k.CommonAnnotations) == 0 &&
 		k.NamePrefix == "" &&
 		k.NameSuffix == ""
 }
