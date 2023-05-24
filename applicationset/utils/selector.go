@@ -8,25 +8,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/klog/v2"
-	"net/url"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 )
 
-const qnameCharFmt string = "[A-Za-z0-9]"
-const qnameExtCharFmt string = "[-A-Za-z0-9_.]"
-const qualifiedNameFmt string = "(" + qnameCharFmt + qnameExtCharFmt + "*)?" + qnameCharFmt
-const labelValueFmt string = "(" + qualifiedNameFmt + ")?"
-const labelValueErrMsg string = "a valid label must be an empty string or consist of alphanumeric characters, '-', '_' or '.', and must start and end with an alphanumeric character"
-
-// A label selector operator is the set of operators that can be used in a selector requirement.
-type LabelSelectorOperator string
-
 var (
-	labelValueRegexp = regexp.MustCompile("^" + labelValueFmt + "$")
-	unaryOperators   = []string{
+	unaryOperators = []string{
 		string(selection.Exists), string(selection.DoesNotExist),
 	}
 	binaryOperators = []string{
@@ -36,26 +24,6 @@ var (
 	}
 	validRequirementOperators = append(binaryOperators, unaryOperators...)
 )
-
-// IsValidLabelValue tests whether the value passed is a valid label value.  If
-// the value is not valid, a list of error strings is returned. Otherwise, an
-// empty list (or nil) is returned. This differs from the implementation in k8s.io/apimachinery by first checking if it
-// is a valid url. If it parses as a URL, no error will be added, otherwise it will fallback to the default
-// implementation.
-func isValidLabelValue(value string) []string {
-	var errs []string
-	_, err := url.Parse(value)
-	if err != nil {
-		if len(value) > validation.LabelValueMaxLength {
-			errs = append(errs, validation.MaxLenError(validation.LabelValueMaxLength))
-		}
-		if !labelValueRegexp.MatchString(value) {
-			errs = append(errs, regexError(labelValueErrMsg, labelValueFmt, "MyValue", "my_value", "12345"))
-		}
-	}
-
-	return errs
-}
 
 // Selector represents a label selector.
 type Selector interface {
@@ -166,29 +134,6 @@ func newSelector() Selector {
 	return internalSelector(nil)
 }
 
-// RegexError returns a string explanation of a regex validation failure.
-func regexError(msg string, fmt string, examples ...string) string {
-	if len(examples) == 0 {
-		return msg + " (regex used for validation is '" + fmt + "')"
-	}
-	msg += " (e.g. "
-	for i := range examples {
-		if i > 0 {
-			msg += " or "
-		}
-		msg += "'" + examples[i] + "', "
-	}
-	msg += "regex used for validation is '" + fmt + "')"
-	return msg
-}
-
-func validateLabelValue(k, v string, path *field.Path) *field.Error {
-	if errs := isValidLabelValue(v); len(errs) != 0 {
-		return field.Invalid(path.Key(k), v, strings.Join(errs, "; "))
-	}
-	return nil
-}
-
 func validateLabelKey(k string, path *field.Path) *field.Error {
 	if errs := validation.IsQualifiedName(k); len(errs) != 0 {
 		return field.Invalid(path, k, strings.Join(errs, "; "))
@@ -243,11 +188,6 @@ func newRequirement(key string, op selection.Operator, vals []string, opts ...fi
 		allErrs = append(allErrs, field.NotSupported(path.Child("operator"), op, validRequirementOperators))
 	}
 
-	for i := range vals {
-		if err := validateLabelValue(key, vals[i], valuePath.Index(i)); err != nil {
-			allErrs = append(allErrs, err)
-		}
-	}
 	return &Requirement{key: key, operator: op, strValues: vals}, allErrs.ToAggregate()
 }
 

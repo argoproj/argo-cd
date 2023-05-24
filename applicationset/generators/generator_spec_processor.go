@@ -26,8 +26,8 @@ type TransformResult struct {
 // Transform a spec generator to list of paramSets and a template
 func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]interface{}) ([]TransformResult, error) {
 	// This is a custom version of the `LabelSelectorAsSelector` that is in k8s.io/apimachinery. This has been copied
-	// verbatim from that package, with the difference that we allow urls as a valid label value. This is done so that
-	// we can match on server urls.
+	// verbatim from that package, with the difference that we do not have any restrictions on label values. This is done
+	// so that, among other things, we can match on cluster urls.
 	selector, err := utils.LabelSelectorAsSelector(requestedGenerator.Selector)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing label selector: %w", err)
