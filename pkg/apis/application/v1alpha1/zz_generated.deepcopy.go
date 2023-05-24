@@ -2520,8 +2520,8 @@ func (in *PluginConfigMapRef) DeepCopy() *PluginConfigMapRef {
 func (in *PluginGenerator) DeepCopyInto(out *PluginGenerator) {
 	*out = *in
 	out.ConfigMapRef = in.ConfigMapRef
-	if in.Parameters != nil {
-		in, out := &in.Parameters, &out.Parameters
+	if in.InputParameters != nil {
+		in, out := &in.InputParameters, &out.InputParameters
 		*out = make(map[string]apiextensionsv1.JSON, len(*in))
 		for key, val := range *in {
 			(*out)[key] = *val.DeepCopy()
@@ -2533,6 +2533,13 @@ func (in *PluginGenerator) DeepCopyInto(out *PluginGenerator) {
 		**out = **in
 	}
 	in.Template.DeepCopyInto(&out.Template)
+	if in.Values != nil {
+		in, out := &in.Values, &out.Values
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 

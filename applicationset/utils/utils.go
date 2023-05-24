@@ -393,3 +393,41 @@ func SanitizeName(name string) string {
 
 	return strings.Trim(name, "-.")
 }
+
+func AppendTemplatedValues(render *Render, clusterValues map[string]string, params map[string]interface{}, appSet *argoappsv1.ApplicationSet) error {
+	// We create a local map to ensure that we do not fall victim to a billion-laughs attack. We iterate through the
+	// cluster values map and only replace values in said map if it has already been whitelisted in the params map.
+	// Once we iterate through all the cluster values we can then safely merge the `tmp` map into the main params map.
+	tmp := map[string]interface{}{}
+
+	for key, value := range clusterValues {
+		result, err := replaceTemplatedString(render, value, params, appSet)
+
+		if err != nil {
+			return fmt.Errorf("error replacing templated String: %w", err)
+		}
+
+		if appSet.Spec.GoTemplate {
+			if tmp["values"] == nil {
+				tmp["values"] = map[string]string{}
+			}
+			tmp["values"].(map[string]string)[key] = result
+		} else {
+			tmp[fmt.Sprintf("values.%s", key)] = result
+		}
+	}
+
+	for key, value := range tmp {
+		params[key] = value
+	}
+
+	return nil
+}
+
+func replaceTemplatedString(render *Render, value string, params map[string]interface{}, appSet *argoappsv1.ApplicationSet) (string, error) {
+	replacedTmplStr, err := render.Replace(value, params, appSet.Spec.GoTemplate)
+	if err != nil {
+		return "", err
+	}
+	return replacedTmplStr, nil
+}

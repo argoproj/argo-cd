@@ -1203,14 +1203,18 @@ message PluginConfigMapRef {
 message PluginGenerator {
   optional PluginConfigMapRef configMapRef = 1;
 
-  map<string, k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON> parameters = 2;
+  // InputParameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the
+  // values can be any type.
+  map<string, k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON> inputParameters = 2;
 
-  optional bool appendParamsToValues = 3;
+  // RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.
+  optional int64 requeueAfterSeconds = 3;
 
-  // Standard parameters.
-  optional int64 requeueAfterSeconds = 4;
+  optional ApplicationSetTemplate template = 4;
 
-  optional ApplicationSetTemplate template = 5;
+  // Values contains key/value pairs which are passed directly as parameters to the template. These values will not be
+  // sent as parameters to the plugin.
+  map<string, string> values = 5;
 }
 
 // ProjectRole represents a role that has access to a project

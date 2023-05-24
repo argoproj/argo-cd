@@ -15,14 +15,14 @@ type ServiceRequest struct {
 	// ApplicationSetName is the appSetName of the ApplicationSet for which we're requesting parameters. Useful for logging in
 	// the plugin service.
 	ApplicationSetName string `json:"applicationSetName"`
-	// Parameters is the map of parameters set in the ApplicationSet spec for this generator.
-	Parameters map[string]apiextensionsv1.JSON `json:"parameters"`
+	// InputParameters is the map of parameters set in the ApplicationSet spec for this generator.
+	InputParameters map[string]apiextensionsv1.JSON `json:"inputParameters"`
 }
 
 // ServiceResponse is the response object returned by the plugin service.
 type ServiceResponse struct {
-	// Parameters is the map of parameters returned by the plugin.
-	Parameters []map[string]interface{} `json:"parameters"`
+	// OutputParameters is the map of parameters returned by the plugin.
+	OutputParameters []map[string]interface{} `json:"outputParameters"`
 }
 
 type Service struct {
@@ -51,7 +51,7 @@ func NewPluginService(ctx context.Context, appSetName string, baseURL string, to
 }
 
 func (p *Service) List(ctx context.Context, parameters map[string]apiextensionsv1.JSON) (*ServiceResponse, error) {
-	req, err := p.client.NewRequest(http.MethodPost, "api/v1/getparams.execute", ServiceRequest{ApplicationSetName: p.appSetName, Parameters: parameters}, nil)
+	req, err := p.client.NewRequest(http.MethodPost, "api/v1/getparams.execute", ServiceRequest{ApplicationSetName: p.appSetName, InputParameters: parameters}, nil)
 
 	if err != nil {
 		return nil, fmt.Errorf("NewRequest returned unexpected error: %v", err)

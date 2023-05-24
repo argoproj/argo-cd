@@ -24,11 +24,12 @@ metadata:
 spec:
   generators:
     - plugin:
-        # Specify the configMap where the plugin configuration is located
+        # Specify the configMap where the plugin configuration is located.
         configMapRef: 
           name: my-plugin
-        # You can pass parameters included in the RPC call
-        parameters:
+        # You can pass arbitrary parameters to the plugin. `inputParameters` is a map, but values may be any type. 
+        # These parameters will also be available on the generator's output under the `inputParameters` key.
+        inputParameters:
           key1: "value1"
           key2: "value2"
           list: ["list", "of", "values"]
@@ -37,14 +38,26 @@ spec:
             key1: "value1"
             key2: "value2"
             key3: "value3"
+
+        # You can also attach arbitrary values to the generator's output under the `values` key. These values will be
+        # available in templates under the `values` key.
+        values:
+          value1: something
           
         # When using a Plugin generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
         requeueAfterSeconds: 30
-        # ...
+  template:
+    metadata:
+      name: myplugin
+      annotations:
+        example.from.inputParameters: "{{ inputParameters.map.key1 }}"
+        example.from.values: "{{ values.value1 }}"
+        # The plugin determines what else it produces.
+        example.from.plugin.output: "{{ something.from.the.plugin }}"
 ```
 
-* `configMapRef.name`: A `ConfigMap` name containing the Plugin configuration to use for RPC call.
-* `parameters`: Parameters included in the RPC call. (Optional)
+* `configMapRef.name`: A `ConfigMap` name containing the plugin configuration to use for RPC call.
+* `inputParameters`: InputParameters included in the RPC call to the plugin. (Optional)
 
 !!! note
     The concept of the plugin should not undermine the spirit of GitOps by externalizing data outside of Git. The goal is to be complementary in specific contexts.
@@ -185,7 +198,7 @@ Execute getparams with curl :
 curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
 '{
   "applicationSetName": "fake-appset",
-  "parameters": {
+  "inputParameters": {
     "param1": "value1"
   }
 }'
@@ -195,8 +208,10 @@ Some things to note here:
 
 * You only need to implement the calls `/api/v1/getparams.execute`
 * You should check that the `Authorization` header contains the same bearer value as `/var/run/argo/token`. Return 403 if not
-* The input parameters are included in the request body and can be accessed using the args variable.
-* The output must always be a list of object maps.
+* The input parameters are included in the request body and can be accessed using the `inputParameters` variable.
+* The output must always be a list of object maps nested under the `outputParameters` key in a map.
+* `inputParameters` and `values` are reserved keys. If present in the plugin output, these keys will be overwritten by the
+  contents of the `inputParameters` and `values` keys in the ApplicationSet's plugin generator spec.
 
 ## With matrix and pull request example
 
@@ -219,8 +234,10 @@ spec:
           - plugin:
               configMapRef:
                 name: cm-plugin
-              parameters:
+              inputParameters:
                 branch: "{{.branch}}" # provided by generator pull request
+              values:
+                branchLink: "https://git.example.com/org/repo/tree/{{.branch}}"
   template:
     metadata:
       name: "fb-matrix-{{.branch}}"
@@ -248,4 +265,7 @@ spec:
       destination:
         server: https://kubernetes.default.svc
         namespace: "{{.branch}}"
+      info:
+        - name: Link to the Application's branch
+          value: '{{values.branchLink}}'
 ```
