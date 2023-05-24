@@ -8,7 +8,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IRONBANK_REGISTRY: registry1.dso.mil
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ github.repository }}-GOV
 
 jobs:
   build_scan_push:
