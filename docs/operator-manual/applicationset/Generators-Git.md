@@ -37,6 +37,8 @@ metadata:
   name: cluster-addons
   namespace: argocd
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - git:
       repoURL: https://github.com/argoproj/argo-cd.git
@@ -45,16 +47,16 @@ spec:
       - path: applicationset/examples/git-generator-directory/cluster-addons/*
   template:
     metadata:
-      name: '{{path.basename}}'
+      name: '{{.path.basename}}'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{.path.path}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{path.basename}}'
+        namespace: '{{.path.basename}}'
       syncPolicy:
         syncOptions:
         - CreateNamespace=true
@@ -63,14 +65,14 @@ spec:
 
 The generator parameters are:
 
-- `{{path}}`: The directory paths within the Git repository that match the `path` wildcard.
-- `{{path[n]}}`: The directory paths within the Git repository that match the `path` wildcard, split into array elements (`n` - array index)
-- `{{path.basename}}`: For any directory path within the Git repository that matches the `path` wildcard, the right-most path name is extracted (e.g. `/directory/directory2` would produce `directory2`).
-- `{{path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
+- `{{.path.path}}`: The directory paths within the Git repository that match the `path` wildcard.
+- `{{index .path.segments n}}`: The directory paths within the Git repository that match the `path` wildcard, split into array elements (`n` - array index)
+- `{{.path.basename}}`: For any directory path within the Git repository that matches the `path` wildcard, the right-most path name is extracted (e.g. `/directory/directory2` would produce `directory2`).
+- `{{.path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
 
-**Note**: The right-most path name always becomes `{{path.basename}}`. For example, for `- path: /one/two/three/four`, `{{path.basename}}` is `four`.
+**Note**: The right-most path name always becomes `{{.path.basename}}`. For example, for `- path: /one/two/three/four`, `{{.path.basename}}` is `four`.
 
-**Note**: If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `myRepo.path` instead of `path`. Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
+**Note**: If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `.myRepo.path` instead of `.path`. Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
 
 Whenever a new Helm chart/Kustomize YAML/Application/plain subdirectory is added to the Git repository, the ApplicationSet controller will detect this change and automatically deploy the resulting manifests within new `Application` resources.
 
@@ -89,6 +91,8 @@ metadata:
   name: cluster-addons
   namespace: argocd
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - git:
       repoURL: https://github.com/argoproj/argo-cd.git
@@ -99,16 +103,16 @@ spec:
         exclude: true
   template:
     metadata:
-      name: '{{path.basename}}'
+      name: '{{.path.basename}}'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{.path.path}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{path.basename}}'
+        namespace: '{{.path.basename}}'
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory/excludes).*)
 
@@ -170,6 +174,8 @@ metadata:
   name: cluster-addons
   namespace: argocd
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - git:
       repoURL: https://github.com/example/example-repo.git
@@ -180,16 +186,16 @@ spec:
         exclude: true
   template:
     metadata:
-      name: '{{path.basename}}'
+      name: '{{.path.basename}}'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/example/example-repo.git
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{.path.path}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{path.basename}}'
+        namespace: '{{.path.basename}}'
 ```
 
 ## Git Generator: Files
@@ -249,6 +255,8 @@ metadata:
   name: guestbook
   namespace: argocd
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - git:
       repoURL: https://github.com/argoproj/argo-cd.git
@@ -257,7 +265,7 @@ spec:
       - path: "applicationset/examples/git-generator-files-discovery/cluster-config/**/config.json"
   template:
     metadata:
-      name: '{{cluster.name}}-guestbook'
+      name: '{{.cluster.name}}-guestbook'
     spec:
       project: default
       source:
@@ -265,7 +273,7 @@ spec:
         targetRevision: HEAD
         path: "applicationset/examples/git-generator-files-discovery/apps/guestbook"
       destination:
-        server: '{{cluster.address}}'
+        server: '{{.cluster.address}}'
         namespace: guestbook
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-files-discovery).*)

@@ -193,7 +193,7 @@ func appendTemplatedValues(clusterValues map[string]string, params map[string]in
 }
 
 func replaceTemplatedString(value string, params map[string]interface{}, appSet *argoappsetv1alpha1.ApplicationSet) (string, error) {
-	replacedTmplStr, err := render.Replace(value, params, appSet.Spec.GoTemplate)
+	replacedTmplStr, err := render.Replace(value, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 	if err != nil {
 		return "", err
 	}

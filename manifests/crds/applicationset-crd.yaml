@@ -10994,6 +10994,10 @@ spec:
                 type: array
               goTemplate:
                 type: boolean
+              goTemplateOptions:
+                items:
+                  type: string
+                type: array
               preservedFields:
                 properties:
                   annotations:
