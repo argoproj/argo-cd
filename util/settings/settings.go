@@ -1677,10 +1677,11 @@ func UnmarshalDexConfig(config string) (map[string]interface{}, error) {
 }
 
 func (a *ArgoCDSettings) oidcConfig() *oidcConfig {
-	if a.OIDCConfigRAW == "" {
+	OIDCConfigRAW := ReplaceStringSecret(a.OIDCConfigRAW, a.Secrets)
+	if OIDCConfigRAW == "" {
 		return nil
 	}
-	config, err := unmarshalOIDCConfig(a.OIDCConfigRAW)
+	config, err := unmarshalOIDCConfig(OIDCConfigRAW)
 	if err != nil {
 		log.Warnf("invalid oidc config: %v", err)
 		return nil
