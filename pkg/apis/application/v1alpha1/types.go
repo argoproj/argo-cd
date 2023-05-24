@@ -500,6 +500,7 @@ func NewKustomizeReplica(text string) (*KustomizeReplica, error) {
 func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 	return len(k.Images) == 0 &&
 		len(k.CommonLabels) == 0 &&
+		len(k.CommonAnnotations) == 0 &&
 		k.NamePrefix == "" &&
 		k.Namespace == "" &&
 		k.NameSuffix == ""
@@ -1152,7 +1153,7 @@ type Backoff struct {
 type SyncPolicyAutomated struct {
 	// Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
-	// SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)
+	// SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
