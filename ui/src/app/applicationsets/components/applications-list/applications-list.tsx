@@ -392,7 +392,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<{}>) => {
                                     key={pref.view}
                                     title={getPageTitle(pref.view)}
                                     useTitleOnly={true}
-                                    toolbar={{breadcrumbs: [{title: 'ApplicationSets', path: '/applicationsets'}]}}
+                                    toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'ApplicationSets'}]}}
                                     hideAuth={true}>
                                     <DataLoader
                                         // input={pref.projectsFilter?.join(',')}

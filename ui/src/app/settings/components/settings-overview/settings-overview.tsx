@@ -8,6 +8,11 @@ require('./settings-overview.scss');
 
 const settings = [
     {
+        title: 'ApplicationSets',
+        description: 'Manage ApplicationSets',
+        path: './applicationsets'
+    },
+    {
         title: 'Repositories',
         description: 'Configure connected repositories',
         path: './repos'

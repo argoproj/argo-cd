@@ -50,12 +50,7 @@ const navItems: NavItem[] = [
         path: '/applications',
         iconClassName: 'argo-icon argo-icon-application'
     },
-    {
-        title: 'ApplicationSets',
-        tooltip: 'Manage your ApplicationSets, and diagnose health problems.',
-        path: '/applicationsets',
-        iconClassName: 'argo-icon argo-icon-settings'
-    },
+    
     {
         title: 'Settings',
         tooltip: 'Manage your repositories, projects, settings',

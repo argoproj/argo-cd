@@ -349,7 +349,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         topBarTitle={this.getPageTitle(pref.view)}
                                         toolbar={{
                                             breadcrumbs: [
-                                                {title: 'ApplicationSets', path: '/applicationsets'},
+                                                {title: 'Settings', path: '/settings'},
+                                                // {title: 'ApplicationSets'},
                                                 {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
                                             ],
                                             actionMenu: {items: this.getApplicationActionMenu(application, true)},
