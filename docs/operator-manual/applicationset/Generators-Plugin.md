@@ -174,12 +174,12 @@ class Plugin(BaseHTTPRequestHandler):
             self.reply({
                 "outputParameters": [
                     {
-                        "digestFront": "sha256:a3f18c17771cc1051b790b453a0217b585723b37f14b413ad7c5b12d4534d411",
-                        "digestBack": "sha256:4411417d614d5b1b479933b7420079671facd434fd42db196dc1f4cc55ba13ce"
+                        "key1": "val1",
+                        "key2": "val2"
                     },
                     {
-                        "digestFront": "sha256:7c20b927946805124f67a0cb8848a8fb1344d16b4d0425d63aaa3f2427c20497",
-                        "digestBack": "sha256:e55e7e40700bbab9e542aba56c593cb87d680cefdfba3dd2ab9cfcb27ec384c2"
+                        "key1": "val2",
+                        "key2": "val2"
                     }
                 ]
             })
@@ -269,3 +269,56 @@ spec:
         - name: Link to the Application's branch
           value: '{{values.branchLink}}'
 ```
+
+To illustrate :
+
+* The generator pullRequest would return, for example, 2 branches: `feature-branch-1` and `feature-branch-2`.
+
+
+* The generator plugin would then perform 2 requests as follows :
+
+```
+curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
+'{
+  "applicationSetName": "fb-matrix",
+  "inputParameters": {
+    "branch": "feature-branch-1"
+  }
+}'
+```
+
+Then,
+
+```
+curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
+'{
+  "applicationSetName": "fb-matrix",
+  "inputParameters": {
+    "branch": "feature-branch-2"
+  }
+}'
+```
+
+For each call, it would return a unique result such as :
+
+```
+"outputParameters": [
+    {
+        "digestFront": "sha256:a3f18c17771cc1051b790b453a0217b585723b37f14b413ad7c5b12d4534d411",
+        "digestBack": "sha256:4411417d614d5b1b479933b7420079671facd434fd42db196dc1f4cc55ba13ce"
+    }
+]
+```
+
+Then,
+
+```
+"outputParameters": [
+    {
+        "digestFront": "sha256:7c20b927946805124f67a0cb8848a8fb1344d16b4d0425d63aaa3f2427c20497",
+        "digestBack": "sha256:e55e7e40700bbab9e542aba56c593cb87d680cefdfba3dd2ab9cfcb27ec384c2"
+    }
+]
+```
+
+In this example, by combining the two, you ensure that one or more pull requests are available and that the generated tag has been properly generated. This wouldn't have been possible with just a commit hash because a hash alone does not certify the success of the build.
