@@ -333,7 +333,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 namespace: application.metadata.namespace
                             });
                             return (
-                                <div className='application-details'>
+                                <div className={`application-details ${this.props.match.params.name}`}>
                                     <Page
                                         title={this.props.match.params.name + ' - ' + this.getPageTitle(pref.view)}
                                         useTitleOnly={true}
