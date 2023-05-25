@@ -12,9 +12,9 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 ---
 apiVersion: v1
@@ -25,6 +25,15 @@ metadata:
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
   name: argocd-dex-server
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -105,9 +114,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 rules:
 - apiGroups:
@@ -190,6 +199,51 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  - appprojects
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-notifications-cm
+  resources:
+  - configmaps
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-notifications-secret
+  resources:
+  - secrets
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
@@ -282,9 +336,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -309,6 +363,22 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-dex-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-notifications-controller
+subjects:
+- kind: ServiceAccount
+  name: argocd-notifications-controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -367,6 +437,8 @@ metadata:
   name: argocd-cm
 ---
 apiVersion: v1
+data:
+  redis.server: argocd-redis-ha-haproxy:6379
 kind: ConfigMap
 metadata:
   labels:
@@ -381,6 +453,15 @@ metadata:
     app.kubernetes.io/name: argocd-gpg-keys-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-gpg-keys-cm
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-cm
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -1010,6 +1091,7 @@ data:
     port 6379
     rename-command FLUSHDB ""
     rename-command FLUSHALL ""
+    bind 0.0.0.0
     maxmemory 0
     maxmemory-policy volatile-lru
     min-replicas-max-lag 5
@@ -1112,9 +1194,9 @@ metadata:
 ---
 apiVersion: v1
 data:
-  ssh_known_hosts: |-
+  ssh_known_hosts: |
     bitbucket.org ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAubiN81eDcafrgMeLzaFPsw2kNvEcqTKl/VqLat/MaB33pZy0y3rJZtnqwR2qOOvbwKZYKiEO1O6VqNEBxKvJJelCq0dTXWT5pbO2gDXC6h6QDXCaHo6pOHGPUy+YBaGQRGuSusMEASYiWunYN0vCAI8QaXnWMXNMdFP3jHAJH0eDsoiGnLPBlBp4TNm6rYI74nMzgz3B9IikW4WVK+dc8KZJZWYjAuORU3jc1c/NPskD2ASinf8v3xnfXeukU0sJ5N6m5E8VLjObPEO+mN2t/FZTMZLiFqPWc/ALSqnMnnhwrNi2rbfg/rd/IpL8Le3pSBne8+seeFVBoGqzHM9yXw==
-    github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==
+    github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
     gitlab.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBFSMqzJeV9rUzU4kWitGjeR4PWSa29SPqJ1fVkhtj3Hw9xjLVXVYrU9QlYWrOLXBpQ6KWjbjTDTdDkoohFzgbEY=
     gitlab.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHKVTjquxvt6CM6tdG4SLp1Btn/nOeHHE5UOzRdf
     gitlab.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCsj2bNKTBSpIYDEGk9KxsGh3mySTRgMtXL583qmBpzeQ+jqCMRgBqB98u3z++J1sKlXHWfM9dyhSevkMwSbhoR8XIq/U0tCNyokEi/ueaBMCvbcTHhO7FcwzY92WK4Yt0aGROY5qX2UKSeOvuP4D6TPqKF1onrSzH9bx9XUf2lEdWT/ia1NEKjunUqu1xOB/StKDHMoX4/OKyIzuS0q/T1zOATthvasJFoPrAjkohTyaDUz2LN5JoH839hViyEG82yB+MjcFV5MU3N1l1QL3cVUCh93xSaua1N85qivl+siMkPGbO5xR/En4iEY6K2XPASUEMaieWVNTRCtJ4S8H+9
@@ -1141,6 +1223,16 @@ apiVersion: v1
 kind: Secret
 metadata:
   labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-secret
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
     app.kubernetes.io/name: argocd-secret
     app.kubernetes.io/part-of: argocd
   name: argocd-secret
@@ -1150,9 +1242,9 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 spec:
   ports:
@@ -1208,6 +1300,23 @@ spec:
     targetPort: 8082
   selector:
     app.kubernetes.io/name: argocd-application-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller-metrics
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller-metrics
+spec:
+  ports:
+  - name: metrics
+    port: 9001
+    protocol: TCP
+    targetPort: 9001
+  selector:
+    app.kubernetes.io/name: argocd-notifications-controller
 ---
 apiVersion: v1
 kind: Service
@@ -1391,9 +1500,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 spec:
   selector:
@@ -1405,9 +1514,8 @@ spec:
         app.kubernetes.io/name: argocd-applicationset-controller
     spec:
       containers:
-      - command:
-        - entrypoint.sh
-        - applicationset-controller
+      - args:
+        - /usr/local/bin/argocd-applicationset-controller
         env:
         - name: NAMESPACE
           valueFrom:
@@ -1473,7 +1581,7 @@ spec:
               key: applicationsetcontroller.enable.progressive.syncs
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/applicationset:latest
+        image: quay.io/argoproj/argocd:v2.7.2
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -1481,6 +1589,15 @@ spec:
           name: webhook
         - containerPort: 8080
           name: metrics
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -1545,7 +1662,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.35.3
+        image: ghcr.io/dexidp/dex:v2.36.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -1570,11 +1687,11 @@ spec:
           name: argocd-dex-server-tls
       initContainers:
       - command:
-        - cp
+        - /bin/cp
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/argoproj/argocd:v2.7.2
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -1613,6 +1730,67 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-notifications-controller
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-notifications-controller
+    spec:
+      containers:
+      - args:
+        - /usr/local/bin/argocd-notifications
+        image: quay.io/argoproj/argocd:v2.7.2
+        imagePullPolicy: Always
+        livenessProbe:
+          tcpSocket:
+            port: 9001
+        name: argocd-notifications-controller
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /app/config/tls
+          name: tls-certs
+        - mountPath: /app/config/reposerver/tls
+          name: argocd-repo-server-tls
+        workingDir: /app
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: argocd-notifications-controller
+      volumes:
+      - configMap:
+          name: argocd-tls-certs-cm
+        name: tls-certs
+      - name: argocd-repo-server-tls
+        secret:
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: argocd-repo-server-tls
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha-haproxy
     app.kubernetes.io/part-of: argocd
@@ -1641,7 +1819,7 @@ spec:
                 app.kubernetes.io/name: argocd-redis-ha-haproxy
             topologyKey: kubernetes.io/hostname
       containers:
-      - image: quay.io/codefresh/haproxy:2.6.2-alpine
+      - image: haproxy:2.6.12-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -1677,7 +1855,7 @@ spec:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: quay.io/codefresh/haproxy:2.6.2-alpine
+        image: haproxy:2.6.12-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -1732,7 +1910,7 @@ spec:
               labelSelector:
                 matchLabels:
                   app.kubernetes.io/name: argocd-repo-server
-              topologyKey: failure-domain.beta.kubernetes.io/zone
+              topologyKey: topology.kubernetes.io/zone
             weight: 100
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
@@ -1741,12 +1919,14 @@ spec:
             topologyKey: kubernetes.io/hostname
       automountServiceAccountToken: false
       containers:
-      - command:
-        - entrypoint.sh
-        - argocd-repo-server
-        - --redis
-        - argocd-redis-ha-haproxy:6379
+      - args:
+        - /usr/local/bin/argocd-repo-server
         env:
+        - name: ARGOCD_REDIS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.server
+              name: argocd-cmd-params-cm
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
@@ -1873,7 +2053,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/argoproj/argocd:v2.7.2
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -1921,11 +2101,11 @@ spec:
           name: plugins
       initContainers:
       - command:
-        - cp
+        - /bin/cp
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/argoproj/argocd:v2.7.2
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -1939,6 +2119,7 @@ spec:
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
+      serviceAccountName: argocd-repo-server
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -1996,7 +2177,7 @@ spec:
               labelSelector:
                 matchLabels:
                   app.kubernetes.io/name: argocd-server
-              topologyKey: failure-domain.beta.kubernetes.io/zone
+              topologyKey: topology.kubernetes.io/zone
             weight: 100
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
@@ -2004,13 +2185,16 @@ spec:
                 app.kubernetes.io/name: argocd-server
             topologyKey: kubernetes.io/hostname
       containers:
-      - command:
-        - argocd-server
-        - --redis
-        - argocd-redis-ha-haproxy:6379
+      - args:
+        - /usr/local/bin/argocd-server
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: "2"
+        - name: ARGOCD_REDIS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.server
+              name: argocd-cmd-params-cm
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
             configMapKeyRef:
@@ -2203,7 +2387,7 @@ spec:
               key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/argoproj/argocd:v2.7.2
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -2312,11 +2496,14 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 5
       containers:
-      - command:
-        - argocd-application-controller
-        - --redis
-        - argocd-redis-ha-haproxy:6379
+      - args:
+        - /usr/local/bin/argocd-application-controller
         env:
+        - name: ARGOCD_REDIS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.server
+              name: argocd-cmd-params-cm
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "1"
         - name: ARGOCD_RECONCILIATION_TIMEOUT
@@ -2439,7 +2626,13 @@ spec:
               key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/argocd:latest
+        - name: ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.kubectl.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        image: quay.io/argoproj/argocd:v2.7.2
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
@@ -2499,7 +2692,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: bc40970c5253e297d4d65696710d8142ea4ff352e90a60bfc39abc82689fc2d5
+        checksum/init-config: 69130412bda04eacad3530cb7bcf26cf121401e725e15d0959dd71a7380afe75
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
@@ -2516,7 +2709,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: quay.io/codefresh/haproxy:7.0.5-alpine
+        image: redis:7.0.11-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -2569,7 +2762,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: quay.io/codefresh/haproxy:7.0.5-alpine
+        image: redis:7.0.11-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -2621,7 +2814,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: quay.io/codefresh/haproxy:7.0.5-alpine
+        image: redis:7.0.11-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -2650,7 +2843,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: quay.io/codefresh/haproxy:7.0.5-alpine
+        image: redis:7.0.11-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -2743,6 +2936,27 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-dex-server
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller-network-policy
+spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 9001
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-notifications-controller
   policyTypes:
   - Ingress
 ---

@@ -19,13 +19,16 @@ spec:
               labelSelector:
                 matchLabels:
                   app.kubernetes.io/name: argocd-server
-              topologyKey: failure-domain.beta.kubernetes.io/zone
+              topologyKey: topology.kubernetes.io/zone
       containers:
       - name: argocd-server
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: '2'
-        command:
-        - argocd-server
-        - --redis
-        - "argocd-redis-ha-haproxy:6379"
+        - name: ARGOCD_REDIS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: redis.server
+        args:
+        - /usr/local/bin/argocd-server

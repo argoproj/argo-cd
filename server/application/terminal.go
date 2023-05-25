@@ -9,7 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
-	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -65,37 +64,6 @@ func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a 
 	return clst.RawRestConfig(), nil
 }
 
-// isValidPodName checks that a podName is valid
-func isValidPodName(name string) bool {
-	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L241
-	validationErrors := apimachineryvalidation.NameIsDNSSubdomain(name, false)
-	return len(validationErrors) == 0
-}
-
-func isValidAppName(name string) bool {
-	// app names have the same rules as pods.
-	return isValidPodName(name)
-}
-
-func isValidProjectName(name string) bool {
-	// project names have the same rules as pods.
-	return isValidPodName(name)
-}
-
-// isValidNamespaceName checks that a namespace name is valid
-func isValidNamespaceName(name string) bool {
-	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L262
-	validationErrors := apimachineryvalidation.ValidateNamespaceName(name, false)
-	return len(validationErrors) == 0
-}
-
-// isValidContainerName checks that a containerName is valid
-func isValidContainerName(name string) bool {
-	// https://github.com/kubernetes/kubernetes/blob/53a9d106c4aabcd550cc32ae4e8004f32fb0ae7b/pkg/api/validation/validation.go#L280
-	validationErrors := apimachineryvalidation.NameIsDNSLabel(name, false)
-	return len(validationErrors) == 0
-}
-
 type GetSettingsFunc func() (*settings.ArgoCDSettings, error)
 
 // WithFeatureFlagMiddleware is an HTTP middleware to verify if the terminal
@@ -132,27 +100,27 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	appNamespace := q.Get("appNamespace")
 
-	if !isValidPodName(podName) {
+	if !argo.IsValidPodName(podName) {
 		http.Error(w, "Pod name is not valid", http.StatusBadRequest)
 		return
 	}
-	if !isValidContainerName(container) {
+	if !argo.IsValidContainerName(container) {
 		http.Error(w, "Container name is not valid", http.StatusBadRequest)
 		return
 	}
-	if !isValidAppName(app) {
+	if !argo.IsValidAppName(app) {
 		http.Error(w, "App name is not valid", http.StatusBadRequest)
 		return
 	}
-	if !isValidProjectName(project) {
+	if !argo.IsValidProjectName(project) {
 		http.Error(w, "Project name is not valid", http.StatusBadRequest)
 		return
 	}
-	if !isValidNamespaceName(namespace) {
+	if !argo.IsValidNamespaceName(namespace) {
 		http.Error(w, "Namespace name is not valid", http.StatusBadRequest)
 		return
 	}
-	if !isValidNamespaceName(appNamespace) {
+	if !argo.IsValidNamespaceName(appNamespace) {
 		http.Error(w, "App namespace name is not valid", http.StatusBadRequest)
 		return
 	}

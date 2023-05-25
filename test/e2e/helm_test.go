@@ -413,13 +413,13 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 	if legacyRepo {
 		ctx.And(func() {
 			FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
-				"-n", fixture.ArgoCDNamespace,
+				"-n", fixture.TestNamespace(),
 				fmt.Sprintf("--from-file=certSecret=%s", repos.CertPath),
 				fmt.Sprintf("--from-file=keySecret=%s", repos.CertKeyPath),
 				fmt.Sprintf("--from-literal=username=%s", GitUsername),
 				fmt.Sprintf("--from-literal=password=%s", GitPassword),
 			))
-			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Patch(context.Background(),
+			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Patch(context.Background(),
 				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`), metav1.PatchOptions{}))
 
 			fixture.SetHelmRepos(settings.HelmRepoCredentials{

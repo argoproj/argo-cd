@@ -34,7 +34,7 @@ When the ApplicationSet changes, the changes will be applied to each group of Ap
 * Application groups are selected using their labels and `matchExpressions`.
 * All `matchExpressions` must be true for an Application to be selected (multiple expressions match with AND behavior).
 * The `In` and `NotIn` operators must match at least one value to be considered true (OR behavior).
-* The `NotIn` operatorn has priority in the event that both a `NotIn` and `In` operator produce a match.
+* The `NotIn` operator has priority in the event that both a `NotIn` and `In` operator produce a match.
 * All Applications in each group must become Healthy before the ApplicationSet controller will proceed to update the next group of Applications.
 * The number of simultaneous Application updates in a group will not exceed its `maxUpdate` parameter (default is 100%, unbounded).
 * RollingSync will capture external changes outside the ApplicationSet resource, since it relies on watching the OutOfSync status of the managed Applications.

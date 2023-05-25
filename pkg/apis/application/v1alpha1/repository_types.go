@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/argoproj/argo-cd/v2/util/cert"
@@ -201,7 +202,7 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.Repo, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, store)
 	}
 	if repo.GCPServiceAccountKey != "" {
-		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey)
+		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
 	}
 	return git.NopCreds{}
 }
@@ -263,6 +264,14 @@ func (m *Repository) CopySettingsFrom(source *Repository) {
 		m.Insecure = source.Insecure
 		m.InheritedCreds = source.InheritedCreds
 	}
+}
+
+// StringForLogging gets a string representation of the Repository which is safe to log or return to the user.
+func (m *Repository) StringForLogging() string {
+	if m == nil {
+		return ""
+	}
+	return fmt.Sprintf("&Repository{Repo: %q, Type: %q, Name: %q, Project: %q}", m.Repo, m.Type, m.Name, m.Project)
 }
 
 // Repositories defines a list of Repository configurations

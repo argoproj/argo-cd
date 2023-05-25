@@ -40,7 +40,7 @@ spec:
               subPath: generate.sh
               name: helm-plugin-config
             - mountPath: /var/run/argocd/helm-plugin/get-parameters.sh
-              subPath: generate.sh
+              subPath: get-parameters.sh
               name: helm-plugin-config
             - mountPath: /usr/local/bin
               name: helm-plugin-tools

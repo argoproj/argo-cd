@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 	"html"
 	"net/http"
 	"net/url"
@@ -36,6 +37,10 @@ type settingsSource interface {
 	GetTrackingMethod() (string, error)
 }
 
+// https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
+// https://github.com/shadow-maint/shadow/blob/master/libmisc/chkname.c#L36
+const usernameRegex = `[a-zA-Z0-9_\.][a-zA-Z0-9_\.-]{0,30}[a-zA-Z0-9_\.\$-]?`
+
 var _ settingsSource = &settings.SettingsManager{}
 
 type ArgoCDWebhookHandler struct {
@@ -43,6 +48,7 @@ type ArgoCDWebhookHandler struct {
 	serverCache     *servercache.Cache
 	db              db.ArgoDB
 	ns              string
+	appNs           []string
 	appClientset    appclientset.Interface
 	github          *github.Webhook
 	gitlab          *gitlab.Webhook
@@ -52,7 +58,7 @@ type ArgoCDWebhookHandler struct {
 	settingsSrc     settingsSource
 }
 
-func NewHandler(namespace string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, applicationNamespaces []string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
@@ -76,6 +82,7 @@ func NewHandler(namespace string, appClientset appclientset.Interface, set *sett
 
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:              namespace,
+		appNs:           applicationNamespaces,
 		appClientset:    appClientset,
 		github:          githubWebhook,
 		gitlab:          gitlabWebhook,
@@ -212,7 +219,14 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	for _, webURL := range webURLs {
 		log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
 	}
-	appIf := a.appClientset.ArgoprojV1alpha1().Applications(a.ns)
+
+	nsFilter := a.ns
+	if len(a.appNs) > 0 {
+		// Retrieve app from all namespaces
+		nsFilter = ""
+	}
+
+	appIf := a.appClientset.ArgoprojV1alpha1().Applications(nsFilter)
 	apps, err := appIf.List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Warnf("Failed to list applications: %v", err)
@@ -230,13 +244,23 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 		return
 	}
 
+	// Skip any application that is neither in the control plane's namespace
+	// nor in the list of enabled namespaces.
+	var filteredApps []v1alpha1.Application
+	for _, app := range apps.Items {
+		if app.Namespace == a.ns || glob.MatchStringInList(a.appNs, app.Namespace, false) {
+			filteredApps = append(filteredApps, app)
+		}
+	}
+
 	for _, webURL := range webURLs {
 		repoRegexp, err := getWebUrlRegex(webURL)
 		if err != nil {
 			log.Warnf("Failed to get repoRegexp: %s", err)
 			continue
 		}
-		for _, app := range apps.Items {
+		for _, app := range filteredApps {
+
 			for _, source := range app.Spec.GetSources() {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
 					if appFilesHaveChanged(&app, changedFiles) {
@@ -268,7 +292,8 @@ func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
 
 	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
 	regexEscapedPath := regexp.QuoteMeta(urlObj.Path[1:])
-	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|\w+@|ssh://(\w+@)?)%s(:[0-9]+|)[:/]%s(\.git)?$`, regexEscapedHostname, regexEscapedPath)
+	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|%s@|ssh://(%s@)?)%s(:[0-9]+|)[:/]%s(\.git)?$`,
+		usernameRegex, usernameRegex, regexEscapedHostname, regexEscapedPath)
 	repoRegexp, err := regexp.Compile(regexpStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile regexp for repoURL '%s'", webURL)
@@ -439,7 +464,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Infof("Webhook processing failed: %s", err)
 		status := http.StatusBadRequest
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			status = http.StatusMethodNotAllowed
 		}
 		http.Error(w, fmt.Sprintf("Webhook processing failed: %s", html.EscapeString(err.Error())), status)

@@ -7,15 +7,13 @@ import (
 	"net/http"
 	"strings"
 
-	gooidc "github.com/coreos/go-oidc"
+	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
-
-var ErrTokenExpired = errors.New("token is expired")
 
 // Provider is a wrapper around go-oidc provider to also provide the following features:
 // 1. lazy initialization/querying of the provider
@@ -109,9 +107,10 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 		// Token must be verified for at least one allowed audience
 		for _, aud := range allowedAudiences {
 			idToken, err = p.verify(aud, tokenString, false)
-			if err != nil && strings.HasPrefix(err.Error(), "oidc: token is expired") {
+			tokenExpiredError := &gooidc.TokenExpiredError{}
+			if errors.As(err, &tokenExpiredError) {
 				// If the token is expired, we won't bother checking other audiences. It's important to return a
-				// ErrTokenExpired instead of an error related to an incorrect audience, because the caller may
+				// TokenExpiredError instead of an error related to an incorrect audience, because the caller may
 				// have specific behavior to handle expired tokens.
 				break
 			}
@@ -122,9 +121,6 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 	}
 
 	if err != nil {
-		if strings.HasPrefix(err.Error(), "oidc: token is expired") {
-			return nil, ErrTokenExpired
-		}
 		return nil, fmt.Errorf("failed to verify token: %w", err)
 	}
 

@@ -41,6 +41,7 @@ data:
     port 6379
     rename-command FLUSHDB ""
     rename-command FLUSHALL ""
+    bind 0.0.0.0
     maxmemory 0
     maxmemory-policy volatile-lru
     min-replicas-max-lag 5
@@ -1178,7 +1179,7 @@ spec:
       automountServiceAccountToken: false
       initContainers:
       - name: config-init
-        image: quay.io/codefresh/haproxy:7.0.5-alpine
+        image: quay.io/codefresh/redis:7.0.11-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1205,7 +1206,7 @@ spec:
 
       containers:
       - name: redis
-        image: quay.io/codefresh/haproxy:7.0.5-alpine
+        image: quay.io/codefresh/redis:7.0.11-alpine
         imagePullPolicy: IfNotPresent
         command:
         - redis-server
@@ -1255,7 +1256,7 @@ spec:
               - /bin/sh
               - /readonly-config/trigger-failover-if-master.sh
       - name: sentinel
-        image: quay.io/codefresh/haproxy:7.0.5-alpine
+        image: quay.io/codefresh/redis:7.0.11-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-sentinel
@@ -1299,7 +1300,7 @@ spec:
           {}
 
       - name: split-brain-fix
-        image: quay.io/codefresh/haproxy:7.0.5-alpine
+        image: quay.io/codefresh/redis:7.0.11-alpine
         imagePullPolicy: IfNotPresent
         command:
           - sh

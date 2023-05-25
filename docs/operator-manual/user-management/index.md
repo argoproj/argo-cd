@@ -289,7 +289,7 @@ data:
 
 ## Existing OIDC Provider
 
-To configure Argo CD to delegate authenticate to your existing OIDC provider, add the OAuth2
+To configure Argo CD to delegate authentication to your existing OIDC provider, add the OAuth2
 configuration to the `argocd-cm` ConfigMap under the `oidc.config` key:
 
 ```yaml
@@ -303,7 +303,7 @@ data:
     clientSecret: $oidc.okta.clientSecret
     
     # Optional list of allowed aud claims. If omitted or empty, defaults to the clientID value above (and the 
-    # cliCientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must 
+    # cliClientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must 
     # explicitly include it in the list.
     # Token verification will pass if any of the token's audiences matches any of the audiences in this list.
     allowedAudiences:
@@ -411,17 +411,14 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
 
 ### Sensitive Data and SSO Client Secrets
 
-You can use the `argocd-secret` to store any sensitive data. ArgoCD knows to check the keys under `data` in the `argocd-secret` secret for a corresponding key whenever a value in a configmap starts with `$`. This can be used to store things such as your `clientSecret`. 
-* Any values which start with `$` will :
-  - If value is in form of `$<secret>:a.key.in.k8s.secret`, look to a key in K8S `<secret>` of the same name (minus the `$`), and reads it value.
-  - Otherwise, look to a key in `argocd-secret` of the same name (minus the `$`),
-  to obtain the actual value. This allows you to store the `clientSecret` as a kubernetes secret.
-  Kubernetes secrets must be base64 encoded. To base64 encode your secret, you can run
-  `printf RAW_STRING | base64`.
+`argocd-secret` can be used to store sensitive data which can be referenced by ArgoCD. Values starting with `$` in configmaps are interpreted as follows:
 
-Data should be base64 encoded before it is added to `argocd-secret`. You can do so by running `printf RAW_SECRET_STRING | base64`.
+- If value has the form: `$<secret>:a.key.in.k8s.secret`, look for a k8s secret with the name `<secret>` (minus the `$`), and read its value. 
+- Otherwise, look for a key in the k8s secret named `argocd-secret`. 
 
 #### Example
+
+SSO `clientSecret` can thus be stored as a kubernetes secret with the following manifests
 
 `argocd-secret`:
 ```yaml
@@ -436,9 +433,9 @@ metadata:
 type: Opaque
 data:
   ...
-  # Store client secret like below.
-  # Ensure the secret is base64 encoded
-  oidc.auth0.clientSecret: <client-secret-base64-encoded>
+  # The secret value must be base64 encoded **once** 
+  # this value corresponds to: `printf "hello-world" | base64`
+  oidc.auth0.clientSecret: "aGVsbG8td29ybGQ="
   ...
 ```
 
@@ -457,6 +454,7 @@ data:
   oidc.config: |
     name: Auth0
     clientID: aabbccddeeff00112233
+
     # Reference key in argocd-secret
     clientSecret: $oidc.auth0.clientSecret
   ...

@@ -518,7 +518,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 				t.Fail()
 			}
 		default:
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}
 }

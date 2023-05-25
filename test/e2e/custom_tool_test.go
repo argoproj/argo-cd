@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -327,5 +328,25 @@ func TestPruneResourceFromCMP(t *testing.T) {
 		AndAction(func() {
 			_, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "deployment", "guestbook-ui")
 			assert.Error(t, err)
+		})
+}
+
+func TestPreserveFileModeForCMP(t *testing.T) {
+	Given(t).
+		And(func() {
+			go startCMPServer("./testdata/cmp-preserve-file-mode")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("cmp-preserve-file-mode").
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source.Plugin = &ApplicationSourcePlugin{Name: "cmp-preserve-file-mode-v1.0"}
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		And(func(app *Application) {
+			require.Len(t, app.Status.Resources, 1)
+			assert.Equal(t, "ConfigMap", app.Status.Resources[0].Kind)
 		})
 }

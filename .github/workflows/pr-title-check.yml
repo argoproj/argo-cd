@@ -1,0 +1,41 @@
+name: "Lint PR"
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - synchronize
+
+# IMPORTANT: No checkout actions, scripts, or builds should be added to this workflow. Permissions should always be used
+# with extreme caution.
+permissions:
+  contents: read
+
+# PR updates can happen in quick succession leading to this
+# workflow being trigger a number of times. This limits it
+# to one run per PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  main:
+    permissions:
+      pull-requests: read  # for amannn/action-semantic-pull-request to analyze PRs
+      statuses: write  # for amannn/action-semantic-pull-request to mark status of analyzed PR
+    name: Validate PR title
+    runs-on: ubuntu-latest
+    steps:
+      # IMPORTANT: Carefully review changes when updating this action. Using the pull_request_target event requires caution.
+      - uses: amannn/action-semantic-pull-request@b6bca70dcd3e56e896605356ce09b76f7e1e0d39 # v5.1.0
+        with:
+          types: |
+            feat
+            fix
+            docs
+            test
+            ci
+            chore
+            [Bot] docs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

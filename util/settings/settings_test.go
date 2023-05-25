@@ -308,6 +308,24 @@ func TestGetResourceOverrides(t *testing.T) {
 
 }
 
+func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
+	data := map[string]string{
+		"resource.customizations": `
+    "*.aws.crossplane.io/*":
+      health.lua: |
+        foo`,
+	}
+
+	t.Run("TestResourceHealthOverrideWithWildcard", func(t *testing.T) {
+		_, settingsManager := fixtures(data)
+
+		overrides, err := settingsManager.GetResourceOverrides()
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(overrides))
+		assert.Equal(t, "foo", overrides["*.aws.crossplane.io/*"].HealthLua)
+	})
+}
+
 func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		resourceCustomizationsKey: "",
@@ -653,7 +671,7 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		h, err := settingsManager.GetHelp()
 		assert.NoError(t, err)
 		assert.Empty(t, h.ChatURL)
-		assert.Equal(t, "Chat now!", h.ChatText)
+		assert.Empty(t, h.ChatText)
 
 	})
 	t.Run("Set", func(t *testing.T) {
@@ -665,6 +683,24 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "foo", h.ChatURL)
 		assert.Equal(t, "bar", h.ChatText)
+	})
+	t.Run("SetOnlyChatUrl", func(t *testing.T) {
+		_, settingManager := fixtures(map[string]string{
+			"help.chatUrl": "foo",
+		})
+		h, err := settingManager.GetHelp()
+		assert.NoError(t, err)
+		assert.Equal(t, "foo", h.ChatURL)
+		assert.Equal(t, "Chat now!", h.ChatText)
+	})
+	t.Run("SetOnlyChatText", func(t *testing.T) {
+		_, settingManager := fixtures(map[string]string{
+			"help.chatText": "bar",
+		})
+		h, err := settingManager.GetHelp()
+		assert.NoError(t, err)
+		assert.Empty(t, h.ChatURL)
+		assert.Empty(t, h.ChatText)
 	})
 	t.Run("GetBinaryUrls", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
