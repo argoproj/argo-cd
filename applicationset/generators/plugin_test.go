@@ -59,7 +59,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate: false,
-			content: []byte(`{"inputParameters": [{
+			content: []byte(`{"outputParameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -113,7 +113,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				"valuekey2": "templated-{{key1}}",
 			},
 			gotemplate: false,
-			content: []byte(`{"inputParameters": [{
+			content: []byte(`{"outputParameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -165,7 +165,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate: true,
-			content: []byte(`{"inputParameters": [{
+			content: []byte(`{"outputParameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -219,7 +219,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate: false,
-			content: []byte(`{"inputParameters": [{
+			content: []byte(`{"outputParameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -268,7 +268,7 @@ func TestPluginGenerateParams(t *testing.T) {
 			},
 			inputParameters: map[string]apiextensionsv1.JSON{},
 			gotemplate:      false,
-			content: []byte(`{"inputParameters": [{
+			content: []byte(`{"outputParameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -369,7 +369,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate: false,
-			content: []byte(`{"inputParameters": [{
+			content: []byte(`{"outputParameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -413,7 +413,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate: false,
-			content: []byte(`{"inputParameters": [{
+			content: []byte(`{"outputParameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -454,7 +454,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate: false,
-			content: []byte(`{"inputParameters": [{
+			content: []byte(`{"outputParameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -503,7 +503,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate: false,
-			content: []byte(`{"inputParameters": [{
+			content: []byte(`{"outputParameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",
@@ -544,7 +544,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				"pkey2": {Raw: []byte(`"val2"`)},
 			},
 			gotemplate: false,
-			content: []byte(`{"inputParameters": [{
+			content: []byte(`{"outputParameters": [{
 				"key1": "val1",
 				"key2": {
 					"key2_1": "val2_1",

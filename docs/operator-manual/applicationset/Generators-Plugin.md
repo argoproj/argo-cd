@@ -172,7 +172,7 @@ class Plugin(BaseHTTPRequestHandler):
         if self.path == '/api/v1/getparams.execute':
             args = self.args()['parameters']
             self.reply({
-                "parameters": [
+                "outputParameters": [
                     {
                         "digestFront": "sha256:a3f18c17771cc1051b790b453a0217b585723b37f14b413ad7c5b12d4534d411",
                         "digestBack": "sha256:4411417d614d5b1b479933b7420079671facd434fd42db196dc1f4cc55ba13ce"
