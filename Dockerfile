@@ -167,14 +167,13 @@ RUN addgroup -g 1000 argocd && \
     chmod g=u ${HOME} && \
     apk update && \
     apk upgrade && \
-    apk add git git-lfs nss_wrapper openssl openssh-keysign tini
+    apk add git git-lfs nss_wrapper openssl openssh-keysign tini gpg
 
 COPY --from=argocd --chown=root:root /usr/local/bin/argocd /usr/local/bin/
 COPY --from=argocd --chown=root:root /usr/local/bin/helm* /usr/local/bin/
 COPY --from=argocd --chown=root:root /usr/local/bin/sops /usr/local/bin/
 COPY --from=argocd --chown=root:root /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=argocd --chown=root:root /usr/local/bin/kustomize /usr/local/bin/kustomize
-# COPY --from=argocd --chown=root:root /usr/bin/tini /usr/bin/tini
 COPY --from=awscli --chown=root:root /usr/local/aws-cli /usr/local/aws-cli
 COPY scripts/* /usr/local/bin/
 
@@ -205,7 +204,10 @@ RUN helm plugin install --version ${HELM_SECRETS_VERSION} https://github.com/jkr
 
 USER root
 
-RUN ln -sf "$(helm env HELM_PLUGINS)/helm-secrets/scripts/wrapper/helm.sh" /usr/local/bin/helm
+RUN mkdir /usr/local/sbin && \
+    chmod 0775 /usr/local/sbin
+
+RUN ln -sf "$(helm env HELM_PLUGINS)/helm-secrets/scripts/wrapper/helm.sh" /usr/local/sbin/helm
 
 USER 1001
 
