@@ -8,6 +8,7 @@ import (
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -461,6 +462,32 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRenderGeneratorParams_does_not_panic(t *testing.T) {
+	// This test verifies that the RenderGeneratorParams function does not panic when the value in a map is a non-
+	// nillable type. This is a regression test.
+	render := Render{}
+	params := map[string]interface{}{
+		"branch": "master",
+	}
+	generator := &argoappsv1.ApplicationSetGenerator{
+		Plugin: &argoappsv1.PluginGenerator{
+			ConfigMapRef: argoappsv1.PluginConfigMapRef{
+				Name: "cm-plugin",
+			},
+			InputParameters: map[string]apiextensionsv1.JSON{
+				"branch": {
+					Raw: []byte(`"{{.branch}}"`),
+				},
+				"repo": {
+					Raw: []byte(`"argo-test"`),
+				},
+			},
+		},
+	}
+	_, err := render.RenderGeneratorParams(generator, params, true)
+	assert.NoError(t, err)
 }
 
 func TestRenderTemplateKeys(t *testing.T) {

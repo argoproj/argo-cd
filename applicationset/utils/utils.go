@@ -143,7 +143,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		}
 		for _, key := range original.MapKeys() {
 			originalValue := original.MapIndex(key)
-			if originalValue.Kind() != reflect.String && originalValue.IsNil() {
+			if originalValue.Kind() != reflect.String && isNillable(originalValue) && originalValue.IsNil() {
 				continue
 			}
 			// New gives us a pointer, but again we want the value
@@ -189,6 +189,16 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		}
 	}
 	return nil
+}
+
+// isNillable returns true if the value is something which may be set to nil. This function is meant to guard against a
+// panic from calling IsNil on a non-pointer type.
+func isNillable(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+		return true
+	}
+	return false
 }
 
 func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error) {
