@@ -159,7 +159,8 @@ ENV HOME=/home/argocd \
     HELM_SECRETS_VALUES_ALLOW_SYMLINKS=false \
     HELM_SECRETS_VALUES_ALLOW_ABSOLUTE_PATH=false \
     HELM_SECRETS_VALUES_ALLOW_PATH_TRAVERSAL=false \
-    HELM_SECRETS_WRAPPER_ENABLED=false
+    HELM_SECRETS_WRAPPER_ENABLED=false \
+    LIBGCRYPT_FORCE_FIPS_MODE=true
 
 RUN addgroup -g 1000 argocd && \
     adduser -D -u 1001 -s /sbin/nologin -G argocd argocd && \
@@ -167,7 +168,7 @@ RUN addgroup -g 1000 argocd && \
     chmod g=u ${HOME} && \
     apk update && \
     apk upgrade && \
-    apk add git git-lfs nss_wrapper openssl openssh-keysign tini gpg
+    apk add git git-lfs nss_wrapper openssl openssh-keysign tini gpg gpg-agent
 
 COPY --from=argocd --chown=root:root /usr/local/bin/argocd /usr/local/bin/
 COPY --from=argocd --chown=root:root /usr/local/bin/helm* /usr/local/bin/
