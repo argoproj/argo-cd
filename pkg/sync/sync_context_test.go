@@ -784,6 +784,7 @@ func TestSync_ServerSideApply(t *testing.T) {
 		{"NoAnnotation", NewPod(), NewPod(), "apply", false, "managerA"},
 		{"ServerSideApplyAnnotationIsSet", withServerSideApplyAnnotation(NewPod()), NewPod(), "apply", true, "managerB"},
 		{"ServerSideApplyAndReplaceAnnotationsAreSet", withReplaceAndServerSideApplyAnnotations(NewPod()), NewPod(), "replace", false, ""},
+		{"ServerSideApplyAndReplaceAnnotationsAreSetNamespace", withReplaceAndServerSideApplyAnnotations(NewNamespace()), NewNamespace(), "update", false, ""},
 		{"LiveObjectMissing", withReplaceAnnotation(NewPod()), nil, "create", false, ""},
 	}
 

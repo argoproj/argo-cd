@@ -915,8 +915,10 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, force, validate bool) (c
 	serverSideApply := sc.serverSideApply || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionServerSideApply)
 	if shouldReplace {
 		if t.liveObj != nil {
-			// Avoid using `kubectl replace` for CRDs since 'replace' might recreate resource and so delete all CRD instances
-			if kube.IsCRD(t.targetObj) {
+			// Avoid using `kubectl replace` for CRDs since 'replace' might recreate resource and so delete all CRD instances.
+			// The same thing applies for namespaces, which would delete the namespace as well as everything within it,
+			// so we want to avoid using `kubectl replace` in that case as well.
+			if kube.IsCRD(t.targetObj) || t.targetObj.GetKind() == kubeutil.NamespaceKind {
 				update := t.targetObj.DeepCopy()
 				update.SetResourceVersion(t.liveObj.GetResourceVersion())
 				_, err = sc.resourceOps.UpdateResource(context.TODO(), update, dryRunStrategy)
