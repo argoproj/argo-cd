@@ -4367,6 +4367,7 @@
           "type": "boolean"
         },
         "configManagementPlugins": {
+          "description": "Deprecated: use sidecar plugins instead.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ConfigManagementPlugin"
