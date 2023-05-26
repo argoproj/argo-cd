@@ -151,6 +151,8 @@ FROM registry1.dso.mil/ironbank/opensource/alpinelinux/alpine:3.18.0
 
 ARG HELM_SECRETS_VERSION="4.4.2"
 
+ARG ARGOCD_USER_ID=999
+
 ENV HOME=/home/argocd \
     USER=argocd \
     HELM_SECRETS_BACKEND="sops" \
@@ -162,8 +164,8 @@ ENV HOME=/home/argocd \
     HELM_SECRETS_WRAPPER_ENABLED=false \
     LIBGCRYPT_FORCE_FIPS_MODE=true
 
-RUN addgroup -g 1000 argocd && \
-    adduser -D -u 1001 -s /sbin/nologin -G argocd argocd && \
+RUN addgroup -g $ARGOCD_USER_ID argocd && \
+    adduser -D -u $ARGOCD_USER_ID -s /sbin/nologin -G argocd argocd && \
     chown argocd:argocd ${HOME} && \
     chmod g=u ${HOME} && \
     apk update && \
@@ -180,9 +182,9 @@ COPY scripts/* /usr/local/bin/
 
 RUN mkdir -p /app/config/ssh /app/config/tls && \
     mkdir -p /app/config/gpg/source /app/config/gpg/keys && \
-    mkdir -p /home/argocd/.kube && \
-    chown argocd /home/argocd/.kube && \
-    touch /home/argocd/.kube/config && \
+    #mkdir -p /home/argocd/.kube && \
+    #chown argocd /home/argocd/.kube && \
+    #touch /home/argocd/.kube/config && \
     chown argocd:0 /app/config/gpg/keys && \
     chmod 0700 /app/config/gpg/keys && \
     chmod 0755 /usr/local/bin/*.sh && \
@@ -202,7 +204,7 @@ RUN mkdir -p /app/config/ssh /app/config/tls && \
 
 RUN chmod 750 -R /home/argocd
 
-USER 1001
+USER $ARGOCD_USER_ID
 
 RUN helm plugin install --version ${HELM_SECRETS_VERSION} https://github.com/jkroepke/helm-secrets
 
@@ -213,7 +215,7 @@ RUN mkdir /usr/local/sbin && \
 
 RUN ln -sf "$(helm env HELM_PLUGINS)/helm-secrets/scripts/wrapper/helm.sh" /usr/local/sbin/helm
 
-USER 1001
+USER $ARGOCD_USER_ID
 
 WORKDIR ${HOME}
 
