@@ -269,6 +269,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Unifonic Inc](https://www.unifonic.com/)
 1. [Universidad Mesoamericana](https://www.umes.edu.gt/)
 1. [Vectra](https://www.vectra.ai)
+1. [Veepee](https://www.veepee.com)
 1. [Viaduct](https://www.viaduct.ai/)
 1. [Vinted](https://vinted.com/)
 1. [Virtuo](https://www.govirtuo.com/)
