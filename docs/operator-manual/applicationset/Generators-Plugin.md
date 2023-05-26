@@ -27,17 +27,18 @@ spec:
         # Specify the configMap where the plugin configuration is located.
         configMapRef: 
           name: my-plugin
-        # You can pass arbitrary parameters to the plugin. `inputParameters` is a map, but values may be any type. 
+        # You can pass arbitrary parameters to the plugin. `input.parameters` is a map, but values may be any type. 
         # These parameters will also be available on the generator's output under the `inputParameters` key.
-        inputParameters:
-          key1: "value1"
-          key2: "value2"
-          list: ["list", "of", "values"]
-          boolean: true
-          map:
+        input:
+          parameters:
             key1: "value1"
             key2: "value2"
-            key3: "value3"
+            list: ["list", "of", "values"]
+            boolean: true
+            map:
+              key1: "value1"
+              key2: "value2"
+              key3: "value3"
 
         # You can also attach arbitrary values to the generator's output under the `values` key. These values will be
         # available in templates under the `values` key.
@@ -57,7 +58,7 @@ spec:
 ```
 
 * `configMapRef.name`: A `ConfigMap` name containing the plugin configuration to use for RPC call.
-* `inputParameters`: InputParameters included in the RPC call to the plugin. (Optional)
+* `input.parameters`: Input parameters included in the RPC call to the plugin. (Optional)
 
 !!! note
     The concept of the plugin should not undermine the spirit of GitOps by externalizing data outside of Git. The goal is to be complementary in specific contexts.

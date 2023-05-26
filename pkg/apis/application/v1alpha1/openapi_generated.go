@@ -104,6 +104,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OverrideIgnoreDiff":                  schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginConfigMapRef":                  schema_pkg_apis_application_v1alpha1_PluginConfigMapRef(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator":                     schema_pkg_apis_application_v1alpha1_PluginGenerator(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginInput":                         schema_pkg_apis_application_v1alpha1_PluginInput(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ProjectRole":                         schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator":                schema_pkg_apis_application_v1alpha1_PullRequestGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorBitbucketServer": schema_pkg_apis_application_v1alpha1_PullRequestGeneratorBitbucketServer(ref),
@@ -920,11 +921,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetGenerator(ref common.Ref
 							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator"),
 						},
 					},
-					"plugin": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator"),
-						},
-					},
 					"matrix": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.MatrixGenerator"),
@@ -939,6 +935,11 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetGenerator(ref common.Ref
 						SchemaProps: spec.SchemaProps{
 							Description: "Selector allows to post-filter all generator.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+					"plugin": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator"),
 						},
 					},
 				},
@@ -1035,11 +1036,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetNestedGenerator(ref comm
 							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator"),
 						},
 					},
-					"plugin": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator"),
-						},
-					},
 					"matrix": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Matrix should have the form of NestedMatrixGenerator",
@@ -1056,6 +1052,11 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetNestedGenerator(ref comm
 						SchemaProps: spec.SchemaProps{
 							Description: "Selector allows to post-filter all generator.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+					"plugin": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator"),
 						},
 					},
 				},
@@ -4291,19 +4292,10 @@ func schema_pkg_apis_application_v1alpha1_PluginGenerator(ref common.ReferenceCa
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginConfigMapRef"),
 						},
 					},
-					"inputParameters": {
+					"input": {
 						SchemaProps: spec.SchemaProps{
-							Description: "InputParameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the values can be any type.",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
-									},
-								},
-							},
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginInput"),
 						},
 					},
 					"requeueAfterSeconds": {
@@ -4340,7 +4332,36 @@ func schema_pkg_apis_application_v1alpha1_PluginGenerator(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginConfigMapRef", "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginConfigMapRef", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginInput"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_PluginInput(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"parameters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the values can be any type.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"},
 	}
 }
 

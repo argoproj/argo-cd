@@ -7318,12 +7318,8 @@
         "configMapRef": {
           "$ref": "#/definitions/v1alpha1PluginConfigMapRef"
         },
-        "inputParameters": {
-          "description": "InputParameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the\nvalues can be any type.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/v1JSON"
-          }
+        "input": {
+          "$ref": "#/definitions/v1alpha1PluginInput"
         },
         "requeueAfterSeconds": {
           "description": "RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.",
@@ -7338,6 +7334,18 @@
           "type": "object",
           "additionalProperties": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1PluginInput": {
+      "type": "object",
+      "properties": {
+        "parameters": {
+          "description": "Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the\nvalues can be any type.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1JSON"
           }
         }
       }

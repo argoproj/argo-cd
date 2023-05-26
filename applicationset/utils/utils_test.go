@@ -476,12 +476,14 @@ func TestRenderGeneratorParams_does_not_panic(t *testing.T) {
 			ConfigMapRef: argoappsv1.PluginConfigMapRef{
 				Name: "cm-plugin",
 			},
-			InputParameters: map[string]apiextensionsv1.JSON{
-				"branch": {
-					Raw: []byte(`"{{.branch}}"`),
-				},
-				"repo": {
-					Raw: []byte(`"argo-test"`),
+			Input: argoappsv1.PluginInput{
+				Parameters: map[string]apiextensionsv1.JSON{
+					"branch": {
+						Raw: []byte(`"{{.branch}}"`),
+					},
+					"repo": {
+						Raw: []byte(`"argo-test"`),
+					},
 				},
 			},
 		},

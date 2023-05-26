@@ -118,12 +118,13 @@ type ApplicationSetGenerator struct {
 	SCMProvider             *SCMProviderGenerator `json:"scmProvider,omitempty" protobuf:"bytes,4,name=scmProvider"`
 	ClusterDecisionResource *DuckTypeGenerator    `json:"clusterDecisionResource,omitempty" protobuf:"bytes,5,name=clusterDecisionResource"`
 	PullRequest             *PullRequestGenerator `json:"pullRequest,omitempty" protobuf:"bytes,6,name=pullRequest"`
-	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=plugin"`
-	Matrix                  *MatrixGenerator      `json:"matrix,omitempty" protobuf:"bytes,8,name=matrix"`
-	Merge                   *MergeGenerator       `json:"merge,omitempty" protobuf:"bytes,9,name=merge"`
+	Matrix                  *MatrixGenerator      `json:"matrix,omitempty" protobuf:"bytes,7,name=matrix"`
+	Merge                   *MergeGenerator       `json:"merge,omitempty" protobuf:"bytes,8,name=merge"`
 
 	// Selector allows to post-filter all generator.
-	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,10,name=selector"`
+	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
+
+	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
 }
 
 // ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or
@@ -135,16 +136,17 @@ type ApplicationSetNestedGenerator struct {
 	SCMProvider             *SCMProviderGenerator `json:"scmProvider,omitempty" protobuf:"bytes,4,name=scmProvider"`
 	ClusterDecisionResource *DuckTypeGenerator    `json:"clusterDecisionResource,omitempty" protobuf:"bytes,5,name=clusterDecisionResource"`
 	PullRequest             *PullRequestGenerator `json:"pullRequest,omitempty" protobuf:"bytes,6,name=pullRequest"`
-	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=plugin"`
 
 	// Matrix should have the form of NestedMatrixGenerator
-	Matrix *apiextensionsv1.JSON `json:"matrix,omitempty" protobuf:"bytes,8,name=matrix"`
+	Matrix *apiextensionsv1.JSON `json:"matrix,omitempty" protobuf:"bytes,7,name=matrix"`
 
 	// Merge should have the form of NestedMergeGenerator
-	Merge *apiextensionsv1.JSON `json:"merge,omitempty" protobuf:"bytes,9,name=merge"`
+	Merge *apiextensionsv1.JSON `json:"merge,omitempty" protobuf:"bytes,8,name=merge"`
 
 	// Selector allows to post-filter all generator.
-	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,10,name=selector"`
+	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
+
+	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
 }
 
 type ApplicationSetNestedGenerators []ApplicationSetNestedGenerator
@@ -540,12 +542,16 @@ type PluginConfigMapRef struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 }
 
+type PluginInput struct {
+	// Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the
+	// values can be any type.
+	Parameters map[string]apiextensionsv1.JSON `json:"parameters,omitempty" protobuf:"bytes,1,name=parameters"`
+}
+
 // PluginGenerator defines connection info specific to Plugin.
 type PluginGenerator struct {
 	ConfigMapRef PluginConfigMapRef `json:"configMapRef" protobuf:"bytes,1,name=configMapRef"`
-	// InputParameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the
-	// values can be any type.
-	InputParameters map[string]apiextensionsv1.JSON `json:"inputParameters,omitempty" protobuf:"bytes,2,name=inputParameters"`
+	Input        PluginInput        `json:"input,omitempty" protobuf:"bytes,2,name=input"`
 	// RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.
 	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,3,opt,name=requeueAfterSeconds"`
 	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,4,name=template"`

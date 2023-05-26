@@ -578,9 +578,11 @@ func TestPluginGenerateParams(t *testing.T) {
 
 			generatorConfig := argoprojiov1alpha1.ApplicationSetGenerator{
 				Plugin: &argoprojiov1alpha1.PluginGenerator{
-					ConfigMapRef:    argoprojiov1alpha1.PluginConfigMapRef{Name: testCase.configmap.Name},
-					InputParameters: testCase.inputParameters,
-					Values:          testCase.values,
+					ConfigMapRef: argoprojiov1alpha1.PluginConfigMapRef{Name: testCase.configmap.Name},
+					Input: argoprojiov1alpha1.PluginInput{
+						Parameters: testCase.inputParameters,
+					},
+					Values: testCase.values,
 				},
 			}
 

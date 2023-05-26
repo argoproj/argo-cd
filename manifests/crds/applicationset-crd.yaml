@@ -4128,9 +4128,12 @@ spec:
                                     required:
                                     - name
                                     type: object
-                                  inputParameters:
-                                    additionalProperties:
-                                      x-kubernetes-preserve-unknown-fields: true
+                                  input:
+                                    properties:
+                                      parameters:
+                                        additionalProperties:
+                                          x-kubernetes-preserve-unknown-fields: true
+                                        type: object
                                     type: object
                                   requeueAfterSeconds:
                                     format: int64
@@ -8448,9 +8451,12 @@ spec:
                                     required:
                                     - name
                                     type: object
-                                  inputParameters:
-                                    additionalProperties:
-                                      x-kubernetes-preserve-unknown-fields: true
+                                  input:
+                                    properties:
+                                      parameters:
+                                        additionalProperties:
+                                          x-kubernetes-preserve-unknown-fields: true
+                                        type: object
                                     type: object
                                   requeueAfterSeconds:
                                     format: int64
@@ -10725,9 +10731,12 @@ spec:
                           required:
                           - name
                           type: object
-                        inputParameters:
-                          additionalProperties:
-                            x-kubernetes-preserve-unknown-fields: true
+                        input:
+                          properties:
+                            parameters:
+                              additionalProperties:
+                                x-kubernetes-preserve-unknown-fields: true
+                              type: object
                           type: object
                         requeueAfterSeconds:
                           format: int64
