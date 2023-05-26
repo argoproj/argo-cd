@@ -1821,7 +1821,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 }
 
 func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksRequest) (*application.LinksResponse, error) {
-	a, err := s.getApplicationEnforceRBACClient(ctx, rbacpolicy.ActionSync, req.GetNamespace(), req.GetName(), "")
+	a, err := s.getApplicationEnforceRBACClient(ctx, rbacpolicy.ActionGet, req.GetNamespace(), req.GetName(), "")
 	if err != nil {
 		return nil, err
 	}

@@ -1428,7 +1428,7 @@ spec:
                           as part of automated sync (default: false)'
                         type: boolean
                       selfHeal:
-                        description: 'SelfHeal specifes whether to revert resources
+                        description: 'SelfHeal specifies whether to revert resources
                           back to their desired state upon modification in the cluster
                           (default: false)'
                         type: boolean
