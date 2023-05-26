@@ -180,6 +180,9 @@ COPY scripts/* /usr/local/bin/
 
 RUN mkdir -p /app/config/ssh /app/config/tls && \
     mkdir -p /app/config/gpg/source /app/config/gpg/keys && \
+    mkdir -p /home/argocd/.kube && \
+    chown argocd /home/argocd/.kube && \
+    touch /home/argocd/.kube/config && \
     chown argocd:0 /app/config/gpg/keys && \
     chmod 0700 /app/config/gpg/keys && \
     chmod 0755 /usr/local/bin/*.sh && \
