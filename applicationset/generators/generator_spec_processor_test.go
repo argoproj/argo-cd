@@ -94,8 +94,160 @@ func TestMatchValues(t *testing.T) {
 	}
 }
 
-func emptyTemplate() argoprojiov1alpha1.ApplicationSetTemplate {
-	return argoprojiov1alpha1.ApplicationSetTemplate{
+func TestMatchValuesGoTemplate(t *testing.T) {
+	testCases := []struct {
+		name     string
+		elements []apiextensionsv1.JSON
+		selector *metav1.LabelSelector
+		expected []map[string]interface{}
+	}{
+		{
+			name:     "no filter",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
+			selector: &metav1.LabelSelector{},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
+		},
+		{
+			name:     "nil",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
+			selector: nil,
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
+		},
+		{
+			name:     "values.foo should be foo but is ignore element",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"values.foo": "foo",
+				},
+			},
+			expected: []map[string]interface{}{},
+		},
+		{
+			name:     "values.foo should be bar",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"values.foo": "bar",
+				},
+			},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values": map[string]interface{}{"foo": "bar"}}},
+		},
+		{
+			name:     "values.0 should be bar",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":["bar"]}`)}},
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"values.0": "bar",
+				},
+			},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values": []interface{}{"bar"}}},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			var listGenerator = NewListGenerator()
+			var data = map[string]Generator{
+				"List": listGenerator,
+			}
+
+			applicationSetInfo := argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					GoTemplate: true,
+				},
+			}
+
+			results, err := Transform(argov1alpha1.ApplicationSetGenerator{
+				Selector: testCase.selector,
+				List: &argov1alpha1.ListGenerator{
+					Elements: testCase.elements,
+					Template: emptyTemplate(),
+				}},
+				data,
+				emptyTemplate(),
+				&applicationSetInfo, nil)
+
+			assert.NoError(t, err)
+			assert.ElementsMatch(t, testCase.expected, results[0].Params)
+		})
+	}
+}
+
+func TestTransForm(t *testing.T) {
+	testCases := []struct {
+		name     string
+		selector *metav1.LabelSelector
+		expected []map[string]interface{}
+	}{
+		{
+			name: "server filter",
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"server": "https://production-01.example.com"},
+			},
+			expected: []map[string]interface{}{{
+				"metadata.annotations.foo.argoproj.io":           "production",
+				"metadata.labels.argocd.argoproj.io/secret-type": "cluster",
+				"metadata.labels.environment":                    "production",
+				"metadata.labels.org":                            "bar",
+				"name":                                           "production_01/west",
+				"nameNormalized":                                 "production-01-west",
+				"server":                                         "https://production-01.example.com",
+			}},
+		},
+		{
+			name: "server filter with long url",
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"server": "https://some-really-long-url-that-will-exceed-63-characters.com"},
+			},
+			expected: []map[string]interface{}{{
+				"metadata.annotations.foo.argoproj.io":           "production",
+				"metadata.labels.argocd.argoproj.io/secret-type": "cluster",
+				"metadata.labels.environment":                    "production",
+				"metadata.labels.org":                            "bar",
+				"name":                                           "some-really-long-server-url",
+				"nameNormalized":                                 "some-really-long-server-url",
+				"server":                                         "https://some-really-long-url-that-will-exceed-63-characters.com",
+			}},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			testGenerators := map[string]Generator{
+				"Clusters": getMockClusterGenerator(),
+			}
+
+			applicationSetInfo := argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{},
+			}
+
+			results, err := Transform(
+				argov1alpha1.ApplicationSetGenerator{
+					Selector: testCase.selector,
+					Clusters: &argov1alpha1.ClusterGenerator{
+						Selector: metav1.LabelSelector{},
+						Template: argov1alpha1.ApplicationSetTemplate{},
+						Values:   nil,
+					}},
+				testGenerators,
+				emptyTemplate(),
+				&applicationSetInfo, nil)
+
+			assert.NoError(t, err)
+			assert.ElementsMatch(t, testCase.expected, results[0].Params)
+		})
+	}
+}
+
+func emptyTemplate() argov1alpha1.ApplicationSetTemplate {
+	return argov1alpha1.ApplicationSetTemplate{
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "project",
 		},
@@ -152,8 +304,35 @@ func getMockClusterGenerator() Generator {
 			},
 			Type: corev1.SecretType("Opaque"),
 		},
+		&corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "some-really-long-server-url",
+				Namespace: "namespace",
+				Labels: map[string]string{
+					"argocd.argoproj.io/secret-type": "cluster",
+					"environment":                    "production",
+					"org":                            "bar",
+				},
+				Annotations: map[string]string{
+					"foo.argoproj.io": "production",
+				},
+			},
+			Data: map[string][]byte{
+				"config": []byte("{}"),
+				"name":   []byte("some-really-long-server-url"),
+				"server": []byte("https://some-really-long-url-that-will-exceed-63-characters.com"),
+			},
+			Type: corev1.SecretType("Opaque"),
+		},
 	}
 	runtimeClusters := []runtime.Object{}
+	for _, clientCluster := range clusters {
+		runtimeClusters = append(runtimeClusters, clientCluster)
+	}
 	appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
 
 	fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
