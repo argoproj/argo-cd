@@ -148,19 +148,28 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// appSyncMap tracks which apps will be synced during this reconciliation.
 	appSyncMap := map[string]bool{}
 
-	if r.EnableProgressiveSyncs && applicationSetInfo.Spec.Strategy != nil {
-		applications, err := r.getCurrentApplications(ctx, applicationSetInfo)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
-		}
+	if r.EnableProgressiveSyncs {
+		if applicationSetInfo.Spec.Strategy == nil && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
+			log.Infof("Removing %v unnecessary AppStatus entries from ApplicationSet %v", len(applicationSetInfo.Status.ApplicationStatus), applicationSetInfo.Name)
 
-		for _, app := range applications {
-			appMap[app.Name] = app
-		}
+			err := r.setAppSetApplicationStatus(ctx, &applicationSetInfo, []argov1alpha1.ApplicationSetApplicationStatus{})
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to clear previous AppSet application statuses for %v: %w", applicationSetInfo.Name, err)
+			}
+		} else {
+			applications, err := r.getCurrentApplications(ctx, applicationSetInfo)
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
+			}
 
-		appSyncMap, err = r.performProgressiveSyncs(ctx, applicationSetInfo, applications, desiredApplications, appMap)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
+			for _, app := range applications {
+				appMap[app.Name] = app
+			}
+
+			appSyncMap, err = r.performProgressiveSyncs(ctx, applicationSetInfo, applications, desiredApplications, appMap)
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
+			}
 		}
 	}
 
@@ -1205,30 +1214,30 @@ func findApplicationStatusIndex(appStatuses []argov1alpha1.ApplicationSetApplica
 // with any new/changed Application statuses.
 func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, applicationStatuses []argov1alpha1.ApplicationSetApplicationStatus) error {
 	needToUpdateStatus := false
-	for i := range applicationStatuses {
-		appStatus := applicationStatuses[i]
-		idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, appStatus.Application)
-		if idx == -1 {
-			needToUpdateStatus = true
-			break
-		}
-		currentStatus := applicationSet.Status.ApplicationStatus[idx]
-		if currentStatus.Message != appStatus.Message || currentStatus.Status != appStatus.Status {
-			needToUpdateStatus = true
-			break
+
+	if len(applicationStatuses) != len(applicationSet.Status.ApplicationStatus) {
+		needToUpdateStatus = true
+	} else {
+		for i := range applicationStatuses {
+			appStatus := applicationStatuses[i]
+			idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, appStatus.Application)
+			if idx == -1 {
+				needToUpdateStatus = true
+				break
+			}
+			currentStatus := applicationSet.Status.ApplicationStatus[idx]
+			if currentStatus.Message != appStatus.Message || currentStatus.Status != appStatus.Status || currentStatus.Step != appStatus.Step {
+				needToUpdateStatus = true
+				break
+			}
 		}
 	}
 
 	if needToUpdateStatus {
-		// fetch updated Application Set object before updating it
 		namespacedName := types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}
-		if err := r.Get(ctx, namespacedName, applicationSet); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				return nil
-			}
-			return fmt.Errorf("error fetching updated application set: %v", err)
-		}
 
+		// rebuild ApplicationStatus from scratch, we don't need any previous status history
+		applicationSet.Status.ApplicationStatus = []argov1alpha1.ApplicationSetApplicationStatus{}
 		for i := range applicationStatuses {
 			applicationSet.Status.SetApplicationStatus(applicationStatuses[i])
 		}
