@@ -15,7 +15,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/sync"
-	"github.com/ghodss/yaml"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -37,6 +36,7 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -730,10 +730,13 @@ func TestNoAppEnumeration(t *testing.T) {
 	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 
 	t.Run("Get", func(t *testing.T) {
+		// nolint:staticcheck
 		_, err := appServer.Get(adminCtx, &application.ApplicationQuery{Name: pointer.String("test")})
 		assert.NoError(t, err)
+		// nolint:staticcheck
 		_, err = appServer.Get(noRoleCtx, &application.ApplicationQuery{Name: pointer.String("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		// nolint:staticcheck
 		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: pointer.String("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 	})
