@@ -538,15 +538,15 @@ spec:
     - secretName: secret-yourdomain-com
   rules:
     - host: argocd.yourdomain.com
-    http:
-      paths:
-      - pathType: ImplementationSpecific
-        path: "/*"   # "*" is needed. Without this, the UI Javascript and CSS will not load properly
-        backend:
-          service:
-            name: argocd-server
-            port:
-              number: 80
+      http:
+        paths:
+        - pathType: ImplementationSpecific
+          path: "/*"   # "*" is needed. Without this, the UI Javascript and CSS will not load properly
+          backend:
+            service:
+              name: argocd-server
+              port:
+                number: 80
 ```
 
 If you use the version `1.21.3-gke.1600` or later, you should use the following Ingress resource:
@@ -563,15 +563,15 @@ spec:
     - secretName: secret-yourdomain-com
   rules:
     - host: argocd.yourdomain.com
-    http:
-      paths:
-      - pathType: Prefix
-        path: "/"
-        backend:
-          service:
-            name: argocd-server
-            port:
-              number: 80
+      http:
+        paths:
+        - pathType: Prefix
+          path: "/"
+          backend:
+            service:
+              name: argocd-server
+              port:
+                number: 80
 ```
 
 As you may know already, it can take some minutes to deploy the load balancer and become ready to accept connections. Once it's ready, get the public IP address for your Load Balancer, go to your DNS server (Google or third party) and point your domain or subdomain (i.e. argocd.yourdomain.com) to that IP address.
