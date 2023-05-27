@@ -500,6 +500,7 @@ func NewKustomizeReplica(text string) (*KustomizeReplica, error) {
 func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 	return len(k.Images) == 0 &&
 		len(k.CommonLabels) == 0 &&
+		len(k.CommonAnnotations) == 0 &&
 		k.NamePrefix == "" &&
 		k.Namespace == "" &&
 		k.NameSuffix == ""
@@ -2304,6 +2305,10 @@ func (w *SyncWindows) CanSync(isManual bool) bool {
 		} else {
 			return false
 		}
+	}
+
+	if active.hasAllow() {
+		return true
 	}
 
 	inactiveAllows := w.InactiveAllows()
