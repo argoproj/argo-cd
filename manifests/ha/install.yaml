@@ -1511,6 +1511,10 @@ spec:
                   - type
                   type: object
                 type: array
+              controllerNamespace:
+                description: ControllerNamespace indicates the namespace in which
+                  the application controller is located
+                type: string
               health:
                 description: Health contains information about the application's current
                   health status
