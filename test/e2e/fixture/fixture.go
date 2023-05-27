@@ -15,7 +15,6 @@ import (
 
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +22,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -514,7 +514,30 @@ func SetParamInNotificationsConfigMap(key, value string) {
 	})
 }
 
-func EnsureCleanState(t *testing.T) {
+type TestOption func(option *testOption)
+
+type testOption struct {
+	testdata string
+}
+
+func newTestOption(opts ...TestOption) *testOption {
+	to := &testOption{
+		testdata: "testdata",
+	}
+	for _, opt := range opts {
+		opt(to)
+	}
+	return to
+}
+
+func WithTestData(testdata string) TestOption {
+	return func(option *testOption) {
+		option.testdata = testdata
+	}
+}
+
+func EnsureCleanState(t *testing.T, opts ...TestOption) {
+	opt := newTestOption(opts...)
 	// In large scenarios, we can skip tests that already run
 	SkipIfAlreadyRun(t)
 	// Register this test after it has been run & was successfull
@@ -632,7 +655,7 @@ func EnsureCleanState(t *testing.T) {
 	}
 
 	// set-up tmp repo, must have unique name
-	FailOnErr(Run("", "cp", "-Rf", "testdata", repoDirectory()))
+	FailOnErr(Run("", "cp", "-Rf", opt.testdata, repoDirectory()))
 	FailOnErr(Run(repoDirectory(), "chmod", "777", "."))
 	FailOnErr(Run(repoDirectory(), "git", "init"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
@@ -760,6 +783,26 @@ func AddSignedFile(path, contents string) {
 	}
 }
 
+func AddSignedTag(name string) {
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
+	FailOnErr(Run(repoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "tag", "-sm", "add signed tag", name))
+	if IsRemote() {
+		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
+
+func AddTag(name string) {
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
+	FailOnErr(Run(repoDirectory(), "git", "tag", name))
+	if IsRemote() {
+		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
+
 // create the resource by creating using "kubectl apply", with bonus templating
 func Declarative(filename string, values interface{}) (string, error) {
 
@@ -810,6 +853,18 @@ func CreateSubmoduleRepos(repoType string) {
 	}
 
 	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldEnv))
+}
+
+func RemoveSubmodule() {
+	log.Info("removing submodule")
+
+	FailOnErr(Run(submoduleParentDirectory(), "git", "rm", "submodule/test"))
+	FailOnErr(Run(submoduleParentDirectory(), "touch", "submodule/.gitkeep"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "submodule/.gitkeep"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-m", "remove submodule"))
+	if IsRemote() {
+		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "-f", "origin", "master"))
+	}
 }
 
 // RestartRepoServer performs a restart of the repo server deployment and waits
