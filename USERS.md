@@ -229,6 +229,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [SI Analytics](https://si-analytics.ai)
 1. [Skit](https://skit.ai/)
 1. [Skyscanner](https://www.skyscanner.net/)
+1. [Smart Pension](https://www.smartpension.co.uk/)
 1. [Smilee.io](https://smilee.io)
 1. [Smood.ch](https://www.smood.ch/)
 1. [Snapp](https://snapp.ir/)
