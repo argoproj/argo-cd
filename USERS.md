@@ -97,6 +97,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Glovo](https://www.glovoapp.com)
 1. [GMETRI](https://gmetri.com/)
 1. [Gojek](https://www.gojek.io/)
+1. [GoTo Financial](https://gotofinancial.com/)
 1. [Greenpass](https://www.greenpass.com.br/)
 1. [Gridfuse](https://gridfuse.com/)
 1. [Groww](https://groww.in)
@@ -282,4 +283,3 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Yubo](https://www.yubo.live/)
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZOZO](https://corp.zozo.com/)
-1. [GoTo Financial](https://gotofinancial.com/)
