@@ -845,9 +845,9 @@ func targetObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstruc
 	return objs, nil
 }
 
-func getLocalObjects(ctx context.Context, app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
+func getLocalObjects(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
 	configManagementPlugins []*argoappv1.ConfigManagementPlugin, trackingMethod string) []*unstructured.Unstructured {
-	manifestStrings := getLocalObjectsString(ctx, app, local, localRepoRoot, appLabelKey, kubeVersion, apiVersions, kustomizeOptions, configManagementPlugins, trackingMethod)
+	manifestStrings := getLocalObjectsString(ctx, app, proj, local, localRepoRoot, appLabelKey, kubeVersion, apiVersions, kustomizeOptions, configManagementPlugins, trackingMethod)
 	objs := make([]*unstructured.Unstructured, len(manifestStrings))
 	for i := range manifestStrings {
 		obj := unstructured.Unstructured{}
@@ -858,20 +858,22 @@ func getLocalObjects(ctx context.Context, app *argoappv1.Application, local, loc
 	return objs
 }
 
-func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
+func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
 	configManagementPlugins []*argoappv1.ConfigManagementPlugin, trackingMethod string) []string {
 	source := app.Spec.GetSource()
 	res, err := repository.GenerateManifests(ctx, local, localRepoRoot, source.TargetRevision, &repoapiclient.ManifestRequest{
-		Repo:              &argoappv1.Repository{Repo: source.RepoURL},
-		AppLabelKey:       appLabelKey,
-		AppName:           app.Name,
-		Namespace:         app.Spec.Destination.Namespace,
-		ApplicationSource: &source,
-		KustomizeOptions:  kustomizeOptions,
-		KubeVersion:       kubeVersion,
-		ApiVersions:       apiVersions,
-		Plugins:           configManagementPlugins,
-		TrackingMethod:    trackingMethod,
+		Repo:               &argoappv1.Repository{Repo: source.RepoURL},
+		AppLabelKey:        appLabelKey,
+		AppName:            app.Name,
+		Namespace:          app.Spec.Destination.Namespace,
+		ApplicationSource:  &source,
+		KustomizeOptions:   kustomizeOptions,
+		KubeVersion:        kubeVersion,
+		ApiVersions:        apiVersions,
+		Plugins:            configManagementPlugins,
+		TrackingMethod:     trackingMethod,
+		ProjectName:        proj.Name,
+		ProjectSourceRepos: proj.Spec.SourceRepos,
 	}, true, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	errors.CheckError(err)
 
@@ -989,7 +991,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					diffOption.cluster = cluster
 				}
 			}
-			foundDiffs := findandPrintDiff(ctx, app, resources, argoSettings, appName, diffOption)
+			proj := getProject(c, clientOpts, ctx, app.Spec.Project)
+			foundDiffs := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, appName, diffOption)
 			if foundDiffs && exitCode {
 				os.Exit(1)
 			}
@@ -1017,13 +1020,13 @@ type DifferenceOption struct {
 }
 
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
-func findandPrintDiff(ctx context.Context, app *argoappv1.Application, resources *application.ManagedResourcesResponse, argoSettings *settingspkg.Settings, appName string, diffOptions *DifferenceOption) bool {
+func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settingspkg.Settings, appName string, diffOptions *DifferenceOption) bool {
 	var foundDiffs bool
 	liveObjs, err := cmdutil.LiveObjects(resources.Items)
 	errors.CheckError(err)
 	items := make([]objKeyLiveTarget, 0)
 	if diffOptions.local != "" {
-		localObjs := groupObjsByKey(getLocalObjects(ctx, app, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
+		localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
 		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace))
 	} else if diffOptions.revision != "" {
 		var unstructureds []*unstructured.Unstructured
@@ -1494,7 +1497,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			for _, appName := range appNames {
-				_, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources)
+				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources)
 				errors.CheckError(err)
 			}
 		},
@@ -1686,7 +1689,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
 					argoio.Close(conn)
-					localObjsStrings = getLocalObjectsString(ctx, app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod)
+
+					proj := getProject(c, clientOpts, ctx, app.Spec.Project)
+					localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod)
 					errors.CheckError(err)
 					diffOption.local = local
 					diffOption.localRepoRoot = localRepoRoot
@@ -1755,7 +1760,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					errors.CheckError(err)
 					foundDiffs := false
 					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
-					foundDiffs = findandPrintDiff(ctx, app, resources, argoSettings, appQualifiedName, diffOption)
+
+					proj := getProject(c, clientOpts, ctx, app.Spec.Project)
+					foundDiffs = findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, appQualifiedName, diffOption)
 					if foundDiffs {
 						if !diffChangesConfirm {
 							yesno := cli.AskToProceed(fmt.Sprintf("Please review changes to application %s shown above. Do you want to continue the sync process? (y/n): ", appQualifiedName))
@@ -1771,15 +1778,15 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 
 				if !async {
-					app, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources)
+					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources)
 					errors.CheckError(err)
 
 					if !dryRun {
-						if !app.Status.OperationState.Phase.Successful() {
-							log.Fatalf("Operation has completed with phase: %s", app.Status.OperationState.Phase)
+						if !opState.Phase.Successful() {
+							log.Fatalf("Operation has completed with phase: %s", opState.Phase)
 						} else if len(selectedResources) == 0 && app.Status.Sync.Status != argoappv1.SyncStatusCodeSynced {
 							// Only get resources to be pruned if sync was application-wide and final status is not synced
-							pruningRequired := app.Status.OperationState.SyncResult.Resources.PruningRequired()
+							pruningRequired := opState.SyncResult.Resources.PruningRequired()
 							if pruningRequired > 0 {
 								log.Fatalf("%d resources require pruning", pruningRequired)
 							}
@@ -1993,7 +2000,10 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
-func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
+// waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
+// are fulfiled or we reach the timeout. Returns the app once desired conditions have been filled.
+// Additionally return the operationState at time of fulfilment (which may be different than returned app).
+func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (*argoappv1.Application, *argoappv1.OperationState, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -2051,10 +2061,20 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		AppNamespace: &appNs,
 	})
 	errors.CheckError(err)
+
+	// printFinalStatus() will refresh and update the app object, potentially causing the app's
+	// status.operationState to be different than the version when we break out of the event loop.
+	// This means the app.status is unreliable for determining the final state of the operation.
+	// finalOperationState captures the operationState as it was seen when we met the conditions of
+	// the wait, so the caller can rely on it to determine the outcome of the operation.
+	// See: https://github.com/argoproj/argo-cd/issues/5592
+	finalOperationState := app.Status.OperationState
+
 	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName, app.ResourceVersion)
 	for appEvent := range appEventCh {
 		app = &appEvent.Application
 
+		finalOperationState = app.Status.OperationState
 		operationInProgress := false
 		// consider the operation is in progress
 		if app.Operation != nil {
@@ -2092,7 +2112,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 		if selectedResourcesAreReady && (!operationInProgress || !watch.operation) {
 			app = printFinalStatus(app)
-			return app, nil
+			return app, finalOperationState, nil
 		}
 
 		newStates := groupResourceStates(app, selectedResources)
@@ -2102,7 +2122,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			if prevState, found := prevStates[stateKey]; found {
 				if watch.health && prevState.Health != string(health.HealthStatusUnknown) && prevState.Health != string(health.HealthStatusDegraded) && newState.Health == string(health.HealthStatusDegraded) {
 					_ = printFinalStatus(app)
-					return nil, fmt.Errorf("application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
+					return nil, finalOperationState, fmt.Errorf("application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
 				}
 				doPrint = prevState.Merge(newState)
 			} else {
@@ -2116,7 +2136,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		_ = w.Flush()
 	}
 	_ = printFinalStatus(app)
-	return nil, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
+	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
 }
 
 // setParameterOverrides updates an existing or appends a new parameter override in the application
@@ -2272,7 +2292,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			_, err = waitOnApplicationStatus(ctx, acdClient, app.QualifiedName(), timeout, watchOpts{
+			_, _, err = waitOnApplicationStatus(ctx, acdClient, app.QualifiedName(), timeout, watchOpts{
 				operation: true,
 			}, nil)
 			errors.CheckError(err)
@@ -2354,7 +2374,8 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
 
-					unstructureds = getLocalObjects(context.Background(), app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod)
+					proj := getProject(c, clientOpts, ctx, app.Spec.Project)
+					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod)
 				} else if revision != "" {
 					q := application.ApplicationManifestQuery{
 						Name:         &appName,
