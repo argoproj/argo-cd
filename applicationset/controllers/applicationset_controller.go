@@ -851,43 +851,19 @@ func (r *ApplicationSetReconciler) buildAppDependencyList(ctx context.Context, a
 
 			selected := true // default to true, assuming the current Application is a match for the given step matchExpression
 
-			allNotInMatched := true // needed to support correct AND behavior between multiple NotIn MatchExpressions
-			notInUsed := false      // since we default to allNotInMatched == true, track whether a NotIn expression was actually used
-
 			for _, matchExpression := range step.MatchExpressions {
 
-				if matchExpression.Operator == "In" {
-					if val, ok := app.Labels[matchExpression.Key]; ok {
-						valueMatched := labelMatchedExpression(val, matchExpression)
+				if val, ok := app.Labels[matchExpression.Key]; ok {
+					valueMatched := labelMatchedExpression(val, matchExpression)
 
-						if !valueMatched { // none of the matchExpression values was a match with the Application'ss labels
-							selected = false
-							break
-						}
-					} else {
-						selected = false // no matching label key with In means this Application will not be included in the current step
+					if !valueMatched { // none of the matchExpression values was a match with the Application'ss labels
+						selected = false
 						break
 					}
-				} else if matchExpression.Operator == "NotIn" {
-					notInUsed = true // a NotIn selector was used in this matchExpression
-					if val, ok := app.Labels[matchExpression.Key]; ok {
-						valueMatched := labelMatchedExpression(val, matchExpression)
-
-						if !valueMatched { // none of the matchExpression values was a match with the Application's labels
-							allNotInMatched = false
-						}
-					} else {
-						allNotInMatched = false // no matching label key with NotIn means this Application may still be included in the current step
-					}
-				} else { // handle invalid operator selection
-					log.Warnf("skipping AppSet rollingUpdate step Application selection for %q, invalid matchExpression operator provided: %q ", applicationSet.Name, matchExpression.Operator)
-					selected = false
+				} else if matchExpression.Operator == "In" {
+					selected = false // no matching label key with "In" operator means this Application will not be included in the current step
 					break
 				}
-			}
-
-			if notInUsed && allNotInMatched { // check if all NotIn Expressions matched, if so exclude this Application
-				selected = false
 			}
 
 			if selected {
@@ -905,11 +881,20 @@ func (r *ApplicationSetReconciler) buildAppDependencyList(ctx context.Context, a
 }
 
 func labelMatchedExpression(val string, matchExpression argov1alpha1.ApplicationMatchExpression) bool {
-	valueMatched := false
+	if matchExpression.Operator != "In" && matchExpression.Operator != "NotIn" {
+		log.Errorf("skipping AppSet rollingUpdate step Application selection, invalid matchExpression operator provided: %q ", matchExpression.Operator)
+		return false
+	}
+
+	// if operator == In, default to false
+	// if operator == NotIn, default to true
+	valueMatched := matchExpression.Operator == "NotIn"
+
 	for _, value := range matchExpression.Values {
 		if val == value {
-			valueMatched = true
-			break
+			// first "In" match returns true
+			// first "NotIn" match returns false
+			return matchExpression.Operator == "In"
 		}
 	}
 	return valueMatched
