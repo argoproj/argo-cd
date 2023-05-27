@@ -73,7 +73,92 @@ func TestMatchValues(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
 				},
-				Spec: argov1alpha1.ApplicationSetSpec{},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					GoTemplate: false,
+				},
+			}
+
+			results, err := Transform(argov1alpha1.ApplicationSetGenerator{
+				Selector: testCase.selector,
+				List: &argov1alpha1.ListGenerator{
+					Elements: testCase.elements,
+					Template: emptyTemplate(),
+				}},
+				data,
+				emptyTemplate(),
+				&applicationSetInfo, nil)
+
+			assert.NoError(t, err)
+			assert.ElementsMatch(t, testCase.expected, results[0].Params)
+		})
+	}
+}
+
+func TestMatchValuesGoTemplate(t *testing.T) {
+	testCases := []struct {
+		name     string
+		elements []apiextensionsv1.JSON
+		selector *metav1.LabelSelector
+		expected []map[string]interface{}
+	}{
+		{
+			name:     "no filter",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
+			selector: &metav1.LabelSelector{},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
+		},
+		{
+			name:     "nil",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
+			selector: nil,
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
+		},
+		{
+			name:     "values.foo should be foo but is ignore element",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"values.foo": "foo",
+				},
+			},
+			expected: []map[string]interface{}{},
+		},
+		{
+			name:     "values.foo should be bar",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"values.foo": "bar",
+				},
+			},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values": map[string]interface{}{"foo": "bar"}}},
+		},
+		{
+			name:     "values.0 should be bar",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":["bar"]}`)}},
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"values.0": "bar",
+				},
+			},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values": []interface{}{"bar"}}},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			var listGenerator = NewListGenerator()
+			var data = map[string]Generator{
+				"List": listGenerator,
+			}
+
+			applicationSetInfo := argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					GoTemplate: true,
+				},
 			}
 
 			results, err := Transform(argov1alpha1.ApplicationSetGenerator{
