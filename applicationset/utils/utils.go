@@ -96,6 +96,25 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			// specific case time
 			if currentType == "time.Time" {
 				copy.Field(i).Set(original.Field(i))
+			} else if currentType == "Raw.k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1" {
+				var unmarshaled interface{}
+				originalBytes := original.Field(i).Bytes()
+				err := json.Unmarshal(originalBytes, &unmarshaled)
+				if err != nil {
+					return fmt.Errorf("failed to unmarshal JSON field: %w", err)
+				}
+				jsonOriginal := reflect.ValueOf(&unmarshaled)
+				jsonCopy := reflect.New(jsonOriginal.Type()).Elem()
+				err = r.deeplyReplace(jsonCopy, jsonOriginal, replaceMap, useGoTemplate)
+				if err != nil {
+					return fmt.Errorf("failed to deeply replace JSON field contents: %w", err)
+				}
+				jsonCopyInterface := jsonCopy.Interface().(*interface{})
+				data, err := json.Marshal(jsonCopyInterface)
+				if err != nil {
+					return fmt.Errorf("failed to marshal templated JSON field: %w", err)
+				}
+				copy.Field(i).Set(reflect.ValueOf(data))
 			} else if err := r.deeplyReplace(copy.Field(i), original.Field(i), replaceMap, useGoTemplate); err != nil {
 				return err
 			}

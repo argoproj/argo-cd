@@ -30,7 +30,7 @@ argocd-application-controller [flags]
   -h, --help                                  help for argocd-application-controller
       --insecure-skip-tls-verify              If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                     Path to a kube config. Only required if out-of-cluster
-      --kubectl-parallelism-limit int         Number of allowed concurrent kubectl fork/execs. Any value less the 1 means no limit. (default 20)
+      --kubectl-parallelism-limit int         Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit. (default 20)
       --logformat string                      Set the logging format. One of: text|json (default "text")
       --loglevel string                       Set the logging level. One of: debug|info|warn|error (default "info")
       --metrics-application-labels strings    List of Application labels that will be added to the argocd_application_labels metric
@@ -46,7 +46,7 @@ argocd-application-controller [flags]
       --redis-ca-certificate string           Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string       Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --redis-client-key string               Path to Redis client key (e.g. /etc/certs/redis/client.crt).
-      --redis-compress string                 Enable compression for data sent to Redis with the required compression algorithm. (possible values: none, gzip) (default "none")
+      --redis-compress string                 Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none) (default "gzip")
       --redis-insecure-skip-tls-verify        Skip Redis server certificate validation.
       --redis-use-tls                         Use TLS when connecting to Redis. 
       --redisdb int                           Redis database.

@@ -14,8 +14,8 @@ data:
 
   # Redis server hostname and port (e.g. argocd-redis:6379)
   redis.server: "argocd-redis:6379"
-  # Enable compression for data sent to Redis with the required compression algorithm. (default 'none')
-  redis.compression: none
+  # Enable compression for data sent to Redis with the required compression algorithm. (default 'gzip')
+  redis.compression: gzip
   # Redis database
   redis.db:
 
@@ -57,6 +57,8 @@ data:
   controller.resource.health.persist: "true"
   # Cache expiration default (default 24h0m0s)
   controller.default.cache.expiration: "24h0m0s"
+  # Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.
+  controller.kubectl.parallelism.limit: "20"
 
   ## Server properties
   # Run server without TLS

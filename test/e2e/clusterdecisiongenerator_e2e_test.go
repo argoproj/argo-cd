@@ -3,12 +3,15 @@ package e2e
 import (
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 var tenSec = int64(10)
@@ -17,12 +20,12 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "cluster1-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -119,12 +122,12 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 
 	expectedAppTemplate := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "{{name}}-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -214,12 +217,12 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 
 	expectedAppTemplate := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "{{name}}-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -311,12 +314,12 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 
 	expectedAppTemplate := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "{{name}}-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
