@@ -855,6 +855,18 @@ func CreateSubmoduleRepos(repoType string) {
 	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldEnv))
 }
 
+func RemoveSubmodule() {
+	log.Info("removing submodule")
+
+	FailOnErr(Run(submoduleParentDirectory(), "git", "rm", "submodule/test"))
+	FailOnErr(Run(submoduleParentDirectory(), "touch", "submodule/.gitkeep"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "submodule/.gitkeep"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-m", "remove submodule"))
+	if IsRemote() {
+		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "-f", "origin", "master"))
+	}
+}
+
 // RestartRepoServer performs a restart of the repo server deployment and waits
 // until the rollout has completed.
 func RestartRepoServer() {
