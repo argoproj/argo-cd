@@ -6,7 +6,7 @@ import {services} from '../../../shared/services';
 
 import {ApplicationSummaryProps} from './application-summary';
 
-require('./edit-notification-subscriptions.scss');
+import './edit-notification-subscriptions.scss';
 
 export const NOTIFICATION_SUBSCRIPTION_ANNOTATION_PREFIX = 'notifications.argoproj.io/subscribe';
 
