@@ -33,6 +33,12 @@ export function revisionUrl(url: string, revision: string): string {
         urlSubPath = isSHA(revision) ? 'commits' : 'src';
     }
 
+    // Gitlab changed the way urls to commit look like
+    // Ref: https://docs.gitlab.com/ee/update/deprecations.html#legacy-urls-replaced-or-removed
+    if (parsed.source === 'gitlab.com') {
+        urlSubPath = '-/' + urlSubPath;
+    }
+
     if (!supportedSource(parsed)) {
         return null;
     }
