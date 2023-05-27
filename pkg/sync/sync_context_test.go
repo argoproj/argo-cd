@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -70,11 +71,15 @@ func newTestSyncCtx(getResourceFunc *func(ctx context.Context, config *rest.Conf
 		return nil
 	}
 	mockKubectl := kubetest.MockKubectlCmd{}
+
+	sc.kubectl = &mockKubectl
+	mockResourceOps := kubetest.MockResourceOps{}
+	sc.resourceOps = &mockResourceOps
 	if getResourceFunc != nil {
 		mockKubectl.WithGetResourceFunc(*getResourceFunc)
+		mockResourceOps.WithGetResourceFunc(*getResourceFunc)
 	}
-	sc.kubectl = &mockKubectl
-	sc.resourceOps = &mockKubectl
+
 	for _, opt := range opts {
 		opt(&sc)
 	}
@@ -94,8 +99,9 @@ func TestSyncValidate(t *testing.T) {
 
 	syncCtx.Sync()
 
-	kubectl := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
-	assert.False(t, kubectl.GetLastValidate())
+	// kubectl := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
+	resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+	assert.False(t, resourceOps.GetLastValidate())
 }
 
 func TestSyncNotPermittedNamespace(t *testing.T) {
@@ -307,7 +313,15 @@ func TestSyncCreateFailure(t *testing.T) {
 		},
 	}
 	syncCtx.kubectl = mockKubectl
-	syncCtx.resourceOps = mockKubectl
+	mockResourceOps := &kubetest.MockResourceOps{
+		Commands: map[string]kubetest.KubectlOutput{
+			testSvc.GetName(): {
+				Output: "",
+				Err:    fmt.Errorf("foo"),
+			},
+		},
+	}
+	syncCtx.resourceOps = mockResourceOps
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{testSvc},
@@ -449,7 +463,15 @@ func TestSyncPruneFailure(t *testing.T) {
 		},
 	}
 	syncCtx.kubectl = mockKubectl
-	syncCtx.resourceOps = mockKubectl
+	mockResourceOps := kubetest.MockResourceOps{
+		Commands: map[string]kubetest.KubectlOutput{
+			"test-service": {
+				Output: "",
+				Err:    fmt.Errorf("foo"),
+			},
+		},
+	}
+	syncCtx.resourceOps = &mockResourceOps
 	testSvc := NewService()
 	testSvc.SetName("test-service")
 	testSvc.SetNamespace(FakeArgoCDNamespace)
@@ -718,8 +740,9 @@ func TestSyncOptionValidate(t *testing.T) {
 
 			syncCtx.Sync()
 
-			kubectl, _ := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
-			assert.Equal(t, tt.want, kubectl.GetLastValidate())
+			// kubectl, _ := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
+			resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+			assert.Equal(t, tt.want, resourceOps.GetLastValidate())
 		})
 	}
 }
@@ -756,8 +779,9 @@ func TestSync_Replace(t *testing.T) {
 
 			syncCtx.Sync()
 
-			kubectl, _ := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
-			assert.Equal(t, tc.commandUsed, kubectl.GetLastResourceCommand(kube.GetResourceKey(tc.target)))
+			// kubectl, _ := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
+			resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+			assert.Equal(t, tc.commandUsed, resourceOps.GetLastResourceCommand(kube.GetResourceKey(tc.target)))
 		})
 	}
 }
@@ -806,10 +830,11 @@ func TestSync_ServerSideApply(t *testing.T) {
 
 			syncCtx.Sync()
 
-			kubectl, _ := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
-			assert.Equal(t, tc.commandUsed, kubectl.GetLastResourceCommand(kube.GetResourceKey(tc.target)))
-			assert.Equal(t, tc.serverSideApply, kubectl.GetLastServerSideApply())
-			assert.Equal(t, tc.manager, kubectl.GetLastServerSideApplyManager())
+			// kubectl, _ := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
+			resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+			assert.Equal(t, tc.commandUsed, resourceOps.GetLastResourceCommand(kube.GetResourceKey(tc.target)))
+			assert.Equal(t, tc.serverSideApply, resourceOps.GetLastServerSideApply())
+			assert.Equal(t, tc.manager, resourceOps.GetLastServerSideApplyManager())
 		})
 	}
 }
@@ -1123,7 +1148,10 @@ func TestSyncFailureHookWithFailedSync(t *testing.T) {
 		Commands: map[string]kubetest.KubectlOutput{pod.GetName(): {Err: fmt.Errorf("")}},
 	}
 	syncCtx.kubectl = mockKubectl
-	syncCtx.resourceOps = mockKubectl
+	mockResourceOps := kubetest.MockResourceOps{
+		Commands: map[string]kubetest.KubectlOutput{pod.GetName(): {Err: fmt.Errorf("")}},
+	}
+	syncCtx.resourceOps = &mockResourceOps
 
 	syncCtx.Sync()
 	syncCtx.Sync()
@@ -1175,7 +1203,14 @@ func TestRunSyncFailHooksFailed(t *testing.T) {
 			failedSyncFailHook.GetName(): {Err: fmt.Errorf("")}},
 	}
 	syncCtx.kubectl = mockKubectl
-	syncCtx.resourceOps = mockKubectl
+	mockResourceOps := kubetest.MockResourceOps{
+		Commands: map[string]kubetest.KubectlOutput{
+			// Fail operation
+			pod.GetName(): {Err: fmt.Errorf("")},
+			// Fail a single SyncFail hook
+			failedSyncFailHook.GetName(): {Err: fmt.Errorf("")}},
+	}
+	syncCtx.resourceOps = &mockResourceOps
 
 	syncCtx.Sync()
 	syncCtx.Sync()
