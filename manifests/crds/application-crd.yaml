@@ -1427,7 +1427,7 @@ spec:
                           as part of automated sync (default: false)'
                         type: boolean
                       selfHeal:
-                        description: 'SelfHeal specifes whether to revert resources
+                        description: 'SelfHeal specifies whether to revert resources
                           back to their desired state upon modification in the cluster
                           (default: false)'
                         type: boolean
@@ -1491,7 +1491,7 @@ spec:
                   conditions
                 items:
                   description: ApplicationCondition contains details about an application
-                    condition, which is usally an error or warning
+                    condition, which is usually an error or warning
                   properties:
                     lastTransitionTime:
                       description: LastTransitionTime is the time the condition was
@@ -2944,6 +2944,19 @@ spec:
                   syncResult:
                     description: SyncResult is the result of a Sync operation
                     properties:
+                      managedNamespaceMetadata:
+                        description: ManagedNamespaceMetadata contains the current
+                          sync state of managed namespace metadata
+                        properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          labels:
+                            additionalProperties:
+                              type: string
+                            type: object
+                        type: object
                       resources:
                         description: Resources contains a list of sync result items
                           for each individual resource in a sync operation

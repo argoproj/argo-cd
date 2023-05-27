@@ -54,6 +54,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationWatchEvent":               schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Backoff":                             schema_pkg_apis_application_v1alpha1_Backoff(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer":            schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ChartDetails":                        schema_pkg_apis_application_v1alpha1_ChartDetails(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Cluster":                             schema_pkg_apis_application_v1alpha1_Cluster(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterCacheInfo":                    schema_pkg_apis_application_v1alpha1_ClusterCacheInfo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterConfig":                       schema_pkg_apis_application_v1alpha1_ClusterConfig(ref),
@@ -543,7 +544,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref common.Refere
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ApplicationCondition contains details about an application condition, which is usally an error or warning",
+				Description: "ApplicationCondition contains details about an application condition, which is usually an error or warning",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"type": {
@@ -2290,6 +2291,47 @@ func schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref common.Re
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_ChartDetails(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ChartDetails contains helm chart metadata for a specific version",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"home": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The URL of this projects home page, e.g. \"http://example.com\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"maintainers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of maintainer details, name and email, e.g. [\"John Doe <john_doe@my-company.com>\"]",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3666,16 +3708,16 @@ func schema_pkg_apis_application_v1alpha1_ListGenerator(ref common.ReferenceCall
 							},
 						},
 					},
-					"elementsYaml": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
 					"template": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
+						},
+					},
+					"elementsYaml": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 				},
@@ -6726,12 +6768,18 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref common.Referen
 							},
 						},
 					},
+					"managedNamespaceMetadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManagedNamespaceMetadata contains the current sync state of managed namespace metadata",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata"),
+						},
+					},
 				},
 				Required: []string{"revision"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceResult"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceResult"},
 	}
 }
 
@@ -6799,7 +6847,7 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 					},
 					"selfHeal": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)",
+							Description: "SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

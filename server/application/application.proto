@@ -324,6 +324,11 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/metadata";
 	}
 
+	// Get the chart metadata (description, maintainers, home) for a specific revision of the application
+	rpc RevisionChartDetails (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ChartDetails) {
+		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/chartdetails";
+	}
+
 	// GetManifests returns application manifests
 	rpc GetManifests (ApplicationManifestQuery) returns (repository.ManifestResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/manifests";
