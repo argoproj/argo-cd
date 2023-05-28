@@ -2082,6 +2082,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 							},
 						},
 					},
+					"controllerNamespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ControllerNamespace indicates the namespace in which the application controller is located",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -4448,6 +4455,12 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorFilter(ref common.
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"branchMatch": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"targetBranchMatch": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
