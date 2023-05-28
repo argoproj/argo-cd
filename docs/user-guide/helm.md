@@ -37,6 +37,29 @@ argocd app set helm-guestbook --values values-production.yaml
     location in which case it can be accessed using a relative path relative to the root directory of
     the Helm chart.
 
+## Values
+
+Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.values` key.
+
+```
+source:
+  helm:
+    values: |
+      ingress:
+        enabled: true
+        path: /
+        hosts:
+          - mydomain.example.com
+        annotations:
+          kubernetes.io/ingress.class: nginx
+          kubernetes.io/tls-acme: "true"
+        labels: {}
+        tls:
+          - secretName: mydomain-tls
+            hosts:
+              - mydomain.example.com
+```
+
 ## Helm Parameters
 
 Helm has the ability to set parameter values, which override any values in
