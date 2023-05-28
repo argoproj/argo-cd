@@ -2112,13 +2112,6 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.Resource
 }
 
 func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceActionRunRequest) (*application.ApplicationResponse, error) {
-	appName := q.GetName()
-	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
-	app, err := s.appLister.Applications(appNs).Get(appName)
-	if err != nil {
-		return nil, permissionDeniedErr
-	}
-
 	resourceRequest := &application.ApplicationResourceRequest{
 		Name:         q.Name,
 		AppNamespace: q.AppNamespace,
@@ -2155,6 +2148,16 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	newObjects, err := luaVM.ExecuteResourceAction(liveObj, action.ActionLua)
 	if err != nil {
 		return nil, fmt.Errorf("error executing Lua resource action: %w", err)
+	}
+
+	var app *appv1.Application
+	// Only bother getting the app if we know we're going to need it for a resource permission check.
+	if len(newObjects) > 0 {
+		// No need for an RBAC check, we checked above that the user is allowed to run this action.
+		app, err = s.appLister.Applications(s.appNamespaceOrDefault(q.GetAppNamespace())).Get(q.GetName())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// First, make sure all the returned resources are permitted, for each operation.
@@ -2199,7 +2202,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 				return nil, err
 			}
 		case lua.CreateOperation:
-			_, err := s.createResource(ctx, config, app, newObj)
+			_, err := s.createResource(ctx, config, newObj)
 			if err != nil {
 				return nil, err
 			}
@@ -2264,6 +2267,7 @@ func (s *Server) verifyResourcePermitted(ctx context.Context, app *appv1.Applica
 		if apierr.IsNotFound(err) {
 			return fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
 		}
+		return fmt.Errorf("failed to get project %s: %w", app.Spec.Project, err)
 	}
 	permitted, err := proj.IsResourcePermitted(schema.GroupKind{Group: obj.GroupVersionKind().Group, Kind: obj.GroupVersionKind().Kind}, obj.GetNamespace(), app.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
 		clusters, err := s.db.GetProjectClusters(context.TODO(), project)
@@ -2276,14 +2280,13 @@ func (s *Server) verifyResourcePermitted(ctx context.Context, app *appv1.Applica
 		return fmt.Errorf("error checking resource permissions: %w", err)
 	}
 	if !permitted {
-		return permissionDeniedErr
+		return fmt.Errorf("application %s is not permitted to manage %s/%s/%s in %s", app.RBACName(s.ns), obj.GroupVersionKind().Group, obj.GroupVersionKind().Kind, obj.GetName(), obj.GetNamespace())
 	}
 
 	return nil
 }
 
-func (s *Server) createResource(ctx context.Context, config *rest.Config, app *appv1.Application, newObj *unstructured.Unstructured) (*application.ApplicationResponse, error) {
-	// Create the resource
+func (s *Server) createResource(ctx context.Context, config *rest.Config, newObj *unstructured.Unstructured) (*application.ApplicationResponse, error) {
 	_, err := s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error creating resource: %w", err)
