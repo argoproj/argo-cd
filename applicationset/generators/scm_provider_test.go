@@ -112,6 +112,8 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 	assert.Equal(t, "0bc57212c3cbbec69d20b34c507284bd300def5b", params[0]["sha"])
 	assert.Equal(t, "0bc57212", params[0]["short_sha"])
 	assert.Equal(t, "59d0", params[1]["short_sha"])
+	assert.Equal(t, "0bc5721", params[0]["short_sha_7"])
+	assert.Equal(t, "59d0", params[1]["short_sha_7"])
 	assert.Equal(t, "prod,staging", params[0]["labels"])
 	assert.Equal(t, "repo2", params[1]["repository"])
 }

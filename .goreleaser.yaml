@@ -32,7 +32,7 @@ builds:
     ignore:
       - goos: darwin
         goarch: s390x
-      - goos: darmwin
+      - goos: darwin
         goarch: ppc64le
       - goos: windows
         goarch: s390x
@@ -114,6 +114,7 @@ changelog:
     exclude:
       - '^test:'
       - '^.*?Bump(\([[:word:]]+\))?.+$'
+      - '^.*?[Bot](\([[:word:]]+\))?.+$'
 
 
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
