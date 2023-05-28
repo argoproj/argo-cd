@@ -8521,6 +8521,8 @@ spec:
                                       properties:
                                         branchMatch:
                                           type: string
+                                        targetBranchMatch:
+                                          type: string
                                       type: object
                                     type: array
                                   gitea:
@@ -12337,6 +12339,8 @@ spec:
                                       properties:
                                         branchMatch:
                                           type: string
+                                        targetBranchMatch:
+                                          type: string
                                       type: object
                                     type: array
                                   gitea:
@@ -14109,6 +14113,8 @@ spec:
                           items:
                             properties:
                               branchMatch:
+                                type: string
+                              targetBranchMatch:
                                 type: string
                             type: object
                           type: array

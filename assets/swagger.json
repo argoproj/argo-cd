@@ -7395,6 +7395,9 @@
       "properties": {
         "branchMatch": {
           "type": "string"
+        },
+        "targetBranchMatch": {
+          "type": "string"
         }
       }
     },
