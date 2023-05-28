@@ -277,6 +277,7 @@ func (s *Service) runRepoOperation(
 	var helmClient helm.Client
 	var err error
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
+	unresolvedRevision := revision
 	if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
 		if err != nil {
@@ -388,7 +389,7 @@ func (s *Service) runRepoOperation(
 		return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
 			var signature string
 			if verifyCommit {
-				signature, err = gitClient.VerifyCommitSignature(revision)
+				signature, err = gitClient.VerifyCommitSignature(unresolvedRevision)
 				if err != nil {
 					return nil, err
 				}
