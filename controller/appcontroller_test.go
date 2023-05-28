@@ -17,7 +17,6 @@ import (
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
@@ -29,6 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/yaml"
 
 	mockstatecache "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -54,6 +54,7 @@ type fakeData struct {
 	namespacedResources    map[kube.ResourceKey]namespacedResource
 	configMapData          map[string]string
 	metricsCacheExpiration time.Duration
+	applicationNamespaces  []string
 }
 
 func newFakeController(data *fakeData) *ApplicationController {
@@ -111,7 +112,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		0,
 		true,
 		nil,
-		[]string{},
+		data.applicationNamespaces,
 	)
 	if err != nil {
 		panic(err)
@@ -248,7 +249,7 @@ status:
         name: always-outofsync
         namespace: default
         status: Synced
-      revisions: 
+      revisions:
       - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       - bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
       sources:
@@ -1040,6 +1041,55 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	}
 }
 
+func TestUpdatedManagedNamespaceMetadata(t *testing.T) {
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+	app := newFakeApp()
+	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
+		Labels: map[string]string{
+			"foo": "bar",
+		},
+		Annotations: map[string]string{
+			"foo": "bar",
+		},
+	}
+	app.Status.Sync.ComparedTo.Source = app.Spec.GetSource()
+	app.Status.Sync.ComparedTo.Destination = app.Spec.Destination
+
+	// Ensure that hard/soft refresh isn't triggered due to reconciledAt being expired
+	reconciledAt := metav1.NewTime(time.Now().UTC().Add(15 * time.Minute))
+	app.Status.ReconciledAt = &reconciledAt
+	needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 30*time.Minute, 2*time.Hour)
+
+	assert.True(t, needRefresh)
+	assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
+	assert.Equal(t, CompareWithLatest, compareWith)
+}
+
+func TestUnchangedManagedNamespaceMetadata(t *testing.T) {
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+	app := newFakeApp()
+	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
+		Labels: map[string]string{
+			"foo": "bar",
+		},
+		Annotations: map[string]string{
+			"foo": "bar",
+		},
+	}
+	app.Status.Sync.ComparedTo.Source = app.Spec.GetSource()
+	app.Status.Sync.ComparedTo.Destination = app.Spec.Destination
+	app.Status.OperationState.SyncResult.ManagedNamespaceMetadata = app.Spec.SyncPolicy.ManagedNamespaceMetadata
+
+	// Ensure that hard/soft refresh isn't triggered due to reconciledAt being expired
+	reconciledAt := metav1.NewTime(time.Now().UTC().Add(15 * time.Minute))
+	app.Status.ReconciledAt = &reconciledAt
+	needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 30*time.Minute, 2*time.Hour)
+
+	assert.False(t, needRefresh)
+	assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
+	assert.Equal(t, CompareWithLatest, compareWith)
+}
+
 func TestRefreshAppConditions(t *testing.T) {
 	defaultProj := argoappv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1527,5 +1577,46 @@ func Test_syncDeleteOption(t *testing.T) {
 		cmObj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=false"})
 		delete := ctrl.shouldBeDeleted(app, cmObj)
 		assert.False(t, delete)
+	})
+	t.Run("with delete set to false object is retained", func(t *testing.T) {
+		cmObj := kube.MustToUnstructured(&cm)
+		cmObj.SetAnnotations(map[string]string{"helm.sh/resource-policy": "keep"})
+		delete := ctrl.shouldBeDeleted(app, cmObj)
+		assert.False(t, delete)
+	})
+}
+
+func TestAddControllerNamespace(t *testing.T) {
+	t.Run("set controllerNamespace when the app is in the controller namespace", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{},
+		})
+	
+		ctrl.processAppRefreshQueueItem()
+	
+		updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, test.FakeArgoCDNamespace, updatedApp.Status.ControllerNamespace)
+	})
+	t.Run("set controllerNamespace when the app is in another namespace than the controller", func(t *testing.T) {
+		appNamespace := "app-namespace"
+
+		app := newFakeApp()
+		app.ObjectMeta.Namespace = appNamespace
+		proj := defaultProj
+		proj.Spec.SourceNamespaces = []string{appNamespace}
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &proj},
+			manifestResponse: &apiclient.ManifestResponse{},
+			applicationNamespaces: []string{appNamespace},
+		})
+	
+		ctrl.processAppRefreshQueueItem()
+	
+		updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, test.FakeArgoCDNamespace, updatedApp.Status.ControllerNamespace)
 	})
 }

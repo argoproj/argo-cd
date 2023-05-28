@@ -22,7 +22,7 @@ or
 argocd app delete APPNAME
 ```
 
-# Deletion Using `kubectl`
+## Deletion Using `kubectl`
 
 To perform a non-cascade delete, make sure the finalizer is unset and then delete the app:
 
@@ -38,7 +38,7 @@ kubectl patch app APPNAME  -p '{"metadata": {"finalizers": ["resources-finalizer
 kubectl delete app APPNAME
 ```
 
-# About The Deletion Finalizer
+## About The Deletion Finalizer
 
 ```yaml
 metadata:
