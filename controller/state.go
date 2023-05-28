@@ -210,6 +210,8 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			HelmOptions:        helmOptions,
 			HasMultipleSources: app.Spec.HasMultipleSources(),
 			RefSources:         refSources,
+			ProjectName:        proj.Name,
+			ProjectSourceRepos: proj.Spec.SourceRepos,
 		})
 		if err != nil {
 			return nil, nil, err
@@ -651,6 +653,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	if failedToLoadObjs {
 		syncCode = v1alpha1.SyncStatusCodeUnknown
+	} else if app.HasChangedManagedNamespaceMetadata() {
+		syncCode = v1alpha1.SyncStatusCodeOutOfSync
 	}
 	var revision string
 

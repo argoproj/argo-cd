@@ -216,7 +216,10 @@ export const ApplicationCreatePanel = (props: {
                                                         qeId='application-create-field-project'
                                                         field='spec.project'
                                                         component={AutocompleteField}
-                                                        componentProps={{items: projects}}
+                                                        componentProps={{
+                                                            items: projects,
+                                                            filterSuggestions: true
+                                                        }}
                                                     />
                                                 </div>
                                                 <div className='argo-form-row'>
