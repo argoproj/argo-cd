@@ -107,6 +107,7 @@ nav:
     - Controlling Resource Modification: operator-manual/applicationset/Controlling-Resource-Modification.md
     - Application Pruning & Resource Deletion: operator-manual/applicationset/Application-Deletion.md
     - Progressive Syncs: operator-manual/applicationset/Progressive-Syncs.md
+    - Git File Generator Globbing: operator-manual/applicationset/Generators-Git-File-Globbing.md
   - Server Configuration Parameters:
     - operator-manual/server-commands/argocd-server.md
     - operator-manual/server-commands/argocd-application-controller.md
