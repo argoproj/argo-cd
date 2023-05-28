@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="6 known vulnerabilities found in 216 vulnerable dependency paths.">
+  <meta name="description" content="6 known vulnerabilities found in 215 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">April 16th 2023, 12:22:40 am</p>
+                <p class="timestamp">May 28th 2023, 12:55:13 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -467,7 +467,7 @@
     
               <div class="meta-counts">
                 <div class="meta-count"><span>6</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>216 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>215 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>1719</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -529,8 +529,8 @@
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
-        <p><a href="https://www.npmjs.org/package/parse-url">parse-url</a> is an An advanced url parser supporting git urls too.
-        Affected versions of this package are vulnerable to Server-side Request Forgery (SSRF) due to improper detection of protocol, resource, and pathname fields. Exploiting this vulnerability results in bypassing protocol verification.</p>
+        <p><a href="https://www.npmjs.org/package/parse-url">parse-url</a> is an An advanced url parser supporting git urls too.</p>
+        <p>Affected versions of this package are vulnerable to Server-side Request Forgery (SSRF) due to improper detection of protocol, resource, and pathname fields. Exploiting this vulnerability results in bypassing protocol verification.</p>
         <h2 id="poc">PoC:</h2>
         <pre><code class="language-js">import parseUrl from &quot;parse-url&quot;;
         import fetch from &#39;node-fetch&#39;;
@@ -611,8 +611,8 @@
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
-        <p><a href="https://www.npmjs.org/package/parse-url">parse-url</a> is an An advanced url parser supporting git urls too.
-        Affected versions of this package are vulnerable to Improper Input Validation due to incorrect parsing of URLs. This allows the attacker to craft a malformed URL which can lead to a phishing attack.</p>
+        <p><a href="https://www.npmjs.org/package/parse-url">parse-url</a> is an An advanced url parser supporting git urls too.</p>
+        <p>Affected versions of this package are vulnerable to Improper Input Validation due to incorrect parsing of URLs. This allows the attacker to craft a malformed URL which can lead to a phishing attack.</p>
         <pre><code class="language-js">
         const parseUrl = require(&quot;parse-url&quot;);
         const Url = require(&quot;url&quot;);
@@ -705,8 +705,8 @@
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
-        <p><a href="https://www.npmjs.com/package/minimatch">minimatch</a> is a minimal matching utility.
-        Affected versions of this package are vulnerable to Regular Expression Denial of Service (ReDoS) via the <code>braceExpand</code> function in <code>minimatch.js</code>.</p>
+        <p><a href="https://www.npmjs.com/package/minimatch">minimatch</a> is a minimal matching utility.</p>
+        <p>Affected versions of this package are vulnerable to Regular Expression Denial of Service (ReDoS) via the <code>braceExpand</code> function in <code>minimatch.js</code>.</p>
         <h2 id="details">Details</h2>
         <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its original and legitimate users. There are many types of DoS attacks, ranging from trying to clog the network pipes to the system by generating a large volume of traffic from many machines (a Distributed Denial of Service - DDoS - attack) to sending crafted requests that cause a system to crash or take a disproportional amount of time to process.</p>
         <p>The Regular expression Denial of Service (ReDoS) is a type of Denial of Service attack. Regular expressions are incredibly powerful, but they aren&#39;t very intuitive and can ultimately end up making it easy for attackers to take your site down.</p>
@@ -898,6 +898,19 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/diff@#98ccd3d43fd9
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/structured-merge-diff/v4/typed@4.2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/util/managedfields@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/structured-merge-diff/v4/typed@4.2.1
@@ -924,19 +937,6 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/gitops-engine/pkg/diff@#98ccd3d43fd9
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/typed@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
@@ -950,7 +950,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/fieldpath@4.2.1
+                                        sigs.k8s.io/structured-merge-diff/v4/typed@4.2.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -963,7 +963,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/typed@4.2.1
+                                        sigs.k8s.io/structured-merge-diff/v4/fieldpath@4.2.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1054,32 +1054,6 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#4d8552b0775f
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/ghodss/yaml@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#4d8552b0775f
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/ghodss/yaml@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/argoproj/notifications-engine/pkg/util/misc@#4d8552b0775f
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/ghodss/yaml@1.0.0
@@ -1093,7 +1067,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#4d8552b0775f
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#4d8552b0775f
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/ghodss/yaml@1.0.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1254,6 +1228,36 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/health@#98ccd3d43fd9
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/watch@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
@@ -1270,21 +1274,6 @@
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/api/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1329,7 +1318,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1@0.24.2
+                                        k8s.io/client-go/pkg/apis/clientauthentication/v1beta1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1389,21 +1378,6 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/gitops-engine/pkg/diff@#98ccd3d43fd9
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/typed@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/argoproj/gitops-engine/pkg/health@#98ccd3d43fd9
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/argoproj/gitops-engine/pkg/utils/kube@#98ccd3d43fd9
@@ -1435,6 +1409,21 @@
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/yaml@1.3.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/dynamic@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1484,6 +1473,36 @@
                                         github.com/go-openapi/validate@0.19.5
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/go-openapi/swag@0.19.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#4d8552b0775f
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/util/misc@#4d8552b0775f
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/ghodss/yaml@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#4d8552b0775f
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#4d8552b0775f
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/ghodss/yaml@1.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         gopkg.in/yaml.v2@2.2.4
                                         
@@ -1645,7 +1664,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/portforward@0.24.2
+                                        k8s.io/kubectl/pkg/util/resource@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/api/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1713,24 +1732,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/gitops-engine/pkg/sync/common@#98ccd3d43fd9
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/gitops-engine/pkg/sync/hook@#98ccd3d43fd9
+                                        k8s.io/client-go/dynamic@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1798,24 +1800,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/cache@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/pager@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/kubectl/pkg/util/resource@0.24.2
+                                        k8s.io/client-go/tools/portforward@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/api/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1832,26 +1817,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
+                                        k8s.io/client-go/tools/cache@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer/versioning@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/pkg/apis/clientauthentication/v1beta1@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/pkg/apis/clientauthentication@0.24.2
+                                        k8s.io/client-go/tools/pager@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1900,11 +1868,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/record@0.24.2
+                                        github.com/argoproj/gitops-engine/pkg/diff@#98ccd3d43fd9
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/reference@0.24.2
+                                        sigs.k8s.io/structured-merge-diff/v4/merge@4.2.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime@0.24.2
+                                        sigs.k8s.io/structured-merge-diff/v4/fieldpath@4.2.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2055,25 +2023,6 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/handler@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/runtime/inject@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/kube-openapi/pkg/util/proto@#011e075b9cb8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/kubernetes@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/kubernetes/typed/storage/v1beta1@0.24.2
@@ -2093,11 +2042,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/discovery@0.24.2
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
+                                        k8s.io/api/storage/v1beta1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
+                                        k8s.io/api/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2112,11 +2061,30 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/dynamic@0.24.2
+                                        k8s.io/client-go/tools/record@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
+                                        k8s.io/client-go/tools/reference@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@#98ccd3d43fd9
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2170,25 +2138,6 @@
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/testing@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/kubernetes@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/rest@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2264,11 +2213,30 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook@#98ccd3d43fd9
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/resource@#98ccd3d43fd9
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime/serializer/versioning@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2284,44 +2252,6 @@
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/listers/core/v1@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/cache@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/pager@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#4d8552b0775f
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/cache@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/pager@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/informers/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/tools/cache@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2511,6 +2441,25 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/yaml@1.3.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/rest@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/plugin/pkg/client/auth/exec@0.24.2
@@ -2568,6 +2517,25 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/handler3@#011e075b9cb8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/validation/spec@#011e075b9cb8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-openapi/swag@0.19.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/argoproj/gitops-engine/pkg/health@#98ccd3d43fd9
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/argoproj/gitops-engine/pkg/utils/kube@#98ccd3d43fd9
@@ -2592,25 +2560,6 @@
                                         github.com/argoproj/gitops-engine/pkg/utils/kube@#98ccd3d43fd9
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/util/openapi@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/kube-openapi/pkg/validation/spec@#011e075b9cb8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/swag@0.19.14
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/discovery@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/openapi@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/kube-openapi/pkg/handler3@#011e075b9cb8
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kube-openapi/pkg/validation/spec@#011e075b9cb8
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2749,6 +2698,27 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/handler@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/runtime/inject@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/cache@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#011e075b9cb8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/argoproj/notifications-engine/pkg/cmd@#4d8552b0775f
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/kubernetes@0.24.2
@@ -2833,34 +2803,13 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/gitops-engine/pkg/health@#98ccd3d43fd9
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/kubectl/pkg/util/podutils@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/watch@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/discovery@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2942,9 +2891,93 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/tools/clientcmd/api/latest@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api/v1@0.24.2
+                                        k8s.io/apimachinery/pkg/runtime/serializer/versioning@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#4d8552b0775f
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/listers/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/pager@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/informers/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/listers/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/pager@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/api/equality@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/controller/controllerutil@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/api/equality@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3001,11 +3034,32 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/gitops-engine/pkg/utils/kube/scheme@#98ccd3d43fd9
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/kubernetes/pkg/apis/storage/install@1.24.2
+                                        k8s.io/client-go/discovery@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/kubernetes/pkg/api/legacyscheme@1.24.2
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/yaml@1.3.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/typed/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3023,48 +3077,6 @@
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/tools/cache@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/plugin/pkg/client/auth/exec@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/yaml@1.3.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/discovery@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/plugin/pkg/client/auth/exec@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/yaml@1.3.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/dynamic@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/rest@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3128,27 +3140,6 @@
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/testing@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/plugin/pkg/client/auth/exec@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/yaml@1.3.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/kubernetes@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/rest@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3345,15 +3336,15 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/gitops-engine/pkg/cache@#98ccd3d43fd9
-                                         <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/util/openapi@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/discovery@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3368,38 +3359,15 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/gitops-engine/pkg/sync@#98ccd3d43fd9
+                                        k8s.io/client-go/kubernetes@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                        k8s.io/client-go/kubernetes/typed/storage/v1beta1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/discovery@0.24.2
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
+                                        k8s.io/api/storage/v1beta1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/gitops-engine/pkg/utils/kube@#98ccd3d43fd9
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/discovery@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
+                                        k8s.io/api/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3443,9 +3411,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/tools/clientcmd/api/latest@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api/v1@0.24.2
+                                        k8s.io/apimachinery/pkg/runtime/serializer/versioning@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3506,13 +3474,36 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/cache@#98ccd3d43fd9
+                                         <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/util/openapi@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/discovery@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/plugin/pkg/client/auth/exec@0.24.2
+                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/yaml@1.3.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync@#98ccd3d43fd9
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3530,52 +3521,6 @@
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/listers/core/v1@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/cache@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/plugin/pkg/client/auth/exec@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/yaml@1.3.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#4d8552b0775f
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/cache@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/plugin/pkg/client/auth/exec@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/yaml@1.3.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/informers/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/tools/cache@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3805,56 +3750,6 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/manager@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/webhook@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/webhook/admission@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/runtime/inject@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/kube-openapi/pkg/util/proto@#011e075b9cb8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/manager@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/leaderelection@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/leaderelection/resourcelock@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/kubernetes/typed/core/v1@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/applyconfigurations/core/v1@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/applyconfigurations/meta/v1@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/typed@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/argoproj/gitops-engine/pkg/health@#98ccd3d43fd9
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/argoproj/gitops-engine/pkg/utils/kube@#98ccd3d43fd9
@@ -3905,17 +3800,67 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/controller/controllerutil@0.11.0
+                                        github.com/argoproj/gitops-engine/pkg/cache@#98ccd3d43fd9
                                          <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/client/apiutil@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/restmapper@0.24.2
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/discovery@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync@#98ccd3d43fd9
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@#98ccd3d43fd9
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3955,11 +3900,36 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/gitops-engine/pkg/cache@#98ccd3d43fd9
+                                        sigs.k8s.io/controller-runtime/pkg/controller/controllerutil@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                        sigs.k8s.io/controller-runtime/pkg/client/apiutil@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/restmapper@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/yaml@1.3.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#4d8552b0775f
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/listers/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/rest@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3980,11 +3950,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/gitops-engine/pkg/sync@#98ccd3d43fd9
+                                        k8s.io/client-go/informers/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                        k8s.io/client-go/listers/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/discovery@0.24.2
+                                        k8s.io/client-go/tools/cache@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/rest@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -4180,6 +4150,60 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/manager@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/webhook@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/webhook/admission@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/runtime/inject@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/cache@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#011e075b9cb8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/manager@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/leaderelection@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/leaderelection/resourcelock@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/typed/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/applyconfigurations/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/applyconfigurations/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/structured-merge-diff/v4/typed@4.2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/controller-runtime/pkg/client@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/controller-runtime/pkg/internal/objectutil@0.11.0
@@ -4190,13 +4214,13 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/discovery@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
+                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime@0.24.2
+                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
+                                        sigs.k8s.io/yaml@1.3.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         gopkg.in/yaml.v2@2.2.4
                                         
@@ -4217,34 +4241,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/discovery@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/controller/controllerutil@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/client/apiutil@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/restmapper@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/discovery@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/plugin/pkg/client/auth/exec@0.24.2
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -4400,8 +4397,6 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/event@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/controller-runtime/pkg/client@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/controller-runtime/pkg/internal/objectutil@0.11.0
@@ -4412,42 +4407,15 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/discovery@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/internal/objectutil@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/client/apiutil@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/restmapper@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/discovery@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/plugin/pkg/client/auth/exec@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/yaml@1.3.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         gopkg.in/yaml.v2@2.2.4
                                         
@@ -4468,9 +4436,38 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/discovery@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/plugin/pkg/client/auth/exec@0.24.2
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/event@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/internal/objectutil@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client/apiutil@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/restmapper@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -4721,9 +4718,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/handler@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/runtime/inject@0.11.0
+                                        sigs.k8s.io/controller-runtime/pkg/event@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/controller-runtime/pkg/client@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -4735,13 +4730,46 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/discovery@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/handler@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/runtime/inject@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/cache@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/internal/objectutil@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client/apiutil@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/restmapper@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/yaml@1.3.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         gopkg.in/yaml.v2@2.2.4
                                         
@@ -4763,37 +4791,6 @@
                                         sigs.k8s.io/controller-runtime/pkg/metrics@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/tools/cache@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/plugin/pkg/client/auth/exec@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/yaml@1.3.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/event@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/internal/objectutil@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/client/apiutil@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/restmapper@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/discovery@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/rest@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -4849,7 +4846,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/controller-runtime/pkg/runtime/inject@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                        sigs.k8s.io/controller-runtime/pkg/cache@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/controller-runtime/pkg/internal/objectutil@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -4880,7 +4877,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/controller-runtime/pkg/runtime/inject@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                        sigs.k8s.io/controller-runtime/pkg/cache@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/controller-runtime/pkg/internal/objectutil@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -4890,46 +4887,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/discovery@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/plugin/pkg/client/auth/exec@0.24.2
+                                        k8s.io/api/storage/v1beta1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/yaml@1.3.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/yaml.v2@2.2.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/source@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/source/internal@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/predicate@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/event@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/internal/objectutil@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/client/apiutil@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/restmapper@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/discovery@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/tools/clientcmd/api@0.24.2
+                                        k8s.io/api/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -4962,6 +4924,41 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/discovery@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/yaml@1.3.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v2@2.2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/source@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/source/internal@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/predicate@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/event@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/internal/objectutil@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client/apiutil@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/restmapper@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/openapi@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kube-openapi/pkg/handler3@#011e075b9cb8
@@ -4997,15 +4994,15 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/client-go/discovery@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/rest@0.24.2
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/plugin/pkg/client/auth/exec@0.24.2
+                                        k8s.io/api/storage/v1beta1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
+                                        k8s.io/api/core/v1@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/apimachinery/pkg/runtime/serializer/json@0.24.2
+                                        k8s.io/apimachinery/pkg/runtime@0.24.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/yaml@1.3.0
+                                        sigs.k8s.io/structured-merge-diff/v4/value@4.2.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         gopkg.in/yaml.v2@2.2.4
                                         
@@ -5026,7 +5023,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/controller-runtime/pkg/runtime/inject@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                        sigs.k8s.io/controller-runtime/pkg/cache@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         sigs.k8s.io/controller-runtime/pkg/internal/objectutil@0.11.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -5056,8 +5053,8 @@
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
-        <p><a href="https://github.com/go-yaml/yaml">gopkg.in/yaml.v2</a> is a YAML support package for the Go language.
-        Affected versions of this package are vulnerable to Denial of Service (DoS). It is possible for authorized users to send malicious YAML payloads to cause kube-apiserver to consume excessive CPU cycles while parsing YAML.</p>
+        <p><a href="https://github.com/go-yaml/yaml">gopkg.in/yaml.v2</a> is a YAML support package for the Go language.</p>
+        <p>Affected versions of this package are vulnerable to Denial of Service (DoS). It is possible for authorized users to send malicious YAML payloads to cause kube-apiserver to consume excessive CPU cycles while parsing YAML.</p>
         <h2 id="details">Details</h2>
         <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
         <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
@@ -5162,8 +5159,8 @@
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
-        <p><a href="https://github.com/mongodb/mongo-go-driver">go.mongodb.org/mongo-driver/bson/bsonrw</a> is a The MongoDB supported driver for Go.
-        Affected versions of this package are vulnerable to Improper Input Validation. Specific cstrings input may not be properly validated in the MongoDB Go Driver when marshalling Go objects into BSON. A malicious user could use a Go object with specific string to potentially inject additional fields into marshalled documents.</p>
+        <p><a href="https://github.com/mongodb/mongo-go-driver">go.mongodb.org/mongo-driver/bson/bsonrw</a> is a The MongoDB supported driver for Go.</p>
+        <p>Affected versions of this package are vulnerable to Improper Input Validation. Specific cstrings input may not be properly validated in the MongoDB Go Driver when marshalling Go objects into BSON. A malicious user could use a Go object with specific string to potentially inject additional fields into marshalled documents.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>go.mongodb.org/mongo-driver/bson/bsonrw</code> to version 1.5.1 or higher.</p>
         <h2 id="references">References</h2>
