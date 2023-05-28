@@ -26,6 +26,9 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
   # Resource should be formatted as GROUP:KIND:NAME. If no GROUP is specified then :KIND:NAME
   argocd app sync my-app --resource :Service:my-service
   argocd app sync my-app --resource argoproj.io:Rollout:my-rollout
+  argocd app sync my-app --resource '!apps:Deployment:my-service'
+  argocd app sync my-app --resource apps:Deployment:my-service --resource :Service:my-service
+  argocd app sync my-app --resource '!*:Service:*'
   # Specify namespace if the application has resources with the same name in different namespaces
   argocd app sync my-app --resource argoproj.io:Rollout:my-namespace/my-rollout
 ```
@@ -46,7 +49,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --project stringArray                   Sync apps that belong to the specified projects. This option may be specified repeatedly.
       --prune                                 Allow deleting unexpected resources
       --replace                               Use a kubectl create/replace instead apply
-      --resource stringArray                  Sync only specific resources as GROUP:KIND:NAME. Fields may be blank. This option may be specified repeatedly
+      --resource stringArray                  Sync only specific resources as GROUP:KIND:NAME or !GROUP:KIND:NAME. Fields may be blank and '*' can be used. This option may be specified repeatedly
       --retry-backoff-duration duration       Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
       --retry-backoff-factor int              Factor multiplies the base duration after each failed retry (default 2)
       --retry-backoff-max-duration duration   Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)

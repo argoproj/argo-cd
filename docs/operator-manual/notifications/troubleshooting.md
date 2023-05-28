@@ -1,6 +1,6 @@
 ## Troubleshooting
 
-The `argocd-notifications` binary includes a set of CLI commands that helps to configure the controller
+The `argocd admin notifications` is a CLI command group that helps to configure the controller
 settings and troubleshoot issues.
 
 ## Global flags
@@ -17,15 +17,15 @@ Additionally, you can specify `:empty` value to use empty secret with no notific
 * Get list of triggers configured in the local config map:
 
 ```bash
-argocd-notifications trigger get \
-  --config-map ./argocd-notifications-cm.yaml --secret :empty
+argocd admin notifications trigger get \
+  --config-map ./argocd admin notifications-cm.yaml --secret :empty
 ```
 
 * Trigger notification using in-cluster config map and secret:
 
 ```bash
-argocd-notifications template notify \
-  app-sync-succeeded guestbook --recipient slack:argocd-notifications
+argocd admin notifications template notify \
+  app-sync-succeeded guestbook --recipient slack:argocd admin notifications
 ```
 
 ## Kustomize
@@ -44,18 +44,18 @@ kustomize build ./argocd-notifications | \
 
 ### On your laptop
 
-You can download `argocd-notifications` from the github [release](https://github.com/argoproj-labs/argocd-notifications/releases)
+You can download the `argocd` CLI from the github [release](https://github.com/argoproj/argo-cd/releases)
 attachments.
 
-The binary is available in `argoprojlabs/argocd-notifications` image. Use the `docker run` and volume mount
+The binary is available in `argoproj/argo-cd` image. Use the `docker run` and volume mount
 to execute binary on any platform. 
 
 **Example:**
 
 ```bash
 docker run --rm -it -w /src -v $(pwd):/src \
-  argoprojlabs/argocd-notifications:<version> \
-  /app/argocd-notifications trigger get \
+  argoproj/argo-cd:<version> \
+  /app/argocd admin notifications trigger get \
   --config-map ./argocd-notifications-cm.yaml --secret :empty
 ```
 
@@ -67,7 +67,7 @@ configuration.
 **Example**
 ```bash
 kubectl exec -it argocd-notifications-controller-<pod-hash> \
-  /app/argocd-notifications trigger get
+  /app/argocd admin notifications trigger get
 ```
 
 ## Commands

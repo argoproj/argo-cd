@@ -15,6 +15,16 @@ argocd app wait [APPNAME.. | -l selector] [flags]
   # Wait for multiple apps
   argocd app wait my-app other-app
 
+  # Wait for apps by resource
+  # Resource should be formatted as GROUP:KIND:NAME. If no GROUP is specified then :KIND:NAME.
+  argocd app wait my-app --resource :Service:my-service
+  argocd app wait my-app --resource argoproj.io:Rollout:my-rollout
+  argocd app wait my-app --resource '!apps:Deployment:my-service'
+  argocd app wait my-app --resource apps:Deployment:my-service --resource :Service:my-service
+  argocd app wait my-app --resource '!*:Service:*'
+  # Specify namespace if the application has resources with the same name in different namespaces
+  argocd app wait my-app --resource argoproj.io:Rollout:my-namespace/my-rollout
+
   # Wait for apps by label, in this example we waiting for apps that are children of another app (aka app-of-apps)
   argocd app wait -l app.kubernetes.io/instance=my-app
   argocd app wait -l app.kubernetes.io/instance!=my-app
@@ -30,7 +40,7 @@ argocd app wait [APPNAME.. | -l selector] [flags]
       --health                 Wait for health
   -h, --help                   help for wait
       --operation              Wait for pending operations
-      --resource stringArray   Sync only specific resources as GROUP:KIND:NAME. Fields may be blank. This option may be specified repeatedly
+      --resource stringArray   Sync only specific resources as GROUP:KIND:NAME or !GROUP:KIND:NAME. Fields may be blank and '*' can be used. This option may be specified repeatedly
   -l, --selector string        Wait for apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
       --suspended              Wait for suspended
       --sync                   Wait for sync

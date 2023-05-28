@@ -28,7 +28,9 @@ Breaking down the permissions definition differs slightly between applications a
 
 ### RBAC Resources and Actions
 
-Resources: `clusters`, `projects`, `applications`, `applicationsets`, `repositories`, `certificates`, `accounts`, `gpgkeys`, `logs`, `exec`
+Resources: `clusters`, `projects`, `applications`, `applicationsets`,
+`repositories`, `certificates`, `accounts`, `gpgkeys`, `logs`, `exec`,
+`extensions`
 
 Actions: `get`, `create`, `update`, `delete`, `sync`, `override`,`action/<group/kind/action-name>`
 
@@ -64,7 +66,7 @@ See [Web-based Terminal](web_based_terminal.md) for more info.
 
 #### The `applicationsets` resource
 
-[ApplicationSets](applicationset) provide a declarative way to automatically create/update/delete Applications.
+[ApplicationSets](applicationset/index.md) provide a declarative way to automatically create/update/delete Applications.
 
 Granting `applicationsets, create` effectively grants the ability to create Applications. While it doesn't allow the 
 user to create Applications directly, they can create Applications via an ApplicationSet.
@@ -79,12 +81,50 @@ p, dev-group, applicationsets, *, dev-project/*, allow
 With this rule in place, a `dev-group` user will be unable to create an ApplicationSet capable of creating Applications
 outside the `dev-project` project.
 
+#### The `extensions` resource
+
+With the `extensions` resource it is possible configure permissions to
+invoke [proxy
+extensions](../developer-guide/extensions/proxy-extensions.md). The
+`extensions` RBAC validation works in conjunction with the
+`applications` resource. A user logged in Argo CD (UI or CLI), needs
+to have at least read permission on the project, namespace and
+application where the request is originated from.
+
+Consider the example below:
+
+```csv
+g, ext, role:extension
+p, role:extension, applications, get, default/httpbin-app, allow
+p, role:extension, extensions, invoke, httpbin, allow
+```
+
+Explanation:
+
+- *line1*: defines the group `role:extension` associated with the
+  subject `ext`.
+- *line2*: defines a policy allowing this role to read (`get`) the
+  `httpbin-app` application in the `default` project.
+- *line3*: defines another policy allowing this role to `invoke` the
+  `httpbin` extension.
+
+**Note 1**: that for extensions requests to be allowed, the policy defined
+in the *line2* is also required. 
+
+**Note 2**: `invoke` is a new action introduced specifically to be used
+with the `extensions` resource. The current actions for `extensions`
+are `*` or `invoke`. 
+
 ## Tying It All Together
 
 Additional roles and groups can be configured in `argocd-rbac-cm` ConfigMap. The example below
 configures a custom role, named `org-admin`. The role is assigned to any user which belongs to
 `your-github-org:your-team` group. All other users get the default policy of `role:readonly`,
 which cannot modify Argo CD settings.
+
+!!! warning
+    All authenticated users get _at least_ the permissions granted by the default policy. This access cannot be blocked 
+    by a `deny` rule. Instead, restrict the default policy and then grant permissions to individual roles as needed.
 
 *ArgoCD ConfigMap `argocd-rbac-cm` Example:*
 
@@ -103,6 +143,10 @@ data:
     p, role:org-admin, repositories, create, *, allow
     p, role:org-admin, repositories, update, *, allow
     p, role:org-admin, repositories, delete, *, allow
+    p, role:org-admin, projects, get, *, allow
+    p, role:org-admin, projects, create, *, allow
+    p, role:org-admin, projects, update, *, allow
+    p, role:org-admin, projects, delete, *, allow
     p, role:org-admin, logs, get, *, allow
     p, role:org-admin, exec, create, */*, allow
 

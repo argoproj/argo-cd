@@ -11,24 +11,25 @@ they have the `exec/create` privilege. If the Pod mounts a ServiceAccount token 
 Kubernetes), then the user effectively has the same privileges as that ServiceAccount.
 
 ## Enabling the terminal
+<!-- Use indented code blocks for the numbered list to prevent breaking the numbering. See #11590 -->
 
 1. Set the `exec.enabled` key to `"true"` on the `argocd-cm` ConfigMap.
 
 2. Patch the `argocd-server` Role (if using namespaced Argo) or ClusterRole (if using clustered Argo) to allow `argocd-server`
 to exec into pods
-```yaml
-- apiGroups:
-  - ""
-  resources:
-  - pods/exec
-  verbs:
-  - create
-```
 
-3. Add RBAC rules to allow your users to `create` the `exec` resource, i.e.
-```
-p, role:myrole, exec, create, */*, allow
-```
+        - apiGroups:
+          - ""
+          resources:
+          - pods/exec
+          verbs:
+          - create
+
+
+3. Add RBAC rules to allow your users to `create` the `exec` resource, i.e. 
+
+        p, role:myrole, exec, create, */*, allow
+
 
 See [RBAC Configuration](rbac.md#exec-resource) for more info.
 

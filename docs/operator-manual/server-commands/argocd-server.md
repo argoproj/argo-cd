@@ -32,6 +32,7 @@ argocd-server [flags]
       --dex-server-strict-tls                         Perform strict validation of TLS certificates when connecting to dex server
       --disable-auth                                  Disable client authentication
       --enable-gzip                                   Enable GZIP compression
+      --enable-proxy-extension                        Enable Proxy Extension feature
       --gloglevel int                                 Set the glog logging level
   -h, --help                                          help for argocd-server
       --insecure                                      Run server without TLS
@@ -51,7 +52,7 @@ argocd-server [flags]
       --redis-ca-certificate string                   Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string               Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --redis-client-key string                       Path to Redis client key (e.g. /etc/certs/redis/client.crt).
-      --redis-compress string                         Enable compression for data sent to Redis with the required compression algorithm. (possible values: none, gzip) (default "none")
+      --redis-compress string                         Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none) (default "gzip")
       --redis-insecure-skip-tls-verify                Skip Redis server certificate validation.
       --redis-use-tls                                 Use TLS when connecting to Redis. 
       --redisdb int                                   Redis database.

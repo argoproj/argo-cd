@@ -12,6 +12,8 @@ type PullRequest struct {
 	Branch string
 	// HeadSHA is the SHA of the HEAD from which the pull request originated.
 	HeadSHA string
+	// Labels of the pull request.
+	Labels []string
 }
 
 type PullRequestService interface {

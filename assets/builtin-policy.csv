@@ -21,6 +21,10 @@ p, role:admin, applications, delete, */*, allow
 p, role:admin, applications, sync, */*, allow
 p, role:admin, applications, override, */*, allow
 p, role:admin, applications, action/*, */*, allow
+p, role:admin, applicationsets, get, */*, allow
+p, role:admin, applicationsets, create, */*, allow
+p, role:admin, applicationsets, update, */*, allow
+p, role:admin, applicationsets, delete, */*, allow
 p, role:admin, certificates, create, *, allow
 p, role:admin, certificates, update, *, allow
 p, role:admin, certificates, delete, *, allow
