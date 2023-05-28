@@ -4444,6 +4444,12 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorFilter(ref common.
 							Format: "",
 						},
 					},
+					"targetBranchMatch": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},

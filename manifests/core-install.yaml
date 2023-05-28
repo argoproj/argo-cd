@@ -8521,6 +8521,8 @@ spec:
                                       properties:
                                         branchMatch:
                                           type: string
+                                        targetBranchMatch:
+                                          type: string
                                       type: object
                                     type: array
                                   gitea:
@@ -12337,6 +12339,8 @@ spec:
                                       properties:
                                         branchMatch:
                                           type: string
+                                        targetBranchMatch:
+                                          type: string
                                       type: object
                                     type: array
                                   gitea:
@@ -14109,6 +14113,8 @@ spec:
                           items:
                             properties:
                               branchMatch:
+                                type: string
+                              targetBranchMatch:
                                 type: string
                             type: object
                           type: array
@@ -16705,6 +16711,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.enable.progressive.syncs
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.new.git.file.globbing
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_PLAINTEXT
