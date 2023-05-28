@@ -397,6 +397,7 @@ jobs:
           sudo mkdir -p $HOME/.kube && sudo chown -R runner $HOME/.kube
           sudo k3s kubectl config view --raw > $HOME/.kube/config
           sudo chown runner $HOME/.kube/config
+          sudo chmod go-r $HOME/.kube/config
           kubectl version
       - name: Restore go build cache
         uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
