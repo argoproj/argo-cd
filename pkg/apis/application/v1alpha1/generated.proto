@@ -1249,6 +1249,8 @@ message PullRequestGeneratorBitbucketServer {
 // pass for a pull request to be included.
 message PullRequestGeneratorFilter {
   optional string branchMatch = 1;
+
+  optional string targetBranchMatch = 2;
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
