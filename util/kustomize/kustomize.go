@@ -108,7 +108,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			// set image node:8.15.0 mysql=mariadb alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
 			args := []string{"edit", "set", "image"}
 			for _, image := range opts.Images {
-				args = append(args, string(image))
+				// this allows using ${ARGOCD_APP_REVISION}
+				envSubstitutedImage := envVars.Envsubst(string(image))
+				args = append(args, envSubstitutedImage)
 			}
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
