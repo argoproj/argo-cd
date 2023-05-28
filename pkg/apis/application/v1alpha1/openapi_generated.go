@@ -1602,14 +1602,14 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Values specifies Helm values to be passed to helm template, typically defined as a block Deprecated: use valuesObject instead",
+							Description: "Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"valuesObject": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ValuesObject specifies Helm values to be passed to helm template, defined as a map",
+							Description: "ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.",
 							Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
 						},
 					},

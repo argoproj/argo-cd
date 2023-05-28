@@ -6167,7 +6167,7 @@
         },
         "values": {
           "type": "string",
-          "title": "Values specifies Helm values to be passed to helm template, typically defined as a block\n+patchStrategy=replace\nDeprecated: use valuesObject instead"
+          "title": "Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.\n+patchStrategy=replace"
         },
         "valuesObject": {
           "$ref": "#/definitions/runtimeRawExtension"

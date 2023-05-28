@@ -73,8 +73,7 @@ source:
               - mydomain.example.com
 ```
 
-Alternatively, values can be passed in as a string using the `source.helm.values` key, although this should be considered 
-deprecated.
+Alternatively, values can be passed in as a string using the `source.helm.values` key.
 
 ```
 source:

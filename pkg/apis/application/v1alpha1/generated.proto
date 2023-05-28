@@ -420,12 +420,11 @@ message ApplicationSourceHelm {
   // ReleaseName is the Helm release name to use. If omitted it will use the application name
   optional string releaseName = 3;
 
-  // Values specifies Helm values to be passed to helm template, typically defined as a block
+  // Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.
   // +patchStrategy=replace
-  // Deprecated: use valuesObject instead
   optional string values = 4;
 
-  // ValuesObject specifies Helm values to be passed to helm template, defined as a map
+  // ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
   // +kubebuilder:pruning:PreserveUnknownFields
   optional k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10;
 
