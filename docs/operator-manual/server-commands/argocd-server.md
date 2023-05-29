@@ -13,6 +13,7 @@ argocd-server [flags]
 ### Options
 
 ```
+      --address string                                Listen on given address (default "0.0.0.0")
       --app-state-cache-expiration duration           Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings                List of additional namespaces where application resources can be managed in
       --as string                                     Username to impersonate for the operation
@@ -41,6 +42,7 @@ argocd-server [flags]
       --logformat string                              Set the logging format. One of: text|json (default "text")
       --login-attempts-expiration duration            Cache expiration for failed login attempts (default 24h0m0s)
       --loglevel string                               Set the logging level. One of: debug|info|warn|error (default "info")
+      --metrics-address string                        Listen for metrics on given address (default "0.0.0.0")
       --metrics-port int                              Start metrics on given port (default 8083)
   -n, --namespace string                              If present, the namespace scope for this CLI request
       --oidc-cache-expiration duration                Cache expiration for OIDC state (default 3m0s)
