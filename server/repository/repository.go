@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"context"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
@@ -163,6 +164,7 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
 		Proxy:                      repo.Proxy,
 		Project:                    repo.Project,
+		InheritedCreds:             repo.InheritedCreds,
 	}
 
 	item.ConnectionState = s.getConnectionState(ctx, item.Repo, q.ForceRefresh)
@@ -186,15 +188,16 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 			}
 			// remove secrets
 			items = append(items, &appsv1.Repository{
-				Repo:      repo.Repo,
-				Type:      rType,
-				Name:      repo.Name,
-				Username:  repo.Username,
-				Insecure:  repo.IsInsecure(),
-				EnableLFS: repo.EnableLFS,
-				EnableOCI: repo.EnableOCI,
-				Proxy:     repo.Proxy,
-				Project:   repo.Project,
+				Repo:           repo.Repo,
+				Type:           rType,
+				Name:           repo.Name,
+				Username:       repo.Username,
+				Insecure:       repo.IsInsecure(),
+				EnableLFS:      repo.EnableLFS,
+				EnableOCI:      repo.EnableOCI,
+				Proxy:          repo.Proxy,
+				Project:        repo.Project,
+				InheritedCreds: repo.InheritedCreds,
 			})
 		}
 	}
