@@ -160,7 +160,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 49
+	const countOfManifests = 48
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -3026,7 +3026,7 @@ func TestGetGitFiles(t *testing.T) {
 		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return(nil)
 		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.On("Root").Return(root)
-		gitClient.On("LsFiles", mock.Anything).Once().Return(files, nil)
+		gitClient.On("LsFiles", mock.Anything, mock.Anything).Once().Return(files, nil)
 		paths.On("GetPath", mock.Anything).Return(root, nil)
 		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
 	}, root)

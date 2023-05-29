@@ -61,6 +61,10 @@ data:
   controller.kubectl.parallelism.limit: "20"
 
   ## Server properties
+  # Listen on given address for incoming connections (default "0.0.0.0")
+  server.listen.address: "0.0.0.0"
+  # Listen on given address for metrics (default "0.0.0.0")
+  server.metrics.listen.address: "0.0.0.0"
   # Run server without TLS
   server.insecure: "false"
   # Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from / (default "/")
@@ -110,6 +114,10 @@ data:
   server.enable.proxy.extension: "false"
 
   ## Repo-server properties
+  # Listen on given address for incoming connections (default "0.0.0.0")
+  reposerver.listen.address: "0.0.0.0"
+  # Listen on given address for metrics (default "0.0.0.0")
+  reposerver.metrics.listen.address: "0.0.0.0"
   # Set the logging format. One of: text|json (default "text")
   reposerver.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
@@ -168,3 +176,9 @@ data:
   applicationsetcontroller.enable.git.submodule: "true"
   # Enables use of the Progressive Syncs capability
   applicationsetcontroller.enable.progressive.syncs: "false"
+
+  ## Argo CD Notifications Controller Properties
+  # Set the logging level. One of: debug|info|warn|error (default "info")
+  notificationscontroller.log.level: "info"
+  # Set the logging format. One of: text|json (default "text")
+  notificationscontroller.log.format: "text"

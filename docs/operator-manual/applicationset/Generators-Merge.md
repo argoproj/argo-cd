@@ -111,6 +111,70 @@ When merged with the updated base parameters, the `values.redis` value for the p
   values.redis: 'true'
 ```
 
+## Example: Use value interpolation in merge
+
+Some generators support additional values and interpolating from generated variables to selected values. This can be used to teach the merge generator which generated variables to use to combine different generators.
+
+The following example combines discovered clusters and a git repository by cluster labels and the branch name:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-git
+spec:
+  generators:
+    # merge 'parent' generator:
+    # Use the selector set by both child generators to combine them.
+    - merge:
+        mergeKeys:
+          # Note that this would not work with goTemplate enabled,
+          # nested merge keys are not supported there.
+          - values.selector
+        generators:
+          # Assuming, all configured clusters have a label for their location:
+          # Set the selector to this location.
+          - clusters:
+              values:
+                selector: '{{ metadata.labels.location }}'
+          # The git repo may have different directories which correspond to the
+          # cluster locations, using these as a selector.
+          - git:
+              repoURL: https://github.com/argoproj/argocd-example-apps/
+              revision: HEAD
+              directories:
+              - path: '*'
+              values:
+                selector: '{{ path }}'
+  template:
+    metadata:
+      name: '{{name}}'
+    spec:
+      project: '{{metadata.labels.environment}}'
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps/
+        # The cluster values field for each generator will be substituted here:
+        targetRevision: HEAD
+        path: '{{path}}'
+      destination:
+        server: '{{server}}'
+        namespace: default
+```
+
+Assuming a cluster named `germany01` with the label `metadata.labels.location=Germany` and a git repository containing a directory called `Germany`, this could combine to values as follows:
+
+```yaml
+  # From the cluster generator
+- name: germany01
+  server: https://1.2.3.4
+  # From the git generator
+  path: Germany
+  # Combining selector with the merge generator
+  values.selector: 'Germany'
+  # More values from cluster & git generator
+  # […]
+```
+
+
 ## Restrictions
 
 1. You should specify only a single generator per array entry. This is not valid:
@@ -142,3 +206,12 @@ When merged with the updated base parameters, the `values.redis` value for the p
                           - list:
                               elements:
                                 - # (...)
+
+1. Merging on nested values while using `goTemplate: true` is currently not supported, this will not work
+
+        spec:
+          goTemplate: true
+          generators:
+          - merge:
+              mergeKeys:
+                - values.merge

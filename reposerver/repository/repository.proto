@@ -234,6 +234,7 @@ message GitFilesRequest {
     bool submoduleEnabled = 2;
     string revision = 3;
     string path = 4;
+    bool NewGitFileGlobbingEnabled = 5;
 }
 
 message GitFilesResponse {
