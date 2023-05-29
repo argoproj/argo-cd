@@ -176,3 +176,9 @@ data:
   applicationsetcontroller.enable.git.submodule: "true"
   # Enables use of the Progressive Syncs capability
   applicationsetcontroller.enable.progressive.syncs: "false"
+
+  ## Argo CD Notifications Controller Properties
+  # Set the logging level. One of: debug|info|warn|error (default "info")
+  notificationscontroller.log.level: "info"
+  # Set the logging format. One of: text|json (default "text")
+  notificationscontroller.log.format: "text"
