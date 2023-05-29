@@ -29,7 +29,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/glob"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/session"
@@ -124,7 +123,7 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 
 		// Skip any application that is neither in the conrol plane's namespace
 		// nor in the list of enabled namespaces.
-		if a.Namespace != s.ns && !glob.MatchStringInList(s.enabledNamespaces, a.Namespace, false) {
+		if !security.IsNamespaceEnabled(a.Namespace, s.ns, s.enabledNamespaces) {
 			continue
 		}
 
