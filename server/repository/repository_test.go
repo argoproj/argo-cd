@@ -34,6 +34,8 @@ import (
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 const testNamespace = "default"
@@ -60,7 +62,7 @@ var (
 	}
 	defaultProj = &appsv1.AppProject{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "AppProject",
+			Kind:       application.AppProjectKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -75,7 +77,7 @@ var (
 
 	defaultProjNoSources = &appsv1.AppProject{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "AppProject",
+			Kind:       application.AppProjectKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -88,19 +90,20 @@ var (
 		},
 	}
 	fakeRepo = appsv1.Repository{
-		Repo:      "https://test",
-		Type:      "test",
-		Name:      "test",
-		Username:  "argo",
-		Insecure:  false,
-		EnableLFS: false,
-		EnableOCI: false,
-		Proxy:     "test",
-		Project:   "argocd",
+		Repo:           "https://test",
+		Type:           "test",
+		Name:           "test",
+		Username:       "argo",
+		Insecure:       false,
+		EnableLFS:      false,
+		EnableOCI:      false,
+		Proxy:          "test",
+		Project:        "argocd",
+		InheritedCreds: true,
 	}
 	guestbookApp = &appsv1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -204,6 +207,33 @@ func TestRepositoryServer(t *testing.T) {
 		})
 		assert.Nil(t, err)
 		assert.Equal(t, repo.Repo, url)
+	})
+
+	t.Run("Test_GetInherited", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		testRepo := &appsv1.Repository{
+			Repo:           url,
+			Type:           "git",
+			Username:       "foo",
+			InheritedCreds: true,
+		}
+		db.On("GetRepository", context.TODO(), url).Return(testRepo, nil)
+		db.On("RepositoryExists", context.TODO(), url).Return(true, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
+			Repo: url,
+		})
+		assert.Nil(t, err)
+
+		testRepo.ConnectionState = repo.ConnectionState // overwrite connection state on our test object to simplify comparison below
+
+		assert.Equal(t, testRepo, repo)
 	})
 
 	t.Run("Test_GetWithErrorShouldReturn403", func(t *testing.T) {

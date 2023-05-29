@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
@@ -294,11 +294,9 @@ func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string, string) {
 	if !ok {
 		userPolicy = ""
 	}
-	if defaultRole == "" {
-		defaultRole, ok = cm.Data[rbac.ConfigMapPolicyDefaultKey]
-		if !ok {
-			defaultRole = ""
-		}
+	defaultRole, ok = cm.Data[rbac.ConfigMapPolicyDefaultKey]
+	if !ok {
+		defaultRole = ""
 	}
 
 	return userPolicy, defaultRole, cm.Data[rbac.ConfigMapMatchModeKey]

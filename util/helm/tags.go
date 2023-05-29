@@ -1,11 +1,11 @@
 package helm
 
 import (
-    "fmt"
+	"fmt"
 
-    log "github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
-    "github.com/Masterminds/semver/v3"
+	"github.com/Masterminds/semver/v3"
 )
 
 type TagsList struct {
