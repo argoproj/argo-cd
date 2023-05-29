@@ -5939,6 +5939,10 @@ spec:
                           - metadata
                           - spec
                           type: object
+                        values:
+                          additionalProperties:
+                            type: string
+                          type: object
                       required:
                       - repoURL
                       - revision
@@ -7983,6 +7987,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                 required:
                                 - repoURL
                                 - revision
@@ -9742,6 +9750,10 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                               selector:
@@ -11801,6 +11813,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                 required:
                                 - repoURL
                                 - revision
@@ -13560,6 +13576,10 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                               selector:
@@ -15335,6 +15355,10 @@ spec:
                           required:
                           - metadata
                           - spec
+                          type: object
+                        values:
+                          additionalProperties:
+                            type: string
                           type: object
                       type: object
                     selector:
@@ -18376,6 +18400,18 @@ spec:
               key: reposerver.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_LISTEN_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.listen.address
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_LISTEN_METRICS_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.metrics.listen.address
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_DISABLE_TLS
           valueFrom:
             configMapKeyRef:
@@ -18792,6 +18828,18 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.http.cookie.maxnumber
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_LISTEN_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: server.listen.address
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_METRICS_LISTEN_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: server.metrics.listen.address
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_SERVER_OTLP_ADDRESS

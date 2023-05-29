@@ -160,7 +160,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 49
+	const countOfManifests = 48
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
