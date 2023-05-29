@@ -1806,6 +1806,13 @@ func (in *GitGenerator) DeepCopyInto(out *GitGenerator) {
 		**out = **in
 	}
 	in.Template.DeepCopyInto(&out.Template)
+	if in.Values != nil {
+		in, out := &in.Values, &out.Values
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 
@@ -2599,6 +2606,11 @@ func (in *PullRequestGeneratorFilter) DeepCopyInto(out *PullRequestGeneratorFilt
 		*out = new(string)
 		**out = **in
 	}
+	if in.TargetBranchMatch != nil {
+		in, out := &in.TargetBranchMatch, &out.TargetBranchMatch
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 
@@ -3346,6 +3358,13 @@ func (in *SCMProviderGenerator) DeepCopyInto(out *SCMProviderGenerator) {
 		**out = **in
 	}
 	in.Template.DeepCopyInto(&out.Template)
+	if in.Values != nil {
+		in, out := &in.Values, &out.Values
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 
@@ -3653,6 +3672,11 @@ func (in *SyncOperationResult) DeepCopyInto(out *SyncOperationResult) {
 		in, out := &in.Revisions, &out.Revisions
 		*out = make([]string, len(*in))
 		copy(*out, *in)
+	}
+	if in.ManagedNamespaceMetadata != nil {
+		in, out := &in.ManagedNamespaceMetadata, &out.ManagedNamespaceMetadata
+		*out = new(ManagedNamespaceMetadata)
+		(*in).DeepCopyInto(*out)
 	}
 	return
 }

@@ -256,6 +256,7 @@ func TestGiteaList(t *testing.T) {
 	assert.Equal(t, len(prs), 1)
 	assert.Equal(t, prs[0].Number, 1)
 	assert.Equal(t, prs[0].Branch, "test")
+	assert.Equal(t, prs[0].TargetBranch, "main")
 	assert.Equal(t, prs[0].HeadSHA, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f")
 }
 

@@ -1044,6 +1044,11 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 	return os.WriteFile(markerFile, []byte("marker"), 0644)
 }
 
+func isSourcePermitted(url string, repos []string) bool {
+	p := v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{SourceRepos: repos}}
+	return p.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: url})
+}
+
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, error) {
 	concurrencyAllowed := isConcurrencyAllowed(appPath)
 	if !concurrencyAllowed {
@@ -1140,6 +1145,20 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	if err != nil {
 		return nil, err
 	}
+
+	var reposNotPermitted []string
+	// We do a sanity check here to give a nicer error message in case any of the Helm repositories are not permitted by
+	// the AppProject which the application is a part of
+	for _, repo := range helmRepos {
+		if !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
+			reposNotPermitted = append(reposNotPermitted, repo.Repo)
+		}
+	}
+
+	if len(reposNotPermitted) > 0 {
+		return nil, status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
+	}
+
 	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, passCredentials)
 	if err != nil {
 		return nil, err
@@ -2533,6 +2552,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	repo := request.GetRepo()
 	revision := request.GetRevision()
 	gitPath := request.GetPath()
+	enableNewGitFileGlobbing := request.GetNewGitFileGlobbingEnabled()
 	if gitPath == "" {
 		gitPath = "."
 	}
@@ -2566,7 +2586,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	}
 	defer io.Close(closer)
 
-	gitFiles, err := gitClient.LsFiles(gitPath)
+	gitFiles, err := gitClient.LsFiles(gitPath, enableNewGitFileGlobbing)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to list files. repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
 	}

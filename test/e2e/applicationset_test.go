@@ -1577,6 +1577,10 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
         "name": "preview"
       }
     ],
+	"base": {
+		"ref": "master",
+		"sha": "7a4a5c987fdfb2b0629e9dbf5f31636c69ba4775"
+	},
     "head": {
       "ref": "pull-request",
       "sha": "824a5c987fdfb2b0629e9dbf5f31636c69ba4772"

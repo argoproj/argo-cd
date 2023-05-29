@@ -35,7 +35,7 @@ test('gitlab.com', () => {
         'git@gitlab.com:alex_collins/private-repo.git',
         'b1fe9426ead684d7af16958920968342ee295c1f',
         'https://gitlab.com/alex_collins/private-repo',
-        'https://gitlab.com/alex_collins/private-repo/commit/b1fe9426ead684d7af16958920968342ee295c1f');
+        'https://gitlab.com/alex_collins/private-repo/-/commit/b1fe9426ead684d7af16958920968342ee295c1f');
 });
 
 test('bitbucket.org', () => {
