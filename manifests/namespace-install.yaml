@@ -734,6 +734,12 @@ spec:
               key: applicationsetcontroller.concurrent.reconciliations.max
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller

@@ -121,6 +121,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: applicationsetcontroller.concurrent.reconciliations.max
                   optional: true
+            - name: ARGOCD_APPLICATIONSET_NAMESPACES
+              valueFrom:
+                configMapKeyRef:
+                  key: application.namespaces
+                  name: argocd-cmd-params-cm
+                  optional: true
           volumeMounts:
             - mountPath: /app/config/ssh
               name: ssh-known-hosts

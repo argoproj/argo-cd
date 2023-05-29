@@ -29,8 +29,10 @@ This feature can only be enabled and used when your Argo CD ApplicationSet contr
 
 In order for an ApplicationSet to be managed and reconciled outside the Argo CD's control plane namespace, two prerequisites must match:
 
-1. The `ApplicationSet`'s namespace must be explicitly enabled using the `--applicationset-namespaces` parameter for the `argocd-applicationset-controller`. This parameter controls the list of namespaces that Argo CD will be allowed to source `ApplicationSet` resources from globally.
-2. The number of namespaces covered by the `--applicationset-namespaces` must be entirely covered by the [App in any namespace](../app-any-namespace.md), otherwise the generated Applications generated outside the allowed Application namespaces won't be reconciled.
+1. The namespace list from which `argocd-applicationset-controller` can source `ApplicationSets` must be explicitly set using environment variable `ARGOCD_APPLICATIONSET_NAMESPACES` or alternatively using parameter `--applicationset-namespaces`.
+2. The enabled namespaces must be entirely covered by the [App in any namespace](../app-any-namespace.md), otherwise the generated Applications generated outside the allowed Application namespaces won't be reconciled
+
+It can be achieved by setting the environment variable `ARGOCD_APPLICATIONSET_NAMESPACES` to argocd-cmd-params-cm `application.namespaces`
 
 `ApplicationSets` in different namespaces can be created and managed just like any other `ApplicationSet` in the `argocd` namespace previously, either declaratively or through the Argo CD API (e.g. using the CLI, the web UI, the REST API, etc).
 
