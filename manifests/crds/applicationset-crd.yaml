@@ -1575,6 +1575,10 @@ spec:
                           - metadata
                           - spec
                           type: object
+                        values:
+                          additionalProperties:
+                            type: string
+                          type: object
                       required:
                       - repoURL
                       - revision
@@ -3619,6 +3623,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                 required:
                                 - repoURL
                                 - revision
@@ -4156,6 +4164,8 @@ spec:
                                     items:
                                       properties:
                                         branchMatch:
+                                          type: string
+                                        targetBranchMatch:
                                           type: string
                                       type: object
                                     type: array
@@ -5396,6 +5406,10 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                               selector:
@@ -7455,6 +7469,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                 required:
                                 - repoURL
                                 - revision
@@ -7992,6 +8010,8 @@ spec:
                                     items:
                                       properties:
                                         branchMatch:
+                                          type: string
+                                        targetBranchMatch:
                                           type: string
                                       type: object
                                     type: array
@@ -9233,6 +9253,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                 type: object
                               selector:
                                 properties:
@@ -9785,6 +9809,8 @@ spec:
                           items:
                             properties:
                               branchMatch:
+                                type: string
+                              targetBranchMatch:
                                 type: string
                             type: object
                           type: array
@@ -11025,6 +11051,10 @@ spec:
                           required:
                           - metadata
                           - spec
+                          type: object
+                        values:
+                          additionalProperties:
+                            type: string
                           type: object
                       type: object
                     selector:

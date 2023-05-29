@@ -57,6 +57,10 @@ const (
 	//   https://github.com/argoproj-labs/argocd-notifications/blob/33d345fa838829bb50fca5c08523aba380d2c12b/pkg/controller/state.go#L17
 	NotifiedAnnotationKey             = "notified.notifications.argoproj.io"
 	ReconcileRequeueOnValidationError = time.Minute * 3
+
+	// LabelKeyAppSetInstance is the label key to use to uniquely identify the apps of an applicationset
+	// The ArgoCD applicationset name is used as the instance name
+	LabelKeyAppSetInstance = "argocd.argoproj.io/application-set-name"
 )
 
 var (
@@ -149,19 +153,28 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// appSyncMap tracks which apps will be synced during this reconciliation.
 	appSyncMap := map[string]bool{}
 
-	if r.EnableProgressiveSyncs && applicationSetInfo.Spec.Strategy != nil {
-		applications, err := r.getCurrentApplications(ctx, applicationSetInfo)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
-		}
+	if r.EnableProgressiveSyncs {
+		if applicationSetInfo.Spec.Strategy == nil && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
+			log.Infof("Removing %v unnecessary AppStatus entries from ApplicationSet %v", len(applicationSetInfo.Status.ApplicationStatus), applicationSetInfo.Name)
 
-		for _, app := range applications {
-			appMap[app.Name] = app
-		}
+			err := r.setAppSetApplicationStatus(ctx, &applicationSetInfo, []argov1alpha1.ApplicationSetApplicationStatus{})
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to clear previous AppSet application statuses for %v: %w", applicationSetInfo.Name, err)
+			}
+		} else {
+			applications, err := r.getCurrentApplications(ctx, applicationSetInfo)
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
+			}
 
-		appSyncMap, err = r.performProgressiveSyncs(ctx, applicationSetInfo, applications, desiredApplications, appMap)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
+			for _, app := range applications {
+				appMap[app.Name] = app
+			}
+
+			appSyncMap, err = r.performProgressiveSyncs(ctx, applicationSetInfo, applications, desiredApplications, appMap)
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
+			}
 		}
 	}
 
@@ -495,6 +508,10 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 
 		for _, a := range t {
 			tmplApplication := getTempApplication(a.Template)
+			if tmplApplication.Labels == nil {
+				tmplApplication.Labels = make(map[string]string)
+			}
+			tmplApplication.Labels[LabelKeyAppSetInstance] = applicationSetInfo.Name
 
 			for _, p := range a.Params {
 				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate)
@@ -853,43 +870,19 @@ func (r *ApplicationSetReconciler) buildAppDependencyList(ctx context.Context, a
 
 			selected := true // default to true, assuming the current Application is a match for the given step matchExpression
 
-			allNotInMatched := true // needed to support correct AND behavior between multiple NotIn MatchExpressions
-			notInUsed := false      // since we default to allNotInMatched == true, track whether a NotIn expression was actually used
-
 			for _, matchExpression := range step.MatchExpressions {
 
-				if matchExpression.Operator == "In" {
-					if val, ok := app.Labels[matchExpression.Key]; ok {
-						valueMatched := labelMatchedExpression(val, matchExpression)
+				if val, ok := app.Labels[matchExpression.Key]; ok {
+					valueMatched := labelMatchedExpression(val, matchExpression)
 
-						if !valueMatched { // none of the matchExpression values was a match with the Application'ss labels
-							selected = false
-							break
-						}
-					} else {
-						selected = false // no matching label key with In means this Application will not be included in the current step
+					if !valueMatched { // none of the matchExpression values was a match with the Application'ss labels
+						selected = false
 						break
 					}
-				} else if matchExpression.Operator == "NotIn" {
-					notInUsed = true // a NotIn selector was used in this matchExpression
-					if val, ok := app.Labels[matchExpression.Key]; ok {
-						valueMatched := labelMatchedExpression(val, matchExpression)
-
-						if !valueMatched { // none of the matchExpression values was a match with the Application's labels
-							allNotInMatched = false
-						}
-					} else {
-						allNotInMatched = false // no matching label key with NotIn means this Application may still be included in the current step
-					}
-				} else { // handle invalid operator selection
-					log.Warnf("skipping AppSet rollingUpdate step Application selection for %q, invalid matchExpression operator provided: %q ", applicationSet.Name, matchExpression.Operator)
-					selected = false
+				} else if matchExpression.Operator == "In" {
+					selected = false // no matching label key with "In" operator means this Application will not be included in the current step
 					break
 				}
-			}
-
-			if notInUsed && allNotInMatched { // check if all NotIn Expressions matched, if so exclude this Application
-				selected = false
 			}
 
 			if selected {
@@ -907,11 +900,20 @@ func (r *ApplicationSetReconciler) buildAppDependencyList(ctx context.Context, a
 }
 
 func labelMatchedExpression(val string, matchExpression argov1alpha1.ApplicationMatchExpression) bool {
-	valueMatched := false
+	if matchExpression.Operator != "In" && matchExpression.Operator != "NotIn" {
+		log.Errorf("skipping AppSet rollingUpdate step Application selection, invalid matchExpression operator provided: %q ", matchExpression.Operator)
+		return false
+	}
+
+	// if operator == In, default to false
+	// if operator == NotIn, default to true
+	valueMatched := matchExpression.Operator == "NotIn"
+
 	for _, value := range matchExpression.Values {
 		if val == value {
-			valueMatched = true
-			break
+			// first "In" match returns true
+			// first "NotIn" match returns false
+			return matchExpression.Operator == "In"
 		}
 	}
 	return valueMatched
@@ -1222,30 +1224,30 @@ func findApplicationStatusIndex(appStatuses []argov1alpha1.ApplicationSetApplica
 // with any new/changed Application statuses.
 func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, applicationStatuses []argov1alpha1.ApplicationSetApplicationStatus) error {
 	needToUpdateStatus := false
-	for i := range applicationStatuses {
-		appStatus := applicationStatuses[i]
-		idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, appStatus.Application)
-		if idx == -1 {
-			needToUpdateStatus = true
-			break
-		}
-		currentStatus := applicationSet.Status.ApplicationStatus[idx]
-		if currentStatus.Message != appStatus.Message || currentStatus.Status != appStatus.Status {
-			needToUpdateStatus = true
-			break
+
+	if len(applicationStatuses) != len(applicationSet.Status.ApplicationStatus) {
+		needToUpdateStatus = true
+	} else {
+		for i := range applicationStatuses {
+			appStatus := applicationStatuses[i]
+			idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, appStatus.Application)
+			if idx == -1 {
+				needToUpdateStatus = true
+				break
+			}
+			currentStatus := applicationSet.Status.ApplicationStatus[idx]
+			if currentStatus.Message != appStatus.Message || currentStatus.Status != appStatus.Status || currentStatus.Step != appStatus.Step {
+				needToUpdateStatus = true
+				break
+			}
 		}
 	}
 
 	if needToUpdateStatus {
-		// fetch updated Application Set object before updating it
 		namespacedName := types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}
-		if err := r.Get(ctx, namespacedName, applicationSet); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				return nil
-			}
-			return fmt.Errorf("error fetching updated application set: %v", err)
-		}
 
+		// rebuild ApplicationStatus from scratch, we don't need any previous status history
+		applicationSet.Status.ApplicationStatus = []argov1alpha1.ApplicationSetApplicationStatus{}
 		for i := range applicationStatuses {
 			applicationSet.Status.SetApplicationStatus(applicationStatuses[i])
 		}
