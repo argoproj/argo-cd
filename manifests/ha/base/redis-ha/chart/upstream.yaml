@@ -1155,7 +1155,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: bc40970c5253e297d4d65696710d8142ea4ff352e90a60bfc39abc82689fc2d5
+        checksum/init-config: 69130412bda04eacad3530cb7bcf26cf121401e725e15d0959dd71a7380afe75
       labels:
         release: argocd
         app: redis-ha

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	"math"
 	"reflect"
 	"sort"
@@ -90,7 +91,7 @@ type Server struct {
 	appclientset             appclientset.Interface
 	appLister                applisters.ApplicationLister
 	appInformer              cache.SharedIndexInformer
-	appBroadcaster           *broadcasterHandler
+	appBroadcaster           Broadcaster
 	repoClientset            apiclient.Clientset
 	kubectl                  kube.Kubectl
 	db                       db.ArgoDB
@@ -484,116 +485,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	}
 
 	return manifestInfo, nil
-}
-
-func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_GetManifestsWithFilesServer) error {
-	ctx := stream.Context()
-	query, err := manifeststream.ReceiveApplicationManifestQueryWithFiles(stream)
-
-	if err != nil {
-		return fmt.Errorf("error getting query: %w", err)
-	}
-
-	if query.Name == nil || *query.Name == "" {
-		return fmt.Errorf("invalid request: application name is missing")
-	}
-
-	a, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, query.GetAppNamespace(), query.GetName())
-	if err != nil {
-		return err
-	}
-
-	var manifestInfo *apiclient.ManifestResponse
-	err = s.queryRepoServer(ctx, a, func(
-		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
-
-		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
-		if err != nil {
-			return fmt.Errorf("error getting app instance label key from settings: %w", err)
-		}
-
-		plugins, err := s.plugins()
-		if err != nil {
-			return fmt.Errorf("error getting plugins: %w", err)
-		}
-		config, err := s.getApplicationClusterConfig(ctx, a)
-		if err != nil {
-			return fmt.Errorf("error getting application cluster config: %w", err)
-		}
-
-		serverVersion, err := s.kubectl.GetServerVersion(config)
-		if err != nil {
-			return fmt.Errorf("error getting server version: %w", err)
-		}
-
-		apiResources, err := s.kubectl.GetAPIResources(config, false, kubecache.NewNoopSettings())
-		if err != nil {
-			return fmt.Errorf("error getting API resources: %w", err)
-		}
-
-		source := a.Spec.GetSource()
-		req := &apiclient.ManifestRequest{
-			Repo:               repo,
-			Revision:           source.TargetRevision,
-			AppLabelKey:        appInstanceLabelKey,
-			AppName:            a.Name,
-			Namespace:          a.Spec.Destination.Namespace,
-			ApplicationSource:  &source,
-			Repos:              helmRepos,
-			Plugins:            plugins,
-			KustomizeOptions:   kustomizeOptions,
-			KubeVersion:        serverVersion,
-			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
-			HelmRepoCreds:      helmCreds,
-			HelmOptions:        helmOptions,
-			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
-			EnabledSourceTypes: enableGenerateManifests,
-		}
-
-		repoStreamClient, err := client.GenerateManifestWithFiles(stream.Context())
-		if err != nil {
-			return fmt.Errorf("error opening stream: %w", err)
-		}
-
-		err = manifeststream.SendRepoStream(repoStreamClient, stream, req, *query.Checksum)
-		if err != nil {
-			return fmt.Errorf("error sending repo stream: %w", err)
-		}
-
-		resp, err := repoStreamClient.CloseAndRecv()
-		if err != nil {
-			return fmt.Errorf("error generating manifests: %w", err)
-		}
-
-		manifestInfo = resp
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	for i, manifest := range manifestInfo.Manifests {
-		obj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(manifest), obj)
-		if err != nil {
-			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
-		}
-		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-			obj, _, err = diff.HideSecretData(obj, nil)
-			if err != nil {
-				return fmt.Errorf("error hiding secret data: %w", err)
-			}
-			data, err := json.Marshal(obj)
-			if err != nil {
-				return fmt.Errorf("error marshaling manifest: %w", err)
-			}
-			manifestInfo.Manifests[i] = string(data)
-		}
-	}
-
-	stream.SendAndClose(manifestInfo)
-	return nil
 }
 
 // Get returns an application by name
@@ -1993,6 +1884,9 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 		},
 		InitiatedBy: appv1.OperationInitiator{Username: session.Username(ctx)},
 	}
+	appName := rollbackReq.GetName()
+	appNs := s.appNamespaceOrDefault(rollbackReq.GetAppNamespace())
+	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
 	a, err = argo.SetAppOperation(appIf, appName, &op)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)

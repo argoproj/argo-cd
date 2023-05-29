@@ -1764,6 +1764,28 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Format:      "",
 						},
 					},
+					"forceNamespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceNamespace if true, will use the application's destination namespace as a kustomization file namespace",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"components": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Components specifies a list of kustomize components to add to the kustmization before building",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 					"namespace": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Namespace sets the namespace that Kustomize adds to all resources",

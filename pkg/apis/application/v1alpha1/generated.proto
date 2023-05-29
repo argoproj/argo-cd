@@ -469,14 +469,20 @@ message ApplicationSourceKustomize {
   // ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
   optional bool forceCommonAnnotations = 8;
 
+  // ForceNamespace if true, will use the application's destination namespace as a kustomization file namespace
+  optional bool forceNamespace = 9;
+
+  // Components specifies a list of kustomize components to add to the kustmization before building
+  repeated string components = 10;
+
   // Namespace sets the namespace that Kustomize adds to all resources
-  optional string namespace = 9;
+  optional string namespace = 11;
 
   // CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
-  optional bool commonAnnotationsEnvsubst = 10;
+  optional bool commonAnnotationsEnvsubst = 12;
 
   // Replicas is a list of Kustomize Replicas override specifications
-  repeated KustomizeReplica replicas = 11;
+  repeated KustomizeReplica replicas = 13;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins

@@ -93,7 +93,7 @@ func (m *EventSource) GetConfig() []byte {
 	return nil
 }
 
-//*
+// *
 // Represents an event
 type Event struct {
 	// The event source name.
@@ -152,7 +152,7 @@ func (m *Event) GetPayload() []byte {
 	return nil
 }
 
-//*
+// *
 // The actual object that will be send
 // with each event.
 type EventPayload struct {
@@ -230,7 +230,7 @@ func (m *EventPayload) GetErrors() []*ObjectError {
 	return nil
 }
 
-//*
+// *
 // Holds information about the object source
 type ObjectSource struct {
 	DesiredManifest       string            `protobuf:"bytes,1,opt,name=desiredManifest" json:"desiredManifest"`
@@ -439,7 +439,7 @@ func (m *ObjectSource) GetAppNamespace() string {
 	return ""
 }
 
-//*
+// *
 // Holds error information
 type ObjectError struct {
 	Type                 string   `protobuf:"bytes,1,opt,name=type" json:"type"`

@@ -446,16 +446,16 @@ type ApplicationSourceKustomize struct {
 	ForceCommonLabels bool `json:"forceCommonLabels,omitempty" protobuf:"bytes,7,opt,name=forceCommonLabels"`
 	// ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
 	ForceCommonAnnotations bool `json:"forceCommonAnnotations,omitempty" protobuf:"bytes,8,opt,name=forceCommonAnnotations"`
-	// Namespace sets the namespace that Kustomize adds to all resources
-	Namespace string `json:"namespace,omitempty" protobuf:"bytes,9,opt,name=namespace"`
-	// CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
-	CommonAnnotationsEnvsubst bool `json:"commonAnnotationsEnvsubst,omitempty" protobuf:"bytes,10,opt,name=commonAnnotationsEnvsubst"`
-	// Replicas is a list of Kustomize Replicas override specifications
-	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,11,opt,name=replicas"`
 	// ForceNamespace if true, will use the application's destination namespace as a kustomization file namespace
 	ForceNamespace bool `json:"forceNamespace,omitempty" protobuf:"bytes,9,opt,name=forceNamespace"`
 	// Components specifies a list of kustomize components to add to the kustmization before building
 	Components []string `json:"components,omitempty" protobuf:"bytes,10,rep,name=components"`
+	// Namespace sets the namespace that Kustomize adds to all resources
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,11,opt,name=namespace"`
+	// CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
+	CommonAnnotationsEnvsubst bool `json:"commonAnnotationsEnvsubst,omitempty" protobuf:"bytes,12,opt,name=commonAnnotationsEnvsubst"`
+	// Replicas is a list of Kustomize Replicas override specifications
+	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,13,opt,name=replicas"`
 }
 
 type KustomizeReplica struct {
@@ -1542,6 +1542,15 @@ type ResourceRef struct {
 	UID       string `json:"uid,omitempty" protobuf:"bytes,6,opt,name=uid"`
 }
 
+func (r ResourceRef) IsEqual(other ResourceRef) bool {
+	return (r.Group == other.Group &&
+		r.Version == other.Version &&
+		r.Kind == other.Kind &&
+		r.Namespace == other.Namespace &&
+		r.Name == other.Name) ||
+		r.UID == other.UID
+}
+
 // ResourceNode contains information about live resource and its children
 // TODO: describe members of this type
 type ResourceNode struct {
@@ -1568,6 +1577,42 @@ func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 		Version: n.Version,
 		Kind:    n.Kind,
 	}
+}
+
+func (n *ResourceNode) GetAllChildNodes(tree *ApplicationTree, kind string) []ResourceNode {
+	curChildren := []ResourceNode{}
+
+	for _, c := range tree.Nodes {
+		if (kind == "" || kind == c.Kind) && c.hasInParents(tree, n) {
+			curChildren = append(curChildren, c)
+		}
+	}
+
+	return curChildren
+}
+
+func (n *ResourceNode) hasInParents(tree *ApplicationTree, p *ResourceNode) bool {
+	if len(n.ParentRefs) == 0 {
+		return false
+	}
+
+	for _, curParentRef := range n.ParentRefs {
+		if curParentRef.IsEqual(p.ResourceRef) {
+			return true
+		}
+
+		parentNode := tree.FindNode(curParentRef.Group, curParentRef.Kind, curParentRef.Namespace, curParentRef.Name)
+		if parentNode == nil {
+			continue
+		}
+
+		parentResult := parentNode.hasInParents(tree, p)
+		if parentResult {
+			return true
+		}
+	}
+
+	return false
 }
 
 // ResourceStatus holds the current sync and health status of a resource
