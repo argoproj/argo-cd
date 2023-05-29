@@ -60,7 +60,7 @@ const (
 
 	// LabelKeyAppSetInstance is the label key to use to uniquely identify the apps of an applicationset
 	// The ArgoCD applicationset name is used as the instance name
-	LabelKeyAppSetInstance = "argocd.argoproj.io/appset-instance"
+	LabelKeyAppSetInstance = "argocd.argoproj.io/application-set-name"
 )
 
 var (

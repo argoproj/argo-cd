@@ -43,7 +43,7 @@ var (
 			Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
 		},
 	}
-	LabelKeyAppSetInstance = "argocd.argoproj.io/appset-instance"
+	LabelKeyAppSetInstance = "argocd.argoproj.io/application-set-name"
 )
 
 func TestSimpleListGenerator(t *testing.T) {
