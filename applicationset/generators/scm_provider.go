@@ -135,7 +135,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		var awsErr error
 		provider, awsErr = scm_provider.NewAWSCodeCommitProvider(ctx, providerConfig.AWSCodeCommit.TagFilters, providerConfig.AWSCodeCommit.Role, providerConfig.AWSCodeCommit.Region, providerConfig.AWSCodeCommit.AllBranches)
 		if awsErr != nil {
-			return nil, fmt.Errorf("error initializing AWS codecommid service: %v", awsErr)
+			return nil, fmt.Errorf("error initializing AWS codecommit service: %v", awsErr)
 		}
 	} else {
 		return nil, fmt.Errorf("no SCM provider implementation configured")

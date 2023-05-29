@@ -17,14 +17,15 @@ import (
 )
 
 type awsCodeCommitTestRepository struct {
-	name               string
-	id                 string
-	arn                string
-	accountId          string
-	defaultBranch      string
-	expectedCloneUrl   string
-	getRepositoryError error
-	valid              bool
+	name                     string
+	id                       string
+	arn                      string
+	accountId                string
+	defaultBranch            string
+	expectedCloneUrl         string
+	getRepositoryError       error
+	getRepositoryNilMetadata bool
+	valid                    bool
 }
 
 func TestAWSCodeCommitListRepos(t *testing.T) {
@@ -103,6 +104,13 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 					arn:   "arn:aws:codecommit:us-east-1:111111111111:repo2",
 					valid: false,
 				},
+				{
+					name:                     "repo3-nil-metadata",
+					id:                       "24a6ee96-d3a0-4be6-a595-c5e5b1ab1617",
+					arn:                      "arn:aws:codecommit:us-east-1:111111111111:repo3-nil-metadata",
+					getRepositoryNilMetadata: true,
+					valid:                    false,
+				},
 			},
 			expectOverallError:     false,
 			expectListAtCodeCommit: true,
@@ -155,21 +163,23 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 			codecommitRepoNameIdPairs := make([]*codecommit.RepositoryNameIdPair, 0)
 			resourceTaggings := make([]*resourcegroupstaggingapi.ResourceTagMapping, 0)
 			validRepositories := make([]*awsCodeCommitTestRepository, 0)
-			repoNameIdPairs := make(map[string]string, 0)
 
 			for _, repo := range testCase.repositories {
+				repoMetadata := &codecommit.RepositoryMetadata{
+					AccountId:      aws.String(repo.accountId),
+					Arn:            aws.String(repo.arn),
+					CloneUrlHttp:   aws.String("https://git-codecommit.us-east-1.amazonaws.com/v1/repos/" + repo.name),
+					CloneUrlSsh:    aws.String("ssh://git-codecommit.us-east-1.amazonaws.com/v1/repos/" + repo.name),
+					DefaultBranch:  aws.String(repo.defaultBranch),
+					RepositoryId:   aws.String(repo.id),
+					RepositoryName: aws.String(repo.name),
+				}
+				if repo.getRepositoryNilMetadata {
+					repoMetadata = nil
+				}
 				codeCommitClient.EXPECT().
 					GetRepositoryWithContext(ctx, &codecommit.GetRepositoryInput{RepositoryName: aws.String(repo.name)}).
-					Return(&codecommit.GetRepositoryOutput{RepositoryMetadata: &codecommit.RepositoryMetadata{
-						AccountId:      aws.String(repo.accountId),
-						Arn:            aws.String(repo.arn),
-						CloneUrlHttp:   aws.String("https://git-codecommit.us-east-1.amazonaws.com/v1/repos/" + repo.name),
-						CloneUrlSsh:    aws.String("ssh://git-codecommit.us-east-1.amazonaws.com/v1/repos/" + repo.name),
-						DefaultBranch:  aws.String(repo.defaultBranch),
-						RepositoryId:   aws.String(repo.id),
-						RepositoryName: aws.String(repo.name),
-					}}, repo.getRepositoryError)
-				repoNameIdPairs[repo.name] = repo.arn
+					Return(&codecommit.GetRepositoryOutput{RepositoryMetadata: repoMetadata}, repo.getRepositoryError)
 				codecommitRepoNameIdPairs = append(codecommitRepoNameIdPairs, &codecommit.RepositoryNameIdPair{
 					RepositoryId:   aws.String(repo.id),
 					RepositoryName: aws.String(repo.name),

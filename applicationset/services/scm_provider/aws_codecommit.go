@@ -67,7 +67,7 @@ func (p *AWSCodeCommitProvider) ListRepos(ctx context.Context, cloneProtocol str
 
 	repoNames, err := p.listRepoNames(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list codecommit repository due to %w", err)
+		return nil, fmt.Errorf("failed to list codecommit repository: %w", err)
 	}
 
 	for _, repoName := range repoNames {
@@ -76,9 +76,14 @@ func (p *AWSCodeCommitProvider) ListRepos(ctx context.Context, cloneProtocol str
 		})
 		if err != nil {
 			// we don't want to skip at this point. It's a valid repo, we don't want to have flapping Application on an AWS outage.
-			return nil, fmt.Errorf("failed to get codecommit repository due to %w", err)
+			return nil, fmt.Errorf("failed to get codecommit repository: %w", err)
 		}
-		if repo.RepositoryMetadata.DefaultBranch == nil || *repo.RepositoryMetadata.DefaultBranch == "" {
+		if repo == nil || repo.RepositoryMetadata == nil {
+			// unlikely to happen, but just in case to protect nil pointer dereferences.
+			log.Warnf("codecommit returned invalid response for repository %s, skipped", repoName)
+			continue
+		}
+		if aws.StringValue(repo.RepositoryMetadata.DefaultBranch) == "" {
 			// if a codecommit repo doesn't have default branch, it's uninitialized. not going to bother with it.
 			log.Warnf("repository %s does not have default branch, skipped", repoName)
 			continue
@@ -87,13 +92,13 @@ func (p *AWSCodeCommitProvider) ListRepos(ctx context.Context, cloneProtocol str
 		switch cloneProtocol {
 		// default to SSH if unspecified (i.e. if "").
 		case "", "ssh":
-			url = *repo.RepositoryMetadata.CloneUrlSsh
+			url = aws.StringValue(repo.RepositoryMetadata.CloneUrlSsh)
 		case "https":
-			url = *repo.RepositoryMetadata.CloneUrlHttp
+			url = aws.StringValue(repo.RepositoryMetadata.CloneUrlHttp)
 		case "https-fips":
-			url, err = getCodeCommitFIPSEndpoint(*repo.RepositoryMetadata.CloneUrlHttp)
+			url, err = getCodeCommitFIPSEndpoint(aws.StringValue(repo.RepositoryMetadata.CloneUrlHttp))
 			if err != nil {
-				return nil, fmt.Errorf("https-fips is provided but repoUrl can't be transformed to FIPS endpoint. %w", err)
+				return nil, fmt.Errorf("https-fips is provided but repoUrl can't be transformed to FIPS endpoint: %w", err)
 			}
 		default:
 			return nil, fmt.Errorf("unknown clone protocol for codecommit %v", cloneProtocol)
@@ -101,13 +106,13 @@ func (p *AWSCodeCommitProvider) ListRepos(ctx context.Context, cloneProtocol str
 		repos = append(repos, &Repository{
 			// there's no "organization" level at codecommit.
 			// we are just using AWS accountId for now.
-			Organization: *repo.RepositoryMetadata.AccountId,
-			Repository:   *repo.RepositoryMetadata.RepositoryName,
+			Organization: aws.StringValue(repo.RepositoryMetadata.AccountId),
+			Repository:   aws.StringValue(repo.RepositoryMetadata.RepositoryName),
 			URL:          url,
-			Branch:       *repo.RepositoryMetadata.DefaultBranch,
+			Branch:       aws.StringValue(repo.RepositoryMetadata.DefaultBranch),
 			// we could propagate repo tag keys, but without value not sure if it's any useful.
 			Labels:       []string{},
-			RepositoryId: *repo.RepositoryMetadata.RepositoryId,
+			RepositoryId: aws.StringValue(repo.RepositoryMetadata.RepositoryId),
 		})
 	}
 
@@ -150,22 +155,22 @@ func (p *AWSCodeCommitProvider) RepoHasPath(ctx context.Context, repo *Repositor
 
 	// anything that matches.
 	for _, submodule := range output.SubModules {
-		if basePath == *submodule.RelativePath {
+		if basePath == aws.StringValue(submodule.RelativePath) {
 			return true, nil
 		}
 	}
 	for _, subpath := range output.SubFolders {
-		if basePath == *subpath.RelativePath {
+		if basePath == aws.StringValue(subpath.RelativePath) {
 			return true, nil
 		}
 	}
 	for _, subpath := range output.Files {
-		if basePath == *subpath.RelativePath {
+		if basePath == aws.StringValue(subpath.RelativePath) {
 			return true, nil
 		}
 	}
 	for _, subpath := range output.SymbolicLinks {
-		if basePath == *subpath.RelativePath {
+		if basePath == aws.StringValue(subpath.RelativePath) {
 			return true, nil
 		}
 	}
@@ -185,7 +190,7 @@ func (p *AWSCodeCommitProvider) GetBranches(ctx context.Context, repo *Repositor
 			Organization: repo.Organization,
 			Repository:   repo.Repository,
 			URL:          repo.URL,
-			Branch:       *output.RepositoryMetadata.DefaultBranch,
+			Branch:       aws.StringValue(output.RepositoryMetadata.DefaultBranch),
 			RepositoryId: repo.RepositoryId,
 			Labels:       repo.Labels,
 			// getting SHA of the branch requires a separate GetBranch call.
@@ -206,7 +211,7 @@ func (p *AWSCodeCommitProvider) GetBranches(ctx context.Context, repo *Repositor
 					Organization: repo.Organization,
 					Repository:   repo.Repository,
 					URL:          repo.URL,
-					Branch:       *branch,
+					Branch:       aws.StringValue(branch),
 					RepositoryId: repo.RepositoryId,
 					Labels:       repo.Labels,
 					// getting SHA of the branch requires a separate GetBranch call.
@@ -239,7 +244,7 @@ func (p *AWSCodeCommitProvider) listRepoNames(ctx context.Context) ([]string, er
 				break
 			}
 			for _, repo := range output.Repositories {
-				repoNames = append(repoNames, *repo.RepositoryName)
+				repoNames = append(repoNames, aws.StringValue(repo.RepositoryName))
 			}
 			listReposInput.NextToken = output.NextToken
 			if aws.StringValue(output.NextToken) == "" {
@@ -259,7 +264,7 @@ func (p *AWSCodeCommitProvider) listRepoNames(ctx context.Context) ([]string, er
 				break
 			}
 			for _, resource := range output.ResourceTagMappingList {
-				repoArn := *resource.ResourceARN
+				repoArn := aws.StringValue(resource.ResourceARN)
 				log.Debugf("discovered codecommit repo with arn %s", repoArn)
 				repoName, extractErr := getCodeCommitRepoName(repoArn)
 				if extractErr != nil {

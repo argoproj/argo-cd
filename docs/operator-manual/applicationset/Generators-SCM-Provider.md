@@ -292,7 +292,10 @@ spec:
 * `allBranches`: (Optional) If `true`, scans every branch of eligible repositories. If `false`, check only the default branch of the eligible repositories. Default `false`.
 * `tagFilters`: (Optional) A list of tagFilters to filter AWS CodeCommit repos with. See [AWS ResourceGroupsTagging API](https://docs.aws.amazon.com/resourcegroupstagging/latest/APIReference/API_GetResources.html#resourcegrouptagging-GetResources-request-TagFilters) for details. By default, no filter is included.
 
-This SCM provider does not yet support label filtering.
+This SCM provider does not support the following features
+
+* label filtering
+* `sha`, `short_sha` and `short_sha_7` template parameters
 
 Available clone protocols are `ssh`, `https` and `https-fips`.
 
@@ -310,11 +313,11 @@ This is suitable when you have a simple setup that all AWS CodeCommit repos resi
 
 As the ApplicationSet controller AWS identity is used directly for repo discovery, it must be granted below AWS permissions.
 
-- `tag:GetResources`
-- `codecommit:ListRepositories`
-- `codecommit:GetRepository`
-- `codecommit:GetFolder`
-- `codecommit:ListBranches`
+* `tag:GetResources`
+* `codecommit:ListRepositories`
+* `codecommit:GetRepository`
+* `codecommit:GetFolder`
+* `codecommit:ListBranches`
 
 #### Discover AWS CodeCommit Repositories across AWS Accounts and Regions
 
@@ -323,15 +326,15 @@ This enables more complicated use cases to discover repos from different AWS acc
 
 The ApplicationSet controller AWS identity should be granted permission to assume target AWS roles.
 
-- `sts:AssumeRole`
+* `sts:AssumeRole`
 
 All AWS roles must have repo discovery related permissions.
 
-- `tag:GetResources`
-- `codecommit:ListRepositories`
-- `codecommit:GetRepository`
-- `codecommit:GetFolder`
-- `codecommit:ListBranches`
+* `tag:GetResources`
+* `codecommit:ListRepositories`
+* `codecommit:GetRepository`
+* `codecommit:GetFolder`
+* `codecommit:ListBranches`
 
 ## Filters
 
