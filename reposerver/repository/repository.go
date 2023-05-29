@@ -935,14 +935,21 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 	if err != nil {
 		return nil, err
 	}
+	reposByName := make(map[string]*v1alpha1.Repository)
 	reposByUrl := make(map[string]*v1alpha1.Repository)
 	for _, repo := range repositories {
 		reposByUrl[repo.Repo] = repo
+		if repo.Name != "" {
+			reposByName[repo.Name] = repo
+		}
 	}
 
 	repos := make([]helm.HelmRepository, 0)
 	for _, dep := range dependencies {
 		repo, ok := reposByUrl[dep.Repo]
+		if !ok && dep.Name != "" {
+			repo, ok = reposByName[dep.Name]
+		}
 		if !ok {
 			repo = &v1alpha1.Repository{Repo: dep.Repo, Name: dep.Name, EnableOCI: dep.EnableOCI}
 			if repositoryCredential := getRepoCredential(helmRepoCreds, dep.Repo); repositoryCredential != nil {
@@ -980,7 +987,11 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	}
 
 	for _, r := range d.Dependencies {
-		if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
+		if strings.HasPrefix(r.Repository, "@") {
+			repos = append(repos, &v1alpha1.Repository{
+				Name: r.Repository[1:],
+			})
+		} else if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
 				// trimming oci:// prefix since it is currently not supported by Argo CD (OCI repos just have no scheme)
 				Repo:      strings.TrimPrefix(r.Repository, "oci://"),
@@ -1031,6 +1042,11 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 		return err
 	}
 	return os.WriteFile(markerFile, []byte("marker"), 0644)
+}
+
+func isSourcePermitted(url string, repos []string) bool {
+	p := v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{SourceRepos: repos}}
+	return p.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: url})
 }
 
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, error) {
@@ -1129,6 +1145,20 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	if err != nil {
 		return nil, err
 	}
+
+	var reposNotPermitted []string
+	// We do a sanity check here to give a nicer error message in case any of the Helm repositories are not permitted by
+	// the AppProject which the application is a part of
+	for _, repo := range helmRepos {
+		if !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
+			reposNotPermitted = append(reposNotPermitted, repo.Repo)
+		}
+	}
+
+	if len(reposNotPermitted) > 0 {
+		return nil, status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
+	}
+
 	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, passCredentials)
 	if err != nil {
 		return nil, err
@@ -2522,6 +2552,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	repo := request.GetRepo()
 	revision := request.GetRevision()
 	gitPath := request.GetPath()
+	enableNewGitFileGlobbing := request.GetNewGitFileGlobbingEnabled()
 	if gitPath == "" {
 		gitPath = "."
 	}
@@ -2555,7 +2586,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	}
 	defer io.Close(closer)
 
-	gitFiles, err := gitClient.LsFiles(gitPath)
+	gitFiles, err := gitClient.LsFiles(gitPath, enableNewGitFileGlobbing)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to list files. repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
 	}
