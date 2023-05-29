@@ -392,8 +392,8 @@ func fakeAppWithGithubPullRequestGenerator(name, namespace, owner, repo string) 
 	}
 }
 
-func fakeAppWithGiteaPullRequestGenerator(name, namespace, owner, repo string, api string) *argoprojiov1alpha1.ApplicationSet {
-	return &argoprojiov1alpha1.ApplicationSet{
+func fakeAppWithGiteaPullRequestGenerator(name, namespace, owner, repo string, api string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
