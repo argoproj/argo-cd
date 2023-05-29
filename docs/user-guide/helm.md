@@ -2,7 +2,9 @@
 
 ## Declarative
 
-You can install Helm charts through the UI, or in the declarative GitOps way. Here is an example:
+You can install Helm charts through the UI, or in the declarative GitOps way.  
+Helm is [only used to inflate charts with `helm template`](../../faq#after-deploying-my-helm-application-with-argo-cd-i-cannot-see-it-with-helm-ls-and-other-helm-commands). The lifecycle of the application is handled by Argo CD instead of Helm.
+Here is an example:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -33,9 +35,11 @@ flag. The flag can be repeated to support multiple values files:
 argocd app set helm-guestbook --values values-production.yaml
 ```
 !!! note
-    Values files must be in the same git repository as the Helm chart. The files can be in a different
-    location in which case it can be accessed using a relative path relative to the root directory of
-    the Helm chart.
+    Before `v2.6` of Argo CD, Values files must be in the same git repository as the Helm
+    chart. The files can be in a different location in which case it can be accessed using
+    a relative path relative to the root directory of the Helm chart.
+    As of `v2.6`, values files can be sourced from a separate repository than the Helm chart
+    by taking advantage of [multiple sources for Applications](./multiple_sources.md#helm-value-files-from-external-git-repository).
 
 In the declarative syntax:
 
@@ -44,6 +48,29 @@ source:
   helm:
     valueFiles:
     - values-production.yaml
+```
+
+## Values
+
+Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.values` key.
+
+```
+source:
+  helm:
+    values: |
+      ingress:
+        enabled: true
+        path: /
+        hosts:
+          - mydomain.example.com
+        annotations:
+          kubernetes.io/ingress.class: nginx
+          kubernetes.io/tls-acme: "true"
+        labels: {}
+        tls:
+          - secretName: mydomain-tls
+            hosts:
+              - mydomain.example.com
 ```
 
 ## Helm Parameters
@@ -113,8 +140,9 @@ Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Ar
 | `helm.sh/hook: test-success` | Not supported. No equivalent in Argo CD. |
 | `helm.sh/hook: test-failure` | Not supported. No equivalent in Argo CD. |
 | `helm.sh/hook-delete-policy` | Supported. See also `argocd.argoproj.io/hook-delete-policy`). |
-| `helm.sh/hook-delete-timeout` | No supported. Never used in Helm stable |
+| `helm.sh/hook-delete-timeout` | Not supported. Never used in Helm stable |
 | `helm.sh/hook-weight` | Supported as equivalent to `argocd.argoproj.io/sync-wave`. |
+| `helm.sh/resource-policy: keep` | Supported as equivalent to `argocd.argoproj.io/sync-options: Delete=false`. |
 
 Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl apply`, rather than `kubectl create`. This means that if the hook is named and already exists, it will not change unless you have annotated it with `before-hook-creation`.
 
@@ -235,35 +263,40 @@ Below is an example of how to add Helm plugins when installing ArgoCD with the [
 ```
 repoServer:
   volumes:
-    - name: gcloud
+    - name: gcp-credentials
       secret:
-        secretName: helm-credentials
+        secretName: my-gcp-credentials
   volumeMounts:
-    - mountPath: /gcloud
-      name: gcloud
+    - name: gcp-credentials
+      mountPath: /gcp
   env:
-    - name: HELM_PLUGINS
-      value: /helm-working-dir/plugins/
-    - name: GOOGLE_APPLICATION_CREDENTIALS
-      value: /gcloud/key.json
+    - name: HELM_CACHE_HOME
+      value: /helm-working-dir
+    - name: HELM_CONFIG_HOME
+      value: /helm-working-dir
+    - name: HELM_DATA_HOME
+      value: /helm-working-dir
   initContainers:
-    - name: install-helm-plugins
-      image: alpine/helm:3.8.0
+    - name: helm-gcp-authentication
+      image: alpine/helm:3.8.1
       volumeMounts:
-        - mountPath: /helm-working-dir
-          name: helm-working-dir
-        - mountPath: /gcloud
-          name: gcloud
+        - name: helm-working-dir
+          mountPath: /helm-working-dir
+        - name: gcp-credentials
+          mountPath: /gcp
       env:
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /gcloud/key.json
-        - name: HELM_PLUGINS
-          value: /helm-working-dir/plugins
-      command: ["/bin/sh", "-c"]
+        - name: HELM_CACHE_HOME
+          value: /helm-working-dir
+        - name: HELM_CONFIG_HOME
+          value: /helm-working-dir
+        - name: HELM_DATA_HOME
+          value: /helm-working-dir
+      command: [ "/bin/sh", "-c" ]
       args:
         - apk --no-cache add curl;
           helm plugin install https://github.com/hayorov/helm-gcs.git;
-          helm repo add my-private-gcs-repo gs://my-private-gcs-repo;
+          helm repo add my-gcs-repo gs://my-private-helm-gcs-repository;
+          chmod -R 777 $HELM_DATA_HOME;
 ```
 
 ## Helm Version
@@ -291,7 +324,7 @@ Helm, [starting with v3.6.1](https://github.com/helm/helm/releases/tag/v3.6.1),
 prevents sending repository credentials to download charts that are being served
 from a different domain than the repository.
 
-If needed, it is possible to specifically set the Helm version to template with by setting the `helm-pass-credentials` flag on the cli:
+If needed, it is possible to opt into passing credentials for all domains by setting the `helm-pass-credentials` flag on the cli:
 
 ```bash
 argocd app set helm-guestbook --helm-pass-credentials

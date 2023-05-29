@@ -69,8 +69,8 @@ spec:
 
 A source repository is considered valid if the following conditions hold:
 
-1) _Any_ allow source rule (i.e. a rule which isn't prefixed with `!`) permits the source
-2) AND *no* deny source (i.e. a rule which is prefixed with `!`) rejects the source
+1. _Any_ allow source rule (i.e. a rule which isn't prefixed with `!`) permits the source
+2. AND *no* deny source (i.e. a rule which is prefixed with `!`) rejects the source
 
 Keep in mind that `!*` is an invalid rule, since it doesn't make any sense to disallow everything.
 
@@ -106,8 +106,8 @@ spec:
 
 As with sources, a destination is considered valid if the following conditions hold:
 
-1) _Any_ allow destination rule (i.e. a rule which isn't prefixed with `!`) permits the destination
-2) AND *no* deny destination (i.e. a rule which is prefixed with `!`) rejects the destination
+1. _Any_ allow destination rule (i.e. a rule which isn't prefixed with `!`) permits the destination
+2. AND *no* deny destination (i.e. a rule which is prefixed with `!`) rejects the destination
 
 Keep in mind that `!*` is an invalid rule, since it doesn't make any sense to disallow everything. 
 
@@ -321,7 +321,7 @@ stringData:
 
 All the examples above talk about Git repositories, but the same principles apply to clusters as well.
 
-With cluster-scoped clusters we can also restrict projects to only allow applications whose destinations belong to the 
+With project-scoped clusters we can also restrict projects to only allow applications whose destinations belong to the 
 same project. The default behavior allows for applications to be installed onto clusters which are not a part of the same 
 project, as the example below demonstrates:
 

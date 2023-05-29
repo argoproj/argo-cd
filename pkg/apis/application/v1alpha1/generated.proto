@@ -116,7 +116,7 @@ message Application {
   optional Operation operation = 4;
 }
 
-// ApplicationCondition contains details about an application condition, which is usally an error or warning
+// ApplicationCondition contains details about an application condition, which is usually an error or warning
 message ApplicationCondition {
   // Type is an application condition type
   optional string type = 1;
@@ -157,6 +157,10 @@ message ApplicationMatchExpression {
   repeated string values = 3;
 }
 
+message ApplicationPreservedFields {
+  repeated string annotations = 1;
+}
+
 // ApplicationSet is a set of Application resources
 // +genclient
 // +genclient:noStatus
@@ -183,7 +187,10 @@ message ApplicationSetApplicationStatus {
   optional string message = 3;
 
   // Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
-  optional string status = 5;
+  optional string status = 4;
+
+  // Step tracks which step this Application should be updated in
+  optional string step = 5;
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
@@ -281,6 +288,8 @@ message ApplicationSetSpec {
   optional ApplicationSetSyncPolicy syncPolicy = 4;
 
   optional ApplicationSetStrategy strategy = 5;
+
+  optional ApplicationPreservedFields preservedFields = 6;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -459,6 +468,15 @@ message ApplicationSourceKustomize {
 
   // ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
   optional bool forceCommonAnnotations = 8;
+
+  // Namespace sets the namespace that Kustomize adds to all resources
+  optional string namespace = 9;
+
+  // CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
+  optional bool commonAnnotationsEnvsubst = 10;
+
+  // Replicas is a list of Kustomize Replicas override specifications
+  repeated KustomizeReplica replicas = 11;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -478,10 +496,10 @@ message ApplicationSourcePluginParameter {
   optional string string = 5;
 
   // Map is the value of a map type parameter.
-  map<string, string> map = 3;
+  optional OptionalMap map = 3;
 
   // Array is the value of an array type parameter.
-  repeated string array = 4;
+  optional OptionalArray array = 4;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -554,6 +572,9 @@ message ApplicationStatus {
 
   // SourceTypes specifies the type of the sources included in the application
   repeated string sourceTypes = 12;
+
+  // ControllerNamespace indicates the namespace in which the application controller is located
+  optional string controllerNamespace = 13;
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
@@ -609,6 +630,17 @@ message BasicAuthBitbucketServer {
 
   // Password (or personal access token) reference.
   optional SecretRef passwordRef = 2;
+}
+
+// ChartDetails contains helm chart metadata for a specific version
+message ChartDetails {
+  optional string description = 1;
+
+  // The URL of this projects home page, e.g. "http://example.com"
+  optional string home = 2;
+
+  // List of maintainer details, name and email, e.g. ["John Doe <john_doe@my-company.com>"]
+  repeated string maintainers = 3;
 }
 
 // Cluster is the definition of a cluster resource
@@ -851,6 +883,9 @@ message GitGenerator {
   optional ApplicationSetTemplate template = 6;
 
   optional string pathParamPrefix = 7;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 8;
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key
@@ -994,11 +1029,21 @@ message KustomizeOptions {
   optional string binaryPath = 2;
 }
 
+message KustomizeReplica {
+  // Name of Deployment or StatefulSet
+  optional string name = 1;
+
+  // Number of replicas
+  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString count = 2;
+}
+
 // ListGenerator include items info
 message ListGenerator {
   repeated k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
 
   optional ApplicationSetTemplate template = 2;
+
+  optional string elementsYaml = 3;
 }
 
 message ManagedNamespaceMetadata {
@@ -1105,6 +1150,18 @@ message OperationState {
   optional int64 retryCount = 8;
 }
 
+message OptionalArray {
+  // Array is the value of an array type parameter.
+  // +optional
+  repeated string array = 1;
+}
+
+message OptionalMap {
+  // Map is the value of a map type parameter.
+  // +optional
+  map<string, string> map = 1;
+}
+
 // OrphanedResourceKey is a reference to a resource to be ignored from
 message OrphanedResourceKey {
   optional string group = 1;
@@ -1195,6 +1252,8 @@ message PullRequestGeneratorBitbucketServer {
 // pass for a pull request to be included.
 message PullRequestGeneratorFilter {
   optional string branchMatch = 1;
+
+  optional string targetBranchMatch = 2;
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
@@ -1305,6 +1364,9 @@ message RepoCreds {
 
   // Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server
   optional string proxy = 19;
+
+  // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
+  optional bool forceHttpBasicAuth = 20;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1379,6 +1441,9 @@ message Repository {
 
   // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
   optional string gcpServiceAccountKey = 21;
+
+  // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
+  optional bool forceHttpBasicAuth = 22;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -1707,6 +1772,9 @@ message SCMProviderGenerator {
   optional int64 requeueAfterSeconds = 9;
 
   optional ApplicationSetTemplate template = 10;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 11;
 }
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
@@ -1908,6 +1976,9 @@ message SyncOperationResult {
 
   // Revisions holds the revision this sync operation was performed for respective indexed source in sources field
   repeated string revisions = 5;
+
+  // ManagedNamespaceMetadata contains the current sync state of managed namespace metadata
+  optional ManagedNamespaceMetadata managedNamespaceMetadata = 6;
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git
@@ -1930,7 +2001,7 @@ message SyncPolicyAutomated {
   // Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
   optional bool prune = 1;
 
-  // SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)
+  // SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)
   optional bool selfHeal = 2;
 
   // AllowEmpty allows apps have zero live resources (default: false)

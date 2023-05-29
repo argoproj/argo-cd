@@ -54,11 +54,16 @@ func (a *ApplicationSet) RBACName() string {
 
 // ApplicationSetSpec represents a class of application set state.
 type ApplicationSetSpec struct {
-	GoTemplate bool                      `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
-	Generators []ApplicationSetGenerator `json:"generators" protobuf:"bytes,2,name=generators"`
-	Template   ApplicationSetTemplate    `json:"template" protobuf:"bytes,3,name=template"`
-	SyncPolicy *ApplicationSetSyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
-	Strategy   *ApplicationSetStrategy   `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
+	GoTemplate      bool                        `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
+	Generators      []ApplicationSetGenerator   `json:"generators" protobuf:"bytes,2,name=generators"`
+	Template        ApplicationSetTemplate      `json:"template" protobuf:"bytes,3,name=template"`
+	SyncPolicy      *ApplicationSetSyncPolicy   `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
+	Strategy        *ApplicationSetStrategy     `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
+	PreservedFields *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
+}
+
+type ApplicationPreservedFields struct {
+	Annotations []string `json:"annotations,omitempty" protobuf:"bytes,1,name=annotations"`
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
@@ -177,8 +182,9 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 
 // ListGenerator include items info
 type ListGenerator struct {
-	Elements []apiextensionsv1.JSON `json:"elements" protobuf:"bytes,1,name=elements"`
-	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
+	Elements     []apiextensionsv1.JSON `json:"elements" protobuf:"bytes,1,name=elements"`
+	Template     ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
+	ElementsYaml string                 `json:"elementsYaml,omitempty" protobuf:"bytes,3,opt,name=elementsYaml"`
 }
 
 // MatrixGenerator generates the cartesian product of two sets of parameters. The parameters are defined by two nested
@@ -314,6 +320,9 @@ type GitGenerator struct {
 	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
 	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
 	PathParamPrefix     string                      `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
+
+	// Values contains key/value pairs which are passed directly as parameters to the template
+	Values map[string]string `json:"values,omitempty" protobuf:"bytes,8,name=values"`
 }
 
 type GitDirectoryGeneratorItem struct {
@@ -342,6 +351,9 @@ type SCMProviderGenerator struct {
 	// Standard parameters.
 	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,9,opt,name=requeueAfterSeconds"`
 	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,10,opt,name=template"`
+
+	// Values contains key/value pairs which are passed directly as parameters to the template
+	Values map[string]string `json:"values,omitempty" protobuf:"bytes,11,name=values"`
 }
 
 // SCMProviderGeneratorGitea defines a connection info specific to Gitea.
@@ -522,7 +534,8 @@ type BasicAuthBitbucketServer struct {
 // If multiple filter types are set on a single struct, they will be AND'd together. All filters must
 // pass for a pull request to be included.
 type PullRequestGeneratorFilter struct {
-	BranchMatch *string `json:"branchMatch,omitempty" protobuf:"bytes,1,opt,name=branchMatch"`
+	BranchMatch       *string `json:"branchMatch,omitempty" protobuf:"bytes,1,opt,name=branchMatch"`
+	TargetBranchMatch *string `json:"targetBranchMatch,omitempty" protobuf:"bytes,2,opt,name=targetBranchMatch"`
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -602,7 +615,9 @@ type ApplicationSetApplicationStatus struct {
 	// Message contains human-readable message indicating details about the status
 	Message string `json:"message" protobuf:"bytes,3,opt,name=message"`
 	// Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
-	Status string `json:"status" protobuf:"bytes,5,opt,name=status"`
+	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
+	// Step tracks which step this Application should be updated in
+	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
 }
 
 // ApplicationSetList contains a list of ApplicationSet

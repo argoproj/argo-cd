@@ -46,6 +46,7 @@ argocd repo add REPOURL [flags]
 ```
       --enable-lfs                              enable git-lfs (Large File Support) on this repository
       --enable-oci                              enable helm-oci (Helm OCI-Based Repository)
+      --force-http-basic-auth                   whether to force use of basic auth when connecting repository via HTTP
       --gcp-service-account-key-path string     service account key for the Google Cloud Platform
       --github-app-enterprise-base-url string   base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
       --github-app-id int                       id of the GitHub Application

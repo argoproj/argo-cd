@@ -13,8 +13,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/go-redis/redis/v8"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -38,11 +38,12 @@ import (
 )
 
 type forwardCacheClient struct {
-	namespace string
-	context   string
-	init      sync.Once
-	client    cache.CacheClient
-	err       error
+	namespace   string
+	context     string
+	init        sync.Once
+	client      cache.CacheClient
+	compression cache.RedisCompressionType
+	err         error
 }
 
 func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error) error {
@@ -58,7 +59,7 @@ func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error)
 		}
 
 		redisClient := redis.NewClient(&redis.Options{Addr: fmt.Sprintf("localhost:%d", redisPort)})
-		c.client = cache.NewRedisCache(redisClient, time.Hour, cache.RedisCompressionNone)
+		c.client = cache.NewRedisCache(redisClient, time.Hour, c.compression)
 	})
 	if c.err != nil {
 		return c.err
@@ -139,7 +140,7 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 
 // StartLocalServer allows executing command in a headless mode: on the fly starts Argo CD API server and
 // changes provided client options to use started API server port
-func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string) error {
+func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType) error {
 	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
 	clientConfig := cli.AddKubectlFlagsToSet(flags)
 	startInProcessAPI := clientOpts.Core
@@ -200,7 +201,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 	if err != nil {
 		return err
 	}
-	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr}), time.Hour)
+	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 		EnableGZip:           false,
 		Namespace:            namespace,
@@ -243,7 +244,7 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 	ctx := c.Context()
 
 	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
-	err := StartLocalServer(ctx, opts, ctxStr, nil, nil)
+	err := StartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone)
 	if err != nil {
 		log.Fatal(err)
 	}

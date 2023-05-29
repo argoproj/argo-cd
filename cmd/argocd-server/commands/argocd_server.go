@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/stats"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -49,7 +49,9 @@ func NewCommand() *cobra.Command {
 	var (
 		redisClient              *redis.Client
 		insecure                 bool
+		listenHost               string
 		listenPort               int
+		metricsHost              string
 		metricsPort              int
 		otlpAddress              string
 		glogLevel                int
@@ -167,7 +169,9 @@ func NewCommand() *cobra.Command {
 			argoCDOpts := server.ArgoCDServerOpts{
 				Insecure:              insecure,
 				ListenPort:            listenPort,
+				ListenHost:            listenHost,
 				MetricsPort:           metricsPort,
+				MetricsHost:           metricsHost,
 				Namespace:             namespace,
 				BaseHRef:              baseHRef,
 				RootPath:              rootPath,
@@ -226,7 +230,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&disableAuth, "disable-auth", env.ParseBoolFromEnv("ARGOCD_SERVER_DISABLE_AUTH", false), "Disable client authentication")
 	command.Flags().BoolVar(&enableGZip, "enable-gzip", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_GZIP", false), "Enable GZIP compression")
 	command.AddCommand(cli.NewVersionCmd(cliName))
+	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_SERVER_LISTEN_ADDRESS", common.DefaultAddressAPIServer), "Listen on given address")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortAPIServer, "Listen on given port")
+	command.Flags().StringVar(&metricsHost, env.StringFromEnv("ARGOCD_SERVER_METRICS_LISTEN_ADDRESS", "metrics-address"), common.DefaultAddressAPIServerMetrics, "Listen for metrics on given address")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")

@@ -28,7 +28,7 @@ $header: 120px;
         padding: 1em;
         overflow-x: auto;
         overflow-y: auto;
-        margin-top: 115px;
+        margin-top: 150px;
         height: calc(100vh - 2 * 50px - 115px);
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             margin-top: 165px;
@@ -48,7 +48,7 @@ $header: 120px;
     &__refreshing-label {
         color: $white-color;
         position: fixed;
-        top: $header + 100px;
+        margin-top: -20px;
         left: 50%;
         background-color: $argo-color-gray-7;
         border: 1px solid $argo-color-gray-5;
@@ -213,8 +213,7 @@ $header: 120px;
         display: inline-block;
         background-color: $argo-color-gray-1;
         box-shadow: 1px 1px 3px $argo-color-gray-5;
-        position: fixed;
-
+        position: absolute;
         a {
             padding: 5px;
             margin: 2px;
@@ -227,7 +226,6 @@ $header: 120px;
                 position: relative;
                 display: inline-block;
                 vertical-align: middle;
-                font-size: 13px;
                 font-weight: 500;
                 line-height: 1.4;
                 text-align: center;
@@ -246,9 +244,13 @@ $header: 120px;
             &.group-nodes-button-on {
                 color: $argo-color-gray-1;
                 background-color: $argo-color-gray-6;
+                border: 3px solid $argo-color-teal-4;
+                font-size: 14px;
+                outline-style: solid;
                 &:hover {
                     background-color: $argo-color-gray-5;
                 }
+
             }
         }
 
@@ -260,7 +262,7 @@ $header: 120px;
 
         .zoom-value {
             user-select: none;
-            margin-top: 3px;
+            margin-top: 5px;
             margin-right: 6px;
             margin-left: 4px;
             font-size: 14px;
@@ -345,3 +347,31 @@ $header: 120px;
     display: none !important;
 }
 }
+
+.resource-parent-node-info-title {
+    flex-direction: column;
+    color: $argo-color-gray-6;
+
+    &__label {
+        display: flex;
+        margin-bottom: 0.25em;
+        flex-shrink: 1;
+        div:first-child {
+            margin-right: 10px;
+            width: 60px;
+            text-align: right;
+        }
+        div:last-child {
+            font-weight: 500;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: left;
+
+        }
+    }
+}
+
+
+

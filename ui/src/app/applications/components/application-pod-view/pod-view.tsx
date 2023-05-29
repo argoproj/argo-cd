@@ -14,6 +14,7 @@ import {ResourceLabel} from '../resource-label';
 import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon, deletePodAction} from '../utils';
 
 import './pod-view.scss';
+import {PodTooltip} from './pod-tooltip';
 
 interface PodViewProps {
     tree: ApplicationTree;
@@ -163,29 +164,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                     key={pod.uid}
                                                                     anchor={() => (
                                                                         <Tooltip
-                                                                            content={
-                                                                                <div>
-                                                                                    {pod.metadata.name}
-                                                                                    <div>Health: {pod.health}</div>
-                                                                                    {pod.createdAt && (
-                                                                                        <span>
-                                                                                            <span>Created: </span>
-                                                                                            <Moment fromNow={true} ago={true}>
-                                                                                                {pod.createdAt}
-                                                                                            </Moment>
-                                                                                            <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
-                                                                                            <div>
-                                                                                                {isYoungerThanXMinutes(pod, 30) && (
-                                                                                                    <span>
-                                                                                                        <i className='fas fa-circle circle-icon' /> &nbsp;
-                                                                                                        <span>pod age less than 30min</span>
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                            }
+                                                                            content={<PodTooltip pod={pod} />}
                                                                             popperOptions={{
                                                                                 modifiers: {
                                                                                     preventOverflow: {
@@ -246,7 +225,12 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                 </React.Fragment>
                                                                             ),
                                                                             action: () => {
-                                                                                deletePodAction(pod, this.appContext, this.props.app.metadata.name);
+                                                                                deletePodAction(
+                                                                                    pod,
+                                                                                    this.appContext,
+                                                                                    this.props.app.metadata.name,
+                                                                                    this.props.app.metadata.namespace
+                                                                                );
                                                                             }
                                                                         }
                                                                     ]}
@@ -285,6 +269,7 @@ export class PodView extends React.Component<PodViewProps> {
                 </React.Fragment>
             ),
             action: () => {
+                this.appContext.apis.navigation.goto('.', {podSortMode: mode});
                 services.viewPreferences.updatePreferences({appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: mode}}});
             }
         }));
