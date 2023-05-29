@@ -7,9 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
+	. "github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -49,6 +51,38 @@ func TestAddRemovePublicRepo(t *testing.T) {
 			}
 		}
 		assert.False(t, exists)
+	})
+}
+
+func TestGetRepoWithInheritedCreds(t *testing.T) {
+	app.Given(t).And(func() {
+		// create repo credentials
+		FailOnErr(fixture.RunCli("repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPSOrg), "--github-app-id", fixture.GithubAppID, "--github-app-installation-id", fixture.GithubAppInstallationID, "--github-app-private-key-path", repos.CertKeyPath))
+
+		repoUrl := fixture.RepoURL(fixture.RepoURLTypeHTTPS)
+
+		// Hack: First we need to create repo with valid credentials
+		FailOnErr(fixture.RunCli("repo", "add", repoUrl, "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
+
+		// Then, we remove username/password so that the repo inherits the credentials from our repocreds
+		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
+		assert.NoError(t, err)
+		defer argoio.Close(conn)
+
+		_, err = repoClient.UpdateRepository(context.Background(), &repositorypkg.RepoUpdateRequest{
+			Repo: &v1alpha1.Repository{
+				Repo: repoUrl,
+			},
+		})
+		assert.NoError(t, err)
+
+		// CLI output should indicate that repo has inherited credentials
+		out, err := fixture.RunCli("repo", "get", repoUrl)
+		assert.NoError(t, err)
+		assert.Contains(t, out, "inherited")
+
+		_, err = fixture.RunCli("repo", "rm", repoUrl)
+		assert.NoError(t, err)
 	})
 }
 

@@ -6351,6 +6351,10 @@
             "$ref": "#/definitions/v1alpha1ApplicationCondition"
           }
         },
+        "controllerNamespace": {
+          "type": "string",
+          "title": "ControllerNamespace indicates the namespace in which the application controller is located"
+        },
         "health": {
           "$ref": "#/definitions/v1alpha1HealthStatus"
         },
@@ -6865,6 +6869,13 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
@@ -7396,6 +7407,9 @@
       "type": "object",
       "properties": {
         "branchMatch": {
+          "type": "string"
+        },
+        "targetBranchMatch": {
           "type": "string"
         }
       }
@@ -8168,6 +8182,13 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },

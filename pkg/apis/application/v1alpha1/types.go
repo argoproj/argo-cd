@@ -893,6 +893,8 @@ type ApplicationStatus struct {
 	ResourceHealthSource ResourceHealthLocation `json:"resourceHealthSource,omitempty" protobuf:"bytes,11,opt,name=resourceHealthSource"`
 	// SourceTypes specifies the type of the sources included in the application
 	SourceTypes []ApplicationSourceType `json:"sourceTypes,omitempty" protobuf:"bytes,12,opt,name=sourceTypes"`
+	// ControllerNamespace indicates the namespace in which the application controller is located
+	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
 }
 
 // JWTTokens represents a list of JWT tokens
@@ -2305,6 +2307,10 @@ func (w *SyncWindows) CanSync(isManual bool) bool {
 		} else {
 			return false
 		}
+	}
+
+	if active.hasAllow() {
+		return true
 	}
 
 	inactiveAllows := w.InactiveAllows()
