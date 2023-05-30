@@ -1346,7 +1346,16 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.UiBannerPosition = argoCDCM.Data[settingUiBannerPositionKey]
 	settings.ServerRBACLogEnforceEnable = argoCDCM.Data[settingsServerRBACLogEnforceEnableKey] == "true"
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
-	settings.UiDashboardLogo = argoCDCM.Data[settingsUiDashboardLogo]
+	if err := validateExternalURL(argoCDCM.Data[settingsUiDashboardLogo]); err != nil {
+		log.Warnf("Failed to validate UI dashboard logo URL in configmap: %v", err)
+	} else {
+		settings.UiDashboardLogo = argoCDCM.Data[settingsUiDashboardLogo]
+	}
+	if err := validateExternalURL(argoCDCM.Data[settingsUiLoginLogo]); err != nil {
+		log.Warnf("Failed to validate UI login logo URL in configmap: %v", err)
+	} else {
+		settings.UiLoginLogo = argoCDCM.Data[settingsUiLoginLogo]
+	}
 	settings.UiLoginLogo = argoCDCM.Data[settingsUiLoginLogo]
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
