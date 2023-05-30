@@ -233,6 +233,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -251,6 +253,21 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        replicas:
+                                          items:
+                                            properties:
+                                              count:
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
+                                              name:
+                                                type: string
+                                            required:
+                                            - count
+                                            - name
+                                            type: object
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -393,6 +410,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -411,6 +430,21 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -712,6 +746,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -730,6 +766,21 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        replicas:
+                                          items:
+                                            properties:
+                                              count:
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
+                                              name:
+                                                type: string
+                                            required:
+                                            - count
+                                            - name
+                                            type: object
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -872,6 +923,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -890,6 +943,21 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -1195,6 +1263,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -1213,6 +1283,21 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        replicas:
+                                          items:
+                                            properties:
+                                              count:
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
+                                              name:
+                                                type: string
+                                            required:
+                                            - count
+                                            - name
+                                            type: object
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -1355,6 +1440,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -1373,6 +1460,21 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -1473,6 +1575,10 @@ spec:
                           - metadata
                           - spec
                           type: object
+                        values:
+                          additionalProperties:
+                            type: string
+                          type: object
                       required:
                       - repoURL
                       - revision
@@ -1483,6 +1589,8 @@ spec:
                           items:
                             x-kubernetes-preserve-unknown-fields: true
                           type: array
+                        elementsYaml:
+                          type: string
                         template:
                           properties:
                             metadata:
@@ -1652,6 +1760,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -1670,6 +1780,21 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        replicas:
+                                          items:
+                                            properties:
+                                              count:
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
+                                              name:
+                                                type: string
+                                            required:
+                                            - count
+                                            - name
+                                            type: object
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -1812,6 +1937,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -1830,6 +1957,21 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -2139,6 +2281,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -2157,6 +2301,21 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      properties:
+                                                        count:
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - count
+                                                      - name
+                                                      type: object
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -2299,6 +2458,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -2317,6 +2478,21 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -2618,6 +2794,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -2636,6 +2814,21 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      properties:
+                                                        count:
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - count
+                                                      - name
+                                                      type: object
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -2778,6 +2971,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -2796,6 +2991,21 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -3101,6 +3311,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -3119,6 +3331,21 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      properties:
+                                                        count:
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - count
+                                                      - name
+                                                      type: object
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -3261,6 +3488,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -3279,6 +3508,21 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -3379,6 +3623,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                 required:
                                 - repoURL
                                 - revision
@@ -3389,6 +3637,8 @@ spec:
                                     items:
                                       x-kubernetes-preserve-unknown-fields: true
                                     type: array
+                                  elementsYaml:
+                                    type: string
                                   template:
                                     properties:
                                       metadata:
@@ -3558,6 +3808,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -3576,6 +3828,21 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      properties:
+                                                        count:
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - count
+                                                      - name
+                                                      type: object
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -3718,6 +3985,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -3736,6 +4005,21 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -3880,6 +4164,8 @@ spec:
                                     items:
                                       properties:
                                         branchMatch:
+                                          type: string
+                                        targetBranchMatch:
                                           type: string
                                       type: object
                                     type: array
@@ -4133,6 +4419,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -4151,6 +4439,21 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      properties:
+                                                        count:
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - count
+                                                      - name
+                                                      type: object
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -4293,6 +4596,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -4311,6 +4616,21 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -4414,6 +4734,26 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  awsCodeCommit:
+                                    properties:
+                                      allBranches:
+                                        type: boolean
+                                      region:
+                                        type: string
+                                      role:
+                                        type: string
+                                      tagFilters:
+                                        items:
+                                          properties:
+                                            key:
+                                              type: string
+                                            value:
+                                              type: string
+                                          required:
+                                          - key
+                                          type: object
+                                        type: array
+                                    type: object
                                   azureDevOps:
                                     properties:
                                       accessTokenRef:
@@ -4755,6 +5095,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -4773,6 +5115,21 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      properties:
+                                                        count:
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - count
+                                                      - name
+                                                      type: object
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -4915,6 +5272,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -4933,6 +5292,21 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -5032,6 +5406,10 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                               selector:
@@ -5228,6 +5606,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -5246,6 +5626,21 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        replicas:
+                                          items:
+                                            properties:
+                                              count:
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
+                                              name:
+                                                type: string
+                                            required:
+                                            - count
+                                            - name
+                                            type: object
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -5388,6 +5783,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -5406,6 +5803,21 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -5715,6 +6127,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -5733,6 +6147,21 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      properties:
+                                                        count:
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - count
+                                                      - name
+                                                      type: object
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -5875,6 +6304,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -5893,6 +6324,21 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -6194,6 +6640,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -6212,6 +6660,21 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      properties:
+                                                        count:
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - count
+                                                      - name
+                                                      type: object
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -6354,6 +6817,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -6372,6 +6837,21 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -6677,6 +7157,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -6695,6 +7177,21 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      properties:
+                                                        count:
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - count
+                                                      - name
+                                                      type: object
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -6837,6 +7334,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -6855,6 +7354,21 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -6955,6 +7469,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                 required:
                                 - repoURL
                                 - revision
@@ -6965,6 +7483,8 @@ spec:
                                     items:
                                       x-kubernetes-preserve-unknown-fields: true
                                     type: array
+                                  elementsYaml:
+                                    type: string
                                   template:
                                     properties:
                                       metadata:
@@ -7134,6 +7654,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -7152,6 +7674,21 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      properties:
+                                                        count:
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - count
+                                                      - name
+                                                      type: object
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -7294,6 +7831,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -7312,6 +7851,21 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -7456,6 +8010,8 @@ spec:
                                     items:
                                       properties:
                                         branchMatch:
+                                          type: string
+                                        targetBranchMatch:
                                           type: string
                                       type: object
                                     type: array
@@ -7709,6 +8265,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -7727,6 +8285,21 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      properties:
+                                                        count:
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - count
+                                                      - name
+                                                      type: object
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -7869,6 +8442,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -7887,6 +8462,21 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -7990,6 +8580,26 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  awsCodeCommit:
+                                    properties:
+                                      allBranches:
+                                        type: boolean
+                                      region:
+                                        type: string
+                                      role:
+                                        type: string
+                                      tagFilters:
+                                        items:
+                                          properties:
+                                            key:
+                                              type: string
+                                            value:
+                                              type: string
+                                          required:
+                                          - key
+                                          type: object
+                                        type: array
+                                    type: object
                                   azureDevOps:
                                     properties:
                                       accessTokenRef:
@@ -8331,6 +8941,8 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
                                                   commonLabels:
                                                     additionalProperties:
                                                       type: string
@@ -8349,6 +8961,21 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      properties:
+                                                        count:
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - count
+                                                      - name
+                                                      type: object
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -8491,6 +9118,8 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
                                                     commonLabels:
                                                       additionalProperties:
                                                         type: string
@@ -8509,6 +9138,21 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -8608,6 +9252,10 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                               selector:
@@ -8808,6 +9456,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -8826,6 +9476,21 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        replicas:
+                                          items:
+                                            properties:
+                                              count:
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
+                                              name:
+                                                type: string
+                                            required:
+                                            - count
+                                            - name
+                                            type: object
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -8968,6 +9633,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -8986,6 +9653,21 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -9127,6 +9809,8 @@ spec:
                           items:
                             properties:
                               branchMatch:
+                                type: string
+                              targetBranchMatch:
                                 type: string
                             type: object
                           type: array
@@ -9380,6 +10064,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -9398,6 +10084,21 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        replicas:
+                                          items:
+                                            properties:
+                                              count:
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
+                                              name:
+                                                type: string
+                                            required:
+                                            - count
+                                            - name
+                                            type: object
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -9540,6 +10241,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -9558,6 +10261,21 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -9661,6 +10379,26 @@ spec:
                       type: object
                     scmProvider:
                       properties:
+                        awsCodeCommit:
+                          properties:
+                            allBranches:
+                              type: boolean
+                            region:
+                              type: string
+                            role:
+                              type: string
+                            tagFilters:
+                              items:
+                                properties:
+                                  key:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                - key
+                                type: object
+                              type: array
+                          type: object
                         azureDevOps:
                           properties:
                             accessTokenRef:
@@ -10002,6 +10740,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
                                         commonLabels:
                                           additionalProperties:
                                             type: string
@@ -10020,6 +10760,21 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        replicas:
+                                          items:
+                                            properties:
+                                              count:
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
+                                              name:
+                                                type: string
+                                            required:
+                                            - count
+                                            - name
+                                            type: object
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -10162,6 +10917,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
                                           commonLabels:
                                             additionalProperties:
                                               type: string
@@ -10180,6 +10937,21 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -10280,6 +11052,10 @@ spec:
                           - metadata
                           - spec
                           type: object
+                        values:
+                          additionalProperties:
+                            type: string
+                          type: object
                       type: object
                     selector:
                       properties:
@@ -10308,6 +11084,10 @@ spec:
                 type: array
               goTemplate:
                 type: boolean
+              goTemplateOptions:
+                items:
+                  type: string
+                type: array
               preservedFields:
                 properties:
                   annotations:
@@ -10520,6 +11300,8 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
+                              commonAnnotationsEnvsubst:
+                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -10538,6 +11320,21 @@ spec:
                                 type: string
                               namespace:
                                 type: string
+                              replicas:
+                                items:
+                                  properties:
+                                    count:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      x-kubernetes-int-or-string: true
+                                    name:
+                                      type: string
+                                  required:
+                                  - count
+                                  - name
+                                  type: object
+                                type: array
                               version:
                                 type: string
                             type: object
@@ -10680,6 +11477,8 @@ spec:
                                   additionalProperties:
                                     type: string
                                   type: object
+                                commonAnnotationsEnvsubst:
+                                  type: boolean
                                 commonLabels:
                                   additionalProperties:
                                     type: string
@@ -10698,6 +11497,21 @@ spec:
                                   type: string
                                 namespace:
                                   type: string
+                                replicas:
+                                  items:
+                                    properties:
+                                      count:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        x-kubernetes-int-or-string: true
+                                      name:
+                                        type: string
+                                    required:
+                                    - count
+                                    - name
+                                    type: object
+                                  type: array
                                 version:
                                   type: string
                               type: object

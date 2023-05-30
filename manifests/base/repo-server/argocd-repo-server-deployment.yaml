@@ -23,8 +23,6 @@ spec:
         imagePullPolicy: Always
         args:
           - /usr/local/bin/argocd-repo-server
-          - "--redis"
-          - "$(ARGOCD_REDIS_SERVICE):6379"
         env:
           - name: ARGOCD_RECONCILIATION_TIMEOUT
             valueFrom:
@@ -49,6 +47,18 @@ spec:
               configMapKeyRef:
                 name: argocd-cmd-params-cm
                 key: reposerver.parallelism.limit
+                optional: true
+          - name: ARGOCD_REPO_SERVER_LISTEN_ADDRESS
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.listen.address
+                optional: true
+          - name: ARGOCD_REPO_SERVER_LISTEN_METRICS_ADDRESS
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.metrics.listen.address
                 optional: true
           - name: ARGOCD_REPO_SERVER_DISABLE_TLS
             valueFrom:

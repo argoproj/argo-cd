@@ -94,6 +94,12 @@ export interface RevisionMetadata {
     signatureInfo?: string;
 }
 
+export interface ChartDetails {
+    description?: string;
+    maintainers?: string[];
+    home?: string;
+}
+
 export interface SyncOperationResult {
     resources: ResourceResult[];
     revision: string;
@@ -334,6 +340,7 @@ export interface ResourceStatus {
     hook?: boolean;
     requiresPruning?: boolean;
     syncWave?: number;
+    orphaned?: boolean;
 }
 
 export interface ResourceRef {
@@ -523,6 +530,7 @@ export interface Repository {
     enableLfs?: boolean;
     githubAppId?: string;
     forceHttpBasicAuth?: boolean;
+    enableOCI: boolean;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}

@@ -11,19 +11,24 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 func TestListMatrixGenerator(t *testing.T) {
 	generateExpectedApp := func(cluster, name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("%s-%s", cluster, name),
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "matrix-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -123,7 +128,10 @@ func TestListMatrixGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					"label-key":            "label-value",
+					LabelKeyAppSetInstance: "matrix-generator",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -141,13 +149,16 @@ func TestClusterMatrixGenerator(t *testing.T) {
 	generateExpectedApp := func(cluster, name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("%s-%s", cluster, name),
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "matrix-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -250,7 +261,10 @@ func TestClusterMatrixGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					"label-key":            "label-value",
+					LabelKeyAppSetInstance: "matrix-generator",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).

@@ -54,6 +54,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationWatchEvent":               schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Backoff":                             schema_pkg_apis_application_v1alpha1_Backoff(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer":            schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ChartDetails":                        schema_pkg_apis_application_v1alpha1_ChartDetails(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Cluster":                             schema_pkg_apis_application_v1alpha1_Cluster(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterCacheInfo":                    schema_pkg_apis_application_v1alpha1_ClusterCacheInfo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterConfig":                       schema_pkg_apis_application_v1alpha1_ClusterConfig(ref),
@@ -86,6 +87,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JsonnetVar":                          schema_pkg_apis_application_v1alpha1_JsonnetVar(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KnownTypeField":                      schema_pkg_apis_application_v1alpha1_KnownTypeField(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeOptions":                    schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeReplica":                    schema_pkg_apis_application_v1alpha1_KustomizeReplica(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator":                       schema_pkg_apis_application_v1alpha1_ListGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata":            schema_pkg_apis_application_v1alpha1_ManagedNamespaceMetadata(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.MatrixGenerator":                     schema_pkg_apis_application_v1alpha1_MatrixGenerator(ref),
@@ -95,6 +97,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Operation":                           schema_pkg_apis_application_v1alpha1_Operation(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationInitiator":                  schema_pkg_apis_application_v1alpha1_OperationInitiator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationState":                      schema_pkg_apis_application_v1alpha1_OperationState(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OptionalArray":                       schema_pkg_apis_application_v1alpha1_OptionalArray(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OptionalMap":                         schema_pkg_apis_application_v1alpha1_OptionalMap(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourceKey":                 schema_pkg_apis_application_v1alpha1_OrphanedResourceKey(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings":    schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OverrideIgnoreDiff":                  schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref),
@@ -128,6 +132,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionHistory":                     schema_pkg_apis_application_v1alpha1_RevisionHistory(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionMetadata":                    schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGenerator":                schema_pkg_apis_application_v1alpha1_SCMProviderGenerator(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAWSCodeCommit":   schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorAWSCodeCommit(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAzureDevOps":     schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorAzureDevOps(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucket":       schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorBitbucket(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucketServer": schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorBitbucketServer(ref),
@@ -148,6 +153,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyHook":                    schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncWindow":                          schema_pkg_apis_application_v1alpha1_SyncWindow(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TLSClientConfig":                     schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TagFilter":                           schema_pkg_apis_application_v1alpha1_TagFilter(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.objectMeta":                          schema_pkg_apis_application_v1alpha1_objectMeta(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.rawResourceOverride":                 schema_pkg_apis_application_v1alpha1_rawResourceOverride(ref),
 	}
@@ -540,7 +546,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref common.Refere
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ApplicationCondition contains details about an application condition, which is usally an error or warning",
+				Description: "ApplicationCondition contains details about an application condition, which is usually an error or warning",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"type": {
@@ -1156,6 +1162,20 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetSpec(ref common.Referenc
 							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationPreservedFields"),
 						},
 					},
+					"goTemplateOptions": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"generators", "template"},
 			},
@@ -1768,9 +1788,32 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Format:      "",
 						},
 					},
+					"commonAnnotationsEnvsubst": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Replicas is a list of Kustomize Replicas override specifications",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeReplica"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeReplica"},
 	}
 }
 
@@ -1838,37 +1881,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourcePluginParameter(ref c
 							Description: "String_ is the value of a string type parameter.",
 							Type:        []string{"string"},
 							Format:      "",
-						},
-					},
-					"map": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Map is the value of a map type parameter.",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"array": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Array is the value of an array type parameter.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
 						},
 					},
 				},
@@ -2086,6 +2098,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 							},
 						},
 					},
+					"controllerNamespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ControllerNamespace indicates the namespace in which the application controller is located",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -2285,6 +2304,47 @@ func schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref common.Re
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ChartDetails(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ChartDetails contains helm chart metadata for a specific version",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"home": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The URL of this projects home page, e.g. \"http://example.com\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"maintainers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of maintainer details, name and email, e.g. [\"John Doe <john_doe@my-company.com>\"]",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -3131,6 +3191,22 @@ func schema_pkg_apis_application_v1alpha1_GitGenerator(ref common.ReferenceCallb
 							Format: "",
 						},
 					},
+					"values": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Values contains key/value pairs which are passed directly as parameters to the template",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"repoURL", "revision"},
 			},
@@ -3628,6 +3704,36 @@ func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceC
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_KustomizeReplica(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of Deployment or StatefulSet",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"count": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of replicas",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
+						},
+					},
+				},
+				Required: []string{"name", "count"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_ListGenerator(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3652,6 +3758,12 @@ func schema_pkg_apis_application_v1alpha1_ListGenerator(ref common.ReferenceCall
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
+						},
+					},
+					"elementsYaml": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 				},
@@ -4000,6 +4112,61 @@ func schema_pkg_apis_application_v1alpha1_OperationState(ref common.ReferenceCal
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_OptionalArray(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"array": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Array is the value of an array type parameter.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_OptionalMap(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"map": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Map is the value of a map type parameter.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_OrphanedResourceKey(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4318,6 +4485,12 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorFilter(ref common.
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"branchMatch": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"targetBranchMatch": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
@@ -6004,11 +6177,81 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGenerator(ref common.Refere
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
+					"values": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Values contains key/value pairs which are passed directly as parameters to the template",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"awsCodeCommit": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAWSCodeCommit"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAzureDevOps", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucket", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorFilter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitea", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGithub", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitlab"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAWSCodeCommit", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAzureDevOps", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucket", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorFilter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitea", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGithub", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitlab"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorAWSCodeCommit(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"tagFilters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TagFilters provides the tag filter(s) for repo discovery",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TagFilter"),
+									},
+								},
+							},
+						},
+					},
+					"role": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Role provides the AWS IAM role to assume, for cross-account repo discovery if not provided, AppSet controller will use its pod/node identity to discover.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"region": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Region provides the AWS region to discover repos. if not provided, AppSet controller will infer the current region from environment.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"allBranches": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Scan all branches instead of just the default branch.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TagFilter"},
 	}
 }
 
@@ -6647,12 +6890,18 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref common.Referen
 							},
 						},
 					},
+					"managedNamespaceMetadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManagedNamespaceMetadata contains the current sync state of managed namespace metadata",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata"),
+						},
+					},
 				},
 				Required: []string{"revision"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceResult"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceResult"},
 	}
 }
 
@@ -6720,7 +6969,7 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 					},
 					"selfHeal": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)",
+							Description: "SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -6996,6 +7245,32 @@ func schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref common.ReferenceCa
 					},
 				},
 				Required: []string{"insecure"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_TagFilter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"key": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"key"},
 			},
 		},
 	}

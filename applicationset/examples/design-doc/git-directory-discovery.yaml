@@ -27,6 +27,7 @@ metadata:
   name: cluster-addons
 spec:
   goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - git:
       repoURL: https://github.com/infra-team/cluster-deployments.git
