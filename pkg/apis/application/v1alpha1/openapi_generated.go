@@ -132,6 +132,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionHistory":                     schema_pkg_apis_application_v1alpha1_RevisionHistory(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionMetadata":                    schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGenerator":                schema_pkg_apis_application_v1alpha1_SCMProviderGenerator(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAWSCodeCommit":   schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorAWSCodeCommit(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAzureDevOps":     schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorAzureDevOps(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucket":       schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorBitbucket(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucketServer": schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorBitbucketServer(ref),
@@ -152,6 +153,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyHook":                    schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncWindow":                          schema_pkg_apis_application_v1alpha1_SyncWindow(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TLSClientConfig":                     schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TagFilter":                           schema_pkg_apis_application_v1alpha1_TagFilter(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.objectMeta":                          schema_pkg_apis_application_v1alpha1_objectMeta(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.rawResourceOverride":                 schema_pkg_apis_application_v1alpha1_rawResourceOverride(ref),
 	}
@@ -6177,11 +6179,65 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGenerator(ref common.Refere
 							},
 						},
 					},
+					"awsCodeCommit": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAWSCodeCommit"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAzureDevOps", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucket", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorFilter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitea", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGithub", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitlab"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAWSCodeCommit", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAzureDevOps", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucket", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorFilter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitea", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGithub", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitlab"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorAWSCodeCommit(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"tagFilters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TagFilters provides the tag filter(s) for repo discovery",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TagFilter"),
+									},
+								},
+							},
+						},
+					},
+					"role": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Role provides the AWS IAM role to assume, for cross-account repo discovery if not provided, AppSet controller will use its pod/node identity to discover.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"region": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Region provides the AWS region to discover repos. if not provided, AppSet controller will infer the current region from environment.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"allBranches": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Scan all branches instead of just the default branch.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TagFilter"},
 	}
 }
 
@@ -7175,6 +7231,32 @@ func schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref common.ReferenceCa
 					},
 				},
 				Required: []string{"insecure"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_TagFilter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"key": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"key"},
 			},
 		},
 	}

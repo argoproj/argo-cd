@@ -227,6 +227,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Sap Labs](http://sap.com)
 1. [Sauce Labs](https://saucelabs.com/)
 1. [Schwarz IT](https://jobs.schwarz/it-mission)
+1. [SEEK](https://seek.com.au)
 1. [SI Analytics](https://si-analytics.ai)
 1. [Skit](https://skit.ai/)
 1. [Skyscanner](https://www.skyscanner.net/)
