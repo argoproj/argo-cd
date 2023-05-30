@@ -10,7 +10,8 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.23.1
 	github.com/antonmedv/expr v1.9.0
-	github.com/argoproj/gitops-engine v0.7.1-0.20230527174809-e56739ceba00
+	// github.com/argoproj/gitops-engine v0.7.1-0.20230527174809-e56739ceba00
+	github.com/argoproj/gitops-engine v0.7.1-0.20230526233214-ad9a694fe4bc
 	github.com/argoproj/notifications-engine v0.4.1-0.20230228182525-f754726f03da
 	github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d
 	github.com/aws/aws-sdk-go v1.44.271
@@ -23,7 +24,6 @@ require (
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20220301131131-8e7ed04b843e
-	github.com/ghodss/yaml v1.0.0
 	github.com/go-git/go-git/v5 v5.6.1
 	github.com/go-logr/logr v1.2.3
 	github.com/go-openapi/loads v0.21.2
@@ -103,6 +103,8 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3
 	sigs.k8s.io/yaml v1.3.0
 )
+
+require github.com/ghodss/yaml v1.0.0
 
 require (
 	cloud.google.com/go/compute v1.7.0 // indirect
