@@ -47,6 +47,11 @@ $deselected-text: #818d94;
             height: 2em;
             filter: invert(100%);
         }
+
+        .spinner {
+            color: white;
+            font-size: 18px;
+        }
     }
 
     &__version {
@@ -139,15 +144,6 @@ $deselected-text: #818d94;
                 margin-left: 13px;
                 color: $deselected-text;
             }
-        }
-    }
-
-    &__loading-logo {
-        display: flex;
-        justify-content: center;
-        .spinner {
-            color: white;
-            font-size: 18px;
         }
     }
 }

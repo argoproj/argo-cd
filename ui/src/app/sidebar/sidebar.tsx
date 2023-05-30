@@ -1,5 +1,5 @@
 import {Tooltip} from 'argo-ui';
-import {useData} from 'argo-ui/v2';
+import {Spinner, useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {Context} from '../shared/context';
 import {services, ViewPreferences} from '../shared/services';
@@ -31,7 +31,7 @@ export const useSidebarTarget = () => {
 export const Sidebar = (props: SidebarProps) => {
     const context = React.useContext(Context);
     const [version, loading, error] = useData(() => services.version.version());
-    const [authSettings] = useData(() => services.authService.settings());
+    const [authSettings, authSettingsLoading] = useData(() => services.authService.settings());
     const locationPath = context.history.location.pathname;
 
     const uiDashboardLogo = authSettings?.uiDashboardLogo || 'assets/images/logo.png';
@@ -62,7 +62,7 @@ export const Sidebar = (props: SidebarProps) => {
                             </div>
                         </div>
                     )}
-                    <img src={uiDashboardLogo} alt='Argo' className='sidebar__logo__character' />{' '}
+                    {authSettingsLoading ? <Spinner /> : <img src={uiDashboardLogo} alt='Argo' className='sidebar__logo__character' />}
                 </div>
 
                 {(props.navItems || []).map(item => (
