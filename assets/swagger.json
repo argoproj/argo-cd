@@ -5945,6 +5945,12 @@
         "goTemplate": {
           "type": "boolean"
         },
+        "goTemplateOptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "preservedFields": {
           "$ref": "#/definitions/v1alpha1ApplicationPreservedFields"
         },

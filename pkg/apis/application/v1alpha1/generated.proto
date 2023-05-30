@@ -290,6 +290,8 @@ message ApplicationSetSpec {
   optional ApplicationSetStrategy strategy = 5;
 
   optional ApplicationPreservedFields preservedFields = 6;
+
+  repeated string goTemplateOptions = 7;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet

@@ -413,7 +413,7 @@ func TestInterpolateGenerator(t *testing.T) {
 		"path[1]":                 "p2",
 		"path.basenameNormalized": "app3",
 	}
-	interpolatedGenerator, err := InterpolateGenerator(requestedGenerator, gitGeneratorParams, false)
+	interpolatedGenerator, err := InterpolateGenerator(requestedGenerator, gitGeneratorParams, false, nil)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return
@@ -438,7 +438,7 @@ func TestInterpolateGenerator(t *testing.T) {
 	clusterGeneratorParams := map[string]interface{}{
 		"name": "production_01/west", "server": "https://production-01.example.com",
 	}
-	interpolatedGenerator, err = InterpolateGenerator(requestedGenerator, clusterGeneratorParams, false)
+	interpolatedGenerator, err = InterpolateGenerator(requestedGenerator, clusterGeneratorParams, false, nil)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return
@@ -466,7 +466,7 @@ func TestInterpolateGenerator_go(t *testing.T) {
 			"segments": []string{"p1", "p2", "app3"},
 		},
 	}
-	interpolatedGenerator, err := InterpolateGenerator(requestedGenerator, gitGeneratorParams, true)
+	interpolatedGenerator, err := InterpolateGenerator(requestedGenerator, gitGeneratorParams, true, nil)
 	require.NoError(t, err)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
@@ -492,7 +492,7 @@ func TestInterpolateGenerator_go(t *testing.T) {
 	clusterGeneratorParams := map[string]interface{}{
 		"name": "production_01/west", "server": "https://production-01.example.com",
 	}
-	interpolatedGenerator, err = InterpolateGenerator(requestedGenerator, clusterGeneratorParams, true)
+	interpolatedGenerator, err = InterpolateGenerator(requestedGenerator, clusterGeneratorParams, true, nil)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return
