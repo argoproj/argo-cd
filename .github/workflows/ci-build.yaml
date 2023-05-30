@@ -76,7 +76,7 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@0ad9a0988b3973e851ab0a07adf248ec2e100376 # v3.3.1
+        uses: golangci/golangci-lint-action@08e2f20817b15149a52b5b3ebe7de50aff2ba8c5 # v3.4.0
         with:
           version: v1.51.0
           args: --timeout 10m --exclude SA5011 --verbose
@@ -325,7 +325,7 @@ jobs:
           name: test-results
           path: test-results
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70 # v3.1.1
+        uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3.1.4
         with:
           file: coverage.out
       - name: Perform static code analysis using SonarCloud
@@ -397,6 +397,7 @@ jobs:
           sudo mkdir -p $HOME/.kube && sudo chown -R runner $HOME/.kube
           sudo k3s kubectl config view --raw > $HOME/.kube/config
           sudo chown runner $HOME/.kube/config
+          sudo chmod go-r $HOME/.kube/config
           kubectl version
       - name: Restore go build cache
         uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1

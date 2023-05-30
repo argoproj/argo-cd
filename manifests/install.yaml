@@ -9098,6 +9098,26 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  awsCodeCommit:
+                                    properties:
+                                      allBranches:
+                                        type: boolean
+                                      region:
+                                        type: string
+                                      role:
+                                        type: string
+                                      tagFilters:
+                                        items:
+                                          properties:
+                                            key:
+                                              type: string
+                                            value:
+                                              type: string
+                                          required:
+                                          - key
+                                          type: object
+                                        type: array
+                                    type: object
                                   azureDevOps:
                                     properties:
                                       accessTokenRef:
@@ -12924,6 +12944,26 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  awsCodeCommit:
+                                    properties:
+                                      allBranches:
+                                        type: boolean
+                                      region:
+                                        type: string
+                                      role:
+                                        type: string
+                                      tagFilters:
+                                        items:
+                                          properties:
+                                            key:
+                                              type: string
+                                            value:
+                                              type: string
+                                          required:
+                                          - key
+                                          type: object
+                                        type: array
+                                    type: object
                                   azureDevOps:
                                     properties:
                                       accessTokenRef:
@@ -14703,6 +14743,26 @@ spec:
                       type: object
                     scmProvider:
                       properties:
+                        awsCodeCommit:
+                          properties:
+                            allBranches:
+                              type: boolean
+                            region:
+                              type: string
+                            role:
+                              type: string
+                            tagFilters:
+                              items:
+                                properties:
+                                  key:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                - key
+                                type: object
+                              type: array
+                          type: object
                         azureDevOps:
                           properties:
                             accessTokenRef:
@@ -16696,22 +16756,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
-    app.kubernetes.io/component: redis
-    app.kubernetes.io/name: argocd-redis
-    app.kubernetes.io/part-of: argocd
-  name: argocd-redis
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: argocd-redis
-subjects:
-- kind: ServiceAccount
-  name: argocd-redis
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
@@ -17407,6 +17451,7 @@ spec:
           capabilities:
             drop:
             - ALL
+          readOnlyRootFilesystem: true
       securityContext:
         runAsNonRoot: true
         runAsUser: 999

@@ -9098,6 +9098,26 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  awsCodeCommit:
+                                    properties:
+                                      allBranches:
+                                        type: boolean
+                                      region:
+                                        type: string
+                                      role:
+                                        type: string
+                                      tagFilters:
+                                        items:
+                                          properties:
+                                            key:
+                                              type: string
+                                            value:
+                                              type: string
+                                          required:
+                                          - key
+                                          type: object
+                                        type: array
+                                    type: object
                                   azureDevOps:
                                     properties:
                                       accessTokenRef:
@@ -12924,6 +12944,26 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  awsCodeCommit:
+                                    properties:
+                                      allBranches:
+                                        type: boolean
+                                      region:
+                                        type: string
+                                      role:
+                                        type: string
+                                      tagFilters:
+                                        items:
+                                          properties:
+                                            key:
+                                              type: string
+                                            value:
+                                              type: string
+                                          required:
+                                          - key
+                                          type: object
+                                        type: array
+                                    type: object
                                   azureDevOps:
                                     properties:
                                       accessTokenRef:
@@ -14703,6 +14743,26 @@ spec:
                       type: object
                     scmProvider:
                       properties:
+                        awsCodeCommit:
+                          properties:
+                            allBranches:
+                              type: boolean
+                            region:
+                              type: string
+                            role:
+                              type: string
+                            tagFilters:
+                              items:
+                                properties:
+                                  key:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                - key
+                                type: object
+                              type: array
+                          type: object
                         azureDevOps:
                           properties:
                             accessTokenRef:
@@ -18298,6 +18358,7 @@ spec:
           capabilities:
             drop:
             - ALL
+          readOnlyRootFilesystem: true
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
@@ -18318,6 +18379,7 @@ spec:
           capabilities:
             drop:
             - ALL
+          readOnlyRootFilesystem: true
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
@@ -19227,6 +19289,7 @@ spec:
           capabilities:
             drop:
             - ALL
+          readOnlyRootFilesystem: true
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
@@ -19275,6 +19338,7 @@ spec:
           capabilities:
             drop:
             - ALL
+          readOnlyRootFilesystem: true
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
@@ -19302,6 +19366,7 @@ spec:
           capabilities:
             drop:
             - ALL
+          readOnlyRootFilesystem: true
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
@@ -19330,6 +19395,7 @@ spec:
           capabilities:
             drop:
             - ALL
+          readOnlyRootFilesystem: true
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
