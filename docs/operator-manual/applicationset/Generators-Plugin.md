@@ -28,7 +28,7 @@ spec:
         configMapRef: 
           name: my-plugin
         # You can pass arbitrary parameters to the plugin. `input.parameters` is a map, but values may be any type. 
-        # These parameters will also be available on the generator's output under the `inputParameters` key.
+        # These parameters will also be available on the generator's output under the `generator.input.parameters` key.
         input:
           parameters:
             key1: "value1"
@@ -51,7 +51,7 @@ spec:
     metadata:
       name: myplugin
       annotations:
-        example.from.inputParameters: "{{ inputParameters.map.key1 }}"
+        example.from.input.parameters: "{{ generator.input.parameters.map.key1 }}"
         example.from.values: "{{ values.value1 }}"
         # The plugin determines what else it produces.
         example.from.plugin.output: "{{ something.from.the.plugin }}"
@@ -171,17 +171,19 @@ class Plugin(BaseHTTPRequestHandler):
             self.forbidden()
             
         if self.path == '/api/v1/getparams.execute':
-            args = self.args()['inputParameters']
+            args = self.args()['input']['parameters']
             self.reply({
-                "outputParameters": [
-                    {
-                        "key1": "val1",
-                        "key2": "val2"
-                    },
-                    {
-                        "key1": "val2",
-                        "key2": "val2"
-                    }
+                "output":
+                   "parameters": [
+                       {
+                           "key1": "val1",
+                           "key2": "val2"
+                       },
+                       {
+                           "key1": "val2",
+                           "key2": "val2"
+                       }
+                   }
                 ]
             })
         else:
@@ -199,8 +201,10 @@ Execute getparams with curl :
 curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
 '{
   "applicationSetName": "fake-appset",
-  "inputParameters": {
-    "param1": "value1"
+  "input": {
+    "parameters": {
+      "param1": "value1"
+    }
   }
 }'
 ```
@@ -209,10 +213,10 @@ Some things to note here:
 
 * You only need to implement the calls `/api/v1/getparams.execute`
 * You should check that the `Authorization` header contains the same bearer value as `/var/run/argo/token`. Return 403 if not
-* The input parameters are included in the request body and can be accessed using the `inputParameters` variable.
-* The output must always be a list of object maps nested under the `outputParameters` key in a map.
-* `inputParameters` and `values` are reserved keys. If present in the plugin output, these keys will be overwritten by the
-  contents of the `inputParameters` and `values` keys in the ApplicationSet's plugin generator spec.
+* The input parameters are included in the request body and can be accessed using the `input.parameters` variable.
+* The output must always be a list of object maps nested under the `output.parameters` key in a map.
+* `generator.input.parameters` and `values` are reserved keys. If present in the plugin output, these keys will be overwritten by the
+  contents of the `input.parameters` and `values` keys in the ApplicationSet's plugin generator spec.
 
 ## With matrix and pull request example
 
@@ -235,8 +239,9 @@ spec:
           - plugin:
               configMapRef:
                 name: cm-plugin
-              inputParameters:
-                branch: "{{.branch}}" # provided by generator pull request
+              input:
+                parameters:
+                  branch: "{{.branch}}" # provided by generator pull request
               values:
                 branchLink: "https://git.example.com/org/repo/tree/{{.branch}}"
   template:
@@ -278,48 +283,60 @@ To illustrate :
 
 * The generator plugin would then perform 2 requests as follows :
 
-```
+```shell
 curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
 '{
   "applicationSetName": "fb-matrix",
-  "inputParameters": {
-    "branch": "feature-branch-1"
+  "input": {
+    "parameters": {
+      "branch": "feature-branch-1"
+    }
   }
 }'
 ```
 
 Then,
 
-```
+```shell
 curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
 '{
   "applicationSetName": "fb-matrix",
-  "inputParameters": {
-    "branch": "feature-branch-2"
+  "input": {
+    "parameters": {
+      "branch": "feature-branch-2"
+    }
   }
 }'
 ```
 
 For each call, it would return a unique result such as :
 
-```
-"outputParameters": [
-    {
+```json
+{
+  "output": {
+    "parameters": [
+      {
         "digestFront": "sha256:a3f18c17771cc1051b790b453a0217b585723b37f14b413ad7c5b12d4534d411",
         "digestBack": "sha256:4411417d614d5b1b479933b7420079671facd434fd42db196dc1f4cc55ba13ce"
-    }
-]
+      }
+    ]
+  }
+}
 ```
 
 Then,
 
-```
-"outputParameters": [
-    {
+```json
+{
+  "output": {
+    "parameters": [
+      {
         "digestFront": "sha256:7c20b927946805124f67a0cb8848a8fb1344d16b4d0425d63aaa3f2427c20497",
         "digestBack": "sha256:e55e7e40700bbab9e542aba56c593cb87d680cefdfba3dd2ab9cfcb27ec384c2"
-    }
-]
+      }
+    ]
+  }
+}
 ```
 
 In this example, by combining the two, you ensure that one or more pull requests are available and that the generated tag has been properly generated. This wouldn't have been possible with just a commit hash because a hash alone does not certify the success of the build.

@@ -542,10 +542,12 @@ type PluginConfigMapRef struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 }
 
+type PluginParameters map[string]apiextensionsv1.JSON
+
 type PluginInput struct {
 	// Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the
 	// values can be any type.
-	Parameters map[string]apiextensionsv1.JSON `json:"parameters,omitempty" protobuf:"bytes,1,name=parameters"`
+	Parameters PluginParameters `json:"parameters,omitempty" protobuf:"bytes,1,name=parameters"`
 }
 
 // PluginGenerator defines connection info specific to Plugin.

@@ -9,7 +9,6 @@ import (
 
 	"github.com/jeremywohl/flatten"
 	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -81,7 +80,7 @@ func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 		return nil, fmt.Errorf("error listing params: %w", err)
 	}
 
-	res, err := g.generateParams(appSetGenerator, applicationSetInfo, list.OutputParameters, appSetGenerator.Plugin.Input.Parameters, applicationSetInfo.Spec.GoTemplate)
+	res, err := g.generateParams(appSetGenerator, applicationSetInfo, list.Output.Parameters, appSetGenerator.Plugin.Input.Parameters, applicationSetInfo.Spec.GoTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +114,7 @@ func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName
 	return pluginClient, nil
 }
 
-func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, objectsFound []map[string]interface{}, pluginArgs map[string]apiextensionsv1.JSON, useGoTemplate bool) ([]map[string]interface{}, error) {
+func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, objectsFound []map[string]interface{}, pluginParams argoprojiov1alpha1.PluginParameters, useGoTemplate bool) ([]map[string]interface{}, error) {
 	res := []map[string]interface{}{}
 
 	for _, objectFound := range objectsFound {
@@ -136,7 +135,11 @@ func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.App
 			}
 		}
 
-		params["inputParameters"] = pluginArgs
+		params["generator"] = map[string]interface{}{
+			"input": map[string]argoprojiov1alpha1.PluginParameters{
+				"parameters": pluginParams,
+			},
+		}
 
 		err := utils.AppendTemplatedValues(render, appSetGenerator.Plugin.Values, params, appSet)
 		if err != nil {
