@@ -23,7 +23,6 @@ require (
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20220301131131-8e7ed04b843e
-	github.com/ghodss/yaml v1.0.0
 	github.com/go-git/go-git/v5 v5.6.1
 	github.com/go-logr/logr v1.2.3
 	github.com/go-openapi/loads v0.21.2
@@ -41,7 +40,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/websocket v1.4.2
+	github.com/gorilla/websocket v1.5.0
 	github.com/gosimple/slug v1.13.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
@@ -49,11 +48,11 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.2
 	github.com/imdario/mergo v0.3.13
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
-	github.com/itchyny/gojq v0.12.10
+	github.com/itchyny/gojq v0.12.12
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/ktrysmt/go-bitbucket v0.9.55
-	github.com/mattn/go-isatty v0.0.16
+	github.com/mattn/go-isatty v0.0.19
 	github.com/mattn/go-zglob v0.0.4
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/olekukonko/tablewriter v0.0.5
@@ -67,9 +66,9 @@ require (
 	github.com/soheilhy/cmux v0.1.5
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.4
 	github.com/valyala/fasttemplate v1.2.2
-	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0
+	github.com/whilp/git-urls v1.0.0
 	github.com/xanzy/go-gitlab v0.83.0
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.31.0
@@ -138,6 +137,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
 	github.com/fvbommel/sortorder v1.0.1 // indirect
+	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.4.1 // indirect
@@ -201,7 +201,7 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
-	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rs/cors v1.8.0 // indirect
 	github.com/russross/blackfriday v1.6.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
