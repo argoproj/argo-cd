@@ -2,14 +2,14 @@
 
 Plugins allow you to provide your own generator.
 
-* You can write in any language
-* Simple: a plugin just responds to RPC HTTP requests.
-* You can use it in a sidecar, or standalone deployment.
-* You can get your plugin running today, no need to wait 3-5 months for review, approval, merge and an Argo software
+- You can write in any language
+- Simple: a plugin just responds to RPC HTTP requests.
+- You can use it in a sidecar, or standalone deployment.
+- You can get your plugin running today, no need to wait 3-5 months for review, approval, merge and an Argo software
   release.
-* You can combine it with Matrix or Merge.
+- You can combine it with Matrix or Merge.
 
-To start working on your own plugin, you can generate a new repository based on the example 
+To start working on your own plugin, you can generate a new repository based on the example
 [applicationset-hello-plugin](https://github.com/argoproj-labs/applicationset-hello-plugin).
 
 ## Simple example
@@ -25,9 +25,9 @@ spec:
   generators:
     - plugin:
         # Specify the configMap where the plugin configuration is located.
-        configMapRef: 
+        configMapRef:
           name: my-plugin
-        # You can pass arbitrary parameters to the plugin. `input.parameters` is a map, but values may be any type. 
+        # You can pass arbitrary parameters to the plugin. `input.parameters` is a map, but values may be any type.
         # These parameters will also be available on the generator's output under the `generator.input.parameters` key.
         input:
           parameters:
@@ -44,7 +44,7 @@ spec:
         # available in templates under the `values` key.
         values:
           value1: something
-          
+
         # When using a Plugin generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
         requeueAfterSeconds: 30
   template:
@@ -57,12 +57,12 @@ spec:
         example.from.plugin.output: "{{ something.from.the.plugin }}"
 ```
 
-* `configMapRef.name`: A `ConfigMap` name containing the plugin configuration to use for RPC call.
-* `input.parameters`: Input parameters included in the RPC call to the plugin. (Optional)
+- `configMapRef.name`: A `ConfigMap` name containing the plugin configuration to use for RPC call.
+- `input.parameters`: Input parameters included in the RPC call to the plugin. (Optional)
 
 !!! note
-    The concept of the plugin should not undermine the spirit of GitOps by externalizing data outside of Git. The goal is to be complementary in specific contexts.
-    For example, when using one of the PullRequest generators, it's impossible to retrieve parameters related to the CI (only the commit hash is available), which limits the possibilities. By using a plugin, it's possible to retrieve the necessary parameters from a separate data source and use them to extend the functionality of the generator.
+The concept of the plugin should not undermine the spirit of GitOps by externalizing data outside of Git. The goal is to be complementary in specific contexts.
+For example, when using one of the PullRequest generators, it's impossible to retrieve parameters related to the CI (only the commit hash is available), which limits the possibilities. By using a plugin, it's possible to retrieve the necessary parameters from a separate data source and use them to extend the functionality of the generator.
 
 ### Add a ConfigMap to configure the access of the plugin
 
@@ -77,8 +77,8 @@ data:
   baseUrl: "http://myplugin.plugin-ns.svc.cluster.local."
 ```
 
-* `token`: Pre-shared token used to authenticate HTTP request (points to the right key you created in the `argocd-secret` Secret)
-* `baseUrl`: BaseUrl of the k8s service exposing your plugin in the cluster.
+- `token`: Pre-shared token used to authenticate HTTP request (points to the right key you created in the `argocd-secret` Secret)
+- `baseUrl`: BaseUrl of the k8s service exposing your plugin in the cluster.
 
 ### Store credentials
 
@@ -94,7 +94,7 @@ metadata:
 type: Opaque
 data:
   # ...
-  # The secret value must be base64 encoded **once** 
+  # The secret value must be base64 encoded **once**
   # this value corresponds to: `printf "strong-password" | base64`
   plugin.myplugin.token: "c3Ryb25nLXBhc3N3b3Jk"
   # ...
@@ -111,6 +111,7 @@ Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
 ##### Example
 
 `another-secret`:
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -169,22 +170,22 @@ class Plugin(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.headers.get("Authorization") != "Bearer " + plugin_token:
             self.forbidden()
-            
+
         if self.path == '/api/v1/getparams.execute':
-            args = self.args()['input']['parameters']
+            args = self.args()
             self.reply({
-                "output":
-                   "parameters": [
-                       {
-                           "key1": "val1",
-                           "key2": "val2"
-                       },
-                       {
-                           "key1": "val2",
-                           "key2": "val2"
-                       }
-                   }
-                ]
+                "output": {
+                    "parameters": [
+                        {
+                            "key1": "val1",
+                            "key2": "val2"
+                        },
+                        {
+                            "key1": "val2",
+                            "key2": "val2"
+                        }
+                    ]
+                }
             })
         else:
             self.unsupported()
@@ -195,7 +196,7 @@ if __name__ == '__main__':
     httpd.serve_forever()
 ```
 
-Execute getparams with curl : 
+Execute getparams with curl :
 
 ```
 curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
@@ -211,11 +212,11 @@ curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer st
 
 Some things to note here:
 
-* You only need to implement the calls `/api/v1/getparams.execute`
-* You should check that the `Authorization` header contains the same bearer value as `/var/run/argo/token`. Return 403 if not
-* The input parameters are included in the request body and can be accessed using the `input.parameters` variable.
-* The output must always be a list of object maps nested under the `output.parameters` key in a map.
-* `generator.input.parameters` and `values` are reserved keys. If present in the plugin output, these keys will be overwritten by the
+- You only need to implement the calls `/api/v1/getparams.execute`
+- You should check that the `Authorization` header contains the same bearer value as `/var/run/argo/token`. Return 403 if not
+- The input parameters are included in the request body and can be accessed using the `input.parameters` variable.
+- The output must always be a list of object maps nested under the `output.parameters` key in a map.
+- `generator.input.parameters` and `values` are reserved keys. If present in the plugin output, these keys will be overwritten by the
   contents of the `input.parameters` and `values` keys in the ApplicationSet's plugin generator spec.
 
 ## With matrix and pull request example
@@ -233,8 +234,7 @@ spec:
     - matrix:
         generators:
           - pullRequest:
-              github:
-                ...
+              github: ...
               requeueAfterSeconds: 30
           - plugin:
               configMapRef:
@@ -249,7 +249,7 @@ spec:
       name: "fb-matrix-{{.branch}}"
     spec:
       source:
-        repoURL: 'https://github.com/myorg/myrepo.git'
+        repoURL: "https://github.com/myorg/myrepo.git"
         targetRevision: "HEAD"
         path: charts/my-chart
         helm:
@@ -273,15 +273,14 @@ spec:
         namespace: "{{.branch}}"
       info:
         - name: Link to the Application's branch
-          value: '{{values.branchLink}}'
+          value: "{{values.branchLink}}"
 ```
 
 To illustrate :
 
-* The generator pullRequest would return, for example, 2 branches: `feature-branch-1` and `feature-branch-2`.
+- The generator pullRequest would return, for example, 2 branches: `feature-branch-1` and `feature-branch-2`.
 
-
-* The generator plugin would then perform 2 requests as follows :
+- The generator plugin would then perform 2 requests as follows :
 
 ```shell
 curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
