@@ -18,7 +18,7 @@ func Test_generateParamsFromGitFile(t *testing.T) {
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`), values, false, "")
+`), values, false, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func Test_generatePrefixedParamsFromGitFile(t *testing.T) {
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`), values, false, "myRepo")
+`), values, false, nil, "myRepo")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func Test_generateParamsFromGitFileGoTemplate(t *testing.T) {
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`), values, true, "")
+`), values, true, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func Test_generatePrefixedParamsFromGitFileGoTemplate(t *testing.T) {
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`), values, true, "myRepo")
+`), values, true, nil, "myRepo")
 	if err != nil {
 		t.Fatal(err)
 	}
