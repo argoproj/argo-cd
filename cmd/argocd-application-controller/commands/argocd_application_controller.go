@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"reflect"
-	"runtime"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -217,19 +215,10 @@ func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.Se
 			shard, err = sharding.InferShard()
 			errors.CheckError(err)
 		}
-		distributionFunction := sharding.GetShardByIdUsingHashDistributionFunction()
 		log.Infof("Processing clusters from shard %d", shard)
 		db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
 		log.Infof("Using filter function:  %s", shardingAlgorithm)
-		switch {
-		case shardingAlgorithm == common.RoundRobinShardingAlgorithm:
-			distributionFunction = sharding.GetShardByIndexModuloReplicasCountDistributionFunction(db, shardingAlgorithm)
-		case shardingAlgorithm == common.LegacyShardingAlgorithm:
-		default:
-			distributionFunctionName := runtime.FuncForPC(reflect.ValueOf(distributionFunction).Pointer())
-			log.Warnf("No distribution function named '%s' found. Defaulting to '%s'", shardingAlgorithm, distributionFunctionName)
-		}
-
+		distributionFunction := sharding.GetDistributionFunction(db, shardingAlgorithm)
 		clusterFilter = sharding.GetClusterFilter(distributionFunction, shard)
 	} else {
 		log.Info("Processing all cluster shards")

@@ -15,29 +15,29 @@ import (
 
 func TestGetShardByID_NotEmptyID(t *testing.T) {
 	os.Setenv(common.EnvControllerReplicas, "1")
-	assert.Equal(t, 0, GetShardByIdUsingHashDistributionFunction()(&v1alpha1.Cluster{ID: "1"}))
-	assert.Equal(t, 0, GetShardByIdUsingHashDistributionFunction()(&v1alpha1.Cluster{ID: "2"}))
-	assert.Equal(t, 0, GetShardByIdUsingHashDistributionFunction()(&v1alpha1.Cluster{ID: "3"}))
-	assert.Equal(t, 0, GetShardByIdUsingHashDistributionFunction()(&v1alpha1.Cluster{ID: "4"}))
+	assert.Equal(t, 0, LegacyDistributionFunction()(&v1alpha1.Cluster{ID: "1"}))
+	assert.Equal(t, 0, LegacyDistributionFunction()(&v1alpha1.Cluster{ID: "2"}))
+	assert.Equal(t, 0, LegacyDistributionFunction()(&v1alpha1.Cluster{ID: "3"}))
+	assert.Equal(t, 0, LegacyDistributionFunction()(&v1alpha1.Cluster{ID: "4"}))
 }
 
 func TestGetShardByID_EmptyID(t *testing.T) {
 	os.Setenv(common.EnvControllerReplicas, "1")
-	distributionFunction := GetShardByIdUsingHashDistributionFunction
+	distributionFunction := LegacyDistributionFunction
 	shard := distributionFunction()(&v1alpha1.Cluster{})
 	assert.Equal(t, 0, shard)
 }
 
 func TestGetShardByID_NoReplicas(t *testing.T) {
 	os.Setenv(common.EnvControllerReplicas, "0")
-	distributionFunction := GetShardByIdUsingHashDistributionFunction
+	distributionFunction := LegacyDistributionFunction
 	shard := distributionFunction()(&v1alpha1.Cluster{})
 	assert.Equal(t, -1, shard)
 }
 
 func TestGetShardByID_NoReplicasUsingHashDistributionFunction(t *testing.T) {
 	os.Setenv(common.EnvControllerReplicas, "0")
-	distributionFunction := GetShardByIdUsingHashDistributionFunction
+	distributionFunction := LegacyDistributionFunction
 	shard := distributionFunction()(&v1alpha1.Cluster{})
 	assert.Equal(t, -1, shard)
 }
@@ -47,7 +47,7 @@ func TestGetShardByID_NoReplicasUsingHashDistributionFunctionWithClusters(t *tes
 	// Test with replicas set to 0
 	os.Setenv(common.EnvControllerReplicas, "0")
 	os.Setenv(common.EnvControllerShardingAlgorithm, common.RoundRobinShardingAlgorithm)
-	distributionFunction := GetShardByIndexModuloReplicasCountDistributionFunction(db, common.RoundRobinShardingAlgorithm)
+	distributionFunction := RoundRobinDistributionFunction(db)
 	assert.Equal(t, -1, distributionFunction(nil))
 	assert.Equal(t, -1, distributionFunction(&cluster1))
 	assert.Equal(t, -1, distributionFunction(&cluster2))
@@ -180,7 +180,7 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunction2(t *testing.T) {
 	db, cluster1, cluster2, cluster3, cluster4, cluster5 := createTestClusters()
 	// Test with replicas set to 1
 	os.Setenv(common.EnvControllerReplicas, "1")
-	distributionFunction := GetShardByIndexModuloReplicasCountDistributionFunction(db, common.DefaultShardingAlgorithm)
+	distributionFunction := RoundRobinDistributionFunction(db)
 	assert.Equal(t, 0, distributionFunction(nil))
 	assert.Equal(t, 0, distributionFunction(&cluster1))
 	assert.Equal(t, 0, distributionFunction(&cluster2))
@@ -190,7 +190,7 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunction2(t *testing.T) {
 
 	// Test with replicas set to 2
 	os.Setenv(common.EnvControllerReplicas, "2")
-	distributionFunction = GetShardByIndexModuloReplicasCountDistributionFunction(db, common.DefaultShardingAlgorithm)
+	distributionFunction = RoundRobinDistributionFunction(db)
 	assert.Equal(t, 0, distributionFunction(nil))
 	assert.Equal(t, 0, distributionFunction(&cluster1))
 	assert.Equal(t, 1, distributionFunction(&cluster2))
@@ -200,7 +200,7 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunction2(t *testing.T) {
 
 	// // Test with replicas set to 3
 	os.Setenv(common.EnvControllerReplicas, "3")
-	distributionFunction = GetShardByIndexModuloReplicasCountDistributionFunction(db, common.DefaultShardingAlgorithm)
+	distributionFunction = RoundRobinDistributionFunction(db)
 	assert.Equal(t, 0, distributionFunction(nil))
 	assert.Equal(t, 0, distributionFunction(&cluster1))
 	assert.Equal(t, 1, distributionFunction(&cluster2))
@@ -223,7 +223,7 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunctionWhenClusterNumber
 	}
 	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
 	os.Setenv(common.EnvControllerReplicas, "2")
-	distributionFunction := GetShardByIndexModuloReplicasCountDistributionFunction(&db, common.DefaultShardingAlgorithm)
+	distributionFunction := RoundRobinDistributionFunction(&db)
 	for i, c := range clusterList.Items {
 		assert.Equal(t, i%2, distributionFunction(&c))
 	}
@@ -243,7 +243,7 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunctionWhenClusterIsAdde
 
 	// Test with replicas set to 2
 	os.Setenv(common.EnvControllerReplicas, "2")
-	distributionFunction := GetShardByIndexModuloReplicasCountDistributionFunction(&db, common.DefaultShardingAlgorithm)
+	distributionFunction := RoundRobinDistributionFunction(&db)
 	assert.Equal(t, 0, distributionFunction(nil))
 	assert.Equal(t, 0, distributionFunction(&cluster1))
 	assert.Equal(t, 1, distributionFunction(&cluster2))
@@ -265,7 +265,7 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunctionWhenClusterIsAdde
 func TestGetShardByIndexModuloReplicasCountDistributionFunction(t *testing.T) {
 	db, cluster1, cluster2, _, _, _ := createTestClusters()
 	os.Setenv(common.EnvControllerReplicas, "2")
-	distributionFunction := GetShardByIndexModuloReplicasCountDistributionFunction(db, common.DefaultShardingAlgorithm)
+	distributionFunction := RoundRobinDistributionFunction(db)
 
 	// Test that the function returns the correct shard for cluster1 and cluster2
 	expectedShardForCluster1 := 0
