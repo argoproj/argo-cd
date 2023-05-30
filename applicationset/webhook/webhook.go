@@ -478,7 +478,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	// Interpolate second child generator with params from first child generator, if there are any params
 	if len(params) != 0 {
 		for _, p := range params {
-			tempInterpolatedGenerator, err := generators.InterpolateGenerator(requestedGenerator1, p, appSet.Spec.GoTemplate)
+			tempInterpolatedGenerator, err := generators.InterpolateGenerator(requestedGenerator1, p, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 			interpolatedGenerator := &tempInterpolatedGenerator
 			if err != nil {
 				log.Error(err)
