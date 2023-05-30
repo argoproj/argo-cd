@@ -61,8 +61,8 @@ spec:
 - `input.parameters`: Input parameters included in the RPC call to the plugin. (Optional)
 
 !!! note
-The concept of the plugin should not undermine the spirit of GitOps by externalizing data outside of Git. The goal is to be complementary in specific contexts.
-For example, when using one of the PullRequest generators, it's impossible to retrieve parameters related to the CI (only the commit hash is available), which limits the possibilities. By using a plugin, it's possible to retrieve the necessary parameters from a separate data source and use them to extend the functionality of the generator.
+    The concept of the plugin should not undermine the spirit of GitOps by externalizing data outside of Git. The goal is to be complementary in specific contexts.
+    For example, when using one of the PullRequest generators, it's impossible to retrieve parameters related to the CI (only the commit hash is available), which limits the possibilities. By using a plugin, it's possible to retrieve the necessary parameters from a separate data source and use them to extend the functionality of the generator.
 
 ### Add a ConfigMap to configure the access of the plugin
 
