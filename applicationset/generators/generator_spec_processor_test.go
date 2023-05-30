@@ -178,6 +178,75 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 	}
 }
 
+func TestTransForm(t *testing.T) {
+	testCases := []struct {
+		name     string
+		selector *metav1.LabelSelector
+		expected []map[string]interface{}
+	}{
+		{
+			name: "server filter",
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"server": "https://production-01.example.com"},
+			},
+			expected: []map[string]interface{}{{
+				"metadata.annotations.foo.argoproj.io":           "production",
+				"metadata.labels.argocd.argoproj.io/secret-type": "cluster",
+				"metadata.labels.environment":                    "production",
+				"metadata.labels.org":                            "bar",
+				"name":                                           "production_01/west",
+				"nameNormalized":                                 "production-01-west",
+				"server":                                         "https://production-01.example.com",
+			}},
+		},
+		{
+			name: "server filter with long url",
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"server": "https://some-really-long-url-that-will-exceed-63-characters.com"},
+			},
+			expected: []map[string]interface{}{{
+				"metadata.annotations.foo.argoproj.io":           "production",
+				"metadata.labels.argocd.argoproj.io/secret-type": "cluster",
+				"metadata.labels.environment":                    "production",
+				"metadata.labels.org":                            "bar",
+				"name":                                           "some-really-long-server-url",
+				"nameNormalized":                                 "some-really-long-server-url",
+				"server":                                         "https://some-really-long-url-that-will-exceed-63-characters.com",
+			}},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			testGenerators := map[string]Generator{
+				"Clusters": getMockClusterGenerator(),
+			}
+
+			applicationSetInfo := argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{},
+			}
+
+			results, err := Transform(
+				argov1alpha1.ApplicationSetGenerator{
+					Selector: testCase.selector,
+					Clusters: &argov1alpha1.ClusterGenerator{
+						Selector: metav1.LabelSelector{},
+						Template: argov1alpha1.ApplicationSetTemplate{},
+						Values:   nil,
+					}},
+				testGenerators,
+				emptyTemplate(),
+				&applicationSetInfo, nil)
+
+			assert.NoError(t, err)
+			assert.ElementsMatch(t, testCase.expected, results[0].Params)
+		})
+	}
+}
+
 func emptyTemplate() argov1alpha1.ApplicationSetTemplate {
 	return argov1alpha1.ApplicationSetTemplate{
 		Spec: argov1alpha1.ApplicationSpec{
