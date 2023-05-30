@@ -509,7 +509,7 @@ func TestRenderGeneratorParams_does_not_panic(t *testing.T) {
 			},
 		},
 	}
-	_, err := render.RenderGeneratorParams(generator, params, true)
+	_, err := render.RenderGeneratorParams(generator, params, true, []string{})
 	assert.NoError(t, err)
 }
 

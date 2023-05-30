@@ -2026,7 +2026,7 @@ func replaceListSecrets(obj []interface{}, secretValues map[string]string) []int
 	return newObj
 }
 
-// replaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map
+// ReplaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map
 func ReplaceStringSecret(val string, secretValues map[string]string) string {
 	if val == "" || !strings.HasPrefix(val, "$") {
 		return val
