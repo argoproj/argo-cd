@@ -29,6 +29,8 @@ message ApplicationQuery {
 	optional string repo = 6;
 	// the application's namespace
 	optional string appNamespace = 7;
+	// the project names to restrict returned list applications (legacy name for backwards-compatibility)
+	repeated string project = 8;
 }
 
 message NodeQuery {
@@ -320,6 +322,11 @@ service ApplicationService {
 	// Get the meta-data (author, date, tags, message) for a specific revision of the application
 	rpc RevisionMetadata (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RevisionMetadata) {
 		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/metadata";
+	}
+
+	// Get the chart metadata (description, maintainers, home) for a specific revision of the application
+	rpc RevisionChartDetails (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ChartDetails) {
+		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/chartdetails";
 	}
 
 	// GetManifests returns application manifests

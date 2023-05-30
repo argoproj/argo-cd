@@ -78,7 +78,11 @@ message RepoAccessQuery {
 	// HTTP/HTTPS proxy to access the repository
 	string proxy = 16;
 	// Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
-    string project = 17;
+	string project = 17;
+	// Google Cloud Platform service account key
+	string gcpServiceAccountKey = 18;
+	// Whether to force HTTP basic auth
+	bool forceHttpBasicAuth = 19;
 }
 
 message RepoResponse {}

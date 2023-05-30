@@ -81,10 +81,16 @@ spec:
       commonLabels:
         foo: bar
       commonAnnotations:
-        beep: boop
+        beep: boop-${ARGOCD_APP_REVISION}
+      # Toggle which enables/disables env variables substitution in commonAnnotations
+      commonAnnotationsEnvsubst: true
       images:
       - gcr.io/heptio-images/ks-guestbook-demo:0.2
       - my-app=gcr.io/my-repo/my-app:0.1
+      namespace: custom-namespace
+      replicas:
+      - name: kustomize-guestbook-ui
+        count: 4
 
     # directory
     directory:
@@ -114,9 +120,7 @@ spec:
 
     # plugin specific config
     plugin:
-      # NOTE: this field is deprecated in v2.5 and must be removed to use sidecar-based plugins.
-      # Only set the plugin name if the plugin is defined in argocd-cm.
-      # If the plugin is defined as a sidecar, omit the name. The plugin will be automatically matched with the
+      # If the plugin is defined as a sidecar and name is not passed, the plugin will be automatically matched with the
       # Application according to the plugin's discovery rules.
       name: mypluginname
       # environment variables passed to the plugin
@@ -132,13 +136,28 @@ spec:
         - name: map-param
           map:
             param-name: param-value
+  
+  # Sources field specifies the list of sources for the application
+  sources:
+    - repoURL: https://github.com/argoproj/argocd-example-apps.git  # Can point to either a Helm chart repo or a git repo.
+      targetRevision: HEAD  # For Helm, this refers to the chart version.
+      path: guestbook  # This has no meaning for Helm charts pulled directly from a Helm repo instead of git.
+      ref: my-repo  # For Helm, acts as a reference to this source for fetching values files from this source. Has no meaning when under `source` field
 
   # Destination cluster and namespace to deploy the application
   destination:
+    # cluster API URL
     server: https://kubernetes.default.svc
+    # or cluster name
+    # name: in-cluster
     # The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
     namespace: guestbook
-
+    
+  # Extra information to show in the Argo CD Application details tab
+  info:
+    - name: 'Example:'
+      value: 'https://example.com'
+      
   # Sync policy
   syncPolicy:
     automated: # automated sync by default retries failed attempts 5 times with following delays between attempts ( 5s, 10s, 20s, 40s, 80s ); retry controlled using `retry` field.

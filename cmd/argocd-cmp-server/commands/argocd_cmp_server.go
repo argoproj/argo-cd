@@ -30,7 +30,7 @@ func NewCommand() *cobra.Command {
 	var command = cobra.Command{
 		Use:               cliName,
 		Short:             "Run ArgoCD ConfigManagementPlugin Server",
-		Long:              "ArgoCD ConfigManagementPlugin Server is an internal service which runs as sidecar container in reposerver deployment. It can be configured by following options.",
+		Long:              "ArgoCD ConfigManagementPlugin Server is an internal service which runs as sidecar container in reposerver deployment. The following configuration options are available:",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			ctx := c.Context()
@@ -43,6 +43,14 @@ func NewCommand() *cobra.Command {
 
 			config, err := plugin.ReadPluginConfig(configFilePath)
 			errors.CheckError(err)
+
+			if !config.Spec.Discover.IsDefined() {
+				name := config.Metadata.Name
+				if config.Spec.Version != "" {
+					name = name + "-" + config.Spec.Version
+				}
+				log.Infof("No discovery configuration is defined for plugin %s. To use this plugin, specify %q in the Application's spec.source.plugin.name field.", config.Metadata.Name, name)
+			}
 
 			if otlpAddress != "" {
 				var closer func()

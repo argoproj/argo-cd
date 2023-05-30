@@ -5,6 +5,7 @@ on:
     # Secrets aren't available for dependabot on push. https://docs.github.com/en/enterprise-cloud@latest/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/troubleshooting-the-codeql-workflow#error-403-resource-not-accessible-by-integration-when-using-dependabot
     branches-ignore:
       - 'dependabot/**'
+      - 'cherry-pick-*'
   pull_request:
   schedule:
     - cron: '0 19 * * 0'
@@ -29,7 +30,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
+      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL

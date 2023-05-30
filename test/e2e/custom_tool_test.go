@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -113,7 +114,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 		Path("guestbook").
 		When().
 		CreateFromFile(func(app *Application) {
-			app.Spec.Source.Plugin.Env = Env{{
+			app.Spec.GetSource().Plugin.Env = Env{{
 				Name:  "FOO",
 				Value: "bar",
 			}}
@@ -156,7 +157,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 		})
 }
 
-//make sure we can sync and diff with --local
+// make sure we can sync and diff with --local
 func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 	ctx := Given(t)
 	ctx.
@@ -203,7 +204,7 @@ func startCMPServer(configFile string) {
 	FailOnErr(RunWithStdin("", "", "../../dist/argocd", "--config-dir-path", configFile))
 }
 
-//Discover by fileName
+// Discover by fileName
 func TestCMPDiscoverWithFileName(t *testing.T) {
 	pluginName := "cmp-fileName"
 	Given(t).
@@ -212,7 +213,7 @@ func TestCMPDiscoverWithFileName(t *testing.T) {
 			time.Sleep(1 * time.Second)
 			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
 		}).
-		Path(pluginName).
+		Path(pluginName + "/subdir").
 		When().
 		CreateApp().
 		Sync().
@@ -222,7 +223,7 @@ func TestCMPDiscoverWithFileName(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
-//Discover by Find glob
+// Discover by Find glob
 func TestCMPDiscoverWithFindGlob(t *testing.T) {
 	Given(t).
 		And(func() {
@@ -240,7 +241,7 @@ func TestCMPDiscoverWithFindGlob(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
-//Discover by Plugin Name
+// Discover by Plugin Name
 func TestCMPDiscoverWithPluginName(t *testing.T) {
 	Given(t).
 		And(func() {
@@ -261,7 +262,7 @@ func TestCMPDiscoverWithPluginName(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
-//Discover by Find command
+// Discover by Find command
 func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 	pluginName := "cmp-find-command"
 	ctx := Given(t)
@@ -328,4 +329,75 @@ func TestPruneResourceFromCMP(t *testing.T) {
 			_, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "deployment", "guestbook-ui")
 			assert.Error(t, err)
 		})
+}
+
+func TestPreserveFileModeForCMP(t *testing.T) {
+	Given(t).
+		And(func() {
+			go startCMPServer("./testdata/cmp-preserve-file-mode")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("cmp-preserve-file-mode").
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source.Plugin = &ApplicationSourcePlugin{Name: "cmp-preserve-file-mode-v1.0"}
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		And(func(app *Application) {
+			require.Len(t, app.Status.Resources, 1)
+			assert.Equal(t, "ConfigMap", app.Status.Resources[0].Kind)
+		})
+}
+
+func TestCMPWithSymlinkPartialFiles(t *testing.T) {
+	Given(t, WithTestData("testdata2")).
+		And(func() {
+			go startCMPServer("./testdata2/cmp-symlink")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("guestbook-partial-symlink-files").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestCMPWithSymlinkFiles(t *testing.T) {
+	Given(t, WithTestData("testdata2")).
+		And(func() {
+			go startCMPServer("./testdata2/cmp-symlink")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("guestbook-symlink-files").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestCMPWithSymlinkFolder(t *testing.T) {
+	Given(t, WithTestData("testdata2")).
+		And(func() {
+			go startCMPServer("./testdata2/cmp-symlink")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("guestbook-symlink-folder").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
 }

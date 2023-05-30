@@ -35,6 +35,8 @@ import (
 	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
 	repoFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
 	"github.com/argoproj/argo-cd/v2/test/e2e/testdata"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	. "github.com/argoproj/argo-cd/v2/util/argo"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -88,7 +90,7 @@ func TestNamespacedGetLogsDenySwitchOn(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			_, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			_, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "permission denied")
 		})
@@ -142,17 +144,17 @@ func TestNamespacedGetLogsAllowSwitchOnNS(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Pod")
+			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Pod")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Service")
+			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Service")
 			assert.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
@@ -201,17 +203,17 @@ func TestNamespacedGetLogsAllowSwitchOff(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Pod")
+			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Pod")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Service")
+			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Service")
 			assert.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
@@ -284,8 +286,8 @@ func TestNamespacedAppCreation(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, Name(), app.Name)
 			assert.Equal(t, AppNamespace(), app.Namespace)
-			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
-			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
+			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.GetSource().RepoURL)
+			assert.Equal(t, guestbookPath, app.Spec.GetSource().Path)
 			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
@@ -313,7 +315,7 @@ func TestNamespacedAppCreation(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, "label", app.Labels["test"])
 			assert.Equal(t, "annotation", app.Annotations["test"])
-			assert.Equal(t, "master", app.Spec.Source.TargetRevision)
+			assert.Equal(t, "master", app.Spec.GetSource().TargetRevision)
 		})
 }
 
@@ -332,8 +334,8 @@ func TestNamespacedAppCreationWithoutForceUpdate(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, ctx.AppName(), app.Name)
 			assert.Equal(t, AppNamespace(), app.Namespace)
-			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
-			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
+			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.GetSource().RepoURL)
+			assert.Equal(t, guestbookPath, app.Spec.GetSource().Path)
 			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, "in-cluster", app.Spec.Destination.Name)
 		}).
@@ -428,7 +430,9 @@ func TestNamespacedInvalidAppProject(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		Then().
-		Expect(Error("", "application references project does-not-exist which does not exist"))
+		// We're not allowed to infer whether the project exists based on this error message. Instead, we get a generic
+		// permission denied error.
+		Expect(Error("", "permission denied"))
 }
 
 func TestNamespacedAppDeletion(t *testing.T) {
@@ -521,12 +525,12 @@ func TestNamespacedAppRollbackSuccessful(t *testing.T) {
 				ID:         1,
 				Revision:   app.Status.Sync.Revision,
 				DeployedAt: metav1.Time{Time: metav1.Now().UTC().Add(-1 * time.Minute)},
-				Source:     app.Spec.Source,
+				Source:     app.Spec.GetSource(),
 			}, {
 				ID:         2,
 				Revision:   "cdb",
 				DeployedAt: metav1.Time{Time: metav1.Now().UTC().Add(-2 * time.Minute)},
-				Source:     app.Spec.Source,
+				Source:     app.Spec.GetSource(),
 			}}
 			patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &Application{})
 			require.NoError(t, err)
@@ -763,6 +767,17 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 		}).
 		Given().
 		When().
+		// Now we migrate from client-side apply to server-side apply
+		// This is necessary, as starting with kubectl 1.26, all previously
+		// client-side owned fields have ownership migrated to the manager from
+		// the first ssa.
+		// More details: https://github.com/kubernetes/kubectl/issues/1337
+		PatchApp(`[{
+			"op": "add",
+			"path": "/spec/syncPolicy",
+			"value": { "syncOptions": ["ServerSideApply=true"] }
+			}]`).
+		Sync().
 		And(func() {
 			output, err := RunWithStdin(testdata.SSARevisionHistoryDeployment, "", "kubectl", "apply", "-n", DeploymentNamespace(), "--server-side=true", "--field-manager=revision-history-manager", "--validate=false", "--force-conflicts", "-f", "-")
 			assert.NoError(t, err)
@@ -822,7 +837,7 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 // }
 
 func TestNamespacedKnownTypesInCRDDiffing(t *testing.T) {
-	dummiesGVR := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "dummies"}
+	dummiesGVR := schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: "dummies"}
 
 	ctx := Given(t)
 	ctx.
@@ -1341,8 +1356,8 @@ func TestNamespacedSyncOptionValidateFalse(t *testing.T) {
 		IgnoreErrors().
 		Sync().
 		Then().
-		// client error
-		Expect(Error("error validating data", "")).
+		// client error. K8s API changed error message w/ 1.25, so for now, we need to check both
+		Expect(ErrorRegex("error validating data|of type int32", "")).
 		When().
 		PatchFile("deployment.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Validate=false"}}]`).
 		Sync().
@@ -1591,15 +1606,15 @@ func TestNamespacedNotPermittedResources(t *testing.T) {
 		},
 	}
 	defer func() {
-		log.Infof("Ingress 'sample-ingress' deleted from %s", ArgoCDNamespace)
-		CheckError(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
+		log.Infof("Ingress 'sample-ingress' deleted from %s", TestNamespace())
+		CheckError(KubeClientset.NetworkingV1().Ingresses(TestNamespace()).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
 	}()
 
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "guestbook-ui",
 			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:Service:%s/guesbook-ui", ArgoCDNamespace, ctx.AppQualifiedName(), DeploymentNamespace()),
+				common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:Service:%s/guesbook-ui", TestNamespace(), ctx.AppQualifiedName(), DeploymentNamespace()),
 			},
 		},
 		Spec: v1.ServiceSpec{
@@ -1621,7 +1636,7 @@ func TestNamespacedNotPermittedResources(t *testing.T) {
 			{Group: "", Kind: "Service"},
 		}}).
 		And(func() {
-			FailOnErr(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Create(context.Background(), ingress, metav1.CreateOptions{}))
+			FailOnErr(KubeClientset.NetworkingV1().Ingresses(TestNamespace()).Create(context.Background(), ingress, metav1.CreateOptions{}))
 			FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Create(context.Background(), svc, metav1.CreateOptions{}))
 		}).
 		Path(guestbookPath).
@@ -1647,7 +1662,7 @@ func TestNamespacedNotPermittedResources(t *testing.T) {
 		Expect(DoesNotExist())
 
 	// Make sure prohibited resources are not deleted during application deletion
-	FailOnErr(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Get(context.Background(), "sample-ingress", metav1.GetOptions{}))
+	FailOnErr(KubeClientset.NetworkingV1().Ingresses(TestNamespace()).Get(context.Background(), "sample-ingress", metav1.GetOptions{}))
 	FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{}))
 }
 
@@ -2190,8 +2205,8 @@ spec:
 			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.ObjectMeta.Labels)
 			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.ObjectMeta.Annotations)
 			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.ObjectMeta.Finalizers)
-			assert.Equal(t, path, app.Spec.Source.Path)
-			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.Source.Helm.Parameters)
+			assert.Equal(t, path, app.Spec.GetSource().Path)
+			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.GetSource().Helm.Parameters)
 		})
 }
 
@@ -2294,17 +2309,17 @@ func TestNamespacedAppLogs(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.QualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			out, err := RunCliWithRetry(5, "app", "logs", app.QualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.QualifiedName(), "--kind", "Pod")
+			out, err := RunCliWithRetry(5, "app", "logs", app.QualifiedName(), "--kind", "Pod")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", app.QualifiedName(), "--kind", "Service")
+			out, err := RunCliWithRetry(5, "app", "logs", app.QualifiedName(), "--kind", "Service")
 			assert.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})

@@ -64,13 +64,20 @@ else
 DOCKER_SRC_MOUNT="$(PWD):/go/src/github.com/argoproj/argo-cd$(VOLUME_MOUNT)"
 endif
 
+# User and group IDs to map to the test container
+CONTAINER_UID=$(shell id -u)
+CONTAINER_GID=$(shell id -g)
+
+# Set SUDO to sudo to run privileged commands with sudo
+SUDO?=
+
 # Runs any command in the argocd-test-utils container in server mode
 # Server mode container will start with uid 0 and drop privileges during runtime
 define run-in-test-server
-	docker run --rm -it \
+	$(SUDO) docker run --rm -it \
 		--name argocd-test-server \
-		-u $(shell id -u):$(shell id -g) \
-		-e USER_ID=$(shell id -u) \
+		-u $(CONTAINER_UID):$(CONTAINER_GID) \
+		-e USER_ID=$(CONTAINER_UID) \
 		-e HOME=/home/user \
 		-e GOPATH=/go \
 		-e GOCACHE=/tmp/go-build-cache \
@@ -98,9 +105,9 @@ endef
 
 # Runs any command in the argocd-test-utils container in client mode
 define run-in-test-client
-	docker run --rm -it \
+	$(SUDO) docker run --rm -it \
 	  --name argocd-test-client \
-		-u $(shell id -u):$(shell id -g) \
+		-u $(CONTAINER_UID):$(CONTAINER_GID) \
 		-e HOME=/home/user \
 		-e GOPATH=/go \
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
@@ -119,7 +126,7 @@ endef
 
 #
 define exec-in-test-server
-	docker exec -it -u $(shell id -u):$(shell id -g) -e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
+	$(SUDO) docker exec -it -u $(CONTAINER_UID):$(CONTAINER_GID) -e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -139,7 +146,8 @@ override LDFLAGS += \
   -X ${PACKAGE}.buildDate=${BUILD_DATE} \
   -X ${PACKAGE}.gitCommit=${GIT_COMMIT} \
   -X ${PACKAGE}.gitTreeState=${GIT_TREE_STATE}\
-  -X ${PACKAGE}.kubectlVersion=${KUBECTL_VERSION}
+  -X ${PACKAGE}.kubectlVersion=${KUBECTL_VERSION}\
+  -X "${PACKAGE}.extraBuildInfo=${EXTRA_BUILD_INFO}"
 
 ifeq (${STATIC_BUILD}, true)
 override LDFLAGS += -extldflags "-static"
@@ -212,7 +220,7 @@ clidocsgen: ensure-gopath
 
 
 .PHONY: codegen-local
-codegen-local: ensure-gopath mod-vendor-local notification-docs notification-catalog gogen protogen clientgen openapigen clidocsgen manifests-local
+codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
 
 .PHONY: codegen
@@ -225,11 +233,11 @@ cli: test-tools-image
 
 .PHONY: cli-local
 cli-local: clean-debug
-	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
+	CGO_ENABLED=0 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
 .PHONY: gen-resources-cli-local
 gen-resources-cli-local: clean-debug
-	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${GEN_RESOURCES_CLI_NAME} ./hack/gen-resources/cmd
+	CGO_ENABLED=0 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${GEN_RESOURCES_CLI_NAME} ./hack/gen-resources/cmd
 
 .PHONY: release-cli
 release-cli: clean-debug build-ui
@@ -244,8 +252,8 @@ release-cli: clean-debug build-ui
 .PHONY: test-tools-image
 test-tools-image:
 ifndef SKIP_TEST_TOOLS_IMAGE
-	docker build --build-arg UID=$(shell id -u) -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile .
-	docker tag $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG)
+	$(SUDO) docker build --build-arg UID=$(CONTAINER_UID) -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile .
+	$(SUDO) docker tag $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG)
 endif
 
 .PHONY: manifests-local
@@ -259,19 +267,19 @@ manifests: test-tools-image
 # consolidated binary for cli, util, server, repo-server, controller
 .PHONY: argocd-all
 argocd-all: clean-debug
-	CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
+	CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
 
 .PHONY: server
 server: clean-debug
-	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd
+	CGO_ENABLED=0 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd
 
 .PHONY: repo-server
 repo-server:
-	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd
+	CGO_ENABLED=0 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd
 
 .PHONY: controller
 controller:
-	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd
+	CGO_ENABLED=0 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd
 
 .PHONY: build-ui
 build-ui:
@@ -287,7 +295,7 @@ ifeq ($(DEV_IMAGE), true)
 IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image: build-ui
 	DOCKER_BUILDKIT=1 docker build --platform=linux/amd64 -t argocd-base --target argocd-base .
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-repo-server
@@ -326,7 +334,7 @@ mod-vendor: test-tools-image
 mod-vendor-local: mod-download-local
 	go mod vendor
 
-# Deprecated - replace by install-local-tools
+# Deprecated - replace by install-tools-local
 .PHONY: install-lint-tools
 install-lint-tools:
 	./hack/install.sh lint-tools
@@ -361,7 +369,7 @@ build: test-tools-image
 # Build all Go code (local version)
 .PHONY: build-local
 build-local:
-	go build -v `go list ./... | grep -v 'resource_customizations\|test/e2e'`
+	GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v `go list ./... | grep -v 'resource_customizations\|test/e2e'`
 
 # Run all unit tests
 #
@@ -572,7 +580,7 @@ list:
 
 .PHONY: applicationset-controller
 applicationset-controller:
-	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-applicationset-controller ./cmd
+	GODEBUG="tarinsecurepath=0,zipinsecurepath=0" CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-applicationset-controller ./cmd
 
 .PHONY: checksums
 checksums:
@@ -589,3 +597,55 @@ snyk-non-container-tests:
 .PHONY: snyk-report
 snyk-report:
 	./hack/snyk-report.sh $(target_branch)
+
+.PHONY: help
+help:
+	@echo 'Note: Generally an item w/ (-local) will run inside docker unless you use the -local variant'
+	@echo
+	@echo 'Common targets'
+	@echo
+	@echo 'all -- make cli and image'
+	@echo
+	@echo 'components:'
+	@echo '  applicationset-controller -- applicationset controller'
+	@echo '  cli(-local)               -- argocd cli program'
+	@echo '  controller                -- controller (orchestrator)'
+	@echo '  repo-server               -- repo server (manage repository instances)'
+	@echo '  server                    -- argocd web application'
+	@echo
+	@echo 'build:'
+	@echo '  image                     -- make image of the following items'
+	@echo '  build(-local)             -- compile go'
+	@echo '  build-docs(-local)        -- build docs'
+	@echo '  build-ui                  -- compile typescript'
+	@echo
+	@echo 'run:'
+	@echo '  run                       -- run the components locally'
+	@echo '  serve-docs(-local)        -- expose the documents for viewing in a browser'
+	@echo
+	@echo 'release:'
+	@echo '  release-cli'
+	@echo '  release-precheck'
+	@echo '  checksums'
+	@echo
+	@echo 'docs:'
+	@echo '  build-docs(-local)'
+	@echo '  serve-docs(-local)'
+	@echo '  notification-docs'
+	@echo '  clidocsgen'
+	@echo
+	@echo 'testing:'
+	@echo '  test(-local)'
+	@echo '  start-e2e(-local)'
+	@echo '  test-e2e(-local)'
+	@echo '  test-race(-local)'
+	@echo
+	@echo 'debug:'
+	@echo '  list -- list all make targets'
+	@echo '  install-tools-local -- install all the tools below'
+	@echo '  install-lint-tools(-local)'
+	@echo
+	@echo 'codegen:'
+	@echo '  codegen(-local) -- if using -local, run the following targets first'
+	@echo '  install-codegen-tools-local -- run this to install the codegen tools'
+	@echo '  install-go-tools-local -- run this to install go libraries for codegen'

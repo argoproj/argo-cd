@@ -308,6 +308,24 @@ func TestGetResourceOverrides(t *testing.T) {
 
 }
 
+func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
+	data := map[string]string{
+		"resource.customizations": `
+    "*.aws.crossplane.io/*":
+      health.lua: |
+        foo`,
+	}
+
+	t.Run("TestResourceHealthOverrideWithWildcard", func(t *testing.T) {
+		_, settingsManager := fixtures(data)
+
+		overrides, err := settingsManager.GetResourceOverrides()
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(overrides))
+		assert.Equal(t, "foo", overrides["*.aws.crossplane.io/*"].HealthLua)
+	})
+}
+
 func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		resourceCustomizationsKey: "",
@@ -653,7 +671,7 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		h, err := settingsManager.GetHelp()
 		assert.NoError(t, err)
 		assert.Empty(t, h.ChatURL)
-		assert.Equal(t, "Chat now!", h.ChatText)
+		assert.Empty(t, h.ChatText)
 
 	})
 	t.Run("Set", func(t *testing.T) {
@@ -665,6 +683,24 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "foo", h.ChatURL)
 		assert.Equal(t, "bar", h.ChatText)
+	})
+	t.Run("SetOnlyChatUrl", func(t *testing.T) {
+		_, settingManager := fixtures(map[string]string{
+			"help.chatUrl": "foo",
+		})
+		h, err := settingManager.GetHelp()
+		assert.NoError(t, err)
+		assert.Equal(t, "foo", h.ChatURL)
+		assert.Equal(t, "Chat now!", h.ChatText)
+	})
+	t.Run("SetOnlyChatText", func(t *testing.T) {
+		_, settingManager := fixtures(map[string]string{
+			"help.chatText": "bar",
+		})
+		h, err := settingManager.GetHelp()
+		assert.NoError(t, err)
+		assert.Empty(t, h.ChatURL)
+		assert.Empty(t, h.ChatText)
 	})
 	t.Run("GetBinaryUrls", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
@@ -1103,7 +1139,7 @@ func TestDownloadArgoCDBinaryUrls(t *testing.T) {
 func TestSecretKeyRef(t *testing.T) {
 	data := map[string]string{
 		"oidc.config": `name: Okta
-issuer: https://dev-123456.oktapreview.com
+issuer: $acme:issuerSecret
 clientID: aaaabbbbccccddddeee
 clientSecret: $acme:clientSecret
 # Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
@@ -1140,6 +1176,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 			},
 		},
 		Data: map[string][]byte{
+			"issuerSecret": []byte("https://dev-123456.oktapreview.com"),
 			"clientSecret": []byte("deadbeef"),
 		},
 	}
@@ -1150,6 +1187,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 	assert.NoError(t, err)
 
 	oidcConfig := settings.OIDCConfig()
+	assert.Equal(t, oidcConfig.Issuer, "https://dev-123456.oktapreview.com")
 	assert.Equal(t, oidcConfig.ClientSecret, "deadbeef")
 }
 
@@ -1340,6 +1378,71 @@ rootCA: "invalid"`},
 
 				assert.True(t, testCase.settings.OIDCTLSConfig().InsecureSkipVerify)
 			}
+		})
+	}
+}
+
+func Test_OAuth2AllowedAudiences(t *testing.T) {
+	testCases := []struct {
+		name     string
+		settings *ArgoCDSettings
+		expected []string
+	}{
+		{
+			name:     "Empty",
+			settings: &ArgoCDSettings{},
+			expected: []string{},
+		},
+		{
+			name: "OIDC configured, no audiences specified, clientID used",
+			settings: &ArgoCDSettings{OIDCConfigRAW: `name: Test
+issuer: aaa
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]`},
+			expected: []string{"xxx"},
+		},
+		{
+			name: "OIDC configured, no audiences specified, clientID and cliClientID used",
+			settings: &ArgoCDSettings{OIDCConfigRAW: `name: Test
+issuer: aaa
+clientID: xxx
+cliClientID: cli-xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]`},
+			expected: []string{"xxx", "cli-xxx"},
+		},
+		{
+			name: "OIDC configured, audiences specified",
+			settings: &ArgoCDSettings{OIDCConfigRAW: `name: Test
+issuer: aaa
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]
+allowedAudiences: ["aud1", "aud2"]`},
+			expected: []string{"aud1", "aud2"},
+		},
+		{
+			name: "Dex configured",
+			settings: &ArgoCDSettings{DexConfig: `connectors:
+  - type: github
+    id: github
+    name: GitHub
+    config:
+      clientID: aabbccddeeff00112233
+      clientSecret: $dex.github.clientSecret
+      orgs:
+      - name: your-github-org
+`},
+			expected: []string{common.ArgoCDClientAppID, common.ArgoCDCLIClientAppID},
+		},
+	}
+
+	for _, tc := range testCases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ElementsMatch(t, tcc.expected, tcc.settings.OAuth2AllowedAudiences())
 		})
 	}
 }

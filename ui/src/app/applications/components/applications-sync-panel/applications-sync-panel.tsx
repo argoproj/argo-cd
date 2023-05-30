@@ -8,7 +8,7 @@ import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags} from '../application-sync-options/application-sync-options';
 import {ApplicationSelector} from '../../../shared/components';
-import {confirmSyncingAppOfApps} from '../utils';
+import {confirmSyncingAppOfApps, getAppDefaultSource} from '../utils';
 
 interface Progress {
     percentage: number;
@@ -99,7 +99,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                     .sync(
                                         app.metadata.name,
                                         app.metadata.namespace,
-                                        app.spec.source.targetRevision,
+                                        getAppDefaultSource(app).targetRevision,
                                         syncFlags.Prune || false,
                                         syncFlags.DryRun || false,
                                         syncStrategy,

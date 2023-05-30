@@ -17,7 +17,7 @@ import (
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/model"
 	"github.com/casbin/casbin/v2/util"
-	jwt "github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v4"
 	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -468,7 +468,12 @@ func loadPolicyLine(line string, model model.Model) error {
 		return err
 	}
 
-	if len(tokens) < 2 || len(tokens[0]) < 1 {
+	tokenLen := len(tokens)
+
+	if tokenLen < 1 ||
+		tokens[0] == "" ||
+		(tokens[0] == "g" && tokenLen != 3) ||
+		(tokens[0] == "p" && tokenLen != 6) {
 		return fmt.Errorf("invalid RBAC policy: %s", line)
 	}
 

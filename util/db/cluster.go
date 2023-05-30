@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -8,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"context"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -233,17 +233,17 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 func (db *db) GetProjectClusters(ctx context.Context, project string) ([]*appv1.Cluster, error) {
 	informer, err := db.settingsMgr.GetSecretsInformer()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get secrets informer: %w", err)
 	}
 	secrets, err := informer.GetIndexer().ByIndex(settings.ByProjectClusterIndexer, project)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get index by project cluster indexer for project %q: %w", project, err)
 	}
 	var res []*appv1.Cluster
 	for i := range secrets {
 		cluster, err := secretToCluster(secrets[i].(*apiv1.Secret))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to convert secret to cluster: %w", err)
 		}
 		res = append(res, cluster)
 	}
@@ -368,7 +368,7 @@ func secretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 	if len(s.Data["config"]) > 0 {
 		err := json.Unmarshal(s.Data["config"], &config)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to unmarshal cluster config: %w", err)
 		}
 	}
 

@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
@@ -44,7 +45,7 @@ const (
 	// EnvClusterCacheWatchResyncDuration is the env variable that holds cluster cache watch re-sync duration
 	EnvClusterCacheWatchResyncDuration = "ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION"
 
-	// EnvClusterRetryTimeoutDuration is the env variable that holds cluster retry duration when sync error happens
+	// EnvClusterSyncRetryTimeoutDuration is the env variable that holds cluster retry duration when sync error happens
 	EnvClusterSyncRetryTimeoutDuration = "ARGOCD_CLUSTER_SYNC_RETRY_TIMEOUT_DURATION"
 
 	// EnvClusterCacheListPageSize is the env variable to control size of the list page size when making K8s queries
@@ -55,7 +56,7 @@ const (
 	// k8s list queries results across all clusters to avoid memory spikes during cache initialization.
 	EnvClusterCacheListSemaphore = "ARGOCD_CLUSTER_CACHE_LIST_SEMAPHORE"
 
-	// EnvClusterCacheRetryLimit is the env variable to control the retry limit for listing resources during cluster cache sync
+	// EnvClusterCacheAttemptLimit is the env variable to control the retry limit for listing resources during cluster cache sync
 	EnvClusterCacheAttemptLimit = "ARGOCD_CLUSTER_CACHE_ATTEMPT_LIMIT"
 
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
@@ -220,10 +221,10 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 		gv = schema.GroupVersion{}
 	}
 	parentRefs := make([]appv1.ResourceRef, len(r.OwnerRefs))
-	for _, ownerRef := range r.OwnerRefs {
+	for i, ownerRef := range r.OwnerRefs {
 		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
 		ownerKey := kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)
-		parentRefs[0] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
+		parentRefs[i] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
 	}
 	var resHealth *appv1.HealthStatus
 	resourceInfo := resInfo(r)
@@ -394,6 +395,20 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("error getting custom label: %w", err)
 	}
 
+	clusterCacheConfig := cluster.RESTConfig()
+	// Controller dynamically fetches all resource types available on the cluster
+	// using a discovery API that may contain deprecated APIs.
+	// This causes log flooding when managing a large number of clusters.
+	// https://github.com/argoproj/argo-cd/issues/11973
+	// However, we can safely suppress deprecation warnings
+	// because we do not rely on resources with a particular API group or version.
+	// https://kubernetes.io/blog/2020/09/03/warnings/#customize-client-handling
+	//
+	// Completely suppress warning logs only for log levels that are less than Debug.
+	if log.GetLevel() < log.DebugLevel {
+		clusterCacheConfig.WarningHandler = rest.NoWarnings{}
+	}
+
 	clusterCacheOpts := []clustercache.UpdateSettingsFunc{
 		clustercache.SetListSemaphore(semaphore.NewWeighted(clusterCacheListSemaphoreSize)),
 		clustercache.SetListPageSize(clusterCacheListPageSize),
@@ -425,7 +440,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 	}
 
-	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(), clusterCacheOpts...)
+	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
 		toNotify := make(map[string]bool)
@@ -473,10 +488,11 @@ func (c *liveStateCache) getSyncedCluster(server string) (clustercache.ClusterCa
 func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 	log.Info("invalidating live state cache")
 	c.lock.Lock()
-	defer c.lock.Unlock()
-
 	c.cacheSettings = cacheSettings
-	for _, clust := range c.clusters {
+	clusters := c.clusters
+	c.lock.Unlock()
+
+	for _, clust := range clusters {
 		clust.Invalidate(clustercache.SetSettings(cacheSettings.clusterSettings))
 	}
 	log.Info("live state cache invalidated")

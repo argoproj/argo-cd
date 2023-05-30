@@ -9,9 +9,8 @@ Operators can add actions to custom resources in form of a Lua script and expand
 
 Argo CD supports custom resource actions written in [Lua](https://www.lua.org/). This is useful if you:
 
-    * Have a custom resource for which Argo CD does not provide any built-in actions.
-    * Have a commonly performed manual task that might be error prone if executed by users via `kubectl`
-
+* Have a custom resource for which Argo CD does not provide any built-in actions.
+* Have a commonly performed manual task that might be error prone if executed by users via `kubectl`
 
 You can define your own custom resource actions in the `argocd-cm` ConfigMap.
 

@@ -14,7 +14,7 @@ export enum AppsDetailsViewKey {
 
 export interface AppDetailsPreferences {
     resourceFilter: string[];
-    view: AppsDetailsViewType;
+    view: AppsDetailsViewType | string;
     resourceView: 'manifest' | 'diff' | 'desiredManifest';
     inlineDiff: boolean;
     compactDiff: boolean;
@@ -27,6 +27,7 @@ export interface AppDetailsPreferences {
     wrapLines: boolean;
     groupNodes?: boolean;
     zoom: number;
+    podGroupCount: number;
 }
 
 export interface PodViewPreferences {
@@ -91,6 +92,7 @@ export interface ViewPreferences {
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
     pageSizes: {[key: string]: number};
+    sortOptions?: {[key: string]: string};
     hideBannerContent: string;
     hideSidebar: boolean;
     position: string;
@@ -119,7 +121,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         darkMode: false,
         followLogs: false,
         wrapLines: false,
-        zoom: 1.0
+        zoom: 1.0,
+        podGroupCount: 15.0
     },
     appList: {
         view: 'tiles' as AppsListViewType,

@@ -5,7 +5,7 @@ Argo CD provides built-in health assessment for several standard Kubernetes type
 surfaced to the overall Application health status as a whole. The following checks are made for
 specific types of kubernetes resources:
 
-### Deployment, ReplicaSet, StatefulSet DaemonSet
+### Deployment, ReplicaSet, StatefulSet, DaemonSet
 * Observed generation is equal to desired generation.
 * Number of **updated** replicas equals the number of desired replicas.
 
@@ -16,6 +16,8 @@ with at least one value for `hostname` or `IP`.
 ### Ingress
 * The `status.loadBalancer.ingress` list is non-empty, with at least one value for `hostname` or `IP`.
 
+### Job
+* If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
 ### PersistentVolumeClaim
 * The `status.phase` is `Bound`
 
@@ -38,7 +40,7 @@ metadata:
 data:
   resource.customizations: |
     argoproj.io/Application:
-      health.lua: |  
+      health.lua: |
         hs = {}
         hs.status = "Progressing"
         hs.message = ""
@@ -64,11 +66,11 @@ There are two ways to configure a custom health check. The next two sections des
 
 ### Way 1. Define a Custom Health Check in `argocd-cm` ConfigMap
 
-Custom health checks can be defined in 
+Custom health checks can be defined in
 ```yaml
   resource.customizations: |
     <group/kind>:
-      health.lua: | 
+      health.lua: |
 ```
 field of `argocd-cm`. If you are using argocd-operator, this is overridden by [the argocd-operator resourceCustomizations](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#resource-customizations).
 
@@ -101,14 +103,24 @@ data:
         hs.message = "Waiting for certificate"
         return hs
 ```
-In order to prevent duplication of the same custom health check for potentially multiple resources, it is also possible to specify a wildcard in the resource kind, like this:
+In order to prevent duplication of the custom health check for potentially multiple resources, it is also possible to specify a wildcard in the resource kind, and anywhere in the resource group, like this:
 
 ```yaml
   resource.customizations: |
     ec2.aws.crossplane.io/*:
+      health.lua: |
+        ...
+```
+
+```yaml
+  resource.customizations: |
+    "*.aws.crossplane.io/*":
       health.lua: | 
         ...
 ```
+
+!!!important
+    Please note the required quotes in the resource customization health section, if the wildcard starts with `*`.
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 The custom health check might return one of the following health statuses:
@@ -125,9 +137,11 @@ setting `resource.customizations.useOpenLibs.<group_kind>`. In the following exa
 
 ```yaml
 data:
-  resource.customizations.useOpenLibs.cert-manager.io_Certificate: "true"
-  resource.customizations.health.cert-manager.io_Certificate:
-    -- Lua standard libraries are enabled for this script
+  resource.customizations: |
+    cert-manager.io/Certificate:
+      health.lua.useOpenLibs: true
+      health.lua: |
+        # Lua standard libraries are enabled for this script
 ```
 
 ### Way 2. Contribute a Custom Health Check

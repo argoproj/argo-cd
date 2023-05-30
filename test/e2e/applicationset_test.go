@@ -18,6 +18,8 @@ import (
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 var (
@@ -41,23 +43,27 @@ var (
 			Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
 		},
 	}
+	LabelKeyAppSetInstance = "argocd.argoproj.io/application-set-name"
 )
 
 func TestSimpleListGenerator(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Name:      "my-cluster-guestbook",
+			Namespace: fixture.TestNamespace(),
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-list-generator",
+			},
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
@@ -81,7 +87,7 @@ func TestSimpleListGenerator(t *testing.T) {
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster}}-guestbook"},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
@@ -119,7 +125,10 @@ func TestSimpleListGenerator(t *testing.T) {
 		And(func() {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+				LabelKeyAppSetInstance: "simple-list-generator",
+				"label-key":            "label-value",
+			}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
@@ -139,17 +148,20 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-list-generator",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
@@ -174,7 +186,7 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
@@ -212,7 +224,10 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 		And(func() {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+				LabelKeyAppSetInstance: "simple-list-generator",
+				"label-key":            "label-value",
+			}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
@@ -232,17 +247,20 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: argov1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
@@ -275,7 +293,7 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
@@ -320,7 +338,10 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+					"label-key":            "label-value",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -341,17 +362,20 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: argov1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
@@ -385,7 +409,7 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.path.basename}}"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{.path.path}}",
@@ -430,7 +454,10 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+					"label-key":            "label-value",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -452,17 +479,20 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: argov1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           "guestbook",
@@ -494,7 +524,7 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
@@ -539,7 +569,10 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+					"label-key":            "label-value",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -561,17 +594,20 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: argov1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           "guestbook",
@@ -604,7 +640,7 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster.name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
@@ -649,7 +685,10 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator",
+					"label-key":            "label-value",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -680,7 +719,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
@@ -741,7 +780,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster.name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
@@ -971,7 +1010,7 @@ func githubSCMMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request)
 				t.Fail()
 			}
 		default:
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}
 }
@@ -984,17 +1023,20 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "argo-cd-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-scm-provider-generator",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:argoproj/argo-cd.git",
 				TargetRevision: "master",
 				Path:           "guestbook",
@@ -1019,7 +1061,7 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ repository }}-guestbook"},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "{{ url }}",
 						TargetRevision: "{{ branch }}",
 						Path:           "guestbook",
@@ -1057,17 +1099,20 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "argo-cd-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-scm-provider-generator",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:argoproj/argo-cd.git",
 				TargetRevision: "master",
 				Path:           "guestbook",
@@ -1093,7 +1138,7 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ .repository }}-guestbook"},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "{{ .url }}",
 						TargetRevision: "{{ .branch }}",
 						Path:           "guestbook",
@@ -1126,17 +1171,20 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 func TestCustomApplicationFinalizers(t *testing.T) {
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-list-generator",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
@@ -1161,7 +1209,7 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 				},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
@@ -1192,17 +1240,20 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-list-generator",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
@@ -1228,7 +1279,7 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 				},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
@@ -1269,6 +1320,10 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
         "name": "preview"
       }
     ],
+	"base": {
+		"ref": "master",
+		"sha": "7a4a5c987fdfb2b0629e9dbf5f31636c69ba4775"
+	},
     "head": {
       "ref": "pull-request",
       "sha": "824a5c987fdfb2b0629e9dbf5f31636c69ba4772"
@@ -1279,7 +1334,7 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
 				t.Fail()
 			}
 		default:
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}
 }
@@ -1292,17 +1347,20 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "guestbook-1",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-pull-request-generator",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
 				TargetRevision: "824a5c987fdfb2b0629e9dbf5f31636c69ba4772",
 				Path:           "kustomize-guestbook",
@@ -1327,7 +1385,7 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "guestbook-{{ number }}"},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
 						TargetRevision: "{{ head_sha }}",
 						Path:           "kustomize-guestbook",
@@ -1367,18 +1425,21 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "guestbook-1",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels:     map[string]string{"app": "preview"},
+			Labels: map[string]string{
+				"app":                  "preview",
+				LabelKeyAppSetInstance: "simple-pull-request-generator",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
 				TargetRevision: "824a5c987fdfb2b0629e9dbf5f31636c69ba4772",
 				Path:           "kustomize-guestbook",
@@ -1406,7 +1467,7 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 					Labels: map[string]string{"app": "{{index .labels 0}}"}},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
 						TargetRevision: "{{ .head_sha }}",
 						Path:           "kustomize-guestbook",
@@ -1443,17 +1504,20 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator-private",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: argov1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHTTPS),
 					TargetRevision: "HEAD",
 					Path:           name,
@@ -1483,7 +1547,7 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHTTPS),
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
@@ -1518,17 +1582,20 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "simple-git-generator-private",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: argov1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHTTPS),
 					TargetRevision: "HEAD",
 					Path:           name,
@@ -1559,7 +1626,7 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.path.basename}}"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHTTPS),
 							TargetRevision: "HEAD",
 							Path:           "{{.path.path}}",

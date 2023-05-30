@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/stats"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -72,7 +72,9 @@ func NewCommand() *cobra.Command {
 	var (
 		parallelismLimit                  int64
 		listenPort                        int
+		listenHost                        string
 		metricsPort                       int
+		metricsHost                       string
 		otlpAddress                       string
 		cacheSrc                          func() (*reposervercache.Cache, error)
 		tlsConfigCustomizer               tls.ConfigCustomizer
@@ -150,7 +152,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			grpc := server.CreateGRPC()
-			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", listenPort))
+			listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", listenHost, listenPort))
 			errors.CheckError(err)
 
 			healthz.ServeHealthCheck(http.DefaultServeMux, func(r *http.Request) error {
@@ -176,7 +178,7 @@ func NewCommand() *cobra.Command {
 				return nil
 			})
 			http.Handle("/metrics", metricsServer.GetHandler())
-			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf(":%d", metricsPort), nil)) }()
+			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf("%s:%d", metricsHost, metricsPort), nil)) }()
 			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
 
 			if gpg.IsGPGEnabled() {
@@ -207,7 +209,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", int64(env.ParseNumFromEnv("ARGOCD_REPO_SERVER_PARALLELISM_LIMIT", 0, 0, math.MaxInt32)), "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
+	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_REPO_SERVER_LISTEN_ADDRESS", common.DefaultAddressRepoServer), "Listen on given address for incoming connections")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortRepoServer, "Listen on given port for incoming connections")
+	command.Flags().StringVar(&metricsHost, "metrics-address", env.StringFromEnv("ARGOCD_REPO_SERVER_METRICS_LISTEN_ADDRESS", common.DefaultAddressRepoServerMetrics), "Listen on given address for metrics")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_REPO_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS on the gRPC endpoint")

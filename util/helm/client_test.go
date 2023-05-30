@@ -153,6 +153,7 @@ func TestGetIndexURL(t *testing.T) {
 
 func TestGetTagsFromUrl(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("called %s", r.URL.Path)
 		responseTags := TagsList{}
 		w.Header().Set("Content-Type", "application/json")
 		if !strings.Contains(r.URL.String(), "token") {
@@ -174,27 +175,4 @@ func TestGetTagsFromUrl(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, tags.Tags[0], "first")
 	assert.Equal(t, tags.Tags[1], "second")
-}
-
-func Test_getNextUrl(t *testing.T) {
-	nextUrl := getNextUrl("")
-	assert.Equal(t, nextUrl, "")
-
-	nextUrl = getNextUrl("<https://my.repo.com/v2/chart/tags/list?token=123>; rel=next")
-	assert.Equal(t, nextUrl, "https://my.repo.com/v2/chart/tags/list?token=123")
-}
-
-func Test_getTagsListURL(t *testing.T) {
-	tagsListURL, err := getTagsListURL("account.dkr.ecr.eu-central-1.amazonaws.com", "dss")
-	assert.Nil(t, err)
-	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
-
-	tagsListURL, err = getTagsListURL("http://account.dkr.ecr.eu-central-1.amazonaws.com", "dss")
-	assert.Nil(t, err)
-	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
-
-	// with trailing /
-	tagsListURL, err = getTagsListURL("https://account.dkr.ecr.eu-central-1.amazonaws.com/", "dss")
-	assert.Nil(t, err)
-	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
 }

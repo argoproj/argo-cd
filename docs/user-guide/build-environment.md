@@ -1,6 +1,6 @@
 # Build Environment
 
-[Custom tools](config-management-plugins.md), [Helm](helm.md), [Jsonnet](jsonnet.md), and [Kustomize](kustomize.md) support the following build env vars:
+[Custom tools](../operator-manual/config-management-plugins.md), [Helm](helm.md), [Jsonnet](jsonnet.md), and [Kustomize](kustomize.md) support the following build env vars:
 
 | Variable                            | Description                                                             |
 | ----------------------------------- | ----------------------------------------------------------------------- |
