@@ -11,6 +11,9 @@ spec:
       - cluster: https://kubernetes.default.svc
   # Determines whether go templating will be used in the `template` field below.
   goTemplate: false
+  # Optional list of go templating options, see https://pkg.go.dev/text/template#Template.Option
+  # This is only relevant if `goTemplate` is true
+  goTemplateOptions: ["missingkey="]
   # These fields are identical to the Application spec.
   template:
     metadata:

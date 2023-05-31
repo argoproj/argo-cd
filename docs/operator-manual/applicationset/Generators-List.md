@@ -64,6 +64,7 @@ metadata:
   namespace: argocd
 spec:
   goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - matrix:
       generators:

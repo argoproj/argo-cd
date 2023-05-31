@@ -173,7 +173,7 @@ func TestRenderTemplateParams(t *testing.T) {
 
 				// Render the cloned application, into a new application
 				render := Render{}
-				newApplication, err := render.RenderTemplateParams(application, nil, test.params, false)
+				newApplication, err := render.RenderTemplateParams(application, nil, test.params, false, nil)
 
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
@@ -235,11 +235,12 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
-		fieldVal     string
-		params       map[string]interface{}
-		expectedVal  string
-		errorMessage string
+		name            string
+		fieldVal        string
+		params          map[string]interface{}
+		expectedVal     string
+		errorMessage    string
+		templateOptions []string
 	}{
 		{
 			name:        "simple substitution",
@@ -422,6 +423,26 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			},
 			errorMessage: `failed to execute go template {{.data.test}}: template: :1:7: executing "" at <.data.test>: can't evaluate field test in type interface {}`,
 		},
+		{
+			name:        "lookup missing value with missingkey=default",
+			fieldVal:    `--> {{.doesnotexist}} <--`,
+			expectedVal: `--> <no value> <--`,
+			params: map[string]interface{}{
+				// if no params are passed then for some reason templating is skipped
+				"unused": "this is not used",
+			},
+		},
+		{
+			name:        "lookup missing value with missingkey=error",
+			fieldVal:    `--> {{.doesnotexist}} <--`,
+			expectedVal: "",
+			params: map[string]interface{}{
+				// if no params are passed then for some reason templating is skipped
+				"unused": "this is not used",
+			},
+			templateOptions: []string{"missingkey=error"},
+			errorMessage:    `failed to execute go template --> {{.doesnotexist}} <--: template: :1:6: executing "" at <.doesnotexist>: map has no entry for key "doesnotexist"`,
+		},
 	}
 
 	for _, test := range tests {
@@ -438,7 +459,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 
 				// Render the cloned application, into a new application
 				render := Render{}
-				newApplication, err := render.RenderTemplateParams(application, nil, test.params, true)
+				newApplication, err := render.RenderTemplateParams(application, nil, test.params, true, test.templateOptions)
 
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
@@ -479,7 +500,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 		}
 
 		render := Render{}
-		newApplication, err := render.RenderTemplateParams(application, nil, params, false)
+		newApplication, err := render.RenderTemplateParams(application, nil, params, false, nil)
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
 		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
@@ -499,7 +520,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 		}
 
 		render := Render{}
-		newApplication, err := render.RenderTemplateParams(application, nil, params, true)
+		newApplication, err := render.RenderTemplateParams(application, nil, params, true, nil)
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
 		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
@@ -600,7 +621,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			// Render the cloned application, into a new application
 			render := Render{}
 
-			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true)
+			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true, nil)
 			assert.Nil(t, err)
 
 			assert.ElementsMatch(t, res.Finalizers, c.expectedFinalizers)
