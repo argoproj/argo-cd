@@ -27,6 +27,9 @@ func TestListMergeGenerator(t *testing.T) {
 				Name:       fmt.Sprintf("%s-%s", name, nameSuffix),
 				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "merge-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -122,7 +125,10 @@ func TestListMergeGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					"label-key":            "label-value",
+					LabelKeyAppSetInstance: "merge-generator",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -147,6 +153,9 @@ func TestClusterMergeGenerator(t *testing.T) {
 				Name:       fmt.Sprintf("%s-%s-%s", cluster, name, nameSuffix),
 				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "merge-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -267,7 +276,10 @@ func TestClusterMergeGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					"label-key":            "label-value",
+					LabelKeyAppSetInstance: "merge-generator",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).

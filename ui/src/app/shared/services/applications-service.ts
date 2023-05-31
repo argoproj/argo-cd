@@ -60,6 +60,13 @@ export class ApplicationsService {
             .then(res => res.body as models.RevisionMetadata);
     }
 
+    public revisionChartDetails(name: string, appNamespace: string, revision: string): Promise<models.ChartDetails> {
+        return requests
+            .get(`/applications/${name}/revisions/${revision || 'HEAD'}/chartdetails`)
+            .query({appNamespace})
+            .then(res => res.body as models.ChartDetails);
+    }
+
     public resourceTree(name: string, appNamespace: string): Promise<models.ApplicationTree> {
         return requests
             .get(`/applications/${name}/resource-tree`)
@@ -324,11 +331,12 @@ export class ApplicationsService {
             .then(res => (res.body.actions as models.ResourceAction[]) || []);
     }
 
-    public patchResource(name: string, appNamspace: string, resource: models.ResourceNode, patch: string, patchType: string): Promise<models.State> {
+    public patchResource(name: string, appNamespace: string, resource: models.ResourceNode, patch: string, patchType: string): Promise<models.State> {
         return requests
             .post(`/applications/${name}/resource`)
             .query({
                 name: resource.name,
+                appNamespace,
                 namespace: resource.namespace,
                 resourceName: resource.name,
                 version: resource.version,

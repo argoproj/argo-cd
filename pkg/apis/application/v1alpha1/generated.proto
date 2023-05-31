@@ -116,7 +116,7 @@ message Application {
   optional Operation operation = 4;
 }
 
-// ApplicationCondition contains details about an application condition, which is usally an error or warning
+// ApplicationCondition contains details about an application condition, which is usually an error or warning
 message ApplicationCondition {
   // Type is an application condition type
   optional string type = 1;
@@ -290,6 +290,8 @@ message ApplicationSetSpec {
   optional ApplicationSetStrategy strategy = 5;
 
   optional ApplicationPreservedFields preservedFields = 6;
+
+  repeated string goTemplateOptions = 7;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -572,6 +574,9 @@ message ApplicationStatus {
 
   // SourceTypes specifies the type of the sources included in the application
   repeated string sourceTypes = 12;
+
+  // ControllerNamespace indicates the namespace in which the application controller is located
+  optional string controllerNamespace = 13;
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
@@ -627,6 +632,17 @@ message BasicAuthBitbucketServer {
 
   // Password (or personal access token) reference.
   optional SecretRef passwordRef = 2;
+}
+
+// ChartDetails contains helm chart metadata for a specific version
+message ChartDetails {
+  optional string description = 1;
+
+  // The URL of this projects home page, e.g. "http://example.com"
+  optional string home = 2;
+
+  // List of maintainer details, name and email, e.g. ["John Doe <john_doe@my-company.com>"]
+  repeated string maintainers = 3;
 }
 
 // Cluster is the definition of a cluster resource
@@ -869,6 +885,9 @@ message GitGenerator {
   optional ApplicationSetTemplate template = 6;
 
   optional string pathParamPrefix = 7;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 8;
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key
@@ -1024,9 +1043,9 @@ message KustomizeReplica {
 message ListGenerator {
   repeated k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
 
-  optional string elementsYaml = 2;
+  optional ApplicationSetTemplate template = 2;
 
-  optional ApplicationSetTemplate template = 3;
+  optional string elementsYaml = 3;
 }
 
 message ManagedNamespaceMetadata {
@@ -1235,6 +1254,8 @@ message PullRequestGeneratorBitbucketServer {
 // pass for a pull request to be included.
 message PullRequestGeneratorFilter {
   optional string branchMatch = 1;
+
+  optional string targetBranchMatch = 2;
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
@@ -1753,6 +1774,28 @@ message SCMProviderGenerator {
   optional int64 requeueAfterSeconds = 9;
 
   optional ApplicationSetTemplate template = 10;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 11;
+
+  optional SCMProviderGeneratorAWSCodeCommit awsCodeCommit = 12;
+}
+
+// SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.
+message SCMProviderGeneratorAWSCodeCommit {
+  // TagFilters provides the tag filter(s) for repo discovery
+  repeated TagFilter tagFilters = 1;
+
+  // Role provides the AWS IAM role to assume, for cross-account repo discovery
+  // if not provided, AppSet controller will use its pod/node identity to discover.
+  optional string role = 2;
+
+  // Region provides the AWS region to discover repos.
+  // if not provided, AppSet controller will infer the current region from environment.
+  optional string region = 3;
+
+  // Scan all branches instead of just the default branch.
+  optional bool allBranches = 4;
 }
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
@@ -1954,6 +1997,9 @@ message SyncOperationResult {
 
   // Revisions holds the revision this sync operation was performed for respective indexed source in sources field
   repeated string revisions = 5;
+
+  // ManagedNamespaceMetadata contains the current sync state of managed namespace metadata
+  optional ManagedNamespaceMetadata managedNamespaceMetadata = 6;
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git
@@ -1976,7 +2022,7 @@ message SyncPolicyAutomated {
   // Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
   optional bool prune = 1;
 
-  // SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)
+  // SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)
   optional bool selfHeal = 2;
 
   // AllowEmpty allows apps have zero live resources (default: false)
@@ -2071,5 +2117,11 @@ message TLSClientConfig {
   // CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
   // CAData takes precedence over CAFile
   optional bytes caData = 5;
+}
+
+message TagFilter {
+  optional string key = 1;
+
+  optional string value = 2;
 }
 

@@ -57,7 +57,7 @@ metadata:
 data:
   my-styles.css: |
     .sidebar {
-      background-color:  #444;
+      background-color: #444;
     }
 ```
 
