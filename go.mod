@@ -26,7 +26,7 @@ require (
 	github.com/go-git/go-git/v5 v5.6.1
 	github.com/go-logr/logr v1.2.4
 	github.com/go-openapi/loads v0.21.2
-	github.com/go-openapi/runtime v0.25.0
+	github.com/go-openapi/runtime v0.26.0
 	github.com/go-redis/cache/v9 v9.0.0
 	github.com/gobwas/glob v0.2.3
 	github.com/gogits/go-gogs-client v0.0.0-20190616193657-5a05380e4bc2
@@ -121,7 +121,7 @@ require (
 	github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20210112200207-10ab4d695d60 // indirect
 	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
-	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
+	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -144,13 +144,13 @@ require (
 	github.com/go-git/go-billy/v5 v5.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
-	github.com/go-openapi/errors v0.20.2 // indirect
+	github.com/go-openapi/errors v0.20.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
-	github.com/go-openapi/spec v0.20.6 // indirect
-	github.com/go-openapi/strfmt v0.21.3 // indirect
-	github.com/go-openapi/swag v0.21.1 // indirect
-	github.com/go-openapi/validate v0.21.0 // indirect
+	github.com/go-openapi/spec v0.20.8 // indirect
+	github.com/go-openapi/strfmt v0.21.7 // indirect
+	github.com/go-openapi/swag v0.22.3 // indirect
+	github.com/go-openapi/validate v0.22.1 // indirect
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1 // indirect
 	github.com/golang/glog v1.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
@@ -218,7 +218,7 @@ require (
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca // indirect
-	go.mongodb.org/mongo-driver v1.10.0 // indirect
+	go.mongodb.org/mongo-driver v1.11.3 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.16.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.16.0 // indirect
 	go.opentelemetry.io/otel/metric v1.16.0 // indirect
