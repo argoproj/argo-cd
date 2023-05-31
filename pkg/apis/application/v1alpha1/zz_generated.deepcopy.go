@@ -658,6 +658,11 @@ func (in *ApplicationSetSpec) DeepCopyInto(out *ApplicationSetSpec) {
 		*out = new(ApplicationPreservedFields)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.GoTemplateOptions != nil {
+		in, out := &in.GoTemplateOptions, &out.GoTemplateOptions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
