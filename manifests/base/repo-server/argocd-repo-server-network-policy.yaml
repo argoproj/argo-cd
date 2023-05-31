@@ -7,18 +7,21 @@ spec:
     matchLabels:
       app.kubernetes.io/name: argocd-repo-server
   policyTypes:
-  - Ingress
+    - Ingress
   ingress:
     - from:
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: argocd-server
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: argocd-application-controller
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: argocd-notifications-controller
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: argocd-server
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: argocd-application-controller
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: argocd-notifications-controller
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: argocd-applicationset-controller
       ports:
         - protocol: TCP
           port: 8081

@@ -3,19 +3,6 @@ kind: Kustomization
 
 resources:
 - argocd-redis-deployment.yaml
-- argocd-redis-rolebinding.yaml
 - argocd-redis-sa.yaml
 - argocd-redis-service.yaml
 - argocd-redis-network-policy.yaml
-
-replacements:
-  - source:
-      kind: Service
-      name: argocd-redis
-      version: v1
-    targets:
-      - select:
-          kind: Deployment
-          name: argocd-redis
-        fieldPaths:
-          - spec.template.spec.containers.[name=redis].env.[name=ARGOCD_REDIS_SERVICE].value

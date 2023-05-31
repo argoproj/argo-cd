@@ -19,7 +19,7 @@ metadata:
 spec:
   accessTokenSkewMillis: 120000
   accessTokenTimeToLive: 1200000
-  authChainName: LoginService
+  authChainName: login-service
   clientId: argocd
   codeLastMileKeyName: lastmile-oidc
   codeTokenSkewMilis: 60000
