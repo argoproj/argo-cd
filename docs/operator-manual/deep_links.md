@@ -69,7 +69,7 @@ An example `argocd-cm.yaml` file with deep links and their variations :
       if: application.spec.project == "default"
     - url: https://{{.application.metadata.annotations.splunkhost}}?search={{.application.spec.destination.namespace}}
       title: Splunk
-      if: application.metadata.annotations.splunkhost
+      if: application.metadata.annotations.splunkhost != ""
   # sample resource level links
   resource.links: |
     - url: https://mycompany.splunk.com?search={{.resource.metadata.name}}&env={{.project.metadata.label.env}}
