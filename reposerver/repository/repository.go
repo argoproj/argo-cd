@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	secpath "github.com/cyphar/filepath-securejoin"
+
 	"github.com/golang/protobuf/ptypes/empty"
 
 	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
@@ -26,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
+	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
@@ -684,6 +687,18 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		// Much of the multi-source handling logic is duplicated in resolveReferencedSources. If making changes here,
 		// check whether they should be replicated in resolveReferencedSources.
 		if q.HasMultipleSources {
+
+			// At multiple sources we log the available sources
+			refKeys := make([]string, 0)
+			for refKey := range q.RefSources {
+				refKeys = append(refKeys, refKey)
+			}
+			log.WithFields(log.Fields{
+				"AppName": q.AppName,
+				"NameSpace": q.Namespace,
+				"KubeVersion": q.KubeVersion,
+			}).Debugf("Processing a multi-source repo, available references: %s", strings.Join(refKeys, ", "))
+
 			if q.ApplicationSource.Helm != nil {
 
 				// Checkout every one of the referenced sources to the target revision before generating Manifests
@@ -694,13 +709,10 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 						refSourceMapping, ok := q.RefSources[refVar]
 						if !ok {
 							if len(q.RefSources) == 0 {
-								ch.errCh <- fmt.Errorf("source referenced %q, but no source has a 'ref' field defined", refVar)
+								ch.errCh <- fmt.Errorf("source referenced %q, but no source has a 'ref' field defined, available sources: %s", refVar, strings.Join(refKeys, ", "))
+							} else {
+								ch.errCh <- fmt.Errorf("source referenced %q, which is not one of the available sources, available sources: %s", refVar, strings.Join(refKeys, ", "))
 							}
-							refKeys := make([]string, 0)
-							for refKey := range q.RefSources {
-								refKeys = append(refKeys, refKey)
-							}
-							ch.errCh <- fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
 							return
 						}
 						if refSourceMapping.Chart != "" {
@@ -767,7 +779,91 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 					}
 				}
 			}
+
+			// Before generating the manifests, copy any structure from references sources
+			// This is done for all types of sources, not just helm.
+
+			// If the applicationsource has declared any subtrees to be copied
+			for _, copySpec := range q.ApplicationSource.From {
+				// First resolve the referenced source repo
+				// ref is of type RefTarget
+
+				pathParts := strings.Split(copySpec.SourcePath, "/")
+				refVar := pathParts[0]
+				sourcePath := filepath.Join((pathParts[1:])...)
+				refSourceMapping, ok := q.RefSources[refVar]
+				if !ok {
+					if len(q.RefSources) == 0 {
+						ch.errCh <- fmt.Errorf("source in from referenced %q, but no source has a 'ref' field defined, available sources: %s", refVar, strings.Join(refKeys, ", "))
+					} else {
+						ch.errCh <- fmt.Errorf("source in from referenced %q, which is not one of the available sources, available sources: %s", refVar, strings.Join(refKeys, ", "))
+					}
+					return
+				}
+
+				if refSourceMapping.Chart != "" {
+					ch.errCh <- fmt.Errorf("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
+					return
+				}
+
+				// The ref is available, now - checking the tree out
+				normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
+
+				// Check whether the source ref in copyfrom is pointing at the current appsource
+				// Current AppSource's ref: q.Ref
+				if q.ApplicationSource.Ref == refVar {
+					ch.errCh <- fmt.Errorf("from cannot reference the ApplicationSource it's declared at: %s", q.ApplicationSource.Ref)
+					return
+				}
+
+				gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
+				if err != nil {
+					ch.errCh <- fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
+					return
+				}
+
+				if git.NormalizeGitURL(q.ApplicationSource.RepoURL) == normalizedRepoURL && commitSHA != referencedCommitSHA {
+					ch.errCh <- fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refVar, refSourceMapping.TargetRevision, referencedCommitSHA, q.Revision, commitSHA)
+					return
+				}
+				closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func() (goio.Closer, error) {
+					return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled)
+				})
+				if err != nil {
+					log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
+					ch.errCh <- err
+					return
+				}
+				defer func(closer goio.Closer) {
+					err := closer.Close()
+					if err != nil {
+						log.Errorf("Failed to release repo lock: %v", err)
+					}
+				}(closer)
+
+				// Collect the copy's input data
+				srcRepoRoot := gitClient.Root()
+				dstRepoRoot := repoRoot
+				log.WithFields(log.Fields{
+					"ref": refVar,
+					"srcpath": copySpec.SourcePath,
+					"dstpath": copySpec.DestinationPath,
+					"failOnOutOfBoundsSymlink": copySpec.FailOnOutOfBoundsSymlink,
+					"srcRepoRoot": srcRepoRoot,
+					"dstRepoRoot": dstRepoRoot,
+				}).Debug("Starting repo copy")
+
+				// do the copy
+				err = copyFilesystemSubtree(srcRepoRoot, sourcePath, dstRepoRoot, copySpec.DestinationPath, copySpec.FailOnOutOfBoundsSymlink)
+				if err != nil {
+					log.Errorf("Copy failed: %v", err)
+					ch.errCh <- err
+					return
+				}
+
+			}
 		}
+
 
 		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
 	}
@@ -1278,6 +1374,256 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 		if strings.HasPrefix(url, cred.URL) {
 			return cred
 		}
+	}
+	return nil
+}
+
+func copyFilesystemSubtree(srcRoot string, srcPath string, dstRoot string, dstPath string, failOnOutOfBoundsSymlink bool) error {
+	logCtx := log.WithFields(log.Fields{
+		"srcRoot": srcRoot,
+		"srcPath": srcPath,
+		"dstRoot": dstRoot,
+		"dstPath": dstPath,
+		"failOnOutOfBoundsSymlink": failOnOutOfBoundsSymlink,
+	})
+	logCtx.Debugf("copyFilesystemSubtree called")
+
+	// Absolute paths are disallowed:
+	if filepath.IsAbs(srcPath) {
+		logCtx.Errorf("copyFilesystemSubtree: srcPath is absolute")
+		return fmt.Errorf("Absolute paths for copy are not allowed: %s", srcPath)
+	}
+	if filepath.IsAbs(dstPath) {
+		logCtx.Errorf("copyFilesystemSubtree: dstPath is absolute")
+		return fmt.Errorf("Absolute paths for copy are not allowed: %s", dstPath)
+	}
+
+	// srcPath and dstPath has to be checked to be within bound of srcRoot and dstRoot
+
+	// First check whether the source file exists
+	// TODO: Once SecureJoin gets accepted to go stdlib, use that: https://github.com/golang/go/issues/20126
+	srcFullPath, err := secpath.SecureJoin(srcRoot, srcPath)
+	if err != nil {
+		logCtx.Errorf("SecureJoin(%s, %s) failed: %v", srcRoot, srcPath, err)
+		return err
+	}
+	srcStat, err := os.Lstat(srcFullPath)
+	logCtx = logCtx.WithFields(log.Fields{
+		"srcFullPath": srcFullPath,
+		"srcStat": srcStat,
+	})
+	if err != nil {
+		logCtx.Debugf("copyFilesystemSubtree: lstat failed: %v", err)
+		return err
+	}
+
+	// if the source is a symlink, we bail out, because it will certainly be out of bound
+	if srcStat.Mode() & fs.ModeSymlink > 0 {
+		logCtx.Debugf("copyFilesystemSubtree: lstat failed: %v", err)
+		return fmt.Errorf("Copy source is a symlink: %s", srcFullPath)
+	}
+
+	// Check whether the source path is within the source root
+	if err := argopath.CheckPathOutOfBound(srcRoot, "", srcPath); err != nil {
+		logCtx.Debugf("copyFilesystemSubtree: argopath.CheckPathOutOfBound failed: %v", err)
+		return err
+	}
+
+	// if we are in failOnOutOfBoundsSymlink mode, check for any out of bound symlinks
+	if failOnOutOfBoundsSymlink {
+		if err := argopath.CheckOutOfBoundsSymlinks(srcFullPath); err != nil {
+			logCtx.Debugf("copyFilesystemSubtree: srcFullPath contains OOB symlinks: %v", err)
+			return err
+		}
+	}
+
+	// Checking whether the destination exists
+	dstFullPath, err := secpath.SecureJoin(dstRoot, dstPath)
+	if err != nil {
+		logCtx.Errorf("SecureJoin(%s, %s) failed: %v", dstRoot, dstPath, err)
+		return err
+	}
+
+	dstStat, err := os.Lstat(dstFullPath)
+	dstExists := false
+	logCtx = logCtx.WithField("dstFullPath", dstFullPath)
+
+	// check destination to be within bounds:
+	if err == nil {
+		dstExists = true
+		// if the target exists check it
+		if err := argopath.CheckPathOutOfBound(dstRoot, "", dstPath); err != nil {
+			logCtx.Debugf("copyFilesystemSubtree: argopath.CheckPathOutOfBound failed: %v", err)
+			return err
+		}
+	} else if errors.Is(err, os.ErrNotExist) {
+		// if the destination doesn't yet exist, check its parent
+		if err := argopath.CheckPathOutOfBound(dstRoot, "", filepath.Dir(dstPath)); err != nil {
+			logCtx.WithField("filepath.Dir(dstPath)", filepath.Dir(dstPath)).Debugf("copyFilesystemSubtree: argopath.CheckPathOutOfBound failed: %v", err)
+			return err
+		}
+	} else {
+		return fmt.Errorf("Error while checking destination path: %v", err)
+	}
+
+	logCtx.WithFields(log.Fields{
+		"dstStat": dstStat,
+		"dstExists": dstExists,
+	}).Debug("copyFilesystemSubtree: checks passed, starting copy logic")
+
+	// if our source is just a single file
+	if srcStat.Mode().IsRegular() {
+		// in case the source is a regular file, we don't have to recurse
+		// Also, if the dst already exists, it's an error
+
+		dstFile := dstFullPath
+		// if the destination exists, it has to be a directory
+		if dstExists {
+			// if it's already there, it has to be a directory
+			if !dstStat.Mode().IsDir() {
+				return fmt.Errorf("Copy destination exists, and it's not a directory")
+			}
+		} else {
+			dstDir := filepath.Dir(dstFullPath)
+			// destination directory doesn't exist
+			if err := os.MkdirAll(dstDir, 0755); err != nil {
+				logCtx.Debugf("copyFilesystemSubtree: os.MkdirAll failed: %v", err)
+				return err
+			}
+
+			// fetch the source file's name
+			fname := filepath.Base(dstFullPath)
+			if fname == "." || fname == string(os.PathSeparator) {
+				logCtx.Errorf("copyFilesystemSubtree: filepath.Base failed: %v", err)
+				return fmt.Errorf("Unable to extract source file's name")
+			}
+
+			dstFile, err = secpath.SecureJoin(dstDir, fname)
+			if err != nil {
+				logCtx.Errorf("SecureJoin(%s, %s) failed: %v", dstDir, fname, err)
+				return err
+			}
+		}
+		// Now copy the file over
+		if err := argoutil.CopyFile(srcFullPath, dstFile, 0644); err != nil {
+			logCtx.Errorf("copyFilesystemSubtree: CopyFile failed: %v", err)
+			return err
+		}
+	} else if srcStat.Mode().IsDir() {
+		// now we are copying a directory
+
+		// Make sure that the destination directory exists
+		if err := os.MkdirAll(dstFullPath, 0755); err != nil {
+			logCtx.Debugf("copyFilesystemSubtree: os.MkdirAll failed: %v", err)
+			return err
+		}
+
+		// Copy the content of the source directory to the destination dir
+		err = filepath.WalkDir(srcFullPath, func(path string, d fs.DirEntry, err error) error {
+			return copyFilesystemSubtreeWalker(srcFullPath, dstFullPath, failOnOutOfBoundsSymlink, path, d, err)
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Copy src is neither a file or a directory")
+	}
+	return nil
+}
+
+func copyFilesystemSubtreeWalker(srcFullPath string, dstFullPath string, failOnOutOfBoundsSymlink bool, path string, d fs.DirEntry, err error) error {
+	// we propagate encountered errors
+	if err != nil {
+		return err
+	}
+	logCtx := log.WithFields(log.Fields{
+		"srcFullPath": srcFullPath,
+		"dstFullPath": dstFullPath,
+		"path": path,
+	})
+
+	logCtx.Debug("CopyFrom processing entry")
+
+	// first get the relative path of the current entry to srcFullPath:
+	relpath, err := filepath.Rel(srcFullPath, path)
+	if err != nil {
+		logCtx.Errorf("CopyFrom cannot get relpath: %v", err)
+		return err
+	}
+
+	targetPath, err := secpath.SecureJoin(dstFullPath, relpath)
+	if err != nil {
+		logCtx.Errorf("SecureJoin(%s, %s) failed: %v", dstFullPath, relpath, err)
+		return err
+	}
+	logCtx = logCtx.WithFields(log.Fields{
+		"targetPath": targetPath,
+		"relpath": relpath,
+	})
+
+	// if it's a directory, then we have to create it
+	// files are to be copied
+	// symlinks checked
+	// rest ignored
+	if d.IsDir() {
+		if err := os.Mkdir(targetPath, 0755); err != nil && dstFullPath != targetPath {
+			logCtx.Errorf("CopyFrom mkdir failed: %v", err)
+			return err
+		}
+		logCtx.Debug("CopyFrom directory created")
+		return nil
+	} else if d.Type().IsRegular() {
+		// regular files are copied with CopyFile.
+		// Since it's a linear recursive walk on the fs, we can expect
+		// the parent directories to exist already
+
+		if err = argoutil.CopyFile(path, targetPath, 0644); err != nil {
+			logCtx.Errorf("CopyFrom CopyFile failed: %v", err)
+			return err
+		}
+		logCtx.Debug("CopyFrom file copied")
+		return nil
+	} else if d.Type() & os.ModeSymlink > 0 {
+		// in failOnOutOfBoundsSymlink mode symlinks already have been checked
+		// in !failOnOutOfBoundsSymlink we check the individually, and if they are OOB,
+		// we ignore them
+		if !failOnOutOfBoundsSymlink {
+			// we need to stat it, becaus I've found no way to get to os/fs.FileInfo from
+			// os/fs.DirInfo
+			srcStat, err := os.Lstat(path)
+			if err != nil {
+				logCtx.Errorf("CopyFrom unable to stat file: %v", err)
+				return err
+			}
+			//srcLinkPath := filepath.Join(srcFullPath, relpath)
+			srcLinkPath, err := secpath.SecureJoin(srcFullPath, relpath)
+			if err != nil {
+				logCtx.Errorf("SecureJoin(%s, %s) failed: %v", srcFullPath, relpath, err)
+				return err
+			}
+			if err = argopath.CheckSymlinkOutOfBound(srcFullPath, srcLinkPath, srcStat); err != nil {
+				logCtx.Warnf("CopyFrom Out-Of-Bound symlink skipped: %v", err)
+				return nil
+			}
+		}
+
+		linkTarget, err := os.Readlink(path)
+		if err != nil {
+			logCtx.Errorf("CopyFrom Readlink failed: %v", err)
+			return err
+		}
+		if err = os.Symlink(linkTarget, targetPath); err != nil {
+			logCtx.WithFields(log.Fields{
+				"linkTarget": linkTarget,
+			}).Errorf("CopyFrom Symlink failed: %v", err)
+			return err
+		}
+		logCtx.WithFields(log.Fields{
+			"linkTarget": linkTarget,
+		}).Debug("CopyFrom symlink created")
+		return nil
+	} else {
+		logCtx.Debug("CopyFrom ignored")
 	}
 	return nil
 }

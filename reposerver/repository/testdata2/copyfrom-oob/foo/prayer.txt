@@ -1,0 +1,6 @@
+Our BOfH, who art in console, Hallowed be thy root. Thy kernel come.
+Let thy kill -9 be done, On localhost as in NFS-server.  Give us this
+day our daily quota. And forgive us our malloc(), As we forgive those
+who have flooded against us. And don't let us bruteforce /etc/shadow,
+But deliver us to runlevel 5. For thine is the access to Vortex,
+ /dev/tty, and the inetd, for ever and ever. su.

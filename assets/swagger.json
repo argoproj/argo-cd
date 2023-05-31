@@ -6059,6 +6059,13 @@
         "directory": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
         },
+        "from": {
+          "description": "From is a list of filesystem objects that is to be copied into this source's tree. Only used within a `sources` tag.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1CopyFromSpec"
+          }
+        },
         "helm": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
         },
@@ -6755,6 +6762,24 @@
         "status": {
           "type": "string",
           "title": "Status contains the current status indicator for the connection"
+        }
+      }
+    },
+    "v1alpha1CopyFromSpec": {
+      "type": "object",
+      "title": "CopyFromSpec defines a copy declaration from another source into this one",
+      "properties": {
+        "destinationPath": {
+          "description": "DestinationPath is the destination directory at the current repository where the object will be copied to.",
+          "type": "string"
+        },
+        "failOnOutOfBoundsSymlink": {
+          "type": "boolean",
+          "title": "FailOnOutOfBoundsSymlink mode makes the complete operation error out if a single symlink is out-of-bound within the subtree"
+        },
+        "sourcePath": {
+          "type": "string",
+          "title": "SourcePath is the path from the Ref'd repository, the source of the copy operation.\nIt's syntax is matching helmValue's, $ref/path"
         }
       }
     },

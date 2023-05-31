@@ -16,6 +16,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"reflect"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -28,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
+	argopath "github.com/argoproj/argo-cd/v2/util/app/path"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
@@ -3053,6 +3055,149 @@ func TestGetGitFiles(t *testing.T) {
 	fileResponse, err = s.GetGitFiles(context.TODO(), filesRequest)
 	assert.Nil(t, err)
 	assert.Equal(t, expected, fileResponse.GetMap())
+}
+
+func Test_copyFilesystemSubtree(t *testing.T) {
+	testCases := []struct {
+		testName string
+		srcRoot string
+		srcPath string
+		dstPath string
+		failOnOutOfBoundsSymlink bool
+		shouldFail bool
+		ooblinks []string
+	}{
+		{testName: "OK-failOnOutOfBoundsSymlink",
+			srcRoot: "testdata2/",
+			srcPath: "copyfrom-ok",
+			dstPath: "dst-dir",
+			failOnOutOfBoundsSymlink: true,
+			shouldFail: false,
+		},
+		{testName: "OK-softfail",
+			srcRoot: "testdata2/",
+			srcPath: "copyfrom-ok",
+			dstPath: "dst-dir",
+			failOnOutOfBoundsSymlink: false,
+			shouldFail: false,
+		},
+		{testName: "File",
+			srcRoot: "testdata2/",
+			srcPath: "copyfrom-file",
+			dstPath: "dst-file.txt",
+			failOnOutOfBoundsSymlink: false,
+			shouldFail: false,
+		},
+		{testName: "OOB-failOnOutOfBoundsSymlink",
+			srcRoot: "testdata2/",
+			srcPath: "copyfrom-oob",
+			dstPath: "dst-dir",
+			failOnOutOfBoundsSymlink: true,
+			shouldFail: true,
+		},
+		{testName: "OOB-softfail",
+			srcRoot: "testdata2/",
+			srcPath: "copyfrom-oob",
+			dstPath: "dst-dir",
+			failOnOutOfBoundsSymlink: false,
+			shouldFail: false,
+		},
+		{testName: "OOB-directory",
+			srcRoot: "testdata2/",
+			srcPath: "copyfrom-ok",
+			dstPath: "dst-dir/b/../../../c",
+			failOnOutOfBoundsSymlink: false,
+			shouldFail: true,
+		},
+		{testName: "OK-multilevel",
+			srcRoot: "testdata2/",
+			srcPath: "copyfrom-ok",
+			dstPath: "dst-dir/a/b/c",
+			failOnOutOfBoundsSymlink: false,
+			shouldFail: false,
+		},
+	}
+
+	// check the testdir first
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Unable to get cwd: %v", err)
+	}
+
+	for _, testCase := range testCases {
+		tmpdir, err := os.MkdirTemp("testdata2", "copyfrom-test-")
+		if err != nil {
+			t.Fatalf("[%s] failed to create temporary directory: %v", testCase.testName, err)
+		}
+		defer os.RemoveAll(tmpdir)
+		tmpdirFull := filepath.Join(cwd, tmpdir)
+
+		err = copyFilesystemSubtree(testCase.srcRoot, testCase.srcPath,
+			tmpdirFull, testCase.dstPath, testCase.failOnOutOfBoundsSymlink)
+		if err != nil {
+			if !testCase.shouldFail {
+				t.Fatalf("[%s] copyFileSystemSubtree failed: %v", testCase.testName, err)
+			}
+			continue
+		}
+
+		// our test is good, now compare the resulting structures
+		srcStruct, err := getDirListing(filepath.Join(testCase.srcRoot, testCase.srcPath))
+		if err != nil {
+			t.Fatalf("[%s] Cannot get getDirListing for src: %v", testCase.testName, err)
+		}
+		dstStruct, err := getDirListing(filepath.Join(tmpdirFull, testCase.dstPath))
+		if err != nil {
+			t.Fatalf("[%s] Cannot get getDirListing for dst: %v", testCase.testName, err)
+		}
+		if !reflect.DeepEqual(srcStruct, dstStruct) {
+			t.Fatalf("[%s] Results are different: %v | %v", testCase.testName, srcStruct, dstStruct)
+		}
+	}
+}
+
+func getDirListing(dir string) ([]string, error) {
+	var ret []string
+
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relpath, err := filepath.Rel(dir, path)
+		if err != nil {
+			return fmt.Errorf("Cannot get Rel(%s, %s): %v", dir, path, err)
+		}
+		if d.IsDir() {
+			ret = append(ret, fmt.Sprintf("dir:%s", relpath))
+		} else if d.Type().IsRegular() {
+			ret = append(ret, fmt.Sprintf("file:%s", relpath))
+		} else if d.Type()&os.ModeSymlink>0 {
+			// first check whether it's oob
+			srcStat, err := os.Lstat(path)
+			if err != nil {
+				return fmt.Errorf("lstat %s: %v", path, err)
+			}
+			srcLinkPath := filepath.Join(dir, path)
+			if err = argopath.CheckSymlinkOutOfBound(dir, srcLinkPath, srcStat); err != nil {
+				return nil
+			}
+			// then add it to the result
+			tgt, err := os.Readlink(path)
+			if err != nil {
+				return fmt.Errorf("Unable to read symlink %s: %v", path, err)
+			}
+			ret = append(ret, fmt.Sprintf("link:%s:%s", relpath, tgt))
+		} else {
+			return fmt.Errorf("DirType shouldn't be here: %s (%s)", d.Type(), path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return ret, nil
 }
 
 func Test_getRepoSanitizerRegex(t *testing.T) {

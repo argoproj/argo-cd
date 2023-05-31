@@ -66,6 +66,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ComponentParameter":                  schema_pkg_apis_application_v1alpha1_ComponentParameter(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigManagementPlugin":              schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConnectionState":                     schema_pkg_apis_application_v1alpha1_ConnectionState(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.CopyFromSpec":                        schema_pkg_apis_application_v1alpha1_CopyFromSpec(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DuckTypeGenerator":                   schema_pkg_apis_application_v1alpha1_DuckTypeGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.EnvEntry":                            schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ExecProviderConfig":                  schema_pkg_apis_application_v1alpha1_ExecProviderConfig(ref),
@@ -1482,12 +1483,26 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 							Format:      "",
 						},
 					},
+					"from": {
+						SchemaProps: spec.SchemaProps{
+							Description: "From is a list of filesystem objects that is to be copied into this source's tree. Only used within a `sources` tag.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.CopyFromSpec"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"repoURL"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceDirectory", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceHelm", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceKustomize", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourcePlugin"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceDirectory", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceHelm", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceKustomize", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourcePlugin", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.CopyFromSpec"},
 	}
 }
 
@@ -2905,6 +2920,43 @@ func schema_pkg_apis_application_v1alpha1_ConnectionState(ref common.ReferenceCa
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_CopyFromSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CopyFromSpec defines a copy declaration from another source into this one",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"sourcePath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SourcePath is the path from the Ref'd repository, the source of the copy operation. It's syntax is matching helmValue's, $ref/path",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"destinationPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DestinationPath is the destination directory at the current repository where the object will be copied to.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"failOnOutOfBoundsSymlink": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FailOnOutOfBoundsSymlink mode makes the complete operation error out if a single symlink is out-of-bound within the subtree",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"sourcePath", "destinationPath"},
+			},
+		},
 	}
 }
 

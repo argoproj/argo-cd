@@ -128,7 +128,7 @@ Run the tests
 In another shell, do a port-forward to the API server's service:
 
 ```shell
-kubectl -n argocd-e2e port-forward svc/argocd-server 443:4443
+kubectl -n argocd-e2e port-forward svc/argocd-server 4443:443
 ```
 
 Set Argo CD Server port:
@@ -140,7 +140,7 @@ export ARGOCD_SERVER=127.0.0.1:4443
 Set the admin password to use:
 
 ```shell
-export ARGOCD_E2E_ADMIN_PASSWORD=$(kubectl get secrets argocd-initial-admin-secret -o jsonpath='{.data.password}'|base64 -d)
+export ARGOCD_E2E_ADMIN_PASSWORD=$(kubectl -n argocd-e2e get secrets argocd-initial-admin-secret -o jsonpath='{.data.password}'|base64 -d)
 ```
 
 Run the tests

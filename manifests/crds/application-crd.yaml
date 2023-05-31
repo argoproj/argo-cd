@@ -222,6 +222,34 @@ spec:
                               recursively for manifests
                             type: boolean
                         type: object
+                      from:
+                        description: From is a list of filesystem objects that is
+                          to be copied into this source's tree. Only used within a
+                          `sources` tag.
+                        items:
+                          description: CopyFromSpec defines a copy declaration from
+                            another source into this one
+                          properties:
+                            destinationPath:
+                              description: DestinationPath is the destination directory
+                                at the current repository where the object will be
+                                copied to.
+                              type: string
+                            failOnOutOfBoundsSymlink:
+                              description: FailOnOutOfBoundsSymlink mode makes the
+                                complete operation error out if a single symlink is
+                                out-of-bound within the subtree
+                              type: boolean
+                            sourcePath:
+                              description: SourcePath is the path from the Ref'd repository,
+                                the source of the copy operation. It's syntax is matching
+                                helmValue's, $ref/path
+                              type: string
+                          required:
+                          - destinationPath
+                          - sourcePath
+                          type: object
+                        type: array
                       helm:
                         description: Helm holds helm specific options
                         properties:
@@ -510,6 +538,34 @@ spec:
                                 recursively for manifests
                               type: boolean
                           type: object
+                        from:
+                          description: From is a list of filesystem objects that is
+                            to be copied into this source's tree. Only used within
+                            a `sources` tag.
+                          items:
+                            description: CopyFromSpec defines a copy declaration from
+                              another source into this one
+                            properties:
+                              destinationPath:
+                                description: DestinationPath is the destination directory
+                                  at the current repository where the object will
+                                  be copied to.
+                                type: string
+                              failOnOutOfBoundsSymlink:
+                                description: FailOnOutOfBoundsSymlink mode makes the
+                                  complete operation error out if a single symlink
+                                  is out-of-bound within the subtree
+                                type: boolean
+                              sourcePath:
+                                description: SourcePath is the path from the Ref'd
+                                  repository, the source of the copy operation. It's
+                                  syntax is matching helmValue's, $ref/path
+                                type: string
+                            required:
+                            - destinationPath
+                            - sourcePath
+                            type: object
+                          type: array
                         helm:
                           description: Helm holds helm specific options
                           properties:
@@ -918,6 +974,34 @@ spec:
                           recursively for manifests
                         type: boolean
                     type: object
+                  from:
+                    description: From is a list of filesystem objects that is to be
+                      copied into this source's tree. Only used within a `sources`
+                      tag.
+                    items:
+                      description: CopyFromSpec defines a copy declaration from another
+                        source into this one
+                      properties:
+                        destinationPath:
+                          description: DestinationPath is the destination directory
+                            at the current repository where the object will be copied
+                            to.
+                          type: string
+                        failOnOutOfBoundsSymlink:
+                          description: FailOnOutOfBoundsSymlink mode makes the complete
+                            operation error out if a single symlink is out-of-bound
+                            within the subtree
+                          type: boolean
+                        sourcePath:
+                          description: SourcePath is the path from the Ref'd repository,
+                            the source of the copy operation. It's syntax is matching
+                            helmValue's, $ref/path
+                          type: string
+                      required:
+                      - destinationPath
+                      - sourcePath
+                      type: object
+                    type: array
                   helm:
                     description: Helm holds helm specific options
                     properties:
@@ -1197,6 +1281,34 @@ spec:
                             recursively for manifests
                           type: boolean
                       type: object
+                    from:
+                      description: From is a list of filesystem objects that is to
+                        be copied into this source's tree. Only used within a `sources`
+                        tag.
+                      items:
+                        description: CopyFromSpec defines a copy declaration from
+                          another source into this one
+                        properties:
+                          destinationPath:
+                            description: DestinationPath is the destination directory
+                              at the current repository where the object will be copied
+                              to.
+                            type: string
+                          failOnOutOfBoundsSymlink:
+                            description: FailOnOutOfBoundsSymlink mode makes the complete
+                              operation error out if a single symlink is out-of-bound
+                              within the subtree
+                            type: boolean
+                          sourcePath:
+                            description: SourcePath is the path from the Ref'd repository,
+                              the source of the copy operation. It's syntax is matching
+                              helmValue's, $ref/path
+                            type: string
+                        required:
+                        - destinationPath
+                        - sourcePath
+                        type: object
+                      type: array
                     helm:
                       description: Helm holds helm specific options
                       properties:
@@ -1628,6 +1740,34 @@ spec:
                                 recursively for manifests
                               type: boolean
                           type: object
+                        from:
+                          description: From is a list of filesystem objects that is
+                            to be copied into this source's tree. Only used within
+                            a `sources` tag.
+                          items:
+                            description: CopyFromSpec defines a copy declaration from
+                              another source into this one
+                            properties:
+                              destinationPath:
+                                description: DestinationPath is the destination directory
+                                  at the current repository where the object will
+                                  be copied to.
+                                type: string
+                              failOnOutOfBoundsSymlink:
+                                description: FailOnOutOfBoundsSymlink mode makes the
+                                  complete operation error out if a single symlink
+                                  is out-of-bound within the subtree
+                                type: boolean
+                              sourcePath:
+                                description: SourcePath is the path from the Ref'd
+                                  repository, the source of the copy operation. It's
+                                  syntax is matching helmValue's, $ref/path
+                                type: string
+                            required:
+                            - destinationPath
+                            - sourcePath
+                            type: object
+                          type: array
                         helm:
                           description: Helm holds helm specific options
                           properties:
@@ -1919,6 +2059,34 @@ spec:
                                   recursively for manifests
                                 type: boolean
                             type: object
+                          from:
+                            description: From is a list of filesystem objects that
+                              is to be copied into this source's tree. Only used within
+                              a `sources` tag.
+                            items:
+                              description: CopyFromSpec defines a copy declaration
+                                from another source into this one
+                              properties:
+                                destinationPath:
+                                  description: DestinationPath is the destination
+                                    directory at the current repository where the
+                                    object will be copied to.
+                                  type: string
+                                failOnOutOfBoundsSymlink:
+                                  description: FailOnOutOfBoundsSymlink mode makes
+                                    the complete operation error out if a single symlink
+                                    is out-of-bound within the subtree
+                                  type: boolean
+                                sourcePath:
+                                  description: SourcePath is the path from the Ref'd
+                                    repository, the source of the copy operation.
+                                    It's syntax is matching helmValue's, $ref/path
+                                  type: string
+                              required:
+                              - destinationPath
+                              - sourcePath
+                              type: object
+                            type: array
                           helm:
                             description: Helm holds helm specific options
                             properties:
@@ -2352,6 +2520,34 @@ spec:
                                       a directory recursively for manifests
                                     type: boolean
                                 type: object
+                              from:
+                                description: From is a list of filesystem objects
+                                  that is to be copied into this source's tree. Only
+                                  used within a `sources` tag.
+                                items:
+                                  description: CopyFromSpec defines a copy declaration
+                                    from another source into this one
+                                  properties:
+                                    destinationPath:
+                                      description: DestinationPath is the destination
+                                        directory at the current repository where
+                                        the object will be copied to.
+                                      type: string
+                                    failOnOutOfBoundsSymlink:
+                                      description: FailOnOutOfBoundsSymlink mode makes
+                                        the complete operation error out if a single
+                                        symlink is out-of-bound within the subtree
+                                      type: boolean
+                                    sourcePath:
+                                      description: SourcePath is the path from the
+                                        Ref'd repository, the source of the copy operation.
+                                        It's syntax is matching helmValue's, $ref/path
+                                      type: string
+                                  required:
+                                  - destinationPath
+                                  - sourcePath
+                                  type: object
+                                type: array
                               helm:
                                 description: Helm holds helm specific options
                                 properties:
@@ -2660,6 +2856,36 @@ spec:
                                         a directory recursively for manifests
                                       type: boolean
                                   type: object
+                                from:
+                                  description: From is a list of filesystem objects
+                                    that is to be copied into this source's tree.
+                                    Only used within a `sources` tag.
+                                  items:
+                                    description: CopyFromSpec defines a copy declaration
+                                      from another source into this one
+                                    properties:
+                                      destinationPath:
+                                        description: DestinationPath is the destination
+                                          directory at the current repository where
+                                          the object will be copied to.
+                                        type: string
+                                      failOnOutOfBoundsSymlink:
+                                        description: FailOnOutOfBoundsSymlink mode
+                                          makes the complete operation error out if
+                                          a single symlink is out-of-bound within
+                                          the subtree
+                                        type: boolean
+                                      sourcePath:
+                                        description: SourcePath is the path from the
+                                          Ref'd repository, the source of the copy
+                                          operation. It's syntax is matching helmValue's,
+                                          $ref/path
+                                        type: string
+                                    required:
+                                    - destinationPath
+                                    - sourcePath
+                                    type: object
+                                  type: array
                                 helm:
                                   description: Helm holds helm specific options
                                   properties:
@@ -3092,6 +3318,34 @@ spec:
                                   recursively for manifests
                                 type: boolean
                             type: object
+                          from:
+                            description: From is a list of filesystem objects that
+                              is to be copied into this source's tree. Only used within
+                              a `sources` tag.
+                            items:
+                              description: CopyFromSpec defines a copy declaration
+                                from another source into this one
+                              properties:
+                                destinationPath:
+                                  description: DestinationPath is the destination
+                                    directory at the current repository where the
+                                    object will be copied to.
+                                  type: string
+                                failOnOutOfBoundsSymlink:
+                                  description: FailOnOutOfBoundsSymlink mode makes
+                                    the complete operation error out if a single symlink
+                                    is out-of-bound within the subtree
+                                  type: boolean
+                                sourcePath:
+                                  description: SourcePath is the path from the Ref'd
+                                    repository, the source of the copy operation.
+                                    It's syntax is matching helmValue's, $ref/path
+                                  type: string
+                              required:
+                              - destinationPath
+                              - sourcePath
+                              type: object
+                            type: array
                           helm:
                             description: Helm holds helm specific options
                             properties:
@@ -3391,6 +3645,34 @@ spec:
                                     directory recursively for manifests
                                   type: boolean
                               type: object
+                            from:
+                              description: From is a list of filesystem objects that
+                                is to be copied into this source's tree. Only used
+                                within a `sources` tag.
+                              items:
+                                description: CopyFromSpec defines a copy declaration
+                                  from another source into this one
+                                properties:
+                                  destinationPath:
+                                    description: DestinationPath is the destination
+                                      directory at the current repository where the
+                                      object will be copied to.
+                                    type: string
+                                  failOnOutOfBoundsSymlink:
+                                    description: FailOnOutOfBoundsSymlink mode makes
+                                      the complete operation error out if a single
+                                      symlink is out-of-bound within the subtree
+                                    type: boolean
+                                  sourcePath:
+                                    description: SourcePath is the path from the Ref'd
+                                      repository, the source of the copy operation.
+                                      It's syntax is matching helmValue's, $ref/path
+                                    type: string
+                                required:
+                                - destinationPath
+                                - sourcePath
+                                type: object
+                              type: array
                             helm:
                               description: Helm holds helm specific options
                               properties:
@@ -3805,6 +4087,34 @@ spec:
                                   recursively for manifests
                                 type: boolean
                             type: object
+                          from:
+                            description: From is a list of filesystem objects that
+                              is to be copied into this source's tree. Only used within
+                              a `sources` tag.
+                            items:
+                              description: CopyFromSpec defines a copy declaration
+                                from another source into this one
+                              properties:
+                                destinationPath:
+                                  description: DestinationPath is the destination
+                                    directory at the current repository where the
+                                    object will be copied to.
+                                  type: string
+                                failOnOutOfBoundsSymlink:
+                                  description: FailOnOutOfBoundsSymlink mode makes
+                                    the complete operation error out if a single symlink
+                                    is out-of-bound within the subtree
+                                  type: boolean
+                                sourcePath:
+                                  description: SourcePath is the path from the Ref'd
+                                    repository, the source of the copy operation.
+                                    It's syntax is matching helmValue's, $ref/path
+                                  type: string
+                              required:
+                              - destinationPath
+                              - sourcePath
+                              type: object
+                            type: array
                           helm:
                             description: Helm holds helm specific options
                             properties:
@@ -4104,6 +4414,34 @@ spec:
                                     directory recursively for manifests
                                   type: boolean
                               type: object
+                            from:
+                              description: From is a list of filesystem objects that
+                                is to be copied into this source's tree. Only used
+                                within a `sources` tag.
+                              items:
+                                description: CopyFromSpec defines a copy declaration
+                                  from another source into this one
+                                properties:
+                                  destinationPath:
+                                    description: DestinationPath is the destination
+                                      directory at the current repository where the
+                                      object will be copied to.
+                                    type: string
+                                  failOnOutOfBoundsSymlink:
+                                    description: FailOnOutOfBoundsSymlink mode makes
+                                      the complete operation error out if a single
+                                      symlink is out-of-bound within the subtree
+                                    type: boolean
+                                  sourcePath:
+                                    description: SourcePath is the path from the Ref'd
+                                      repository, the source of the copy operation.
+                                      It's syntax is matching helmValue's, $ref/path
+                                    type: string
+                                required:
+                                - destinationPath
+                                - sourcePath
+                                type: object
+                              type: array
                             helm:
                               description: Helm holds helm specific options
                               properties:

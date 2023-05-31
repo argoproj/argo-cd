@@ -71,3 +71,107 @@ at that URL. If the `path` field is not set, Argo CD will use the repository sol
 !!! note
     Sources with the `ref` field set must not also specify the `chart` field. Argo CD does not currently support using  
     another Helm chart as a source for value files.
+
+## Copying files across sources
+
+In some cases the builtin helm, kustomize or directory processing cannot be used due to the utilization of Config Management Plugins (CMPs).
+In these cases the `helm.valueFiles` referencing of different sources cannot be used, therefore files has to be made accessable using different
+means. Currently this is being done by a `from:` section in the source.
+
+The `from:` section is a list with the following elements:
+
+```yaml
+from:
+  - sourcePath: $reporef/from/here
+    destinationPath: to/here
+    failOnOutOfBoundsSymlink: true
+```
+
+The meaning of the fields:
+
+1. `ref`: (required) This is the referenced repository, the referenced name has to be prefix with a dollar(`$`) sign. This repository will be the source of the copy operation.
+1. `sourcePath`: (required) The path relative to the referenced source's repository's root directory. The file or directory specified by this path will be copied.
+1. `destinationPath`: (required) The path relative to the current application's repository's directory, this will be the destination of the copy
+1. `failOnOutOfBoundsSymlink`: (optional) Marks the handling of out-of-bound symlinks. If `failOnOutOfBoundsSymlink` is `true` then processing will error out if any out-of-bound symlinks are encountered. If it's `false`, then these will be ignored, and a warning logged about them. Default is `false`.
+
+For the git repositories, the `path` field is ignored for copy operations, the `sourcePath` and `destinationPath` is relative to the repository's root.
+
+### Example: Copying a single file, with plugin processing
+
+In this example there's a helm chart, and it's parameterized with with a values file from another repository, to be processed by a plugin.
+
+```yaml
+spec:
+  sources:
+    - repoURL: http://my/repo.git
+      targetRevision: master
+      ref: valuesrepo
+    - repoURL: http://helm.example/
+      targetRevision: 42.0.1
+      chart: example-chart
+      plugin:
+        env:
+          - name: VALUES
+            value: env-values.yaml
+      from:
+        - sourcePath: "$valuesrepo/dev/values.yaml"
+          destinationPath: "env-values.yaml"
+```
+
+The `valuesrepo` has the following layout, relative to the repo root:
+
+```
+.
+dev
+dev/values.yaml
+```
+
+The result will be `$valuesrepo/dev/values.yaml` copied over to the helm repository's root as `env-values.yaml`.
+
+The plugin section tells the plugin about the location and name of the extra values file in an environment variable, and using that it's passed as `helm template (...) -f $ARGOCD_ENV_VALUES | our-faveorite-plugin`, and thus our manifest is generated in a multisource setup, processed through a plugin.
+
+
+### Copying a directory structure
+
+The following example copies a complete directory structure over.
+
+Relevant part of the Application specification:
+
+```yaml
+spec:
+  sources:
+    - repoURL: http://my/repo.git
+      targetRevision: master
+      ref: valuesrepo
+    - repoURL: http://helm.example/
+      targetRevision: 42.0.1
+      chart: example-chart
+      from:
+        - sourcePath: "$valuesrepo/copyfrom-oob"
+          destinationPath: "dst-dir"
+          failOnOutOfBoundsSymlink: false
+```
+
+The layout of the source repository is the following:
+```
+./copyfrom-oob
+./copyfrom-oob/baz
+./copyfrom-oob/baz/boo -> ../../oob/nice
+./copyfrom-oob/foo
+./copyfrom-oob/foo/prayer.txt
+./copyfrom-oob/foo/bar
+```
+
+The structure at the destination will be the following:
+```
+./
+./dst-dir
+./dst-dir/baz
+./dst-dir/foo
+./dst-dir/foo/prayer.txt
+./dst-dir/foo/bar
+```
+
+The directory marked at `sourcePath` will be copied over to the target repository under the name marked as `destinationPath`.
+
+Please note that the `baz/boo` symlink is not present at the directory, because that was out-of-bound. If `failOnOutOfBoundsSymlink: true` is set, then the processing of this entry would have errored out instead.
