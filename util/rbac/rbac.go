@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -394,14 +395,27 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 	log.Info("rbac configmap informer cancelled")
 }
 
+// PolicyCSV will generate the final policy csv to be used
+// by Argo CD RBAC. It will find entries in the given data
+// that matches the policy key name convention:
+//
+//	policy[.overlay].csv
 func PolicyCSV(data map[string]string) string {
 	var strBuilder strings.Builder
 	// add the main policy first
 	if p, ok := data[ConfigMapPolicyCSVKey]; ok {
 		strBuilder.WriteString(p)
 	}
+
+	keys := make([]string, 0, len(data))
+	for k := range data {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	// append additional policies at the end of the csv
-	for key, value := range data {
+	for _, key := range keys {
+		value := data[key]
 		if strings.HasPrefix(key, "policy.") &&
 			strings.HasSuffix(key, ".csv") &&
 			key != ConfigMapPolicyCSVKey {

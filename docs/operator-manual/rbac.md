@@ -177,8 +177,13 @@ It is possible to provide additional entries in the `argocd-rbac-cm`
 configmap to compose the final policy csv. In this case the key must
 follow the pattern `policy.<any string>.csv`. Argo CD will concatenate
 all additional policies it finds with this pattern below the main one
-('policy.csv'). This is useful to allow composing policies in config
-management tools like Kustomize, Helm, etc.
+('policy.csv'). The order of additional provided policies are
+determined by the key string. Example: if two additional policies are
+provided with keys `policy.A.csv` and `policy.B.csv`, it will first
+concatenate `policy.A.csv` and then `policy.B.csv`.
+
+This is useful to allow composing policies in config management tools
+like Kustomize, Helm, etc.
 
 The example below shows how a Kustomize patch can be provided in an
 overlay to add additional configuration to an existing RBAC policy.

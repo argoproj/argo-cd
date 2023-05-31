@@ -3,6 +3,7 @@ package rbac
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -82,6 +83,26 @@ func TestPolicyCSV(t *testing.T) {
 		assert.Regexp(t, "^policy1", policy)
 		assert.Contains(t, policy, "policy2")
 		assert.Contains(t, policy, "policy3")
+	})
+	t.Run("will return composed policy in a deterministic order", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		data["UnrelatedKey"] = "unrelated value"
+		data["policy.B.csv"] = "policyb"
+		data["policy.A.csv"] = "policya"
+		data["policy.C.csv"] = "policyc"
+		data[ConfigMapPolicyCSVKey] = "policy1"
+
+		// when
+		policy := PolicyCSV(data)
+
+		// then
+		result := strings.Split(policy, "\n")
+		assert.Len(t, result, 4)
+		assert.Equal(t, "policy1", result[0])
+		assert.Equal(t, "policya", result[1])
+		assert.Equal(t, "policyb", result[2])
+		assert.Equal(t, "policyc", result[3])
 	})
 
 }
