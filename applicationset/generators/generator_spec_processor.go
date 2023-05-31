@@ -1,6 +1,7 @@
 package generators
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
