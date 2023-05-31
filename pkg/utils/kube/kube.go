@@ -224,6 +224,12 @@ func WriteKubeConfig(restConfig *rest.Config, namespace, filename string) error 
 
 // NewKubeConfig converts a clientcmdapi.Config (kubeconfig) from a rest.Config
 func NewKubeConfig(restConfig *rest.Config, namespace string) *clientcmdapi.Config {
+	var proxyUrl string
+	if restConfig.Proxy != nil {
+		if u, err := restConfig.Proxy(nil); err == nil {
+			proxyUrl = u.String()
+		}
+	}
 	return &clientcmdapi.Config{
 		CurrentContext: restConfig.Host,
 		Contexts: map[string]*clientcmdapi.Context{
@@ -240,6 +246,7 @@ func NewKubeConfig(restConfig *rest.Config, namespace string) *clientcmdapi.Conf
 				InsecureSkipTLSVerify:    restConfig.TLSClientConfig.Insecure,
 				CertificateAuthority:     restConfig.TLSClientConfig.CAFile,
 				CertificateAuthorityData: restConfig.TLSClientConfig.CAData,
+				ProxyURL:                 proxyUrl,
 			},
 		},
 		AuthInfos: map[string]*clientcmdapi.AuthInfo{
