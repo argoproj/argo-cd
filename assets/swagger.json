@@ -5685,7 +5685,7 @@
     },
     "v1alpha1ApplicationCondition": {
       "type": "object",
-      "title": "ApplicationCondition contains details about an application condition, which is usally an error or warning",
+      "title": "ApplicationCondition contains details about an application condition, which is usually an error or warning",
       "properties": {
         "lastTransitionTime": {
           "$ref": "#/definitions/v1Time"
@@ -5944,6 +5944,12 @@
         },
         "goTemplate": {
           "type": "boolean"
+        },
+        "goTemplateOptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "preservedFields": {
           "$ref": "#/definitions/v1alpha1ApplicationPreservedFields"
@@ -6344,6 +6350,10 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationCondition"
           }
+        },
+        "controllerNamespace": {
+          "type": "string",
+          "title": "ControllerNamespace indicates the namespace in which the application controller is located"
         },
         "health": {
           "$ref": "#/definitions/v1alpha1HealthStatus"
@@ -6859,6 +6869,13 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
@@ -7390,6 +7407,9 @@
       "type": "object",
       "properties": {
         "branchMatch": {
+          "type": "string"
+        },
+        "targetBranchMatch": {
           "type": "string"
         }
       }
@@ -8126,6 +8146,9 @@
       "description": "SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.",
       "type": "object",
       "properties": {
+        "awsCodeCommit": {
+          "$ref": "#/definitions/v1alpha1SCMProviderGeneratorAWSCodeCommit"
+        },
         "azureDevOps": {
           "$ref": "#/definitions/v1alpha1SCMProviderGeneratorAzureDevOps"
         },
@@ -8162,6 +8185,38 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1SCMProviderGeneratorAWSCodeCommit": {
+      "description": "SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.",
+      "type": "object",
+      "properties": {
+        "allBranches": {
+          "description": "Scan all branches instead of just the default branch.",
+          "type": "boolean"
+        },
+        "region": {
+          "description": "Region provides the AWS region to discover repos.\nif not provided, AppSet controller will infer the current region from environment.",
+          "type": "string"
+        },
+        "role": {
+          "description": "Role provides the AWS IAM role to assume, for cross-account repo discovery\nif not provided, AppSet controller will use its pod/node identity to discover.",
+          "type": "string"
+        },
+        "tagFilters": {
+          "type": "array",
+          "title": "TagFilters provides the tag filter(s) for repo discovery",
+          "items": {
+            "$ref": "#/definitions/v1alpha1TagFilter"
+          }
         }
       }
     },
@@ -8442,6 +8497,9 @@
       "type": "object",
       "title": "SyncOperationResult represent result of sync operation",
       "properties": {
+        "managedNamespaceMetadata": {
+          "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata"
+        },
         "resources": {
           "type": "array",
           "title": "Resources contains a list of sync result items for each individual resource in a sync operation",
@@ -8508,7 +8566,7 @@
         },
         "selfHeal": {
           "type": "boolean",
-          "title": "SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)"
+          "title": "SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)"
         }
       }
     },
@@ -8639,6 +8697,17 @@
         },
         "serverName": {
           "description": "ServerName is passed to the server for SNI and is used in the client to check server\ncertificates against. If ServerName is empty, the hostname used to contact the\nserver is used.",
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1TagFilter": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
           "type": "string"
         }
       }

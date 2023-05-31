@@ -488,10 +488,11 @@ func (c *liveStateCache) getSyncedCluster(server string) (clustercache.ClusterCa
 func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 	log.Info("invalidating live state cache")
 	c.lock.Lock()
-	defer c.lock.Unlock()
-
 	c.cacheSettings = cacheSettings
-	for _, clust := range c.clusters {
+	clusters := c.clusters
+	c.lock.Unlock()
+
+	for _, clust := range clusters {
 		clust.Invalidate(clustercache.SetSettings(cacheSettings.clusterSettings))
 	}
 	log.Info("live state cache invalidated")

@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/yaml"
 )
 
 // StartInformer is a helper to start an informer, wait for its cache to sync and return a cancel func
