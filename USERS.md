@@ -186,6 +186,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Schwarz IT](https://jobs.schwarz/it-mission)
 1. [Skit](https://skit.ai/)
 1. [Skyscanner](https://www.skyscanner.net/)
+1. [Smart Pension](https://www.smartpension.co.uk/)
 1. [Smilee.io](https://smilee.io)
 1. [Snapp](https://snapp.ir/)
 1. [Snyk](https://snyk.io/)
