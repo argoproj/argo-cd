@@ -20,8 +20,7 @@ spec:
       - name: argocd-server
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
-        args:
-          - /usr/local/bin/argocd-server
+        command: [argocd-server]
         env:
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
