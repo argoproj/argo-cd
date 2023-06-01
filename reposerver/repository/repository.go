@@ -8,7 +8,6 @@ import (
 	"fmt"
 	goio "io"
 	"io/fs"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -1195,7 +1194,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	// try to read Chart.yaml file
 	chartRelPath, err := filepath.Rel(repoRoot, filepath.Join(appPath, "Chart.yaml"))
 	if err == nil {
-		data, err := ioutil.ReadFile(chartRelPath)
+		data, err := os.ReadFile(chartRelPath)
 		if err == nil {
 			chartBytes = data
 		}
@@ -1551,7 +1550,7 @@ func kustomizeBuild(
 	if kustomizeOptions != nil {
 		kustomizeBinary = kustomizeOptions.BinaryPath
 	}
-	rawBytes, err := ioutil.ReadFile(filepath.Join(appPath, "kustomization.yaml"))
+	rawBytes, err := os.ReadFile(filepath.Join(appPath, "kustomization.yaml"))
 	if err != nil {
 		return nil, err
 	}
@@ -1616,7 +1615,7 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 			if err != nil {
 				return nil, err
 			}
-			rawBytes, err := ioutil.ReadFile(manifestPath)
+			rawBytes, err := os.ReadFile(manifestPath)
 			if err != nil {
 				return nil, err
 			}
@@ -1654,7 +1653,7 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 				return nil, err
 			}
 
-			rawBytes, err := ioutil.ReadFile(manifestPath)
+			rawBytes, err := os.ReadFile(manifestPath)
 			if err != nil {
 				return nil, err
 			}

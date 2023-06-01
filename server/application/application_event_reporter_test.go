@@ -265,7 +265,7 @@ func fakeServer() *Server {
 		1*time.Minute,
 	)
 
-	server, _ := NewServer(test.FakeArgoCDNamespace, kubeclientset, appClientSet, appLister, appInformer, nil, cache, nil, nil, nil, nil, nil, nil, nil)
+	server, _ := NewServer(test.FakeArgoCDNamespace, kubeclientset, appClientSet, appLister, appInformer, nil, nil, cache, nil, nil, nil, nil, nil, nil, nil)
 	return server.(*Server)
 }
 

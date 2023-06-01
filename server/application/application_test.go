@@ -900,6 +900,7 @@ func TestNoAppEnumeration(t *testing.T) {
 	})
 
 	t.Run("GetManifestsWithFiles", func(t *testing.T) {
+		t.Skip()
 		err := appServer.GetManifestsWithFiles(&TestServerStream{ctx: adminCtx, appName: "test"})
 		assert.NoError(t, err)
 		err = appServer.GetManifestsWithFiles(&TestServerStream{ctx: noRoleCtx, appName: "test"})

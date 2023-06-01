@@ -4,7 +4,7 @@ kind: Kustomization
 images:
 - name: quay.io/argoproj/argocd
   newName: quay.io/codefresh/argocd
-  newTag: v2.6.0-cap-CR-18430-del-app
+  newTag: latest
 resources:
 - ./application-controller
 - ./dex

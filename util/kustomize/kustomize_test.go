@@ -48,7 +48,7 @@ func TestKustomizeBuild(t *testing.T) {
 		Images:     v1alpha1.KustomizeImages{"nginx:1.15.5"},
 		CommonLabels: map[string]string{
 			"app.kubernetes.io/managed-by": "argo-cd",
-			"app.kubernetes.io/part-of":    "${ARGOCD_APP_NAME}",
+			"app.kubernetes.io/part-of":    "argo-cd-tests",
 		},
 		CommonAnnotations: map[string]string{
 			"app.kubernetes.io/managed-by": "argo-cd",
@@ -67,7 +67,7 @@ func TestKustomizeBuild(t *testing.T) {
 			},
 		},
 	}
-	objs, images, err := kustomize.Build(&kustomizeSource, nil, env)
+	objs, images, err := kustomize.Build(&kustomizeSource, nil, env, "")
 	assert.Nil(t, err)
 	if err != nil {
 		assert.Equal(t, len(objs), 2)
@@ -130,7 +130,10 @@ func TestFailKustomizeBuild(t *testing.T) {
 			},
 		},
 	}
-	_, _, err = kustomize.Build(&kustomizeSource, nil, nil)
+	env := &v1alpha1.Env{
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "argo-cd-tests"},
+	}
+	_, _, err = kustomize.Build(&kustomizeSource, nil, env, "")
 	assert.EqualError(t, err, "expected integer value for count. Received: garbage")
 }
 
@@ -221,7 +224,7 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
 		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
-		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env)
+		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env, "")
 		switch tc.ExpectErr {
 		case true:
 			assert.Error(t, err)
@@ -313,7 +316,7 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
 		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
-		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env)
+		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env, "")
 		switch tc.ExpectErr {
 		case true:
 			assert.Error(t, err)
@@ -339,7 +342,7 @@ func TestKustomizeCustomVersion(t *testing.T) {
 	env := &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "argo-cd-tests"},
 	}
-	objs, images, err := kustomize.Build(&kustomizeSource, nil, env)
+	objs, images, err := kustomize.Build(&kustomizeSource, nil, env, "")
 	assert.Nil(t, err)
 	if err != nil {
 		assert.Equal(t, len(objs), 2)

@@ -3,7 +3,6 @@ package kustomize
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -263,7 +262,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				return nil, nil, err
 			}
 
-			data, _ := ioutil.ReadFile(k.path + "/" + "kustomization.yaml")
+			data, _ := os.ReadFile(k.path + "/" + "kustomization.yaml")
 
 			log.Info("****", string(data), "****")
 		}
