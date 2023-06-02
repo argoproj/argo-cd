@@ -213,12 +213,15 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                             log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
 
                                         // logs are in 14px wide fixed width font
-                                        const width =
-                                            14 *
-                                            logs
-                                                .map(renderLog)
-                                                .map(v => v.length)
-                                                .reduce((a, b) => Math.max(a, b));
+                                        let width = 0;
+                                        if (logs.length > 0) {
+                                            width =
+                                                14 *
+                                                logs
+                                                    .map(renderLog)
+                                                    .map(v => v.length)
+                                                    .reduce((a, b) => Math.max(a, b));
+                                        }
 
                                         const rowRenderer = ({index, key, style}: {index: number; key: string; style: React.CSSProperties}) => {
                                             return (

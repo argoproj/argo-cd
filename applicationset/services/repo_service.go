@@ -6,7 +6,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -19,10 +18,11 @@ type RepositoryDB interface {
 }
 
 type argoCDService struct {
-	repositoriesDB      RepositoryDB
-	storecreds          git.CredsStore
-	submoduleEnabled    bool
-	repoServerClientSet repoapiclient.Clientset
+	repositoriesDB         RepositoryDB
+	storecreds             git.CredsStore
+	submoduleEnabled       bool
+	repoServerClientSet    apiclient.Clientset
+	newFileGlobbingEnabled bool
 }
 
 type Repos interface {
@@ -34,11 +34,12 @@ type Repos interface {
 	GetDirectories(ctx context.Context, repoURL string, revision string) ([]string, error)
 }
 
-func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset repoapiclient.Clientset) (Repos, error) {
+func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) (Repos, error) {
 	return &argoCDService{
-		repositoriesDB:      db.(RepositoryDB),
-		submoduleEnabled:    submoduleEnabled,
-		repoServerClientSet: repoClientset,
+		repositoriesDB:         db.(RepositoryDB),
+		submoduleEnabled:       submoduleEnabled,
+		repoServerClientSet:    repoClientset,
+		newFileGlobbingEnabled: newFileGlobbingEnabled,
 	}, nil
 }
 
@@ -49,10 +50,11 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision s
 	}
 
 	fileRequest := &apiclient.GitFilesRequest{
-		Repo:             repo,
-		SubmoduleEnabled: a.submoduleEnabled,
-		Revision:         revision,
-		Path:             pattern,
+		Repo:                      repo,
+		SubmoduleEnabled:          a.submoduleEnabled,
+		Revision:                  revision,
+		Path:                      pattern,
+		NewGitFileGlobbingEnabled: a.newFileGlobbingEnabled,
 	}
 	closer, client, err := a.repoServerClientSet.NewRepoServerClient()
 	if err != nil {
