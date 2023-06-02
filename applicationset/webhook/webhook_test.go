@@ -60,7 +60,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "push",
 			payloadFile:        "github-commit-event.json",
-			effectedAppSets:    []string{"git-github", "matrix-git-github", "merge-git-github", "matrix-scm-git-github", "matrix-nested-git-github", "merge-nested-git-github"},
+			effectedAppSets:    []string{"git-github", "matrix-git-github", "merge-git-github", "matrix-scm-git-github", "matrix-nested-git-github", "merge-nested-git-github", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
@@ -69,7 +69,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "push",
 			payloadFile:        "github-commit-branch-event.json",
-			effectedAppSets:    []string{"git-github"},
+			effectedAppSets:    []string{"git-github", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
@@ -78,7 +78,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "ping",
 			payloadFile:        "github-ping-event.json",
-			effectedAppSets:    []string{"git-github"},
+			effectedAppSets:    []string{"git-github", "plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    false,
 		},
@@ -87,7 +87,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-Gitlab-Event",
 			headerValue:        "Push Hook",
 			payloadFile:        "gitlab-event.json",
-			effectedAppSets:    []string{"git-gitlab"},
+			effectedAppSets:    []string{"git-gitlab", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
@@ -96,7 +96,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-Random-Event",
 			headerValue:        "Push Hook",
 			payloadFile:        "gitlab-event.json",
-			effectedAppSets:    []string{"git-gitlab"},
+			effectedAppSets:    []string{"git-gitlab", "plugin"},
 			expectedStatusCode: http.StatusBadRequest,
 			expectedRefresh:    false,
 		},
@@ -105,7 +105,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-Random-Event",
 			headerValue:        "Push Hook",
 			payloadFile:        "invalid-event.json",
-			effectedAppSets:    []string{"git-gitlab"},
+			effectedAppSets:    []string{"git-gitlab", "plugin"},
 			expectedStatusCode: http.StatusBadRequest,
 			expectedRefresh:    false,
 		},
@@ -114,7 +114,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "pull_request",
 			payloadFile:        "github-pull-request-opened-event.json",
-			effectedAppSets:    []string{"pull-request-github", "matrix-pull-request-github", "matrix-scm-pull-request-github", "merge-pull-request-github"},
+			effectedAppSets:    []string{"pull-request-github", "matrix-pull-request-github", "matrix-scm-pull-request-github", "merge-pull-request-github", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
@@ -123,7 +123,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "pull_request",
 			payloadFile:        "github-pull-request-assigned-event.json",
-			effectedAppSets:    []string{"pull-request-github", "matrix-pull-request-github", "matrix-scm-pull-request-github", "merge-pull-request-github"},
+			effectedAppSets:    []string{"pull-request-github", "matrix-pull-request-github", "matrix-scm-pull-request-github", "merge-pull-request-github", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    false,
 		},
@@ -132,7 +132,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-Gitlab-Event",
 			headerValue:        "Merge Request Hook",
 			payloadFile:        "gitlab-merge-request-open-event.json",
-			effectedAppSets:    []string{"pull-request-gitlab"},
+			effectedAppSets:    []string{"pull-request-gitlab", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
@@ -141,7 +141,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-Gitlab-Event",
 			headerValue:        "Merge Request Hook",
 			payloadFile:        "gitlab-merge-request-approval-event.json",
-			effectedAppSets:    []string{"pull-request-gitlab"},
+			effectedAppSets:    []string{"pull-request-gitlab", "plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    false,
 		},
@@ -162,11 +162,13 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithGitGenerator("git-gitlab", namespace, "https://gitlab/group/name"),
 				fakeAppWithGithubPullRequestGenerator("pull-request-github", namespace, "Codertocat", "Hello-World"),
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "100500"),
+				fakeAppWithPluginGenerator("plugin", namespace),
 				fakeAppWithMatrixAndGitGenerator("matrix-git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithMatrixAndPullRequestGenerator("matrix-pull-request-github", namespace, "Codertocat", "Hello-World"),
 				fakeAppWithMatrixAndScmWithGitGenerator("matrix-scm-git-github", namespace, "org"),
 				fakeAppWithMatrixAndScmWithPullRequestGenerator("matrix-scm-pull-request-github", namespace, "Codertocat"),
 				fakeAppWithMatrixAndNestedGitGenerator("matrix-nested-git-github", namespace, "https://github.com/org/repo"),
+				fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator("matrix-pull-request-github-plugin", namespace, "Codertocat", "Hello-World", "plugin-cm"),
 				fakeAppWithMergeAndGitGenerator("merge-git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithMergeAndPullRequestGenerator("merge-pull-request-github", namespace, "Codertocat", "Hello-World"),
 				fakeAppWithMergeAndNestedGitGenerator("merge-nested-git-github", namespace, "https://github.com/org/repo"),
@@ -214,6 +216,7 @@ func mockGenerators() map[string]generators.Generator {
 	// generatorMockList := generatorMock{}
 	generatorMockGit := &generatorMock{}
 	generatorMockPR := &generatorMock{}
+	generatorMockPlugin := &generatorMock{}
 	mockSCMProvider := &scm_provider.MockProvider{
 		Repos: []*scm_provider.Repository{
 			{
@@ -239,6 +242,7 @@ func mockGenerators() map[string]generators.Generator {
 		"Git":         generatorMockGit,
 		"SCMProvider": generatorMockSCM,
 		"PullRequest": generatorMockPR,
+		"Plugin":      generatorMockPlugin,
 	}
 
 	nestedGenerators := map[string]generators.Generator{
@@ -246,6 +250,7 @@ func mockGenerators() map[string]generators.Generator {
 		"Git":         terminalMockGenerators["Git"],
 		"SCMProvider": terminalMockGenerators["SCMProvider"],
 		"PullRequest": terminalMockGenerators["PullRequest"],
+		"Plugin":      terminalMockGenerators["Plugin"],
 		"Matrix":      generators.NewMatrixGenerator(terminalMockGenerators),
 		"Merge":       generators.NewMergeGenerator(terminalMockGenerators),
 	}
@@ -255,6 +260,7 @@ func mockGenerators() map[string]generators.Generator {
 		"Git":         terminalMockGenerators["Git"],
 		"SCMProvider": terminalMockGenerators["SCMProvider"],
 		"PullRequest": terminalMockGenerators["PullRequest"],
+		"Plugin":      terminalMockGenerators["Plugin"],
 		"Matrix":      generators.NewMatrixGenerator(nestedGenerators),
 		"Merge":       generators.NewMergeGenerator(nestedGenerators),
 	}
@@ -582,6 +588,60 @@ func fakeAppWithMergeAndNestedGitGenerator(name, namespace, repo string) *v1alph
 											}
 										]
 									}`, repo)),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithPluginGenerator(name, namespace string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					Plugin: &v1alpha1.PluginGenerator{
+						ConfigMapRef: v1alpha1.PluginConfigMapRef{
+							Name: "test",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator(name, namespace, owner, repo, configmapName string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					Matrix: &v1alpha1.MatrixGenerator{
+						Generators: []v1alpha1.ApplicationSetNestedGenerator{
+							{
+								PullRequest: &v1alpha1.PullRequestGenerator{
+									Github: &v1alpha1.PullRequestGeneratorGithub{
+										Owner: owner,
+										Repo:  repo,
+									},
+								},
+							},
+							{
+								Plugin: &v1alpha1.PluginGenerator{
+									ConfigMapRef: v1alpha1.PluginConfigMapRef{
+										Name: configmapName,
+									},
 								},
 							},
 						},
