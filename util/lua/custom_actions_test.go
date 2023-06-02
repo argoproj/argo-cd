@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ghodss/yaml"
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"

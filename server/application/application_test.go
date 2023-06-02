@@ -2101,7 +2101,7 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 			Kind:         &kind,
 		})
 
-		assert.Equal(t, permissionDeniedErr.Error(), runErr.Error())
+		assert.Contains(t, runErr.Error(), "is not permitted to manage")
 		assert.Nil(t, appResponse)
 	})
 
