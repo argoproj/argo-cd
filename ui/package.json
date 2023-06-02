@@ -15,7 +15,7 @@
     "@types/react-virtualized": "^9.21.21",
     "@types/superagent": "^4.1.15",
     "ansi-to-react": "^6.1.6",
-    "argo-ui": "git+https://github.com/blakepettersson/argo-ui.git#fix/pin-react-toastify",
+    "argo-ui": "git+https://github.com/argoproj/argo-ui.git",
     "buffer": "^6.0.3",
     "classnames": "^2.2.5",
     "color": "^3.2.1",
