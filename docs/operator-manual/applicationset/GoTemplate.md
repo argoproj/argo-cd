@@ -12,6 +12,14 @@ An additional `normalize` function makes any string parameter usable as a valid 
 with hyphens and truncating at 253 characters. This is useful when making parameters safe for things like Application
 names.
 
+If you want to customize [options defined by text/template](https://pkg.go.dev/text/template#Template.Option), you can
+add the `goTemplateOptions: ["opt1", "opt2", ...]` key to your ApplicationSet next to `goTemplate: true`. Note that at
+the time of writing, there is only one useful option defined, which is `missingkey=error`.
+
+The recommended setting of `goTemplateOptions` is `["missingkey=error"]`, which ensures that if undefined values are
+looked up by your template then an error is reported instead of being ignored silently. This is not currently the default
+behavior, for backwards compatibility.
+
 ## Motivation
 
 Go Template is the Go Standard for string templating. It is also more powerful than fasttemplate (the default templating 
@@ -29,6 +37,7 @@ possible with Go text templates:
         kind: ApplicationSet
         spec:
           goTemplate: true
+          goTemplateOptions: ["missingkey=error"]
           template:
             spec:
               source:
@@ -42,6 +51,7 @@ possible with Go text templates:
         kind: ApplicationSet
         spec:
           goTemplate: true
+          goTemplateOptions: ["missingkey=error"]
           template:
             spec:
               syncPolicy: "{{.syncPolicy}}"  # This field may NOT be templated, because it is an object field.
@@ -53,6 +63,7 @@ possible with Go text templates:
         kind: ApplicationSet
         spec:
           goTemplate: true
+          goTemplateOptions: ["missingkey=error"]
           template:
             spec:
               source:
@@ -126,6 +137,7 @@ metadata:
   name: cluster-addons
 spec:
   goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - git:
       repoURL: https://github.com/argoproj/argo-cd.git
@@ -170,6 +182,7 @@ metadata:
   name: guestbook
 spec:
   goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - list:
       elements:
@@ -205,6 +218,7 @@ metadata:
   name: guestbook
 spec:
   goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - list:
       elements:
@@ -215,7 +229,7 @@ spec:
         nameSuffix: -my-name-suffix
   template:
     metadata:
-      name: '{{.cluster}}{{default "" .nameSuffix}}'
+      name: '{{.cluster}}{{dig "nameSuffix" . ""}}'
     spec:
       project: default
       source:
@@ -229,3 +243,7 @@ spec:
 
 This ApplicationSet will produce an Application called `engineering-dev` and another called 
 `engineering-prod-my-name-suffix`.
+
+Note that unset parameters are an error, so you need to avoid looking up a property that doesn't exist. Instead, use
+template functions like `dig` to do the lookup with a default. If you prefer to have unset parameters default to zero,
+you can remove `goTemplateOptions: ["missingkey=error"]` or set it to `goTemplateOptions: ["missingkey=invalid"]`
