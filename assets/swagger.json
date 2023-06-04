@@ -5848,6 +5848,9 @@
         "merge": {
           "$ref": "#/definitions/v1alpha1MergeGenerator"
         },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1PluginGenerator"
+        },
         "pullRequest": {
           "$ref": "#/definitions/v1alpha1PullRequestGenerator"
         },
@@ -5895,6 +5898,9 @@
         },
         "merge": {
           "$ref": "#/definitions/v1JSON"
+        },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1PluginGenerator"
         },
         "pullRequest": {
           "$ref": "#/definitions/v1alpha1PullRequestGenerator"
@@ -5944,6 +5950,12 @@
         },
         "goTemplate": {
           "type": "boolean"
+        },
+        "goTemplateOptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "preservedFields": {
           "$ref": "#/definitions/v1alpha1ApplicationPreservedFields"
@@ -6344,6 +6356,10 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationCondition"
           }
+        },
+        "controllerNamespace": {
+          "type": "string",
+          "title": "ControllerNamespace indicates the namespace in which the application controller is located"
         },
         "health": {
           "$ref": "#/definitions/v1alpha1HealthStatus"
@@ -6859,6 +6875,13 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
@@ -7296,6 +7319,54 @@
         }
       }
     },
+    "v1alpha1PluginConfigMapRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name of the ConfigMap"
+        }
+      }
+    },
+    "v1alpha1PluginGenerator": {
+      "description": "PluginGenerator defines connection info specific to Plugin.",
+      "type": "object",
+      "properties": {
+        "configMapRef": {
+          "$ref": "#/definitions/v1alpha1PluginConfigMapRef"
+        },
+        "input": {
+          "$ref": "#/definitions/v1alpha1PluginInput"
+        },
+        "requeueAfterSeconds": {
+          "description": "RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.",
+          "type": "string",
+          "format": "int64"
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "description": "Values contains key/value pairs which are passed directly as parameters to the template. These values will not be\nsent as parameters to the plugin.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1PluginInput": {
+      "type": "object",
+      "properties": {
+        "parameters": {
+          "description": "Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the\nvalues can be any type.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1JSON"
+          }
+        }
+      }
+    },
     "v1alpha1ProjectRole": {
       "type": "object",
       "title": "ProjectRole represents a role that has access to a project",
@@ -7390,6 +7461,9 @@
       "type": "object",
       "properties": {
         "branchMatch": {
+          "type": "string"
+        },
+        "targetBranchMatch": {
           "type": "string"
         }
       }
@@ -8126,6 +8200,9 @@
       "description": "SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.",
       "type": "object",
       "properties": {
+        "awsCodeCommit": {
+          "$ref": "#/definitions/v1alpha1SCMProviderGeneratorAWSCodeCommit"
+        },
         "azureDevOps": {
           "$ref": "#/definitions/v1alpha1SCMProviderGeneratorAzureDevOps"
         },
@@ -8162,6 +8239,38 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1SCMProviderGeneratorAWSCodeCommit": {
+      "description": "SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.",
+      "type": "object",
+      "properties": {
+        "allBranches": {
+          "description": "Scan all branches instead of just the default branch.",
+          "type": "boolean"
+        },
+        "region": {
+          "description": "Region provides the AWS region to discover repos.\nif not provided, AppSet controller will infer the current region from environment.",
+          "type": "string"
+        },
+        "role": {
+          "description": "Role provides the AWS IAM role to assume, for cross-account repo discovery\nif not provided, AppSet controller will use its pod/node identity to discover.",
+          "type": "string"
+        },
+        "tagFilters": {
+          "type": "array",
+          "title": "TagFilters provides the tag filter(s) for repo discovery",
+          "items": {
+            "$ref": "#/definitions/v1alpha1TagFilter"
+          }
         }
       }
     },
@@ -8511,7 +8620,7 @@
         },
         "selfHeal": {
           "type": "boolean",
-          "title": "SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)"
+          "title": "SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)"
         }
       }
     },
@@ -8642,6 +8751,17 @@
         },
         "serverName": {
           "description": "ServerName is passed to the server for SNI and is used in the client to check server\ncertificates against. If ServerName is empty, the hostname used to contact the\nserver is used.",
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1TagFilter": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
           "type": "string"
         }
       }

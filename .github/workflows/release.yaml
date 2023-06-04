@@ -76,17 +76,10 @@
 #             echo "This is not the first release on the branch, Using GoReleaser defaults"
 #           fi
 
-<<<<<<< HEAD
 #       - name: Setup Golang
 #         uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
 #         with:
 #           go-version: ${{ env.GOLANG_VERSION }}
-=======
-      - name: Setup Golang
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.0
-        with:
-          go-version: ${{ env.GOLANG_VERSION }}
->>>>>>> aed1be63881eb85ed9cb84615ee67395cfeca105
 
 #       - name: Set environment variables for ldflags
 #         id: set_ldflag
@@ -150,17 +143,10 @@
 #           fetch-depth: 0
 #           token: ${{ secrets.GITHUB_TOKEN }}
 
-<<<<<<< HEAD
 #       - name: Setup Golang
 #         uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
 #         with:
 #           go-version: ${{ env.GOLANG_VERSION }}
-=======
-      - name: Setup Golang
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
-        with:
-          go-version: ${{ env.GOLANG_VERSION }}
->>>>>>> aed1be63881eb85ed9cb84615ee67395cfeca105
 
 #       - name: Install cosign
 #         uses: sigstore/cosign-installer@c3667d99424e7e6047999fb6246c0da843953c65 # v3.0.1
@@ -263,7 +249,6 @@
 #           git push -f origin stable
 #         if: ${{ env.TAG_STABLE == 'true' }}
 
-<<<<<<< HEAD
 #       - name: Check to see if VERSION should be updated on master branch
 #         run: |
 #           set -xue
@@ -278,22 +263,6 @@
 #             echo "Not updating VERSION"
 #             echo "UPDATE_VERSION=false" >> $GITHUB_ENV
 #           fi
-=======
-      - name: Check to see if VERSION should be updated on master branch
-        run: |
-          set -xue
-          SOURCE_TAG=${{ github.ref_name }}
-          VERSION_REF="${SOURCE_TAG#*v}"
-          if echo "$VERSION_REF" | grep -E -- '^[0-9]+\.[0-9]+\.0-rc1';then
-            VERSION=$(awk 'BEGIN {FS=OFS="."} {$2++; print}' <<< "${VERSION_REF%-rc1}")
-            echo "Updating VERSION to: $VERSION"
-            echo "UPDATE_VERSION=true" >> $GITHUB_ENV
-            echo "NEW_VERSION=$VERSION" >> $GITHUB_ENV
-          else
-            echo "Not updating VERSION"
-            echo "UPDATE_VERSION=false" >> $GITHUB_ENV
-          fi
->>>>>>> aed1be63881eb85ed9cb84615ee67395cfeca105
 
 #       - name: Update VERSION on master branch
 #         run: |

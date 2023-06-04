@@ -96,12 +96,14 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		}
 
 		paramMap := map[string]interface{}{
-			"number":           strconv.Itoa(pull.Number),
-			"branch":           pull.Branch,
-			"branch_slug":      slug.Make(pull.Branch),
-			"head_sha":         pull.HeadSHA,
-			"head_short_sha":   pull.HeadSHA[:shortSHALength],
-			"head_short_sha_7": pull.HeadSHA[:shortSHALength7],
+			"number":           	strconv.Itoa(pull.Number),
+			"branch":           	pull.Branch,
+			"branch_slug":      	slug.Make(pull.Branch),
+			"target_branch":		pull.TargetBranch,
+			"target_branch_slug": 	slug.Make(pull.TargetBranch),
+			"head_sha":         	pull.HeadSHA,
+			"head_short_sha":   	pull.HeadSHA[:shortSHALength],
+			"head_short_sha_7": 	pull.HeadSHA[:shortSHALength7],
 		}
 
 		// PR lables will only be supported for Go Template appsets, since fasttemplate will be deprecated.
