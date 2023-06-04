@@ -331,11 +331,12 @@ export class ApplicationsService {
             .then(res => (res.body.actions as models.ResourceAction[]) || []);
     }
 
-    public patchResource(name: string, appNamspace: string, resource: models.ResourceNode, patch: string, patchType: string): Promise<models.State> {
+    public patchResource(name: string, appNamespace: string, resource: models.ResourceNode, patch: string, patchType: string): Promise<models.State> {
         return requests
             .post(`/applications/${name}/resource`)
             .query({
                 name: resource.name,
+                appNamespace,
                 namespace: resource.namespace,
                 resourceName: resource.name,
                 version: resource.version,
@@ -403,9 +404,10 @@ export class ApplicationsService {
             .then(() => true);
     }
 
-    public getLinks(applicationName: string): Promise<models.LinksResponse> {
+    public getLinks(applicationName: string, namespace: string): Promise<models.LinksResponse> {
         return requests
             .get(`/applications/${applicationName}/links`)
+            .query({namespace})
             .send()
             .then(res => res.body as models.LinksResponse);
     }
