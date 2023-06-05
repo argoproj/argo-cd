@@ -530,6 +530,9 @@ type ArgoCDDiffOptions struct {
 
 	// If set to true then differences caused by status are ignored.
 	IgnoreResourceStatusField IgnoreStatus `json:"ignoreResourceStatusField,omitempty"`
+
+	// If set to true then ignoreDifferences are applied to ignore application refresh on resource updates.
+	IgnoreDifferencesOnResourceUpdates bool `json:"ignoreDifferencesOnResourceUpdates,omitempty"`
 }
 
 func (e *incompleteSettingsError) Error() string {
@@ -794,6 +797,42 @@ func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
 	return res, nil
 }
 
+func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error) {
+	compareOptions, err := mgr.GetResourceCompareOptions()
+	if err != nil {
+		return nil, err
+	}
+
+	resourceOverrides, err := mgr.GetResourceOverrides()
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range resourceOverrides {
+		resourceUpdates := v.IgnoreResourceUpdates
+		if compareOptions.IgnoreDifferencesOnResourceUpdates {
+			resourceUpdates.JQPathExpressions = append(resourceUpdates.JQPathExpressions, v.IgnoreDifferences.JQPathExpressions...)
+			resourceUpdates.JSONPointers = append(resourceUpdates.JSONPointers, v.IgnoreDifferences.JSONPointers...)
+			resourceUpdates.ManagedFieldsManagers = append(resourceUpdates.ManagedFieldsManagers, v.IgnoreDifferences.ManagedFieldsManagers...)
+		}
+		// Set the IgnoreDifferences because these are the overrides used by Normalizers
+		v.IgnoreDifferences = resourceUpdates
+		v.IgnoreResourceUpdates = v1alpha1.OverrideIgnoreDiff{}
+		resourceOverrides[k] = v
+	}
+
+	if compareOptions.IgnoreDifferencesOnResourceUpdates {
+		log.Info("Using diffing customizations to ignore resource updates")
+	}
+
+	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/resourceVersion")
+	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/generation")
+	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/managedFields")
+	addIgnoreDiffItemOverrideToGK(resourceOverrides, "argoproj.io/Application", "/status/reconciledAt")
+
+	return resourceOverrides, nil
+}
+
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
 func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
 	argoCDCM, err := mgr.getConfigMap()
@@ -910,6 +949,13 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 				return err
 			}
 			overrideVal.IgnoreDifferences = overrideIgnoreDiff
+		case "ignoreResourceUpdates":
+			overrideIgnoreUpdate := v1alpha1.OverrideIgnoreDiff{}
+			err := yaml.Unmarshal([]byte(v), &overrideIgnoreUpdate)
+			if err != nil {
+				return err
+			}
+			overrideVal.IgnoreResourceUpdates = overrideIgnoreUpdate
 		case "knownTypeFields":
 			var knownTypeFields []v1alpha1.KnownTypeField
 			err := yaml.Unmarshal([]byte(v), &knownTypeFields)
@@ -939,7 +985,7 @@ func convertToOverrideKey(groupKind string) (string, error) {
 }
 
 func GetDefaultDiffOptions() ArgoCDDiffOptions {
-	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false}
+	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false, IgnoreDifferencesOnResourceUpdates: false}
 }
 
 // GetResourceCompareOptions loads the resource compare options settings from the ConfigMap

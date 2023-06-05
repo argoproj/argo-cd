@@ -3116,6 +3116,7 @@ func (in *ResourceNode) DeepCopy() *ResourceNode {
 func (in *ResourceOverride) DeepCopyInto(out *ResourceOverride) {
 	*out = *in
 	in.IgnoreDifferences.DeepCopyInto(&out.IgnoreDifferences)
+	in.IgnoreResourceUpdates.DeepCopyInto(&out.IgnoreResourceUpdates)
 	if in.KnownTypeFields != nil {
 		in, out := &in.KnownTypeFields, &out.KnownTypeFields
 		*out = make([]KnownTypeField, len(*in))

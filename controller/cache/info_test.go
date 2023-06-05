@@ -2,6 +2,7 @@ package cache
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -16,6 +17,8 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
+	"github.com/cespare/xxhash/v2"
 )
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
@@ -23,6 +26,10 @@ func strToUnstructured(jsonStr string) *unstructured.Unstructured {
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
 	errors.CheckError(err)
 	return &unstructured.Unstructured{Object: obj}
+}
+
+func hash(jsonStr string) string {
+	return strconv.FormatUint(xxhash.Sum64String(jsonStr), 16)
 }
 
 var (
@@ -693,4 +700,63 @@ func TestCustomLabel(t *testing.T) {
 	assert.Equal(t, "value", info.Info[0].Value)
 	assert.Equal(t, "other-label", info.Info[1].Name)
 	assert.Equal(t, "value2", info.Info[1].Value)
+}
+
+func TestManifestHash(t *testing.T) {
+	manifest := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: helm-guestbook-pod
+    namespace: default
+    ownerReferences:
+    - apiVersion: extensions/v1beta1
+      kind: ReplicaSet
+      name: helm-guestbook-rs
+    resourceVersion: "123"
+    labels:
+      app: guestbook
+  spec:
+    nodeName: minikube
+    containers:
+    - image: bar
+      resources:
+        requests:
+          memory: 128Mi
+`)
+
+	ignores := []v1alpha1.ResourceIgnoreDifferences{
+		{
+			Group:        "*",
+			Kind:         "*",
+			JSONPointers: []string{"/metadata/resourceVersion"},
+		},
+	}
+
+	data, _ := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: helm-guestbook-pod
+    namespace: default
+    ownerReferences:
+    - apiVersion: extensions/v1beta1
+      kind: ReplicaSet
+      name: helm-guestbook-rs
+    labels:
+      app: guestbook
+  spec:
+    nodeName: minikube
+    containers:
+    - image: bar
+      resources:
+        requests:
+          memory: 128Mi
+`).MarshalJSON()
+
+	expected := hash(string(data))
+
+	hash, err := generateManifestHash(manifest, ignores, nil)
+	assert.Equal(t, expected, hash)
+	assert.Nil(t, err)
 }

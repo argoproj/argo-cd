@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
@@ -149,6 +150,8 @@ type ResourceInfo struct {
 	PodInfo *PodInfo
 	// NodeInfo is available for nodes only
 	NodeInfo *NodeInfo
+
+	manifestHash *string
 }
 
 func NewLiveStateCache(
@@ -178,6 +181,7 @@ type cacheSettings struct {
 	clusterSettings     clustercache.Settings
 	appInstanceLabelKey string
 	trackingMethod      appv1.TrackingMethod
+	resourceOverrides   map[string]appv1.ResourceOverride
 }
 
 type liveStateCache struct {
@@ -200,6 +204,10 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	resourceUpdatesOverrides, err := c.settingsMgr.GetIgnoreResourceUpdatesOverrides()
+	if err != nil {
+		return nil, err
+	}
 	resourcesFilter, err := c.settingsMgr.GetResourcesFilter()
 	if err != nil {
 		return nil, err
@@ -212,7 +220,8 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 		ResourceHealthOverride: lua.ResourceHealthOverrides(resourceOverrides),
 		ResourcesFilter:        resourcesFilter,
 	}
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr)}, nil
+
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr), resourceUpdatesOverrides}, nil
 }
 
 func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
@@ -307,6 +316,19 @@ var (
 // We ignore API types which have a high churn rate, and/or whose updates are irrelevant to the app
 func skipAppRequeuing(key kube.ResourceKey) bool {
 	return ignoredRefreshResources[key.Group+"/"+key.Kind]
+}
+
+func skipResourceUpdate(oldInfo, newInfo *ResourceInfo) bool {
+	return oldInfo != nil && newInfo != nil && oldInfo.manifestHash != nil && newInfo.manifestHash != nil && *oldInfo.manifestHash == *newInfo.manifestHash
+}
+
+func shouldHashManifest(appName string, gvk schema.GroupVersionKind) bool {
+	// Only hash if the resource belongs to an app.
+	// Best      - Only hash for resources that are part of an app or their dependencies
+	// (current) - Only hash for resources that are part of an app + all apps that might be from an ApplicationSet
+	// Orphan    - If orphan is enabled, hash should be made on all resource of that namespace and a config to disable it
+	// Worst     - Hash all resources watched by Argo
+	return appName != "" || (gvk.Group == application.Group && gvk.Kind == application.ApplicationKind)
 }
 
 // isRetryableError is a helper method to see whether an error
@@ -424,6 +446,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			c.lock.RLock()
 			cacheSettings := c.cacheSettings
 			c.lock.RUnlock()
+
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
 			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, cacheSettings.trackingMethod)
@@ -431,6 +454,15 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 				res.AppName = appName
 			}
 			gvk := un.GroupVersionKind()
+
+			if shouldHashManifest(appName, gvk) {
+				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides)
+				if err != nil {
+					log.Errorf("Failed to generate manifest hash: %v", err)
+				} else {
+					res.manifestHash = &hash
+				}
+			}
 
 			// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
 			// want the full resource to be available in our cache (to diff), so we store all CRDs
@@ -450,6 +482,22 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		} else {
 			ref = oldRes.Ref
 		}
+
+		if oldRes != nil && newRes != nil && skipResourceUpdate(resInfo(oldRes), resInfo(newRes)) {
+			// Additional check for debug level so we don't need to evaluate the
+			// format string in case of non-debug scenarios
+			if log.GetLevel() >= log.DebugLevel {
+				var resKey string
+				if ref.Namespace != "" {
+					resKey = ref.Namespace + "/" + ref.Name
+				} else {
+					resKey = "(cluster-scoped)/" + ref.Name
+				}
+				log.Debugf("Ignoring change in cluster of object %s of type %s/%s", resKey, ref.APIVersion, ref.Kind)
+			}
+			return
+		}
+
 		for _, r := range []*clustercache.Resource{newRes, oldRes} {
 			if r == nil {
 				continue

@@ -3,6 +3,7 @@ package normalizers
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -179,6 +180,9 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 	for _, patch := range matched {
 		patchedDocData, err := patch.Apply(docData)
 		if err != nil {
+			if strings.Contains(err.Error(), "Unable to remove nonexistent key") {
+				continue
+			}
 			log.Debugf("Failed to apply normalization: %v", err)
 			continue
 		}
