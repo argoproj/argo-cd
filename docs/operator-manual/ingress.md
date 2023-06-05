@@ -242,7 +242,7 @@ spec:
     secretName: argocd-server-tls # as expected by argocd-server
 ```
 
-### Option 2: Multiple Ingress Objects And Hosts
+### Option 2: SSL Termination at Ingress Controller
 
 Since ingress-nginx Ingress supports only a single protocol per Ingress object, an alternative
 way would be to define two Ingress objects. One for HTTP/HTTPS, and the other for gRPC:
@@ -273,7 +273,7 @@ spec:
   tls:
   - hosts:
     - argocd.example.com
-    secretName: argocd-server-tls # do not change, this is provided by Argo CD
+    secretName: argocd-ingress-http
 ```
 
 gRPC Ingress:
@@ -301,7 +301,7 @@ spec:
   tls:
   - hosts:
     - grpc.argocd.example.com
-    secretName: argocd-server-tls # do not change, this is provided by Argo CD
+    secretName: argocd-ingress-grpc
 ```
 
 The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the
