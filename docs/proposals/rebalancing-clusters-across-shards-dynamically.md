@@ -66,7 +66,7 @@ In most scenarios, the service account used by the application controller has re
 
 For other scenarios, some users install controller with only `argocd-application-controller-role` role and use it to manage remote clusters only. In this case, we would need to update the `argocd-application-controller-role` role and allow controller inspect it's own deployment and find out the number of replicas.
 
-We would assign one application controller to manage one of the shards and we will store this assignment list in ConfigMap. The mapping of Application Controller to Shard will store the below information:
+The application controllers will claim one of the available shards by checking which shard is not present in the ConfigMap or is assigned to an unhealthy controller. We will store the assignment list of Application Controller to Shard in ConfigMap. The mapping of Application Controller to Shard will store the below information:
 
 * Name/Id of the shard
 * Name of the Application Controller currently managing the shard
@@ -76,7 +76,7 @@ The mapping will be updated in ConfigMap every X (heartbeat interval) seconds wi
 
 The heartbeat interval will be a configurable parameter initialized while setting up the application controller. This way, users will be able to control the frequency at which they want the heartbeat process to take place.
 
-Anytime the number of healthy replicas of application controllers is different from the number of application controllers to shard mappings, we would re-distribute the clusters among the healthy replicas again. We can summarize the above statement using the below formula:
+As part of the readiness probe, we will also add a check whether application controller was able to claim a shard successfully or not. If the shard claim failed, the readiness probe will fail marking the controller as unhealthy. Anytime the number of healthy replicas of application controllers is different from the number of application controllers to shard mappings, we would re-distribute the clusters among the healthy replicas again. We can summarize the above statement using the below formula:
 
 ```
 Number of Replicas ≠ Count of {Application Controller, Shard} mapping
@@ -86,13 +86,13 @@ The below logic can be used to perform application controller to shard assignmen
 
 1) If a new application controller is added, that is, a new shard is added, we would perform the re-distribution of clusters among the shards with the existing sharding algorithm being used.
 
-2) In scenarios when one of the application controllers is identified to be unhealthy, the rest of the application controllers will re-distribute the load(clusters) managed by the application controller and start managing the orphaned applications. 
+2) In scenarios when one of the application controllers is identified to be unhealthy, we will not trigger the re-ditribution of clusters across shards. The new instance of the application controller will claim this unassigned shard and start managing the shard. 
 
 How will this work? 
 * The application controller will query the ConfigMap for the status of all the application controllers and last updated heartbeat timestamps.
 * It will check if any application controller is flagged as Unhealthy or has not updated its status in ConfigMap during the heartbeat process for a certain period of time.
-* If the status for an application controller was already flagged as Unhealthy, it will pick one of the clusters from its list and assign the cluster to itself.
-* If the status is not flagged and an application controller has not updated the last active timestamp in a long time, then we mark the Application Controller as Unhealthy. 
+* If the status for an application controller was already flagged as Unhealthy, we will not re-trigger the redistribution of clusters across healthy shards. The new application controller will come online and try to claim this unassigned shard.
+* If the status is not flagged and an application controller has not updated the last active timestamp in a long time, then we mark the Application Controller as Unhealthy and unassign the shard in the ConfigMap. 
 
 This will continue to happen till the time the list of clusters is marked as empty. As soon as the list is marked as empty, the entry of the shard/application-controller is removed from ConfigMap.
 
