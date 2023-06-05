@@ -233,6 +233,9 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		version,
 		"--destination",
 		destination}
+	if creds.CAPath != "" {
+		args = append(args, "--ca-file", creds.CAPath)
+	}
 	if creds.InsecureSkipVerify && c.insecureSkipVerifySupported {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
