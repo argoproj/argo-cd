@@ -23,6 +23,7 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
@@ -62,6 +63,7 @@ func NewCommand() *cobra.Command {
 		otlpAddress              string
 		applicationNamespaces    []string
 		persistResourceHealth    bool
+		shardingAlgorithm        string
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -134,7 +136,7 @@ func NewCommand() *cobra.Command {
 				appController.InvalidateProjectsCache()
 			}))
 			kubectl := kubeutil.NewKubectl()
-			clusterFilter := getClusterFilter()
+			clusterFilter := getClusterFilter(kubeClient, settingsMgr, shardingAlgorithm)
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -152,7 +154,8 @@ func NewCommand() *cobra.Command {
 				kubectlParallelismLimit,
 				persistResourceHealth,
 				clusterFilter,
-				applicationNamespaces)
+				applicationNamespaces,
+			)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
 
@@ -195,13 +198,14 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that applications are allowed to be reconciled from")
 	command.Flags().BoolVar(&persistResourceHealth, "persist-resource-health", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", true), "Enables storing the managed resources health in the Application CRD")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.DefaultShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin] ")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})
 	return &command
 }
 
-func getClusterFilter() func(cluster *v1alpha1.Cluster) bool {
+func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string) sharding.ClusterFilterFunction {
 	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
 	var clusterFilter func(cluster *v1alpha1.Cluster) bool
@@ -212,7 +216,10 @@ func getClusterFilter() func(cluster *v1alpha1.Cluster) bool {
 			errors.CheckError(err)
 		}
 		log.Infof("Processing clusters from shard %d", shard)
-		clusterFilter = sharding.GetClusterFilter(replicas, shard)
+		db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
+		log.Infof("Using filter function:  %s", shardingAlgorithm)
+		distributionFunction := sharding.GetDistributionFunction(db, shardingAlgorithm)
+		clusterFilter = sharding.GetClusterFilter(distributionFunction, shard)
 	} else {
 		log.Info("Processing all cluster shards")
 	}

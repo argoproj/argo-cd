@@ -13,17 +13,17 @@ require (
 	github.com/argoproj/gitops-engine v0.7.1-0.20230526233214-ad9a694fe4bc
 	github.com/argoproj/notifications-engine v0.4.1-0.20230228182525-f754726f03da
 	github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d
-	github.com/aws/aws-sdk-go v1.44.272
+	github.com/aws/aws-sdk-go v1.44.275
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.4.0
-	github.com/casbin/casbin/v2 v2.60.0
+	github.com/casbin/casbin/v2 v2.69.1
 	github.com/coreos/go-oidc/v3 v3.6.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20220301131131-8e7ed04b843e
-	github.com/go-git/go-git/v5 v5.6.1
+	github.com/go-git/go-git/v5 v5.7.0
 	github.com/go-logr/logr v1.2.4
 	github.com/go-openapi/loads v0.21.2
 	github.com/go-openapi/runtime v0.26.0
@@ -46,9 +46,9 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-retryablehttp v0.7.2
-	github.com/imdario/mergo v0.3.13
+	github.com/imdario/mergo v0.3.16
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
-	github.com/itchyny/gojq v0.12.12
+	github.com/itchyny/gojq v0.12.13
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/ktrysmt/go-bitbucket v0.9.58
@@ -59,7 +59,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.14.0
 	github.com/r3labs/diff v1.1.0
-	github.com/redis/go-redis/v9 v9.0.2
+	github.com/redis/go-redis/v9 v9.0.5
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
@@ -69,7 +69,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/whilp/git-urls v1.0.0
-	github.com/xanzy/go-gitlab v0.83.0
+	github.com/xanzy/go-gitlab v0.84.0
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
 	go.opentelemetry.io/otel v1.16.0
@@ -97,7 +97,7 @@ require (
 	k8s.io/kubectl v0.24.2
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
-	oras.land/oras-go/v2 v2.1.0
+	oras.land/oras-go/v2 v2.2.0
 	sigs.k8s.io/controller-runtime v0.11.0
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3
 	sigs.k8s.io/yaml v1.3.0
@@ -117,7 +117,7 @@ require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/PagerDuty/go-pagerduty v1.6.0 // indirect
-	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
+	github.com/ProtonMail/go-crypto v0.0.0-20230518184743-7afd39499903 // indirect
 	github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20210112200207-10ab4d695d60 // indirect
 	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
@@ -140,7 +140,7 @@ require (
 	github.com/fvbommel/sortorder v1.0.1 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
-	github.com/go-git/gcfg v1.5.0 // indirect
+	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.4.1 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -209,7 +209,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
-	github.com/skeema/knownhosts v1.1.0 // indirect
+	github.com/skeema/knownhosts v1.1.1 // indirect
 	github.com/slack-go/slack v0.12.1 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect

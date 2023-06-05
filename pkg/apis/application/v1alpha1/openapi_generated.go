@@ -102,6 +102,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourceKey":                 schema_pkg_apis_application_v1alpha1_OrphanedResourceKey(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings":    schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OverrideIgnoreDiff":                  schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginConfigMapRef":                  schema_pkg_apis_application_v1alpha1_PluginConfigMapRef(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator":                     schema_pkg_apis_application_v1alpha1_PluginGenerator(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginInput":                         schema_pkg_apis_application_v1alpha1_PluginInput(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ProjectRole":                         schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator":                schema_pkg_apis_application_v1alpha1_PullRequestGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorBitbucketServer": schema_pkg_apis_application_v1alpha1_PullRequestGeneratorBitbucketServer(ref),
@@ -936,11 +939,16 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetGenerator(ref common.Ref
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 						},
 					},
+					"plugin": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DuckTypeGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.MatrixGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.MergeGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGenerator", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DuckTypeGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.MatrixGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.MergeGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGenerator", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
@@ -1048,11 +1056,16 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetNestedGenerator(ref comm
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 						},
 					},
+					"plugin": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DuckTypeGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGenerator", "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DuckTypeGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGenerator", "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
@@ -1407,11 +1420,16 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetTerminalGenerator(ref co
 							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator"),
 						},
 					},
+					"plugin": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DuckTypeGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGenerator"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DuckTypeGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGenerator"},
 	}
 }
 
@@ -4276,6 +4294,113 @@ func schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref common.Referenc
 				Required: []string{"jsonPointers", "jqPathExpressions", "managedFieldsManagers"},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_PluginConfigMapRef(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the ConfigMap",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_PluginGenerator(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PluginGenerator defines connection info specific to Plugin.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"configMapRef": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginConfigMapRef"),
+						},
+					},
+					"input": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginInput"),
+						},
+					},
+					"requeueAfterSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"template": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
+						},
+					},
+					"values": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Values contains key/value pairs which are passed directly as parameters to the template. These values will not be sent as parameters to the plugin.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"configMapRef"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginConfigMapRef", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginInput"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_PluginInput(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"parameters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the values can be any type.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"},
 	}
 }
 
