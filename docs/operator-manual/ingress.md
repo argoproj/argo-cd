@@ -244,8 +244,9 @@ spec:
 
 ### Option 2: SSL Termination at Ingress Controller
 
-Since ingress-nginx Ingress supports only a single protocol per Ingress object, an alternative
-way would be to define two Ingress objects. One for HTTP/HTTPS, and the other for gRPC:
+An alternative approach is to perform the SSL termination at the Ingress. Since an `ingress-nginx` Ingress supports only a single protocol per Ingress object, two Ingress objects need to be defined using the `nginx.ingress.kubernetes.io/backend-protocol` annotation, one for HTTP/HTTPS and the other for gRPC.
+
+Each ingress will be for a different domain (`argocd.example.com` and `grpc.argocd.example.com`). This requires that the Ingress resources use different TLS `secretName`s to avoid unexpected behavior.
 
 HTTP/HTTPS Ingress:
 ```yaml
