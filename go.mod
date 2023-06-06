@@ -70,7 +70,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/whilp/git-urls v1.0.0
 	github.com/xanzy/go-gitlab v0.84.0
-	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
+	github.com/yuin/gopher-lua v1.1.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
 	go.opentelemetry.io/otel v1.16.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.16.0
