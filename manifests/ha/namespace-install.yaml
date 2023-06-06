@@ -2714,6 +2714,12 @@ spec:
               key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_CONTROLLER_SHARDING_ALGORITHM
+          valueFrom:
+            configMapKeyRef:
+              key: controller.sharding.algorithm
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT
           valueFrom:
             configMapKeyRef:
