@@ -387,6 +387,31 @@ func executeResourceOverrideCommand(ctx context.Context, cmdCtx commandContext, 
 	callback(res, override, overrides)
 }
 
+func executeIgnoreResourceUpdatesOverrideCommand(ctx context.Context, cmdCtx commandContext, args []string, callback func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride)) {
+	data, err := os.ReadFile(args[0])
+	errors.CheckError(err)
+
+	res := unstructured.Unstructured{}
+	errors.CheckError(yaml.Unmarshal(data, &res))
+
+	settingsManager, err := cmdCtx.createSettingsManager(ctx)
+	errors.CheckError(err)
+
+	overrides, err := settingsManager.GetIgnoreResourceUpdatesOverrides()
+	errors.CheckError(err)
+	gvk := res.GroupVersionKind()
+	key := gvk.Kind
+	if gvk.Group != "" {
+		key = fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)
+	}
+	override, hasOverride := overrides[key]
+	if !hasOverride {
+		_, _ = fmt.Printf("No overrides configured for '%s/%s'\n", gvk.Group, gvk.Kind)
+		return
+	}
+	callback(res, override, overrides)
+}
+
 func NewResourceIgnoreDifferencesCommand(cmdCtx commandContext) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "ignore-differences RESOURCE_YAML_PATH",
@@ -426,6 +451,52 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 
 				if reflect.DeepEqual(&res, normalizedRes) {
 					_, _ = fmt.Printf("No fields are ignored by ignoreDifferences settings: \n%s\n", override.IgnoreDifferences)
+					return
+				}
+
+				_, _ = fmt.Printf("Following fields are ignored:\n\n")
+				_ = cli.PrintDiff(res.GetName(), &res, normalizedRes)
+			})
+		},
+	}
+	return command
+}
+
+func NewResourceIgnoreResourceUpdatesCommand(cmdCtx commandContext) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "ignore-resource-updates RESOURCE_YAML_PATH",
+		Short: "Renders fields excluded from resource updates",
+		Long:  "Renders ignored fields using the 'ignoreResourceUpdates' setting specified in the 'resource.customizations' field of 'argocd-cm' ConfigMap",
+		Example: `
+argocd admin settings resource-overrides ignore-resource-updates ./deploy.yaml --argocd-cm-path ./argocd-cm.yaml`,
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) < 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			executeIgnoreResourceUpdatesOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+				gvk := res.GroupVersionKind()
+				if len(override.IgnoreResourceUpdates.JSONPointers) == 0 && len(override.IgnoreResourceUpdates.JQPathExpressions) == 0 {
+					_, _ = fmt.Printf("Ignore resource updates are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
+					return
+				}
+
+				normalizer, err := normalizers.NewIgnoreNormalizer(nil, overrides)
+				errors.CheckError(err)
+
+				normalizedRes := res.DeepCopy()
+				logs := collectLogs(func() {
+					errors.CheckError(normalizer.Normalize(normalizedRes))
+				})
+				if logs != "" {
+					_, _ = fmt.Println(logs)
+				}
+
+				if reflect.DeepEqual(&res, normalizedRes) {
+					_, _ = fmt.Printf("No fields are ignored by ignoreResourceUpdates settings: \n%s\n", override.IgnoreResourceUpdates)
 					return
 				}
 
