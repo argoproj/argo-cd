@@ -5848,6 +5848,9 @@
         "merge": {
           "$ref": "#/definitions/v1alpha1MergeGenerator"
         },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1PluginGenerator"
+        },
         "pullRequest": {
           "$ref": "#/definitions/v1alpha1PullRequestGenerator"
         },
@@ -5895,6 +5898,9 @@
         },
         "merge": {
           "$ref": "#/definitions/v1JSON"
+        },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1PluginGenerator"
         },
         "pullRequest": {
           "$ref": "#/definitions/v1alpha1PullRequestGenerator"
@@ -5944,6 +5950,12 @@
         },
         "goTemplate": {
           "type": "boolean"
+        },
+        "goTemplateOptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "preservedFields": {
           "$ref": "#/definitions/v1alpha1ApplicationPreservedFields"
@@ -7303,6 +7315,54 @@
           "title": "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the\ndesired state defined in the SCM and won't be displayed in diffs",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1PluginConfigMapRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name of the ConfigMap"
+        }
+      }
+    },
+    "v1alpha1PluginGenerator": {
+      "description": "PluginGenerator defines connection info specific to Plugin.",
+      "type": "object",
+      "properties": {
+        "configMapRef": {
+          "$ref": "#/definitions/v1alpha1PluginConfigMapRef"
+        },
+        "input": {
+          "$ref": "#/definitions/v1alpha1PluginInput"
+        },
+        "requeueAfterSeconds": {
+          "description": "RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.",
+          "type": "string",
+          "format": "int64"
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "description": "Values contains key/value pairs which are passed directly as parameters to the template. These values will not be\nsent as parameters to the plugin.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1PluginInput": {
+      "type": "object",
+      "properties": {
+        "parameters": {
+          "description": "Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the\nvalues can be any type.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1JSON"
           }
         }
       }
