@@ -356,6 +356,7 @@ func NewResourceOverridesCommand(cmdCtx commandContext) *cobra.Command {
 		},
 	}
 	command.AddCommand(NewResourceIgnoreDifferencesCommand(cmdCtx))
+	command.AddCommand(NewResourceIgnoreResourceUpdatesCommand(cmdCtx))
 	command.AddCommand(NewResourceActionListCommand(cmdCtx))
 	command.AddCommand(NewResourceActionRunCommand(cmdCtx))
 	command.AddCommand(NewResourceHealthCommand(cmdCtx))
