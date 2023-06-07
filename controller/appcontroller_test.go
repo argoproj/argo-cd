@@ -961,7 +961,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 
 			needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 			assert.True(t, needRefresh)
-			assert.Equal(t, v1alpha1.RefreshTypeHard, refreshType)
+			assert.Equal(t, v1alpha1.RefreshTypeNormal, refreshType)
 			assert.Equal(t, CompareWithLatestForceResolve, compareWith)
 
 			t.Run("refresh app using the 'latest' level if comparison expired", func(t *testing.T) {
@@ -971,7 +971,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 				app.Status.ReconciledAt = &reconciledAt
 				needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Minute, 2*time.Hour)
 				assert.True(t, needRefresh)
-				assert.Equal(t, v1alpha1.RefreshTypeHard, refreshType)
+				assert.Equal(t, v1alpha1.RefreshTypeNormal, refreshType)
 				assert.Equal(t, CompareWithLatestForceResolve, compareWith)
 			})
 

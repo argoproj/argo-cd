@@ -1513,7 +1513,6 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 			reason = "spec.source differs"
 			compareWith = CompareWithLatestForceResolve
 			if app.Spec.HasMultipleSources() {
-				refreshType = appv1.RefreshTypeHard
 				reason = "at least one of the spec.sources differs"
 			}
 		} else if hardExpired || softExpired {
