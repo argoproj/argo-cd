@@ -1121,7 +1121,9 @@ func CopyFile(srcFile string, dstFile string, perm os.FileMode) error {
 	}
 	defer src.Close()
 
-	dst, err := os.OpenFile(dstFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+	// we're adding O_TRUNC, because if the file already exists, it needs
+	// to be truncated
+	dst, err := os.OpenFile(dstFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL|os.O_TRUNC, perm)
 	if err != nil {
 		return err
 	}

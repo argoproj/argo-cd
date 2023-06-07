@@ -1474,14 +1474,18 @@ func copyFilesystemSubtree(srcRoot string, srcPath string, dstRoot string, dstPa
 	// if our source is just a single file
 	if srcStat.Mode().IsRegular() {
 		// in case the source is a regular file, we don't have to recurse
-		// Also, if the dst already exists, it's an error
+		// If the dstpath already exists, we overwrite it. the reason for that
+		// is during a refresh the target repository is not necessarily cleanup up,
+		// meaning that the previous copy's result might still be there, thus needs
+		// overwriting.
 
 		dstFile := dstFullPath
 		// if the destination exists, it has to be a directory
 		if dstExists {
 			// if it's already there, it has to be a directory
 			if !dstStat.Mode().IsDir() {
-				return fmt.Errorf("Copy destination exists, and it's not a directory")
+				logCtx.Warnf("Copy destination exists, and it's going to be overwritten: %v", dstFullPath)
+				//return fmt.Errorf("Copy destination exists, and it's not a directory")
 			}
 		} else {
 			dstDir := filepath.Dir(dstFullPath)
