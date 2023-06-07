@@ -13,10 +13,13 @@ import './application-status-panel.scss';
 
 interface Props {
     application: models.Application;
+    tree: models.ApplicationTree;
     showDiff?: () => any;
     showOperation?: () => any;
     showConditions?: () => any;
     showMetadataInfo?: (revision: string) => any;
+    showResourceStatus?: () => any;
+    nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
 }
 
 interface SectionInfo {
@@ -45,7 +48,7 @@ const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?:
     );
 };
 
-export const ApplicationStatusPanel = ({application, showDiff, showOperation, showConditions, showMetadataInfo}: Props) => {
+export const ApplicationStatusPanel = ({application, tree, showDiff, showOperation, showConditions, showResourceStatus, showMetadataInfo, nodeMenu}: Props) => {
     const today = new Date();
 
     let daysSinceLastSynchronized = 0;
@@ -62,22 +65,41 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     if (application.metadata.deletionTimestamp && !appOperationState) {
         showOperation = null;
     }
-
+    if (application.status.health.status != 'Degraded') {
+        showResourceStatus = null;
+    }
     const infos = cntByCategory.get('info');
     const warnings = cntByCategory.get('warning');
     const errors = cntByCategory.get('error');
     const source = getAppDefaultSource(application);
     const hasMultipleSources = application.spec.sources && application.spec.sources.length > 0;
+    const node = application.status.health.status === 'Degraded' && tree?.nodes?.filter(rNode => rNode?.health?.status === 'Degraded');
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
                 <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>{sectionLabel({title: 'APP HEALTH', helpContent: 'The health status of your app'})}</div>
                 <div className='application-status-panel__item-value'>
-                    <HealthStatusIcon state={application.status.health} />
+                    <a onClick={() => showConditions && showConditions()}>
+                        <HealthStatusIcon state={application.status.health} />
+                    </a>
                     &nbsp;
                     {application.status.health.status}
+                    {node && (
+                        <>
+                            <div
+                                className='application-status-panel__item-name'
+                                onClick={() => showResourceStatus && showResourceStatus()}>
+                                {node && (
+                                    <div className='application-status-panel__item-value__revision show-for-large'>
+                                        <a>
+                                           (See resource status)
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
-                {application.status.health.message && <div className='application-status-panel__item-name'>{application.status.health.message}</div>}
             </div>
             <div className='application-status-panel__item'>
                 <React.Fragment>

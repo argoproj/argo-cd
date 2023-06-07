@@ -12,8 +12,6 @@ import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Pagina
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
-
-import {ApplicationConditions} from '../application-conditions/application-conditions';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
 import {PodGroupType, PodView} from '../application-pod-view/pod-view';
@@ -31,6 +29,8 @@ import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
 import {AppViewExtension} from '../../../shared/services/extensions-service';
+import {ResourceStateOverview} from '../application-resources-overview/resource-state-overview';
+import {ApplicationConditions} from "../application-conditions/application-conditions";
 
 interface ApplicationDetailsState {
     page: number;
@@ -127,6 +127,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
 
     private get showConditions() {
         return new URLSearchParams(this.props.history.location.search).get('conditions') === 'true';
+    }
+
+    private get showResourceState() {
+        return new URLSearchParams(this.props.history.location.search).get('resourceState') === 'true';
     }
 
     private get selectedRollbackDeploymentIndex() {
@@ -229,6 +233,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             const selectedNode = !isAppSelected && (selectedItem as appModels.ResourceNode);
                             const operationState = application.status.operationState;
                             const conditions = application.status.conditions || [];
+                            const resourceState = application.status.resources || [];
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
                             const source = getAppDefaultSource(application);
@@ -419,10 +424,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         <div className='application-details__status-panel'>
                                             <ApplicationStatusPanel
                                                 application={application}
+                                                tree={tree}
                                                 showDiff={() => this.selectNode(appFullName, 0, 'diff')}
                                                 showOperation={() => this.setOperationStatusVisible(true)}
                                                 showConditions={() => this.setConditionsStatusVisible(true)}
+                                                showResourceStatus={() => this.setResourceStateVisible(true)}
                                                 showMetadataInfo={revision => this.setState({...this.state, revision})}
+                                                nodeMenu={node =>
+                                                    AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
+                                                        this.getApplicationActionMenu(application, false)
+                                                    )
+                                                }
                                             />
                                         </div>
                                         <div className='application-details__tree'>
@@ -631,6 +643,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         </SlidingPanel>
                                         <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
                                             {conditions && <ApplicationConditions conditions={conditions} />}
+                                        </SlidingPanel>
+                                        <SlidingPanel isShown={this.showResourceState && !!resourceState} onClose={() => this.setResourceStateVisible(false)}>
+                                            {resourceState && <ResourceStateOverview app={application} treeNodes={tree.nodes}/>}
                                         </SlidingPanel>
                                         <SlidingPanel isShown={!!this.state.revision} isMiddle={true} onClose={() => this.setState({revision: null})}>
                                             {this.state.revision &&
@@ -950,7 +965,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         }
         return {kind, health, sync, namespace, name};
     }
-
+    private setResourceStateVisible(isVisible: boolean) {
+        this.appContext.apis.navigation.goto('.', {resourceState: isVisible}, {replace: true});
+    }
     private setOperationStatusVisible(isVisible: boolean) {
         this.appContext.apis.navigation.goto('.', {operation: isVisible}, {replace: true});
     }
