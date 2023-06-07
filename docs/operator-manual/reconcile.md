@@ -6,7 +6,7 @@ Kubernetes controllers often update the resources they watch periodically, causi
 and a high CPU usage on the `argocd-application-controller`. Argo CD allows you to optionally ignore resource updates on specific fields
 for [tracked resources](../user-guide/resource_tracking.md).
 
-When a resource update is ignored, the Application will not be reconciled.
+When a resource update is ignored, if the resource's [health status](./health.md) does not change, the Application that this resource belongs to will not be reconciled.
 
 ## System-Level Configuration
 
@@ -27,7 +27,7 @@ It is possible to configure `ignoreResourceUpdates` to be applied to all tracked
 data:
   resource.customizations.ignoreResourceUpdates.all: |
     jsonPointers:
-    - /metadata/resourceVersion
+    - /status
 ```
 
 ### Using ignoreDifferences to ignore reconcile
@@ -44,10 +44,6 @@ data:
   resource.compareoptions: |
     ignoreDifferencesOnResourceUpdates: true
 ```
-
-!!! warning Ignoring status field update
-    Using `ignoreDifferencesOnResourceUpdates: true` in conjunction with `ignoreResourceStatusField: all` will cause your application Health not to be updated
-    immediatly after a resource health changes due to the skipped reconcile.
 
 ## Default Configuration
 
