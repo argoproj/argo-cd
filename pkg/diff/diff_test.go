@@ -3,7 +3,7 @@ package diff
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -43,7 +43,7 @@ func printDiff(result *DiffResult) (string, error) {
 
 // printDiffInternal prints a diff between two unstructured objects using an external diff utility and returns the output.
 func printDiffInternal(name string, live *unstructured.Unstructured, target *unstructured.Unstructured) ([]byte, error) {
-	tempDir, err := ioutil.TempDir("", "argocd-diff")
+	tempDir, err := os.MkdirTemp("", "argocd-diff")
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func printDiffInternal(name string, live *unstructured.Unstructured, target *uns
 			return nil, err
 		}
 	}
-	err = ioutil.WriteFile(targetFile, targetData, 0644)
+	err = os.WriteFile(targetFile, targetData, 0644)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func printDiffInternal(name string, live *unstructured.Unstructured, target *uns
 			return nil, err
 		}
 	}
-	err = ioutil.WriteFile(liveFile, liveData, 0644)
+	err = os.WriteFile(liveFile, liveData, 0644)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func mustToUnstructured(obj interface{}) *unstructured.Unstructured {
 }
 
 func unmarshalFile(path string) *unstructured.Unstructured {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}

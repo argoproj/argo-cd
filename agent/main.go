@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -78,7 +77,7 @@ func (s *settings) parseManifests() ([]*unstructured.Unstructured, string, error
 			if ext := strings.ToLower(filepath.Ext(info.Name())); ext != ".json" && ext != ".yml" && ext != ".yaml" {
 				return nil
 			}
-			data, err := ioutil.ReadFile(path)
+			data, err := os.ReadFile(path)
 			if err != nil {
 				return err
 			}
