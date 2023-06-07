@@ -319,7 +319,12 @@ func skipAppRequeuing(key kube.ResourceKey) bool {
 }
 
 func skipResourceUpdate(oldInfo, newInfo *ResourceInfo) bool {
-	return oldInfo != nil && newInfo != nil && oldInfo.manifestHash != nil && newInfo.manifestHash != nil && *oldInfo.manifestHash == *newInfo.manifestHash
+	if oldInfo == nil || newInfo == nil {
+		return false
+	}
+	isSameHealthStatus := (oldInfo.Health == nil && newInfo.Health == nil) || oldInfo.Health != nil && newInfo.Health != nil && oldInfo.Health.Status == newInfo.Health.Status
+	isSameManifest := oldInfo.manifestHash != nil && newInfo.manifestHash != nil && *oldInfo.manifestHash == *newInfo.manifestHash
+	return isSameHealthStatus && isSameManifest
 }
 
 func shouldHashManifest(appName string, gvk schema.GroupVersionKind) bool {

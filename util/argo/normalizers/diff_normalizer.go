@@ -183,6 +183,9 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 			if strings.Contains(err.Error(), "Unable to remove nonexistent key") {
 				continue
 			}
+			if strings.Contains(err.Error(), "remove operation does not apply: doc is missing path") {
+				continue
+			}
 			log.Debugf("Failed to apply normalization: %v", err)
 			continue
 		}
