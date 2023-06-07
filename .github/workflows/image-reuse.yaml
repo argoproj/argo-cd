@@ -49,6 +49,7 @@ permissions: {}
 
 jobs:
   publish:
+    if: github.repository_owner == 'argoproj'
     permissions:
       contents: read
       packages: write # Used to push images to `ghcr.io` if used.
