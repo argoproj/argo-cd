@@ -58,7 +58,7 @@ func (db *db) ListHelmRepositories(ctx context.Context) ([]*v1alpha1.Repository,
 		}
 		result[i] = repo
 	}
-	repos, err := db.listRepositories(ctx, pointer.StringPtr("helm"))
+	repos, err := db.listRepositories(ctx, pointer.String("helm"))
 	if err != nil {
 		return nil, err
 	}

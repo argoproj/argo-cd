@@ -49,6 +49,9 @@ func init() {
 	knownTypes["core/v1/CinderVolumeSource"] = func() interface{} {
 		return &corev1.CinderVolumeSource{}
 	}
+	knownTypes["core/v1/ClaimSource"] = func() interface{} {
+		return &corev1.ClaimSource{}
+	}
 	knownTypes["core/v1/ClientIPConfig"] = func() interface{} {
 		return &corev1.ClientIPConfig{}
 	}
@@ -409,6 +412,12 @@ func init() {
 	knownTypes["core/v1/PodReadinessGate"] = func() interface{} {
 		return &corev1.PodReadinessGate{}
 	}
+	knownTypes["core/v1/PodResourceClaim"] = func() interface{} {
+		return &corev1.PodResourceClaim{}
+	}
+	knownTypes["core/v1/PodSchedulingGate"] = func() interface{} {
+		return &corev1.PodSchedulingGate{}
+	}
 	knownTypes["core/v1/PodSecurityContext"] = func() interface{} {
 		return &corev1.PodSecurityContext{}
 	}
@@ -483,6 +492,9 @@ func init() {
 	}
 	knownTypes["core/v1/ReplicationControllerStatus"] = func() interface{} {
 		return &corev1.ReplicationControllerStatus{}
+	}
+	knownTypes["core/v1/ResourceClaim"] = func() interface{} {
+		return &corev1.ResourceClaim{}
 	}
 	knownTypes["core/v1/ResourceFieldSelector"] = func() interface{} {
 		return &corev1.ResourceFieldSelector{}
@@ -609,6 +621,9 @@ func init() {
 	}
 	knownTypes["core/v1/TypedLocalObjectReference"] = func() interface{} {
 		return &corev1.TypedLocalObjectReference{}
+	}
+	knownTypes["core/v1/TypedObjectReference"] = func() interface{} {
+		return &corev1.TypedObjectReference{}
 	}
 	knownTypes["core/v1/Volume"] = func() interface{} {
 		return &corev1.Volume{}
