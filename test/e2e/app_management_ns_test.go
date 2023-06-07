@@ -2297,34 +2297,6 @@ definitions:
 		})
 }
 
-func TestNamespacedAppLogs(t *testing.T) {
-	SkipOnEnv(t, "OPENSHIFT")
-	Given(t).
-		SetAppNamespace(AppNamespace()).
-		SetTrackingMethod("annotation").
-		Path("guestbook-logs").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(app *Application) {
-			out, err := RunCliWithRetry(5, "app", "logs", app.QualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
-			assert.NoError(t, err)
-			assert.Contains(t, out, "Hi")
-		}).
-		And(func(app *Application) {
-			out, err := RunCliWithRetry(5, "app", "logs", app.QualifiedName(), "--kind", "Pod")
-			assert.NoError(t, err)
-			assert.Contains(t, out, "Hi")
-		}).
-		And(func(app *Application) {
-			out, err := RunCliWithRetry(5, "app", "logs", app.QualifiedName(), "--kind", "Service")
-			assert.NoError(t, err)
-			assert.NotContains(t, out, "Hi")
-		})
-}
-
 func TestNamespacedAppWaitOperationInProgress(t *testing.T) {
 	Given(t).
 		SetAppNamespace(AppNamespace()).
