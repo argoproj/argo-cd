@@ -302,7 +302,7 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 		return fmt.Errorf("match repository error receiving stream: %w", err)
 	}
 
-	isSupported, isDiscoveryEnabled, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv())
+	isSupported, isDiscoveryEnabled, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv(), metadata.GetAppRelPath())
 	if err != nil {
 		return fmt.Errorf("match repository error: %w", err)
 	}
@@ -315,12 +315,12 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	return nil
 }
 
-func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry) (isSupported bool, isDiscoveryEnabled bool, err error) {
+func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry, appRelPath string) (isSupported bool, isDiscoveryEnabled bool, err error) {
 	config := s.initConstants.PluginConfig
 
 	if config.Spec.Discover.FileName != "" {
 		log.Debugf("config.Spec.Discover.FileName is provided")
-		pattern := filepath.Join(workdir, config.Spec.Discover.FileName)
+		pattern := filepath.Join(workdir, appRelPath, config.Spec.Discover.FileName)
 		matches, err := filepath.Glob(pattern)
 		if err != nil {
 			e := fmt.Errorf("error finding filename match for pattern %q: %w", pattern, err)
@@ -332,7 +332,7 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 
 	if config.Spec.Discover.Find.Glob != "" {
 		log.Debugf("config.Spec.Discover.Find.Glob is provided")
-		pattern := filepath.Join(workdir, config.Spec.Discover.Find.Glob)
+		pattern := filepath.Join(workdir, appRelPath, config.Spec.Discover.Find.Glob)
 		// filepath.Glob doesn't have '**' support hence selecting third-party lib
 		// https://github.com/golang/go/issues/11862
 		matches, err := zglob.Glob(pattern)
@@ -348,7 +348,7 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 	if len(config.Spec.Discover.Find.Command.Command) > 0 {
 		log.Debugf("Going to try runCommand.")
 		env := append(os.Environ(), environ(envEntries)...)
-		find, err := runCommand(ctx, config.Spec.Discover.Find.Command, workdir, env)
+		find, err := runCommand(ctx, config.Spec.Discover.Find.Command, filepath.Join(workdir, appRelPath), env)
 		if err != nil {
 			return false, true, fmt.Errorf("error running find command: %w", err)
 		}
