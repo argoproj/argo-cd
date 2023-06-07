@@ -26,27 +26,32 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 	case "DaemonSet", "Deployment", "StatefulSet":
 		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"kubectl.kubernetes.io/restartedAt": "0001-01-01T00:00:00Z"}, "spec", "template", "metadata", "annotations")
 		if err != nil {
-			return fmt.Errorf("failed to normalize DaemonSet: %w", err)
+			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
 		}
 	}
 	switch un.GetKind() {
 	case "Deployment":
 		err := unstructured.SetNestedField(un.Object, nil, "status")
 		if err != nil {
-			return fmt.Errorf("failed to normalize DaemonSet: %w", err)
+			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
 		}
 		err = unstructured.SetNestedField(un.Object, nil, "metadata", "creationTimestamp")
 		if err != nil {
-			return fmt.Errorf("failed to normalize DaemonSet: %w", err)
+			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
 		}
 		err = unstructured.SetNestedField(un.Object, nil, "metadata", "generation")
 		if err != nil {
-			return fmt.Errorf("failed to normalize DaemonSet: %w", err)
+			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
 		}
 	case "Rollout":
 		err := unstructured.SetNestedField(un.Object, nil, "spec", "restartAt")
 		if err != nil {
-			return fmt.Errorf("failed to normalize Rollout: %w", err)
+			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+		}
+	case "ExternalSecret":
+		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"force-sync": "0001-01-01T00:00:00Z"}, "metadata", "annotations")
+		if err != nil {
+			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
 		}
 	}
 	return nil
