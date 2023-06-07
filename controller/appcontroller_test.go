@@ -167,7 +167,6 @@ metadata:
   namespace: ` + test.FakeArgoCDNamespace + `
 type: Opaque
 `
-
 var fakeApp = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
