@@ -2003,17 +2003,14 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 	assert.Nil(t, testApp.Status.Resources[1].Health)
 }
 
-// MockClientset is a mock implementation of client interface
 type MockClientset struct {
 	mock.Mock
 }
 
-// AddPod adds a pod to the mock client
 func (m *MockClientset) AddPod(pod *v1.Pod) {
 	m.Called(pod)
 }
 
-// GetLogs is a mocked implementation of the GetLogs function
 func (m *MockClientset) GetLogs(namespace, PodName string) ([]string, error) {
 	args := m.Called(namespace, PodName)
 	return args.Get(0).([]string), args.Error(1)
@@ -2038,12 +2035,33 @@ func (c *Controller) PodLogs(podName, namespace string) ([]string, error) {
 	return c.podLogsGetter.GetPodLogs(podName, namespace)
 }
 
-// Implement a simple PodLogsGetter interface
 type SimplePodLogsGetter struct{}
 
-// Implement the GetPodLogs method
 func (g *SimplePodLogsGetter) GetPodLogs(podName, namespace string) ([]string, error) {
 	return []string{"log line 1", "log line 2"}, nil
+}
+
+type MockPodLogsGetter struct {
+	mock.Mock
+}
+
+func (m *MockPodLogsGetter) GetPodLogs(podName, namespace string) ([]string, error) {
+	args := m.Called(podName, namespace)
+	return args.Get(0).([]string), args.Error(1)
+}
+
+type MockWebSocketStream struct {
+	mock.Mock
+}
+
+type MockWebSocketStreamMatcher interface {
+	gomock.Matcher
+	Send(logs []string) error
+}
+
+func (m *MockWebSocketStream) Send(logs []string) error {
+	args := m.Called(logs)
+	return args.Error(0)
 }
 
 func TestPodLogs(t *testing.T) {
@@ -2068,15 +2086,6 @@ func TestPodLogs(t *testing.T) {
 	expectedLogs := []string{"log line 1", "log line 2"}
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, expectedLogs, logs)
-}
-
-type MockPodLogsGetter struct {
-	mock.Mock
-}
-
-func (m *MockPodLogsGetter) GetPodLogs(podName, namespace string) ([]string, error) {
-	args := m.Called(podName, namespace)
-	return args.Get(0).([]string), args.Error(1)
 }
 
 func TestPodLogs_RBAC(t *testing.T) {
@@ -2107,4 +2116,74 @@ func TestPodLogs_RBAC(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, expectedLogs, logs)
+}
+
+func TestPodLogs_Cancellation(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	pod := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-pod",
+			Namespace: testNamespace,
+		},
+	}
+
+	clientset := fake.NewSimpleClientset(pod)
+
+	controller := NewController(clientset)
+
+	mockPodLogsGetter := &MockPodLogsGetter{}
+
+	controller.podLogsGetter = mockPodLogsGetter
+
+	expectedPodName := "fake-pod"
+	expectedNamespace := testNamespace
+	expectedLogs := []string{"log line 1", "log line 2"}
+
+	mockStream := &MockWebSocketStream{}
+	mockStream.On("Send", expectedLogs).Return(nil)
+
+	mockPodLogsGetter.On("GetPodLogs", expectedPodName, expectedNamespace).Return(expectedLogs, nil)
+	mockPodLogsGetter.On("NewWebSocketStream", expectedPodName, expectedNamespace).Return(mockStream, nil)
+
+	logs, err := controller.PodLogs(expectedPodName, expectedNamespace)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, logs)
+}
+
+func TestPodLogs_CancellationError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	pod := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-pod",
+			Namespace: testNamespace,
+		},
+	}
+
+	clientset := fake.NewSimpleClientset(pod)
+
+	controller := NewController(clientset)
+
+	mockPodLogsGetter := &MockPodLogsGetter{}
+
+	controller.podLogsGetter = mockPodLogsGetter
+
+	expectedPodName := "fake-pod"
+	expectedNamespace := testNamespace
+	expectedLogs := []string{"log line 1", "log line 2"}
+
+	mockStream := &MockWebSocketStream{}
+	mockStream.On("Send", expectedLogs).Return(nil)
+
+	mockPodLogsGetter.On("GetPodLogs", expectedPodName, expectedNamespace).Return(expectedLogs, coreerrors.New("error retrieving logs"))
+	mockPodLogsGetter.On("NewWebSocketStream", expectedPodName, expectedNamespace).Return(mockStream, nil)
+
+	logs, err := controller.PodLogs(expectedPodName, expectedNamespace)
+
+	assert.Error(t, err)
+	assert.NotNil(t, logs)
 }
