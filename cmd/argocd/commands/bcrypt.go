@@ -8,7 +8,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// bcryptCmd represents the bcrypt command
+// NewBcryptCmd represents the bcrypt command
 func NewBcryptCmd() *cobra.Command {
 	var (
 		password string

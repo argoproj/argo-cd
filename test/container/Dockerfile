@@ -1,40 +1,42 @@
-FROM docker.io/library/redis:7.0.5 as redis
+FROM docker.io/library/redis:7.0.11@sha256:f50031a49f41e493087fb95f96fdb3523bb25dcf6a3f0b07c588ad3cdbe1d0aa as redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
 # architecture, so we create a symlink here to facilitate copying.
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu 
 
-FROM docker.io/library/node:12.18.4-buster as node
 
-FROM docker.io/library/golang:1.18 as golang
+# Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
+FROM docker.io/library/node:20.2.0@sha256:14f0471d0478fbb9177d0f9e8c146dc872273dcdcfc7fea93a27ed81fc6b0e96 as node
 
-FROM docker.io/library/registry:2.8 as registry
+FROM docker.io/library/golang:1.20.4@sha256:690e4135bf2a4571a572bfd5ddfa806b1cb9c3dea0446ebadaf32bc2ea09d4f9 as golang
 
-FROM docker.io/bitnami/kubectl:1.23.6 as kubectl
+FROM docker.io/library/registry:2.8@sha256:41f413c22d6156587e2a51f3e80c09808b8c70e82be149b82b5e0196a88d49b4 as registry
 
-FROM ubuntu:22.04
+FROM docker.io/bitnami/kubectl:1.26@sha256:90d54ce960bf00b6d06cf1c69075a120d88e9f3237096b237c0a5efcacd5ed0b as kubectl
+
+FROM docker.io/library/ubuntu:22.04@sha256:9a0bdde4188b896a372804be2384015e90e3f84906b750c1a53539b585fbbe7f
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
-        ca-certificates \
-        curl \
-        openssh-server \
-        nginx \
-        fcgiwrap \
-        git \
-        git-lfs \
-        gpg \
-        jq \
-        make \
-        wget \
-        gcc \
-        g++ \
-        sudo \
-        tini \
-        zip && \
-        apt-get clean && \
-        rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    ca-certificates \
+    curl \
+    openssh-server \
+    nginx \
+    fcgiwrap \
+    git \
+    git-lfs \
+    gpg \
+    jq \
+    make \
+    wget \
+    gcc \
+    g++ \
+    sudo \
+    tini \
+    zip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY --from=golang /usr/local/go /usr/local/go
 
@@ -84,7 +86,7 @@ COPY --from=registry /etc/docker/registry/config.yml /etc/docker/registry/config
 # Copy node binaries
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=node /usr/local/bin/node /usr/local/bin
-COPY --from=node /opt/yarn-v1.22.4 /opt/yarn-v1.22.4
+COPY --from=node /opt/yarn-v1.22.19 /opt/yarn-v1.22.19
 
 # Entrypoint is required for container's user management
 COPY ./test/container/entrypoint.sh /usr/local/bin
@@ -94,26 +96,24 @@ ARG UID
 # Prepare user configuration & build environments
 RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
-    mkdir -p /home/user/.kube && chmod 777 /home/user/.kube && \
+    mkdir -p /home/user/.kube && \
+    mkdir -p /home/user/.cache && \
     chown -R user /home/user && \
     chgrp -R user /home/user && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
     HOME=/home/user git config --global user.email "noreply@example.com" && \
-    mkdir -p /go/pkg && chmod 777 /go/pkg && \
+    mkdir -p /go/pkg && \
     mkdir -p /var/run/sshd && \
     mkdir -p /root/.ssh && \
     mkdir -p /go && \
-    chmod -R 777 /go && \
     chown root /etc/ssh/ssh_host_*_key* && \
     chmod 0600 /etc/ssh/ssh_host_*_key && \
-    mkdir -p /tmp/go-build-cache && chmod -R 777 /tmp/go-build-cache && \
-    mkdir -p /home/user/.cache && chmod 777 /home/user/.cache && \
-    chmod -R 777 /usr/local/go && \
+    mkdir -p /tmp/go-build-cache && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
-    ln -s /opt/yarn-v1.22.4/bin/yarn /usr/local/bin/yarn && \
-    ln -s /opt/yarn-v1.22.4/bin/yarnpkg /usr/local/bin/yarnpkg && \
-    mkdir -p /var/lib/registry && chmod -R 777 /var/lib/registry
+    ln -s /opt/yarn-v1.22.19/bin/yarn /usr/local/bin/yarn && \
+    ln -s /opt/yarn-v1.22.19/bin/yarnpkg /usr/local/bin/yarnpkg && \
+    mkdir -p /var/lib/registry
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

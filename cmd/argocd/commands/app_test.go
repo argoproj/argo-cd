@@ -7,8 +7,8 @@ import (
 	"time"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/google/go-cmp/cmp"
@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func Test_getInfos(t *testing.T) {
@@ -498,7 +499,7 @@ func TestPrintAppSummaryTable(t *testing.T) {
 				},
 				Project:     "default",
 				Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
-				Source: v1alpha1.ApplicationSource{
+				Source: &v1alpha1.ApplicationSource{
 					RepoURL:        "test",
 					TargetRevision: "master",
 					Path:           "/test",
@@ -604,7 +605,7 @@ func TestPrintParams(t *testing.T) {
 	output, _ := captureOutput(func() error {
 		app := &v1alpha1.Application{
 			Spec: v1alpha1.ApplicationSpec{
-				Source: v1alpha1.ApplicationSource{
+				Source: &v1alpha1.ApplicationSource{
 					Helm: &v1alpha1.ApplicationSourceHelm{
 						Parameters: []v1alpha1.HelmParameter{
 							{
@@ -750,6 +751,16 @@ func Test_unset(t *testing.T) {
 				"old1=new:tag",
 				"old2=new:tag",
 			},
+			Replicas: []v1alpha1.KustomizeReplica{
+				{
+					Name:  "my-deployment",
+					Count: intstr.FromInt(2),
+				},
+				{
+					Name:  "my-statefulset",
+					Count: intstr.FromInt(4),
+				},
+			},
 		},
 	}
 
@@ -823,6 +834,15 @@ func Test_unset(t *testing.T) {
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, 2, len(kustomizeSource.Kustomize.Replicas))
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
+	assert.Equal(t, 1, len(kustomizeSource.Kustomize.Replicas))
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
@@ -904,22 +924,252 @@ func Test_unset_nothingToUnset(t *testing.T) {
 	}
 }
 
+func TestFilterAppResources(t *testing.T) {
+	// App resources
+	var (
+		appReplicaSet1 = v1alpha1.ResourceStatus{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Namespace: "default",
+			Name:      "replicaSet-name1",
+		}
+		appReplicaSet2 = v1alpha1.ResourceStatus{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Namespace: "default",
+			Name:      "replicaSet-name2",
+		}
+		appJob = v1alpha1.ResourceStatus{
+			Group:     "batch",
+			Kind:      "Job",
+			Namespace: "default",
+			Name:      "job-name",
+		}
+		appService1 = v1alpha1.ResourceStatus{
+			Group:     "",
+			Kind:      "Service",
+			Namespace: "default",
+			Name:      "service-name1",
+		}
+		appService2 = v1alpha1.ResourceStatus{
+			Group:     "",
+			Kind:      "Service",
+			Namespace: "default",
+			Name:      "service-name2",
+		}
+		appDeployment = v1alpha1.ResourceStatus{
+			Group:     "apps",
+			Kind:      "Deployment",
+			Namespace: "default",
+			Name:      "deployment-name",
+		}
+	)
+	app := v1alpha1.Application{
+		Status: v1alpha1.ApplicationStatus{
+			Resources: []v1alpha1.ResourceStatus{
+				appReplicaSet1, appReplicaSet2, appJob, appService1, appService2, appDeployment},
+		},
+	}
+	// Resource filters
+	var (
+		blankValues = v1alpha1.SyncOperationResource{
+			Group:     "",
+			Kind:      "",
+			Name:      "",
+			Namespace: "",
+			Exclude:   false}
+		// *:*:*
+		includeAllResources = v1alpha1.SyncOperationResource{
+			Group:     "*",
+			Kind:      "*",
+			Name:      "*",
+			Namespace: "",
+			Exclude:   false}
+		// !*:*:*
+		excludeAllResources = v1alpha1.SyncOperationResource{
+			Group:     "*",
+			Kind:      "*",
+			Name:      "*",
+			Namespace: "",
+			Exclude:   true}
+		// *:Service:*
+		includeAllServiceResources = v1alpha1.SyncOperationResource{
+			Group:     "*",
+			Kind:      "Service",
+			Name:      "*",
+			Namespace: "",
+			Exclude:   false}
+		// !*:Service:*
+		excludeAllServiceResources = v1alpha1.SyncOperationResource{
+			Group:     "*",
+			Kind:      "Service",
+			Name:      "*",
+			Namespace: "",
+			Exclude:   true}
+		// apps:ReplicaSet:replicaSet-name1
+		includeReplicaSet1Resource = v1alpha1.SyncOperationResource{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Name:      "replicaSet-name1",
+			Namespace: "",
+			Exclude:   false}
+		// !apps:ReplicaSet:replicaSet-name2
+		excludeReplicaSet2Resource = v1alpha1.SyncOperationResource{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Name:      "replicaSet-name2",
+			Namespace: "",
+			Exclude:   true}
+	)
+
+	// Filtered resources
+	var (
+		replicaSet1 = v1alpha1.SyncOperationResource{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Namespace: "default",
+			Name:      "replicaSet-name1",
+		}
+		replicaSet2 = v1alpha1.SyncOperationResource{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Namespace: "default",
+			Name:      "replicaSet-name2",
+		}
+		job = v1alpha1.SyncOperationResource{
+			Group:     "batch",
+			Kind:      "Job",
+			Namespace: "default",
+			Name:      "job-name",
+		}
+		service1 = v1alpha1.SyncOperationResource{
+			Group:     "",
+			Kind:      "Service",
+			Namespace: "default",
+			Name:      "service-name1",
+		}
+		service2 = v1alpha1.SyncOperationResource{
+			Group:     "",
+			Kind:      "Service",
+			Namespace: "default",
+			Name:      "service-name2",
+		}
+		deployment = v1alpha1.SyncOperationResource{
+			Group:     "apps",
+			Kind:      "Deployment",
+			Namespace: "default",
+			Name:      "deployment-name",
+		}
+	)
+	tests := []struct {
+		testName          string
+		selectedResources []*v1alpha1.SyncOperationResource
+		expectedResult    []*v1alpha1.SyncOperationResource
+	}{
+		// --resource apps:ReplicaSet:replicaSet-name1 --resource *:Service:*
+		{testName: "Include ReplicaSet replicaSet-name1 resouce and all service resources",
+			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllServiceResources, &includeReplicaSet1Resource},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &service1, &service2},
+		},
+		// --resource apps:ReplicaSet:replicaSet-name1 --resource !*:Service:*
+		{testName: "Include ReplicaSet replicaSet-name1 resouce and exclude all service resources",
+			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSet1Resource},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
+		},
+		// --resource !apps:ReplicaSet:replicaSet-name2 --resource !*:Service:*
+		{testName: "Exclude ReplicaSet replicaSet-name2 resouce and all service resources",
+			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource, &excludeAllServiceResources},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
+		},
+		// --resource !apps:ReplicaSet:replicaSet-name2
+		{testName: "Exclude ReplicaSet replicaSet-name2 resouce",
+			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &job, &service1, &service2, &deployment},
+		},
+		// --resource apps:ReplicaSet:replicaSet-name1
+		{testName: "Include ReplicaSet replicaSet-name1 resouce",
+			selectedResources: []*v1alpha1.SyncOperationResource{&includeReplicaSet1Resource},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
+		},
+		// --resource !*:Service:*
+		{testName: "Exclude Service resouces",
+			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
+		},
+		// --resource *:Service:*
+		{testName: "Include Service resouces",
+			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllServiceResources},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&service1, &service2},
+		},
+		// --resource !*:*:*
+		{testName: "Exclude all resouces",
+			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllResources},
+			expectedResult:    nil,
+		},
+		// --resource *:*:*
+		{testName: "Include all resouces",
+			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllResources},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
+		},
+		{testName: "No Filters",
+			selectedResources: []*v1alpha1.SyncOperationResource{&blankValues},
+			expectedResult:    nil,
+		},
+		{testName: "Empty Filter",
+			selectedResources: []*v1alpha1.SyncOperationResource{},
+			expectedResult:    nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			filteredResources := filterAppResources(&app, test.selectedResources)
+			assert.Equal(t, test.expectedResult, filteredResources)
+		})
+	}
+}
+
 func TestParseSelectedResources(t *testing.T) {
-	resources := []string{"v1alpha:Application:test", "v1alpha:Application:namespace/test"}
+	resources := []string{"v1alpha:Application:test",
+		"v1alpha:Application:namespace/test",
+		"!v1alpha:Application:test",
+		"apps:Deployment:default/test",
+		"!*:*:*"}
 	operationResources, err := parseSelectedResources(resources)
 	assert.NoError(t, err)
-	assert.Len(t, operationResources, 2)
+	assert.Len(t, operationResources, 5)
 	assert.Equal(t, *operationResources[0], v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "test",
-		Kind:      "Application",
+		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
 	})
 	assert.Equal(t, *operationResources[1], v1alpha1.SyncOperationResource{
 		Namespace: "namespace",
 		Name:      "test",
+		Kind:      application.ApplicationKind,
+		Group:     "v1alpha",
+	})
+	assert.Equal(t, *operationResources[2], v1alpha1.SyncOperationResource{
+		Namespace: "",
+		Name:      "test",
 		Kind:      "Application",
 		Group:     "v1alpha",
+		Exclude:   true,
+	})
+	assert.Equal(t, *operationResources[3], v1alpha1.SyncOperationResource{
+		Namespace: "default",
+		Name:      "test",
+		Kind:      "Deployment",
+		Group:     "apps",
+		Exclude:   false,
+	})
+	assert.Equal(t, *operationResources[4], v1alpha1.SyncOperationResource{
+		Namespace: "",
+		Name:      "*",
+		Kind:      "*",
+		Group:     "*",
+		Exclude:   true,
 	})
 }
 
@@ -985,7 +1235,7 @@ func TestPrintApplicationTableWide(t *testing.T) {
 					Server:    "http://localhost:8080",
 					Namespace: "default",
 				},
-				Source: v1alpha1.ApplicationSource{
+				Source: &v1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps",
 					Path:           "guestbook",
 					TargetRevision: "123",
@@ -1189,8 +1439,8 @@ func TestCheckResourceStatus(t *testing.T) {
 
 func Test_hasAppChanged(t *testing.T) {
 	type args struct {
-		appReq *argoappv1.Application
-		appRes *argoappv1.Application
+		appReq *v1alpha1.Application
+		appRes *v1alpha1.Application
 		upsert bool
 	}
 	tests := []struct {
@@ -1252,16 +1502,16 @@ func Test_hasAppChanged(t *testing.T) {
 	}
 }
 
-func testApp(name, project string, labels map[string]string, annotations map[string]string, finalizers []string) *argoappv1.Application {
-	return &argoappv1.Application{
+func testApp(name, project string, labels map[string]string, annotations map[string]string, finalizers []string) *v1alpha1.Application {
+	return &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Labels:      labels,
 			Annotations: annotations,
 			Finalizers:  finalizers,
 		},
-		Spec: argoappv1.ApplicationSpec{
-			Source: argoappv1.ApplicationSource{
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
 				RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
 			},
 			Project: project,

@@ -12,23 +12,28 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 func TestListMergeGenerator(t *testing.T) {
 	generateExpectedApp := func(name, nameSuffix string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("%s-%s", name, nameSuffix),
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "merge-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: argov1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
@@ -60,7 +65,7 @@ func TestListMergeGenerator(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}-{{name-suffix}}"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
@@ -120,7 +125,10 @@ func TestListMergeGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					"label-key":            "label-value",
+					LabelKeyAppSetInstance: "merge-generator",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -138,17 +146,20 @@ func TestClusterMergeGenerator(t *testing.T) {
 	generateExpectedApp := func(cluster, name, nameSuffix string) argov1alpha1.Application {
 		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Application",
+				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("%s-%s-%s", cluster, name, nameSuffix),
-				Namespace:  utils.ArgoCDNamespace,
+				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "merge-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: argov1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
@@ -187,7 +198,7 @@ func TestClusterMergeGenerator(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-{{path.basename}}-{{values.name-suffix}}"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
@@ -265,7 +276,10 @@ func TestClusterMergeGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					"label-key":            "label-value",
+					LabelKeyAppSetInstance: "merge-generator",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).

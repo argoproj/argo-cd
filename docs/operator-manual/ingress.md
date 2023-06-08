@@ -186,10 +186,10 @@ metadata:
   name: argocd-server-ingress
   namespace: argocd
   annotations:
-    kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
 spec:
+  ingressClassName: nginx
   rules:
   - host: argocd.example.com
     http:
@@ -218,14 +218,13 @@ metadata:
   namespace: argocd
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    kubernetes.io/ingress.class: nginx
-    kubernetes.io/tls-acme: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
     # If you encounter a redirect loop or are getting a 307 response code
     # then you need to force the nginx ingress to connect to the backend using HTTPS.
     #
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
+  ingressClassName: nginx
   rules:
   - host: argocd.example.com
     http:
@@ -240,7 +239,7 @@ spec:
   tls:
   - hosts:
     - argocd.example.com
-    secretName: argocd-secret # do not change, this is provided by Argo CD
+    secretName: argocd-server-tls # as expected by argocd-server
 ```
 
 ### Option 2: Multiple Ingress Objects And Hosts
@@ -256,10 +255,10 @@ metadata:
   name: argocd-server-http-ingress
   namespace: argocd
   annotations:
-    kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
 spec:
+  ingressClassName: nginx
   rules:
   - http:
       paths:
@@ -274,7 +273,7 @@ spec:
   tls:
   - hosts:
     - argocd.example.com
-    secretName: argocd-secret # do not change, this is provided by Argo CD
+    secretName: argocd-server-tls # do not change, this is provided by Argo CD
 ```
 
 gRPC Ingress:
@@ -285,9 +284,9 @@ metadata:
   name: argocd-server-grpc-ingress
   namespace: argocd
   annotations:
-    kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
 spec:
+  ingressClassName: nginx
   rules:
   - http:
       paths:
@@ -302,7 +301,7 @@ spec:
   tls:
   - hosts:
     - grpc.argocd.example.com
-    secretName: argocd-secret # do not change, this is provided by Argo CD
+    secretName: argocd-server-tls # do not change, this is provided by Argo CD
 ```
 
 The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the
@@ -538,15 +537,15 @@ spec:
     - secretName: secret-yourdomain-com
   rules:
     - host: argocd.yourdomain.com
-    http:
-      paths:
-      - pathType: ImplementationSpecific
-        path: "/*"   # "*" is needed. Without this, the UI Javascript and CSS will not load properly
-        backend:
-          service:
-            name: argocd-server
-            port:
-              number: 80
+      http:
+        paths:
+        - pathType: ImplementationSpecific
+          path: "/*"   # "*" is needed. Without this, the UI Javascript and CSS will not load properly
+          backend:
+            service:
+              name: argocd-server
+              port:
+                number: 80
 ```
 
 If you use the version `1.21.3-gke.1600` or later, you should use the following Ingress resource:
@@ -563,15 +562,15 @@ spec:
     - secretName: secret-yourdomain-com
   rules:
     - host: argocd.yourdomain.com
-    http:
-      paths:
-      - pathType: Prefix
-        path: "/"
-        backend:
-          service:
-            name: argocd-server
-            port:
-              number: 80
+      http:
+        paths:
+        - pathType: Prefix
+          path: "/"
+          backend:
+            service:
+              name: argocd-server
+              port:
+                number: 80
 ```
 
 As you may know already, it can take some minutes to deploy the load balancer and become ready to accept connections. Once it's ready, get the public IP address for your Load Balancer, go to your DNS server (Google or third party) and point your domain or subdomain (i.e. argocd.yourdomain.com) to that IP address.
