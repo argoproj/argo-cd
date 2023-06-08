@@ -125,6 +125,9 @@ data:
 
     If this is not an option for you, use the [SAML (with Dex)](#saml-with-dex) option above instead.
 
+!!! note
+    These instructions and screenshots are of Okta version 2023.05.2 E. You can find the current version in the Okta website footer.
+
 First, create the OIDC integration:
 
 1. On the `Okta Admin` page, navigate to the Okta Applications at `Applications > Applications.`
