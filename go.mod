@@ -17,7 +17,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.4.0
-	github.com/casbin/casbin/v2 v2.69.1
+	github.com/casbin/casbin/v2 v2.70.0
 	github.com/coreos/go-oidc/v3 v3.6.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/evanphx/json-patch v5.6.0+incompatible
