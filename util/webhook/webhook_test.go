@@ -149,10 +149,14 @@ func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
 func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	hook := test.NewGlobal()
 
-	patchedApps := make([]string, 0, 3)
+	type nameAndNamespace struct {
+		Name      string
+		Namespace string
+	}
+	patchedApps := make([]nameAndNamespace, 0, 3)
 	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patchAction := action.(kubetesting.PatchAction)
-		patchedApps = append(patchedApps, patchAction.GetName())
+		patchedApps = append(patchedApps, nameAndNamespace{patchAction.GetName(), patchAction.GetNamespace()})
 		return true, nil, nil
 	}
 
@@ -231,10 +235,10 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	assert.Contains(t, logMessages, "Requested app 'app-to-refresh-in-globbed-namespace' refresh")
 	assert.NotContains(t, logMessages, "Requested app 'app-to-ignore' refresh")
 
-	assert.Contains(t, patchedApps, "app-to-refresh-in-default-namespace")
-	assert.Contains(t, patchedApps, "app-to-refresh-in-exact-match-namespace")
-	assert.Contains(t, patchedApps, "app-to-refresh-in-globbed-namespace")
-	assert.NotContains(t, patchedApps, "app-to-ignore")
+	assert.Contains(t, patchedApps, nameAndNamespace{"app-to-refresh-in-default-namespace", "argocd"})
+	assert.Contains(t, patchedApps, nameAndNamespace{"app-to-refresh-in-exact-match-namespace", "end-to-end-tests"})
+	assert.Contains(t, patchedApps, nameAndNamespace{"app-to-refresh-in-globbed-namespace", "app-team-two"})
+	assert.NotContains(t, patchedApps, nameAndNamespace{"app-to-ignore", "kube-system"})
 	assert.Len(t, patchedApps, 3)
 
 	hook.Reset()
