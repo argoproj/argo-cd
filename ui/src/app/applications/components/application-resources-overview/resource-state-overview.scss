@@ -1,23 +1,11 @@
 @import 'node_modules/argo-ui/src/styles/config';
-@import 'node_modules/foundation-sites/scss/util/util';
-@import 'node_modules/argo-ui/src/styles/theme';
 
 
 .resource-state-overview {
-    font-size: 0.95em;
-    @include themify($themes) {
-        background-color: themed('background-2');
-        color: themed('text-1');
-    }
-    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
-    border-left: 5px solid $argo-color-gray-4;
-    flex-wrap: nowrap;
-    flex-shrink: 1;
-    &__lineitem {
-        display: flex;
-        margin: auto;
+    &__lineitem{
+        border-left: 5px solid $argo-color-gray-4;
         justify-content: center;
-        line-height: 1.5em;
+
         &--Gray {
             border-left-color: $argo-color-gray-5;
         }

@@ -81,12 +81,12 @@ export const ResourceStateOverview = ({app, treeNodes}: {app: models.Application
                         treeNodes
                             .filter(rNode => rNode?.health?.status === 'Degraded' || rNode?.health?.status === 'Unknown')
                             .map(res => (
-                                <div key={res.uid} className={`argo-table-list__row resource-state-overview__state--${expandedResourceStatus === res.name ? 'Error' : 'Gray'}`}>
+                                <div key={res.uid} className={`argo-table-list__row resource-state-overview__lineitem resource-state-overview__lineitem--${expandedResourceStatus === res.name ? 'Error' : 'Gray'}`}>
                                     <div className='row'>
                                         <div className='columns small-2 xxlarge-2'>{res?.name}</div>
                                         <div className='columns small-1 xxlarge-1'>{res?.kind}</div>
                                         <div className='columns small-2 xxlarge-2'>{res?.health.status}</div>
-                                        <div className='columns small-2 xxlarge-2' style={{whiteSpace: 'normal', lineHeight: 'normal'}}>
+                                        <div className='columns small-2 xxlarge-2'>
                                             {res?.health?.message}
                                         </div>
                                         <div className='columns small-2 xxlarge-2'>
@@ -104,12 +104,12 @@ export const ResourceStateOverview = ({app, treeNodes}: {app: models.Application
                                                         <a
                                                             className='fa-solid fa-circle-dot fa-fade'
                                                             onClick={() =>
-                                                                ctx.apis.navigation.goto('.', {node: nodeKey(res), tab: 'events', resourceState: 'false'}, {replace: true})
+                                                                ctx.apis.navigation.goto('.', {node: nodeKey(res), resourceState: 'false', tab: 'events'}, {replace: true})
                                                             }></a>
                                                     </div>
                                                 </React.Fragment>
                                             ) : (
-                                                'No Events'
+                                                'No events available'
                                             )}
                                         </div>
                                     </div>
