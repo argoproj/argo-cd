@@ -2001,7 +2001,7 @@ func ReplaceMapSecrets(obj map[string]interface{}, secretValues map[string]strin
 		case []interface{}:
 			newObj[k] = replaceListSecrets(val, secretValues)
 		case string:
-			newObj[k] = replaceStringSecret(val, secretValues)
+			newObj[k] = ReplaceStringSecret(val, secretValues)
 		default:
 			newObj[k] = val
 		}
@@ -2018,7 +2018,7 @@ func replaceListSecrets(obj []interface{}, secretValues map[string]string) []int
 		case []interface{}:
 			newObj[i] = replaceListSecrets(val, secretValues)
 		case string:
-			newObj[i] = replaceStringSecret(val, secretValues)
+			newObj[i] = ReplaceStringSecret(val, secretValues)
 		default:
 			newObj[i] = val
 		}
@@ -2026,8 +2026,8 @@ func replaceListSecrets(obj []interface{}, secretValues map[string]string) []int
 	return newObj
 }
 
-// replaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map
-func replaceStringSecret(val string, secretValues map[string]string) string {
+// ReplaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map
+func ReplaceStringSecret(val string, secretValues map[string]string) string {
 	if val == "" || !strings.HasPrefix(val, "$") {
 		return val
 	}
