@@ -2130,7 +2130,7 @@ metadata:
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 
-			assert.Equal(t, map[string]string{"test": "true", "foo": "bar"}, ns.Labels)
+			assert.Equal(t, map[string]string{"foo": "bar"}, ns.Labels)
 			assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "bar": "bat"}, ns.Annotations)
 			assert.Equal(t, map[string]string{"bar": "bat"}, app.Spec.SyncPolicy.ManagedNamespaceMetadata.Annotations)
 		})).
