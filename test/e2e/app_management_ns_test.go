@@ -2048,7 +2048,7 @@ metadata:
 	_, err = tmpFile.Write([]byte(s))
 	errors.CheckError(err)
 
-	_, err = Run("", "kubectl", "apply", "-f", tmpFile.Name())
+	_, err = Run("", "kubectl", "apply", "-f", tmpFile.Name(), "--server-side")
 	assert.NoError(t, err)
 
 	ctx := Given(t)
