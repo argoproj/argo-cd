@@ -2048,7 +2048,7 @@ metadata:
 	_, err = tmpFile.Write([]byte(s))
 	errors.CheckError(err)
 
-	_, err = Run("", "kubectl", "apply", "-f", tmpFile.Name(), "--server-side")
+	_, err = Run("", "kubectl", "apply", "-f", tmpFile.Name())
 	assert.NoError(t, err)
 
 	ctx := Given(t)
@@ -2089,8 +2089,8 @@ metadata:
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 
-			assert.Equal(t, map[string]string{"test": "true", "foo": "bar"}, ns.Labels)
-			assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "something": "whatevs", "bar": "bat"}, ns.Annotations)
+			assert.Equal(t, map[string]string{"foo": "bar"}, ns.Labels)
+			assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "bar": "bat"}, ns.Annotations)
 		})).
 		When().
 		And(func() {
@@ -2109,7 +2109,7 @@ metadata:
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 
-			assert.Equal(t, map[string]string{"test": "true", "foo": "bar"}, ns.Labels)
+			assert.Equal(t, map[string]string{"foo": "bar"}, ns.Labels)
 			assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "something": "hmm", "bar": "bat"}, ns.Annotations)
 			assert.Equal(t, map[string]string{"something": "hmm", "bar": "bat"}, app.Spec.SyncPolicy.ManagedNamespaceMetadata.Annotations)
 		})).
