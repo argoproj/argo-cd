@@ -149,7 +149,7 @@ jobs:
           path: test-results/
 
   test-go-race:
-    name: Run unit tests with -race, for Go packages
+    name: Run unit tests with -race for Go packages
     runs-on: ubuntu-22.04
     needs:
       - build-go
