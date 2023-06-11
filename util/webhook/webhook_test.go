@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/types"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -149,14 +150,10 @@ func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
 func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	hook := test.NewGlobal()
 
-	type nameAndNamespace struct {
-		Name      string
-		Namespace string
-	}
-	patchedApps := make([]nameAndNamespace, 0, 3)
+	patchedApps := make([]types.NamespacedName, 0, 3)
 	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patchAction := action.(kubetesting.PatchAction)
-		patchedApps = append(patchedApps, nameAndNamespace{patchAction.GetName(), patchAction.GetNamespace()})
+		patchedApps = append(patchedApps, types.NamespacedName{Name: patchAction.GetName(), Namespace: patchAction.GetNamespace()})
 		return true, nil, nil
 	}
 
@@ -235,10 +232,10 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	assert.Contains(t, logMessages, "Requested app 'app-to-refresh-in-globbed-namespace' refresh")
 	assert.NotContains(t, logMessages, "Requested app 'app-to-ignore' refresh")
 
-	assert.Contains(t, patchedApps, nameAndNamespace{"app-to-refresh-in-default-namespace", "argocd"})
-	assert.Contains(t, patchedApps, nameAndNamespace{"app-to-refresh-in-exact-match-namespace", "end-to-end-tests"})
-	assert.Contains(t, patchedApps, nameAndNamespace{"app-to-refresh-in-globbed-namespace", "app-team-two"})
-	assert.NotContains(t, patchedApps, nameAndNamespace{"app-to-ignore", "kube-system"})
+	assert.Contains(t, patchedApps, types.NamespacedName{Name: "app-to-refresh-in-default-namespace", Namespace: "argocd"})
+	assert.Contains(t, patchedApps, types.NamespacedName{Name: "app-to-refresh-in-exact-match-namespace", Namespace: "end-to-end-tests"})
+	assert.Contains(t, patchedApps, types.NamespacedName{Name: "app-to-refresh-in-globbed-namespace", Namespace: "app-team-two"})
+	assert.NotContains(t, patchedApps, types.NamespacedName{Name: "app-to-ignore", Namespace: "kube-system"})
 	assert.Len(t, patchedApps, 3)
 
 	hook.Reset()
