@@ -94,8 +94,6 @@ How will this work?
 * If the status for an application controller was already flagged as Unhealthy, we will not re-trigger the redistribution of clusters across healthy shards. The new application controller will come online and try to claim this unassigned shard.
 * If the status is not flagged and an application controller has not updated the last active timestamp in a long time, then we mark the Application Controller as Unhealthy and unassign the shard in the ConfigMap. 
 
-This will continue to happen till the time the list of clusters is marked as empty. As soon as the list is marked as empty, the entry of the shard/application-controller is removed from ConfigMap.
-
 *Note:* We will continue to use the cluster to shard assignment approach being used today.
 
 ### Pros
