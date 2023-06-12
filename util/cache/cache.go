@@ -33,20 +33,31 @@ func NewCache(client CacheClient) *Cache {
 	return &Cache{client}
 }
 
-func buildRedisClient(redisAddress, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config) *redis.Client {
-	opts := &redis.Options{
-		Addr:       redisAddress,
-		Password:   password,
-		DB:         redisDB,
-		MaxRetries: maxRetries,
-		TLSConfig:  tlsConfig,
-		Username:   username,
+func buildRedisClient(redisAddress, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, redisClusterMode bool) *redis.Client {
+	var client *redis.Client
+	if redisClusterMode {
+		opts := &redis.ClusterOptions{
+			Addrs:       []string{redisAddress},
+			Password:   password,
+			MaxRetries: maxRetries,
+			TLSConfig:  tlsConfig,
+			Username:   username,
+		}
+		client = redis.NewClusterClient(opts)
+	} else {
+		opts := &redis.Options{
+			Addr:       redisAddress,
+			Password:   password,
+			DB:         redisDB,
+			MaxRetries: maxRetries,
+			TLSConfig:  tlsConfig,
+			Username:   username,
+		}
+		client = redis.NewClient(opts)
 	}
 
-	client := redis.NewClient(opts)
-
 	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
-		*client = *buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
+		*client = *buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig, redisClusterMode)
 	})))
 
 	return client
@@ -84,6 +95,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	redisUseTLS := false
 	insecureRedis := false
 	compressionStr := ""
+	redisClusterMode := false
 	var defaultCacheExpiration time.Duration
 
 	cmd.Flags().StringVar(&redisAddress, "redis", env.StringFromEnv("REDIS_SERVER", ""), "Redis server hostname and port (e.g. argocd-redis:6379). ")
@@ -97,7 +109,15 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	cmd.Flags().BoolVar(&insecureRedis, "redis-insecure-skip-tls-verify", false, "Skip Redis server certificate validation.")
 	cmd.Flags().StringVar(&redisCACertificate, "redis-ca-certificate", "", "Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.")
 	cmd.Flags().StringVar(&compressionStr, "redis-compress", env.StringFromEnv("REDIS_COMPRESSION", string(RedisCompressionGZip)), "Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none)")
+	cmd.Flags().BoolVar(&redisClusterMode, "redisclustermode", false, "Redis cluster mode.")
 	return func() (*Cache, error) {
+		if redisClusterMode && redisDB != 0 {
+			return nil, fmt.Errorf("cannot set redisDB in cluster mode")
+		}
+		if redisClusterMode && len(sentinelAddresses) > 0 {
+			return nil, fmt.Errorf("cannot use both redis sentinel and cluster mode")
+		}
+
 		var tlsConfig *tls.Config = nil
 		if redisUseTLS {
 			tlsConfig = &tls.Config{}
@@ -142,7 +162,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 			redisAddress = common.DefaultRedisAddr
 		}
 
-		client := buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
+		client := buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig, redisClusterMode)
 		for i := range opts {
 			opts[i](client)
 		}
