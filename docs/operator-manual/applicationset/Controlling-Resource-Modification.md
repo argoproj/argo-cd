@@ -37,7 +37,7 @@ spec:
 - Policy `create-delete`: Prevents ApplicationSet controller from modifying Applications. Delete is allowed.
 - Policy `sync`: Update and Delete are allowed.
 
-If the controller parameter `--policy` is set, it takes precedence on the field `applicationsSync`. It is possible to allow per ApplicationSet sync policy by setting controller parameter `--allow-policy-override` (default to `false`).
+If the controller parameter `--policy` is set, it takes precedence on the field `applicationsSync`. It is possible to allow per ApplicationSet sync policy by setting variable `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE` to argocd-cmd-params-cm `applicationsetcontroller.enable.policy.override` or directly with controller parameter `--enable-policy-override` (default to `false`).
 
 This does not prevent deletion of Applications if the ApplicationSet is deleted
 
