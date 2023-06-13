@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="20 known vulnerabilities found in 73 vulnerable dependency paths.">
+  <meta name="description" content="19 known vulnerabilities found in 68 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">June 4th 2023, 12:16:54 am (UTC+00:00)</p>
+                <p class="timestamp">June 11th 2023, 12:16:39 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -466,9 +466,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>20</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>73 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2105</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>19</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>68 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2107</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -476,134 +476,6 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Improper Certificate Validation</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:22.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            perl/perl-modules-5.34
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.34.1-1ubuntu1.9 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.34.1-1ubuntu1.9
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        perl@5.34.0-3ubuntu1.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        perl/perl-modules-5.34@5.34.0-3ubuntu1.1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.34.1-1ubuntu1.9
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        perl@5.34.0-3ubuntu1.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        perl/libperl5.34@5.34.0-3ubuntu1.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        perl/perl-modules-5.34@5.34.0-3ubuntu1.1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.34.1-1ubuntu1.9
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        perl@5.34.0-3ubuntu1.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        perl/libperl5.34@5.34.0-3ubuntu1.1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.34.1-1ubuntu1.9
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        perl@5.34.0-3ubuntu1.1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        meta-common-packages@meta
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        perl/perl-base@5.34.0-3ubuntu1.1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>perl</code> package and not the <code>perl</code> package as distributed by <code>Ubuntu:22.04</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
-        <p>CPAN.pm before 2.35 does not verify TLS certificates when downloading distributions over HTTPS.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>perl</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-31484">ADVISORY</a></li>
-        <li><a href="https://blog.hackeriet.no/perl-http-tiny-insecure-tls-default-affects-cpan-modules/">cve@mitre.org</a></li>
-        <li><a href="https://github.com/andk/cpanpm/pull/175">cve@mitre.org</a></li>
-        <li><a href="https://metacpan.org/dist/CPAN/changes">cve@mitre.org</a></li>
-        <li><a href="https://www.openwall.com/lists/oss-security/2023/04/18/14">cve@mitre.org</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2023/04/29/1">cve@mitre.org</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2023/05/03/3">cve@mitre.org</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2023/05/03/5">cve@mitre.org</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2023/05/07/2">cve@mitre.org</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-PERL-5499877">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">CVE-2023-2603</h2>
             <div class="card__section">
@@ -668,12 +540,16 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>libcap2</code> package and not the <code>libcap2</code> package as distributed by <code>Ubuntu:22.04</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
+        <p>A vulnerability was found in libcap. This issue occurs in the _libcap_strdup() function and can lead to an integer overflow if the input string is close to 4GiB.</p>
         <h2 id="remediation">Remediation</h2>
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>libcap2</code>.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-2603">ADVISORY</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2209113">secalert@redhat.com</a></li>
+        <li><a href="https://www.x41-dsec.de/static/reports/X41-libcap-Code-Review-2023-OSTIF-Final-Report.pdf">secalert@redhat.com</a></li>
         </ul>
         
               <hr/>
@@ -1222,7 +1098,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2023-2953</h2>
+            <h2 class="card__title">NULL Pointer Dereference</h2>
             <div class="card__section">
         
                 <div class="label label--low">
@@ -1446,12 +1322,16 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>libcap2</code> package and not the <code>libcap2</code> package as distributed by <code>Ubuntu:22.04</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
+        <p>A vulnerability was found in the pthread_create() function in libcap. This issue may allow a malicious actor to use cause __real_pthread_create() to return an error, which can exhaust the process memory.</p>
         <h2 id="remediation">Remediation</h2>
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>libcap2</code>.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-2602">ADVISORY</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2209114">secalert@redhat.com</a></li>
+        <li><a href="https://www.x41-dsec.de/static/reports/X41-libcap-Code-Review-2023-OSTIF-Final-Report.pdf">secalert@redhat.com</a></li>
         </ul>
         
               <hr/>
@@ -1618,7 +1498,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3-gnutls@7.81.0-1ubuntu1.10
                                          <span class="list-paths__item__arrow">›</span> 
-                                        libssh/libssh-4@0.9.6-2build1
+                                        libssh/libssh-4@0.9.6-2ubuntu0.22.04.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.19.2-2ubuntu0.2
                                         
@@ -2289,6 +2169,9 @@
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-28322">ADVISORY</a></li>
         <li><a href="https://hackerone.com/reports/1954658">support@hackerone.com</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/F4I75RDGX5ULSSCBE5BF3P5I5SFO7ULQ/">support@hackerone.com</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/Z2LIWHWKOVH24COGGBCVOWDXXIUPKOMK/">support@hackerone.com</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20230609-0009/">support@hackerone.com</a></li>
         </ul>
         
               <hr/>
@@ -2358,6 +2241,9 @@
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-28321">ADVISORY</a></li>
         <li><a href="https://hackerone.com/reports/1950627">support@hackerone.com</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/F4I75RDGX5ULSSCBE5BF3P5I5SFO7ULQ/">support@hackerone.com</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/Z2LIWHWKOVH24COGGBCVOWDXXIUPKOMK/">support@hackerone.com</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20230609-0009/">support@hackerone.com</a></li>
         </ul>
         
               <hr/>
