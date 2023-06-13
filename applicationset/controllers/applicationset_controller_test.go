@@ -2100,7 +2100,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	assert.Nil(t, err)
 
 	retrievedApplicationSet.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
-	retrievedApplicationSet.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
+	retrievedApplicationSet.Spec.Template.Labels = map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}
 
 	retrievedApplicationSet.Spec.Template.Spec.Source.Helm = &v1alpha1.ApplicationSourceHelm{
 		Values: "global.test: test",
@@ -2128,7 +2128,7 @@ func TestUpdateNotPerformedWithSyncPolicyCreateOnly(t *testing.T) {
 
 	assert.Nil(t, app.Spec.Source.Helm)
 	assert.Nil(t, app.ObjectMeta.Annotations)
-	assert.Nil(t, app.ObjectMeta.Labels)
+	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdateNotPerformedWithSyncPolicyCreateDelete(t *testing.T) {
@@ -2139,7 +2139,7 @@ func TestUpdateNotPerformedWithSyncPolicyCreateDelete(t *testing.T) {
 
 	assert.Nil(t, app.Spec.Source.Helm)
 	assert.Nil(t, app.ObjectMeta.Annotations)
-	assert.Nil(t, app.ObjectMeta.Labels)
+	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdatePerformedWithSyncPolicyCreateUpdate(t *testing.T) {
@@ -2150,7 +2150,7 @@ func TestUpdatePerformedWithSyncPolicyCreateUpdate(t *testing.T) {
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
 	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
-	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
+	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdatePerformedWithSyncPolicySync(t *testing.T) {
@@ -2161,7 +2161,7 @@ func TestUpdatePerformedWithSyncPolicySync(t *testing.T) {
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
 	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
-	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
+	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
@@ -2172,7 +2172,7 @@ func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *t
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
 	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
-	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
+	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.ApplicationList {
