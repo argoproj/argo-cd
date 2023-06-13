@@ -254,6 +254,9 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 			Name:       "my-cluster-guestbook-sync-policy-create-update",
 			Namespace:  utils.ArgoCDNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "sync-policy-create-update",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -322,11 +325,17 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		And(func() {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+				LabelKeyAppSetInstance: "sync-policy-create-update",
+				"label-key":            "label-value",
+			}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
+			appset.Spec.Template.Labels = map[string]string{
+				LabelKeyAppSetInstance: "sync-policy-create-update",
+				"label-key":            "label-value",
+			}
 			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyCreateUpdate
 			appset.Spec.SyncPolicy = &argov1alpha1.ApplicationSetSyncPolicy{
 				ApplicationsSync: &applicationsSyncPolicy,
@@ -360,6 +369,9 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 			Name:       "my-cluster-guestbook-sync-policy-create-delete",
 			Namespace:  utils.ArgoCDNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "sync-policy-create-delete",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -460,6 +472,9 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 			Name:       "my-cluster-guestbook-sync-policy-create-only",
 			Namespace:  utils.ArgoCDNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "sync-policy-create-only",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
