@@ -2068,11 +2068,11 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
-		ArgoDB:              &argoDBMock,
-		ArgoAppClientset:    appclientset.NewSimpleClientset(argoObjs...),
-		KubeClientset:       kubeclientset,
-		Policy:              v1alpha1.ApplicationsSyncPolicySync,
-		AllowPolicyOverride: allowPolicyOverride,
+		ArgoDB:               &argoDBMock,
+		ArgoAppClientset:     appclientset.NewSimpleClientset(argoObjs...),
+		KubeClientset:        kubeclientset,
+		Policy:               v1alpha1.ApplicationsSyncPolicySync,
+		EnablePolicyOverride: allowPolicyOverride,
 	}
 
 	req := ctrl.Request{
@@ -2238,11 +2238,11 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
-		ArgoDB:              &argoDBMock,
-		ArgoAppClientset:    appclientset.NewSimpleClientset(argoObjs...),
-		KubeClientset:       kubeclientset,
-		Policy:              v1alpha1.ApplicationsSyncPolicySync,
-		AllowPolicyOverride: allowPolicyOverride,
+		ArgoDB:               &argoDBMock,
+		ArgoAppClientset:     appclientset.NewSimpleClientset(argoObjs...),
+		KubeClientset:        kubeclientset,
+		Policy:               v1alpha1.ApplicationsSyncPolicySync,
+		EnablePolicyOverride: allowPolicyOverride,
 	}
 
 	req := ctrl.Request{

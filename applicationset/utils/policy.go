@@ -14,8 +14,8 @@ var Policies = map[string]argov1alpha1.ApplicationsSyncPolicy{
 	"": argov1alpha1.ApplicationsSyncPolicySync,
 }
 
-func DefaultPolicy(appSetSyncPolicy *argov1alpha1.ApplicationSetSyncPolicy, controllerPolicy argov1alpha1.ApplicationsSyncPolicy, allowPolicyOverride bool) argov1alpha1.ApplicationsSyncPolicy {
-	if appSetSyncPolicy == nil || appSetSyncPolicy.ApplicationsSync == nil || !allowPolicyOverride {
+func DefaultPolicy(appSetSyncPolicy *argov1alpha1.ApplicationSetSyncPolicy, controllerPolicy argov1alpha1.ApplicationsSyncPolicy, enablePolicyOverride bool) argov1alpha1.ApplicationsSyncPolicy {
+	if appSetSyncPolicy == nil || appSetSyncPolicy.ApplicationsSync == nil || !enablePolicyOverride {
 		return controllerPolicy
 	}
 	return *appSetSyncPolicy.ApplicationsSync
