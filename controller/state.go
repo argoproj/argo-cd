@@ -353,6 +353,10 @@ func verifyGnuPGSignature(revision string, project *v1alpha1.AppProject, manifes
 	return conditions
 }
 
+func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application) bool {
+	return ns != nil && ns.GetKind() == kubeutil.NamespaceKind && ns.GetName() == app.Spec.Destination.Namespace && app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil
+}
+
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
@@ -515,7 +519,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			// entry in source control. In order for the namespace not to risk being pruned, we'll need to generate a
 			// namespace which we can compare the live namespace with. For that, we'll do the same as is done in
 			// gitops-engine, the difference here being that we create a managed namespace which is only used for comparison.
-			if liveObj.GetKind() == kubeutil.NamespaceKind && liveObj.GetName() == app.Spec.Destination.Namespace && app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil {
+			if isManagedNamespace(liveObj, app) {
 				nsSpec := &v1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()}}
 				managedNs, err := kubeutil.ToUnstructured(nsSpec)
 
@@ -633,8 +637,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		// bookkeeping in order to ensure that it's not considered `OutOfSync` (since it does not exist in source
 		// control).
 		//
-		// This is in addition to the bookkeeping we do above (see line ~500) to prevent said namespace from being pruned.
-		isManagedNs := targetObj != nil && targetObj.GetKind() == kubeutil.NamespaceKind && targetObj.GetName() == app.Spec.Destination.Namespace && app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil && liveObj == nil
+		// This is in addition to the bookkeeping we do (see `isManagedNamespace` and its references) to prevent said
+		// namespace from being pruned.
+		isManagedNs := isManagedNamespace(targetObj, app) && liveObj == nil
 
 		if resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) || !isSelfReferencedObj {
 			// For resource hooks, skipped resources or objects that may have
