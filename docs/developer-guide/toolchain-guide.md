@@ -53,7 +53,7 @@ The following read will help you to submit a PR that meets the standards of our 
 
 Please use a meaningful and concise title for your PR. This will help us to pick PRs for review quickly, and the PR title will also end up in the Changelog.
 
-We use the [Semantic PR title checker](https://github.com/zeke/semantic-pull-requests) to categorize your PR into one of the following categories:
+We use [PR title checker](https://github.com/marketplace/actions/pr-title-checker) to categorize your PR into one of the following categories:
 
 * `fix` - Your PR contains one or more code bug fixes
 * `feat` - Your PR contains a new feature
@@ -157,9 +157,9 @@ Make sure you fulfill the pre-requisites above and run some preliminary tests. N
 * Run `docker version`
 * Run `go version`
 
-### Build (or pull) the required Docker image
+### Build the required Docker image
 
-Build the required Docker image by running `make test-tools-image` or pull the latest version by issuing `docker pull argoproj/argocd-test-tools`.
+Build the required Docker image by running `make test-tools-image`. This image offers the environment of the virtualized toolchain.
 
 The `Dockerfile` used to build these images can be found at `test/container/Dockerfile`.
 

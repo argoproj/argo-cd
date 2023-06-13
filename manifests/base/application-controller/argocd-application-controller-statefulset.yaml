@@ -143,6 +143,18 @@ spec:
                 name: argocd-cmd-params-cm
                 key: application.namespaces
                 optional: true
+        - name: ARGOCD_CONTROLLER_SHARDING_ALGORITHM
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: controller.sharding.algorithm
+                optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: controller.kubectl.parallelism.limit
+                optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller

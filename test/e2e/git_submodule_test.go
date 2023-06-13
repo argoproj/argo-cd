@@ -40,3 +40,25 @@ func TestGitSubmoduleHTTPSSupport(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(Pod(func(p v1.Pod) bool { return p.Name == "pod-in-submodule" }))
 }
+
+func TestGitSubmoduleRemovalSupport(t *testing.T) {
+	Given(t).
+		RepoURLType(fixture.RepoURLTypeSSHSubmoduleParent).
+		Path("submodule").
+		Recurse().
+		CustomSSHKnownHostsAdded().
+		SubmoduleSSHRepoURLAdded(true).
+		When().
+		CreateFromFile(func(app *Application) {}).
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(Pod(func(p v1.Pod) bool { return p.Name == "pod-in-submodule" })).
+		When().
+		RemoveSubmodule().
+		Refresh(RefreshTypeNormal).
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "pod-in-submodule" }))
+}

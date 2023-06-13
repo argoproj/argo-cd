@@ -1,7 +1,19 @@
 import {AutocompleteField, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
-import {Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, NumberField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
+import {
+    ClipboardText,
+    Cluster,
+    DataLoader,
+    EditablePanel,
+    EditablePanelItem,
+    Expandable,
+    MapInputField,
+    NumberField,
+    Repo,
+    Revision,
+    RevisionHelpIcon
+} from '../../../shared/components';
 import {BadgePanel, Spinner} from '../../../shared/components';
 import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -139,7 +151,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         },
         {
             title: 'NAMESPACE',
-            view: app.spec.destination.namespace,
+            view: <ClipboardText text={app.spec.destination.namespace} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
         {
@@ -307,7 +319,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         {
             title: 'LINKS',
             view: (
-                <DataLoader load={() => services.applications.getLinks(app.metadata.name)} input={app} key='appLinks'>
+                <DataLoader load={() => services.applications.getLinks(app.metadata.name, app.metadata.namespace)} input={app} key='appLinks'>
                     {(links: models.LinksResponse) => <DeepLinks links={links.items} />}
                 </DataLoader>
             )

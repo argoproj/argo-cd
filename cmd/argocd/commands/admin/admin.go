@@ -3,7 +3,6 @@ package admin
 import (
 	"reflect"
 
-	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -12,11 +11,14 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/yaml"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 const (
@@ -27,9 +29,9 @@ const (
 var (
 	configMapResource       = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
 	secretResource          = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}
-	applicationsResource    = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applications"}
-	appprojectsResource     = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "appprojects"}
-	appplicationSetResource = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applicationsets"}
+	applicationsResource    = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationPlural}
+	appprojectsResource     = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.AppProjectPlural}
+	appplicationSetResource = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationSetPlural}
 )
 
 // NewAdminCommand returns a new instance of an argocd command
@@ -193,11 +195,11 @@ func specsEqual(left, right unstructured.Unstructured) bool {
 		leftData, _, _ := unstructured.NestedMap(left.Object, "data")
 		rightData, _, _ := unstructured.NestedMap(right.Object, "data")
 		return reflect.DeepEqual(leftData, rightData)
-	case "AppProject":
+	case application.AppProjectKind:
 		leftSpec, _, _ := unstructured.NestedMap(left.Object, "spec")
 		rightSpec, _, _ := unstructured.NestedMap(right.Object, "spec")
 		return reflect.DeepEqual(leftSpec, rightSpec)
-	case "Application":
+	case application.ApplicationKind:
 		leftSpec, _, _ := unstructured.NestedMap(left.Object, "spec")
 		rightSpec, _, _ := unstructured.NestedMap(right.Object, "spec")
 		leftStatus, _, _ := unstructured.NestedMap(left.Object, "status")

@@ -14,6 +14,7 @@ import {ResourceLabel} from '../resource-label';
 import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon, deletePodAction} from '../utils';
 
 import './pod-view.scss';
+import {PodTooltip} from './pod-tooltip';
 
 interface PodViewProps {
     tree: ApplicationTree;
@@ -163,29 +164,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                     key={pod.uid}
                                                                     anchor={() => (
                                                                         <Tooltip
-                                                                            content={
-                                                                                <div>
-                                                                                    {pod.metadata.name}
-                                                                                    <div>Health: {pod.health}</div>
-                                                                                    {pod.createdAt && (
-                                                                                        <span>
-                                                                                            <span>Created: </span>
-                                                                                            <Moment fromNow={true} ago={true}>
-                                                                                                {pod.createdAt}
-                                                                                            </Moment>
-                                                                                            <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
-                                                                                            <div>
-                                                                                                {isYoungerThanXMinutes(pod, 30) && (
-                                                                                                    <span>
-                                                                                                        <i className='fas fa-circle circle-icon' /> &nbsp;
-                                                                                                        <span>pod age less than 30min</span>
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                            }
+                                                                            content={<PodTooltip pod={pod} />}
                                                                             popperOptions={{
                                                                                 modifiers: {
                                                                                     preventOverflow: {

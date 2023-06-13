@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
@@ -22,38 +22,40 @@ import (
 
 // Provide a mapping of short-hand resource names to their RBAC counterparts
 var resourceMap map[string]string = map[string]string{
-	"account":     rbacpolicy.ResourceAccounts,
-	"app":         rbacpolicy.ResourceApplications,
-	"apps":        rbacpolicy.ResourceApplications,
-	"application": rbacpolicy.ResourceApplications,
-	"cert":        rbacpolicy.ResourceCertificates,
-	"certs":       rbacpolicy.ResourceCertificates,
-	"certificate": rbacpolicy.ResourceCertificates,
-	"cluster":     rbacpolicy.ResourceClusters,
-	"gpgkey":      rbacpolicy.ResourceGPGKeys,
-	"key":         rbacpolicy.ResourceGPGKeys,
-	"log":         rbacpolicy.ResourceLogs,
-	"logs":        rbacpolicy.ResourceLogs,
-	"exec":        rbacpolicy.ResourceExec,
-	"proj":        rbacpolicy.ResourceProjects,
-	"projs":       rbacpolicy.ResourceProjects,
-	"project":     rbacpolicy.ResourceProjects,
-	"repo":        rbacpolicy.ResourceRepositories,
-	"repos":       rbacpolicy.ResourceRepositories,
-	"repository":  rbacpolicy.ResourceRepositories,
+	"account":         rbacpolicy.ResourceAccounts,
+	"app":             rbacpolicy.ResourceApplications,
+	"apps":            rbacpolicy.ResourceApplications,
+	"application":     rbacpolicy.ResourceApplications,
+	"applicationsets": rbacpolicy.ResourceApplicationSets,
+	"cert":            rbacpolicy.ResourceCertificates,
+	"certs":           rbacpolicy.ResourceCertificates,
+	"certificate":     rbacpolicy.ResourceCertificates,
+	"cluster":         rbacpolicy.ResourceClusters,
+	"gpgkey":          rbacpolicy.ResourceGPGKeys,
+	"key":             rbacpolicy.ResourceGPGKeys,
+	"log":             rbacpolicy.ResourceLogs,
+	"logs":            rbacpolicy.ResourceLogs,
+	"exec":            rbacpolicy.ResourceExec,
+	"proj":            rbacpolicy.ResourceProjects,
+	"projs":           rbacpolicy.ResourceProjects,
+	"project":         rbacpolicy.ResourceProjects,
+	"repo":            rbacpolicy.ResourceRepositories,
+	"repos":           rbacpolicy.ResourceRepositories,
+	"repository":      rbacpolicy.ResourceRepositories,
 }
 
 // List of allowed RBAC resources
 var validRBACResources map[string]bool = map[string]bool{
-	rbacpolicy.ResourceAccounts:     true,
-	rbacpolicy.ResourceApplications: true,
-	rbacpolicy.ResourceCertificates: true,
-	rbacpolicy.ResourceClusters:     true,
-	rbacpolicy.ResourceGPGKeys:      true,
-	rbacpolicy.ResourceLogs:         true,
-	rbacpolicy.ResourceExec:         true,
-	rbacpolicy.ResourceProjects:     true,
-	rbacpolicy.ResourceRepositories: true,
+	rbacpolicy.ResourceAccounts:        true,
+	rbacpolicy.ResourceApplications:    true,
+	rbacpolicy.ResourceApplicationSets: true,
+	rbacpolicy.ResourceCertificates:    true,
+	rbacpolicy.ResourceClusters:        true,
+	rbacpolicy.ResourceGPGKeys:         true,
+	rbacpolicy.ResourceLogs:            true,
+	rbacpolicy.ResourceExec:            true,
+	rbacpolicy.ResourceProjects:        true,
+	rbacpolicy.ResourceRepositories:    true,
 }
 
 // List of allowed RBAC actions
@@ -292,11 +294,9 @@ func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string, string) {
 	if !ok {
 		userPolicy = ""
 	}
-	if defaultRole == "" {
-		defaultRole, ok = cm.Data[rbac.ConfigMapPolicyDefaultKey]
-		if !ok {
-			defaultRole = ""
-		}
+	defaultRole, ok = cm.Data[rbac.ConfigMapPolicyDefaultKey]
+	if !ok {
+		defaultRole = ""
 	}
 
 	return userPolicy, defaultRole, cm.Data[rbac.ConfigMapMatchModeKey]

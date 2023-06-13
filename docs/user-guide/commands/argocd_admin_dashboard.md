@@ -25,6 +25,7 @@ argocd admin dashboard [flags]
       --password string                Password for basic authentication to the API server
       --port int                       Listen on given port (default 8080)
       --proxy-url string               If provided, this URL will be used to connect via proxy
+      --redis-compress string          Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none) (default "gzip")
       --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --tls-server-name string         If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                   Bearer token for authentication to the API server
