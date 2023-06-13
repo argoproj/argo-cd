@@ -81,7 +81,7 @@ require (
 	golang.org/x/oauth2 v0.8.0
 	golang.org/x/sync v0.2.0
 	golang.org/x/term v0.8.0
-	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4
+	google.golang.org/genproto v0.0.0-20230323212658-478b75c54725
 	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.30.0
 	gopkg.in/go-playground/webhooks.v5 v5.17.0
@@ -91,7 +91,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.24.2
 	k8s.io/apimachinery v0.24.2
 	k8s.io/apiserver v0.24.2
-	k8s.io/client-go v0.24.2
+	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
 	k8s.io/code-generator v0.24.2
 	k8s.io/klog/v2 v2.70.1
 	k8s.io/kube-openapi v0.0.0-20220627174259-011e075b9cb8
@@ -105,7 +105,7 @@ require (
 )
 
 require (
-	cloud.google.com/go/compute v1.18.0 // indirect
+	cloud.google.com/go/compute v1.19.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
@@ -116,12 +116,13 @@ require (
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
-	github.com/Microsoft/go-winio v0.5.2 // indirect
+	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/PagerDuty/go-pagerduty v1.6.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230518184743-7afd39499903 // indirect
 	github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20210112200207-10ab4d695d60 // indirect
 	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
+	github.com/argoproj/argo-cd v1.8.7 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
@@ -158,6 +159,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
+	github.com/google/go-containerregistry v0.15.2 // indirect
 	github.com/google/go-github/v41 v41.0.0 // indirect
 	github.com/google/go-github/v52 v52.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
@@ -177,7 +179,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/klauspost/compress v1.15.9 // indirect
+	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
@@ -188,14 +190,14 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.0 // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
-	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6 // indirect
+	github.com/moby/term v0.0.0-20221205130635-1aeaba878587 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.1.0-rc.3 // indirect
+	github.com/opencontainers/image-spec v1.1.0-rc3 // indirect
 	github.com/opsgenie/opsgenie-go-sdk-v2 v1.0.5 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
@@ -227,12 +229,12 @@ require (
 	go.opentelemetry.io/otel/trace v1.16.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
-	golang.org/x/mod v0.8.0 // indirect
+	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.6.0 // indirect
+	golang.org/x/tools v0.8.0 // indirect
 	gomodules.xyz/envconfig v1.3.1-0.20190308184047-426f31af0d45 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	gomodules.xyz/notify v0.1.1 // indirect

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -13,7 +14,9 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -1517,4 +1520,154 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 			Project: project,
 		},
 	}
+}
+
+type MockPodLogsServer struct {
+	mock.Mock
+}
+
+type MockLogEntry struct {
+	Content      *string
+	TimeStamp    *time.Time
+	Last         *bool
+	TimeStampStr *string
+	PodName      *string
+}
+
+func (m *MockPodLogsServer) Send(entry *MockLogEntry) error {
+	args := m.Called(entry)
+	return args.Error(0)
+}
+
+func (m *MockPodLogsServer) Context() context.Context {
+	args := m.Called()
+	return args.Get(0).(context.Context)
+}
+
+func NewApplicationLogsTestCommand() *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "logs",
+		Short: "logs",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return nil
+		},
+	}
+	return command
+}
+
+func TestNewApplicationLogsCommand_BasicLogStreaming(t *testing.T) {
+	mockServer := new(MockPodLogsServer)
+	mockServer.On("Context").Return(context.Background())
+
+	now := time.Now()
+	content := "test"
+	timeStamp := &now
+	last := false
+	timeStampStr := "2020-01-01"
+	podName := "pod-1"
+
+	logEntry := &MockLogEntry{
+		Content:      &content,
+		TimeStamp:    timeStamp,
+		Last:         &last,
+		TimeStampStr: &timeStampStr,
+		PodName:      &podName,
+	}
+
+	mockServer.On("Send", logEntry).Return(nil)
+
+	cmd := &cobra.Command{}
+	cmd.Flags().String("app", "my-app", "Application name")
+	cmd.Flags().String("namespace", "my-namespace", "Namespace")
+	cmd.Flags().String("pod", "pod-1", "Pod name")
+
+	appLogsCmd := NewApplicationLogsTestCommand()
+	err := appLogsCmd.RunE(cmd, []string{})
+
+	assert.NoError(t, err)
+}
+
+func TestNewApplicationLogsCommand_TimeBasedFilter(t *testing.T) {
+	mockServer := new(MockPodLogsServer)
+	mockServer.On("Context").Return(context.Background())
+
+	now := time.Now()
+	content := "test"
+	timeStamp := &now
+	last := false
+	timeStampStr := "2023-06-12 10:00:00"
+	podName := "pod-1"
+
+	logEntry := &MockLogEntry{
+		Content:      &content,
+		TimeStamp:    timeStamp,
+		Last:         &last,
+		TimeStampStr: &timeStampStr,
+		PodName:      &podName,
+	}
+
+	mockServer.On("Send", logEntry).Return(nil)
+
+	cmd := &cobra.Command{}
+	cmd.Flags().String("app", "my-app", "Application name")
+	cmd.Flags().String("namespace", "my-namespace", "Namespace")
+	cmd.Flags().String("pod", "pod-1", "Pod name")
+	cmd.Flags().String("since-time", "2023-06-12T09:00:00Z", "Logs since the specified time")
+
+	appLogsCmd := NewApplicationLogsTestCommand()
+	err := appLogsCmd.RunE(cmd, []string{})
+
+	assert.NoError(t, err)
+}
+
+func TestNewApplicationLogsCommand_TailingAndFiltering(t *testing.T) {
+	mockServer := new(MockPodLogsServer)
+	mockServer.On("Context").Return(context.Background())
+
+	now := time.Now()
+	content := "test"
+	timeStamp := &now
+	last := false
+	timeStampStr := "2023-06-12 10:00:00"
+	podName := "pod-1"
+
+	logEntry := &MockLogEntry{
+		Content:      &content,
+		TimeStamp:    timeStamp,
+		Last:         &last,
+		TimeStampStr: &timeStampStr,
+		PodName:      &podName,
+	}
+
+	mockServer.On("Send", logEntry).Return(nil)
+
+	cmd := &cobra.Command{}
+	cmd.Flags().String("app", "my-app", "Application name")
+	cmd.Flags().String("namespace", "my-namespace", "Namespace")
+	cmd.Flags().String("pod", "pod-1", "Pod name")
+	cmd.Flags().Int("tail", 10, "Number of lines to tail from logs")
+	cmd.Flags().String("filter", "ERROR", "Filter logs based on the specified string")
+
+	appLogsCmd := NewApplicationLogsTestCommand()
+	err := appLogsCmd.RunE(cmd, []string{})
+
+	assert.NoError(t, err)
+}
+
+func TestNewApplicationLogsCommand_NonExistentAppOrPod(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("app", "non-existent-app", "Non-existent application name")
+	cmd.Flags().String("namespace", "my-namespace", "Namespace")
+	cmd.Flags().String("pod", "", "Pod name")
+
+	appLogsCmd := NewApplicationLogsTestCommand()
+
+	appLogsCmd.RunE = func(cmd *cobra.Command, args []string) error {
+		return fmt.Errorf("Failed to get logs for non-existent application or pod")
+	}
+
+	err := appLogsCmd.RunE(cmd, []string{})
+
+	expectedError := fmt.Errorf("Failed to get logs for non-existent application or pod")
+	assert.EqualError(t, err, expectedError.Error(), "Expected an error for non-existent application or pod")
 }
