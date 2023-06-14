@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ghodss/yaml"
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -19,6 +18,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -518,7 +518,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 				t.Fail()
 			}
 		default:
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}
 }
@@ -1255,7 +1255,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 <body>
     <noscript>
         <p>
-        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
+        Your browser does not support JavaScript. Please enable JavaScript to view the site.
         Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
         </p>
     </noscript>
@@ -1279,7 +1279,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 <body>
     <noscript>
         <p>
-        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
+        Your browser does not support JavaScript. Please enable JavaScript to view the site.
         Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
         </p>
     </noscript>
@@ -1307,7 +1307,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 <body>
     <noscript>
         <p>
-        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
+        Your browser does not support JavaScript. Please enable JavaScript to view the site.
         Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
         </p>
     </noscript>
@@ -1331,7 +1331,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 <body>
     <noscript>
         <p>
-        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
+        Your browser does not support JavaScript. Please enable JavaScript to view the site.
         Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
         </p>
     </noscript>

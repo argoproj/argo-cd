@@ -308,6 +308,24 @@ func TestGetResourceOverrides(t *testing.T) {
 
 }
 
+func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
+	data := map[string]string{
+		"resource.customizations": `
+    "*.aws.crossplane.io/*":
+      health.lua: |
+        foo`,
+	}
+
+	t.Run("TestResourceHealthOverrideWithWildcard", func(t *testing.T) {
+		_, settingsManager := fixtures(data)
+
+		overrides, err := settingsManager.GetResourceOverrides()
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(overrides))
+		assert.Equal(t, "foo", overrides["*.aws.crossplane.io/*"].HealthLua)
+	})
+}
+
 func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		resourceCustomizationsKey: "",
@@ -1121,7 +1139,7 @@ func TestDownloadArgoCDBinaryUrls(t *testing.T) {
 func TestSecretKeyRef(t *testing.T) {
 	data := map[string]string{
 		"oidc.config": `name: Okta
-issuer: https://dev-123456.oktapreview.com
+issuer: $acme:issuerSecret
 clientID: aaaabbbbccccddddeee
 clientSecret: $acme:clientSecret
 # Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
@@ -1158,6 +1176,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 			},
 		},
 		Data: map[string][]byte{
+			"issuerSecret": []byte("https://dev-123456.oktapreview.com"),
 			"clientSecret": []byte("deadbeef"),
 		},
 	}
@@ -1168,6 +1187,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 	assert.NoError(t, err)
 
 	oidcConfig := settings.OIDCConfig()
+	assert.Equal(t, oidcConfig.Issuer, "https://dev-123456.oktapreview.com")
 	assert.Equal(t, oidcConfig.ClientSecret, "deadbeef")
 }
 
@@ -1443,4 +1463,19 @@ allowedAudiences: ["$test-secret-a:clientID", "$test-secret-b:clientID"]`},
 			assert.ElementsMatch(t, tcc.expected, tcc.settings.OAuth2AllowedAudiences())
 		})
 	}
+}
+
+func TestReplaceStringSecret(t *testing.T) {
+	secretValues := map[string]string{"my-secret-key": "my-secret-value"}
+	result := ReplaceStringSecret("$my-secret-key", secretValues)
+	assert.Equal(t, "my-secret-value", result)
+
+	result = ReplaceStringSecret("$invalid-secret-key", secretValues)
+	assert.Equal(t, "$invalid-secret-key", result)
+
+	result = ReplaceStringSecret("", secretValues)
+	assert.Equal(t, "", result)
+
+	result = ReplaceStringSecret("my-value", secretValues)
+	assert.Equal(t, "my-value", result)
 }

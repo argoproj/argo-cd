@@ -18,7 +18,6 @@ import (
 	"time"
 
 	timeutil "github.com/argoproj/pkg/time"
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +29,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -1680,13 +1680,26 @@ func (a *ArgoCDSettings) oidcConfig() *oidcConfig {
 	if a.OIDCConfigRAW == "" {
 		return nil
 	}
-	config, err := unmarshalOIDCConfig(a.OIDCConfigRAW)
+	configMap := map[string]interface{}{}
+	err := yaml.Unmarshal([]byte(a.OIDCConfigRAW), &configMap)
 	if err != nil {
 		log.Warnf("invalid oidc config: %v", err)
 		return nil
 	}
-	config.ClientSecret = ReplaceStringSecret(config.ClientSecret, a.Secrets)
-	config.ClientID = ReplaceStringSecret(config.ClientID, a.Secrets)
+
+	configMap = ReplaceMapSecrets(configMap, a.Secrets)
+	data, err := yaml.Marshal(configMap)
+	if err != nil {
+		log.Warnf("invalid oidc config: %v", err)
+		return nil
+	}
+
+	config, err := unmarshalOIDCConfig(string(data))
+	if err != nil {
+		log.Warnf("invalid oidc config: %v", err)
+		return nil
+	}
+
 	return &config
 }
 
@@ -1983,6 +1996,42 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		return mgr.GetSettings()
 	}
 	return cdSettings, nil
+}
+
+// ReplaceMapSecrets takes a json object and recursively looks for any secret key references in the
+// object and replaces the value with the secret value
+func ReplaceMapSecrets(obj map[string]interface{}, secretValues map[string]string) map[string]interface{} {
+	newObj := make(map[string]interface{})
+	for k, v := range obj {
+		switch val := v.(type) {
+		case map[string]interface{}:
+			newObj[k] = ReplaceMapSecrets(val, secretValues)
+		case []interface{}:
+			newObj[k] = replaceListSecrets(val, secretValues)
+		case string:
+			newObj[k] = ReplaceStringSecret(val, secretValues)
+		default:
+			newObj[k] = val
+		}
+	}
+	return newObj
+}
+
+func replaceListSecrets(obj []interface{}, secretValues map[string]string) []interface{} {
+	newObj := make([]interface{}, len(obj))
+	for i, v := range obj {
+		switch val := v.(type) {
+		case map[string]interface{}:
+			newObj[i] = ReplaceMapSecrets(val, secretValues)
+		case []interface{}:
+			newObj[i] = replaceListSecrets(val, secretValues)
+		case string:
+			newObj[i] = ReplaceStringSecret(val, secretValues)
+		default:
+			newObj[i] = val
+		}
+	}
+	return newObj
 }
 
 // ReplaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map

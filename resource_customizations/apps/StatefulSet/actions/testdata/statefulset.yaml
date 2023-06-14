@@ -24,7 +24,7 @@ spec:
         app: statefulset
     spec:
       containers:
-      - image: k8s.gcr.io/nginx-slim:0.8
+      - image: registry.k8s.io/nginx-slim:0.8
         imagePullPolicy: IfNotPresent
         name: nginx
         resources: {}

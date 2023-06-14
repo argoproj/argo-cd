@@ -131,6 +131,12 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Bitbucket cloud service: %v", err)
 		}
+	} else if providerConfig.AWSCodeCommit != nil {
+		var awsErr error
+		provider, awsErr = scm_provider.NewAWSCodeCommitProvider(ctx, providerConfig.AWSCodeCommit.TagFilters, providerConfig.AWSCodeCommit.Role, providerConfig.AWSCodeCommit.Region, providerConfig.AWSCodeCommit.AllBranches)
+		if awsErr != nil {
+			return nil, fmt.Errorf("error initializing AWS codecommit service: %v", awsErr)
+		}
 	} else {
 		return nil, fmt.Errorf("no SCM provider implementation configured")
 	}
@@ -140,26 +146,40 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	if err != nil {
 		return nil, fmt.Errorf("error listing repos: %v", err)
 	}
-	params := make([]map[string]interface{}, 0, len(repos))
+	paramsArray := make([]map[string]interface{}, 0, len(repos))
 	var shortSHALength int
+	var shortSHALength7 int
 	for _, repo := range repos {
 		shortSHALength = 8
 		if len(repo.SHA) < 8 {
 			shortSHALength = len(repo.SHA)
 		}
 
-		params = append(params, map[string]interface{}{
+		shortSHALength7 = 7
+		if len(repo.SHA) < 7 {
+			shortSHALength7 = len(repo.SHA)
+		}
+
+		params := map[string]interface{}{
 			"organization":     repo.Organization,
 			"repository":       repo.Repository,
 			"url":              repo.URL,
 			"branch":           repo.Branch,
 			"sha":              repo.SHA,
 			"short_sha":        repo.SHA[:shortSHALength],
+			"short_sha_7":      repo.SHA[:shortSHALength7],
 			"labels":           strings.Join(repo.Labels, ","),
 			"branchNormalized": utils.SanitizeName(repo.Branch),
-		})
+		}
+
+		err := appendTemplatedValues(appSetGenerator.SCMProvider.Values, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to append templated values: %w", err)
+		}
+
+		paramsArray = append(paramsArray, params)
 	}
-	return params, nil
+	return paramsArray, nil
 }
 
 func (g *SCMProviderGenerator) getSecretRef(ctx context.Context, ref *argoprojiov1alpha1.SecretRef, namespace string) (string, error) {

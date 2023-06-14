@@ -22,17 +22,22 @@ type PluginConfig struct {
 }
 
 type PluginConfigSpec struct {
-	Version    string     `json:"version"`
-	Init       Command    `json:"init,omitempty"`
-	Generate   Command    `json:"generate"`
-	Discover   Discover   `json:"discover"`
-	Parameters Parameters `yaml:"parameters"`
+	Version          string     `json:"version"`
+	Init             Command    `json:"init,omitempty"`
+	Generate         Command    `json:"generate"`
+	Discover         Discover   `json:"discover"`
+	Parameters       Parameters `yaml:"parameters"`
+	PreserveFileMode bool       `json:"preserveFileMode,omitempty"`
 }
 
-//Discover holds find and fileName
+// Discover holds find and fileName
 type Discover struct {
 	Find     Find   `json:"find"`
 	FileName string `json:"fileName"`
+}
+
+func (d Discover) IsDefined() bool {
+	return d.FileName != "" || d.Find.Glob != "" || len(d.Find.Command.Command) > 0
 }
 
 // Command holds binary path and arguments list

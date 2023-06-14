@@ -136,7 +136,8 @@ func TestResourceIdNormalizer_Normalize(t *testing.T) {
 	_ = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
 
 	// the normalization should affect add the new style annotation and drop old tracking label from live object
-	annotation := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
+	annotation, err := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
+	assert.Nil(t, err)
 	assert.Equal(t, liveObj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
 	_, hasOldLabel := liveObj.GetLabels()[common.LabelKeyAppInstance]
 	assert.False(t, hasOldLabel)
@@ -160,7 +161,8 @@ func TestResourceIdNormalizer_Normalize_ConfigHasOldLabel(t *testing.T) {
 	_ = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
 
 	// the normalization should affect add the new style annotation and drop old tracking label from live object
-	annotation := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
+	annotation, err := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
+	assert.Nil(t, err)
 	assert.Equal(t, liveObj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
 	_, hasOldLabel := liveObj.GetLabels()[common.LabelKeyAppInstance]
 	assert.True(t, hasOldLabel)

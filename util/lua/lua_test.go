@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/yaml"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
@@ -35,11 +35,33 @@ metadata:
   resourceVersion: "123"
 `
 
+const ec2AWSCrossplaneObjJson = `
+apiVersion: ec2.aws.crossplane.io/v1alpha1
+kind: Instance
+metadata:
+  name: sample-crosspalne-ec2-instance
+spec:
+  forProvider:
+    region: us-west-2
+    instanceType: t2.micro
+    keyName: my-crossplane-key-pair
+  providerConfigRef:
+    name: awsconfig
+`
+
 const newHealthStatusFunction = `a = {}
 a.status = "Healthy"
 a.message ="NeedsToBeChanged"
 if obj.metadata.name == "helm-guestbook" then
 	a.message = "testMessage"
+end
+return a`
+
+const newWildcardHealthStatusFunction = `a = {}
+a.status = "Healthy"
+a.message ="NeedsToBeChanged"
+if obj.metadata.name == "sample-crosspalne-ec2-instance" then
+	a.message = "testWildcardMessage"
 end
 return a`
 
@@ -60,6 +82,19 @@ func TestExecuteNewHealthStatusFunction(t *testing.T) {
 	expectedHealthStatus := &health.HealthStatus{
 		Status:  "Healthy",
 		Message: "testMessage",
+	}
+	assert.Equal(t, expectedHealthStatus, status)
+
+}
+
+func TestExecuteWildcardHealthStatusFunction(t *testing.T) {
+	testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+	vm := VM{}
+	status, err := vm.ExecuteHealthLua(testObj, newWildcardHealthStatusFunction)
+	assert.Nil(t, err)
+	expectedHealthStatus := &health.HealthStatus{
+		Status:  "Healthy",
+		Message: "testWildcardMessage",
 	}
 	assert.Equal(t, expectedHealthStatus, status)
 
@@ -148,6 +183,23 @@ func TestGetHealthScriptWithGroupWildcardOverride(t *testing.T) {
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
 			"*.io/Rollout": {
+				HealthLua:   newHealthStatusFunction,
+				UseOpenLibs: false,
+			},
+		},
+	}
+
+	script, useOpenLibs, err := vm.GetHealthScript(testObj)
+	assert.Nil(t, err)
+	assert.Equal(t, false, useOpenLibs)
+	assert.Equal(t, newHealthStatusFunction, script)
+}
+
+func TestGetHealthScriptWithGroupAndKindWildcardOverride(t *testing.T) {
+	testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+	vm := VM{
+		ResourceOverrides: map[string]appv1.ResourceOverride{
+			"*.aws.crossplane.io/*": {
 				HealthLua:   newHealthStatusFunction,
 				UseOpenLibs: false,
 			},
@@ -434,6 +486,11 @@ end
 hs.status = "Healthy"
 return hs`
 
+	const healthWildcardOverrideScript = `
+ hs = {}
+ hs.status = "Healthy"
+ return hs`
+
 	getHealthOverride := func(openLibs bool) ResourceHealthOverrides {
 		return ResourceHealthOverrides{
 			"ServiceAccount": appv1.ResourceOverride{
@@ -441,6 +498,12 @@ return hs`
 				UseOpenLibs: openLibs,
 			},
 		}
+	}
+
+	getWildcardHealthOverride := ResourceHealthOverrides{
+		"*.aws.crossplane.io/*": appv1.ResourceOverride{
+			HealthLua: healthWildcardOverrideScript,
+		},
 	}
 
 	t.Run("Enable Lua standard lib", func(t *testing.T) {
@@ -462,6 +525,25 @@ return hs`
 		assert.IsType(t, &lua.ApiError{}, err)
 		expectedErr := "<string>:4: attempt to index a non-table object(nil) with key 'find'\nstack traceback:\n\t<string>:4: in main chunk\n\t[G]: ?"
 		assert.EqualError(t, err, expectedErr)
+		assert.Nil(t, status)
+	})
+
+	t.Run("Get resource health for wildcard override", func(t *testing.T) {
+		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+		overrides := getWildcardHealthOverride
+		status, err := overrides.GetResourceHealth(testObj)
+		assert.Nil(t, err)
+		expectedStatus := &health.HealthStatus{
+			Status: health.HealthStatusHealthy,
+		}
+		assert.Equal(t, expectedStatus, status)
+	})
+
+	t.Run("Resource health for wildcard override not found", func(t *testing.T) {
+		testObj := StrToUnstructured(testSA)
+		overrides := getWildcardHealthOverride
+		status, err := overrides.GetResourceHealth(testObj)
+		assert.Nil(t, err)
 		assert.Nil(t, status)
 	})
 }

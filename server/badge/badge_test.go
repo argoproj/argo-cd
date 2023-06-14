@@ -61,7 +61,7 @@ var (
 func TestHandlerFeatureIsEnabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default")
-	req, err := http.NewRequest("GET", "/api/badge?name=testApp", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=testApp", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -113,7 +113,7 @@ func TestHandlerFeatureProjectIsEnabled(t *testing.T) {
 		settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), tt.namespace)
 		handler := NewHandler(appclientset.NewSimpleClientset(&testProject, tt.testApp[0], tt.testApp[1]), settingsMgr, tt.namespace)
 		rr := httptest.NewRecorder()
-		req, err := http.NewRequest("GET", tt.apiEndPoint, nil)
+		req, err := http.NewRequest(http.MethodGet, tt.apiEndPoint, nil)
 		assert.NoError(t, err)
 		handler.ServeHTTP(rr, req)
 		assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
@@ -177,7 +177,7 @@ func createApplications(appCombo, projectName []string, namespace string) []*v1a
 func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default")
-	req, err := http.NewRequest("GET", "/api/badge?name=testApp&revision=true", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=testApp&revision=true", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -200,7 +200,7 @@ func TestHandlerRevisionIsEnabledNoOperationState(t *testing.T) {
 
 	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default")
-	req, err := http.NewRequest("GET", "/api/badge?name=testApp&revision=true", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=testApp&revision=true", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -223,7 +223,7 @@ func TestHandlerRevisionIsEnabledShortCommitSHA(t *testing.T) {
 
 	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default")
-	req, err := http.NewRequest("GET", "/api/badge?name=testApp&revision=true", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=testApp&revision=true", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -240,7 +240,7 @@ func TestHandlerFeatureIsDisabled(t *testing.T) {
 
 	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCmDisabled, &argoCDSecret), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default")
-	req, err := http.NewRequest("GET", "/api/badge?name=testApp", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=testApp", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()

@@ -75,8 +75,8 @@ func (_m *Client) Init() error {
 	return r0
 }
 
-// LsFiles provides a mock function with given fields: path
-func (_m *Client) LsFiles(path string) ([]string, error) {
+// LsFiles provides a mock function with given fields: path, enableNewGitFileGlobbing
+func (_m *Client) LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error) {
 	ret := _m.Called(path)
 
 	var r0 []string
