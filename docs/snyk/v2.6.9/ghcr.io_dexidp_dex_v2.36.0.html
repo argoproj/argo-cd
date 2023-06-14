@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">June 4th 2023, 12:21:42 am (UTC+00:00)</p>
+                <p class="timestamp">June 11th 2023, 12:21:38 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -609,6 +609,7 @@
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=959c59c7a0164117e7f8366466a32bb1f8d77ff1">openssl-security@openssl.org</a></li>
         <li><a href="https://www.openssl.org/news/secadv/20230322.txt">openssl-security@openssl.org</a></li>
         <li><a href="https://www.debian.org/security/2023/dsa-5417">openssl-security@openssl.org</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2023/06/msg00011.html">openssl-security@openssl.org</a></li>
         </ul>
         
               <hr/>
@@ -618,451 +619,12 @@
             </div>
         
         </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Improper Certificate Validation</h2>
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: alpine:3.17
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            openssl/libcrypto3
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|ghcr.io/dexidp/dex@v2.36.0 and openssl/libcrypto3@3.0.8-r0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.0.8-r0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.12.10-r1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.35.0-r29
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.12.10-r1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.35.0-r29
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine:3.17</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.17</code> relevant fixed versions and status.</em></p>
-        <p>Applications that use a non-default option when verifying certificates may be
-        vulnerable to an attack from a malicious CA to circumvent certain checks.</p>
-        <p>Invalid certificate policies in leaf certificates are silently ignored by
-        OpenSSL and other certificate policy checks are skipped for that certificate.
-        A malicious CA could use this to deliberately assert invalid certificate policies
-        in order to circumvent policy checking on the certificate altogether.</p>
-        <p>Policy processing is disabled by default but can be enabled by passing
-        the <code>-policy&amp;#39; argument to the command line utilities or by calling the </code>X509_VERIFY_PARAM_set1_policies()&#39; function.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.17</code> <code>openssl</code> to version 3.0.8-r2 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=10325176f3d3e98c6e2b3bf5ab1e3b334de6947a">openssl-security@openssl.org</a></li>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=1dd43e0709fece299b15208f36cc7c76209ba0bb">openssl-security@openssl.org</a></li>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=b013765abfa80036dc779dd0e50602c57bb3bf95">openssl-security@openssl.org</a></li>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=facfb1ab745646e97a1920977ae4a9965ea61d5c">openssl-security@openssl.org</a></li>
-        <li><a href="https://www.openssl.org/news/secadv/20230328.txt">openssl-security@openssl.org</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20230414-0001/">openssl-security@openssl.org</a></li>
-        <li><a href="https://www.debian.org/security/2023/dsa-5417">openssl-security@openssl.org</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE317-OPENSSL-5291795">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Improper Certificate Validation</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: alpine:3.17
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            openssl/libcrypto3
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|ghcr.io/dexidp/dex@v2.36.0 and openssl/libcrypto3@3.0.8-r0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.0.8-r0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.12.10-r1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.35.0-r29
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.12.10-r1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.35.0-r29
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine:3.17</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.17</code> relevant fixed versions and status.</em></p>
-        <p>The function X509_VERIFY_PARAM_add0_policy() is documented to
-        implicitly enable the certificate policy check when doing certificate
-        verification. However the implementation of the function does not
-        enable the check which allows certificates with invalid or incorrect
-        policies to pass the certificate verification.</p>
-        <p>As suddenly enabling the policy check could break existing deployments it was
-        decided to keep the existing behavior of the X509_VERIFY_PARAM_add0_policy()
-        function.</p>
-        <p>Instead the applications that require OpenSSL to perform certificate
-        policy check need to use X509_VERIFY_PARAM_set1_policies() or explicitly
-        enable the policy check by calling X509_VERIFY_PARAM_set_flags() with
-        the X509_V_FLAG_POLICY_CHECK flag argument.</p>
-        <p>Certificate policy checks are disabled by default in OpenSSL and are not
-        commonly used by applications.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.17</code> <code>openssl</code> to version 3.0.8-r3 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=0d16b7e99aafc0b4a6d729eec65a411a7e025f0a">openssl-security@openssl.org</a></li>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=51e8a84ce742db0f6c70510d0159dad8f7825908">openssl-security@openssl.org</a></li>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=73398dea26de9899fb4baa94098ad0a61f435c72">openssl-security@openssl.org</a></li>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=fc814a30fc4f0bc54fcea7d9a7462f5457aab061">openssl-security@openssl.org</a></li>
-        <li><a href="https://www.openssl.org/news/secadv/20230328.txt">openssl-security@openssl.org</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20230414-0001/">openssl-security@openssl.org</a></li>
-        <li><a href="https://www.debian.org/security/2023/dsa-5417">openssl-security@openssl.org</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE317-OPENSSL-5296043">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Out-of-bounds Read</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: alpine:3.17
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            openssl/libcrypto3
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|ghcr.io/dexidp/dex@v2.36.0 and openssl/libcrypto3@3.0.8-r0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.0.8-r0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.12.10-r1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.35.0-r29
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.12.10-r1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.35.0-r29
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.0.8-r0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine:3.17</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.17</code> relevant fixed versions and status.</em></p>
-        <p>Issue summary: The AES-XTS cipher decryption implementation for 64 bit ARM
-        platform contains a bug that could cause it to read past the input buffer,
-        leading to a crash.</p>
-        <p>Impact summary: Applications that use the AES-XTS algorithm on the 64 bit ARM
-        platform can crash in rare circumstances. The AES-XTS algorithm is usually
-        used for disk encryption.</p>
-        <p>The AES-XTS cipher decryption implementation for 64 bit ARM platform will read
-        past the end of the ciphertext buffer if the ciphertext size is 4 mod 5 in 16
-        byte blocks, e.g. 144 bytes or 1024 bytes. If the memory after the ciphertext
-        buffer is unmapped, this will trigger a crash which results in a denial of
-        service.</p>
-        <p>If an attacker can control the size and location of the ciphertext buffer
-        being decrypted by an application using AES-XTS on 64 bit ARM, the
-        application is affected. This is fairly unlikely making this issue
-        a Low severity one.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.17</code> <code>openssl</code> to version 3.0.8-r4 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=02ac9c9420275868472f33b01def01218742b8bb">openssl-security@openssl.org</a></li>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=bc2f61ad70971869b242fc1cb445b98bad50074a">openssl-security@openssl.org</a></li>
-        <li><a href="https://www.openssl.org/news/secadv/20230419.txt">openssl-security@openssl.org</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2023/04/20/13">openssl-security@openssl.org</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE317-OPENSSL-5438697">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2023-2650</h2>
-            <div class="card__section">
-        
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
                 </div>
         
                 <hr/>
@@ -1223,12 +785,455 @@
         <li><a href="https://www.openssl.org/news/secadv/20230530.txt">openssl-security@openssl.org</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2023/05/30/1">openssl-security@openssl.org</a></li>
         <li><a href="https://www.debian.org/security/2023/dsa-5417">openssl-security@openssl.org</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2023/06/msg00011.html">openssl-security@openssl.org</a></li>
+        <li><a href="https://psirt.global.sonicwall.com/vuln-detail/SNWLID-2023-0009">openssl-security@openssl.org</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE317-OPENSSL-5661570">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Certificate Validation</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.17
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|ghcr.io/dexidp/dex@v2.36.0 and openssl/libcrypto3@3.0.8-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.10-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r29
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.10-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r29
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine:3.17</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.17</code> relevant fixed versions and status.</em></p>
+        <p>Applications that use a non-default option when verifying certificates may be
+        vulnerable to an attack from a malicious CA to circumvent certain checks.</p>
+        <p>Invalid certificate policies in leaf certificates are silently ignored by
+        OpenSSL and other certificate policy checks are skipped for that certificate.
+        A malicious CA could use this to deliberately assert invalid certificate policies
+        in order to circumvent policy checking on the certificate altogether.</p>
+        <p>Policy processing is disabled by default but can be enabled by passing
+        the <code>-policy&amp;#39; argument to the command line utilities or by calling the </code>X509_VERIFY_PARAM_set1_policies()&#39; function.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.17</code> <code>openssl</code> to version 3.0.8-r2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=10325176f3d3e98c6e2b3bf5ab1e3b334de6947a">openssl-security@openssl.org</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=1dd43e0709fece299b15208f36cc7c76209ba0bb">openssl-security@openssl.org</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=b013765abfa80036dc779dd0e50602c57bb3bf95">openssl-security@openssl.org</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=facfb1ab745646e97a1920977ae4a9965ea61d5c">openssl-security@openssl.org</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20230328.txt">openssl-security@openssl.org</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20230414-0001/">openssl-security@openssl.org</a></li>
+        <li><a href="https://www.debian.org/security/2023/dsa-5417">openssl-security@openssl.org</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2023/06/msg00011.html">openssl-security@openssl.org</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE317-OPENSSL-5291795">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Certificate Validation</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.17
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|ghcr.io/dexidp/dex@v2.36.0 and openssl/libcrypto3@3.0.8-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.10-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r29
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.10-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r29
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine:3.17</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.17</code> relevant fixed versions and status.</em></p>
+        <p>The function X509_VERIFY_PARAM_add0_policy() is documented to
+        implicitly enable the certificate policy check when doing certificate
+        verification. However the implementation of the function does not
+        enable the check which allows certificates with invalid or incorrect
+        policies to pass the certificate verification.</p>
+        <p>As suddenly enabling the policy check could break existing deployments it was
+        decided to keep the existing behavior of the X509_VERIFY_PARAM_add0_policy()
+        function.</p>
+        <p>Instead the applications that require OpenSSL to perform certificate
+        policy check need to use X509_VERIFY_PARAM_set1_policies() or explicitly
+        enable the policy check by calling X509_VERIFY_PARAM_set_flags() with
+        the X509_V_FLAG_POLICY_CHECK flag argument.</p>
+        <p>Certificate policy checks are disabled by default in OpenSSL and are not
+        commonly used by applications.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.17</code> <code>openssl</code> to version 3.0.8-r3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=0d16b7e99aafc0b4a6d729eec65a411a7e025f0a">openssl-security@openssl.org</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=51e8a84ce742db0f6c70510d0159dad8f7825908">openssl-security@openssl.org</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=73398dea26de9899fb4baa94098ad0a61f435c72">openssl-security@openssl.org</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=fc814a30fc4f0bc54fcea7d9a7462f5457aab061">openssl-security@openssl.org</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20230328.txt">openssl-security@openssl.org</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20230414-0001/">openssl-security@openssl.org</a></li>
+        <li><a href="https://www.debian.org/security/2023/dsa-5417">openssl-security@openssl.org</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2023/06/msg00011.html">openssl-security@openssl.org</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE317-OPENSSL-5296043">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Out-of-bounds Read</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.17
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|ghcr.io/dexidp/dex@v2.36.0 and openssl/libcrypto3@3.0.8-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.10-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r29
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.10-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.36.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r29
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.0.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine:3.17</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.17</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: The AES-XTS cipher decryption implementation for 64 bit ARM
+        platform contains a bug that could cause it to read past the input buffer,
+        leading to a crash.</p>
+        <p>Impact summary: Applications that use the AES-XTS algorithm on the 64 bit ARM
+        platform can crash in rare circumstances. The AES-XTS algorithm is usually
+        used for disk encryption.</p>
+        <p>The AES-XTS cipher decryption implementation for 64 bit ARM platform will read
+        past the end of the ciphertext buffer if the ciphertext size is 4 mod 5 in 16
+        byte blocks, e.g. 144 bytes or 1024 bytes. If the memory after the ciphertext
+        buffer is unmapped, this will trigger a crash which results in a denial of
+        service.</p>
+        <p>If an attacker can control the size and location of the ciphertext buffer
+        being decrypted by an application using AES-XTS on 64 bit ARM, the
+        application is affected. This is fairly unlikely making this issue
+        a Low severity one.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.17</code> <code>openssl</code> to version 3.0.8-r4 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=02ac9c9420275868472f33b01def01218742b8bb">openssl-security@openssl.org</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=bc2f61ad70971869b242fc1cb445b98bad50074a">openssl-security@openssl.org</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20230419.txt">openssl-security@openssl.org</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/04/20/13">openssl-security@openssl.org</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE317-OPENSSL-5438697">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
