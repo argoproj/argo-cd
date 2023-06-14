@@ -98,6 +98,7 @@ By activating Go Templating, `{{ .path }}` becomes an object. Therefore, some ch
 generators' templating:
 
 - `{{ path }}` becomes `{{ .path.path }}`
+- `{{ path.* }}` becomes `{{ .path.* }}`
 - `{{ path[n] }}` becomes `{{ index .path.segments n }}`
 
 Here is an example:
