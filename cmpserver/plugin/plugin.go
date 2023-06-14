@@ -24,7 +24,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/cyphar/filepath-securejoin"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
 )
@@ -183,7 +182,7 @@ func getTempDirMustCleanup(baseDir string) (workDir string, cleanup func(), err 
 		if err := os.RemoveAll(workDir); err != nil {
 			log.WithFields(map[string]interface{}{
 				common.SecurityField:    common.SecurityHigh,
-				common.SecurityCWEField: 459,
+				common.SecurityCWEField: common.SecurityCWEIncompleteCleanup,
 			}).Errorf("Failed to clean up temp directory: %s", err)
 		}
 	}
@@ -323,7 +322,7 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 	if err != nil {
 		log.WithFields(map[string]interface{}{
 			common.SecurityField:    common.SecurityHigh,
-			common.SecurityCWEField: 459,
+			common.SecurityCWEField: common.SecurityCWEIncompleteCleanup,
 		}).Errorf("error joining workdir %q and appRelPath %q: %v", workdir, appRelPath, err)
 	}
 
