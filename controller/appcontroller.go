@@ -359,13 +359,18 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 			level = CompareWithRecent
 		}
 
-		var resKey string
-		if ref.Namespace != "" {
-			resKey = ref.Namespace + "/" + ref.Name
-		} else {
-			resKey = "(cluster-scoped)/" + ref.Name
+		namespace := ref.Namespace
+		if ref.Namespace == "" {
+			namespace = "(cluster-scoped)"
 		}
-		log.Infof("Refreshing app %s for change in cluster of object %s of type %s/%s", appKey, resKey, ref.APIVersion, ref.Kind)
+		log.WithFields(log.Fields{
+			"application": appKey
+			"level":       level,
+			"namespace":   namespace,
+			"name":        ref.Name,
+			"api-version": ref.APIVersion,
+			"kind":        ref.Kind,
+		}).Info("Requesting app refresh caused by object update")
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
 	}

@@ -492,13 +492,17 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			// Additional check for debug level so we don't need to evaluate the
 			// format string in case of non-debug scenarios
 			if log.GetLevel() >= log.DebugLevel {
-				var resKey string
-				if ref.Namespace != "" {
-					resKey = ref.Namespace + "/" + ref.Name
-				} else {
-					resKey = "(cluster-scoped)/" + ref.Name
+				namespace := ref.Namespace
+				if ref.Namespace == "" {
+					namespace = "(cluster-scoped)"
 				}
-				log.Debugf("Ignoring change in cluster of object %s of type %s/%s", resKey, ref.APIVersion, ref.Kind)
+				log.WithFields(log.Fields{
+					"server":      clusterCache.GetClusterInfo().Server
+					"namespace":   namespace,
+					"name":        ref.Name,
+					"api-version": ref.APIVersion,
+					"kind":        ref.Kind,
+				}).Debug("Ignoring change of object")
 			}
 			return
 		}
