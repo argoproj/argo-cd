@@ -62,6 +62,8 @@ type gitRefCache interface {
 type Client interface {
 	Root() string
 	Init() error
+	SparseCheckout(patterns []string) error
+	Pull(revision string) error
 	Fetch(revision string) error
 	Submodule() error
 	Checkout(revision string, submoduleEnabled bool) error
@@ -78,6 +80,7 @@ type Client interface {
 type EventHandlers struct {
 	OnLsRemote func(repo string) func()
 	OnFetch    func(repo string) func()
+	OnPull     func(repo string) func()
 }
 
 // nativeGitClient implements Client interface using git CLI
@@ -322,15 +325,39 @@ func (m *nativeGitClient) Init() error {
 	if err != nil {
 		return err
 	}
-	repo, err := git.PlainInit(m.root, false)
+
+	_, err = m.runCmd("init")
 	if err != nil {
 		return err
 	}
-	_, err = repo.CreateRemote(&config.RemoteConfig{
-		Name: git.DefaultRemoteName,
-		URLs: []string{m.repoURL},
-	})
-	return err
+
+	_, err = m.runCmd("remote", "add", git.DefaultRemoteName, m.repoURL)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// SparseCheckout initializes a git sparse-checkout, and sets the patterns for the sparse-checkout.
+func (m *nativeGitClient) SparseCheckout(patterns []string) error {
+	if _, err := m.runCmd("sparse-checkout", "init"); err != nil {
+		return err
+	}
+
+	var sb strings.Builder
+
+	for i, pattern := range patterns {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString(pattern)
+	}
+
+	if _, err := m.runCmd("sparse-checkout", "set", sb.String()); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Returns true if the repository is LFS enabled
@@ -345,6 +372,38 @@ func (m *nativeGitClient) fetch(revision string) error {
 	} else {
 		err = m.runCredentialedCmd("fetch", "origin", "--tags", "--force", "--prune")
 	}
+	return err
+}
+
+func (m *nativeGitClient) pull(revision string) error {
+	var err error
+	if revision != "" {
+		err = m.runCredentialedCmd("pull", "origin", revision, "--tags", "--force", "--prune")
+	} else {
+		err = m.runCredentialedCmd("pull", "origin", "--tags", "--force", "--prune")
+	}
+	return err
+}
+
+func (m *nativeGitClient) Pull(revision string) error {
+	if m.OnPull != nil {
+		done := m.OnPull(m.repoURL)
+		defer done()
+	}
+
+	err := m.pull(revision)
+
+	// When we have LFS support enabled, check for large files and fetch them too.
+	if err == nil && m.IsLFSEnabled() {
+		largeFiles, err := m.LsLargeFiles()
+		if err == nil && len(largeFiles) > 0 {
+			err = m.runCredentialedCmd("lfs", "pull", "--all")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return err
 }
 

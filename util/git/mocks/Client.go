@@ -12,6 +12,32 @@ type Client struct {
 	mock.Mock
 }
 
+func (_m *Client) SparseCheckout(patterns []string) error {
+	ret := _m.Called(patterns)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func([]string) error); ok {
+		r0 = rf(patterns)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+func (_m *Client) Pull(revision string) error {
+	ret := _m.Called(revision)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(revision)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Checkout provides a mock function with given fields: revision, submoduleEnabled
 func (_m *Client) Checkout(revision string, submoduleEnabled bool) error {
 	ret := _m.Called(revision, submoduleEnabled)

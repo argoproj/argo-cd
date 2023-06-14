@@ -420,6 +420,9 @@ message ApplicationSource {
 
   // Ref is reference to another source within sources field. This field will not be used if used with a `source` tag.
   optional string ref = 13;
+
+  // SparseCheckoutPaths is a list of paths to include when doing a sparse checkout of the Git repository
+  repeated string sparseCheckoutPaths = 14;
 }
 
 // ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet

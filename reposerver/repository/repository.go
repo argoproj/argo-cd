@@ -212,7 +212,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled)
+		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, nil)
 	})
 
 	if err != nil {
@@ -374,7 +374,7 @@ func (s *Service) runRepoOperation(
 		})
 	} else {
 		closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
-			return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
+			return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, source.SparseCheckoutPaths)
 		})
 
 		if err != nil {
@@ -740,7 +740,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 								return
 							}
 							closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func() (goio.Closer, error) {
-								return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled)
+								return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.ApplicationSource.SparseCheckoutPaths)
 							})
 							if err != nil {
 								log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
@@ -2217,7 +2217,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled)
+		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, nil)
 	})
 
 	if err != nil {
@@ -2389,21 +2389,38 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
 // nolint:unparam
-func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) (goio.Closer, error) {
+func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, sparseCheckoutPaths []string) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
-	return closer, checkoutRevision(gitClient, revision, submoduleEnabled)
+	return closer, checkoutRevision(gitClient, revision, submoduleEnabled, sparseCheckoutPaths)
 }
 
-func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) error {
+func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, sparseCheckoutPaths []string) error {
+	hasSparseCheckoutPaths := len(sparseCheckoutPaths) > 0
+
 	err := gitClient.Init()
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
 
-	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-	err = gitClient.Fetch("")
-	if err != nil {
-		return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
+	if hasSparseCheckoutPaths {
+		err = gitClient.SparseCheckout(sparseCheckoutPaths)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to set sparse checkout: %v", err)
+		}
+	}
+
+	// TODO: I am not sure about this Pull vs Fetch situation
+	if hasSparseCheckoutPaths {
+		err = gitClient.Pull("")
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to pull: %v", err)
+		}
+	} else {
+		// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
+		err = gitClient.Fetch("")
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
+		}
 	}
 
 	err = gitClient.Checkout(revision, submoduleEnabled)
@@ -2413,9 +2430,17 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		log.Infof("Failed to checkout revision %s: %v", revision, err)
 		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
-		err = gitClient.Fetch(revision)
-		if err != nil {
-			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
+		// TODO: I am not sure about this Pull vs Fetch situation
+		if hasSparseCheckoutPaths {
+			err = gitClient.Pull(revision)
+			if err != nil {
+				return status.Errorf(codes.Internal, "Failed to pull: %v", err)
+			}
+		} else {
+			err = gitClient.Fetch(revision)
+			if err != nil {
+				return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
+			}
 		}
 
 		err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
@@ -2542,7 +2567,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), nil)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
@@ -2600,7 +2625,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), nil)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)

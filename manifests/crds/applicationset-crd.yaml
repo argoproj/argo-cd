@@ -346,6 +346,10 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    sparseCheckoutPaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     targetRevision:
                                       type: string
                                   required:
@@ -556,6 +560,10 @@ spec:
                                         type: string
                                       repoURL:
                                         type: string
+                                      sparseCheckoutPaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       targetRevision:
                                         type: string
                                     required:
@@ -925,6 +933,10 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    sparseCheckoutPaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     targetRevision:
                                       type: string
                                   required:
@@ -1135,6 +1147,10 @@ spec:
                                         type: string
                                       repoURL:
                                         type: string
+                                      sparseCheckoutPaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       targetRevision:
                                         type: string
                                     required:
@@ -1508,6 +1524,10 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    sparseCheckoutPaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     targetRevision:
                                       type: string
                                   required:
@@ -1718,6 +1738,10 @@ spec:
                                         type: string
                                       repoURL:
                                         type: string
+                                      sparseCheckoutPaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       targetRevision:
                                         type: string
                                     required:
@@ -2071,6 +2095,10 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    sparseCheckoutPaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     targetRevision:
                                       type: string
                                   required:
@@ -2281,6 +2309,10 @@ spec:
                                         type: string
                                       repoURL:
                                         type: string
+                                      sparseCheckoutPaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       targetRevision:
                                         type: string
                                     required:
@@ -2658,6 +2690,10 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              sparseCheckoutPaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               targetRevision:
                                                 type: string
                                             required:
@@ -2868,6 +2904,10 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                sparseCheckoutPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -3237,6 +3277,10 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              sparseCheckoutPaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               targetRevision:
                                                 type: string
                                             required:
@@ -3447,6 +3491,10 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                sparseCheckoutPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -3820,6 +3868,10 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              sparseCheckoutPaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               targetRevision:
                                                 type: string
                                             required:
@@ -4030,6 +4082,10 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                sparseCheckoutPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -4383,6 +4439,10 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              sparseCheckoutPaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               targetRevision:
                                                 type: string
                                             required:
@@ -4593,6 +4653,10 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                sparseCheckoutPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -4956,6 +5020,10 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              sparseCheckoutPaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               targetRevision:
                                                 type: string
                                             required:
@@ -5166,6 +5234,10 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                sparseCheckoutPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -5709,6 +5781,10 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              sparseCheckoutPaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               targetRevision:
                                                 type: string
                                             required:
@@ -5919,6 +5995,10 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                sparseCheckoutPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -6457,6 +6537,10 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              sparseCheckoutPaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               targetRevision:
                                                 type: string
                                             required:
@@ -6667,6 +6751,10 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                sparseCheckoutPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -7034,6 +7122,10 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    sparseCheckoutPaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     targetRevision:
                                       type: string
                                   required:
@@ -7244,6 +7336,10 @@ spec:
                                         type: string
                                       repoURL:
                                         type: string
+                                      sparseCheckoutPaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       targetRevision:
                                         type: string
                                     required:
@@ -7621,6 +7717,10 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              sparseCheckoutPaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               targetRevision:
                                                 type: string
                                             required:
@@ -7831,6 +7931,10 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                sparseCheckoutPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -8200,6 +8304,10 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              sparseCheckoutPaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               targetRevision:
                                                 type: string
                                             required:
@@ -8410,6 +8518,10 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                sparseCheckoutPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -8783,6 +8895,10 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              sparseCheckoutPaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               targetRevision:
                                                 type: string
                                             required:
@@ -8993,6 +9109,10 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                sparseCheckoutPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -9346,6 +9466,10 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              sparseCheckoutPaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               targetRevision:
                                                 type: string
                                             required:
@@ -9556,6 +9680,10 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                sparseCheckoutPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -9919,6 +10047,10 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              sparseCheckoutPaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               targetRevision:
                                                 type: string
                                             required:
@@ -10129,6 +10261,10 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                sparseCheckoutPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -10672,6 +10808,10 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              sparseCheckoutPaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               targetRevision:
                                                 type: string
                                             required:
@@ -10882,6 +11022,10 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                sparseCheckoutPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -11420,6 +11564,10 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              sparseCheckoutPaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               targetRevision:
                                                 type: string
                                             required:
@@ -11630,6 +11778,10 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                sparseCheckoutPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -12001,6 +12153,10 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    sparseCheckoutPaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     targetRevision:
                                       type: string
                                   required:
@@ -12211,6 +12367,10 @@ spec:
                                         type: string
                                       repoURL:
                                         type: string
+                                      sparseCheckoutPaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       targetRevision:
                                         type: string
                                     required:
@@ -12571,6 +12731,10 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    sparseCheckoutPaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     targetRevision:
                                       type: string
                                   required:
@@ -12781,6 +12945,10 @@ spec:
                                         type: string
                                       repoURL:
                                         type: string
+                                      sparseCheckoutPaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       targetRevision:
                                         type: string
                                     required:
@@ -13324,6 +13492,10 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    sparseCheckoutPaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     targetRevision:
                                       type: string
                                   required:
@@ -13534,6 +13706,10 @@ spec:
                                         type: string
                                       repoURL:
                                         type: string
+                                      sparseCheckoutPaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       targetRevision:
                                         type: string
                                     required:
@@ -14072,6 +14248,10 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    sparseCheckoutPaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     targetRevision:
                                       type: string
                                   required:
@@ -14282,6 +14462,10 @@ spec:
                                         type: string
                                       repoURL:
                                         type: string
+                                      sparseCheckoutPaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       targetRevision:
                                         type: string
                                     required:
@@ -14724,6 +14908,10 @@ spec:
                             type: string
                           repoURL:
                             type: string
+                          sparseCheckoutPaths:
+                            items:
+                              type: string
+                            type: array
                           targetRevision:
                             type: string
                         required:
@@ -14934,6 +15122,10 @@ spec:
                               type: string
                             repoURL:
                               type: string
+                            sparseCheckoutPaths:
+                              items:
+                                type: string
+                              type: array
                             targetRevision:
                               type: string
                           required:

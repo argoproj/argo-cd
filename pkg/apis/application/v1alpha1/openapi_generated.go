@@ -1605,6 +1605,21 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 							Format:      "",
 						},
 					},
+					"sparseCheckoutPaths": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SparseCheckoutPaths is a list of paths to include when doing a sparse checkout of the Git repository",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"repoURL"},
 			},

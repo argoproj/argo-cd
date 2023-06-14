@@ -16,6 +16,13 @@ func NewGitClientEventHandlers(metricsServer *MetricsServer) git.EventHandlers {
 				metricsServer.ObserveGitRequestDuration(repo, GitRequestTypeFetch, time.Since(startTime))
 			}
 		},
+		OnPull: func(repo string) func() {
+			startTime := time.Now()
+			metricsServer.IncGitRequest(repo, GitRequestTypePull)
+			return func() {
+				metricsServer.ObserveGitRequestDuration(repo, GitRequestTypePull, time.Since(startTime))
+			}
+		},
 		OnLsRemote: func(repo string) func() {
 			startTime := time.Now()
 			metricsServer.IncGitRequest(repo, GitRequestTypeLsRemote)

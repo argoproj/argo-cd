@@ -19,6 +19,7 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/ap
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSetStatus,ApplicationStatus
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSetStatus,Conditions
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSetTemplateMeta,Finalizers
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSource,SparseCheckoutPaths
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSourceHelm,FileParameters
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSourceHelm,Parameters
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSourceHelm,ValueFiles

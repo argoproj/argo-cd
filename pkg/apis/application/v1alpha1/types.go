@@ -188,6 +188,8 @@ type ApplicationSource struct {
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
 	// Ref is reference to another source within sources field. This field will not be used if used with a `source` tag.
 	Ref string `json:"ref,omitempty" protobuf:"bytes,13,opt,name=ref"`
+	// SparseCheckoutPaths is a list of paths to include when doing a sparse checkout of the Git repository
+	SparseCheckoutPaths []string `json:"sparseCheckoutPaths,omitempty" protobuf:"bytes,14,opt,name=sparseCheckoutPaths"`
 }
 
 // ApplicationSources contains list of required information about the sources of an application
@@ -240,6 +242,10 @@ func (a *ApplicationSpec) GetSourcePtr() *ApplicationSource {
 
 // AllowsConcurrentProcessing returns true if given application source can be processed concurrently
 func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
+	if len(a.SparseCheckoutPaths) > 0 {
+		return false
+	}
+
 	switch {
 	// Kustomize with parameters requires changing kustomization.yaml file
 	case a.Kustomize != nil:

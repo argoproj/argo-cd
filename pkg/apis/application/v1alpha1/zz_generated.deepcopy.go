@@ -972,6 +972,11 @@ func (in *ApplicationSource) DeepCopyInto(out *ApplicationSource) {
 		*out = new(ApplicationSourcePlugin)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.SparseCheckoutPaths != nil {
+		in, out := &in.SparseCheckoutPaths, &out.SparseCheckoutPaths
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

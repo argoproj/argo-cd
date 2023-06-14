@@ -322,6 +322,26 @@ func TestVerifyCommitSignature(t *testing.T) {
 	}
 }
 
+func TestSparseCheckout(t *testing.T) {
+	tmpDir := t.TempDir()
+	client, err := NewClientExt("https://github.com/derrickstolee/sparse-checkout-example.git", tmpDir, NopCreds{}, false, false, "")
+	assert.NoError(t, err)
+	err = client.Init()
+	assert.NoError(t, err)
+	err = client.SparseCheckout([]string{"web/browser"})
+	assert.NoError(t, err)
+	err = client.Pull("main")
+	assert.NoError(t, err)
+	assert.DirExists(t, filepath.Join(tmpDir, "web/browser"), "./web/browser does not exists")
+	assert.NoDirExists(t, filepath.Join(tmpDir, "web/editor"), "./web/editor exists")
+	assert.NoDirExists(t, filepath.Join(tmpDir, "client"), "./client exists")
+	assert.NoDirExists(t, filepath.Join(tmpDir, "service"), "./service exists")
+}
+
+func TestSparseCheckoutWithMultipleConfigAndSameRepo(t *testing.T) {
+	t.Skip("when we sparse checkout the same repo but multiple configs, then it should work")
+}
+
 func TestNewFactory(t *testing.T) {
 	addBinDirToPath := path.NewBinDirToPath()
 	defer addBinDirToPath.Close()

@@ -6266,6 +6266,13 @@
           "type": "string",
           "title": "RepoURL is the URL to the repository (Git or Helm) that contains the application manifests"
         },
+        "sparseCheckoutPaths": {
+          "type": "array",
+          "title": "SparseCheckoutPaths is a list of paths to include when doing a sparse checkout of the Git repository",
+          "items": {
+            "type": "string"
+          }
+        },
         "targetRevision": {
           "description": "TargetRevision defines the revision of the source to sync the application to.\nIn case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.\nIn case of Helm, this is a semver tag for the Chart's version.",
           "type": "string"
