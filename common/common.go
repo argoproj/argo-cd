@@ -321,7 +321,8 @@ const (
 
 // Security severity logging
 const (
-	SecurityField                             = "security"
+	SecurityField = "security"
+	// SecurityCWEField is the logs field for the CWE associated with a log line. CWE stands for Common Weakness Enumeration. See https://cwe.mitre.org/
 	SecurityCWEField                          = "CWE"
 	SecurityCWEIncompleteCleanup              = 459
 	SecurityCWEMissingReleaseOfFileDescriptor = 775
