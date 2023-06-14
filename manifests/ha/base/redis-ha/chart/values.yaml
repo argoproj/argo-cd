@@ -11,7 +11,7 @@ redis-ha:
     IPv6:
       enabled: false
     image:
-      tag: 2.6.12-alpine
+      tag: 2.6.14-alpine
     containerSecurityContext: null
     timeout:
       server: 6m
