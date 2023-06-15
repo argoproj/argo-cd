@@ -116,7 +116,7 @@ message Application {
   optional Operation operation = 4;
 }
 
-// ApplicationCondition contains details about an application condition, which is usally an error or warning
+// ApplicationCondition contains details about an application condition, which is usually an error or warning
 message ApplicationCondition {
   // Type is an application condition type
   optional string type = 1;
@@ -231,6 +231,8 @@ message ApplicationSetGenerator {
 
   // Selector allows to post-filter all generator.
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
+
+  optional PluginGenerator plugin = 10;
 }
 
 // ApplicationSetList contains a list of ApplicationSet
@@ -265,6 +267,8 @@ message ApplicationSetNestedGenerator {
 
   // Selector allows to post-filter all generator.
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
+
+  optional PluginGenerator plugin = 10;
 }
 
 message ApplicationSetRolloutStep {
@@ -290,6 +294,8 @@ message ApplicationSetSpec {
   optional ApplicationSetStrategy strategy = 5;
 
   optional ApplicationPreservedFields preservedFields = 6;
+
+  repeated string goTemplateOptions = 7;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -352,6 +358,8 @@ message ApplicationSetTerminalGenerator {
   optional DuckTypeGenerator clusterDecisionResource = 5;
 
   optional PullRequestGenerator pullRequest = 6;
+
+  optional PluginGenerator plugin = 7;
 }
 
 // ApplicationSource contains all required information about the source of an application
@@ -572,6 +580,9 @@ message ApplicationStatus {
 
   // SourceTypes specifies the type of the sources included in the application
   repeated string sourceTypes = 12;
+
+  // ControllerNamespace indicates the namespace in which the application controller is located
+  optional string controllerNamespace = 13;
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
@@ -880,6 +891,9 @@ message GitGenerator {
   optional ApplicationSetTemplate template = 6;
 
   optional string pathParamPrefix = 7;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 8;
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key
@@ -1035,9 +1049,9 @@ message KustomizeReplica {
 message ListGenerator {
   repeated k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
 
-  optional string elementsYaml = 2;
+  optional ApplicationSetTemplate template = 2;
 
-  optional ApplicationSetTemplate template = 3;
+  optional string elementsYaml = 3;
 }
 
 message ManagedNamespaceMetadata {
@@ -1188,6 +1202,33 @@ message OverrideIgnoreDiff {
   repeated string managedFieldsManagers = 3;
 }
 
+message PluginConfigMapRef {
+  // Name of the ConfigMap
+  optional string name = 1;
+}
+
+// PluginGenerator defines connection info specific to Plugin.
+message PluginGenerator {
+  optional PluginConfigMapRef configMapRef = 1;
+
+  optional PluginInput input = 2;
+
+  // RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.
+  optional int64 requeueAfterSeconds = 3;
+
+  optional ApplicationSetTemplate template = 4;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template. These values will not be
+  // sent as parameters to the plugin.
+  map<string, string> values = 5;
+}
+
+message PluginInput {
+  // Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the
+  // values can be any type.
+  map<string, k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON> parameters = 1;
+}
+
 // ProjectRole represents a role that has access to a project
 message ProjectRole {
   // Name is a name for this role
@@ -1246,6 +1287,8 @@ message PullRequestGeneratorBitbucketServer {
 // pass for a pull request to be included.
 message PullRequestGeneratorFilter {
   optional string branchMatch = 1;
+
+  optional string targetBranchMatch = 2;
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
@@ -1764,6 +1807,28 @@ message SCMProviderGenerator {
   optional int64 requeueAfterSeconds = 9;
 
   optional ApplicationSetTemplate template = 10;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 11;
+
+  optional SCMProviderGeneratorAWSCodeCommit awsCodeCommit = 12;
+}
+
+// SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.
+message SCMProviderGeneratorAWSCodeCommit {
+  // TagFilters provides the tag filter(s) for repo discovery
+  repeated TagFilter tagFilters = 1;
+
+  // Role provides the AWS IAM role to assume, for cross-account repo discovery
+  // if not provided, AppSet controller will use its pod/node identity to discover.
+  optional string role = 2;
+
+  // Region provides the AWS region to discover repos.
+  // if not provided, AppSet controller will infer the current region from environment.
+  optional string region = 3;
+
+  // Scan all branches instead of just the default branch.
+  optional bool allBranches = 4;
 }
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
@@ -1965,6 +2030,9 @@ message SyncOperationResult {
 
   // Revisions holds the revision this sync operation was performed for respective indexed source in sources field
   repeated string revisions = 5;
+
+  // ManagedNamespaceMetadata contains the current sync state of managed namespace metadata
+  optional ManagedNamespaceMetadata managedNamespaceMetadata = 6;
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git
@@ -1987,7 +2055,7 @@ message SyncPolicyAutomated {
   // Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
   optional bool prune = 1;
 
-  // SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)
+  // SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)
   optional bool selfHeal = 2;
 
   // AllowEmpty allows apps have zero live resources (default: false)
@@ -2082,5 +2150,11 @@ message TLSClientConfig {
   // CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
   // CAData takes precedence over CAFile
   optional bytes caData = 5;
+}
+
+message TagFilter {
+  optional string key = 1;
+
+  optional string value = 2;
 }
 

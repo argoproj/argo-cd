@@ -26,6 +26,9 @@ func TestListMatrixGenerator(t *testing.T) {
 				Name:       fmt.Sprintf("%s-%s", cluster, name),
 				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "matrix-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -125,7 +128,10 @@ func TestListMatrixGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					"label-key":            "label-value",
+					LabelKeyAppSetInstance: "matrix-generator",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -150,6 +156,9 @@ func TestClusterMatrixGenerator(t *testing.T) {
 				Name:       fmt.Sprintf("%s-%s", cluster, name),
 				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					LabelKeyAppSetInstance: "matrix-generator",
+				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -252,7 +261,10 @@ func TestClusterMatrixGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+					"label-key":            "label-value",
+					LabelKeyAppSetInstance: "matrix-generator",
+				}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).

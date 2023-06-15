@@ -50,6 +50,29 @@ source:
     - values-production.yaml
 ```
 
+## Values
+
+Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.values` key.
+
+```
+source:
+  helm:
+    values: |
+      ingress:
+        enabled: true
+        path: /
+        hosts:
+          - mydomain.example.com
+        annotations:
+          kubernetes.io/ingress.class: nginx
+          kubernetes.io/tls-acme: "true"
+        labels: {}
+        tls:
+          - secretName: mydomain-tls
+            hosts:
+              - mydomain.example.com
+```
+
 ## Helm Parameters
 
 Helm has the ability to set parameter values, which override any values in
@@ -119,6 +142,7 @@ Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Ar
 | `helm.sh/hook-delete-policy` | Supported. See also `argocd.argoproj.io/hook-delete-policy`). |
 | `helm.sh/hook-delete-timeout` | Not supported. Never used in Helm stable |
 | `helm.sh/hook-weight` | Supported as equivalent to `argocd.argoproj.io/sync-wave`. |
+| `helm.sh/resource-policy: keep` | Supported as equivalent to `argocd.argoproj.io/sync-options: Delete=false`. |
 
 Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl apply`, rather than `kubectl create`. This means that if the hook is named and already exists, it will not change unless you have annotated it with `before-hook-creation`.
 
