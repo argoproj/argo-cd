@@ -1,29 +1,29 @@
 import * as React from 'react';
 import {selectPostfix} from '../utils';
 
-import './readiness-gates-failed-warning.scss';
+import './readiness-gates-not-passed-warning.scss';
 
-export interface ReadinessGatesFailedWarningProps {
+export interface ReadinessGatesNotPassedWarningProps {
     readinessGatesState: {
         nonExistingConditions: string[];
-        failedConditions: string[];
+        notPassedConditions: string[];
     };
 }
 
-export const ReadinessGatesFailedWarning = ({readinessGatesState}: ReadinessGatesFailedWarningProps) => {
-    if (readinessGatesState.failedConditions.length > 0 || readinessGatesState.nonExistingConditions.length > 0) {
+export const ReadinessGatesNotPassedWarning = ({readinessGatesState}: ReadinessGatesNotPassedWarningProps) => {
+    if (readinessGatesState.notPassedConditions.length > 0 || readinessGatesState.nonExistingConditions.length > 0) {
         return (
             <div className='white-box white-box__readiness-gates-alert'>
-                <h5>Readiness Gates Failing: </h5>
+                <h5>Readiness Gates Not Passing: </h5>
                 <ul>
-                    {readinessGatesState.failedConditions.length > 0 && (
+                    {readinessGatesState.notPassedConditions.length > 0 && (
                         <li>
-                            The status of pod readiness gate{selectPostfix(readinessGatesState.failedConditions, '', 's')}{' '}
-                            {readinessGatesState.failedConditions
+                            The status of pod readiness gate{selectPostfix(readinessGatesState.notPassedConditions, '', 's')}{' '}
+                            {readinessGatesState.notPassedConditions
                                 .map(t => `"${t}"`)
                                 .join(', ')
                                 .trim()}{' '}
-                            {selectPostfix(readinessGatesState.failedConditions, 'is', 'are')} False.
+                            {selectPostfix(readinessGatesState.notPassedConditions, 'is', 'are')} False.
                         </li>
                     )}
                     {readinessGatesState.nonExistingConditions.length > 0 && (
