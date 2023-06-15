@@ -155,6 +155,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Max Kelsen](https://www.maxkelsen.com/)
 1. [MeDirect](https://medirect.com.mt/)
 1. [Meican](https://meican.com/)
+1. [Meilleurs Agents](https://www.meilleursagents.com/)
 1. [Mercedes-Benz Tech Innovation](https://www.mercedes-benz-techinnovation.com/)
 1. [Metanet](http://www.metanet.co.kr/en/)
 1. [MindSpore](https://mindspore.cn)
