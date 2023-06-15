@@ -275,7 +275,7 @@ export const ApplicationNodeInfo = (props: {
         if (!props.live?.status?.containerStatuses?.length) {
             return null;
         }
-        if (props.live?.status.containerStatuses.some((containerStatus: {ready: boolean}) => !containerStatus.ready)) {
+        if (props.live?.status?.containerStatuses?.some((containerStatus: {ready: boolean}) => !containerStatus.ready)) {
             return null;
         }
 
