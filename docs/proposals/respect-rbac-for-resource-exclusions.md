@@ -49,6 +49,16 @@ For the implementation there are 3 proposals :
 
 In all solutions, once controller determines that it does not have access to the resource it will stop monitoring it.
 
+### Implementation decision
+
+It was decided that we will go with approach 3 from the above list, but we shall provide 2 boolean configurations options to users :
+   - `resource.respectRBAC.strict` : This will perform both the checks i.e. whether the list call response is forbidden/unauthorized and if it is make the `SelfSubjectAccessReview` call to confirm.
+   - `resource.respectRBAC.normal` : This will only check whether the list call response is forbidden/unauthorized and skip `SelfSubjectAccessReview` call.
+
+NOTE: `strict` has higher priority so irrespective of the status of `normal` if strict is set to true strict mode will be used.
+
+Users who are okay with an increase in kube api server calls can opt for strict option while users who are concerned with higher api calls can compromise on the accuracy and opt for the normal option.
+
 ## Security Considerations and Risks
 
 There are no particular security risks associated with this change, this proposal rather improves the argocd controller 
