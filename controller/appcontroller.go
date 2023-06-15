@@ -364,7 +364,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 			namespace = "(cluster-scoped)"
 		}
 		log.WithFields(log.Fields{
-			"application": appKey
+			"application": appKey,
 			"level":       level,
 			"namespace":   namespace,
 			"name":        ref.Name,

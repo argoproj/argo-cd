@@ -497,7 +497,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 					namespace = "(cluster-scoped)"
 				}
 				log.WithFields(log.Fields{
-					"server":      clusterCache.GetClusterInfo().Server
+					"server":      clusterCache.GetClusterInfo().Server,
 					"namespace":   namespace,
 					"name":        ref.Name,
 					"api-version": ref.APIVersion,
