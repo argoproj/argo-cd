@@ -942,11 +942,12 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     return {reason, message};
 }
 
-export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingConditions: string[]; failedConditions: string[]} => {
+export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingConditions: string[]; notPassedConditions: string[]} => {
+    // if pod does not have readiness gates then return empty status
     if (!pod.spec?.readinessGates?.length) {
         return {
             nonExistingConditions: [],
-            failedConditions: []
+            notPassedConditions: []
         };
     }
 
@@ -985,7 +986,7 @@ export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingCon
 
     return {
         nonExistingConditions,
-        failedConditions
+        notPassedConditions: failedConditions
     };
 };
 
