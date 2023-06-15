@@ -108,13 +108,14 @@ export class ApplicationsService {
     public getManifest(name: string, appNamespace: string, revision: string): Promise<models.ManifestResponse> {
         return requests
             .get(`/applications/${name}/manifests`)
-            .query({name, revision})
+            .query({name, revision, appNamespace})
             .then(res => res.body as models.ManifestResponse);
     }
 
     public updateSpec(appName: string, appNamespace: string, spec: models.ApplicationSpec): Promise<models.ApplicationSpec> {
         return requests
             .put(`/applications/${appName}/spec`)
+            .query({appNamespace})
             .send(spec)
             .then(res => res.body as models.ApplicationSpec);
     }
