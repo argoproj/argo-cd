@@ -45,7 +45,7 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                                 return;
                             }
 
-                            setProgress({percentage: 0, title: 'Starting...'});
+                            setProgress({percentage: 0, title: 'Refreshing applications'});
                             let i = 0;
                             for (const app of selectedApps) {
                                 await services.applications.get(app.metadata.name, app.metadata.namespace, params.refreshType).catch(e => {
@@ -57,7 +57,7 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                                 i++;
                                 setProgress({
                                     percentage: i / selectedApps.length,
-                                    title: `${i} of ${selectedApps.length} apps now refreshing`
+                                    title: `Refreshed ${i} of ${selectedApps.length} applications`
                                 });
                             }
                             setProgress({percentage: 100, title: 'Complete'});

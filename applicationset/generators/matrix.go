@@ -50,17 +50,10 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	if err != nil {
 		return nil, err
 	}
-	requiresInterpolation := false // Try to generate 2nd generator's params without interpolation
-	g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, nil)
-	if err != nil || g1 == nil {
-		requiresInterpolation = true
-	}
 	for _, a := range g0 {
-		if requiresInterpolation {
-			g1, err = m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get params for second generator in the matrix generator: %w", err)
-			}
+		g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get params for second generator in the matrix generator: %w", err)
 		}
 		for _, b := range g1 {
 
@@ -104,6 +97,7 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 			SCMProvider:             appSetBaseGenerator.SCMProvider,
 			ClusterDecisionResource: appSetBaseGenerator.ClusterDecisionResource,
 			PullRequest:             appSetBaseGenerator.PullRequest,
+			Plugin:                  appSetBaseGenerator.Plugin,
 			Matrix:                  matrixGen,
 			Merge:                   mergeGen,
 			Selector:                appSetBaseGenerator.Selector,
@@ -142,6 +136,7 @@ func (m *MatrixGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 			Clusters:    r.Clusters,
 			Git:         r.Git,
 			PullRequest: r.PullRequest,
+			Plugin:      r.Plugin,
 			Matrix:      matrixGen,
 			Merge:       mergeGen,
 		}
