@@ -106,8 +106,6 @@ require (
 
 require github.com/stretchr/objx v0.5.0 // indirect
 
-require github.com/cyphar/filepath-securejoin v0.2.3
-
 require (
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
