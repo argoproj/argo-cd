@@ -173,6 +173,13 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 
 	for i, source := range sources {
+		// The iteration values are assigned to the respective iteration variables as in an assignment statement.
+		// The iteration variables may be declared by the “range” clause using a form of short variable declaration (:=).
+		// In this case their types are set to the types of the respective iteration values and their scope is the block of the "for" statement;
+		// they are re-used in each iteration. If the iteration variables are declared outside the "for" statement,
+		// after execution their values will be those of the last iteration.
+		// https://golang.org/ref/spec#For_statements
+		source := source
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
