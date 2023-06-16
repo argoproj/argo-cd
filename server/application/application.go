@@ -92,6 +92,8 @@ type Server struct {
 	cache             *servercache.Cache
 	projInformer      cache.SharedIndexInformer
 	enabledNamespaces []string
+	// getClientsetForCluster allows unit tests to specify an alternative (mock) clientset to return for a given cluster.
+	getClientsetForCluster func(cluster *rest.Config) (kubernetes.Interface, error)
 }
 
 // NewServer returns a new instance of the Application service
@@ -111,28 +113,35 @@ func NewServer(
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
 	enabledNamespaces []string,
+	// getClientSetForCluster allows unit tests to specify an alternative (mock) clientset to return for a given cluster.
+	// If nil, the default clientset getter will be used.
+	getClientSetForCluster func(cluster *rest.Config) (kubernetes.Interface, error),
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
 		appBroadcaster = &broadcasterHandler{}
 	}
+	if getClientSetForCluster == nil {
+		getClientSetForCluster = getStandardClientsetForCluster
+	}
 	appInformer.AddEventHandler(appBroadcaster)
 	s := &Server{
-		ns:                namespace,
-		appclientset:      appclientset,
-		appLister:         appLister,
-		appInformer:       appInformer,
-		appBroadcaster:    appBroadcaster,
-		kubeclientset:     kubeclientset,
-		cache:             cache,
-		db:                db,
-		repoClientset:     repoClientset,
-		kubectl:           kubectl,
-		enf:               enf,
-		projectLock:       projectLock,
-		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		settingsMgr:       settingsMgr,
-		projInformer:      projInformer,
-		enabledNamespaces: enabledNamespaces,
+		ns:                     namespace,
+		appclientset:           appclientset,
+		appLister:              appLister,
+		appInformer:            appInformer,
+		appBroadcaster:         appBroadcaster,
+		kubeclientset:          kubeclientset,
+		cache:                  cache,
+		db:                     db,
+		repoClientset:          repoClientset,
+		kubectl:                kubectl,
+		enf:                    enf,
+		projectLock:            projectLock,
+		auditLogger:            argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		settingsMgr:            settingsMgr,
+		projInformer:           projInformer,
+		enabledNamespaces:      enabledNamespaces,
+		getClientsetForCluster: getClientSetForCluster,
 	}
 	return s, s.getAppResources
 }
@@ -1507,7 +1516,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return fmt.Errorf("error getting application cluster config: %w", err)
 	}
 
-	kubeClientset, err := kubernetes.NewForConfig(config)
+	kubeClientset, err := s.getClientsetForCluster(config)
 	if err != nil {
 		return fmt.Errorf("error creating kube client: %w", err)
 	}
@@ -2338,4 +2347,8 @@ func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
 		return q.Project
 	}
 	return q.Projects
+}
+
+func getStandardClientsetForCluster(config *rest.Config) (kubernetes.Interface, error) {
+	return kubernetes.NewForConfig(config)
 }
