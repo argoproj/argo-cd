@@ -47,20 +47,22 @@ func getSubmoduleEnabled() bool {
 
 func NewCommand() *cobra.Command {
 	var (
-		clientConfig             clientcmd.ClientConfig
-		metricsAddr              string
-		probeBindAddr            string
-		webhookAddr              string
-		enableLeaderElection     bool
-		namespace                string
-		argocdRepoServer         string
-		policy                   string
-		debugLog                 bool
-		dryRun                   bool
-		enableProgressiveSyncs   bool
-		repoServerPlaintext      bool
-		repoServerStrictTLS      bool
-		repoServerTimeoutSeconds int
+		clientConfig                 clientcmd.ClientConfig
+		metricsAddr                  string
+		probeBindAddr                string
+		webhookAddr                  string
+		enableLeaderElection         bool
+		namespace                    string
+		argocdRepoServer             string
+		policy                       string
+		debugLog                     bool
+		dryRun                       bool
+		enableProgressiveSyncs       bool
+		enableNewGitFileGlobbing     bool
+		repoServerPlaintext          bool
+		repoServerStrictTLS          bool
+		repoServerTimeoutSeconds     int
+		maxConcurrentReconciliations int
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -140,7 +142,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
-			argoCDService, err := services.NewArgoCDService(argoCDDB, getSubmoduleEnabled(), repoClientset)
+			argoCDService, err := services.NewArgoCDService(argoCDDB, getSubmoduleEnabled(), repoClientset, enableNewGitFileGlobbing)
 			errors.CheckError(err)
 
 			terminalGenerators := map[string]generators.Generator{
@@ -150,6 +152,7 @@ func NewCommand() *cobra.Command {
 				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth),
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
 				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth),
+				"Plugin":                  generators.NewPluginGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
 			}
 
 			nestedGenerators := map[string]generators.Generator{
@@ -159,6 +162,7 @@ func NewCommand() *cobra.Command {
 				"SCMProvider":             terminalGenerators["SCMProvider"],
 				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 				"PullRequest":             terminalGenerators["PullRequest"],
+				"Plugin":                  terminalGenerators["Plugin"],
 				"Matrix":                  generators.NewMatrixGenerator(terminalGenerators),
 				"Merge":                   generators.NewMergeGenerator(terminalGenerators),
 			}
@@ -170,6 +174,7 @@ func NewCommand() *cobra.Command {
 				"SCMProvider":             terminalGenerators["SCMProvider"],
 				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 				"PullRequest":             terminalGenerators["PullRequest"],
+				"Plugin":                  terminalGenerators["Plugin"],
 				"Matrix":                  generators.NewMatrixGenerator(nestedGenerators),
 				"Merge":                   generators.NewMergeGenerator(nestedGenerators),
 			}
@@ -194,7 +199,7 @@ func NewCommand() *cobra.Command {
 				KubeClientset:          k8sClient,
 				ArgoDB:                 argoCDDB,
 				EnableProgressiveSyncs: enableProgressiveSyncs,
-			}).SetupWithManager(mgr, enableProgressiveSyncs); err != nil {
+			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
 			}
@@ -223,9 +228,11 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&dryRun, "dry-run", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN", false), "Enable dry run mode")
 	command.Flags().BoolVar(&enableProgressiveSyncs, "enable-progressive-syncs", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS", false), "Enable use of the experimental progressive syncs feature.")
-	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
-	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
-	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
+	command.Flags().BoolVar(&enableNewGitFileGlobbing, "enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
+	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
+	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
+	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
+	command.Flags().IntVar(&maxConcurrentReconciliations, "concurrent-reconciliations", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS", 10, 1, 100), "Max concurrent reconciliations limit for the controller")
 	return &command
 }
 

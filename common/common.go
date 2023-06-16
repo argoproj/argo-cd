@@ -53,7 +53,11 @@ const (
 
 // DefaultAddressAPIServer for ArgoCD components
 const (
-	DefaultAddressAPIServer = "localhost"
+	DefaultAddressAdminDashboard    = "localhost"
+	DefaultAddressAPIServer         = "0.0.0.0"
+	DefaultAddressAPIServerMetrics  = "0.0.0.0"
+	DefaultAddressRepoServer        = "0.0.0.0"
+	DefaultAddressRepoServerMetrics = "0.0.0.0"
 )
 
 // Default paths on the pod's file system
@@ -99,6 +103,12 @@ const (
 
 	// PasswordPatten is the default password patten
 	PasswordPatten = `^.{8,32}$`
+
+	//LegacyShardingAlgorithm is the default value for Sharding Algorithm it uses an `uid` based distribution (non-uniform)
+	LegacyShardingAlgorithm = "legacy"
+	//RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
+	RoundRobinShardingAlgorithm = "round-robin"
+	DefaultShardingAlgorithm    = LegacyShardingAlgorithm
 )
 
 // Dex related constants
@@ -199,6 +209,8 @@ const (
 	EnvControllerReplicas = "ARGOCD_CONTROLLER_REPLICAS"
 	// EnvControllerShard is the shard number that should be handled by controller
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
+	// EnvControllerShardingAlgorithm is the distribution sharding algorithm to be used: legacy or round-robin
+	EnvControllerShardingAlgorithm = "ARGOCD_CONTROLLER_SHARDING_ALGORITHM"
 	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection
 	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
 	// EnvGithubAppCredsExpirationDuration controls the caching of Github app credentials. This value is in minutes (default: 60)
@@ -309,13 +321,16 @@ const (
 
 // Security severity logging
 const (
-	SecurityField     = "security"
-	SecurityCWEField  = "CWE"
-	SecurityEmergency = 5 // Indicates unmistakably malicious events that should NEVER occur accidentally and indicates an active attack (i.e. brute forcing, DoS)
-	SecurityCritical  = 4 // Indicates any malicious or exploitable event that had a side effect (i.e. secrets being left behind on the filesystem)
-	SecurityHigh      = 3 // Indicates likely malicious events but one that had no side effects or was blocked (i.e. out of bounds symlinks in repos)
-	SecurityMedium    = 2 // Could indicate malicious events, but has a high likelihood of being user/system error (i.e. access denied)
-	SecurityLow       = 1 // Unexceptional entries (i.e. successful access logs)
+	SecurityField = "security"
+	// SecurityCWEField is the logs field for the CWE associated with a log line. CWE stands for Common Weakness Enumeration. See https://cwe.mitre.org/
+	SecurityCWEField                          = "CWE"
+	SecurityCWEIncompleteCleanup              = 459
+	SecurityCWEMissingReleaseOfFileDescriptor = 775
+	SecurityEmergency                         = 5 // Indicates unmistakably malicious events that should NEVER occur accidentally and indicates an active attack (i.e. brute forcing, DoS)
+	SecurityCritical                          = 4 // Indicates any malicious or exploitable event that had a side effect (i.e. secrets being left behind on the filesystem)
+	SecurityHigh                              = 3 // Indicates likely malicious events but one that had no side effects or was blocked (i.e. out of bounds symlinks in repos)
+	SecurityMedium                            = 2 // Could indicate malicious events, but has a high likelihood of being user/system error (i.e. access denied)
+	SecurityLow                               = 1 // Unexceptional entries (i.e. successful access logs)
 )
 
 // TokenVerificationError is a generic error message for a failure to verify a JWT

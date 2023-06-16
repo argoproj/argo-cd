@@ -317,26 +317,30 @@ func (c *Cache) SetRevisionChartDetails(repoURL, chart, revision string, item *a
 	return c.cache.SetItem(revisionChartDetailsKey(repoURL, chart, revision), item, c.repoCacheExpiration, false)
 }
 
-func gitDataKey(gitObject, repoURL, revision string) string {
-	return fmt.Sprintf("%s|%s|%s", gitObject, repoURL, revision)
+func gitFilesKey(repoURL, revision, pattern string) string {
+	return fmt.Sprintf("gitfiles|%s|%s|%s", repoURL, revision, pattern)
 }
 
-func (c *Cache) SetGitFiles(repoURL, revision string, files map[string][]byte) error {
-	return c.cache.SetItem(gitDataKey(gitfiles, repoURL, revision), &files, c.repoCacheExpiration, false)
+func (c *Cache) SetGitFiles(repoURL, revision, pattern string, files map[string][]byte) error {
+	return c.cache.SetItem(gitFilesKey(repoURL, revision, pattern), &files, c.repoCacheExpiration, false)
 }
 
-func (c *Cache) GetGitFiles(repoURL, revision string) (map[string][]byte, error) {
+func (c *Cache) GetGitFiles(repoURL, revision, pattern string) (map[string][]byte, error) {
 	var item map[string][]byte
-	return item, c.cache.GetItem(gitDataKey(gitfiles, repoURL, revision), &item)
+	return item, c.cache.GetItem(gitFilesKey(repoURL, revision, pattern), &item)
+}
+
+func gitDirectoriesKey(repoURL, revision string) string {
+	return fmt.Sprintf("gitdirs|%s|%s", repoURL, revision)
 }
 
 func (c *Cache) SetGitDirectories(repoURL, revision string, directories []string) error {
-	return c.cache.SetItem(gitDataKey(gitdir, repoURL, revision), &directories, c.repoCacheExpiration, false)
+	return c.cache.SetItem(gitDirectoriesKey(repoURL, revision), &directories, c.repoCacheExpiration, false)
 }
 
 func (c *Cache) GetGitDirectories(repoURL, revision string) ([]string, error) {
 	var item []string
-	return item, c.cache.GetItem(gitDataKey(gitdir, repoURL, revision), &item)
+	return item, c.cache.GetItem(gitDirectoriesKey(repoURL, revision), &item)
 }
 
 func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {
