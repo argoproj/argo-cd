@@ -67,8 +67,8 @@ spec:
   # Only one of fileName, find.glob, or find.command should be specified. If multiple are specified then only the 
   # first (in that order) is evaluated.
   discover:
-    # fileName is a glob pattern (https://pkg.go.dev/path/filepath#Glob) that is applied to the repository's root 
-    # directory (not the Application source directory). If there is a match, this plugin may be used for the repository.
+    # fileName is a glob pattern (https://pkg.go.dev/path/filepath#Glob) that is applied to the Application's source 
+    # directory. If there is a match, this plugin may be used for the Application.
     fileName: "./subdir/s*.yaml"
     find:
       # This does the same thing as fileName, but it supports double-start (nested directory) glob patterns.
