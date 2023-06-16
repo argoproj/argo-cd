@@ -121,7 +121,7 @@ data:
 
 ### Customize the application interface using application label key/value
 The style specified in the injected CSS file can be applied to the application interface using label value.
-Use a custom style value for the label key `argoproj.io/app-class-name` to customize the interface.
+Use a custom style value for the label key `argoproj.io/app-css-class-name` to customize the application UI.
 
 Label key/value: 
 
@@ -129,15 +129,18 @@ Label key/value:
 kind: Application
 metadata:
   annotations:
-    argoproj.io/app-class-name: <custom-css-class-name>
+    argoproj.io/app-css-class-name: <custom-css>
 ```
+The CSS classname should always begin with app-css and followed by <custom-css>.
+e.g. `app-css-test-app-custom-css`
 
 Example:
 ```
-argoproj.io/app-class-name: application-details-custom-css`
-.custom-styles:has(.application-details):has([class$=application-details-custom-css]) .ui-banner a {
+argoproj.io/app-css-class-name: custom-css`
+.custom-styles:has(.application-details):has([class$=app-css-test-app-custom-css]) .ui-banner a {
     font-weight: 500;
-    color: #ffffff; ##Change the color of the banner
+    color: #ffffff; ## Change the color of the banner link
 }
 ```
+
 
