@@ -124,7 +124,13 @@ The style specified in the injected CSS file can be applied to the application i
 Use a custom style value for the label key `argoproj.io/app-class-name` to customize the interface.
 
 Label key/value: 
-`argoproj.io/app-class-name: <custom-css>`
+
+```yaml
+kind: Application
+metadata:
+  annotations:
+    argoproj.io/app-class-name: <custom-css-class-name>
+```
 
 Example:
 ```
