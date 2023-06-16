@@ -343,6 +343,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 name: application.metadata.name,
                                 namespace: application.metadata.namespace
                             });
+
                             return (
                                 <div
                                     className={`application-details ${

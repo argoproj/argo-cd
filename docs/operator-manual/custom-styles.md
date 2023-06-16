@@ -131,7 +131,7 @@ metadata:
   annotations:
     argoproj.io/app-css-class-name: <custom-css>
 ```
-The CSS classname should always begin with app-css and followed by <custom-css>.
+To ensure security, custom css must be prefixed with `app-css` and followed by --custom-css>.
 e.g. `app-css-test-app-custom-css`
 
 Example:
