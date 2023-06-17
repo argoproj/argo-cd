@@ -1161,14 +1161,13 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 		}
 	}()
 
-	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:    &argoappv1.Repository{},
 		AppName: "test",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles:   []string{"values-production.yaml"},
-				Values:       `cluster: {slaveCount: 10}`,
 				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				FileParameters: []argoappv1.HelmFileParameter{{
 					Name: "passwordContent",
@@ -1180,7 +1179,6 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	})
 	assert.Error(t, err)
-	assert.Contains(t, res.Manifests[6], `"replicas":2`, "ValuesObject should override Values")
 }
 
 // The requested file parameter (`../external/external-secret.txt`) is outside the app path
