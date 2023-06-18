@@ -149,16 +149,16 @@ func (s *Service) Init() error {
 		// give itself read permissions to list previously written directories
 		err = os.Chmod(s.rootDir, 0700)
 	}
-	var files []fs.DirEntry
+	var dirEntries []fs.DirEntry
 	if err == nil {
-		files, err = os.ReadDir(s.rootDir)
+		dirEntries, err = os.ReadDir(s.rootDir)
 	}
 	if err != nil {
 		log.Warnf("Failed to restore cloned repositories paths: %v", err)
 		return nil
 	}
 
-	for _, file := range files {
+	for _, file := range dirEntries {
 		if !file.IsDir() {
 			continue
 		}
@@ -175,7 +175,7 @@ func (s *Service) Init() error {
 	return os.Chmod(s.rootDir, 0300)
 }
 
-// List a subset of the refs (currently, branches and tags) of a git repo
+// ListRefs List a subset of the refs (currently, branches and tags) of a git repo
 func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
 	gitClient, err := s.newClient(q.Repo)
 	if err != nil {
@@ -242,7 +242,7 @@ func (s *Service) ListPlugins(ctx context.Context, _ *empty.Empty) (*apiclient.P
 		return nil, fmt.Errorf("failed to get plugins from dir %v, error=%w", pluginSockFilePath, err)
 	}
 
-	plugins := []*apiclient.PluginInfo{}
+	var plugins []*apiclient.PluginInfo
 	for _, file := range sockFiles {
 		if file.Type() == os.ModeSocket {
 			plugins = append(plugins, &apiclient.PluginInfo{Name: strings.TrimSuffix(file.Name(), ".sock")})
@@ -294,7 +294,7 @@ func (s *Service) runRepoOperation(
 	refSources map[string]*v1alpha1.RefTarget) error {
 
 	if sanitizer, ok := grpc.SanitizerFromContext(ctx); ok {
-		// make sure randomized path replaced with '.' in the error message
+		// make sure a randomized path replaced with '.' in the error message
 		sanitizer.AddRegexReplacement(getRepoSanitizerRegex(s.rootDir), "<path to cached source>")
 	}
 
@@ -459,38 +459,38 @@ type gitClientGetter func(repo *v1alpha1.Repository, revision string, opts ...gi
 // should be updated.
 func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter) (map[string]string, error) {
 	repoRefs := make(map[string]string)
-	if hasMultipleSources {
-		if source != nil {
-			for _, valueFile := range source.ValueFiles {
-				if strings.HasPrefix(valueFile, "$") {
-					refVar := strings.Split(valueFile, "/")[0]
+	if !hasMultipleSources || source == nil {
+		return repoRefs, nil
+	}
 
-					refSourceMapping, ok := refSources[refVar]
-					if !ok {
-						if len(refSources) == 0 {
-							return nil, fmt.Errorf("source referenced %q, but no source has a 'ref' field defined", refVar)
-						}
-						refKeys := make([]string, 0)
-						for refKey := range refSources {
-							refKeys = append(refKeys, refKey)
-						}
-						return nil, fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
-					}
-					if refSourceMapping.Chart != "" {
-						return nil, fmt.Errorf("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
-					}
-					normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
-					_, ok = repoRefs[normalizedRepoURL]
-					if !ok {
-						_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
-						if err != nil {
-							log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
-							return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
-						}
+	for _, valueFile := range source.ValueFiles {
+		if strings.HasPrefix(valueFile, "$") {
+			refVar := strings.Split(valueFile, "/")[0]
 
-						repoRefs[normalizedRepoURL] = referencedCommitSHA
-					}
+			refSourceMapping, ok := refSources[refVar]
+			if !ok {
+				if len(refSources) == 0 {
+					return nil, fmt.Errorf("source referenced %q, but no source has a 'ref' field defined", refVar)
 				}
+				refKeys := make([]string, 0)
+				for refKey := range refSources {
+					refKeys = append(refKeys, refKey)
+				}
+				return nil, fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
+			}
+			if refSourceMapping.Chart != "" {
+				return nil, fmt.Errorf("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
+			}
+			normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
+			_, ok = repoRefs[normalizedRepoURL]
+			if !ok {
+				_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
+				if err != nil {
+					log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
+					return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
+				}
+
+				repoRefs[normalizedRepoURL] = referencedCommitSHA
 			}
 		}
 	}
@@ -2097,7 +2097,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	for _, v := range fileParameters(q) {
 		res.Helm.FileParameters = append(res.Helm.FileParameters, &v1alpha1.HelmFileParameter{
 			Name: v.Name,
-			Path: v.Path, //filepath.Join(appPath, v.Path),
+			Path: v.Path, // filepath.Join(appPath, v.Path),
 		})
 	}
 	return nil
