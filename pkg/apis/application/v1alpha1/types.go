@@ -205,6 +205,11 @@ func (s ApplicationSources) Equals(other ApplicationSources) bool {
 	return true
 }
 
+// IsZero returns true if the application source is considered empty
+func (a ApplicationSources) IsZero() bool {
+	return len(a) == 0
+}
+
 func (a *ApplicationSpec) GetSource() ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {

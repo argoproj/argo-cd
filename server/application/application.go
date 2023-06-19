@@ -38,6 +38,7 @@ import (
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -1444,10 +1445,23 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 	if err != nil {
 		return nil, err
 	}
-	if a.Spec.Source.Chart == "" {
-		return nil, fmt.Errorf("no chart found for application: %v", a.QualifiedName())
+	var source *v1alpha1.ApplicationSource
+	var revision string
+	if a.Spec.HasMultipleSources() {
+		if q.SourceIndex == nil {
+			return nil, fmt.Errorf("invalid source index")
+		}
+		source = &a.Spec.Sources[*q.SourceIndex]
+		revision = a.Status.Sync.Revisions[*q.SourceIndex]
+	} else {
+		source = a.Spec.Source
+		revision = a.Status.Sync.Revision
 	}
-	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
+
+	if source.Chart == "" {
+		return nil, fmt.Errorf("no chart found for application: %v", appName)
+	}
+	repo, err := s.db.GetRepository(ctx, source.RepoURL)
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository by URL: %w", err)
 	}
@@ -1458,8 +1472,8 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 	defer ioutil.Close(conn)
 	return repoClient.GetRevisionChartDetails(ctx, &apiclient.RepoServerRevisionChartDetailsRequest{
 		Repo:     repo,
-		Name:     a.Spec.Source.Chart,
-		Revision: q.GetRevision(),
+		Name:     source.Chart,
+		Revision: revision,
 	})
 }
 
@@ -1853,9 +1867,10 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	if deploymentInfo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", a.QualifiedName(), rollbackReq.GetId())
 	}
-	if deploymentInfo.Source.IsZero() {
+	if deploymentInfo.Source.IsZero() && deploymentInfo.Sources.IsZero() {
 		// Since source type was introduced to history starting with v0.12, and is now required for
 		// rollback, we cannot support rollback to revisions deployed using Argo CD v0.11 or below
+		// As multi source doesn't use app.Source, we need to check to the Sources length
 		return nil, status.Errorf(codes.FailedPrecondition, "cannot rollback to revision deployed with Argo CD v0.11 or lower. sync to revision instead.")
 	}
 
@@ -1873,6 +1888,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 			SyncOptions:  syncOptions,
 			SyncStrategy: &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
 			Source:       &deploymentInfo.Source,
+			Sources:      deploymentInfo.Sources,
 		},
 		InitiatedBy: appv1.OperationInitiator{Username: session.Username(ctx)},
 	}

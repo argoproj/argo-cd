@@ -53,17 +53,19 @@ export class ApplicationsService {
             .then(res => res.body as models.ApplicationSyncWindowState);
     }
 
-    public revisionMetadata(name: string, appNamespace: string, revision: string): Promise<models.RevisionMetadata> {
+    public revisionMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number): Promise<models.RevisionMetadata> {
         return requests
             .get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`)
             .query({appNamespace})
+            .query({sourceIndex})
             .then(res => res.body as models.RevisionMetadata);
     }
 
-    public revisionChartDetails(name: string, appNamespace: string, revision: string): Promise<models.ChartDetails> {
+    public revisionChartDetails(name: string, appNamespace: string, revision: string, sourceIndex: number): Promise<models.ChartDetails> {
         return requests
             .get(`/applications/${name}/revisions/${revision || 'HEAD'}/chartdetails`)
             .query({appNamespace})
+            .query({sourceIndex})
             .then(res => res.body as models.ChartDetails);
     }
 

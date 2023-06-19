@@ -5028,6 +5028,11 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sourceIndex": {
+          "type": "integer",
+          "format": "int32",
+          "title": "source index (for multi source apps)"
         }
       }
     },
