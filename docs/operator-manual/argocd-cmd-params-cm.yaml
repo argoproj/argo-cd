@@ -92,8 +92,8 @@ data:
   server.dex.server.strict.tls: "false"
   # Disable client authentication
   server.disable.auth: "false"
-  # Enable GZIP compression
-  server.enable.gzip: "false"
+  # Toggle GZIP compression
+  server.enable.gzip: "true"
   # Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
   server.x.frame.options: "sameorigin"
   # The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
