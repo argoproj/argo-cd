@@ -725,7 +725,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
-        const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
         return [
             {
                 iconClassName: 'fa fa-info-circle',
@@ -751,18 +750,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             },
             {
                 iconClassName: 'fa fa-history',
-                title: hasMultipleSources ? (
-                    <React.Fragment>
-                        <ActionMenuItem actionLabel=' History and rollback' />
-                        {helpTip('Rollback is not supported for apps with multiple sources')}
-                    </React.Fragment>
-                ) : (
+                title: (
                     <ActionMenuItem actionLabel='History and rollback' />
                 ),
                 action: () => {
                     this.setRollbackPanelVisible(0);
                 },
-                disabled: !app.status.operationState || hasMultipleSources
+                disabled: !app.status.operationState
             },
             {
                 iconClassName: 'fa fa-times-circle',
