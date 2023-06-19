@@ -313,7 +313,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 			return nil, errPermissionDenied
 		}
 		// verify caller is not making a request with arbitrary source values which were not in our history
-		if !isSourceInHistory(app, *q.Source, q.SourceIndex) {
+		if !isSourceInHistory(app, *q.Source, q.SourceIndex, q.VersionId) {
 			return nil, errPermissionDenied
 		}
 	}
@@ -559,17 +559,28 @@ func (s *Server) isRepoPermittedInProject(ctx context.Context, repo string, proj
 
 // isSourceInHistory checks if the supplied application source is either our current application
 // source, or was something which we synced to previously.
-func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource, index int32) bool {
+func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource, index int32, versionId int32) bool {
 
-	var appSource *v1alpha1.ApplicationSource
 	if app.Spec.HasMultipleSources() {
-		appSource = &app.Spec.Sources[index]
-	} else {
-		source := app.Spec.GetSource()
-		appSource = &source
+		// In case of multi source apps, we have to check the specific versionID because users
+		// could have removed/added new sources and we cannot check all the versions due to that
+		for _, h := range app.Status.History {
+			if h.ID == int64(versionId) {
+				// Iterate history. When comparing items in our history, use the actual synced revision to
+				// compare with the supplied source.targetRevision in the request. This is because
+				// history[].source.targetRevision is ambiguous (e.g. HEAD), whereas
+				// history[].revision will contain the explicit SHA
+				h.Sources[index].TargetRevision = h.Revisions[index]
+				if source.Equals(&h.Sources[index]) {
+					return true
+				}
+			}
+		}
+		return false
 	}
 
-	if source.Equals(appSource) {
+	appSource := app.Spec.GetSource()
+	if source.Equals(&appSource) {
 		return true
 	}
 	// Iterate history. When comparing items in our history, use the actual synced revision to
@@ -577,18 +588,11 @@ func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSou
 	// history[].source.targetRevision is ambiguous (e.g. HEAD), whereas
 	// history[].revision will contain the explicit SHA
 	for _, h := range app.Status.History {
-		var hSource *v1alpha1.ApplicationSource
-		if app.Spec.HasMultipleSources() {
-			hSource = &h.Sources[index]
-			hSource.TargetRevision = h.Revisions[index]
-		} else {
-			hSource = &h.Source
-			hSource.TargetRevision = h.Revision
-		}
-
-		if source.Equals(hSource) {
+		h.Source.TargetRevision = h.Revision
+		if source.Equals(&h.Source) {
 			return true
 		}
 	}
+
 	return false
 }

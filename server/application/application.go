@@ -1416,7 +1416,21 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, err
 	}
 
-	source := a.Spec.GetSource()
+	var source *v1alpha1.ApplicationSource
+	if a.Spec.HasMultipleSources() {
+		for _, h := range a.Status.History {
+			if h.ID == int64(*q.VersionId) {
+				source = &h.Sources[*q.SourceIndex]
+			}
+		}
+		if source == nil {
+			return nil, fmt.Errorf("revision not found: %w", err)
+		}
+	} else {
+		s := a.Spec.GetSource()
+		source = &s
+	}
+
 	repo, err := s.db.GetRepository(ctx, source.RepoURL)
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository by URL: %w", err)
@@ -1448,11 +1462,15 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 	var source *v1alpha1.ApplicationSource
 	var revision string
 	if a.Spec.HasMultipleSources() {
-		if q.SourceIndex == nil {
-			return nil, fmt.Errorf("invalid source index")
+		for _, h := range a.Status.History {
+			if h.ID == int64(*q.VersionId) {
+				source = &h.Sources[*q.SourceIndex]
+				revision = h.Revisions[*q.SourceIndex]
+			}
 		}
-		source = &a.Spec.Sources[*q.SourceIndex]
-		revision = a.Status.Sync.Revisions[*q.SourceIndex]
+		if source == nil {
+			return nil, fmt.Errorf("revision not found: %w", err)
+		}
 	} else {
 		source = a.Spec.Source
 		revision = a.Status.Sync.Revision

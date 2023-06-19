@@ -5,7 +5,7 @@ import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppOperationState} from '../utils';
+import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppDefaultSyncRevisionExtra, getAppOperationState} from '../utils';
 import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, getAppDefaultSyncRevision} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
@@ -61,11 +61,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     }
 
     let revision = getAppDefaultSyncRevision(application)
-    if (application.status.sync){
-        if (application.spec.sources && application.spec.sources.length > 0){
-            revision += `${revision} and (${application.spec.sources.length-1}) more`
-        }
-    }
+    revision += getAppDefaultSyncRevisionExtra(application)
     
     const infos = cntByCategory.get('info');
     const warnings = cntByCategory.get('warning');

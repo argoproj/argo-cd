@@ -32,6 +32,8 @@ message RepoAppDetailsQuery {
 	string appProject = 3;
 	// source index (for multi source apps)
 	int32 sourceIndex = 4;
+	// versionId from historical data (for multi source apps)
+	int32 versionId = 5;
 }
 
 // RepoAppsResponse contains applications of specified repository
