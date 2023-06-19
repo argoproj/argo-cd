@@ -641,9 +641,7 @@ export function syncStatusMessage(app: appModels.Application) {
         }
     }
 
-    if (app.status.sync.revisions && app.status.sync.revisions.length > 0){
-        message += ` and (${app.status.sync.revisions.length-1}) more`
-    }
+    message += getAppDefaultSyncRevisionExtra(app)
 
     switch (app.status.sync.status) {
         case appModels.SyncStatuses.Synced:
@@ -1042,6 +1040,19 @@ export function getAppDefaultSyncRevision(app?: appModels.Application) {
         return "";
     }
     return app.status.sync.revisions && app.status.sync.revisions.length > 0 ? app.status.sync.revisions[0] : app.status.sync.revision;
+}
+
+// getAppDefaultSyncRevisionExtra gets the extra message with others revision count
+export function getAppDefaultSyncRevisionExtra(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.sync) {
+        return "";
+    }
+
+    if (app.status.sync.revisions && app.status.sync.revisions.length > 0){
+        return ` and (${app.status.sync.revisions.length-1}) more`
+    }
+
+    return ""
 }
 
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
