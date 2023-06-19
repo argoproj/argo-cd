@@ -655,7 +655,7 @@ stringData:
 
 ## Resource Exclusion/Inclusion
 
-Resources can be excluded from discovery and sync so that Argo CD is unaware of them. For example, `events.k8s.io` and `metrics.k8s.io` are always excluded. Use cases:
+Resources can be excluded from discovery and sync so that Argo CD is unaware of them. For example, the apiGroup/kind `events.k8s.io/*`, `metrics.k8s.io/*`, `coordination.k8s.io/Lease`, and `""/Endpoints` are always excluded. Use cases:
 
 * You have temporal issues and you want to exclude problematic resources.
 * There are many of a kind of resources that impacts Argo CD's performance.
