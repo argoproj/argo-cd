@@ -27,6 +27,7 @@ import (
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
@@ -61,7 +62,7 @@ type managedResource struct {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) *comparisonResult
+	CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) *comparisonResult
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
@@ -137,7 +138,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, err
 	}
 	ts.AddCheckpoint("plugins_ms")
-	tools := make([]*v1alpha1.ConfigManagementPlugin, len(plugins))
+	tools := make([]*appv1.ConfigManagementPlugin, len(plugins))
 	for i := range plugins {
 		tools[i] = &plugins[i]
 	}
@@ -216,8 +217,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			HelmOptions:        helmOptions,
 			HasMultipleSources: app.Spec.HasMultipleSources(),
 			RefSources:         refSources,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
 		})
 		if err != nil {
 			return nil, nil, err
@@ -290,8 +289,8 @@ func DeduplicateTargetObjects(
 	for key, targets := range targetByKey {
 		if len(targets) > 1 {
 			now := metav1.Now()
-			conditions = append(conditions, v1alpha1.ApplicationCondition{
-				Type:               v1alpha1.ApplicationConditionRepeatedResourceWarning,
+			conditions = append(conditions, appv1.ApplicationCondition{
+				Type:               appv1.ApplicationConditionRepeatedResourceWarning,
 				Message:            fmt.Sprintf("Resource %s appeared %d times among application resources.", key.String(), len(targets)),
 				LastTransitionTime: &now,
 			})
@@ -322,9 +321,9 @@ func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.R
 
 // verifyGnuPGSignature verifies the result of a GnuPG operation for a given git
 // revision.
-func verifyGnuPGSignature(revision string, project *v1alpha1.AppProject, manifestInfo *apiclient.ManifestResponse) []v1alpha1.ApplicationCondition {
+func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestInfo *apiclient.ManifestResponse) []appv1.ApplicationCondition {
 	now := metav1.Now()
-	conditions := make([]v1alpha1.ApplicationCondition, 0)
+	conditions := make([]appv1.ApplicationCondition, 0)
 	// We need to have some data in the verification result to parse, otherwise there was no signature
 	if manifestInfo.VerifyResult != "" {
 		verifyResult := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
@@ -362,7 +361,7 @@ func verifyGnuPGSignature(revision string, project *v1alpha1.AppProject, manifes
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) *comparisonResult {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) *comparisonResult {
 	ts := stats.NewTimingStats()
 	appLabelKey, resourceOverrides, resFilter, err := m.getComparisonSettings()
 
@@ -373,20 +372,20 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		if hasMultipleSources {
 			return &comparisonResult{
 				syncStatus: &v1alpha1.SyncStatus{
-					ComparedTo: v1alpha1.ComparedTo{Destination: app.Spec.Destination, Sources: sources},
-					Status:     v1alpha1.SyncStatusCodeUnknown,
+					ComparedTo: appv1.ComparedTo{Destination: app.Spec.Destination, Sources: sources},
+					Status:     appv1.SyncStatusCodeUnknown,
 					Revisions:  revisions,
 				},
-				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown},
+				healthStatus: &appv1.HealthStatus{Status: health.HealthStatusUnknown},
 			}
 		} else {
 			return &comparisonResult{
 				syncStatus: &v1alpha1.SyncStatus{
-					ComparedTo: v1alpha1.ComparedTo{Source: sources[0], Destination: app.Spec.Destination},
-					Status:     v1alpha1.SyncStatusCodeUnknown,
+					ComparedTo: appv1.ComparedTo{Source: sources[0], Destination: app.Spec.Destination},
+					Status:     appv1.SyncStatusCodeUnknown,
 					Revision:   revisions[0],
 				},
-				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown},
+				healthStatus: &appv1.HealthStatus{Status: health.HealthStatusUnknown},
 			}
 		}
 	}
@@ -483,7 +482,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
-		permitted, err := project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name, func(project string) ([]*v1alpha1.Cluster, error) {
+		permitted, err := project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name, func(project string) ([]*appv1.Cluster, error) {
 			return m.db.GetProjectClusters(context.TODO(), project)
 		})
 
@@ -530,7 +529,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	// restore comparison using cached diff result if previous comparison was performed for the same revision
 	revisionChanged := len(manifestInfoMap) != len(sources) || !reflect.DeepEqual(app.Status.Sync.Revisions, manifestRevisions)
-	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, Sources: sources})
+	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, appv1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, Sources: sources})
 
 	_, refreshRequested := app.IsRefreshRequested()
 	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout) || specChanged || revisionChanged
@@ -630,7 +629,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 
 		if isNamespaced && obj.GetNamespace() == "" {
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: fmt.Sprintf("Namespace for %s %s is missing.", obj.GetName(), gvk.String()), LastTransitionTime: &now})
+			conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: fmt.Sprintf("Namespace for %s %s is missing.", obj.GetName(), gvk.String()), LastTransitionTime: &now})
 		}
 
 		// we can't say anything about the status if we were unable to get the target objects
@@ -659,8 +658,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	if failedToLoadObjs {
 		syncCode = v1alpha1.SyncStatusCodeUnknown
-	} else if app.HasChangedManagedNamespaceMetadata() {
-		syncCode = v1alpha1.SyncStatusCodeOutOfSync
 	}
 	var revision string
 
@@ -670,7 +667,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	var syncStatus v1alpha1.SyncStatus
 	if hasMultipleSources {
 		syncStatus = v1alpha1.SyncStatus{
-			ComparedTo: v1alpha1.ComparedTo{
+			ComparedTo: appv1.ComparedTo{
 				Destination: app.Spec.Destination,
 				Sources:     sources,
 			},
@@ -679,7 +676,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 	} else {
 		syncStatus = v1alpha1.SyncStatus{
-			ComparedTo: v1alpha1.ComparedTo{
+			ComparedTo: appv1.ComparedTo{
 				Destination: app.Spec.Destination,
 				Source:      app.Spec.GetSource(),
 			},
@@ -692,7 +689,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
 	if err != nil {
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: fmt.Sprintf("error setting app health: %s", err.Error()), LastTransitionTime: &now})
+		conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
 
 	// Git has already performed the signature verification via its GPG interface, and the result is available
@@ -716,7 +713,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	if hasMultipleSources {
 		for _, manifestInfo := range manifestInfoMap {
-			compRes.appSourceTypes = append(compRes.appSourceTypes, v1alpha1.ApplicationSourceType(manifestInfo.SourceType))
+			compRes.appSourceTypes = append(compRes.appSourceTypes, appv1.ApplicationSourceType(manifestInfo.SourceType))
 		}
 	} else {
 		for _, manifestInfo := range manifestInfoMap {
@@ -725,11 +722,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 	}
 
-	app.Status.SetConditions(conditions, map[v1alpha1.ApplicationConditionType]bool{
-		v1alpha1.ApplicationConditionComparisonError:         true,
-		v1alpha1.ApplicationConditionSharedResourceWarning:   true,
-		v1alpha1.ApplicationConditionRepeatedResourceWarning: true,
-		v1alpha1.ApplicationConditionExcludedResourceWarning: true,
+	app.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{
+		appv1.ApplicationConditionComparisonError:         true,
+		appv1.ApplicationConditionSharedResourceWarning:   true,
+		appv1.ApplicationConditionRepeatedResourceWarning: true,
+		appv1.ApplicationConditionExcludedResourceWarning: true,
 	})
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()

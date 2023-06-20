@@ -54,17 +54,11 @@ func (a *ApplicationSet) RBACName() string {
 
 // ApplicationSetSpec represents a class of application set state.
 type ApplicationSetSpec struct {
-	GoTemplate        bool                        `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
-	Generators        []ApplicationSetGenerator   `json:"generators" protobuf:"bytes,2,name=generators"`
-	Template          ApplicationSetTemplate      `json:"template" protobuf:"bytes,3,name=template"`
-	SyncPolicy        *ApplicationSetSyncPolicy   `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
-	Strategy          *ApplicationSetStrategy     `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
-	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
-	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,7,opt,name=goTemplateOptions"`
-}
-
-type ApplicationPreservedFields struct {
-	Annotations []string `json:"annotations,omitempty" protobuf:"bytes,1,name=annotations"`
+	GoTemplate bool                      `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
+	Generators []ApplicationSetGenerator `json:"generators" protobuf:"bytes,2,name=generators"`
+	Template   ApplicationSetTemplate    `json:"template" protobuf:"bytes,3,name=template"`
+	SyncPolicy *ApplicationSetSyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
+	Strategy   *ApplicationSetStrategy   `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
@@ -124,8 +118,6 @@ type ApplicationSetGenerator struct {
 
 	// Selector allows to post-filter all generator.
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
-
-	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
 }
 
 // ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or
@@ -146,8 +138,6 @@ type ApplicationSetNestedGenerator struct {
 
 	// Selector allows to post-filter all generator.
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
-
-	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
 }
 
 type ApplicationSetNestedGenerators []ApplicationSetNestedGenerator
@@ -163,7 +153,6 @@ type ApplicationSetTerminalGenerator struct {
 	SCMProvider             *SCMProviderGenerator `json:"scmProvider,omitempty" protobuf:"bytes,4,name=scmProvider"`
 	ClusterDecisionResource *DuckTypeGenerator    `json:"clusterDecisionResource,omitempty" protobuf:"bytes,5,name=clusterDecisionResource"`
 	PullRequest             *PullRequestGenerator `json:"pullRequest,omitempty" protobuf:"bytes,6,name=pullRequest"`
-	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=pullRequest"`
 }
 
 type ApplicationSetTerminalGenerators []ApplicationSetTerminalGenerator
@@ -181,7 +170,6 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 			SCMProvider:             terminalGenerator.SCMProvider,
 			ClusterDecisionResource: terminalGenerator.ClusterDecisionResource,
 			PullRequest:             terminalGenerator.PullRequest,
-			Plugin:                  terminalGenerator.Plugin,
 		}
 	}
 	return nestedGenerators
@@ -189,9 +177,8 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 
 // ListGenerator include items info
 type ListGenerator struct {
-	Elements     []apiextensionsv1.JSON `json:"elements" protobuf:"bytes,1,name=elements"`
-	Template     ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
-	ElementsYaml string                 `json:"elementsYaml,omitempty" protobuf:"bytes,3,opt,name=elementsYaml"`
+	Elements []apiextensionsv1.JSON `json:"elements" protobuf:"bytes,1,name=elements"`
+	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
 }
 
 // MatrixGenerator generates the cartesian product of two sets of parameters. The parameters are defined by two nested
@@ -327,9 +314,6 @@ type GitGenerator struct {
 	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
 	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
 	PathParamPrefix     string                      `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
-
-	// Values contains key/value pairs which are passed directly as parameters to the template
-	Values map[string]string `json:"values,omitempty" protobuf:"bytes,8,name=values"`
 }
 
 type GitDirectoryGeneratorItem struct {
@@ -358,10 +342,6 @@ type SCMProviderGenerator struct {
 	// Standard parameters.
 	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,9,opt,name=requeueAfterSeconds"`
 	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,10,opt,name=template"`
-
-	// Values contains key/value pairs which are passed directly as parameters to the template
-	Values        map[string]string                  `json:"values,omitempty" protobuf:"bytes,11,name=values"`
-	AWSCodeCommit *SCMProviderGeneratorAWSCodeCommit `json:"awsCodeCommit,omitempty" protobuf:"bytes,12,opt,name=awsCodeCommit"`
 }
 
 // SCMProviderGeneratorGitea defines a connection info specific to Gitea.
@@ -442,25 +422,6 @@ type SCMProviderGeneratorAzureDevOps struct {
 	AccessTokenRef *SecretRef `json:"accessTokenRef" protobuf:"bytes,8,opt,name=accessTokenRef"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,9,opt,name=allBranches"`
-}
-
-type TagFilter struct {
-	Key   string `json:"key" protobuf:"bytes,1,opt,name=key"`
-	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
-}
-
-// SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.
-type SCMProviderGeneratorAWSCodeCommit struct {
-	// TagFilters provides the tag filter(s) for repo discovery
-	TagFilters []*TagFilter `json:"tagFilters,omitempty" protobuf:"bytes,1,opt,name=tagFilters"`
-	// Role provides the AWS IAM role to assume, for cross-account repo discovery
-	// if not provided, AppSet controller will use its pod/node identity to discover.
-	Role string `json:"role,omitempty" protobuf:"bytes,2,opt,name=role"`
-	// Region provides the AWS region to discover repos.
-	// if not provided, AppSet controller will infer the current region from environment.
-	Region string `json:"region,omitempty" protobuf:"bytes,3,opt,name=region"`
-	// Scan all branches instead of just the default branch.
-	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
 }
 
 // SCMProviderGeneratorFilter is a single repository filter.
@@ -561,34 +522,7 @@ type BasicAuthBitbucketServer struct {
 // If multiple filter types are set on a single struct, they will be AND'd together. All filters must
 // pass for a pull request to be included.
 type PullRequestGeneratorFilter struct {
-	BranchMatch       *string `json:"branchMatch,omitempty" protobuf:"bytes,1,opt,name=branchMatch"`
-	TargetBranchMatch *string `json:"targetBranchMatch,omitempty" protobuf:"bytes,2,opt,name=targetBranchMatch"`
-}
-
-type PluginConfigMapRef struct {
-	// Name of the ConfigMap
-	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
-}
-
-type PluginParameters map[string]apiextensionsv1.JSON
-
-type PluginInput struct {
-	// Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the
-	// values can be any type.
-	Parameters PluginParameters `json:"parameters,omitempty" protobuf:"bytes,1,name=parameters"`
-}
-
-// PluginGenerator defines connection info specific to Plugin.
-type PluginGenerator struct {
-	ConfigMapRef PluginConfigMapRef `json:"configMapRef" protobuf:"bytes,1,name=configMapRef"`
-	Input        PluginInput        `json:"input,omitempty" protobuf:"bytes,2,name=input"`
-	// RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.
-	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,3,opt,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,4,name=template"`
-
-	// Values contains key/value pairs which are passed directly as parameters to the template. These values will not be
-	// sent as parameters to the plugin.
-	Values map[string]string `json:"values,omitempty" protobuf:"bytes,5,name=values"`
+	BranchMatch *string `json:"branchMatch,omitempty" protobuf:"bytes,1,opt,name=branchMatch"`
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet

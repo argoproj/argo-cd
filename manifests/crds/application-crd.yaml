@@ -302,10 +302,6 @@ spec:
                             description: CommonAnnotations is a list of additional
                               annotations to add to rendered manifests
                             type: object
-                          commonAnnotationsEnvsubst:
-                            description: CommonAnnotationsEnvsubst specifies whether
-                              to apply env variables substitution for annotation values
-                            type: boolean
                           commonLabels:
                             additionalProperties:
                               type: string
@@ -337,29 +333,6 @@ spec:
                             description: NameSuffix is a suffix appended to resources
                               for Kustomize apps
                             type: string
-                          namespace:
-                            description: Namespace sets the namespace that Kustomize
-                              adds to all resources
-                            type: string
-                          replicas:
-                            description: Replicas is a list of Kustomize Replicas
-                              override specifications
-                            items:
-                              properties:
-                                count:
-                                  anyOf:
-                                  - type: integer
-                                  - type: string
-                                  description: Number of replicas
-                                  x-kubernetes-int-or-string: true
-                                name:
-                                  description: Name of Deployment or StatefulSet
-                                  type: string
-                              required:
-                              - count
-                              - name
-                              type: object
-                            type: array
                           version:
                             description: Version controls which version of Kustomize
                               to use for rendering manifests
@@ -591,11 +564,6 @@ spec:
                               description: CommonAnnotations is a list of additional
                                 annotations to add to rendered manifests
                               type: object
-                            commonAnnotationsEnvsubst:
-                              description: CommonAnnotationsEnvsubst specifies whether
-                                to apply env variables substitution for annotation
-                                values
-                              type: boolean
                             commonLabels:
                               additionalProperties:
                                 type: string
@@ -628,29 +596,6 @@ spec:
                               description: NameSuffix is a suffix appended to resources
                                 for Kustomize apps
                               type: string
-                            namespace:
-                              description: Namespace sets the namespace that Kustomize
-                                adds to all resources
-                              type: string
-                            replicas:
-                              description: Replicas is a list of Kustomize Replicas
-                                override specifications
-                              items:
-                                properties:
-                                  count:
-                                    anyOf:
-                                    - type: integer
-                                    - type: string
-                                    description: Number of replicas
-                                    x-kubernetes-int-or-string: true
-                                  name:
-                                    description: Name of Deployment or StatefulSet
-                                    type: string
-                                required:
-                                - count
-                                - name
-                                type: object
-                              type: array
                             version:
                               description: Version controls which version of Kustomize
                                 to use for rendering manifests
@@ -997,10 +942,6 @@ spec:
                         description: CommonAnnotations is a list of additional annotations
                           to add to rendered manifests
                         type: object
-                      commonAnnotationsEnvsubst:
-                        description: CommonAnnotationsEnvsubst specifies whether to
-                          apply env variables substitution for annotation values
-                        type: boolean
                       commonLabels:
                         additionalProperties:
                           type: string
@@ -1031,29 +972,6 @@ spec:
                         description: NameSuffix is a suffix appended to resources
                           for Kustomize apps
                         type: string
-                      namespace:
-                        description: Namespace sets the namespace that Kustomize adds
-                          to all resources
-                        type: string
-                      replicas:
-                        description: Replicas is a list of Kustomize Replicas override
-                          specifications
-                        items:
-                          properties:
-                            count:
-                              anyOf:
-                              - type: integer
-                              - type: string
-                              description: Number of replicas
-                              x-kubernetes-int-or-string: true
-                            name:
-                              description: Name of Deployment or StatefulSet
-                              type: string
-                          required:
-                          - count
-                          - name
-                          type: object
-                        type: array
                       version:
                         description: Version controls which version of Kustomize to
                           use for rendering manifests
@@ -1277,10 +1195,6 @@ spec:
                           description: CommonAnnotations is a list of additional annotations
                             to add to rendered manifests
                           type: object
-                        commonAnnotationsEnvsubst:
-                          description: CommonAnnotationsEnvsubst specifies whether
-                            to apply env variables substitution for annotation values
-                          type: boolean
                         commonLabels:
                           additionalProperties:
                             type: string
@@ -1312,29 +1226,6 @@ spec:
                           description: NameSuffix is a suffix appended to resources
                             for Kustomize apps
                           type: string
-                        namespace:
-                          description: Namespace sets the namespace that Kustomize
-                            adds to all resources
-                          type: string
-                        replicas:
-                          description: Replicas is a list of Kustomize Replicas override
-                            specifications
-                          items:
-                            properties:
-                              count:
-                                anyOf:
-                                - type: integer
-                                - type: string
-                                description: Number of replicas
-                                x-kubernetes-int-or-string: true
-                              name:
-                                description: Name of Deployment or StatefulSet
-                                type: string
-                            required:
-                            - count
-                            - name
-                            type: object
-                          type: array
                         version:
                           description: Version controls which version of Kustomize
                             to use for rendering manifests
@@ -1427,7 +1318,7 @@ spec:
                           as part of automated sync (default: false)'
                         type: boolean
                       selfHeal:
-                        description: 'SelfHeal specifies whether to revert resources
+                        description: 'SelfHeal specifes whether to revert resources
                           back to their desired state upon modification in the cluster
                           (default: false)'
                         type: boolean
@@ -1491,7 +1382,7 @@ spec:
                   conditions
                 items:
                   description: ApplicationCondition contains details about an application
-                    condition, which is usually an error or warning
+                    condition, which is usally an error or warning
                   properties:
                     lastTransitionTime:
                       description: LastTransitionTime is the time the condition was
@@ -1510,10 +1401,6 @@ spec:
                   - type
                   type: object
                 type: array
-              controllerNamespace:
-                description: ControllerNamespace indicates the namespace in which
-                  the application controller is located
-                type: string
               health:
                 description: Health contains information about the application's current
                   health status
@@ -1709,11 +1596,6 @@ spec:
                               description: CommonAnnotations is a list of additional
                                 annotations to add to rendered manifests
                               type: object
-                            commonAnnotationsEnvsubst:
-                              description: CommonAnnotationsEnvsubst specifies whether
-                                to apply env variables substitution for annotation
-                                values
-                              type: boolean
                             commonLabels:
                               additionalProperties:
                                 type: string
@@ -1746,29 +1628,6 @@ spec:
                               description: NameSuffix is a suffix appended to resources
                                 for Kustomize apps
                               type: string
-                            namespace:
-                              description: Namespace sets the namespace that Kustomize
-                                adds to all resources
-                              type: string
-                            replicas:
-                              description: Replicas is a list of Kustomize Replicas
-                                override specifications
-                              items:
-                                properties:
-                                  count:
-                                    anyOf:
-                                    - type: integer
-                                    - type: string
-                                    description: Number of replicas
-                                    x-kubernetes-int-or-string: true
-                                  name:
-                                    description: Name of Deployment or StatefulSet
-                                    type: string
-                                required:
-                                - count
-                                - name
-                                type: object
-                              type: array
                             version:
                               description: Version controls which version of Kustomize
                                 to use for rendering manifests
@@ -2002,11 +1861,6 @@ spec:
                                 description: CommonAnnotations is a list of additional
                                   annotations to add to rendered manifests
                                 type: object
-                              commonAnnotationsEnvsubst:
-                                description: CommonAnnotationsEnvsubst specifies whether
-                                  to apply env variables substitution for annotation
-                                  values
-                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -2039,29 +1893,6 @@ spec:
                                 description: NameSuffix is a suffix appended to resources
                                   for Kustomize apps
                                 type: string
-                              namespace:
-                                description: Namespace sets the namespace that Kustomize
-                                  adds to all resources
-                                type: string
-                              replicas:
-                                description: Replicas is a list of Kustomize Replicas
-                                  override specifications
-                                items:
-                                  properties:
-                                    count:
-                                      anyOf:
-                                      - type: integer
-                                      - type: string
-                                      description: Number of replicas
-                                      x-kubernetes-int-or-string: true
-                                    name:
-                                      description: Name of Deployment or StatefulSet
-                                      type: string
-                                  required:
-                                  - count
-                                  - name
-                                  type: object
-                                type: array
                               version:
                                 description: Version controls which version of Kustomize
                                   to use for rendering manifests
@@ -2440,11 +2271,6 @@ spec:
                                     description: CommonAnnotations is a list of additional
                                       annotations to add to rendered manifests
                                     type: object
-                                  commonAnnotationsEnvsubst:
-                                    description: CommonAnnotationsEnvsubst specifies
-                                      whether to apply env variables substitution
-                                      for annotation values
-                                    type: boolean
                                   commonLabels:
                                     additionalProperties:
                                       type: string
@@ -2477,29 +2303,6 @@ spec:
                                     description: NameSuffix is a suffix appended to
                                       resources for Kustomize apps
                                     type: string
-                                  namespace:
-                                    description: Namespace sets the namespace that
-                                      Kustomize adds to all resources
-                                    type: string
-                                  replicas:
-                                    description: Replicas is a list of Kustomize Replicas
-                                      override specifications
-                                    items:
-                                      properties:
-                                        count:
-                                          anyOf:
-                                          - type: integer
-                                          - type: string
-                                          description: Number of replicas
-                                          x-kubernetes-int-or-string: true
-                                        name:
-                                          description: Name of Deployment or StatefulSet
-                                          type: string
-                                      required:
-                                      - count
-                                      - name
-                                      type: object
-                                    type: array
                                   version:
                                     description: Version controls which version of
                                       Kustomize to use for rendering manifests
@@ -2751,11 +2554,6 @@ spec:
                                         additional annotations to add to rendered
                                         manifests
                                       type: object
-                                    commonAnnotationsEnvsubst:
-                                      description: CommonAnnotationsEnvsubst specifies
-                                        whether to apply env variables substitution
-                                        for annotation values
-                                      type: boolean
                                     commonLabels:
                                       additionalProperties:
                                         type: string
@@ -2788,29 +2586,6 @@ spec:
                                       description: NameSuffix is a suffix appended
                                         to resources for Kustomize apps
                                       type: string
-                                    namespace:
-                                      description: Namespace sets the namespace that
-                                        Kustomize adds to all resources
-                                      type: string
-                                    replicas:
-                                      description: Replicas is a list of Kustomize
-                                        Replicas override specifications
-                                      items:
-                                        properties:
-                                          count:
-                                            anyOf:
-                                            - type: integer
-                                            - type: string
-                                            description: Number of replicas
-                                            x-kubernetes-int-or-string: true
-                                          name:
-                                            description: Name of Deployment or StatefulSet
-                                            type: string
-                                        required:
-                                        - count
-                                        - name
-                                        type: object
-                                      type: array
                                     version:
                                       description: Version controls which version
                                         of Kustomize to use for rendering manifests
@@ -2944,19 +2719,6 @@ spec:
                   syncResult:
                     description: SyncResult is the result of a Sync operation
                     properties:
-                      managedNamespaceMetadata:
-                        description: ManagedNamespaceMetadata contains the current
-                          sync state of managed namespace metadata
-                        properties:
-                          annotations:
-                            additionalProperties:
-                              type: string
-                            type: object
-                          labels:
-                            additionalProperties:
-                              type: string
-                            type: object
-                        type: object
                       resources:
                         description: Resources contains a list of sync result items
                           for each individual resource in a sync operation
@@ -3175,11 +2937,6 @@ spec:
                                 description: CommonAnnotations is a list of additional
                                   annotations to add to rendered manifests
                                 type: object
-                              commonAnnotationsEnvsubst:
-                                description: CommonAnnotationsEnvsubst specifies whether
-                                  to apply env variables substitution for annotation
-                                  values
-                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -3212,29 +2969,6 @@ spec:
                                 description: NameSuffix is a suffix appended to resources
                                   for Kustomize apps
                                 type: string
-                              namespace:
-                                description: Namespace sets the namespace that Kustomize
-                                  adds to all resources
-                                type: string
-                              replicas:
-                                description: Replicas is a list of Kustomize Replicas
-                                  override specifications
-                                items:
-                                  properties:
-                                    count:
-                                      anyOf:
-                                      - type: integer
-                                      - type: string
-                                      description: Number of replicas
-                                      x-kubernetes-int-or-string: true
-                                    name:
-                                      description: Name of Deployment or StatefulSet
-                                      type: string
-                                  required:
-                                  - count
-                                  - name
-                                  type: object
-                                type: array
                               version:
                                 description: Version controls which version of Kustomize
                                   to use for rendering manifests
@@ -3479,11 +3213,6 @@ spec:
                                   description: CommonAnnotations is a list of additional
                                     annotations to add to rendered manifests
                                   type: object
-                                commonAnnotationsEnvsubst:
-                                  description: CommonAnnotationsEnvsubst specifies
-                                    whether to apply env variables substitution for
-                                    annotation values
-                                  type: boolean
                                 commonLabels:
                                   additionalProperties:
                                     type: string
@@ -3516,29 +3245,6 @@ spec:
                                   description: NameSuffix is a suffix appended to
                                     resources for Kustomize apps
                                   type: string
-                                namespace:
-                                  description: Namespace sets the namespace that Kustomize
-                                    adds to all resources
-                                  type: string
-                                replicas:
-                                  description: Replicas is a list of Kustomize Replicas
-                                    override specifications
-                                  items:
-                                    properties:
-                                      count:
-                                        anyOf:
-                                        - type: integer
-                                        - type: string
-                                        description: Number of replicas
-                                        x-kubernetes-int-or-string: true
-                                      name:
-                                        description: Name of Deployment or StatefulSet
-                                        type: string
-                                    required:
-                                    - count
-                                    - name
-                                    type: object
-                                  type: array
                                 version:
                                   description: Version controls which version of Kustomize
                                     to use for rendering manifests
@@ -3888,11 +3594,6 @@ spec:
                                 description: CommonAnnotations is a list of additional
                                   annotations to add to rendered manifests
                                 type: object
-                              commonAnnotationsEnvsubst:
-                                description: CommonAnnotationsEnvsubst specifies whether
-                                  to apply env variables substitution for annotation
-                                  values
-                                type: boolean
                               commonLabels:
                                 additionalProperties:
                                   type: string
@@ -3925,29 +3626,6 @@ spec:
                                 description: NameSuffix is a suffix appended to resources
                                   for Kustomize apps
                                 type: string
-                              namespace:
-                                description: Namespace sets the namespace that Kustomize
-                                  adds to all resources
-                                type: string
-                              replicas:
-                                description: Replicas is a list of Kustomize Replicas
-                                  override specifications
-                                items:
-                                  properties:
-                                    count:
-                                      anyOf:
-                                      - type: integer
-                                      - type: string
-                                      description: Number of replicas
-                                      x-kubernetes-int-or-string: true
-                                    name:
-                                      description: Name of Deployment or StatefulSet
-                                      type: string
-                                  required:
-                                  - count
-                                  - name
-                                  type: object
-                                type: array
                               version:
                                 description: Version controls which version of Kustomize
                                   to use for rendering manifests
@@ -4192,11 +3870,6 @@ spec:
                                   description: CommonAnnotations is a list of additional
                                     annotations to add to rendered manifests
                                   type: object
-                                commonAnnotationsEnvsubst:
-                                  description: CommonAnnotationsEnvsubst specifies
-                                    whether to apply env variables substitution for
-                                    annotation values
-                                  type: boolean
                                 commonLabels:
                                   additionalProperties:
                                     type: string
@@ -4229,29 +3902,6 @@ spec:
                                   description: NameSuffix is a suffix appended to
                                     resources for Kustomize apps
                                   type: string
-                                namespace:
-                                  description: Namespace sets the namespace that Kustomize
-                                    adds to all resources
-                                  type: string
-                                replicas:
-                                  description: Replicas is a list of Kustomize Replicas
-                                    override specifications
-                                  items:
-                                    properties:
-                                      count:
-                                        anyOf:
-                                        - type: integer
-                                        - type: string
-                                        description: Number of replicas
-                                        x-kubernetes-int-or-string: true
-                                      name:
-                                        description: Name of Deployment or StatefulSet
-                                        type: string
-                                    required:
-                                    - count
-                                    - name
-                                    type: object
-                                  type: array
                                 version:
                                   description: Version controls which version of Kustomize
                                     to use for rendering manifests

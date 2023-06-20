@@ -21,8 +21,10 @@ export interface NodeId {
     namespace: string;
     name: string;
     group: string;
-    createdAt?: models.Time;
+    createdAt?: appModels.Time;
 }
+
+export const ExternalLinkAnnotation = 'link.argocd.argoproj.io/external-link';
 
 type ActionMenuItem = MenuItem & {disabled?: boolean; tooltip?: string};
 
@@ -243,10 +245,10 @@ export const ComparisonStatusIcon = ({
             break;
         case appModels.SyncStatuses.OutOfSync:
             const requiresPruning = resource && resource.requiresPruning;
-            className = requiresPruning ? 'fa fa-trash' : 'fa fa-arrow-alt-circle-up';
+            className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-arrow-alt-circle-up';
             title = 'OutOfSync';
             if (requiresPruning) {
-                title = `${title} (This resource is not present in the application's source. It will be deleted from Kubernetes if the prune option is enabled during sync.)`;
+                title = `${title} (requires pruning)`;
             }
             color = COLORS.sync.out_of_sync;
             break;
@@ -261,8 +263,8 @@ export const ComparisonStatusIcon = ({
     );
 };
 
-export function showDeploy(resource: string, revision: string, apis: ContextApis) {
-    apis.navigation.goto('.', {deploy: resource, revision}, {replace: true});
+export function showDeploy(resource: string, appContext: AppContext) {
+    appContext.apis.navigation.goto('.', {deploy: resource}, {replace: true});
 }
 
 export function findChildPod(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode {
@@ -395,7 +397,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
     );
 };
 
-function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
+function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.Metadata, appContext: AppContext): Observable<ActionMenuItem[]> {
     return services.applications
         .getResourceActions(metadata.name, metadata.namespace, resource)
         .then(actions => {
@@ -406,12 +408,15 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
                         disabled: !!action.disabled,
                         action: async () => {
                             try {
-                                const confirmed = await apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
+                                const confirmed = await appContext.apis.popup.confirm(
+                                    `Execute '${action.name}' action?`,
+                                    `Are you sure you want to execute '${action.name}' action?`
+                                );
                                 if (confirmed) {
                                     await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name);
                                 }
                             } catch (e) {
-                                apis.notifications.show({
+                                appContext.apis.notifications.show({
                                     content: <ErrorNotification title='Unable to execute resource action' e={e} />,
                                     type: NotificationType.Error
                                 });
@@ -427,7 +432,7 @@ function getActionItems(
     resource: ResourceTreeNode,
     application: appModels.Application,
     tree: appModels.ApplicationTree,
-    apis: ContextApis,
+    appContext: AppContext,
     appChanged: BehaviorSubject<appModels.Application>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
@@ -437,7 +442,7 @@ function getActionItems(
             {
                 title: 'Sync',
                 iconClassName: 'fa fa-sync',
-                action: () => showDeploy(nodeKey(resource), null, apis)
+                action: () => showDeploy(nodeKey(resource), appContext)
             }
         ]) ||
             []),
@@ -445,7 +450,7 @@ function getActionItems(
             title: 'Delete',
             iconClassName: 'fa fa-times-circle',
             action: async () => {
-                return deletePopup(apis, resource, application, appChanged);
+                return deletePopup(appContext.apis, resource, application, appChanged);
             }
         }
     ];
@@ -453,7 +458,7 @@ function getActionItems(
         items.unshift({
             title: 'Details',
             iconClassName: 'fa fa-info-circle',
-            action: () => apis.navigation.goto('.', {node: nodeKey(resource)})
+            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource)})
         });
     }
 
@@ -461,7 +466,7 @@ function getActionItems(
         items.push({
             title: 'Logs',
             iconClassName: 'fa fa-align-left',
-            action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
+            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
         });
     }
 
@@ -478,7 +483,7 @@ function getActionItems(
                     {
                         title: 'Exec',
                         iconClassName: 'fa fa-terminal',
-                        action: async () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
+                        action: async () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
                     } as MenuItem
                 ];
             }
@@ -486,7 +491,7 @@ function getActionItems(
         })
         .catch(() => [] as MenuItem[]);
 
-    const resourceActions = getResourceActionsMenuItems(resource, application.metadata, apis);
+    const resourceActions = getResourceActionsMenuItems(resource, application.metadata, appContext);
 
     const links = services.applications
         .getResourceLinks(application.metadata.name, application.metadata.namespace, resource)
@@ -515,7 +520,7 @@ export function renderResourceMenu(
     resource: ResourceTreeNode,
     application: appModels.Application,
     tree: appModels.ApplicationTree,
-    apis: ContextApis,
+    appContext: AppContext,
     appChanged: BehaviorSubject<appModels.Application>,
     getApplicationActionMenu: () => any
 ): React.ReactNode {
@@ -524,7 +529,7 @@ export function renderResourceMenu(
     if (isAppNode(resource) && resource.name === application.metadata.name) {
         menuItems = from([getApplicationActionMenu()]);
     } else {
-        menuItems = getActionItems(resource, application, tree, apis, appChanged, false);
+        menuItems = getActionItems(resource, application, tree, appContext, appChanged, false);
     }
     return (
         <DataLoader load={() => menuItems}>
@@ -560,8 +565,8 @@ export function renderResourceMenu(
     );
 }
 
-export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, apis: ContextApis): React.ReactNode {
-    const menuItems = getResourceActionsMenuItems(resource, application.metadata, apis);
+export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, tree: appModels.ApplicationTree, appContext: AppContext): React.ReactNode {
+    const menuItems = getResourceActionsMenuItems(resource, application.metadata, appContext);
 
     return (
         <DataLoader load={() => menuItems}>
@@ -591,11 +596,11 @@ export function renderResourceButtons(
     resource: ResourceTreeNode,
     application: appModels.Application,
     tree: appModels.ApplicationTree,
-    apis: ContextApis,
+    appContext: AppContext,
     appChanged: BehaviorSubject<appModels.Application>
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
-    menuItems = getActionItems(resource, application, tree, apis, appChanged, true);
+    menuItems = getActionItems(resource, application, tree, appContext, appChanged, true);
     return (
         <DataLoader load={() => menuItems}>
             {items => (
@@ -642,7 +647,7 @@ export function syncStatusMessage(app: appModels.Application) {
         case appModels.SyncStatuses.Synced:
             return (
                 <span>
-                    to{' '}
+                    To{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
@@ -651,7 +656,7 @@ export function syncStatusMessage(app: appModels.Application) {
         case appModels.SyncStatuses.OutOfSync:
             return (
                 <span>
-                    from{' '}
+                    From{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
@@ -822,6 +827,20 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
     }
 };
 
+export function getExternalUrls(annotations: {[name: string]: string}, urls: string[]): string[] {
+    if (!annotations) {
+        return urls;
+    }
+    const extLinks = urls || [];
+    const extLink: string = annotations[ExternalLinkAnnotation];
+    if (extLink) {
+        if (!extLinks.includes(extLink)) {
+            extLinks.push(extLink);
+        }
+    }
+    return extLinks;
+}
+
 export function getOperationType(application: appModels.Application) {
     const operation = application.operation || (application.status && application.status.operationState && application.status.operationState.operation);
     if (application.metadata.deletionTimestamp && !application.operation) {
@@ -872,7 +891,7 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
     );
 };
 
-export function getPodStateReason(pod: appModels.State): {message: string; reason: string; netContainerStatuses: any[]} {
+export function getPodStateReason(pod: appModels.State): {message: string; reason: string} {
     let reason = pod.status.phase;
     let message = '';
     if (pod.status.reason) {
@@ -880,10 +899,6 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     }
 
     let initializing = false;
-
-    let netContainerStatuses = pod.status.initContainerStatuses || [];
-    netContainerStatuses = netContainerStatuses.concat(pod.status.containerStatuses || []);
-
     for (const container of (pod.status.initContainerStatuses || []).slice().reverse()) {
         if (container.state.terminated && container.state.terminated.exitCode === 0) {
             continue;
@@ -943,56 +958,8 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
         message = '';
     }
 
-    return {reason, message, netContainerStatuses};
+    return {reason, message};
 }
-
-export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingConditions: string[]; notPassedConditions: string[]} => {
-    // if pod does not have readiness gates then return empty status
-    if (!pod.spec?.readinessGates?.length) {
-        return {
-            nonExistingConditions: [],
-            notPassedConditions: []
-        };
-    }
-
-    const existingConditions = new Map<string, boolean>();
-    const podConditions = new Map<string, boolean>();
-
-    const podStatusConditions = pod.status?.conditions || [];
-
-    for (const condition of podStatusConditions) {
-        existingConditions.set(condition.type, true);
-        // priority order of conditions
-        // eg. if there are multiple conditions set with same name then the one which comes first is evaluated
-        if (podConditions.has(condition.type)) {
-            continue;
-        }
-
-        if (condition.status === 'False') {
-            podConditions.set(condition.type, false);
-        } else if (condition.status === 'True') {
-            podConditions.set(condition.type, true);
-        }
-    }
-
-    const nonExistingConditions: string[] = [];
-    const failedConditions: string[] = [];
-
-    const readinessGates: appModels.ReadinessGate[] = pod.spec?.readinessGates || [];
-
-    for (const readinessGate of readinessGates) {
-        if (!existingConditions.has(readinessGate.conditionType)) {
-            nonExistingConditions.push(readinessGate.conditionType);
-        } else if (podConditions.get(readinessGate.conditionType) === false) {
-            failedConditions.push(readinessGate.conditionType);
-        }
-    }
-
-    return {
-        nonExistingConditions,
-        notPassedConditions: failedConditions
-    };
-};
 
 export function getConditionCategory(condition: appModels.ApplicationCondition): 'error' | 'warning' | 'info' {
     if (condition.type.endsWith('Error')) {
@@ -1249,5 +1216,3 @@ export function formatCreationTimestamp(creationTimestamp: string) {
         </span>
     );
 }
-
-export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);

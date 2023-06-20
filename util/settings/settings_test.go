@@ -671,7 +671,7 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		h, err := settingsManager.GetHelp()
 		assert.NoError(t, err)
 		assert.Empty(t, h.ChatURL)
-		assert.Empty(t, h.ChatText)
+		assert.Equal(t, "Chat now!", h.ChatText)
 
 	})
 	t.Run("Set", func(t *testing.T) {
@@ -683,24 +683,6 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "foo", h.ChatURL)
 		assert.Equal(t, "bar", h.ChatText)
-	})
-	t.Run("SetOnlyChatUrl", func(t *testing.T) {
-		_, settingManager := fixtures(map[string]string{
-			"help.chatUrl": "foo",
-		})
-		h, err := settingManager.GetHelp()
-		assert.NoError(t, err)
-		assert.Equal(t, "foo", h.ChatURL)
-		assert.Equal(t, "Chat now!", h.ChatText)
-	})
-	t.Run("SetOnlyChatText", func(t *testing.T) {
-		_, settingManager := fixtures(map[string]string{
-			"help.chatText": "bar",
-		})
-		h, err := settingManager.GetHelp()
-		assert.NoError(t, err)
-		assert.Empty(t, h.ChatURL)
-		assert.Empty(t, h.ChatText)
 	})
 	t.Run("GetBinaryUrls", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
@@ -1139,7 +1121,7 @@ func TestDownloadArgoCDBinaryUrls(t *testing.T) {
 func TestSecretKeyRef(t *testing.T) {
 	data := map[string]string{
 		"oidc.config": `name: Okta
-issuer: $acme:issuerSecret
+issuer: https://dev-123456.oktapreview.com
 clientID: aaaabbbbccccddddeee
 clientSecret: $acme:clientSecret
 # Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
@@ -1176,7 +1158,6 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 			},
 		},
 		Data: map[string][]byte{
-			"issuerSecret": []byte("https://dev-123456.oktapreview.com"),
 			"clientSecret": []byte("deadbeef"),
 		},
 	}
@@ -1187,7 +1168,6 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 	assert.NoError(t, err)
 
 	oidcConfig := settings.OIDCConfig()
-	assert.Equal(t, oidcConfig.Issuer, "https://dev-123456.oktapreview.com")
 	assert.Equal(t, oidcConfig.ClientSecret, "deadbeef")
 }
 
@@ -1445,19 +1425,4 @@ allowedAudiences: ["aud1", "aud2"]`},
 			assert.ElementsMatch(t, tcc.expected, tcc.settings.OAuth2AllowedAudiences())
 		})
 	}
-}
-
-func TestReplaceStringSecret(t *testing.T) {
-	secretValues := map[string]string{"my-secret-key": "my-secret-value"}
-	result := ReplaceStringSecret("$my-secret-key", secretValues)
-	assert.Equal(t, "my-secret-value", result)
-
-	result = ReplaceStringSecret("$invalid-secret-key", secretValues)
-	assert.Equal(t, "$invalid-secret-key", result)
-
-	result = ReplaceStringSecret("", secretValues)
-	assert.Equal(t, "", result)
-
-	result = ReplaceStringSecret("my-value", secretValues)
-	assert.Equal(t, "my-value", result)
 }

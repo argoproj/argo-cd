@@ -294,7 +294,7 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
 	eventJSON := "{\"test\": true}"
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", bytes.NewBufferString(eventJSON))
+	req := httptest.NewRequest("POST", "/api/webhook", bytes.NewBufferString(eventJSON))
 	req.Header.Set("X-Event-Key", "diagnostics:ping")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)

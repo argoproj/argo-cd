@@ -2,8 +2,6 @@ package argo
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
@@ -12,7 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"fmt"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -55,9 +54,9 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 	}
 
 	switch gvk.Kind {
-	case application.ApplicationKind:
+	case "Application":
 		logCtx = logCtx.WithField("application", objMeta.Name)
-	case application.AppProjectKind:
+	case "AppProject":
 		logCtx = logCtx.WithField("project", objMeta.Name)
 	default:
 		logCtx = logCtx.WithField("name", objMeta.Name)
@@ -94,65 +93,49 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 	}
 }
 
-func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, message, user string) {
+func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, message string) {
 	objectMeta := ObjectRef{
 		Name:            app.ObjectMeta.Name,
 		Namespace:       app.ObjectMeta.Namespace,
 		ResourceVersion: app.ObjectMeta.ResourceVersion,
 		UID:             app.ObjectMeta.UID,
 	}
-	fields := map[string]string{
+	l.logEvent(objectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message, map[string]string{
 		"dest-server":    app.Spec.Destination.Server,
 		"dest-namespace": app.Spec.Destination.Namespace,
-	}
-	if user != "" {
-		fields["user"] = user
-	}
-	l.logEvent(objectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message, fields)
+	})
 }
 
-func (l *AuditLogger) LogAppSetEvent(app *v1alpha1.ApplicationSet, info EventInfo, message, user string) {
+func (l *AuditLogger) LogAppSetEvent(app *v1alpha1.ApplicationSet, info EventInfo, message string) {
 	objectMeta := ObjectRef{
 		Name:            app.ObjectMeta.Name,
 		Namespace:       app.ObjectMeta.Namespace,
 		ResourceVersion: app.ObjectMeta.ResourceVersion,
 		UID:             app.ObjectMeta.UID,
 	}
-	fields := map[string]string{}
-	if user != "" {
-		fields["user"] = user
-	}
-	l.logEvent(objectMeta, v1alpha1.ApplicationSetSchemaGroupVersionKind, info, message, fields)
+	l.logEvent(objectMeta, v1alpha1.ApplicationSetSchemaGroupVersionKind, info, message, map[string]string{})
 }
 
-func (l *AuditLogger) LogResourceEvent(res *v1alpha1.ResourceNode, info EventInfo, message, user string) {
+func (l *AuditLogger) LogResourceEvent(res *v1alpha1.ResourceNode, info EventInfo, message string) {
 	objectMeta := ObjectRef{
 		Name:            res.ResourceRef.Name,
 		Namespace:       res.ResourceRef.Namespace,
 		ResourceVersion: res.ResourceRef.Version,
 		UID:             types.UID(res.ResourceRef.UID),
 	}
-	fields := map[string]string{}
-	if user != "" {
-		fields["user"] = user
-	}
 	l.logEvent(objectMeta, schema.GroupVersionKind{
 		Group:   res.Group,
 		Version: res.Version,
 		Kind:    res.Kind,
-	}, info, message, fields)
+	}, info, message, nil)
 }
 
-func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo, message, user string) {
+func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo, message string) {
 	objectMeta := ObjectRef{
 		Name:            proj.ObjectMeta.Name,
 		Namespace:       proj.ObjectMeta.Namespace,
 		ResourceVersion: proj.ObjectMeta.ResourceVersion,
 		UID:             proj.ObjectMeta.UID,
-	}
-	fields := map[string]string{}
-	if user != "" {
-		fields["user"] = user
 	}
 	l.logEvent(objectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, nil)
 }

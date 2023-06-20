@@ -46,5 +46,5 @@ export const services: Services = {
     notification: new NotificationService()
 };
 
-export * from './projects-service';
+export {ProjectRoleParams, CreateJWTTokenParams, DeleteJWTTokenParams, JWTTokenResponse} from './projects-service';
 export * from './view-preferences-service';

@@ -186,10 +186,10 @@ metadata:
   name: argocd-server-ingress
   namespace: argocd
   annotations:
+    kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
 spec:
-  ingressClassName: nginx
   rules:
   - host: argocd.example.com
     http:
@@ -218,13 +218,14 @@ metadata:
   namespace: argocd
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
     # If you encounter a redirect loop or are getting a 307 response code
     # then you need to force the nginx ingress to connect to the backend using HTTPS.
     #
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
-  ingressClassName: nginx
   rules:
   - host: argocd.example.com
     http:
@@ -239,14 +240,13 @@ spec:
   tls:
   - hosts:
     - argocd.example.com
-    secretName: argocd-server-tls # as expected by argocd-server
+    secretName: argocd-secret # do not change, this is provided by Argo CD
 ```
 
-### Option 2: SSL Termination at Ingress Controller
+### Option 2: Multiple Ingress Objects And Hosts
 
-An alternative approach is to perform the SSL termination at the Ingress. Since an `ingress-nginx` Ingress supports only a single protocol per Ingress object, two Ingress objects need to be defined using the `nginx.ingress.kubernetes.io/backend-protocol` annotation, one for HTTP/HTTPS and the other for gRPC.
-
-Each ingress will be for a different domain (`argocd.example.com` and `grpc.argocd.example.com`). This requires that the Ingress resources use different TLS `secretName`s to avoid unexpected behavior.
+Since ingress-nginx Ingress supports only a single protocol per Ingress object, an alternative
+way would be to define two Ingress objects. One for HTTP/HTTPS, and the other for gRPC:
 
 HTTP/HTTPS Ingress:
 ```yaml
@@ -256,10 +256,10 @@ metadata:
   name: argocd-server-http-ingress
   namespace: argocd
   annotations:
+    kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
 spec:
-  ingressClassName: nginx
   rules:
   - http:
       paths:
@@ -274,7 +274,7 @@ spec:
   tls:
   - hosts:
     - argocd.example.com
-    secretName: argocd-ingress-http
+    secretName: argocd-secret # do not change, this is provided by Argo CD
 ```
 
 gRPC Ingress:
@@ -285,9 +285,9 @@ metadata:
   name: argocd-server-grpc-ingress
   namespace: argocd
   annotations:
+    kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
 spec:
-  ingressClassName: nginx
   rules:
   - http:
       paths:
@@ -302,7 +302,7 @@ spec:
   tls:
   - hosts:
     - grpc.argocd.example.com
-    secretName: argocd-ingress-grpc
+    secretName: argocd-secret # do not change, this is provided by Argo CD
 ```
 
 The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the

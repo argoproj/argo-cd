@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/coreos/go-oidc"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 

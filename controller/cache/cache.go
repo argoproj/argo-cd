@@ -45,7 +45,7 @@ const (
 	// EnvClusterCacheWatchResyncDuration is the env variable that holds cluster cache watch re-sync duration
 	EnvClusterCacheWatchResyncDuration = "ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION"
 
-	// EnvClusterSyncRetryTimeoutDuration is the env variable that holds cluster retry duration when sync error happens
+	// EnvClusterRetryTimeoutDuration is the env variable that holds cluster retry duration when sync error happens
 	EnvClusterSyncRetryTimeoutDuration = "ARGOCD_CLUSTER_SYNC_RETRY_TIMEOUT_DURATION"
 
 	// EnvClusterCacheListPageSize is the env variable to control size of the list page size when making K8s queries
@@ -56,7 +56,7 @@ const (
 	// k8s list queries results across all clusters to avoid memory spikes during cache initialization.
 	EnvClusterCacheListSemaphore = "ARGOCD_CLUSTER_CACHE_LIST_SEMAPHORE"
 
-	// EnvClusterCacheAttemptLimit is the env variable to control the retry limit for listing resources during cluster cache sync
+	// EnvClusterCacheRetryLimit is the env variable to control the retry limit for listing resources during cluster cache sync
 	EnvClusterCacheAttemptLimit = "ARGOCD_CLUSTER_CACHE_ATTEMPT_LIMIT"
 
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
@@ -221,10 +221,10 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 		gv = schema.GroupVersion{}
 	}
 	parentRefs := make([]appv1.ResourceRef, len(r.OwnerRefs))
-	for i, ownerRef := range r.OwnerRefs {
+	for _, ownerRef := range r.OwnerRefs {
 		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
 		ownerKey := kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)
-		parentRefs[i] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
+		parentRefs[0] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
 	}
 	var resHealth *appv1.HealthStatus
 	resourceInfo := resInfo(r)

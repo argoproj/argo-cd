@@ -8,7 +8,6 @@ metadata:
   name: cluster-git
 spec:
   goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
   - matrix:
       generators:
