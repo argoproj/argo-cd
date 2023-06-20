@@ -76,12 +76,6 @@ func (a *Actions) AddTag(name string) *Actions {
 	return a
 }
 
-func (a *Actions) RemoveSubmodule() *Actions {
-	a.context.t.Helper()
-	fixture.RemoveSubmodule()
-	return a
-}
-
 func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
 	tmpFile, err := os.CreateTemp("", "")
