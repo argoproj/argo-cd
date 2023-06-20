@@ -362,6 +362,12 @@ func TestAppRevisionsMultiSource(t *testing.T) {
 				Server:    test.FakeClusterURL,
 				Revision:  "def456",
 			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "ghi789",
+			},
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
@@ -374,9 +380,10 @@ func TestAppRevisionsMultiSource(t *testing.T) {
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Empty(t, compRes.syncStatus.Revision)
-	assert.Len(t, compRes.syncStatus.Revisions, 2)
+	assert.Len(t, compRes.syncStatus.Revisions, 3)
 	assert.Equal(t, "abc123", compRes.syncStatus.Revisions[0])
 	assert.Equal(t, "def456", compRes.syncStatus.Revisions[1])
+	assert.Equal(t, "ghi789", compRes.syncStatus.Revisions[2])
 }
 
 func toJSON(t *testing.T, obj *unstructured.Unstructured) string {
