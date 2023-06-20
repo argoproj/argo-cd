@@ -620,7 +620,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     <DataLoader
                                                         input={application}
                                                         load={input =>
-                                                            services.applications.revisionChartDetails(input.metadata.name, input.metadata.namespace, this.state.revision, null)
+                                                            services.applications.revisionChartDetails(input.metadata.name, input.metadata.namespace, this.state.revision, 0, 0)
                                                         }>
                                                         {(m: ChartDetails) => (
                                                             <div className='white-box' style={{marginTop: '1.5em'}}>
@@ -664,7 +664,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 ) : (
                                                     <DataLoader
                                                         load={() =>
-                                                            services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, this.state.revision, null)
+                                                            services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, this.state.revision, 0, 0)
                                                         }>
                                                         {metadata => (
                                                             <div className='white-box' style={{marginTop: '1.5em'}}>
