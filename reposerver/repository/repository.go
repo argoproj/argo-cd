@@ -337,14 +337,6 @@ func (s *Service) runRepoOperation(
 		defer settings.sem.Release(1)
 	}
 
-	// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
-	if hasMultipleSources && source.Path == "" && source.Chart == "" {
-		log.WithFields(map[string]interface{}{
-			"source": source,
-		}).Debugf("not generating manifests as path and chart fields are empty")
-		return nil
-	}
-
 	if source.IsHelm() {
 		if settings.noCache {
 			err = helmClient.CleanChartCache(source.Chart, revision)
@@ -510,6 +502,17 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	var promise *ManifestResponsePromise
 
 	operation := func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error {
+		// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
+		if q.HasMultipleSources && q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
+			log.WithFields(map[string]interface{}{
+				"source": q.ApplicationSource,
+			}).Debugf("not generating manifests as path and chart fields are empty")
+			res = &apiclient.ManifestResponse{
+				Revision: commitSHA,
+			}
+			return nil
+		}
+
 		promise = s.runManifestGen(ctx, repoRoot, commitSHA, cacheKey, ctxSrc, q)
 		// The fist channel to send the message will resume this operation.
 		// The main purpose for using channels here is to be able to unlock
@@ -541,10 +544,6 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		case err := <-promise.errCh:
 			return nil, err
 		}
-	}
-
-	if q.HasMultipleSources && err == nil && res == nil {
-		res = &apiclient.ManifestResponse{}
 	}
 	return res, err
 }
