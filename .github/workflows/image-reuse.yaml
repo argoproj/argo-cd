@@ -128,7 +128,7 @@ jobs:
           password: ${{ secrets.docker_password }}
         if: ${{ inputs.docker_image_name && inputs.push }}
 
-      - name: Setup build args for container image
+      - name: Set up build args for container image
         run: |
             echo "GIT_TAG=$(if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)" >> $GITHUB_ENV
             echo "GIT_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
