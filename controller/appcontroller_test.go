@@ -231,9 +231,14 @@ spec:
   project: default
   sources:
   - path: some/path
+    helm:
+      valueFiles:
+      - $values_test/values.yaml
     repoURL: https://github.com/argoproj/argocd-example-apps.git
   - path: some/other/path
     repoURL: https://github.com/argoproj/argocd-example-apps-fake.git
+  - ref: values_test
+    repoURL: https://github.com/argoproj/argocd-example-apps-fake-ref.git
   syncPolicy:
     automated: {}
 status:
@@ -243,6 +248,7 @@ status:
     operation:
       sync:
         revisions:
+        - HEAD
         - HEAD
         - HEAD
     phase: Succeeded
@@ -259,11 +265,14 @@ status:
       revisions:
       - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       - bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+      - cccccccccccccccccccccccccccccccccccccccc
       sources:
       - path: some/path
         repoURL: https://github.com/argoproj/argocd-example-apps.git
       - path: some/other/path
         repoURL: https://github.com/argoproj/argocd-example-apps-fake.git
+      - path: some/other/path
+        repoURL: https://github.com/argoproj/argocd-example-apps-fake-ref.git
 `
 
 var fakeAppWithDestName = `
