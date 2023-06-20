@@ -566,10 +566,6 @@ func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSou
 		// could have removed/added new sources and we cannot check all the versions due to that
 		for _, h := range app.Status.History {
 			if h.ID == int64(versionId) {
-				// Iterate history. When comparing items in our history, use the actual synced revision to
-				// compare with the supplied source.targetRevision in the request. This is because
-				// history[].source.targetRevision is ambiguous (e.g. HEAD), whereas
-				// history[].revision will contain the explicit SHA
 				h.Sources[index].TargetRevision = h.Revisions[index]
 				if source.Equals(&h.Sources[index]) {
 					return true

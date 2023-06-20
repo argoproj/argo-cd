@@ -1415,9 +1415,8 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	if err != nil {
 		return nil, err
 	}
-	revision := q.GetRevision()
-	var source *v1alpha1.ApplicationSource
 
+	var source *v1alpha1.ApplicationSource
 	if a.Spec.HasMultipleSources() {
 		// the source count can change during the time, we cannot just trust in .status.sync
 		// because if a source has been added/removed, the revisions there won't match
@@ -1453,7 +1452,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	defer ioutil.Close(conn)
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           repo,
-		Revision:       revision,
+		Revision:       q.GetRevision(),
 		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
 	})
 }
@@ -1464,8 +1463,8 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 	if err != nil {
 		return nil, err
 	}
+
 	var source *v1alpha1.ApplicationSource
-	var revision string
 	if a.Spec.HasMultipleSources() {
 		// the source count can change during the time, we cannot just trust in .status.sync
 		// because if a source has been added/removed, the revisions there won't match
@@ -1474,7 +1473,6 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 		for _, h := range a.Status.History {
 			if h.ID == int64(*q.VersionId) {
 				source = &h.Sources[*q.SourceIndex]
-				revision = h.Revisions[*q.SourceIndex]
 			}
 		}
 		if source == nil {
@@ -1482,7 +1480,6 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 		}
 	} else {
 		source = a.Spec.Source
-		revision = a.Status.Sync.Revision
 	}
 
 	if source.Chart == "" {
@@ -1500,7 +1497,7 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 	return repoClient.GetRevisionChartDetails(ctx, &apiclient.RepoServerRevisionChartDetailsRequest{
 		Repo:     repo,
 		Name:     source.Chart,
-		Revision: revision,
+		Revision: q.GetRevision(),
 	})
 }
 
