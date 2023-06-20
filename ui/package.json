@@ -5,7 +5,7 @@
   "scripts": {
     "start": "webpack-dev-server --config ./src/app/webpack.config.js --mode development",
     "docker": "./scripts/build_docker.sh",
-    "build": "find ./dist -type f -not -name gitkeep -delete && webpack --config ./src/app/webpack.config.js --mode production --stats-children",
+    "build": "find ./dist -type f -not -name gitkeep -delete && webpack --config ./src/app/webpack.config.js --mode production",
     "lint": "tsc --noEmit --project ./src/app && tslint -p ./src/app",
     "lint:fix": "tslint -p ./src/app --fix",
     "test": "jest"
@@ -31,7 +31,6 @@
     "minimatch": "^3.1.2",
     "moment": "^2.29.4",
     "monaco-editor": "^0.33.0",
-    "monaco-kubernetes": "0.2.2",
     "path": "^0.12.7",
     "prop-types": "^15.8.1",
     "react": "^16.9.3",
