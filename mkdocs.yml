@@ -8,8 +8,7 @@ extra_javascript:
 - assets/versions.js
 markdown_extensions:
 - markdown_include.include
-- codehilite:
-    css_class: highlight
+- codehilite
 - admonition
 - toc:
     permalink: true
@@ -22,7 +21,6 @@ nav:
   - operator-manual/index.md
   - operator-manual/architecture.md
   - operator-manual/installation.md
-  - operator-manual/core.md
   - operator-manual/declarative-setup.md
   - operator-manual/app-any-namespace.md
   - operator-manual/ingress.md
@@ -102,15 +100,12 @@ nav:
       - operator-manual/applicationset/Generators-Cluster-Decision-Resource.md
       - operator-manual/applicationset/Generators-Pull-Request.md
       - operator-manual/applicationset/Generators-Post-Selector.md
-      - operator-manual/applicationset/Generators-Plugin.md
     - Template fields:
       - operator-manual/applicationset/Template.md
       - operator-manual/applicationset/GoTemplate.md
     - Controlling Resource Modification: operator-manual/applicationset/Controlling-Resource-Modification.md
     - Application Pruning & Resource Deletion: operator-manual/applicationset/Application-Deletion.md
     - Progressive Syncs: operator-manual/applicationset/Progressive-Syncs.md
-    - Git File Generator Globbing: operator-manual/applicationset/Generators-Git-File-Globbing.md
-    - ApplicationSet Specification Reference: operator-manual/applicationset/applicationset-specification.md
   - Server Configuration Parameters:
     - operator-manual/server-commands/argocd-server.md
     - operator-manual/server-commands/argocd-application-controller.md
@@ -119,7 +114,6 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
-    - operator-manual/upgrading/2.7-2.8.md
     - operator-manual/upgrading/2.6-2.7.md
     - operator-manual/upgrading/2.5-2.6.md
     - operator-manual/upgrading/2.4-2.5.md
@@ -136,7 +130,6 @@ nav:
     - operator-manual/upgrading/1.2-1.3.md
     - operator-manual/upgrading/1.1-1.2.md
     - operator-manual/upgrading/1.0-1.1.md
-  - Project Specification Reference: operator-manual/project-specification.md
 - User Guide:
   - user-guide/index.md
   - user-guide/application_sources.md
@@ -174,12 +167,10 @@ nav:
   - user-guide/extra_info.md
   - Notification subscriptions: user-guide/subscriptions.md
   - Command Reference: user-guide/commands/argocd.md
-  - Application Specification Reference: user-guide/application-specification.md
 - Developer Guide:
   - developer-guide/index.md
   - Architecture:
     - developer-guide/architecture/authz-authn.md
-    - developer-guide/architecture/components.md
   - Code Contribution Guide: developer-guide/code-contributions.md
   - Toolchain Guide: developer-guide/toolchain-guide.md
   - developer-guide/contributors-quickstart.md

@@ -29,9 +29,9 @@ const (
 	ArgoCDNotificationsConfigMapName = "argocd-notifications-cm"
 	ArgoCDNotificationsSecretName    = "argocd-notifications-secret"
 	ArgoCDRBACConfigMapName          = "argocd-rbac-cm"
-	// ArgoCDKnownHostsConfigMapName contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
+	// Contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
-	// ArgoCDTLSCertsConfigMapName contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
+	// Contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDTLSCertsConfigMapName = "argocd-tls-certs-cm"
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
 )
@@ -51,32 +51,28 @@ const (
 	DefaultPortRepoServerMetrics      = 8084
 )
 
-// DefaultAddressAPIServer for ArgoCD components
+// Default listener address for ArgoCD components
 const (
-	DefaultAddressAdminDashboard    = "localhost"
-	DefaultAddressAPIServer         = "0.0.0.0"
-	DefaultAddressAPIServerMetrics  = "0.0.0.0"
-	DefaultAddressRepoServer        = "0.0.0.0"
-	DefaultAddressRepoServerMetrics = "0.0.0.0"
+	DefaultAddressAPIServer = "localhost"
 )
 
 // Default paths on the pod's file system
 const (
-	// DefaultPathTLSConfig is the default path where TLS certificates for repositories are located
+	// The default path where TLS certificates for repositories are located
 	DefaultPathTLSConfig = "/app/config/tls"
-	// DefaultPathSSHConfig is the default path where SSH known hosts are stored
+	// The default path where SSH known hosts are stored
 	DefaultPathSSHConfig = "/app/config/ssh"
-	// DefaultSSHKnownHostsName is the Default name for the SSH known hosts file
+	// Default name for the SSH known hosts file
 	DefaultSSHKnownHostsName = "ssh_known_hosts"
-	// DefaultGnuPgHomePath is the Default path to GnuPG home directory
+	// Default path to GnuPG home directory
 	DefaultGnuPgHomePath = "/app/config/gpg/keys"
-	// DefaultAppConfigPath is the Default path to repo server TLS endpoint config
+	// Default path to repo server TLS endpoint config
 	DefaultAppConfigPath = "/app/config"
-	// DefaultPluginSockFilePath is the Default path to cmp server plugin socket file
+	// Default path to cmp server plugin socket file
 	DefaultPluginSockFilePath = "/home/argocd/cmp-server/plugins"
-	// DefaultPluginConfigFilePath is the Default path to cmp server plugin configuration file
+	// Default path to cmp server plugin configuration file
 	DefaultPluginConfigFilePath = "/home/argocd/cmp-server/config"
-	// PluginConfigFileName is the Plugin Config File is a ConfigManagementPlugin manifest located inside the plugin container
+	// Plugin Config File is a ConfigManagementPlugin manifest located inside the plugin container
 	PluginConfigFileName = "plugin.yaml"
 )
 
@@ -103,12 +99,6 @@ const (
 
 	// PasswordPatten is the default password patten
 	PasswordPatten = `^.{8,32}$`
-
-	//LegacyShardingAlgorithm is the default value for Sharding Algorithm it uses an `uid` based distribution (non-uniform)
-	LegacyShardingAlgorithm = "legacy"
-	//RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
-	RoundRobinShardingAlgorithm = "round-robin"
-	DefaultShardingAlgorithm    = LegacyShardingAlgorithm
 )
 
 // Dex related constants
@@ -149,7 +139,7 @@ const (
 	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
 	LabelValueSecretTypeRepoCreds = "repo-creds"
 
-	// AnnotationKeyAppInstance is the Argo CD application name is used as the instance name
+	// The Argo CD application name is used as the instance name
 	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
@@ -181,19 +171,19 @@ const (
 	EnvVarSSODebug = "ARGOCD_SSO_DEBUG"
 	// EnvVarRBACDebug is an environment variable to enable additional RBAC debugging in the API server
 	EnvVarRBACDebug = "ARGOCD_RBAC_DEBUG"
-	// EnvVarSSHDataPath overrides the location where SSH known hosts for repo access data is stored
+	// Overrides the location where SSH known hosts for repo access data is stored
 	EnvVarSSHDataPath = "ARGOCD_SSH_DATA_PATH"
-	// EnvVarTLSDataPath overrides the location where TLS certificate for repo access data is stored
+	// Overrides the location where TLS certificate for repo access data is stored
 	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
-	// EnvGitAttemptsCount specifies number of git remote operations attempts count
+	// Specifies number of git remote operations attempts count
 	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
-	// EnvGitRetryMaxDuration specifices max duration of git remote operation retry
+	// Specifices max duration of git remote operation retry
 	EnvGitRetryMaxDuration = "ARGOCD_GIT_RETRY_MAX_DURATION"
-	// EnvGitRetryDuration specifies duration of git remote operation retry
+	// Specifies duration of git remote operation retry
 	EnvGitRetryDuration = "ARGOCD_GIT_RETRY_DURATION"
-	// EnvGitRetryFactor specifies fator of git remote operation retry
+	// Specifies fator of git remote operation retry
 	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
-	// EnvGitSubmoduleEnabled overrides git submodule support, true by default
+	// Overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
@@ -209,15 +199,13 @@ const (
 	EnvControllerReplicas = "ARGOCD_CONTROLLER_REPLICAS"
 	// EnvControllerShard is the shard number that should be handled by controller
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
-	// EnvControllerShardingAlgorithm is the distribution sharding algorithm to be used: legacy or round-robin
-	EnvControllerShardingAlgorithm = "ARGOCD_CONTROLLER_SHARDING_ALGORITHM"
 	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection
 	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
 	// EnvGithubAppCredsExpirationDuration controls the caching of Github app credentials. This value is in minutes (default: 60)
 	EnvGithubAppCredsExpirationDuration = "ARGOCD_GITHUB_APP_CREDS_EXPIRATION_DURATION"
 	// EnvHelmIndexCacheDuration controls how the helm repository index file is cached for (default: 0)
 	EnvHelmIndexCacheDuration = "ARGOCD_HELM_INDEX_CACHE_DURATION"
-	// EnvAppConfigPath allows to override the configuration path for repo server
+	// EnvRepoServerConfigPath allows to override the configuration path for repo server
 	EnvAppConfigPath = "ARGOCD_APP_CONF_PATH"
 	// EnvLogFormat log format that is defined by `--logformat` option
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
@@ -308,14 +296,14 @@ func GetCMPWorkDir() string {
 }
 
 const (
-	// AnnotationApplicationSetRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.
+	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.
 	AnnotationApplicationSetRefresh = "argocd.argoproj.io/application-set-refresh"
 )
 
 // gRPC settings
 const (
 	GRPCKeepAliveEnforcementMinimum = 10 * time.Second
-	// GRPCKeepAliveTime is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
+	// Keep alive is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
 	GRPCKeepAliveTime = 2 * GRPCKeepAliveEnforcementMinimum
 )
 
@@ -333,7 +321,7 @@ const (
 	SecurityLow                               = 1 // Unexceptional entries (i.e. successful access logs)
 )
 
-// TokenVerificationError is a generic error message for a failure to verify a JWT
+// Common error messages
 const TokenVerificationError = "failed to verify the token"
 
 var TokenVerificationErr = errors.New(TokenVerificationError)

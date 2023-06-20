@@ -26,9 +26,6 @@ func TestSimpleClusterGenerator(t *testing.T) {
 			Name:       "cluster1-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-cluster-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -100,10 +97,7 @@ func TestSimpleClusterGenerator(t *testing.T) {
 		And(func() {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-				LabelKeyAppSetInstance: "simple-cluster-generator",
-				"label-key":            "label-value",
-			}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
@@ -125,9 +119,6 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 			Name:       "in-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "in-cluster-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -220,10 +211,7 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 				And(func() {
 					expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 					expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-					expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-						"label-key":            "label-value",
-						LabelKeyAppSetInstance: "in-cluster-generator",
-					}
+					expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 				}).
 				Update(func(appset *v1alpha1.ApplicationSet) {
 					appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
@@ -248,9 +236,6 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 			Name:       "{{name}}-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-cluster-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -333,9 +318,6 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 			Name:       "{{name}}-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-cluster-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",

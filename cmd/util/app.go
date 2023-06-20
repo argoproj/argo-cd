@@ -685,7 +685,7 @@ func setAnnotations(app *argoappv1.Application, annotations []string) {
 	}
 }
 
-// LiveObjects deserializes the list of live states into unstructured objects
+// liveObjects deserializes the list of live states into unstructured objects
 func LiveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructured, error) {
 	objs := make([]*unstructured.Unstructured, len(resources))
 	for i, resState := range resources {

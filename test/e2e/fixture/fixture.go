@@ -15,6 +15,7 @@ import (
 
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,7 +23,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -860,18 +860,6 @@ func CreateSubmoduleRepos(repoType string) {
 	}
 
 	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldEnv))
-}
-
-func RemoveSubmodule() {
-	log.Info("removing submodule")
-
-	FailOnErr(Run(submoduleParentDirectory(), "git", "rm", "submodule/test"))
-	FailOnErr(Run(submoduleParentDirectory(), "touch", "submodule/.gitkeep"))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "submodule/.gitkeep"))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-m", "remove submodule"))
-	if IsRemote() {
-		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "-f", "origin", "master"))
-	}
 }
 
 // RestartRepoServer performs a restart of the repo server deployment and waits

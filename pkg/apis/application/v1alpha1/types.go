@@ -18,6 +18,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/ghodss/yaml"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -32,7 +33,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/collections"
@@ -893,8 +893,6 @@ type ApplicationStatus struct {
 	ResourceHealthSource ResourceHealthLocation `json:"resourceHealthSource,omitempty" protobuf:"bytes,11,opt,name=resourceHealthSource"`
 	// SourceTypes specifies the type of the sources included in the application
 	SourceTypes []ApplicationSourceType `json:"sourceTypes,omitempty" protobuf:"bytes,12,opt,name=sourceTypes"`
-	// ControllerNamespace indicates the namespace in which the application controller is located
-	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
 }
 
 // JWTTokens represents a list of JWT tokens
@@ -1155,7 +1153,7 @@ type Backoff struct {
 type SyncPolicyAutomated struct {
 	// Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
-	// SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)
+	// SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
@@ -1215,15 +1213,6 @@ type RevisionMetadata struct {
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
 }
 
-// ChartDetails contains helm chart metadata for a specific version
-type ChartDetails struct {
-	Description string `json:"description,omitempty" protobuf:"bytes,1,opt,name=description"`
-	// The URL of this projects home page, e.g. "http://example.com"
-	Home string `json:"home,omitempty" protobuf:"bytes,2,opt,name=home"`
-	// List of maintainer details, name and email, e.g. ["John Doe <john_doe@my-company.com>"]
-	Maintainers []string `json:"maintainers,omitempty" protobuf:"bytes,3,opt,name=maintainers"`
-}
-
 // SyncOperationResult represent result of sync operation
 type SyncOperationResult struct {
 	// Resources contains a list of sync result items for each individual resource in a sync operation
@@ -1236,8 +1225,6 @@ type SyncOperationResult struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,4,opt,name=sources"`
 	// Revisions holds the revision this sync operation was performed for respective indexed source in sources field
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,5,opt,name=revisions"`
-	// ManagedNamespaceMetadata contains the current sync state of managed namespace metadata
-	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,6,opt,name=managedNamespaceMetadata"`
 }
 
 // ResourceResult holds the operation result details of a specific resource
@@ -1382,7 +1369,7 @@ const (
 	ApplicationConditionOrphanedResourceWarning = "OrphanedResourceWarning"
 )
 
-// ApplicationCondition contains details about an application condition, which is usually an error or warning
+// ApplicationCondition contains details about an application condition, which is usally an error or warning
 type ApplicationCondition struct {
 	// Type is an application condition type
 	Type ApplicationConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
@@ -2309,10 +2296,6 @@ func (w *SyncWindows) CanSync(isManual bool) bool {
 		}
 	}
 
-	if active.hasAllow() {
-		return true
-	}
-
 	inactiveAllows := w.InactiveAllows()
 	if inactiveAllows.HasWindows() {
 		if isManual && inactiveAllows.manualEnabled() {
@@ -2585,13 +2568,6 @@ func (app *Application) GetPropagationPolicy() string {
 		}
 	}
 	return ""
-}
-
-// HasChangedManagedNamespaceMetadata checks whether app.Spec.SyncPolicy.ManagedNamespaceMetadata differs from the
-// managed namespace metadata which has been stored app.Status.OperationState.SyncResult. If they differ a refresh should
-// be triggered.
-func (app *Application) HasChangedManagedNamespaceMetadata() bool {
-	return app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil && app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil && !reflect.DeepEqual(app.Spec.SyncPolicy.ManagedNamespaceMetadata, app.Status.OperationState.SyncResult.ManagedNamespaceMetadata)
 }
 
 // IsFinalizerPresent checks if the app has a given finalizer
