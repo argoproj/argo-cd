@@ -1415,12 +1415,15 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	if err != nil {
 		return nil, err
 	}
-
+	revision := q.GetRevision()
 	var source *v1alpha1.ApplicationSource
 	if a.Spec.HasMultipleSources() {
 		for _, h := range a.Status.History {
 			if h.ID == int64(*q.VersionId) {
 				source = &h.Sources[*q.SourceIndex]
+				// if source.IsRef() {
+				// 	revision = source.TargetRevision
+				// }
 			}
 		}
 		if source == nil {
@@ -1448,7 +1451,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	defer ioutil.Close(conn)
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           repo,
-		Revision:       q.GetRevision(),
+		Revision:       revision,
 		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
 	})
 }

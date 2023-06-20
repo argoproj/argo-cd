@@ -25,7 +25,6 @@ export const ApplicationDeploymentHistory = ({
         const runEnd = nextDeployedAt ? moment(nextDeployedAt) : moment();
         return {...info, nextDeployedAt, durationMs: runEnd.diff(moment(info.deployedAt)) / 1000};
     });
-
     return (
         <div className='application-deployment-history'>
             {recentDeployments.map((info, index) => (
@@ -70,7 +69,33 @@ export const ApplicationDeploymentHistory = ({
                             </div>
                         </div>
                         {selectedRollbackDeploymentIndex === index ? 
-                            info.sources.map((source, i) => (
+                            info.sources === undefined ?
+                            (
+                                <React.Fragment>
+                                    <RevisionMetadataRows
+                                        applicationName={app.metadata.name}
+                                        applicationNamespace={app.metadata.namespace}
+                                        source={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
+                                        index={0}
+                                        versionId={recentDeployments[index].id}
+                                    />
+                                    <DataLoader
+                                        input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.name}}
+                                        load={src => services.repos.appDetails(src, src.appName, app.spec.project, 0, recentDeployments[index].id)}>
+                                        {(details: models.RepoAppDetails) => (
+                                            <div>
+                                                <ApplicationParameters
+                                                    application={{
+                                                        ...app,
+                                                        spec: {...app.spec, source: recentDeployments[index].source}
+                                                    }}
+                                                    details={details}
+                                                />
+                                            </div>
+                                        )}
+                                    </DataLoader>
+                                </React.Fragment>
+                            ): info.sources.map((source, i) => (
                                 <React.Fragment>
                                     <div>
                                         <div className='row'>

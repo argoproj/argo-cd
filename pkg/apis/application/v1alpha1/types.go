@@ -253,6 +253,11 @@ func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
 	return true
 }
 
+// IsRef returns true when the application source is of type Ref
+func (a *ApplicationSource) IsRef() bool {
+	return a.Ref != ""
+}
+
 // IsHelm returns true when the application source is of type Helm
 func (a *ApplicationSource) IsHelm() bool {
 	return a.Chart != ""
