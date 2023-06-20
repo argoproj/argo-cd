@@ -49,6 +49,7 @@ type namespacedResource struct {
 type fakeData struct {
 	apps                   []runtime.Object
 	manifestResponse       *apiclient.ManifestResponse
+	manifestResponses      []*apiclient.ManifestResponse
 	managedLiveObjs        map[kube.ResourceKey]*unstructured.Unstructured
 	namespacedResources    map[kube.ResourceKey]namespacedResource
 	configMapData          map[string]string
@@ -65,7 +66,15 @@ func newFakeController(data *fakeData) *ApplicationController {
 
 	// Mock out call to GenerateManifest
 	mockRepoClient := mockrepoclient.RepoServerServiceClient{}
-	mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, nil)
+
+	if len(data.manifestResponses) > 0 {
+		for _, response := range data.manifestResponses {
+			mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(response, nil).Once()
+		}
+	} else {
+		mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, nil)
+	}
+
 	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
 
 	secret := corev1.Secret{
@@ -222,9 +231,14 @@ spec:
   project: default
   sources:
   - path: some/path
+    helm:
+      valueFiles:
+      - $values_test/values.yaml
     repoURL: https://github.com/argoproj/argocd-example-apps.git
   - path: some/other/path
     repoURL: https://github.com/argoproj/argocd-example-apps-fake.git
+  - ref: values_test
+    repoURL: https://github.com/argoproj/argocd-example-apps-fake-ref.git
   syncPolicy:
     automated: {}
 status:
@@ -234,6 +248,7 @@ status:
     operation:
       sync:
         revisions:
+        - HEAD
         - HEAD
         - HEAD
     phase: Succeeded
@@ -250,11 +265,14 @@ status:
       revisions:
       - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       - bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+      - cccccccccccccccccccccccccccccccccccccccc
       sources:
       - path: some/path
         repoURL: https://github.com/argoproj/argocd-example-apps.git
       - path: some/other/path
         repoURL: https://github.com/argoproj/argocd-example-apps-fake.git
+      - path: some/other/path
+        repoURL: https://github.com/argoproj/argocd-example-apps-fake-ref.git
 `
 
 var fakeAppWithDestName = `
