@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for status"
+  inputPath: testdata/initializing.yaml
+- healthStatus:
+    status: Healthy
+    message: "Ready to use"
+  inputPath: testdata/good.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed to check and update snapshot content"
+  inputPath: testdata/bad.yaml
