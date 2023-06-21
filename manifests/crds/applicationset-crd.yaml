@@ -12649,6 +12649,13 @@ spec:
                 type: object
               syncPolicy:
                 properties:
+                  applicationsSync:
+                    enum:
+                    - create-only
+                    - create-update
+                    - create-delete
+                    - sync
+                    type: string
                   preserveResourcesOnDeletion:
                     type: boolean
                 type: object

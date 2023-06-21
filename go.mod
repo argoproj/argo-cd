@@ -13,7 +13,7 @@ require (
 	github.com/argoproj/gitops-engine v0.7.1-0.20230526233214-ad9a694fe4bc
 	github.com/argoproj/notifications-engine v0.4.1-0.20230228182525-f754726f03da
 	github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d
-	github.com/aws/aws-sdk-go v1.44.283
+	github.com/aws/aws-sdk-go v1.44.285
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.5.0
@@ -52,7 +52,7 @@ require (
 	github.com/itchyny/gojq v0.12.13
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/ktrysmt/go-bitbucket v0.9.59
+	github.com/ktrysmt/go-bitbucket v0.9.60
 	github.com/mattn/go-isatty v0.0.19
 	github.com/mattn/go-zglob v0.0.4
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
