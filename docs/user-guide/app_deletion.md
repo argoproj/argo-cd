@@ -45,9 +45,16 @@ For the technical amongst you, the Argo CD application controller watches for th
 ```yaml
 metadata:
   finalizers:
+    # The default behaviour is foreground cascading deletion
     - resources-finalizer.argocd.argoproj.io
+    # Alternatively, you can use background cascading deletion
+    # - resources-finalizer.argocd.argoproj.io/background
 ```
 
 Argo CD's app controller watches for this and will then delete both the app and its resources.
 
+The default propagation policy for cascading deletion is [foreground cascading deletion](https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion).
+ArgoCD performs [background cascading deletion](https://kubernetes.io/docs/concepts/architecture/garbage-collection/#background-deletion) when `resources-finalizer.argocd.argoproj.io/background` is set.
+
 When you invoke `argocd app delete` with `--cascade`, the finalizer is added automatically.
+You can set the propagation policy with `--propagation-policy <foreground|background>`.
