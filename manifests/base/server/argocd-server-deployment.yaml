@@ -185,6 +185,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: redis.db
                 optional: true
+        - name: REDISCLUSTERMODE
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: redis.clustermode
+              optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
           valueFrom:
               configMapKeyRef:
