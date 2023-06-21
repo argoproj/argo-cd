@@ -56,15 +56,15 @@ func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application,
 	return true
 }
 
-func getAppInstanceValue(a *appv1.Application, appInstanceLabelKey string, trackingMethod appv1.TrackingMethod) *argo.AppInstanceValue {
+func getParentAppName(a *appv1.Application, appInstanceLabelKey string, trackingMethod appv1.TrackingMethod) string {
 	resourceTracking := argo.NewResourceTracking()
 	unApp := kube.MustToUnstructured(&a)
 
-	return resourceTracking.GetAppInstance(unApp, appInstanceLabelKey, trackingMethod)
+	return resourceTracking.GetAppName(unApp, appInstanceLabelKey, trackingMethod)
 }
 
-func isChildApp(aIV *argo.AppInstanceValue) bool {
-	return aIV.ApplicationName != ""
+func isChildApp(parentAppName string) bool {
+	return parentAppName != ""
 }
 
 func getAppAsResource(a *appv1.Application) *appv1.ResourceStatus {
@@ -130,11 +130,11 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		return err
 	}
 
-	parentAppInstance := getAppInstanceValue(a, appInstanceLabelKey, trackingMethod)
+	parentAppName := getParentAppName(a, appInstanceLabelKey, trackingMethod)
 
-	if isChildApp(parentAppInstance) {
+	if isChildApp(parentAppName) {
 		parentApplicationEntity, err := s.server.Get(ctx, &application.ApplicationQuery{
-			Name: &parentAppInstance.ApplicationName,
+			Name: &parentAppName,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to get parent application entity: %w", err)
