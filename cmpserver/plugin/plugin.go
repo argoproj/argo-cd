@@ -24,7 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/cyphar/filepath-securejoin"
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
 )
