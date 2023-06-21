@@ -85,7 +85,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	if syncOp.Source == nil || (syncOp.Sources != nil && len(syncOp.Sources) > 0) {
+	if (syncOp.Source == nil && !app.Spec.HasMultipleSources()) ||
+		(syncOp.Sources == nil && app.Spec.HasMultipleSources()) {
 		// normal sync case (where source is taken from app.spec.sources)
 		if app.Spec.HasMultipleSources() {
 			sources = app.Spec.Sources
