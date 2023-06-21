@@ -242,10 +242,11 @@ spec:
     secretName: argocd-server-tls # as expected by argocd-server
 ```
 
-### Option 2: Multiple Ingress Objects And Hosts
+### Option 2: SSL Termination at Ingress Controller
 
-Since ingress-nginx Ingress supports only a single protocol per Ingress object, an alternative
-way would be to define two Ingress objects. One for HTTP/HTTPS, and the other for gRPC:
+An alternative approach is to perform the SSL termination at the Ingress. Since an `ingress-nginx` Ingress supports only a single protocol per Ingress object, two Ingress objects need to be defined using the `nginx.ingress.kubernetes.io/backend-protocol` annotation, one for HTTP/HTTPS and the other for gRPC.
+
+Each ingress will be for a different domain (`argocd.example.com` and `grpc.argocd.example.com`). This requires that the Ingress resources use different TLS `secretName`s to avoid unexpected behavior.
 
 HTTP/HTTPS Ingress:
 ```yaml
@@ -273,7 +274,7 @@ spec:
   tls:
   - hosts:
     - argocd.example.com
-    secretName: argocd-server-tls # do not change, this is provided by Argo CD
+    secretName: argocd-ingress-http
 ```
 
 gRPC Ingress:
@@ -301,7 +302,7 @@ spec:
   tls:
   - hosts:
     - grpc.argocd.example.com
-    secretName: argocd-server-tls # do not change, this is provided by Argo CD
+    secretName: argocd-ingress-grpc
 ```
 
 The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the

@@ -106,7 +106,7 @@ type appStateManager struct {
 	persistResourceHealth bool
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, map[*v1alpha1.ApplicationSource]*apiclient.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
 
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
@@ -163,7 +163,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 	defer io.Close(conn)
 
-	manifestInfoMap := make(map[*v1alpha1.ApplicationSource]*apiclient.ManifestResponse)
+	manifestInfos := make([]*apiclient.ManifestResponse, 0)
 	targetObjs := make([]*unstructured.Unstructured, 0)
 
 	// Store the map of all sources having ref field into a map for applications with sources field
@@ -216,20 +216,14 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			return nil, nil, err
 		}
 
-		// GenerateManifest can return empty ManifestResponse without error if app has multiple sources
-		// and if any of the source does not have path and chart field not specified.
-		// In that scenario, we continue to the next source
-		if app.Spec.HasMultipleSources() && len(manifestInfo.Manifests) == 0 {
-			continue
-		}
-
 		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
 
 		if err != nil {
 			return nil, nil, err
 		}
 		targetObjs = append(targetObjs, targetObj...)
-		manifestInfoMap[&source] = manifestInfo
+
+		manifestInfos = append(manifestInfos, manifestInfo)
 	}
 
 	ts.AddCheckpoint("unmarshal_ms")
@@ -239,7 +233,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 	logCtx.Info("getRepoObjs stats")
-	return targetObjs, manifestInfoMap, nil
+	return targetObjs, manifestInfos, nil
 }
 
 func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error) {
@@ -400,7 +394,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	var targetObjs []*unstructured.Unstructured
 	now := metav1.Now()
 
-	var manifestInfoMap map[*v1alpha1.ApplicationSource]*apiclient.ManifestResponse
+	var manifestInfos []*apiclient.ManifestResponse
 
 	if len(localManifests) == 0 {
 		// If the length of revisions is not same as the length of sources,
@@ -412,7 +406,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfoMap, err = m.getRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
+		targetObjs, manifestInfos, err = m.getRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
@@ -435,9 +429,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 		// empty out manifestInfoMap
-		for as := range manifestInfoMap {
-			delete(manifestInfoMap, as)
-		}
+		manifestInfos = make([]*apiclient.ManifestResponse, 0)
 	}
 	ts.AddCheckpoint("git_ms")
 
@@ -517,12 +509,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	manifestRevisions := make([]string, 0)
 
-	for _, manifestInfo := range manifestInfoMap {
+	for _, manifestInfo := range manifestInfos {
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 
 	// restore comparison using cached diff result if previous comparison was performed for the same revision
-	revisionChanged := len(manifestInfoMap) != len(sources) || !reflect.DeepEqual(app.Status.Sync.Revisions, manifestRevisions)
+	revisionChanged := len(manifestInfos) != len(sources) || !reflect.DeepEqual(app.Status.Sync.Revisions, manifestRevisions)
 	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, Sources: sources})
 
 	_, refreshRequested := app.IsRefreshRequested()
@@ -691,7 +683,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	// Git has already performed the signature verification via its GPG interface, and the result is available
 	// in the manifest info received from the repository server. We now need to form our opinion about the result
 	// and stop processing if we do not agree about the outcome.
-	for _, manifestInfo := range manifestInfoMap {
+	for _, manifestInfo := range manifestInfos {
 		if gpg.IsGPGEnabled() && verifySignature && manifestInfo != nil {
 			conditions = append(conditions, verifyGnuPGSignature(manifestInfo.Revision, project, manifestInfo)...)
 		}
@@ -708,11 +700,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 
 	if hasMultipleSources {
-		for _, manifestInfo := range manifestInfoMap {
+		for _, manifestInfo := range manifestInfos {
 			compRes.appSourceTypes = append(compRes.appSourceTypes, v1alpha1.ApplicationSourceType(manifestInfo.SourceType))
 		}
 	} else {
-		for _, manifestInfo := range manifestInfoMap {
+		for _, manifestInfo := range manifestInfos {
 			compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
 			break
 		}

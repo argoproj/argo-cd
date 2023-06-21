@@ -318,6 +318,74 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
+// TestAppRevisions tests that revisions are properly propagated for a single source app
+func TestAppRevisionsSingleSource(t *testing.T) {
+	obj1 := NewPod()
+	obj1.SetNamespace(test.FakeDestNamespace)
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{toJSON(t, obj1)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+
+	app := newFakeApp()
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.NotEmpty(t, compRes.syncStatus.Revision)
+	assert.Len(t, compRes.syncStatus.Revisions, 0)
+
+}
+
+// TestAppRevisions tests that revisions are properly propagated for a multi source app
+func TestAppRevisionsMultiSource(t *testing.T) {
+	obj1 := NewPod()
+	obj1.SetNamespace(test.FakeDestNamespace)
+	data := fakeData{
+		manifestResponses: []*apiclient.ManifestResponse{
+			{
+				Manifests: []string{toJSON(t, obj1)},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			{
+				Manifests: []string{toJSON(t, obj1)},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "def456",
+			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "ghi789",
+			},
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+
+	app := newFakeMultiSourceApp()
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.Empty(t, compRes.syncStatus.Revision)
+	assert.Len(t, compRes.syncStatus.Revisions, 3)
+	assert.Equal(t, "abc123", compRes.syncStatus.Revisions[0])
+	assert.Equal(t, "def456", compRes.syncStatus.Revisions[1])
+	assert.Equal(t, "ghi789", compRes.syncStatus.Revisions[2])
+}
+
 func toJSON(t *testing.T, obj *unstructured.Unstructured) string {
 	data, err := json.Marshal(obj)
 	assert.NoError(t, err)
