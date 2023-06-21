@@ -104,9 +104,9 @@ const (
 	// PasswordPatten is the default password patten
 	PasswordPatten = `^.{8,32}$`
 
-	//LegacyShardingAlgorithm is the default value for Sharding Algorithm it uses an `uid` based distribution (non-uniform)
+	// LegacyShardingAlgorithm is the default value for Sharding Algorithm it uses an `uid` based distribution (non-uniform)
 	LegacyShardingAlgorithm = "legacy"
-	//RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
+	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
 	RoundRobinShardingAlgorithm = "round-robin"
 	DefaultShardingAlgorithm    = LegacyShardingAlgorithm
 )
@@ -231,6 +231,8 @@ const (
 	EnvCMPChunkSize = "ARGOCD_CMP_CHUNK_SIZE"
 	// EnvCMPWorkDir defines the full path of the work directory used by the CMP server
 	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
+	// EnvGPGDataPath overrides the location where GPG keyring for signature verification is stored
+	EnvGPGDataPath = "ARGOCD_GPG_DATA_PATH"
 )
 
 // Config Management Plugin related constants

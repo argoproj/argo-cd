@@ -45,11 +45,7 @@ const (
 )
 
 func getGnuPGSourcePath() string {
-	if path := os.Getenv("ARGOCD_GPG_DATA_PATH"); path != "" {
-		return path
-	} else {
-		return gnuPGSourcePath
-	}
+	return env.StringFromEnv(common.EnvGPGDataPath, gnuPGSourcePath)
 }
 
 func getPauseGenerationAfterFailedGenerationAttempts() int {
