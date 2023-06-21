@@ -203,9 +203,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.UserAgent = fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)
 	}
 	// Override server address if specified in env or CLI flag
-	if serverFromEnv := os.Getenv(EnvArgoCDServer); serverFromEnv != "" {
-		c.ServerAddr = serverFromEnv
-	}
+	c.ServerAddr = env.StringFromEnv(EnvArgoCDServer, c.ServerAddr)
 	if opts.PortForward || opts.PortForwardNamespace != "" {
 		if opts.KubeOverrides == nil {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
@@ -229,9 +227,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.ServerAddr += ":443"
 	}
 	// Override auth-token if specified in env variable or CLI flag
-	if authFromEnv := os.Getenv(EnvArgoCDAuthToken); authFromEnv != "" {
-		c.AuthToken = authFromEnv
-	}
+	c.AuthToken = env.StringFromEnv(EnvArgoCDAuthToken, c.AuthToken)
 	if opts.AuthToken != "" {
 		c.AuthToken = strings.TrimSpace(opts.AuthToken)
 	}
@@ -285,8 +281,8 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		}
 	}
 	if !c.GRPCWeb {
-		//test if we need to set it to true
-		//if a call to grpc failed, then try again with GRPCWeb
+		// test if we need to set it to true
+		// if a call to grpc failed, then try again with GRPCWeb
 		conn, versionIf, err := c.NewVersionClient()
 		if err == nil {
 			defer argoio.Close(conn)

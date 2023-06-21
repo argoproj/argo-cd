@@ -29,6 +29,7 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -142,8 +143,7 @@ func GetEnvWithDefault(envName, defaultValue string) string {
 // IsRemote returns true when the tests are being run against a workload that
 // is running in a remote cluster.
 func IsRemote() bool {
-	r := os.Getenv("ARGOCD_E2E_REMOTE")
-	return r == "true"
+	return env.ParseBoolFromEnv("ARGOCD_E2E_REMOTE", false)
 }
 
 // IsLocal returns when the tests are being run against a local workload
