@@ -2011,6 +2011,8 @@ spec:
       containers:
       - args:
         - /usr/local/bin/argocd-server
+        command:
+        - argocd-server
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: "2"
