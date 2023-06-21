@@ -54,6 +54,7 @@ func TestMergeGenerate(t *testing.T) {
 		name           string
 		baseGenerators []argoprojiov1alpha1.ApplicationSetNestedGenerator
 		mergeKeys      []string
+		goTemplate     bool
 		expectedErr    error
 		expected       []map[string]interface{}
 	}{
@@ -84,12 +85,25 @@ func TestMergeGenerate(t *testing.T) {
 			},
 		},
 		{
+			name: "happy flow - generate paramSets with goTemplate",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				*getNestedListGenerator(`{"a": "1_1","b": "same","c": "1_3"}`),
+				*getNestedListGenerator(`{"a": "2_1","b": "same"}`),
+				*getNestedListGenerator(`{"a": "3_1","b": "different","c": "3_3"}`), // gets ignored because its merge key value isn't in the base params set
+			},
+			mergeKeys:  []string{"b"},
+			goTemplate: true,
+			expected: []map[string]interface{}{
+				{"a": "2_1", "b": "same", "c": "1_3"},
+			},
+		},
+		{
 			name: "merge keys absent - do not merge",
 			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
 				*getNestedListGenerator(`{"a": "a"}`),
-				*getNestedListGenerator(`{"a": "a"}`),
+				*getNestedListGenerator(`{"b": "b"}`),
 			},
-			mergeKeys: []string{"b"},
+			mergeKeys: []string{"c"},
 			expected: []map[string]interface{}{
 				{"a": "a"},
 			},
@@ -100,9 +114,33 @@ func TestMergeGenerate(t *testing.T) {
 				*getNestedListGenerator(`{"a": "a"}`),
 				*getNestedListGenerator(`{"b": "b"}`),
 			},
+			mergeKeys: []string{"a"},
+			expected: []map[string]interface{}{
+				{"a": "a"},
+			},
+		},
+		{
+			name: "merge key present in second set, absent in first - do not merge",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				*getNestedListGenerator(`{"a": "a"}`),
+				*getNestedListGenerator(`{"b": "b"}`),
+			},
 			mergeKeys: []string{"b"},
 			expected: []map[string]interface{}{
 				{"a": "a"},
+			},
+		},
+		{
+			name: "merge ordering - lower overrides upper",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				*getNestedListGenerator(`{"same": "same"}`),
+				*getNestedListGenerator(`{"same": "same", "1": "different_1"}`),
+				*getNestedListGenerator(`{"same": "same", "1": "different_2"}`),
+				*getNestedListGenerator(`{"same": "same", "1": "different_3"}`),
+			},
+			mergeKeys: []string{"same"},
+			expected: []map[string]interface{}{
+				{"same": "same", "1": "different_3"},
 			},
 		},
 		{
@@ -155,6 +193,7 @@ func TestMergeGenerate(t *testing.T) {
 			t.Parallel()
 
 			appSet := &argoprojiov1alpha1.ApplicationSet{}
+			appSet.Spec.GoTemplate = testCaseCopy.goTemplate
 
 			var mergeGenerator = NewMergeGenerator(
 				map[string]Generator{
@@ -249,7 +288,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			name:        "simple key, non-unique paramSets",
 			mergeKeys:   []string{"key"},
 			paramSets:   []map[string]interface{}{{"key": "a"}, {"key": "b"}, {"key": "b"}},
-			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, `{"key":"b"}`),
+			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamsSets, `{"key":"b"}`),
 		},
 		{
 			name:      "simple key, duplicated key name, unique paramSets",
@@ -264,7 +303,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			name:        "simple key, duplicated key name, non-unique paramSets",
 			mergeKeys:   []string{"key", "key"},
 			paramSets:   []map[string]interface{}{{"key": "a"}, {"key": "b"}, {"key": "b"}},
-			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, `{"key":"b"}`),
+			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamsSets, `{"key":"b"}`),
 		},
 		{
 			name:      "compound key, unique paramSets",
@@ -316,7 +355,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				{"key1": "a", "key2": "a"},
 				{"key1": "b", "key2": "a"},
 			},
-			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, `{"key1":"a","key2":"a"}`),
+			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamsSets, `{"key1":"a","key2":"a"}`),
 		},
 		{
 			name:      "compound key, duplicate key names, non-unique paramSets",
@@ -326,7 +365,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				{"key1": "a", "key2": "a"},
 				{"key1": "b", "key2": "a"},
 			},
-			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, `{"key1":"a","key2":"a"}`),
+			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamsSets, `{"key1":"a","key2":"a"}`),
 		},
 	}
 
@@ -336,7 +375,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := getParamSetsByMergeKey(testCaseCopy.mergeKeys, testCaseCopy.paramSets)
+			got, err := indexParamsSetByMergeKeys(testCaseCopy.mergeKeys, testCaseCopy.paramSets)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
