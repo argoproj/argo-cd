@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"strings"
 	"time"
 
 	"crypto/tls"
@@ -33,11 +34,11 @@ func NewCache(client CacheClient) *Cache {
 	return &Cache{client}
 }
 
-func buildRedisClient(redisAddress, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, redisClusterMode bool) *redis.Client {
-	var client *redis.Client
+func buildRedisClient(redisAddress, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, redisClusterMode bool) redis.UniversalClient {
+	var client redis.UniversalClient
 	if redisClusterMode {
 		opts := &redis.ClusterOptions{
-			Addrs:       []string{redisAddress},
+			Addrs:      strings.Split(redisAddress, ","),
 			Password:   password,
 			MaxRetries: maxRetries,
 			TLSConfig:  tlsConfig,
@@ -57,7 +58,7 @@ func buildRedisClient(redisAddress, password, username string, redisDB, maxRetri
 	}
 
 	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
-		*client = *buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig, redisClusterMode)
+		client = buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig, redisClusterMode)
 	})))
 
 	return client
@@ -84,7 +85,7 @@ func buildFailoverRedisClient(sentinelMaster, password, username string, redisDB
 }
 
 // AddCacheFlagsToCmd adds flags which control caching to the specified command
-func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
+func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client redis.UniversalClient)) func() (*Cache, error) {
 	redisAddress := ""
 	sentinelAddresses := make([]string, 0)
 	sentinelMaster := ""
@@ -98,7 +99,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	redisClusterMode := false
 	var defaultCacheExpiration time.Duration
 
-	cmd.Flags().StringVar(&redisAddress, "redis", env.StringFromEnv("REDIS_SERVER", ""), "Redis server hostname and port (e.g. argocd-redis:6379). ")
+	cmd.Flags().StringVar(&redisAddress, "redis", env.StringFromEnv("REDIS_SERVER", ""), "Redis server hostname and port (e.g. argocd-redis:6379), Comma separated for redis cluster (e.g. argocd-redis1:6379,argocd-redis2:6379). ")
 	cmd.Flags().IntVar(&redisDB, "redisdb", env.ParseNumFromEnv("REDISDB", 0, 0, math.MaxInt32), "Redis database.")
 	cmd.Flags().StringArrayVar(&sentinelAddresses, "sentinel", []string{}, "Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). ")
 	cmd.Flags().StringVar(&sentinelMaster, "sentinelmaster", "master", "Redis sentinel master group name.")

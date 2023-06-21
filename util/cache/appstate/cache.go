@@ -29,7 +29,7 @@ func NewCache(cache *cacheutil.Cache, appStateCacheExpiration time.Duration) *Ca
 	return &Cache{cache, appStateCacheExpiration}
 }
 
-func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
+func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client redis.UniversalClient)) func() (*Cache, error) {
 	var appStateCacheExpiration time.Duration
 
 	cmd.Flags().DurationVar(&appStateCacheExpiration, "app-state-cache-expiration", env.ParseDurationFromEnv("ARGOCD_APP_STATE_CACHE_EXPIRATION", 1*time.Hour, 0, 10*time.Hour), "Cache expiration for app state")
