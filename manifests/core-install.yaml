@@ -17013,6 +17013,13 @@ spec:
                 type: object
               syncPolicy:
                 properties:
+                  applicationsSync:
+                    enum:
+                    - create-only
+                    - create-update
+                    - create-delete
+                    - sync
+                    type: string
                   preserveResourcesOnDeletion:
                     type: boolean
                 type: object
@@ -18284,6 +18291,11 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.policy
+              name: argocd-cmd-params-cm
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.policy.override
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG
