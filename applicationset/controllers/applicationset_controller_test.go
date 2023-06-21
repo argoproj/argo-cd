@@ -1922,7 +1922,7 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 		ArgoDB:           &argoDBMock,
 		ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 		KubeClientset:    kubeclientset,
-		Policy:           &utils.SyncPolicy{},
+		Policy:           v1alpha1.ApplicationsSyncPolicySync,
 	}
 
 	req := ctrl.Request{
@@ -2003,6 +2003,337 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Len(t, appSet.Status.Conditions, 3)
+}
+
+func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.Application {
+
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+	err = v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	defaultProject := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
+		Spec:       v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://good-cluster"}}},
+	}
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"cluster": "good-cluster","url": "https://good-cluster"}`),
+						}},
+					},
+				},
+			},
+			SyncPolicy: &v1alpha1.ApplicationSetSyncPolicy{
+				ApplicationsSync: &applicationsSyncPolicy,
+			},
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{cluster}}",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+					Project:     "default",
+					Destination: v1alpha1.ApplicationDestination{Server: "{{url}}"},
+				},
+			},
+		},
+	}
+
+	kubeclientset := kubefake.NewSimpleClientset()
+	argoDBMock := dbmocks.ArgoDB{}
+	argoObjs := []runtime.Object{&defaultProject}
+
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
+	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
+	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
+		goodCluster,
+	}}, nil)
+
+	r := ApplicationSetReconciler{
+		Client:   client,
+		Scheme:   scheme,
+		Renderer: &utils.Render{},
+		Recorder: record.NewFakeRecorder(recordBuffer),
+		Generators: map[string]generators.Generator{
+			"List": generators.NewListGenerator(),
+		},
+		ArgoDB:               &argoDBMock,
+		ArgoAppClientset:     appclientset.NewSimpleClientset(argoObjs...),
+		KubeClientset:        kubeclientset,
+		Policy:               v1alpha1.ApplicationsSyncPolicySync,
+		EnablePolicyOverride: allowPolicyOverride,
+	}
+
+	req := ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: "argocd",
+			Name:      "name",
+		},
+	}
+
+	// Verify that on validation error, no error is returned, but the object is requeued
+	resCreate, err := r.Reconcile(context.Background(), req)
+	assert.Nil(t, err)
+	assert.True(t, resCreate.RequeueAfter == 0)
+
+	var app v1alpha1.Application
+
+	// make sure good app got created
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
+	assert.Nil(t, err)
+	assert.Equal(t, app.Name, "good-cluster")
+
+	// Update resource
+	var retrievedApplicationSet v1alpha1.ApplicationSet
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &retrievedApplicationSet)
+	assert.Nil(t, err)
+
+	retrievedApplicationSet.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
+	retrievedApplicationSet.Spec.Template.Labels = map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}
+
+	retrievedApplicationSet.Spec.Template.Spec.Source.Helm = &v1alpha1.ApplicationSourceHelm{
+		Values: "global.test: test",
+	}
+
+	err = r.Client.Update(context.TODO(), &retrievedApplicationSet)
+	assert.Nil(t, err)
+
+	resUpdate, err := r.Reconcile(context.Background(), req)
+	assert.Nil(t, err)
+
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
+	assert.Nil(t, err)
+	assert.True(t, resUpdate.RequeueAfter == 0)
+	assert.Equal(t, app.Name, "good-cluster")
+
+	return app
+}
+
+func TestUpdateNotPerformedWithSyncPolicyCreateOnly(t *testing.T) {
+
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateOnly
+
+	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 1, true)
+
+	assert.Nil(t, app.Spec.Source.Helm)
+	assert.Nil(t, app.ObjectMeta.Annotations)
+	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name"}, app.ObjectMeta.Labels)
+}
+
+func TestUpdateNotPerformedWithSyncPolicyCreateDelete(t *testing.T) {
+
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateDelete
+
+	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 1, true)
+
+	assert.Nil(t, app.Spec.Source.Helm)
+	assert.Nil(t, app.ObjectMeta.Annotations)
+	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name"}, app.ObjectMeta.Labels)
+}
+
+func TestUpdatePerformedWithSyncPolicyCreateUpdate(t *testing.T) {
+
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateUpdate
+
+	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 2, true)
+
+	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
+	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
+	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}, app.ObjectMeta.Labels)
+}
+
+func TestUpdatePerformedWithSyncPolicySync(t *testing.T) {
+
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicySync
+
+	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 2, true)
+
+	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
+	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
+	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}, app.ObjectMeta.Labels)
+}
+
+func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
+
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateOnly
+
+	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 2, false)
+
+	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
+	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
+	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}, app.ObjectMeta.Labels)
+}
+
+func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.ApplicationList {
+
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+	err = v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	defaultProject := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
+		Spec:       v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://good-cluster"}}},
+	}
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"cluster": "good-cluster","url": "https://good-cluster"}`),
+						}},
+					},
+				},
+			},
+			SyncPolicy: &v1alpha1.ApplicationSetSyncPolicy{
+				ApplicationsSync: &applicationsSyncPolicy,
+			},
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{cluster}}",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+					Project:     "default",
+					Destination: v1alpha1.ApplicationDestination{Server: "{{url}}"},
+				},
+			},
+		},
+	}
+
+	kubeclientset := kubefake.NewSimpleClientset()
+	argoDBMock := dbmocks.ArgoDB{}
+	argoObjs := []runtime.Object{&defaultProject}
+
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
+	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
+	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
+		goodCluster,
+	}}, nil)
+
+	r := ApplicationSetReconciler{
+		Client:   client,
+		Scheme:   scheme,
+		Renderer: &utils.Render{},
+		Recorder: record.NewFakeRecorder(recordBuffer),
+		Generators: map[string]generators.Generator{
+			"List": generators.NewListGenerator(),
+		},
+		ArgoDB:               &argoDBMock,
+		ArgoAppClientset:     appclientset.NewSimpleClientset(argoObjs...),
+		KubeClientset:        kubeclientset,
+		Policy:               v1alpha1.ApplicationsSyncPolicySync,
+		EnablePolicyOverride: allowPolicyOverride,
+	}
+
+	req := ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: "argocd",
+			Name:      "name",
+		},
+	}
+
+	// Verify that on validation error, no error is returned, but the object is requeued
+	resCreate, err := r.Reconcile(context.Background(), req)
+	assert.Nil(t, err)
+	assert.True(t, resCreate.RequeueAfter == 0)
+
+	var app v1alpha1.Application
+
+	// make sure good app got created
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
+	assert.Nil(t, err)
+	assert.Equal(t, app.Name, "good-cluster")
+
+	// Update resource
+	var retrievedApplicationSet v1alpha1.ApplicationSet
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &retrievedApplicationSet)
+	assert.Nil(t, err)
+	retrievedApplicationSet.Spec.Generators = []v1alpha1.ApplicationSetGenerator{
+		{
+			List: &v1alpha1.ListGenerator{
+				Elements: []apiextensionsv1.JSON{},
+			},
+		},
+	}
+
+	err = r.Client.Update(context.TODO(), &retrievedApplicationSet)
+	assert.Nil(t, err)
+
+	resUpdate, err := r.Reconcile(context.Background(), req)
+	assert.Nil(t, err)
+
+	var apps v1alpha1.ApplicationList
+
+	err = r.Client.List(context.TODO(), &apps)
+	assert.Nil(t, err)
+	assert.True(t, resUpdate.RequeueAfter == 0)
+
+	return apps
+}
+
+func TestDeleteNotPerformedWithSyncPolicyCreateOnly(t *testing.T) {
+
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateOnly
+
+	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 1, true)
+
+	assert.Equal(t, "good-cluster", apps.Items[0].Name)
+}
+
+func TestDeleteNotPerformedWithSyncPolicyCreateUpdate(t *testing.T) {
+
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateUpdate
+
+	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 2, true)
+
+	assert.Equal(t, "good-cluster", apps.Items[0].Name)
+}
+
+func TestDeletePerformedWithSyncPolicyCreateDelete(t *testing.T) {
+
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateDelete
+
+	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, true)
+
+	assert.Equal(t, 0, len(apps.Items))
+}
+
+func TestDeletePerformedWithSyncPolicySync(t *testing.T) {
+
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicySync
+
+	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, true)
+
+	assert.Equal(t, 0, len(apps.Items))
+}
+
+func TestDeletePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
+
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateOnly
+
+	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, false)
+
+	assert.Equal(t, 0, len(apps.Items))
 }
 
 // Test app generation from a go template application set using a pull request generator

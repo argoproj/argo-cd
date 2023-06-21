@@ -6006,6 +6006,10 @@
       "description": "ApplicationSetSyncPolicy configures how generated Applications will relate to their\nApplicationSet.",
       "type": "object",
       "properties": {
+        "applicationsSync": {
+          "type": "string",
+          "title": "ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, create-delete, sync\n+kubebuilder:validation:Optional\n+kubebuilder:validation:Enum=create-only;create-update;create-delete;sync"
+        },
         "preserveResourcesOnDeletion": {
           "description": "PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.",
           "type": "boolean"
