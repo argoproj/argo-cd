@@ -115,6 +115,43 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 
 }
 
+func TestFindRevisionHistoryWithoutPassedIdWithMultipleSources(t *testing.T) {
+
+	histories := v1alpha1.RevisionHistories{}
+
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 2})
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 3})
+
+	status := v1alpha1.ApplicationStatus{
+		Resources:      nil,
+		Sync:           v1alpha1.SyncStatus{},
+		Health:         v1alpha1.HealthStatus{},
+		History:        histories,
+		Conditions:     nil,
+		ReconciledAt:   nil,
+		OperationState: nil,
+		ObservedAt:     nil,
+		SourceType:     "",
+		Summary:        v1alpha1.ApplicationSummary{},
+	}
+
+	application := v1alpha1.Application{
+		Status: status,
+	}
+
+	history, err := findRevisionHistory(&application, -1)
+
+	if err != nil {
+		t.Fatal("Find revision history should fail without errors")
+	}
+
+	if history == nil {
+		t.Fatal("History should be found")
+	}
+
+}
+
 func TestDefaultWaitOptions(t *testing.T) {
 	watch := watchOpts{
 		sync:      false,
@@ -479,6 +516,67 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 	})
 
 	expectation := "ID  DATE                           REVISION\n1   0001-01-01 00:00:00 +0000 UTC  1\n2   0001-01-01 00:00:00 +0000 UTC  2\n3   0001-01-01 00:00:00 +0000 UTC  3\n"
+
+	if output != expectation {
+		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+	}
+}
+
+func TestPrintApplicationHistoryTableForMultipleSources(t *testing.T) {
+	histories := []v1alpha1.RevisionHistory{
+		{
+			ID: 1,
+			Sources: v1alpha1.ApplicationSources{
+				v1alpha1.ApplicationSource{
+					TargetRevision: "1",
+				},
+				v1alpha1.ApplicationSource{
+					TargetRevision: "1",
+				},
+			},
+			Revisions: []string{
+				"1",
+				"1",
+			},
+		},
+		{
+			ID: 2,
+			Sources: v1alpha1.ApplicationSources{
+				v1alpha1.ApplicationSource{
+					TargetRevision: "2",
+				},
+				v1alpha1.ApplicationSource{
+					TargetRevision: "2",
+				},
+			},
+			Revisions: []string{
+				"22222222222",
+				"22222222222",
+			},
+		},
+		{
+			ID: 3,
+			Sources: v1alpha1.ApplicationSources{
+				v1alpha1.ApplicationSource{
+					TargetRevision: "3",
+				},
+				v1alpha1.ApplicationSource{
+					TargetRevision: "3",
+				},
+			},
+			Revisions: []string{
+				"3",
+				"3",
+			},
+		},
+	}
+
+	output, _ := captureOutput(func() error {
+		printApplicationHistoryTable(histories)
+		return nil
+	})
+
+	expectation := "ID  DATE                           REVISION\n1   0001-01-01 00:00:00 +0000 UTC  1 and (1) more\n2   0001-01-01 00:00:00 +0000 UTC  2 (2222222) and (1) more\n3   0001-01-01 00:00:00 +0000 UTC  3 and (1) more\n"
 
 	if output != expectation {
 		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
