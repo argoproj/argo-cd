@@ -3,7 +3,7 @@ import * as ReactDOM from 'react-dom';
 import * as Moment from 'moment';
 import {App} from './app';
 
-ReactDOM.render(<App />, document.getElementById('app'));
+ReactDOM.render(<><App /></>, document.getElementById('app'));
 
 const mdl = module as any;
 if (mdl.hot) {
