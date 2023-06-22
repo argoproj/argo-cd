@@ -300,13 +300,6 @@ func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
 	return c
 }
 
-// this both configures the plugin, but forces use of it
-func (c *Context) ConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin) *Context {
-	fixture.SetConfigManagementPlugins(plugin)
-	c.configManagementPlugin = plugin.Name
-	return c
-}
-
 func (c *Context) And(block func()) *Context {
 	block()
 	return c

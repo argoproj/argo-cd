@@ -17013,6 +17013,13 @@ spec:
                 type: object
               syncPolicy:
                 properties:
+                  applicationsSync:
+                    enum:
+                    - create-only
+                    - create-update
+                    - create-delete
+                    - sync
+                    type: string
                   preserveResourcesOnDeletion:
                     type: boolean
                 type: object
@@ -19522,6 +19529,11 @@ spec:
             configMapKeyRef:
               key: applicationsetcontroller.policy
               name: argocd-cmd-params-cm
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.policy.override
+              name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG
           valueFrom:
@@ -19853,7 +19865,7 @@ spec:
                 app.kubernetes.io/name: argocd-redis-ha-haproxy
             topologyKey: kubernetes.io/hostname
       containers:
-      - image: haproxy:2.6.12-alpine
+      - image: haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -19890,7 +19902,7 @@ spec:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: haproxy:2.6.12-alpine
+        image: haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -19958,11 +19970,6 @@ spec:
       - args:
         - /usr/local/bin/argocd-repo-server
         env:
-        - name: ARGOCD_REDIS
-          valueFrom:
-            configMapKeyRef:
-              key: redis.server
-              name: argocd-cmd-params-cm
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
@@ -20238,11 +20245,6 @@ spec:
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: "2"
-        - name: ARGOCD_REDIS
-          valueFrom:
-            configMapKeyRef:
-              key: redis.server
-              name: argocd-cmd-params-cm
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
             configMapKeyRef:
@@ -20559,11 +20561,6 @@ spec:
       - args:
         - /usr/local/bin/argocd-application-controller
         env:
-        - name: ARGOCD_REDIS
-          valueFrom:
-            configMapKeyRef:
-              key: redis.server
-              name: argocd-cmd-params-cm
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "1"
         - name: ARGOCD_RECONCILIATION_TIMEOUT
