@@ -219,7 +219,7 @@ clidocsgen: ensure-gopath
 
 
 .PHONY: codegen-local
-codegen-local: ensure-gopath mod-vendor-local notification-docs notification-catalog gogen protogen clientgen openapigen clidocsgen manifests-local
+codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
 
 .PHONY: codegen
@@ -642,6 +642,9 @@ help:
 	@echo 'debug:'
 	@echo '  list -- list all make targets'
 	@echo '  install-tools-local -- install all the tools below'
-	@echo '  install-codegen-tools-local --'
-	@echo '  install-go-tools-local'
 	@echo '  install-lint-tools(-local)'
+	@echo
+	@echo 'codegen:'
+	@echo '  codegen(-local) -- if using -local, run the following targets first'
+	@echo '  install-codegen-tools-local -- run this to install the codegen tools'
+	@echo '  install-go-tools-local -- run this to install go libraries for codegen'

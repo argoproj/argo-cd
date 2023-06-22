@@ -12,11 +12,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/io"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 )
 
 type cred struct {
@@ -251,12 +251,14 @@ const invalidJSON = `{
 `
 
 func TestNewGoogleCloudCreds(t *testing.T) {
-	googleCloudCreds := NewGoogleCloudCreds(gcpServiceAccountKeyJSON)
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	googleCloudCreds := NewGoogleCloudCreds(gcpServiceAccountKeyJSON, store)
 	assert.NotNil(t, googleCloudCreds)
 }
 
 func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
-	googleCloudCreds := NewGoogleCloudCreds(invalidJSON)
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	googleCloudCreds := NewGoogleCloudCreds(invalidJSON, store)
 	assert.Nil(t, googleCloudCreds.creds)
 
 	token, err := googleCloudCreds.getAccessToken()
@@ -273,17 +275,25 @@ func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestGoogleCloudCreds_Environ(t *testing.T) {
+func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {
+	store := &memoryCredsStore{creds: make(map[string]cred)}
 	staticToken := &oauth2.Token{AccessToken: "token"}
 	googleCloudCreds := GoogleCloudCreds{&google.Credentials{
 		ProjectID:   "my-google-project",
 		TokenSource: oauth2.StaticTokenSource(staticToken),
 		JSON:        []byte(gcpServiceAccountKeyJSON),
-	}}
+	}, store}
 
 	closer, env, err := googleCloudCreds.Environ()
 	assert.NoError(t, err)
-	defer func() { _ = closer.Close() }()
-
-	assert.Equal(t, []string{"GIT_ASKPASS=git-ask-pass.sh", "GIT_USERNAME=argocd-service-account@my-google-project.iam.gserviceaccount.com", "GIT_PASSWORD=token"}, env)
+	var nonce string
+	for _, envVar := range env {
+		if strings.HasPrefix(envVar, ASKPASS_NONCE_ENV) {
+			nonce = envVar[len(ASKPASS_NONCE_ENV)+1:]
+			break
+		}
+	}
+	assert.Contains(t, store.creds, nonce)
+	io.Close(closer)
+	assert.NotContains(t, store.creds, nonce)
 }

@@ -16,9 +16,8 @@ spec:
         app.kubernetes.io/name: argocd-applicationset-controller
     spec:
       containers:
-        - command:
-            - entrypoint.sh
-            - argocd-applicationset-controller
+        - args:
+            - /usr/local/bin/argocd-applicationset-controller
           image: quay.io/argoproj/argocd:latest
           imagePullPolicy: Always
           name: argocd-applicationset-controller

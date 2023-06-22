@@ -1,7 +1,6 @@
 package generators
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	testutils "github.com/argoproj/argo-cd/v2/applicationset/utils/test"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -19,33 +19,6 @@ import (
 // func (c *clientSet) NewRepoServerClient() (io.Closer, apiclient.RepoServerServiceClient, error) {
 // 	return io.NewCloser(func() error { return nil }), c.RepoServerServiceClient, nil
 // }
-
-type argoCDServiceMock struct {
-	mock *mock.Mock
-}
-
-func (a argoCDServiceMock) GetApps(ctx context.Context, repoURL string, revision string) ([]string, error) {
-	args := a.mock.Called(ctx, repoURL, revision)
-
-	return args.Get(0).([]string), args.Error(1)
-}
-
-func (a argoCDServiceMock) GetFiles(ctx context.Context, repoURL string, revision string, pattern string) (map[string][]byte, error) {
-	args := a.mock.Called(ctx, repoURL, revision, pattern)
-
-	return args.Get(0).(map[string][]byte), args.Error(1)
-}
-
-func (a argoCDServiceMock) GetFileContent(ctx context.Context, repoURL string, revision string, path string) ([]byte, error) {
-	args := a.mock.Called(ctx, repoURL, revision, path)
-
-	return args.Get(0).([]byte), args.Error(1)
-}
-
-func (a argoCDServiceMock) GetDirectories(ctx context.Context, repoURL string, revision string) ([]string, error) {
-	args := a.mock.Called(ctx, repoURL, revision)
-	return args.Get(0).([]string), args.Error(1)
-}
 
 func Test_generateParamsFromGitFile(t *testing.T) {
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
@@ -271,9 +244,9 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := argoCDServiceMock{mock: &mock.Mock{}}
+			argoCDServiceMock := testutils.ArgoCDServiceMock{Mock: &mock.Mock{}}
 
-			argoCDServiceMock.mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.Mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
 			var gitGenerator = NewGitGenerator(argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
@@ -301,7 +274,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 
-			argoCDServiceMock.mock.AssertExpectations(t)
+			argoCDServiceMock.Mock.AssertExpectations(t)
 		})
 	}
 }
@@ -566,9 +539,9 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := argoCDServiceMock{mock: &mock.Mock{}}
+			argoCDServiceMock := testutils.ArgoCDServiceMock{Mock: &mock.Mock{}}
 
-			argoCDServiceMock.mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.Mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
 			var gitGenerator = NewGitGenerator(argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
@@ -597,7 +570,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 
-			argoCDServiceMock.mock.AssertExpectations(t)
+			argoCDServiceMock.Mock.AssertExpectations(t)
 		})
 	}
 
@@ -857,8 +830,8 @@ cluster:
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := argoCDServiceMock{mock: &mock.Mock{}}
-			argoCDServiceMock.mock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock := testutils.ArgoCDServiceMock{Mock: &mock.Mock{}}
+			argoCDServiceMock.Mock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			var gitGenerator = NewGitGenerator(argoCDServiceMock)
@@ -887,7 +860,7 @@ cluster:
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
 
-			argoCDServiceMock.mock.AssertExpectations(t)
+			argoCDServiceMock.Mock.AssertExpectations(t)
 		})
 	}
 }
@@ -1206,8 +1179,8 @@ cluster:
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := argoCDServiceMock{mock: &mock.Mock{}}
-			argoCDServiceMock.mock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock := testutils.ArgoCDServiceMock{Mock: &mock.Mock{}}
+			argoCDServiceMock.Mock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			var gitGenerator = NewGitGenerator(argoCDServiceMock)
@@ -1237,7 +1210,7 @@ cluster:
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
 
-			argoCDServiceMock.mock.AssertExpectations(t)
+			argoCDServiceMock.Mock.AssertExpectations(t)
 		})
 	}
 }

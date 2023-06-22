@@ -165,7 +165,9 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 				// Get app before creating to see if it is being updated or no change
 				existing, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &app.Name})
-				if grpc.UnwrapGRPCStatus(err).Code() != codes.NotFound {
+				unwrappedError := grpc.UnwrapGRPCStatus(err).Code()
+				// As part of the fix for CVE-2022-41354, the API will return Permission Denied when an app does not exist.
+				if unwrappedError != codes.NotFound && unwrappedError != codes.PermissionDenied {
 					errors.CheckError(err)
 				}
 
@@ -643,13 +645,26 @@ type unsetOpts struct {
 	namePrefix              bool
 	nameSuffix              bool
 	kustomizeVersion        bool
+	kustomizeNamespace      bool
 	kustomizeImages         []string
+	kustomizeReplicas       []string
 	parameters              []string
 	valuesFiles             []string
 	valuesLiteral           bool
 	ignoreMissingValueFiles bool
 	pluginEnvs              []string
 	passCredentials         bool
+}
+
+// IsZero returns true when the Application options for kustomize are considered empty
+func (o *unsetOpts) KustomizeIsZero() bool {
+	return o == nil ||
+		!o.namePrefix &&
+			!o.nameSuffix &&
+			!o.kustomizeVersion &&
+			!o.kustomizeNamespace &&
+			len(o.kustomizeImages) == 0 &&
+			len(o.kustomizeReplicas) == 0
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -708,7 +723,9 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().BoolVar(&opts.nameSuffix, "namesuffix", false, "Kustomize namesuffix")
 	command.Flags().BoolVar(&opts.namePrefix, "nameprefix", false, "Kustomize nameprefix")
 	command.Flags().BoolVar(&opts.kustomizeVersion, "kustomize-version", false, "Kustomize version")
+	command.Flags().BoolVar(&opts.kustomizeNamespace, "kustomize-namespace", false, "Kustomize namespace")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)")
+	command.Flags().StringArrayVar(&opts.kustomizeReplicas, "kustomize-replica", []string{}, "Kustomize replicas name (e.g. --kustomize-replica my-deployment --kustomize-replica my-statefulset)")
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
 	command.Flags().BoolVar(&opts.passCredentials, "pass-credentials", false, "Unset passCredentials")
 	return command
@@ -716,7 +733,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, nothingToUnset bool) {
 	if source.Kustomize != nil {
-		if !opts.namePrefix && !opts.nameSuffix && !opts.kustomizeVersion && len(opts.kustomizeImages) == 0 {
+		if opts.KustomizeIsZero() {
 			return false, true
 		}
 
@@ -735,6 +752,11 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 			source.Kustomize.Version = ""
 		}
 
+		if opts.kustomizeNamespace && source.Kustomize.Namespace != "" {
+			updated = true
+			source.Kustomize.Namespace = ""
+		}
+
 		for _, kustomizeImage := range opts.kustomizeImages {
 			for i, item := range source.Kustomize.Images {
 				if argoappv1.KustomizeImage(kustomizeImage).Match(item) {
@@ -745,6 +767,17 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 					a[len(a)-1] = ""     // Erase last element (write zero value).
 					a = a[:len(a)-1]     // Truncate slice.
 					source.Kustomize.Images = a
+				}
+			}
+		}
+
+		for _, kustomizeReplica := range opts.kustomizeReplicas {
+			kustomizeReplicas := source.Kustomize.Replicas
+			for i, item := range kustomizeReplicas {
+				if kustomizeReplica == item.Name {
+					source.Kustomize.Replicas = append(kustomizeReplicas[0:i], kustomizeReplicas[i+1:]...)
+					updated = true
+					break
 				}
 			}
 		}
@@ -2452,12 +2485,11 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command := cobra.Command{
 		Use:   "patch APPNAME",
 		Short: "Patch application",
-		Long: `Examples:
-	# Update an application's source path using json patch
-	argocd app patch myapplication --patch='[{"op": "replace", "path": "/spec/source/path", "value": "newPath"}]' --type json
+		Example: `  # Update an application's source path using json patch
+  argocd app patch myapplication --patch='[{"op": "replace", "path": "/spec/source/path", "value": "newPath"}]' --type json
 
-	# Update an application's repository target revision using merge patch
-	argocd app patch myapplication --patch '{"spec": { "source": { "targetRevision": "master" } }}' --type merge`,
+  # Update an application's repository target revision using merge patch
+  argocd app patch myapplication --patch '{"spec": { "source": { "targetRevision": "master" } }}' --type merge`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
