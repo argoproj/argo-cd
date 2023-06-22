@@ -330,6 +330,7 @@ func skipResourceUpdate(oldInfo, newInfo *ResourceInfo) bool {
 
 // shouldHashManifest validates if the API resource needs to be hashed.
 // If there's an app name from resource tracking, or if this is itself an app, we should generate a hash.
+// Otherwise, the hashing should be skipped to save CPU time.
 func shouldHashManifest(appName string, gvk schema.GroupVersionKind) bool {
 	// Only hash if the resource belongs to an app.
 	// Best      - Only hash for resources that are part of an app or their dependencies
