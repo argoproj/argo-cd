@@ -319,6 +319,11 @@ message ApplicationSetStrategy {
 message ApplicationSetSyncPolicy {
   // PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.
   optional bool preserveResourcesOnDeletion = 1;
+
+  // ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, create-delete, sync
+  // +kubebuilder:validation:Optional
+  // +kubebuilder:validation:Enum=create-only;create-update;create-delete;sync
+  optional string applicationsSync = 2;
 }
 
 // ApplicationSetTemplate represents argocd ApplicationSpec

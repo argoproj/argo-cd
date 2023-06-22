@@ -9,16 +9,9 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
-import {
-    ComparisonStatusIcon,
-    formatCreationTimestamp,
-    getPodReadinessGatesState,
-    getPodReadinessGatesState as _getPodReadinessGatesState,
-    getPodStateReason,
-    HealthStatusIcon
-} from '../utils';
+import {ComparisonStatusIcon, formatCreationTimestamp, getPodReadinessGatesState, getPodStateReason, HealthStatusIcon} from '../utils';
 import './application-node-info.scss';
-import {ReadinessGatesFailedWarning} from './readiness-gates-failed-warning';
+import {ReadinessGatesNotPassedWarning} from './readiness-gates-not-passed-warning';
 
 const RenderContainerState = (props: {container: any}) => {
     const state = (props.container.state?.waiting && 'waiting') || (props.container.state?.terminated && 'terminated') || (props.container.state?.running && 'running');
@@ -278,6 +271,14 @@ export const ApplicationNodeInfo = (props: {
     }
 
     const readinessGatesState = React.useMemo(() => {
+        // If containers are not ready then readiness gate status is not important.
+        if (!props.live?.status?.containerStatuses?.length) {
+            return null;
+        }
+        if (props.live?.status?.containerStatuses?.some((containerStatus: {ready: boolean}) => !containerStatus.ready)) {
+            return null;
+        }
+
         if (props.live && props.node?.kind === 'Pod') {
             return getPodReadinessGatesState(props.live);
         }
@@ -287,7 +288,7 @@ export const ApplicationNodeInfo = (props: {
 
     return (
         <div>
-            {Boolean(readinessGatesState) && <ReadinessGatesFailedWarning readinessGatesState={readinessGatesState} />}
+            {Boolean(readinessGatesState) && <ReadinessGatesNotPassedWarning readinessGatesState={readinessGatesState} />}
             <div className='white-box'>
                 <div className='white-box__details'>
                     {attributes.map(attr => (

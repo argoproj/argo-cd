@@ -74,13 +74,14 @@ var (
 // ApplicationSetReconciler reconciles a ApplicationSet object
 type ApplicationSetReconciler struct {
 	client.Client
-	Scheme           *runtime.Scheme
-	Recorder         record.EventRecorder
-	Generators       map[string]generators.Generator
-	ArgoDB           db.ArgoDB
-	ArgoAppClientset appclientset.Interface
-	KubeClientset    kubernetes.Interface
-	utils.Policy
+	Scheme               *runtime.Scheme
+	Recorder             record.EventRecorder
+	Generators           map[string]generators.Generator
+	ArgoDB               db.ArgoDB
+	ArgoAppClientset     appclientset.Interface
+	KubeClientset        kubernetes.Interface
+	Policy               argov1alpha1.ApplicationsSyncPolicy
+	EnablePolicyOverride bool
 	utils.Renderer
 	ArgoCDNamespace          string
 	ApplicationSetNamespaces []string
@@ -228,7 +229,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if r.Policy.Update() {
+	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowUpdate() {
 		err = r.createOrUpdateInCluster(ctx, applicationSetInfo, validApps)
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,
@@ -258,7 +259,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if r.Policy.Delete() {
+	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete() {
 		err = r.deleteInCluster(ctx, applicationSetInfo, desiredApplications)
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,

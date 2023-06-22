@@ -38,6 +38,17 @@ func newTestAppSet(name, namespace, repo string) *ApplicationSet {
 	return a
 }
 
+func TestApplicationsSyncPolicy(t *testing.T) {
+	assert.False(t, ApplicationsSyncPolicyCreateOnly.AllowDelete())
+	assert.False(t, ApplicationsSyncPolicyCreateOnly.AllowUpdate())
+
+	assert.False(t, ApplicationsSyncPolicyCreateUpdate.AllowDelete())
+	assert.True(t, ApplicationsSyncPolicyCreateUpdate.AllowUpdate())
+
+	assert.True(t, ApplicationsSyncPolicySync.AllowDelete())
+	assert.True(t, ApplicationsSyncPolicySync.AllowUpdate())
+}
+
 func TestApplicationSetRBACName(t *testing.T) {
 	testRepo := "https://github.com/org/repo"
 
