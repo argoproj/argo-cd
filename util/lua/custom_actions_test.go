@@ -12,10 +12,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/gitops-engine/pkg/diff"
+
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/gitops-engine/pkg/diff"
 )
 
 type testNormalizer struct{}
@@ -54,6 +55,19 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 		}
 	case "Rollout":
 		err := unstructured.SetNestedField(un.Object, nil, "spec", "restartAt")
+		if err != nil {
+			return fmt.Errorf("failed to normalize Rollout: %w", err)
+		}
+	case "Workflow":
+		err := unstructured.SetNestedField(un.Object, nil, "metadata", "resourceVersion")
+		if err != nil {
+			return fmt.Errorf("failed to normalize Rollout: %w", err)
+		}
+		err = unstructured.SetNestedField(un.Object, nil, "metadata", "uid")
+		if err != nil {
+			return fmt.Errorf("failed to normalize Rollout: %w", err)
+		}
+		err = unstructured.SetNestedField(un.Object, nil, "metadata", "annotations", "workflows.argoproj.io/scheduled-time")
 		if err != nil {
 			return fmt.Errorf("failed to normalize Rollout: %w", err)
 		}
@@ -137,10 +151,10 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					// The expected output is a list of objects
 					// Find the actual impacted resource in the expected output
 					expectedObj := findFirstMatchingItem(expectedObjects.Items, func(u unstructured.Unstructured) bool {
-						// Job's name is derived from the CronJob name, so the returned Job name is not actually equal to the testdata output name
-						// Considering the Job found in the testdata output if its name starts with CronJob name
-						// TODO: maybe this should use a normalizer function instead of hard-coding the Job specifics here
-						if result.GetKind() == "Job" && sourceObj.GetKind() == "CronJob" {
+						// Some resources' name is derived from the source object name, so the returned name is not actually equal to the testdata output name
+						// Considering the resource found in the testdata output if its name starts with source object name
+						// TODO: maybe this should use a normalizer function instead of hard-coding the resource specifics here
+						if (result.GetKind() == "Job" && sourceObj.GetKind() == "CronJob") || (result.GetKind() == "Workflow" && (sourceObj.GetKind() == "CronWorkflow" || sourceObj.GetKind() == "WorkflowTemplate")) {
 							return u.GroupVersionKind() == result.GroupVersionKind() && strings.HasPrefix(u.GetName(), sourceObj.GetName()) && u.GetNamespace() == result.GetNamespace()
 						} else {
 							return u.GroupVersionKind() == result.GroupVersionKind() && u.GetName() == result.GetName() && u.GetNamespace() == result.GetNamespace()
@@ -157,7 +171,12 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						assert.EqualValues(t, sourceObj.GetName(), result.GetName())
 						assert.EqualValues(t, sourceObj.GetNamespace(), result.GetNamespace())
 					case CreateOperation:
-						// no special logic to test for now
+						switch result.GetKind() {
+						case "Job":
+						case "Workflow":
+							// The name of the created resource is derived from the source object name, so the returned name is not actually equal to the testdata output name
+							result.SetName(expectedObj.GetName())
+						}
 					}
 					// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
 					diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
