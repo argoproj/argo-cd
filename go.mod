@@ -11,9 +11,9 @@ require (
 	github.com/alicebob/miniredis/v2 v2.30.3
 	github.com/antonmedv/expr v1.12.5
 	github.com/argoproj/gitops-engine v0.7.1-0.20230526233214-ad9a694fe4bc
-	github.com/argoproj/notifications-engine v0.4.1-0.20230228182525-f754726f03da
+	github.com/argoproj/notifications-engine v0.4.1-0.20230620204159-3446d4ae8520
 	github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d
-	github.com/aws/aws-sdk-go v1.44.287
+	github.com/aws/aws-sdk-go v1.44.288
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.5.0
@@ -212,7 +212,7 @@ require (
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/skeema/knownhosts v1.1.1 // indirect
 	github.com/slack-go/slack v0.12.1 // indirect
-	github.com/spf13/cast v1.4.1 // indirect
+	github.com/spf13/cast v1.5.0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/go-tinylfu v0.2.2 // indirect
