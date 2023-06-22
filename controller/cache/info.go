@@ -406,6 +406,10 @@ func generateManifestHash(un *unstructured.Unstructured, ignores []v1alpha1.Reso
 	if err != nil {
 		return "", fmt.Errorf("error marshaling resource: %w", err)
 	}
-	hash := strconv.FormatUint(xxhash.Sum64(data), 16)
+	hash := hash(data)
 	return hash, nil
+}
+
+func hash(data []byte) string {
+	return strconv.FormatUint(xxhash.Sum64(data), 16)
 }

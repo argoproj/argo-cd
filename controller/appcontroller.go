@@ -370,7 +370,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 			"name":        ref.Name,
 			"api-version": ref.APIVersion,
 			"kind":        ref.Kind,
-		}).Info("Requesting app refresh caused by object update")
+		}).Debug("Requesting app refresh caused by object update")
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
 	}

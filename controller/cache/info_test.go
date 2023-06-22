@@ -2,7 +2,6 @@ package cache
 
 import (
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -17,8 +16,6 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
-	"github.com/cespare/xxhash/v2"
 )
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
@@ -26,10 +23,6 @@ func strToUnstructured(jsonStr string) *unstructured.Unstructured {
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
 	errors.CheckError(err)
 	return &unstructured.Unstructured{Object: obj}
-}
-
-func hash(jsonStr string) string {
-	return strconv.FormatUint(xxhash.Sum64String(jsonStr), 16)
 }
 
 var (
@@ -754,7 +747,7 @@ func TestManifestHash(t *testing.T) {
           memory: 128Mi
 `).MarshalJSON()
 
-	expected := hash(string(data))
+	expected := hash(data)
 
 	hash, err := generateManifestHash(manifest, ignores, nil)
 	assert.Equal(t, expected, hash)
