@@ -103,11 +103,17 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 		And(func() {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+				"label-key":            "label-value",
+				LabelKeyAppSetInstance: "simple-cluster-generator",
+			}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
+			appset.Spec.Template.Labels = map[string]string{
+				"label-key":            "label-value",
+				LabelKeyAppSetInstance: "simple-cluster-generator",
+			}
 		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
