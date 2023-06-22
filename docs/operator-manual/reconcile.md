@@ -48,3 +48,14 @@ data:
 ## Default Configuration
 
 By default, the metadata fields `generation`, `resourceVersion` and `managedFields` are always ignored for all resources.
+
+## Finding Resources to Ignore
+
+The application controller logs when a resource change triggers a refresh. You can use these logs to find
+high-churn resource kinds and then inspect those resources to find which fields to ignore.
+
+To find these logs, search for `"Requesting app refresh caused by object update"`. The logs include structured
+fields for `api-version` and `kind`.  Counting the number of refreshes triggered, by api-version/kind should
+reveal the high-churn resource kinds.
+
+Note that these logs are at the `debug` level. Configure the application-controller's log level to `debug`.
