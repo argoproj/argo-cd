@@ -25,8 +25,11 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       "cluster1-guestbook",
-			Namespace:  utils.ArgoCDExternalNamespace,
+			Name:      "cluster1-guestbook",
+			Namespace: utils.ArgoCDExternalNamespace,
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-cluster-generator",
+			},
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
