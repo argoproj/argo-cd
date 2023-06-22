@@ -151,7 +151,7 @@ type ResourceInfo struct {
 	// NodeInfo is available for nodes only
 	NodeInfo *NodeInfo
 
-	manifestHash *string
+	manifestHash string
 }
 
 func NewLiveStateCache(
@@ -324,7 +324,7 @@ func skipResourceUpdate(oldInfo, newInfo *ResourceInfo) bool {
 		return false
 	}
 	isSameHealthStatus := (oldInfo.Health == nil && newInfo.Health == nil) || oldInfo.Health != nil && newInfo.Health != nil && oldInfo.Health.Status == newInfo.Health.Status
-	isSameManifest := oldInfo.manifestHash != nil && newInfo.manifestHash != nil && *oldInfo.manifestHash == *newInfo.manifestHash
+	isSameManifest := oldInfo.manifestHash != "" && newInfo.manifestHash != "" && oldInfo.manifestHash == newInfo.manifestHash
 	return isSameHealthStatus && isSameManifest
 }
 
@@ -468,7 +468,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 				if err != nil {
 					log.Errorf("Failed to generate manifest hash: %v", err)
 				} else {
-					res.manifestHash = &hash
+					res.manifestHash = hash
 				}
 			}
 

@@ -211,7 +211,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		hash3_x string = "x"
 	)
 	info := &ResourceInfo{
-		manifestHash: &hash1_x,
+		manifestHash: hash1_x,
 		Health: &health.HealthStatus{
 			Status:  health.HealthStatusHealthy,
 			Message: "default",
@@ -231,50 +231,50 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: &hash1_x,
+			manifestHash: hash1_x,
 		}, &ResourceInfo{
-			manifestHash: &hash1_x,
+			manifestHash: hash1_x,
 		}))
 	})
 	t.Run("Same hash value", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: &hash1_x,
+			manifestHash: hash1_x,
 		}, &ResourceInfo{
-			manifestHash: &hash3_x,
+			manifestHash: hash3_x,
 		}))
 	})
 	t.Run("Different hash value", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: &hash1_x,
+			manifestHash: hash1_x,
 		}, &ResourceInfo{
-			manifestHash: &hash2_y,
+			manifestHash: hash2_y,
 		}))
 	})
 	t.Run("Same hash, empty health", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: &hash1_x,
+			manifestHash: hash1_x,
 			Health:       &health.HealthStatus{},
 		}, &ResourceInfo{
-			manifestHash: &hash3_x,
+			manifestHash: hash3_x,
 			Health:       &health.HealthStatus{},
 		}))
 	})
 	t.Run("Same hash, old health", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: &hash1_x,
+			manifestHash: hash1_x,
 			Health: &health.HealthStatus{
 				Status: health.HealthStatusHealthy},
 		}, &ResourceInfo{
-			manifestHash: &hash3_x,
+			manifestHash: hash3_x,
 			Health:       nil,
 		}))
 	})
 	t.Run("Same hash, new health", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: &hash1_x,
+			manifestHash: hash1_x,
 			Health:       &health.HealthStatus{},
 		}, &ResourceInfo{
-			manifestHash: &hash3_x,
+			manifestHash: hash3_x,
 			Health: &health.HealthStatus{
 				Status: health.HealthStatusHealthy,
 			},
@@ -282,13 +282,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, same health", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: &hash1_x,
+			manifestHash: hash1_x,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: &hash3_x,
+			manifestHash: hash3_x,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
@@ -297,13 +297,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, different health status", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: &hash1_x,
+			manifestHash: hash1_x,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: &hash3_x,
+			manifestHash: hash3_x,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusDegraded,
 				Message: "same",
@@ -312,13 +312,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, different health message", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: &hash1_x,
+			manifestHash: hash1_x,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: &hash3_x,
+			manifestHash: hash3_x,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "different",
