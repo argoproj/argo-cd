@@ -7,7 +7,7 @@ if obj.status ~= nil and obj.status.conditions ~= nil then
   status_unknown = 0
   health_status.message = ""
   for i, condition in pairs(obj.status.conditions) do
-    if condition.status == "True" and (condition.type == "IngressReady" or condition.type == "PredictorConfigurationReady" or condition.type == "PredictorReady" or condition.type == "PredictorRouteReady") then
+    if condition.status == "True" and (condition.type == "IngressReady" or condition.type == "PredictorConfigurationReady" or condition.type == "PredictorReady" or condition.type == "PredictorRouteReady" or condition.type == "Ready") then
       status_true = status_true + 1
     elseif condition.status == "False" or condition.status == "Unknown" then
       msg = condition.type .. " is " .. condition.status
