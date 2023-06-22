@@ -652,6 +652,12 @@ spec:
               key: applicationsetcontroller.policy
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.policy.override
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG
           valueFrom:
             configMapKeyRef:
@@ -1752,6 +1758,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CONTROLLER_SHARDING_ALGORITHM
+          valueFrom:
+            configMapKeyRef:
+              key: controller.sharding.algorithm
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT

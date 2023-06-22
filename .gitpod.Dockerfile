@@ -13,6 +13,8 @@ ENV GOCACHE=/go-build-cache
 RUN apt-get install redis-server -y
 RUN go install github.com/mattn/goreman@latest
 
+RUN chown -R gitpod:gitpod /go-build-cache
+
 USER gitpod
 
 ENV ARGOCD_REDIS_LOCAL=true

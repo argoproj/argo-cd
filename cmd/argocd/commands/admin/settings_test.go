@@ -151,13 +151,6 @@ clientSecret: aaaabbbbccccddddeee`,
 			},
 			containsSummary: "Dex is configured ('url' field is missing)",
 		},
-		"Plugins_ValidConfig": {
-			validator: "plugins",
-			data: map[string]string{
-				"configManagementPlugins": `[{"name": "test1"}, {"name": "test2"}]`,
-			},
-			containsSummary: "2 plugins",
-		},
 		"Kustomize_ModifiedOptions": {
 			validator:       "kustomize",
 			containsSummary: "default options",
