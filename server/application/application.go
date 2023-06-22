@@ -402,10 +402,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
 		}
 
-		plugins, err := s.plugins()
-		if err != nil {
-			return fmt.Errorf("error getting plugins: %w", err)
-		}
 		config, err := s.getApplicationClusterConfig(ctx, a)
 		if err != nil {
 			return fmt.Errorf("error getting application cluster config: %w", err)
@@ -434,7 +430,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			Namespace:          a.Spec.Destination.Namespace,
 			ApplicationSource:  &source,
 			Repos:              helmRepos,
-			Plugins:            plugins,
 			KustomizeOptions:   kustomizeOptions,
 			KubeVersion:        serverVersion,
 			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
@@ -503,10 +498,6 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
 		}
 
-		plugins, err := s.plugins()
-		if err != nil {
-			return fmt.Errorf("error getting plugins: %w", err)
-		}
 		config, err := s.getApplicationClusterConfig(ctx, a)
 		if err != nil {
 			return fmt.Errorf("error getting application cluster config: %w", err)
@@ -537,7 +528,6 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			Namespace:          a.Spec.Destination.Namespace,
 			ApplicationSource:  &source,
 			Repos:              helmRepos,
-			Plugins:            plugins,
 			KustomizeOptions:   kustomizeOptions,
 			KubeVersion:        serverVersion,
 			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
@@ -1111,10 +1101,6 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 			return err
 		}
 	}
-	plugins, err := s.plugins()
-	if err != nil {
-		return fmt.Errorf("error getting plugins: %w", err)
-	}
 
 	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
 		return status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", app.Name, err.Error())
@@ -1124,7 +1110,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 
 	if validate {
 		conditions := make([]appv1.ApplicationCondition, 0)
-		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, plugins, s.kubectl, proj, s.settingsMgr)
+		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
 		if err != nil {
 			return fmt.Errorf("error validating the repo: %w", err)
 		}
@@ -2233,19 +2219,6 @@ func splitStatusPatch(patch []byte) ([]byte, []byte, error) {
 		nonStatusPatch = patch
 	}
 	return nonStatusPatch, statusPatch, nil
-}
-
-func (s *Server) plugins() ([]*appv1.ConfigManagementPlugin, error) {
-	plugins, err := s.settingsMgr.GetConfigManagementPlugins()
-	if err != nil {
-		return nil, fmt.Errorf("error getting config management plugin: %w", err)
-	}
-	tools := make([]*appv1.ConfigManagementPlugin, len(plugins))
-	for i, p := range plugins {
-		p := p
-		tools[i] = &p
-	}
-	return tools, nil
 }
 
 func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.ApplicationSyncWindowsQuery) (*application.ApplicationSyncWindowsResponse, error) {

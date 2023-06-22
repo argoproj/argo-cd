@@ -128,6 +128,13 @@ jobs:
           password: ${{ secrets.docker_password }}
         if: ${{ inputs.docker_image_name && inputs.push }}
 
+      - name: Set up build args for container image
+        run: |
+            echo "GIT_TAG=$(if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)" >> $GITHUB_ENV
+            echo "GIT_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+            echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
+            echo "GIT_TREE_STATE=$(if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)" >> $GITHUB_ENV
+
       - name: Build and push container image
         id: image
         uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825 #v4.1.1
@@ -139,7 +146,12 @@ jobs:
           target: ${{ inputs.target }}
           provenance: false
           sbom: false
- 
+          build-args: |
+            GIT_TAG=${{env.GIT_TAG}}
+            GIT_COMMIT=${{env.GIT_COMMIT}}
+            BUILD_DATE=${{env.BUILD_DATE}}
+            GIT_TREE_STATE=${{env.GIT_TREE_STATE}}
+
       - name: Sign container images
         run: |
           for signing_tag in $SIGNING_TAGS; do

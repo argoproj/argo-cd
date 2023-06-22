@@ -121,25 +121,6 @@ func TestGetResourceFilter(t *testing.T) {
 	}, filter)
 }
 
-func TestGetConfigManagementPlugins(t *testing.T) {
-	data := map[string]string{
-		"configManagementPlugins": `
-      - name: kasane
-        init:
-          command: [kasane, update]
-        generate:
-          command: [kasane, show]`,
-	}
-	_, settingsManager := fixtures(data)
-	plugins, err := settingsManager.GetConfigManagementPlugins()
-	assert.NoError(t, err)
-	assert.ElementsMatch(t, []v1alpha1.ConfigManagementPlugin{{
-		Name:     "kasane",
-		Init:     &v1alpha1.Command{Command: []string{"kasane", "update"}},
-		Generate: v1alpha1.Command{Command: []string{"kasane", "show"}},
-	}}, plugins)
-}
-
 func TestInClusterServerAddressEnabled(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"cluster.inClusterEnabled": "true",

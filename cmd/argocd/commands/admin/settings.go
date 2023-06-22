@@ -233,13 +233,6 @@ var validatorsByGroup = map[string]settingValidator{
 		_, err := manager.GetGoogleAnalytics()
 		return "", err
 	}),
-	"plugins": func(manager *settings.SettingsManager) (string, error) {
-		plugins, err := manager.GetConfigManagementPlugins()
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("%d plugins", len(plugins)), nil
-	},
 	"kustomize": func(manager *settings.SettingsManager) (string, error) {
 		opts, err := manager.GetKustomizeSettings()
 		if err != nil {
