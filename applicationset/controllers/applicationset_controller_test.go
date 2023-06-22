@@ -2071,6 +2071,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 			"List": generators.NewListGenerator(),
 		},
 		ArgoDB:               &argoDBMock,
+		ArgoCDNamespace:      "argocd",
 		ArgoAppClientset:     appclientset.NewSimpleClientset(argoObjs...),
 		KubeClientset:        kubeclientset,
 		Policy:               v1alpha1.ApplicationsSyncPolicySync,
