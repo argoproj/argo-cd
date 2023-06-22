@@ -651,6 +651,7 @@ spec:
             configMapKeyRef:
               key: applicationsetcontroller.policy
               name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE
           valueFrom:
             configMapKeyRef:
