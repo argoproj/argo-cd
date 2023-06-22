@@ -108,6 +108,10 @@ data:
     - /metadata/resourceVersion
 
   # Configuration to define customizations ignoring differences during watched resource updates can be configured via splitted sub key.
+  resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
+    jsonPointers:
+    - /status
+
   # jsonPointers and jqPathExpressions can be specified.
   resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler: |
     jqPathExpressions:
