@@ -8,9 +8,9 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.0
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.23.1
-	github.com/antonmedv/expr v1.9.0
+	github.com/antonmedv/expr v1.12.5
 	github.com/argoproj/gitops-engine v0.7.1-0.20230526233214-ad9a694fe4bc
-	github.com/argoproj/notifications-engine v0.4.1-0.20230228182525-f754726f03da
+	github.com/argoproj/notifications-engine v0.4.1-0.20230620204159-3446d4ae8520
 	github.com/argoproj/pkg v0.13.7-0.20230627120311-a4dd357b057e
 	github.com/aws/aws-sdk-go v1.44.290
 	github.com/bombsimon/logrusr/v2 v2.0.1
@@ -125,7 +125,7 @@ require (
 	github.com/google/go-github/v45 v45.2.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
-	github.com/spf13/cast v1.4.1 // indirect
+	github.com/spf13/cast v1.5.0 // indirect
 )
 
 require (
