@@ -180,13 +180,9 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 	for _, patch := range matched {
 		patchedDocData, err := patch.Apply(docData)
 		if err != nil {
-			if strings.Contains(err.Error(), "Unable to remove nonexistent key") {
-				continue
+			if shouldLogError(err) {
+				log.Debugf("Failed to apply normalization: %v", err)
 			}
-			if strings.Contains(err.Error(), "remove operation does not apply: doc is missing path") {
-				continue
-			}
-			log.Debugf("Failed to apply normalization: %v", err)
 			continue
 		}
 		docData = patchedDocData
@@ -197,4 +193,14 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 		return err
 	}
 	return nil
+}
+
+func shouldLogError(e error) bool {
+	if strings.Contains(e.Error(), "Unable to remove nonexistent key") {
+		return false
+	}
+	if strings.Contains(e.Error(), "remove operation does not apply: doc is missing path") {
+		return false
+	}
+	return true
 }
