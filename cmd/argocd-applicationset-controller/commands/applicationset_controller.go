@@ -51,7 +51,7 @@ func NewCommand() *cobra.Command {
 		probeBindAddr                string
 		webhookAddr                  string
 		enableLeaderElection         bool
-		applicationSetNamespaces     *[]string
+		applicationSetNamespaces     []string
 		argocdRepoServer             string
 		policy                       string
 		enablePolicyOverride         bool
@@ -75,7 +75,7 @@ func NewCommand() *cobra.Command {
 
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
-			*applicationSetNamespaces = append(*applicationSetNamespaces, namespace)
+			applicationSetNamespaces = append(applicationSetNamespaces, namespace)
 
 			errors.CheckError(err)
 			vers.LogStartupInfo(
@@ -103,8 +103,8 @@ func NewCommand() *cobra.Command {
 			var watchedNamespace string = ""
 
 			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
-			if len(*applicationSetNamespaces) == 1 {
-				watchedNamespace = (*applicationSetNamespaces)[0]
+			if len(applicationSetNamespaces) == 1 {
+				watchedNamespace = (applicationSetNamespaces)[0]
 			}
 
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -203,12 +203,12 @@ func NewCommand() *cobra.Command {
 				Recorder:                 mgr.GetEventRecorderFor("applicationset-controller"),
 				Renderer:                 &utils.Render{},
 				Policy:                   policyObj,
-				EnablePolicyOverride:   enablePolicyOverride,
+				EnablePolicyOverride:     enablePolicyOverride,
 				ArgoAppClientset:         appSetConfig,
 				KubeClientset:            k8sClient,
 				ArgoDB:                   argoCDDB,
 				ArgoCDNamespace:          namespace,
-				ApplicationSetNamespaces: *applicationSetNamespaces,
+				ApplicationSetNamespaces: applicationSetNamespaces,
 				EnableProgressiveSyncs:   enableProgressiveSyncs,
 			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
@@ -231,7 +231,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableLeaderElection, "enable-leader-election", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_LEADER_ELECTION", false),
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	applicationSetNamespaces = command.Flags().StringArray("applicationset-namespaces", env.StringsFromEnv("ARGOCD_APPLICATIONSET_NAMESPACES", []string{}, ","), "Argo CD applicationset namespaces")
+	command.Flags().StringSliceVar(&applicationSetNamespaces, "applicationset-namespaces", env.StringsFromEnv("ARGOCD_APPLICATIONSET_NAMESPACES", []string{}, ","), "Argo CD applicationset namespaces")
 	command.Flags().StringVar(&argocdRepoServer, "argocd-repo-server", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER", common.DefaultRepoServerAddr), "Argo CD repo server address")
 	command.Flags().StringVar(&policy, "policy", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_POLICY", ""), "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion), 'create-delete' (no update)")
 	command.Flags().BoolVar(&enablePolicyOverride, "enable-policy-override", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE", policy == ""), "For security reason if 'policy' is set, it is not possible to override it at applicationSet level. 'allow-policy-override' allows user to define their own policy")
