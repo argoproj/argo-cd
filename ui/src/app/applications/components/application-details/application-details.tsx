@@ -24,7 +24,7 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters, FiltersProps} from './application-resource-filter';
-import {getAppDefaultSource, urlPattern} from '../utils';
+import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
 import {ChartDetails, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
@@ -664,7 +664,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 ) : (
                                                     <DataLoader
                                                         load={() =>
-                                                            services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, this.state.revision, 0, 0)
+                                                            services.applications.revisionMetadata(
+                                                                application.metadata.name,
+                                                                application.metadata.namespace,
+                                                                this.state.revision,
+                                                                0,
+                                                                getAppCurrentVersion(application)
+                                                            )
                                                         }>
                                                         {metadata => (
                                                             <div className='white-box' style={{marginTop: '1.5em'}}>
@@ -750,9 +756,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             },
             {
                 iconClassName: 'fa fa-history',
-                title: (
-                    <ActionMenuItem actionLabel='History and rollback' />
-                ),
+                title: <ActionMenuItem actionLabel='History and rollback' />,
                 action: () => {
                     this.setRollbackPanelVisible(0);
                 },

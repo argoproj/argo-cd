@@ -8,6 +8,7 @@ import {services} from '../../../shared/services';
 import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppDefaultSyncRevisionExtra, getAppOperationState} from '../utils';
 import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, getAppDefaultSyncRevision} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
+import * as utils from '../utils';
 
 import './application-status-panel.scss';
 
@@ -35,9 +36,7 @@ const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
     return (
         <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em'}}>
             {sectionLabel(info)}
-            {onClick && (
-                <button className='application-status-panel__more-button'/>
-            )}
+            {onClick && <button className='application-status-panel__more-button' />}
         </div>
     );
 };
@@ -60,9 +59,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
         showOperation = null;
     }
 
-    let revision = getAppDefaultSyncRevision(application)
-    revision += getAppDefaultSyncRevisionExtra(application)
-    
+    let revision = getAppDefaultSyncRevision(application);
     const infos = cntByCategory.get('info');
     const warnings = cntByCategory.get('warning');
     const errors = cntByCategory.get('error');
@@ -85,7 +82,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             title: 'SYNC STATUS',
                             helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
                         },
-                        () => showMetadataInfo(revision)
+                        () => showMetadataInfo((revision += getAppDefaultSyncRevisionExtra(application)))
                     )}
                     {appOperationState && (
                         <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
@@ -111,6 +108,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                 appNamespace={application.metadata.namespace}
                                 type={source.chart && 'helm'}
                                 revision={revision}
+                                versionId={utils.getAppCurrentVersion(application)}
                             />
                         </div>
                     )}
@@ -127,7 +125,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                     daysSinceLastSynchronized +
                                     ' days since last sync. Click for the status of that sync.'
                             },
-                            () => showMetadataInfo(revision)
+                            () => showMetadataInfo((revision += getAppDefaultSyncRevisionExtra(application)))
                         )}
                         <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                             <a onClick={() => showOperation && showOperation()}>
@@ -139,7 +137,6 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                 </div>
                             )}
                         </div>
-
                         <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                             {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
                         </div>
@@ -149,6 +146,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                 appNamespace={application.metadata.namespace}
                                 type={source.chart && 'helm'}
                                 revision={revision}
+                                versionId={utils.getAppCurrentVersion(application)}
                             />
                         )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
                     </React.Fragment>
