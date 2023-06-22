@@ -47,6 +47,4 @@ data:
 
 ## Default Configuration
 
-By default, the metadata fields `generation`, `resourceVersion` and `managedFields` are ignored for all resources.
-
-The `Application` status field `reconciledAt` is also ignored to prevent cascading refresh when the app-of-apps pattern is used.
+By default, the metadata fields `generation`, `resourceVersion` and `managedFields` are always ignored for all resources.

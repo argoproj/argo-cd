@@ -107,6 +107,20 @@ data:
     jsonPointers:
     - /metadata/resourceVersion
 
+  # Configuration to define customizations ignoring differences during watched resource updates can be configured via splitted sub key.
+  # jsonPointers and jqPathExpressions can be specified.
+  resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler: |
+    jqPathExpressions:
+    - '.metadata.annotations."autoscaling.alpha.kubernetes.io/behavior"'
+    - '.metadata.annotations."autoscaling.alpha.kubernetes.io/conditions"'
+    - '.metadata.annotations."autoscaling.alpha.kubernetes.io/metrics"'
+    - '.metadata.annotations."autoscaling.alpha.kubernetes.io/current-metrics"'
+    jsonPointers:
+    - /metadata/annotations/autoscaling.alpha.kubernetes.io~1behavior
+    - /metadata/annotations/autoscaling.alpha.kubernetes.io~1conditions
+    - /metadata/annotations/autoscaling.alpha.kubernetes.io~1metrics
+    - /metadata/annotations/autoscaling.alpha.kubernetes.io~1current-metrics
+
   resource.customizations.health.certmanager.k8s.io-Certificate: |
     hs = {}
     if obj.status ~= nil then

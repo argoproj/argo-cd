@@ -499,11 +499,7 @@ func TestGetIgnoreResourceUpdatesOverrides(t *testing.T) {
 	allDefault := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 		JSONPointers: []string{"/metadata/resourceVersion", "/metadata/generation", "/metadata/managedFields"},
 	}}
-	appDefault := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
-		JSONPointers: []string{"/status/reconciledAt"},
-	}}
 	allGK := "*/*"
-	appGK := "argoproj.io/Application"
 
 	testCustomizations := map[string]string{
 		"resource.customizations": `
@@ -528,9 +524,6 @@ func TestGetIgnoreResourceUpdatesOverrides(t *testing.T) {
 	allOverrides := overrides[allGK]
 	assert.NotNil(t, allOverrides)
 	assert.Equal(t, allDefault, allOverrides)
-	appOverrides := overrides[appGK]
-	assert.NotNil(t, allOverrides)
-	assert.Equal(t, appDefault, appOverrides)
 
 	// without ignoreDifferencesOnResourceUpdates, only ignoreResourceUpdates should be added
 	assert.NotNil(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])

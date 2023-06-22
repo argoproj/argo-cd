@@ -181,7 +181,8 @@ type cacheSettings struct {
 	clusterSettings     clustercache.Settings
 	appInstanceLabelKey string
 	trackingMethod      appv1.TrackingMethod
-	resourceOverrides   map[string]appv1.ResourceOverride
+	// resourceOverrides provides a list of ignored differences to ignore watched resource updates
+	resourceOverrides map[string]appv1.ResourceOverride
 }
 
 type liveStateCache struct {
@@ -327,6 +328,8 @@ func skipResourceUpdate(oldInfo, newInfo *ResourceInfo) bool {
 	return isSameHealthStatus && isSameManifest
 }
 
+// shouldHashManifest validates if the API resource needs to be hashed.
+// If there's an app name from resource tracking, or if this is itself an app, we should generate a hash.
 func shouldHashManifest(appName string, gvk schema.GroupVersionKind) bool {
 	// Only hash if the resource belongs to an app.
 	// Best      - Only hash for resources that are part of an app or their dependencies
@@ -502,7 +505,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 					"name":        ref.Name,
 					"api-version": ref.APIVersion,
 					"kind":        ref.Kind,
-				}).Debug("Ignoring change of object")
+				}).Debug("Ignoring change of object because none of the watched resource fields have changed")
 			}
 			return
 		}

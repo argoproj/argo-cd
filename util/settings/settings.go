@@ -800,12 +800,12 @@ func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
 func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error) {
 	compareOptions, err := mgr.GetResourceCompareOptions()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to get compare options: %w", err)
 	}
 
 	resourceOverrides, err := mgr.GetResourceOverrides()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to get resource overrides: %w", err)
 	}
 
 	for k, v := range resourceOverrides {
@@ -828,7 +828,6 @@ func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1al
 	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/resourceVersion")
 	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/generation")
 	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/managedFields")
-	addIgnoreDiffItemOverrideToGK(resourceOverrides, "argoproj.io/Application", "/status/reconciledAt")
 
 	return resourceOverrides, nil
 }
