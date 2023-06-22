@@ -7,7 +7,7 @@ tests:
 #    status: Degraded
 #    message: "PredictorConfigurationReady is False, since RevisionFailed. Revision \"helloworld-00002\" failed with message: Container failed with: container exited with no error.\nReady is False, since RevisionFailed. Revision \"helloworld-00002\" failed with message: Container failed with: container exited with no error.\n"
 #  inputPath: testdata/degraded.yaml
-#- healthStatus:
-#    status: Healthy
-#    message: Knative Service is healthy.
-#  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Healthy
+    message: Inference Service is healthy.
+  inputPath: testdata/healthy.yaml

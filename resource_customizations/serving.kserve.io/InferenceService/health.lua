@@ -25,7 +25,7 @@ if obj.status ~= nil and obj.status.conditions ~= nil then
       end
     end
   end
-  if status_true == 3 and status_false == 0 and status_unknown == 0 then
+  if status_true == 5 and status_false == 0 and status_unknown == 0 then
     health_status.message = "Inference Service is healthy."
     health_status.status = "Healthy"
     return health_status

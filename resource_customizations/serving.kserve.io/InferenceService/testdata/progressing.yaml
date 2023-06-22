@@ -22,8 +22,7 @@ status:
     status: Unknown
     type: PredictorRouteReady
   - lastTransitionTime: "2023-06-21T22:25:58Z"
-    message: 'Configuration "hello-world-predictor-default" is waiting for a Revision'
-      to become ready.
+    message: 'Configuration "hello-world-predictor-default" is waiting for a Revision to become ready.'
     reason: RevisionMissing
     status: Unknown
     type: Ready
