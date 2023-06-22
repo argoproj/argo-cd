@@ -1,4 +1,4 @@
 actionTests:
 - action: create-workflow
-  inputPath: testdata/cronworkflow.yaml
+  inputPath: testdata/workflowtemplate.yaml
   expectedOutputPath: testdata/workflow.yaml

@@ -5,6 +5,9 @@ local os = require("os")
 -- It returns an array with a single member - a table with the operation to perform (create) and the Workflow resource.
 -- It mimics the output of "argo submit --from=CronWorkflow/<CRON_WORKFLOW_NAME>" command, declaratively.
 
+-- This code is written to mimic what the Argo Workflows API server does to create a Workflow from a CronWorkflow.
+-- https://github.com/argoproj/argo-workflows/blob/873a58de7dd9dad76d5577b8c4294a58b52849b8/workflow/common/convert.go#L12
+
 -- Deep-copying an object is a ChatGPT generated code.
 -- Since empty tables are treated as empty arrays, the resulting k8s resource might be invalid (arrays instead of maps).
 -- So empty tables are not cloned to the target object.
@@ -36,6 +39,29 @@ workflow.kind = "Workflow"
 workflow.metadata = {}
 workflow.metadata.name = obj.metadata.name .. "-" ..os.date("!%Y%m%d%H%M")
 workflow.metadata.namespace = obj.metadata.namespace
+workflow.metadata.labels = {}
+workflow.metadata.annotations = {}
+if (obj.spec.workflowMetadata ~= nil) then
+    if (obj.spec.workflowMetadata.labels ~= nil) then
+        workflow.metadata.labels = deepCopy(obj.spec.workflowMetadata.labels)
+    end
+    if (obj.spec.workflowMetadata.annotations ~= nil) then
+        workflow.metadata.annotations = deepCopy(obj.spec.workflowMetadata.annotations)
+    end
+end
+workflow.metadata.labels["workflows.argoproj.io/cron-workflow"] = obj.metadata.name
+if (obj.metadata.labels["workflows.argoproj.io/controller-instanceid"] ~= nil) then
+    workflow.metadata.labels["workflows.argoproj.io/controller-instanceid"] = obj.metadata.labels["workflows.argoproj.io/controller-instanceid"]
+end
+workflow.metadata.annotations["workflows.argoproj.io/scheduled-time"] = os.date("!%Y-%m-%dT%d:%H:%MZ")
+
+workflow.finalizers = {}
+-- add all finalizers from obj.spec.workflowMetadata.finalizers
+if (obj.spec.workflowMetadata ~= nil and obj.spec.workflowMetadata.finalizers ~= nil) then
+    for i, finalizer in ipairs(obj.spec.workflowMetadata.finalizers) do
+        workflow.finalizers[i] = finalizer
+    end
+end
 
 ownerRef = {}
 ownerRef.apiVersion = obj.apiVersion

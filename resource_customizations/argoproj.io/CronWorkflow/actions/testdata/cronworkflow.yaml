@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  annotations:
+    cronworkflows.argoproj.io/last-used-schedule: CRON_TZ=America/Los_Angeles * * * * *
+  labels:
+    workflows.argoproj.io/controller-instanceid: test-instance
+    app.kubernetes.io/instance: test
+  name: hello-world
+  namespace: default
+spec:
+  concurrencyPolicy: Replace
+  failedJobsHistoryLimit: 4
+  schedule: '* * * * *'
+  startingDeadlineSeconds: 0
+  successfulJobsHistoryLimit: 4
+  suspend: true
+  timezone: America/Los_Angeles
+  workflowSpec:
+    entrypoint: whalesay
+    templates:
+      - container:
+          args:
+            - "\U0001F553 hello world. Scheduled on: {{workflow.scheduledTime}}"
+          command:
+            - cowsay
+          image: 'docker/whalesay:latest'
+        name: whalesay
+  workflowMetadata:
+    labels:
+      example: test
+    annotations:
+      another-example: another-test
+    finalizers: [test-finalizer]
