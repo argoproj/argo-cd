@@ -149,7 +149,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                         <div className='pod-logs-viewer__settings'>
                             <span>
                                 <FollowToggleButton follow={follow} setFollow={setFollow} />
-                                <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} disabled={!follow} />
+                                {follow && <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} />}
                                 <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogs} showPreviousLogs={previous} />
                                 <Spacer />
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
