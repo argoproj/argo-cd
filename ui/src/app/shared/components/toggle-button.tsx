@@ -26,7 +26,7 @@ export const ToggleButton = ({
         onClick={onToggle}
         icon={icon}
         disabled={disabled}
-        beat={beat && toggled}
+        beat={beat}
         style={{
             // these are the argo-button color swapped
             backgroundColor: toggled && ARGO_WARNING_COLOR,
