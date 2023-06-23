@@ -105,7 +105,7 @@ export const ApplicationDeploymentHistory = ({
                             ) : (
                                 info.sources.map((source, i) => (
                                     <React.Fragment key={`${index}_${i}`}>
-                                        { i > 0 ? <div className="separator"></div> : null }
+                                        { i > 0 ? <div className='separator'></div> : null }
                                         <div>
                                             <div className='row'>
                                                 <div className='columns small-3'>Revision:</div>
