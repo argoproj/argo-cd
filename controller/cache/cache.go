@@ -183,6 +183,9 @@ type cacheSettings struct {
 	trackingMethod      appv1.TrackingMethod
 	// resourceOverrides provides a list of ignored differences to ignore watched resource updates
 	resourceOverrides map[string]appv1.ResourceOverride
+
+	// ignoreResourceUpdates is a flag to enable resource-ignore rules.
+	ignoreResourceUpdatesEnabled bool
 }
 
 type liveStateCache struct {
@@ -209,6 +212,10 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	ignoreResourceUpdatesEnabled, err := c.settingsMgr.GetIsIgnoreResourceUpdatesEnabled()
+	if err != nil {
+		return nil, err
+	}
 	resourcesFilter, err := c.settingsMgr.GetResourcesFilter()
 	if err != nil {
 		return nil, err
@@ -222,7 +229,7 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 		ResourcesFilter:        resourcesFilter,
 	}
 
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr), resourceUpdatesOverrides}, nil
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr), resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
 }
 
 func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
@@ -462,9 +469,10 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}
+
 			gvk := un.GroupVersionKind()
 
-			if shouldHashManifest(appName, gvk) {
+			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk) {
 				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides)
 				if err != nil {
 					log.Errorf("Failed to generate manifest hash: %v", err)
@@ -492,7 +500,11 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			ref = oldRes.Ref
 		}
 
-		if oldRes != nil && newRes != nil && skipResourceUpdate(resInfo(oldRes), resInfo(newRes)) {
+		c.lock.RLock()
+		cacheSettings := c.cacheSettings
+		c.lock.RUnlock()
+
+		if cacheSettings.ignoreResourceUpdatesEnabled && oldRes != nil && newRes != nil && skipResourceUpdate(resInfo(oldRes), resInfo(newRes)) {
 			// Additional check for debug level so we don't need to evaluate the
 			// format string in case of non-debug scenarios
 			if log.GetLevel() >= log.DebugLevel {
