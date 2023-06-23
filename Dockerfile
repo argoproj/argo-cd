@@ -83,7 +83,7 @@ WORKDIR /home/argocd
 ####################################################################################################
 # Argo CD UI stage
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/node:20.2.0@sha256:14f0471d0478fbb9177d0f9e8c146dc872273dcdcfc7fea93a27ed81fc6b0e96 AS argocd-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:20.3.1@sha256:2f0b0c15f97441defa812268ee943bbfaaf666ea6cf7cac62ee3f127906b35c6 AS argocd-ui
 
 WORKDIR /src
 COPY ["ui/package.json", "ui/yarn.lock", "./"]
@@ -113,7 +113,18 @@ COPY . .
 COPY --from=argocd-ui /src/dist/app /go/src/github.com/argoproj/argo-cd/ui/dist/app
 ARG TARGETOS
 ARG TARGETARCH
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make argocd-all
+# These build args are optional; if not specified the defaults will be taken from the Makefile
+ARG GIT_TAG
+ARG BUILD_DATE
+ARG GIT_TREE_STATE
+ARG GIT_COMMIT
+RUN GIT_COMMIT=$GIT_COMMIT \
+    GIT_TREE_STATE=$GIT_TREE_STATE \
+    GIT_TAG=$GIT_TAG \
+    BUILD_DATE=$BUILD_DATE \
+    GOOS=$TARGETOS \
+    GOARCH=$TARGETARCH \
+    make argocd-all
 
 ####################################################################################################
 # Final image

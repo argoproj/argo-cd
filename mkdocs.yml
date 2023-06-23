@@ -77,6 +77,7 @@ nav:
       - operator-manual/notifications/services/opsgenie.md
       - operator-manual/notifications/services/overview.md
       - operator-manual/notifications/services/pagerduty.md
+      - operator-manual/notifications/services/pagerduty_v2.md
       - operator-manual/notifications/services/pushover.md
       - operator-manual/notifications/services/rocketchat.md
       - operator-manual/notifications/services/slack.md

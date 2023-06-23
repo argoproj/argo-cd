@@ -11,9 +11,9 @@ require (
 	github.com/alicebob/miniredis/v2 v2.30.3
 	github.com/antonmedv/expr v1.12.5
 	github.com/argoproj/gitops-engine v0.7.1-0.20230526233214-ad9a694fe4bc
-	github.com/argoproj/notifications-engine v0.4.1-0.20230228182525-f754726f03da
+	github.com/argoproj/notifications-engine v0.4.1-0.20230620204159-3446d4ae8520
 	github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d
-	github.com/aws/aws-sdk-go v1.44.283
+	github.com/aws/aws-sdk-go v1.44.288
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.5.0
@@ -52,7 +52,7 @@ require (
 	github.com/itchyny/gojq v0.12.13
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/ktrysmt/go-bitbucket v0.9.59
+	github.com/ktrysmt/go-bitbucket v0.9.60
 	github.com/mattn/go-isatty v0.0.19
 	github.com/mattn/go-zglob v0.0.4
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
@@ -70,7 +70,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/whilp/git-urls v1.0.0
-	github.com/xanzy/go-gitlab v0.85.0
+	github.com/xanzy/go-gitlab v0.86.0
 	github.com/yuin/gopher-lua v1.1.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
 	go.opentelemetry.io/otel v1.16.0
@@ -82,7 +82,7 @@ require (
 	golang.org/x/sync v0.3.0
 	golang.org/x/term v0.9.0
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
-	google.golang.org/grpc v1.56.0
+	google.golang.org/grpc v1.56.1
 	google.golang.org/protobuf v1.30.0
 	gopkg.in/go-playground/webhooks.v5 v5.17.0
 	gopkg.in/square/go-jose.v2 v2.6.0
@@ -110,7 +110,7 @@ require (
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
-	github.com/spf13/cast v1.4.1 // indirect
+	github.com/spf13/cast v1.5.0 // indirect
 )
 
 require (

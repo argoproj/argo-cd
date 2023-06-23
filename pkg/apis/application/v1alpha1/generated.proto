@@ -296,6 +296,9 @@ message ApplicationSetSpec {
   optional ApplicationPreservedFields preservedFields = 6;
 
   repeated string goTemplateOptions = 7;
+
+  // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+  optional bool applyNestedSelectors = 8;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -319,6 +322,11 @@ message ApplicationSetStrategy {
 message ApplicationSetSyncPolicy {
   // PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.
   optional bool preserveResourcesOnDeletion = 1;
+
+  // ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, create-delete, sync
+  // +kubebuilder:validation:Optional
+  // +kubebuilder:validation:Enum=create-only;create-update;create-delete;sync
+  optional string applicationsSync = 2;
 }
 
 // ApplicationSetTemplate represents argocd ApplicationSpec
@@ -360,6 +368,9 @@ message ApplicationSetTerminalGenerator {
   optional PullRequestGenerator pullRequest = 6;
 
   optional PluginGenerator plugin = 7;
+
+  // Selector allows to post-filter all generator.
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
 }
 
 // ApplicationSource contains all required information about the source of an application

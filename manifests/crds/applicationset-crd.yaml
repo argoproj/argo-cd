@@ -29,6 +29,8 @@ spec:
             type: object
           spec:
             properties:
+              applyNestedSelectors:
+                type: boolean
               generators:
                 items:
                   properties:
@@ -13293,6 +13295,13 @@ spec:
                 type: object
               syncPolicy:
                 properties:
+                  applicationsSync:
+                    enum:
+                    - create-only
+                    - create-update
+                    - create-delete
+                    - sync
+                    type: string
                   preserveResourcesOnDeletion:
                     type: boolean
                 type: object
