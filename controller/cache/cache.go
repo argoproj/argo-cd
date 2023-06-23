@@ -472,7 +472,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 			gvk := un.GroupVersionKind()
 
-			if c.cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk) {
+			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk) {
 				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides)
 				if err != nil {
 					log.Errorf("Failed to generate manifest hash: %v", err)
@@ -500,7 +500,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			ref = oldRes.Ref
 		}
 
-		if c.cacheSettings.ignoreResourceUpdatesEnabled && oldRes != nil && newRes != nil && skipResourceUpdate(resInfo(oldRes), resInfo(newRes)) {
+		if cacheSettings.ignoreResourceUpdatesEnabled && oldRes != nil && newRes != nil && skipResourceUpdate(resInfo(oldRes), resInfo(newRes)) {
 			// Additional check for debug level so we don't need to evaluate the
 			// format string in case of non-debug scenarios
 			if log.GetLevel() >= log.DebugLevel {
