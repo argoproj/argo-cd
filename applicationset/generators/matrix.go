@@ -15,7 +15,6 @@ import (
 var _ Generator = (*MatrixGenerator)(nil)
 
 var (
-	ErrMoreThanTwoGenerators      = fmt.Errorf("found more than two generators, Matrix support only two")
 	ErrLessThanTwoGenerators      = fmt.Errorf("found less than two generators, Matrix support only two")
 	ErrMoreThenOneInnerGenerators = fmt.Errorf("found more than one generator in matrix.Generators")
 )
@@ -38,44 +37,45 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 		return nil, EmptyAppSetGeneratorError
 	}
 
-	if len(appSetGenerator.Matrix.Generators) < 2 {
+	numGens := len(appSetGenerator.Matrix.Generators)
+	if numGens < 2 {
 		return nil, ErrLessThanTwoGenerators
 	}
 
-	if len(appSetGenerator.Matrix.Generators) > 2 {
-		return nil, ErrMoreThanTwoGenerators
-	}
-
-	res := []map[string]interface{}{}
-
-	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil)
+	res, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil)
 	if err != nil {
 		return nil, err
 	}
-	for _, a := range g0 {
-		g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get params for second generator in the matrix generator: %w", err)
-		}
-		for _, b := range g1 {
 
-			if appSet.Spec.GoTemplate {
-				tmp := map[string]interface{}{}
-				if err := mergo.Merge(&tmp, a); err != nil {
-					return nil, fmt.Errorf("failed to merge params from the first generator in the matrix generator with temp map: %w", err)
+	for i := 1; i < numGens; i++ {
+		list := []map[string]interface{}{}
+		gen := appSetGenerator.Matrix.Generators[i]
+		for _, prevParam := range res {
+			params, err := m.getParams(gen, appSet, prevParam)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get params for generators[%d] in the matrix generator: %w", i, err)
+			}
+			for _, currParam := range params {
+				if appSet.Spec.GoTemplate {
+					tmp := map[string]interface{}{}
+					if err := mergo.Merge(&tmp, prevParam); err != nil {
+						return nil, fmt.Errorf("failed to merge a previous params map with temp map in the matrix generator: %w", err)
+					}
+					if err := mergo.Merge(&tmp, currParam); err != nil {
+						return nil, fmt.Errorf("failed to merge a previous params map with params from generators[%d] in the matrix generator: %w", i, err)
+					}
+					list = append(list, tmp)
+				} else {
+					val, err := utils.CombineStringMaps(prevParam, currParam)
+					if err != nil {
+						return nil, fmt.Errorf("failed to combine string maps with merging params for the matrix generator: %w", err)
+					}
+					list = append(list, utils.ConvertToMapStringInterface(val))
 				}
-				if err := mergo.Merge(&tmp, b); err != nil {
-					return nil, fmt.Errorf("failed to merge params from the first generator in the matrix generator with the second: %w", err)
-				}
-				res = append(res, tmp)
-			} else {
-				val, err := utils.CombineStringMaps(a, b)
-				if err != nil {
-					return nil, fmt.Errorf("failed to combine string maps with merging params for the matrix generator: %w", err)
-				}
-				res = append(res, utils.ConvertToMapStringInterface(val))
 			}
 		}
+
+		res = list
 	}
 
 	return res, nil
