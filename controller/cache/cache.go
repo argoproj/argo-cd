@@ -500,6 +500,10 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			ref = oldRes.Ref
 		}
 
+		c.lock.RLock()
+		cacheSettings := c.cacheSettings
+		c.lock.RUnlock()
+
 		if cacheSettings.ignoreResourceUpdatesEnabled && oldRes != nil && newRes != nil && skipResourceUpdate(resInfo(oldRes), resInfo(newRes)) {
 			// Additional check for debug level so we don't need to evaluate the
 			// format string in case of non-debug scenarios
