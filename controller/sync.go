@@ -85,22 +85,24 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	if (syncOp.Source == nil && !app.Spec.HasMultipleSources()) ||
-		(syncOp.Sources == nil && app.Spec.HasMultipleSources()) {
+	rollback := syncOp.Source != nil && !app.Spec.HasMultipleSources() ||
+		syncOp.Sources != nil && app.Spec.HasMultipleSources()
+
+	if rollback {
+		// rollback case
+		if app.Spec.HasMultipleSources() {
+			sources = state.Operation.Sync.Sources
+		} else {
+			source = *state.Operation.Sync.Source
+			sources = make([]v1alpha1.ApplicationSource, 0)
+		}
+	} else {
 		// normal sync case (where source is taken from app.spec.sources)
 		if app.Spec.HasMultipleSources() {
 			sources = app.Spec.Sources
 		} else {
 			// normal sync case (where source is taken from app.spec.source)
 			source = app.Spec.GetSource()
-			sources = make([]v1alpha1.ApplicationSource, 0)
-		}
-	} else {
-		// rollback case
-		if app.Spec.HasMultipleSources() {
-			sources = state.Operation.Sync.Sources
-		} else {
-			source = *state.Operation.Sync.Source
 			sources = make([]v1alpha1.ApplicationSource, 0)
 		}
 	}
@@ -147,7 +149,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		revisions = []string{revision}
 	}
 
-	compareResult := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, app.Spec.HasMultipleSources())
+	compareResult := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, app.Spec.HasMultipleSources(), rollback)
 	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
 
