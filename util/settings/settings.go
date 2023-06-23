@@ -783,7 +783,7 @@ func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
 func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error) {
 	compareOptions, err := mgr.GetResourceCompareOptions()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get compare options: %w", err)
+		return nil, fmt.Errorf("failed to get compare options: %w", err)
 	}
 
 	resourceOverrides, err := mgr.GetResourceOverrides()
