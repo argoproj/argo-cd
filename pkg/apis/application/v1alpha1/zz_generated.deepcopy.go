@@ -849,6 +849,11 @@ func (in *ApplicationSetTerminalGenerator) DeepCopyInto(out *ApplicationSetTermi
 		*out = new(PluginGenerator)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Selector != nil {
+		in, out := &in.Selector, &out.Selector
+		*out = new(v1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
