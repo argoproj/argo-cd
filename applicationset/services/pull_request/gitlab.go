@@ -12,12 +12,13 @@ type GitLabService struct {
 	client           *gitlab.Client
 	project          string
 	labels           []string
+	notLabels        []string
 	pullRequestState string
 }
 
 var _ PullRequestService = (*GitLabService)(nil)
 
-func NewGitLabService(ctx context.Context, token, url, project string, labels []string, pullRequestState string) (PullRequestService, error) {
+func NewGitLabService(ctx context.Context, token, url, project string, labels []string, notLabels []string, pullRequestState string) (PullRequestService, error) {
 	var clientOptionFns []gitlab.ClientOptionFunc
 
 	// Set a custom Gitlab base URL if one is provided
@@ -38,6 +39,7 @@ func NewGitLabService(ctx context.Context, token, url, project string, labels []
 		client:           client,
 		project:          project,
 		labels:           labels,
+		notLabels:        notLabels,
 		pullRequestState: pullRequestState,
 	}, nil
 }
@@ -45,16 +47,20 @@ func NewGitLabService(ctx context.Context, token, url, project string, labels []
 func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 
 	// Filter the merge requests on labels, if they are specified.
-	var labels *gitlab.Labels
+	var labels, notLabels *gitlab.Labels
 	if len(g.labels) > 0 {
 		labels = (*gitlab.Labels)(&g.labels)
+	}
+	if len(g.notLabels) > 0 {
+		notLabels = (*gitlab.Labels)(&g.notLabels)
 	}
 
 	opts := &gitlab.ListProjectMergeRequestsOptions{
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
 		},
-		Labels: labels,
+		Labels:    labels,
+		NotLabels: notLabels,
 	}
 
 	if g.pullRequestState != "" {
