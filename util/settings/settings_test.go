@@ -185,6 +185,22 @@ func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
 	assert.Equal(t, false, serverRBACLogEnforceEnable)
 }
 
+func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"resource.ignoreResourceUpdatesEnabled": "true",
+	})
+	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
+	assert.NoError(t, err)
+	assert.True(t, ignoreResourceUpdatesEnabled)
+}
+
+func TestGetIsIgnoreResourceUpdatesEnabledDefaultFalse(t *testing.T) {
+	_, settingsManager := fixtures(nil)
+	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
+	assert.NoError(t, err)
+	assert.False(t, ignoreResourceUpdatesEnabled)
+}
+
 func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"server.rbac.log.enforce.enable": "true",

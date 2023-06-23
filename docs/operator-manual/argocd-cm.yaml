@@ -102,6 +102,10 @@ data:
     jsonPointers:
     - /spec/replicas
 
+  # Enable resource.customizations.ignoreResourceUpdates rules. If "false," those rules are not applied, and all updates
+  # to resources are applied to the cluster cache. Default is false.
+  resource.ignoreResourceUpdatesEnabled: "false"
+
   # Configuration to define customizations ignoring differences during watched resource updates to skip application reconciles.
   resource.customizations.ignoreResourceUpdates.all: |
     jsonPointers:

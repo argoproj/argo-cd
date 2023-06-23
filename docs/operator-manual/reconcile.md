@@ -11,8 +11,11 @@ When a resource update is ignored, if the resource's [health status](./health.md
 ## System-Level Configuration
 
 Argo CD allows ignoring resource updates at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902) and [JQ path expressions](https://stedolan.github.io/jq/manual/#path(path_expression)). It can be configured for a specified group and kind
-in `resource.customizations` key of `argocd-cm` ConfigMap. Following is an example of a customization which ignores the `refreshTime` status field
-of an [`ExternalSecret`](https://external-secrets.io/main/api/externalsecret/) resource:
+in `resource.customizations` key of the `argocd-cm` ConfigMap.
+
+The feature is behind a flag. To enable it, set `resource.resource.ignoreResourceUpdatesEnabled` to `"true"` in the `argocd-cm` ConfigMap.
+
+Following is an example of a customization which ignores the `refreshTime` status field of an [`ExternalSecret`](https://external-secrets.io/main/api/externalsecret/) resource:
 
 ```yaml
 data:
