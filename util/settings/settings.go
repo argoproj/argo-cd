@@ -788,7 +788,7 @@ func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1al
 
 	resourceOverrides, err := mgr.GetResourceOverrides()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get resource overrides: %w", err)
+		return nil, fmt.Errorf("failed to get resource overrides: %w", err)
 	}
 
 	for k, v := range resourceOverrides {
