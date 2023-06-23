@@ -812,7 +812,7 @@ func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1al
 
 	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/resourceVersion")
 	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/generation")
-	addIgnoreDiffJQItemOverrideToGK(resourceOverrides, "*/*", ".metadata.managedFields[].time")
+	addIgnoreDiffJQItemOverrideToGK(resourceOverrides, "*/*", ".metadata.managedFields[]?.time")
 
 	return resourceOverrides, nil
 }
