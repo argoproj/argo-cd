@@ -465,21 +465,19 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
+			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, cacheSettings.trackingMethod)
+			if isRoot && appName != "" {
+				res.AppName = appName
+			}
+
 			gvk := un.GroupVersionKind()
 
-			if c.cacheSettings.ignoreResourceUpdatesEnabled {
-				appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, cacheSettings.trackingMethod)
-				if isRoot && appName != "" {
-					res.AppName = appName
-				}
-
-				if shouldHashManifest(appName, gvk) {
-					hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides)
-					if err != nil {
-						log.Errorf("Failed to generate manifest hash: %v", err)
-					} else {
-						res.manifestHash = hash
-					}
+			if c.cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk) {
+				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides)
+				if err != nil {
+					log.Errorf("Failed to generate manifest hash: %v", err)
+				} else {
+					res.manifestHash = hash
 				}
 			}
 
