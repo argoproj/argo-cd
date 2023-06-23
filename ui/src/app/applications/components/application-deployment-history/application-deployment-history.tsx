@@ -71,6 +71,14 @@ export const ApplicationDeploymentHistory = ({
                         {selectedRollbackDeploymentIndex === index ? (
                             info.sources === undefined ? (
                                 <React.Fragment>
+                                    <div>
+                                        <div className='row'>
+                                            <div className='columns small-3'>Revision:</div>
+                                            <div className='columns small-9'>
+                                                <Revision repoUrl={info.source.repoURL} revision={info.revision} />
+                                            </div>
+                                        </div>
+                                    </div>
                                     <RevisionMetadataRows
                                         applicationName={app.metadata.name}
                                         applicationNamespace={app.metadata.namespace}
@@ -97,10 +105,13 @@ export const ApplicationDeploymentHistory = ({
                             ) : (
                                 info.sources.map((source, i) => (
                                     <React.Fragment key={`${index}_${i}`}>
+                                        { i > 0 ? <div className="separator"></div> : null }
                                         <div>
                                             <div className='row'>
                                                 <div className='columns small-3'>Revision:</div>
-                                                <Revision repoUrl={source.repoURL} revision={info.revisions[i]} />
+                                                <div className='columns small-9'>
+                                                    <Revision repoUrl={source.repoURL} revision={info.revisions[i]} />
+                                                </div>
                                             </div>
                                         </div>
                                         <RevisionMetadataRows
