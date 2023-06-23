@@ -142,12 +142,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	if app.Spec.HasMultipleSources() {
-		revisions = syncRes.Revisions
-	} else {
-		revisions = append(revisions, revision)
-	}
-
 	if !app.Spec.HasMultipleSources() {
 		sources = []v1alpha1.ApplicationSource{source}
 		revisions = []string{revision}
