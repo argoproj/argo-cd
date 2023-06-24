@@ -587,6 +587,7 @@ stringData:
 ```
 
 Cluster secret example using argocd-k8s-auth and [Projected Volume with a `serviceAccountToken`](https://kubernetes.io/docs/concepts/storage/projected-volumes/#serviceaccounttoken):
+Note: The projected serviceAccountToken must be available in the `argocd-application-controller` and `argocd-server` (showing Pod logs on UI) workload and the associated service account must have permissions to perform actions inside the cluster.
 
 ```yaml
 apiVersion: v1
