@@ -31,7 +31,7 @@ func newTokenFileCommand() *cobra.Command {
 func getTokenFile(path string) (string, error) {
 	tokenBuf, err := os.ReadFile(path)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Error reading token file %s: %s", path, err)
 	}
 
 	tokenStr := string(tokenBuf)
