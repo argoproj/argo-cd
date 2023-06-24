@@ -38,7 +38,7 @@ func getTokenFile(path string) (string, error) {
 
 	token, _, err := new(jwt.Parser).ParseUnverified(tokenStr, jwt.MapClaims{})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Error parsing token: %s", err)
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
