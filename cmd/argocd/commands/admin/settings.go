@@ -233,13 +233,6 @@ var validatorsByGroup = map[string]settingValidator{
 		_, err := manager.GetGoogleAnalytics()
 		return "", err
 	}),
-	"plugins": func(manager *settings.SettingsManager) (string, error) {
-		plugins, err := manager.GetConfigManagementPlugins()
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("%d plugins", len(plugins)), nil
-	},
 	"kustomize": func(manager *settings.SettingsManager) (string, error) {
 		opts, err := manager.GetKustomizeSettings()
 		if err != nil {
@@ -545,13 +538,26 @@ argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --a
 				modifiedRes, err := luaVM.ExecuteResourceAction(&res, action.ActionLua)
 				errors.CheckError(err)
 
-				if reflect.DeepEqual(&res, modifiedRes) {
-					_, _ = fmt.Printf("No fields had been changed by action: \n%s\n", action.Name)
-					return
+				for _, impactedResource := range modifiedRes {
+					result := impactedResource.UnstructuredObj
+					switch impactedResource.K8SOperation {
+					// No default case since a not supported operation would have failed upon unmarshaling earlier
+					case lua.PatchOperation:
+						if reflect.DeepEqual(&res, modifiedRes) {
+							_, _ = fmt.Printf("No fields had been changed by action: \n%s\n", action.Name)
+							return
+						}
+
+						_, _ = fmt.Printf("Following fields have been changed:\n\n")
+						_ = cli.PrintDiff(res.GetName(), &res, result)
+					case lua.CreateOperation:
+						yamlBytes, err := yaml.Marshal(impactedResource.UnstructuredObj)
+						errors.CheckError(err)
+						fmt.Println("Following resource was created:")
+						fmt.Println(bytes.NewBuffer(yamlBytes).String())
+					}
 				}
 
-				_, _ = fmt.Printf("Following fields have been changed:\n\n")
-				_ = cli.PrintDiff(res.GetName(), &res, modifiedRes)
 			})
 		},
 	}

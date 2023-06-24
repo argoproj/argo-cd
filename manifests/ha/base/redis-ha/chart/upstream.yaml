@@ -1071,7 +1071,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       initContainers:
       - name: config-init
-        image: haproxy:2.6.12-alpine
+        image: haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1089,7 +1089,7 @@ spec:
           mountPath: /data
       containers:
       - name: haproxy
-        image: haproxy:2.6.12-alpine
+        image: haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         securityContext: 
           null

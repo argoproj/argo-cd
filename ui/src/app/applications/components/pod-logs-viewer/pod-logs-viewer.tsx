@@ -210,7 +210,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                                 ? (lineNum === 0 || logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : ' '.repeat(log.timeStampStr.length)) + ' '
                                                 : '') +
                                             // show the log content, highlight the filter text
-                                            log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
+                                            log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset) +
+                                            '\n';
 
                                         // logs are in 14px wide fixed width font
                                         let width = 0;

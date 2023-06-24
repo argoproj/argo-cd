@@ -99,3 +99,9 @@ For example if the latest minor version of ArgoCD are 2.4.3 and 2.3.5  while sup
 * Argo CD 2.3.5 on Kubernetes 1.24
 * Argo CD 2.3.5 on Kubernetes 1.23
 * Argo CD 2.3.5 on Kubernetes 1.22
+
+## Tested versions
+
+The following table shows the versions of Kubernetes that are tested with each version of Argo CD.
+
+{!docs/operator-manual/tested-kubernetes-versions.md!}

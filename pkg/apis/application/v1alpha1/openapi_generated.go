@@ -1189,6 +1189,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetSpec(ref common.Referenc
 							},
 						},
 					},
+					"applyNestedSelectors": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"generators", "template"},
 			},
@@ -1277,6 +1284,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetSyncPolicy(ref common.Re
 						SchemaProps: spec.SchemaProps{
 							Description: "PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.",
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"applicationsSync": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, create-delete, sync",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
@@ -1425,11 +1439,17 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetTerminalGenerator(ref co
 							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator"),
 						},
 					},
+					"selector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Selector allows to post-filter all generator.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DuckTypeGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGenerator"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DuckTypeGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGenerator", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
