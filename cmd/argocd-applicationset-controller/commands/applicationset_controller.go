@@ -64,6 +64,7 @@ func NewCommand() *cobra.Command {
 		repoServerStrictTLS          bool
 		repoServerTimeoutSeconds     int
 		maxConcurrentReconciliations int
+		maxMatrixChildren            int
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -172,7 +173,7 @@ func NewCommand() *cobra.Command {
 				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 				"PullRequest":             terminalGenerators["PullRequest"],
 				"Plugin":                  terminalGenerators["Plugin"],
-				"Matrix":                  generators.NewMatrixGenerator(terminalGenerators),
+				"Matrix":                  generators.NewMatrixGenerator(terminalGenerators, maxMatrixChildren),
 				"Merge":                   generators.NewMergeGenerator(terminalGenerators),
 			}
 
@@ -184,7 +185,7 @@ func NewCommand() *cobra.Command {
 				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 				"PullRequest":             terminalGenerators["PullRequest"],
 				"Plugin":                  terminalGenerators["Plugin"],
-				"Matrix":                  generators.NewMatrixGenerator(nestedGenerators),
+				"Matrix":                  generators.NewMatrixGenerator(nestedGenerators, maxMatrixChildren),
 				"Merge":                   generators.NewMergeGenerator(nestedGenerators),
 			}
 
@@ -246,6 +247,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&maxConcurrentReconciliations, "concurrent-reconciliations", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS", 10, 1, 100), "Max concurrent reconciliations limit for the controller")
+	command.Flags().IntVar(&maxMatrixChildren, "max-matrix-children", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_MAX_MATRIX_CHILDREN", 2, 0, math.MaxInt), "Max number of child generators allowed in a matrix generator")
 	return &command
 }
 

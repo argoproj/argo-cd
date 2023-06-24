@@ -17,16 +17,19 @@ var _ Generator = (*MatrixGenerator)(nil)
 var (
 	ErrLessThanTwoGenerators      = fmt.Errorf("found less than two generators, Matrix support only two")
 	ErrMoreThenOneInnerGenerators = fmt.Errorf("found more than one generator in matrix.Generators")
+	ErrMoreThanMaxGenerators      = fmt.Errorf("found more than the max allowed of child generators")
 )
 
 type MatrixGenerator struct {
 	// The inner generators supported by the matrix generator (cluster, git, list...)
 	supportedGenerators map[string]Generator
+	maxChildren         int
 }
 
-func NewMatrixGenerator(supportedGenerators map[string]Generator) Generator {
+func NewMatrixGenerator(supportedGenerators map[string]Generator, maxChildren int) Generator {
 	m := &MatrixGenerator{
 		supportedGenerators: supportedGenerators,
+		maxChildren:         maxChildren,
 	}
 	return m
 }
@@ -40,6 +43,10 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	numGens := len(appSetGenerator.Matrix.Generators)
 	if numGens < 2 {
 		return nil, ErrLessThanTwoGenerators
+	}
+
+	if m.maxChildren > 1 && numGens > m.maxChildren {
+		return nil, ErrMoreThanMaxGenerators
 	}
 
 	res, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil)

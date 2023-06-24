@@ -204,7 +204,7 @@ func TestMatrixGenerate(t *testing.T) {
 				map[string]Generator{
 					"Git":  genMock,
 					"List": &ListGenerator{},
-				},
+				}, 0,
 			)
 
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -432,7 +432,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 				map[string]Generator{
 					"Git":  genMock,
 					"List": &ListGenerator{},
-				},
+				}, 0,
 			)
 
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -547,7 +547,7 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 					"Git":         mock,
 					"List":        &ListGenerator{},
 					"PullRequest": &PullRequestGenerator{},
-				},
+				}, 0,
 			)
 
 			got := matrixGenerator.GetRequeueAfter(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -692,7 +692,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 				map[string]Generator{
 					"Git":      genMock,
 					"Clusters": clusterGenerator,
-				},
+				}, 0,
 			)
 
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -880,7 +880,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 				map[string]Generator{
 					"Git":      genMock,
 					"Clusters": clusterGenerator,
-				},
+				}, 0,
 			)
 
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -1046,7 +1046,105 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 				map[string]Generator{
 					"Git":  genMock,
 					"List": &ListGenerator{},
+				}, 0,
+			)
+
+			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+				Matrix: &argoprojiov1alpha1.MatrixGenerator{
+					Generators: testCaseCopy.baseGenerators,
+					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
+			}, appSet)
+
+			if testCaseCopy.expectedErr != nil {
+				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, testCaseCopy.expected, got)
+			}
+
+		})
+
+	}
+}
+
+func TestMatrixMaxGenerators(t *testing.T) {
+	testCases := []struct {
+		name           string
+		baseGenerators []argoprojiov1alpha1.ApplicationSetNestedGenerator
+		maxChildren    int
+		expectedErr    error
+		expected       []map[string]interface{}
+	}{
+		{
+			name: "happy flow - num generators is equal to max",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+			},
+			maxChildren: 2,
+			expected:    []map[string]interface{}{},
+		},
+		{
+			name: "happy flow - unlimited num generators",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+			},
+			maxChildren: 0,
+			expected:    []map[string]interface{}{},
+		},
+		{
+			name: "returns error if num generators is greater than max",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+			},
+			maxChildren: 2,
+			expectedErr: ErrMoreThanMaxGenerators,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase // Since tests may run in parallel
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			appSet := &argoprojiov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{},
+			}
+
+			var matrixGenerator = NewMatrixGenerator(
+				map[string]Generator{
+					"List": &ListGenerator{},
+				},
+				testCaseCopy.maxChildren,
 			)
 
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -1126,7 +1224,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	matrixGenerator := NewMatrixGenerator(map[string]Generator{
 		"List": listGeneratorMock,
 		"Git":  gitGenerator,
-	})
+	}, 0)
 
 	matrixGeneratorSpec := &argoprojiov1alpha1.MatrixGenerator{
 		Generators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
