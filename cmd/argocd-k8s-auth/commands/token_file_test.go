@@ -58,7 +58,7 @@ func TestGetTokenFile(t *testing.T) {
 
 		// then
 		assert.Error(t, err)
-		assert.EqualError(t, err, "token contains an invalid number of segments")
+		assert.EqualError(t, err, "Error parsing token: token contains an invalid number of segments")
 	})
 	t.Run("will return error on missing expiration", func(t *testing.T) {
 		// given
