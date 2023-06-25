@@ -296,6 +296,9 @@ message ApplicationSetSpec {
   optional ApplicationPreservedFields preservedFields = 6;
 
   repeated string goTemplateOptions = 7;
+
+  // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+  optional bool applyNestedSelectors = 8;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -319,6 +322,11 @@ message ApplicationSetStrategy {
 message ApplicationSetSyncPolicy {
   // PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.
   optional bool preserveResourcesOnDeletion = 1;
+
+  // ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, create-delete, sync
+  // +kubebuilder:validation:Optional
+  // +kubebuilder:validation:Enum=create-only;create-update;create-delete;sync
+  optional string applicationsSync = 2;
 }
 
 // ApplicationSetTemplate represents argocd ApplicationSpec
@@ -360,6 +368,9 @@ message ApplicationSetTerminalGenerator {
   optional PullRequestGenerator pullRequest = 6;
 
   optional PluginGenerator plugin = 7;
+
+  // Selector allows to post-filter all generator.
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
 }
 
 // ApplicationSource contains all required information about the source of an application
@@ -424,10 +435,6 @@ message ApplicationSourceHelm {
   // +patchStrategy=replace
   optional string values = 4;
 
-  // ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
-  // +kubebuilder:pruning:PreserveUnknownFields
-  optional k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10;
-
   // FileParameters are file parameters to the helm template
   repeated HelmFileParameter fileParameters = 5;
 
@@ -442,6 +449,10 @@ message ApplicationSourceHelm {
 
   // SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
   optional bool skipCrds = 9;
+
+  // ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
+  // +kubebuilder:pruning:PreserveUnknownFields
+  optional k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -1655,6 +1666,8 @@ message ResourceOverride {
   optional string actions = 3;
 
   optional OverrideIgnoreDiff ignoreDifferences = 2;
+
+  optional OverrideIgnoreDiff ignoreResourceUpdates = 6;
 
   repeated KnownTypeField knownTypeFields = 4;
 }

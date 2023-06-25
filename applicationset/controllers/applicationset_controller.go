@@ -73,13 +73,14 @@ var (
 // ApplicationSetReconciler reconciles a ApplicationSet object
 type ApplicationSetReconciler struct {
 	client.Client
-	Scheme           *runtime.Scheme
-	Recorder         record.EventRecorder
-	Generators       map[string]generators.Generator
-	ArgoDB           db.ArgoDB
-	ArgoAppClientset appclientset.Interface
-	KubeClientset    kubernetes.Interface
-	utils.Policy
+	Scheme               *runtime.Scheme
+	Recorder             record.EventRecorder
+	Generators           map[string]generators.Generator
+	ArgoDB               db.ArgoDB
+	ArgoAppClientset     appclientset.Interface
+	KubeClientset        kubernetes.Interface
+	Policy               argov1alpha1.ApplicationsSyncPolicy
+	EnablePolicyOverride bool
 	utils.Renderer
 
 	EnableProgressiveSyncs bool
@@ -226,7 +227,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if r.Policy.Update() {
+	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowUpdate() {
 		err = r.createOrUpdateInCluster(ctx, applicationSetInfo, validApps)
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,
@@ -256,7 +257,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if r.Policy.Delete() {
+	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete() {
 		err = r.deleteInCluster(ctx, applicationSetInfo, desiredApplications)
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,
@@ -1046,7 +1047,12 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 		}
 
 		if currentAppStatus.Status == "Pending" {
-			if operationPhaseString == "Succeeded" && app.Status.OperationState.StartedAt.After(currentAppStatus.LastTransitionTime.Time) {
+			// check for successful syncs started less than 10s before the Application transitioned to Pending
+			// this covers race conditions where syncs initiated by RollingSync miraculously have a sync time before the transition to Pending state occurred (could be a few seconds)
+			if operationPhaseString == "Succeeded" && app.Status.OperationState.StartedAt.Add(time.Duration(10)*time.Second).After(currentAppStatus.LastTransitionTime.Time) {
+				if !app.Status.OperationState.StartedAt.After(currentAppStatus.LastTransitionTime.Time) {
+					log.Warnf("Application %v was synced less than 10s prior to entering Pending status, we'll assume the AppSet controller triggered this sync and update its status to Progressing", app.Name)
+				}
 				log.Infof("Application %v has completed a sync successfully, updating its ApplicationSet status to Progressing", app.Name)
 				currentAppStatus.LastTransitionTime = &now
 				currentAppStatus.Status = "Progressing"

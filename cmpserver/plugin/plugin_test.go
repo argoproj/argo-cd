@@ -100,7 +100,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -115,7 +115,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -130,7 +130,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		_, _, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		_, _, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.ErrorContains(t, err, "syntax error")
@@ -145,7 +145,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -162,7 +162,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -179,7 +179,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		_, _, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		_, _, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.ErrorContains(t, err, "error finding glob match for pattern")
@@ -196,7 +196,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -215,7 +215,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 		// then
 		assert.NoError(t, err)
 		assert.False(t, match)
@@ -233,7 +233,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -253,7 +253,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -272,7 +272,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.Error(t, err)
@@ -285,7 +285,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)

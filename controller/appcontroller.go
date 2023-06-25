@@ -359,17 +359,18 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 			level = CompareWithRecent
 		}
 
-		// Additional check for debug level so we don't need to evaluate the
-		// format string in case of non-debug scenarios
-		if log.GetLevel() >= log.DebugLevel {
-			var resKey string
-			if ref.Namespace != "" {
-				resKey = ref.Namespace + "/" + ref.Name
-			} else {
-				resKey = "(cluster-scoped)/" + ref.Name
-			}
-			log.Debugf("Refreshing app %s for change in cluster of object %s of type %s/%s", appKey, resKey, ref.APIVersion, ref.Kind)
+		namespace := ref.Namespace
+		if ref.Namespace == "" {
+			namespace = "(cluster-scoped)"
 		}
+		log.WithFields(log.Fields{
+			"application": appKey,
+			"level":       level,
+			"namespace":   namespace,
+			"name":        ref.Name,
+			"api-version": ref.APIVersion,
+			"kind":        ref.Kind,
+		}).Debug("Requesting app refresh caused by object update")
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
 	}

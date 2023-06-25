@@ -243,6 +243,327 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 
 }
 
+func TestSyncPolicyCreateUpdate(t *testing.T) {
+
+	expectedApp := argov1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "my-cluster-guestbook-sync-policy-create-update",
+			Namespace:  utils.ArgoCDNamespace,
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "sync-policy-create-update",
+			},
+		},
+		Spec: argov1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &argov1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				TargetRevision: "HEAD",
+				Path:           "guestbook",
+			},
+			Destination: argov1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook",
+			},
+		},
+	}
+	var expectedAppNewNamespace *argov1alpha1.Application
+	var expectedAppNewMetadata *argov1alpha1.Application
+
+	Given(t).
+		// Create a ListGenerator-based ApplicationSet
+		When().Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+		Name: "sync-policy-create-update",
+	},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook-sync-policy-create-update"},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &argov1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "{{.url}}",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+						}},
+					},
+				},
+			},
+		},
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
+
+		// Update the ApplicationSet template namespace, and verify it updates the Applications
+		When().
+		And(func() {
+			expectedAppNewNamespace = expectedApp.DeepCopy()
+			expectedAppNewNamespace.Spec.Destination.Namespace = "guestbook2"
+		}).
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
+
+		// Update the metadata fields in the appset template
+		// Update as well the policy
+		// As policy is create-update, updates must reflected
+		When().
+		And(func() {
+			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
+			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+				LabelKeyAppSetInstance: "sync-policy-create-update",
+				"label-key":            "label-value",
+			}
+		}).
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
+			appset.Spec.Template.Labels = map[string]string{
+				LabelKeyAppSetInstance: "sync-policy-create-update",
+				"label-key":            "label-value",
+			}
+			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyCreateUpdate
+			appset.Spec.SyncPolicy = &argov1alpha1.ApplicationSetSyncPolicy{
+				ApplicationsSync: &applicationsSyncPolicy,
+			}
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
+
+		// Update the list and remove element
+		// As policy is create-update, app deletion must not be reflected
+		When().
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Generators = []v1alpha1.ApplicationSetGenerator{}
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
+
+		// verify the ApplicationSet status conditions were set correctly
+		Expect(ApplicationSetHasConditions("sync-policy-create-update", ExpectedConditions)).
+
+		// Delete the ApplicationSet, and verify it deletes the Applications
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
+
+}
+
+func TestSyncPolicyCreateDelete(t *testing.T) {
+
+	expectedApp := argov1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "my-cluster-guestbook-sync-policy-create-delete",
+			Namespace:  utils.ArgoCDNamespace,
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "sync-policy-create-delete",
+			},
+		},
+		Spec: argov1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &argov1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				TargetRevision: "HEAD",
+				Path:           "guestbook",
+			},
+			Destination: argov1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook",
+			},
+		},
+	}
+	var expectedAppNewNamespace *argov1alpha1.Application
+
+	Given(t).
+		// Create a ListGenerator-based ApplicationSet
+		When().Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+		Name: "sync-policy-create-delete",
+	},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook-sync-policy-create-delete"},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &argov1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "{{.url}}",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+						}},
+					},
+				},
+			},
+		},
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
+
+		// Update the ApplicationSet template namespace, and verify it updates the Applications
+		When().
+		And(func() {
+			expectedAppNewNamespace = expectedApp.DeepCopy()
+			expectedAppNewNamespace.Spec.Destination.Namespace = "guestbook2"
+		}).
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
+
+		// Update the metadata fields in the appset template
+		// Update as well the policy
+		// As policy is create-delete, updates must not be reflected
+		When().
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
+			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
+			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyCreateDelete
+			appset.Spec.SyncPolicy = &argov1alpha1.ApplicationSetSyncPolicy{
+				ApplicationsSync: &applicationsSyncPolicy,
+			}
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
+
+		// Update the list and remove element
+		// As policy is create-delete, app deletion must be reflected
+		When().
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Generators = []v1alpha1.ApplicationSetGenerator{}
+		}).Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
+
+		// verify the ApplicationSet status conditions were set correctly
+		Expect(ApplicationSetHasConditions("sync-policy-create-delete", ExpectedConditions)).
+
+		// Delete the ApplicationSet
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
+
+}
+
+func TestSyncPolicyCreateOnly(t *testing.T) {
+
+	expectedApp := argov1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "my-cluster-guestbook-sync-policy-create-only",
+			Namespace:  utils.ArgoCDNamespace,
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "sync-policy-create-only",
+			},
+		},
+		Spec: argov1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &argov1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				TargetRevision: "HEAD",
+				Path:           "guestbook",
+			},
+			Destination: argov1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook",
+			},
+		},
+	}
+	var expectedAppNewNamespace *argov1alpha1.Application
+
+	Given(t).
+		// Create a ListGenerator-based ApplicationSet
+		When().Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+		Name: "sync-policy-create-only",
+	},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook-sync-policy-create-only"},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &argov1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "{{.url}}",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+						}},
+					},
+				},
+			},
+		},
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
+
+		// Update the ApplicationSet template namespace, and verify it updates the Applications
+		When().
+		And(func() {
+			expectedAppNewNamespace = expectedApp.DeepCopy()
+			expectedAppNewNamespace.Spec.Destination.Namespace = "guestbook2"
+		}).
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
+
+		// Update the metadata fields in the appset template
+		// Update as well the policy
+		// As policy is create-only, updates must not be reflected
+		When().
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
+			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
+			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyCreateOnly
+			appset.Spec.SyncPolicy = &argov1alpha1.ApplicationSetSyncPolicy{
+				ApplicationsSync: &applicationsSyncPolicy,
+			}
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
+
+		// Update the list and remove element
+		// As policy is create-only, app deletion must not be reflected
+		When().
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Generators = []v1alpha1.ApplicationSetGenerator{}
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
+
+		// verify the ApplicationSet status conditions were set correctly
+		Expect(ApplicationSetHasConditions("sync-policy-create-only", ExpectedConditions)).
+
+		// Delete the ApplicationSet, and verify it deletes the Applications
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
+
+}
+
 func TestSimpleGitDirectoryGenerator(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{

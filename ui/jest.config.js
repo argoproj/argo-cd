@@ -1,6 +1,6 @@
 module.exports = {
   preset: 'ts-jest',
-  testEnvironment: 'jsdom',
+  testEnvironment: 'node',
   reporters: ['default', 'jest-junit'],
   collectCoverage: true,
   transformIgnorePatterns: ['node_modules/(?!(argo-ui)/)'],

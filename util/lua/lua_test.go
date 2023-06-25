@@ -1,6 +1,7 @@
 package lua
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
@@ -24,6 +25,7 @@ metadata:
   namespace: default
   resourceVersion: "123"
 `
+
 const objWithNoScriptJSON = `
 apiVersion: not-an-endpoint.io/v1alpha1
 kind: Test
@@ -370,7 +372,7 @@ obj.metadata.labels["test"] = "test"
 return obj
 `
 
-const expectedUpdatedObj = `
+const expectedLuaUpdatedResult = `
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -382,13 +384,220 @@ metadata:
   resourceVersion: "123"
 `
 
-func TestExecuteResourceAction(t *testing.T) {
+// Test an action that returns a single k8s resource json
+func TestExecuteOldStyleResourceAction(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
-	expectedObj := StrToUnstructured(expectedUpdatedObj)
+	expectedLuaUpdatedObj := StrToUnstructured(expectedLuaUpdatedResult)
 	vm := VM{}
-	newObj, err := vm.ExecuteResourceAction(testObj, validActionLua)
+	newObjects, err := vm.ExecuteResourceAction(testObj, validActionLua)
 	assert.Nil(t, err)
-	assert.Equal(t, expectedObj, newObj)
+	assert.Equal(t, len(newObjects), 1)
+	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
+	assert.Equal(t, expectedLuaUpdatedObj, newObjects[0].UnstructuredObj)
+}
+
+const cronJobObjYaml = `
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+  namespace: test-ns
+`
+
+const expectedCreatedJobObjList = `
+- operation: create
+  resource:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-1
+      namespace: test-ns
+`
+
+const expectedCreatedMultipleJobsObjList = `
+- operation: create
+  resource:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-1
+      namespace: test-ns
+- operation: create
+  resource:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-2
+      namespace: test-ns	  
+`
+
+const expectedActionMixedOperationObjList = `
+- operation: create
+  resource:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-1
+      namespace: test-ns
+- operation: patch
+  resource:
+    apiVersion: batch/v1
+    kind: CronJob
+    metadata:
+      name: hello
+      namespace: test-ns	  
+      labels:
+        test: test  
+`
+
+const createJobActionLua = `
+job = {}
+job.apiVersion = "batch/v1"
+job.kind = "Job"
+
+job.metadata = {}
+job.metadata.name = "hello-1"
+job.metadata.namespace = "test-ns"
+
+impactedResource = {}
+impactedResource.operation = "create"
+impactedResource.resource = job
+result = {}
+result[1] = impactedResource
+
+return result
+`
+
+const createMultipleJobsActionLua = `
+job1 = {}
+job1.apiVersion = "batch/v1"
+job1.kind = "Job"
+
+job1.metadata = {}
+job1.metadata.name = "hello-1"
+job1.metadata.namespace = "test-ns"
+
+impactedResource1 = {}
+impactedResource1.operation = "create"
+impactedResource1.resource = job1
+result = {}
+result[1] = impactedResource1
+
+job2 = {}
+job2.apiVersion = "batch/v1"
+job2.kind = "Job"
+
+job2.metadata = {}
+job2.metadata.name = "hello-2"
+job2.metadata.namespace = "test-ns"
+
+impactedResource2 = {}
+impactedResource2.operation = "create"
+impactedResource2.resource = job2
+
+result[2] = impactedResource2
+
+return result
+`
+const mixedOperationActionLuaOk = `
+job1 = {}
+job1.apiVersion = "batch/v1"
+job1.kind = "Job"
+
+job1.metadata = {}
+job1.metadata.name = "hello-1"
+job1.metadata.namespace = obj.metadata.namespace
+
+impactedResource1 = {}
+impactedResource1.operation = "create"
+impactedResource1.resource = job1
+result = {}
+result[1] = impactedResource1
+
+obj.metadata.labels = {}
+obj.metadata.labels["test"] = "test"
+
+impactedResource2 = {}
+impactedResource2.operation = "patch"
+impactedResource2.resource = obj
+
+result[2] = impactedResource2
+
+return result
+`
+
+const createMixedOperationActionLuaFailing = `
+job1 = {}
+job1.apiVersion = "batch/v1"
+job1.kind = "Job"
+
+job1.metadata = {}
+job1.metadata.name = "hello-1"
+job1.metadata.namespace = obj.metadata.namespace
+
+impactedResource1 = {}
+impactedResource1.operation = "create"
+impactedResource1.resource = job1
+result = {}
+result[1] = impactedResource1
+
+obj.metadata.labels = {}
+obj.metadata.labels["test"] = "test"
+
+impactedResource2 = {}
+impactedResource2.operation = "thisShouldFail"
+impactedResource2.resource = obj
+
+result[2] = impactedResource2
+
+return result
+`
+
+func TestExecuteNewStyleCreateActionSingleResource(t *testing.T) {
+	testObj := StrToUnstructured(cronJobObjYaml)
+	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedCreatedJobObjList))
+	assert.Nil(t, err)
+	t.Log(bytes.NewBuffer(jsonBytes).String())
+	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
+	assert.Nil(t, err)
+	vm := VM{}
+	newObjects, err := vm.ExecuteResourceAction(testObj, createJobActionLua)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedObjects, newObjects)
+}
+
+func TestExecuteNewStyleCreateActionMultipleResources(t *testing.T) {
+	testObj := StrToUnstructured(cronJobObjYaml)
+	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedCreatedMultipleJobsObjList))
+	assert.Nil(t, err)
+	// t.Log(bytes.NewBuffer(jsonBytes).String())
+	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
+	assert.Nil(t, err)
+	vm := VM{}
+	newObjects, err := vm.ExecuteResourceAction(testObj, createMultipleJobsActionLua)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedObjects, newObjects)
+}
+
+func TestExecuteNewStyleActionMixedOperationsOk(t *testing.T) {
+	testObj := StrToUnstructured(cronJobObjYaml)
+	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedActionMixedOperationObjList))
+	assert.Nil(t, err)
+	// t.Log(bytes.NewBuffer(jsonBytes).String())
+	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
+	assert.Nil(t, err)
+	vm := VM{}
+	newObjects, err := vm.ExecuteResourceAction(testObj, mixedOperationActionLuaOk)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedObjects, newObjects)
+}
+
+func TestExecuteNewStyleActionMixedOperationsFailure(t *testing.T) {
+	testObj := StrToUnstructured(cronJobObjYaml)
+	vm := VM{}
+	_, err := vm.ExecuteResourceAction(testObj, createMixedOperationActionLuaFailing)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "unsupported operation")
 }
 
 func TestExecuteResourceActionNonTableReturn(t *testing.T) {
@@ -461,10 +670,11 @@ func TestCleanPatch(t *testing.T) {
 	testObj := StrToUnstructured(objWithEmptyStruct)
 	expectedObj := StrToUnstructured(expectedUpdatedObjWithEmptyStruct)
 	vm := VM{}
-	newObj, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua)
+	newObjects, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua)
 	assert.Nil(t, err)
-	assert.Equal(t, expectedObj, newObj)
-
+	assert.Equal(t, len(newObjects), 1)
+	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
+	assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
 }
 
 func TestGetResourceHealth(t *testing.T) {
