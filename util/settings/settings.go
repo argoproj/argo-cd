@@ -812,7 +812,7 @@ func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1al
 
 	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/resourceVersion")
 	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/generation")
-	addIgnoreDiffJQItemOverrideToGK(resourceOverrides, "*/*", ".metadata.managedFields[]?.time")
+	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/managedFields")
 
 	return resourceOverrides, nil
 }
@@ -897,17 +897,6 @@ func addIgnoreDiffItemOverrideToGK(resourceOverrides map[string]v1alpha1.Resourc
 	} else {
 		resourceOverrides[groupKind] = v1alpha1.ResourceOverride{
 			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{ignoreItem}},
-		}
-	}
-}
-
-func addIgnoreDiffJQItemOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind, ignoreItemJQ string) {
-	if val, ok := resourceOverrides[groupKind]; ok {
-		val.IgnoreDifferences.JQPathExpressions = append(val.IgnoreDifferences.JQPathExpressions, ignoreItemJQ)
-		resourceOverrides[groupKind] = val
-	} else {
-		resourceOverrides[groupKind] = v1alpha1.ResourceOverride{
-			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JQPathExpressions: []string{ignoreItemJQ}},
 		}
 	}
 }
