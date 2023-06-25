@@ -24,6 +24,7 @@ patchesJson6902:
       - op: replace
         path: /data
         value:
+          applicationsetcontroller.policy: "sync"
           # Set insecure when running locally. This disables SSL, and also allows the E2E tests to run with Skaffold.
           server.insecure: "true"
   # In order for Skaffold to do its thing, we need to modify all `imagePullPolicy` blocks to be `IfNotPresent`, since
