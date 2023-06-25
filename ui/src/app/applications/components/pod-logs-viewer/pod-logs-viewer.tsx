@@ -8,7 +8,7 @@ import {LogEntry} from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
 
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
-import List from 'react-virtualized/dist/commonjs/List';
+import Grid from 'react-virtualized/dist/commonjs/Grid';
 
 import './pod-logs-viewer.scss';
 import {CopyLogsButton} from './copy-logs-button';
@@ -26,6 +26,8 @@ import {TailSelector} from './tail-selector';
 import {PodNamesToggleButton} from './pod-names-toggle-button';
 import Ansi from 'ansi-to-react';
 import {AutoScrollButton} from './auto-scroll-button';
+import {GridCellProps, GridCellRenderer} from 'react-virtualized/dist/es/Grid';
+import {CellRenderer} from 'react-virtualized';
 
 export interface PodLogsProps {
     namespace: string;
@@ -133,13 +135,21 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         // show the log content, highlight the filter text
         log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
 
-    const rowRenderer = ({index, key, style}: {index: number; key: string; style: React.CSSProperties}) => {
+    const cellRenderer = ({rowIndex, key, style}: GridCellProps) => {
         return (
             <pre key={key} style={style} className='noscroll'>
-                <Ansi>{renderLog(logs[index], index)}</Ansi>
+                <Ansi>{renderLog(logs[rowIndex], rowIndex)}</Ansi>
             </pre>
         );
     };
+
+    // calculate the width of the grid based on the longest log line
+    const maxWidth =
+        14 *
+        logs
+            .map(renderLog)
+            .map(v => v.length)
+            .reduce((a, b) => Math.max(a, b), 0);
 
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -182,14 +192,15 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             }}>
                             <AutoSizer>
                                 {({width, height}: {width: number; height: number}) => (
-                                    <List
-                                        rowCount={logs.length}
+                                    <Grid
+                                        cellRenderer={cellRenderer}
+                                        columnCount={1}
+                                        columnWidth={maxWidth}
                                         height={height}
+                                        rowCount={logs.length}
                                         rowHeight={18}
-                                        rowRenderer={rowRenderer}
                                         width={width}
-                                        noRowsRenderer={() => <>No logs</>}
-                                        scrollToIndex={scrollToBottom ? logs.length - 1 : undefined}
+                                        scrollToRow={scrollToBottom ? logs.length - 1 : undefined}
                                     />
                                 )}
                             </AutoSizer>
