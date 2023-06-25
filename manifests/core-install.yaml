@@ -18367,10 +18367,10 @@ spec:
               key: applicationsetcontroller.concurrent.reconciliations.max
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATIONSET_NAMESPACES
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES
           valueFrom:
             configMapKeyRef:
-              key: applicationset.namespaces
+              key: applicationsetcontroller.namespaces
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
