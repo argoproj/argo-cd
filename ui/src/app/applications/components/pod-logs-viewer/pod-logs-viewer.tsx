@@ -188,7 +188,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                         <div
                             className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})}
                             onWheel={e => {
-                                if (e.deltaY !== 0) setScrollToBottom(false);
+                                if (e.deltaY < 0) setScrollToBottom(false);
                             }}>
                             <AutoSizer>
                                 {({width, height}: {width: number; height: number}) => (
