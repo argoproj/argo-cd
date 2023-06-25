@@ -8007,6 +8007,9 @@
         "ignoreDifferences": {
           "$ref": "#/definitions/v1alpha1OverrideIgnoreDiff"
         },
+        "ignoreResourceUpdates": {
+          "$ref": "#/definitions/v1alpha1OverrideIgnoreDiff"
+        },
         "knownTypeFields": {
           "type": "array",
           "items": {
