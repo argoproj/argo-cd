@@ -162,8 +162,6 @@ data:
   ## ApplicationSet Controller Properties
   # Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.
   applicationsetcontroller.enable.leader.election: "false"
-  # Argo CD repo namespace (default: argocd)
-  applicationsetcontroller.namespace: ""
   # "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion), 'create-delete' (no update)"
   applicationsetcontroller.policy: "sync"
   # Print debug logs. Takes precedence over loglevel
