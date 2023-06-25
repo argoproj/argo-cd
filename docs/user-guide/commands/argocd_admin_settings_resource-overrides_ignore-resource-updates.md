@@ -1,15 +1,26 @@
-## argocd admin settings resource-overrides
+## argocd admin settings resource-overrides ignore-resource-updates
 
-Troubleshoot resource overrides
+Renders fields excluded from resource updates
+
+### Synopsis
+
+Renders ignored fields using the 'ignoreResourceUpdates' setting specified in the 'resource.customizations' field of 'argocd-cm' ConfigMap
 
 ```
-argocd admin settings resource-overrides [flags]
+argocd admin settings resource-overrides ignore-resource-updates RESOURCE_YAML_PATH [flags]
+```
+
+### Examples
+
+```
+
+argocd admin settings resource-overrides ignore-resource-updates ./deploy.yaml --argocd-cm-path ./argocd-cm.yaml
 ```
 
 ### Options
 
 ```
-  -h, --help   help for resource-overrides
+  -h, --help   help for ignore-resource-updates
 ```
 
 ### Options inherited from parent commands
@@ -58,10 +69,5 @@ argocd admin settings resource-overrides [flags]
 
 ### SEE ALSO
 
-* [argocd admin settings](argocd_admin_settings.md)	 - Provides set of commands for settings validation and troubleshooting
-* [argocd admin settings resource-overrides health](argocd_admin_settings_resource-overrides_health.md)	 - Assess resource health
-* [argocd admin settings resource-overrides ignore-differences](argocd_admin_settings_resource-overrides_ignore-differences.md)	 - Renders fields excluded from diffing
-* [argocd admin settings resource-overrides ignore-resource-updates](argocd_admin_settings_resource-overrides_ignore-resource-updates.md)	 - Renders fields excluded from resource updates
-* [argocd admin settings resource-overrides list-actions](argocd_admin_settings_resource-overrides_list-actions.md)	 - List available resource actions
-* [argocd admin settings resource-overrides run-action](argocd_admin_settings_resource-overrides_run-action.md)	 - Executes resource action
+* [argocd admin settings resource-overrides](argocd_admin_settings_resource-overrides.md)	 - Troubleshoot resource overrides
 

@@ -5835,6 +5835,12 @@ func schema_pkg_apis_application_v1alpha1_ResourceOverride(ref common.ReferenceC
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OverrideIgnoreDiff"),
 						},
 					},
+					"IgnoreResourceUpdates": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OverrideIgnoreDiff"),
+						},
+					},
 					"KnownTypeFields": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
@@ -5849,7 +5855,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceOverride(ref common.ReferenceC
 						},
 					},
 				},
-				Required: []string{"HealthLua", "UseOpenLibs", "Actions", "IgnoreDifferences", "KnownTypeFields"},
+				Required: []string{"HealthLua", "UseOpenLibs", "Actions", "IgnoreDifferences", "IgnoreResourceUpdates", "KnownTypeFields"},
 			},
 		},
 		Dependencies: []string{
@@ -7452,6 +7458,12 @@ func schema_pkg_apis_application_v1alpha1_rawResourceOverride(ref common.Referen
 						},
 					},
 					"ignoreDifferences": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"ignoreResourceUpdates": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
