@@ -52,7 +52,28 @@ source:
 
 ## Values
 
-Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.values` key.
+Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.valuesObject` key.
+
+```
+source:
+  helm:
+    valuesObject:
+      ingress:
+        enabled: true
+        path: /
+        hosts:
+          - mydomain.example.com
+        annotations:
+          kubernetes.io/ingress.class: nginx
+          kubernetes.io/tls-acme: "true"
+        labels: {}
+        tls:
+          - secretName: mydomain-tls
+            hosts:
+              - mydomain.example.com
+```
+
+Alternatively, values can be passed in as a string using the `source.helm.values` key.
 
 ```
 source:
