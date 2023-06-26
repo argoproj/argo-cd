@@ -794,9 +794,11 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 				}
 			}
 		}
-		if opts.valuesLiteral && source.Helm.Values != "" {
-			source.Helm.Values = ""
-			updated = true
+		if opts.valuesLiteral && !source.Helm.ValuesIsEmpty() {
+			err := source.Helm.SetValuesString("")
+			if err == nil {
+				updated = true
+			}
 		}
 		for _, valuesFile := range opts.valuesFiles {
 			specValueFiles := source.Helm.ValueFiles
