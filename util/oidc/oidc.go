@@ -142,7 +142,6 @@ func (a *ClientApp) oauth2Config(r *http.Request, scopes []string) (*oauth2.Conf
 	}
 	redirectURL, err := a.settings.RedirectURLForRequestURL(r.URL.String())
 	if err != nil {
-		log.Errorf("Failed to get authentication redirect URL for request URL %s. Using default %s: %v", r.URL.String(), a.redirectURI, err)
 		redirectURL = a.redirectURI
 	}
 	return &oauth2.Config{
