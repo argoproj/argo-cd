@@ -15,7 +15,7 @@ last-updated: 2023-05-24
 
 # Produce CDEvents
 
-CDEvents is a standard for communicating about events in CD processes.
+[CDEvents](https://cdevents.dev/) is a standard for communicating about events in CD processes.
 
 Argo CD already produces events as logs and as Kubernetes events. These have limitations. Logs are not easily consumed 
 by other CD-related systems. Kubernetes events can be aggregated and are meant to be human-readable (instead of 
