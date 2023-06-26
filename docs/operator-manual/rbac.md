@@ -66,7 +66,7 @@ See [Web-based Terminal](web_based_terminal.md) for more info.
 
 #### The `applicationsets` resource
 
-[ApplicationSets](applicationset) provide a declarative way to automatically create/update/delete Applications.
+[ApplicationSets](applicationset/index.md) provide a declarative way to automatically create/update/delete Applications.
 
 Granting `applicationsets, create` effectively grants the ability to create Applications. While it doesn't allow the 
 user to create Applications directly, they can create Applications via an ApplicationSet.
@@ -143,6 +143,10 @@ data:
     p, role:org-admin, repositories, create, *, allow
     p, role:org-admin, repositories, update, *, allow
     p, role:org-admin, repositories, delete, *, allow
+    p, role:org-admin, projects, get, *, allow
+    p, role:org-admin, projects, create, *, allow
+    p, role:org-admin, projects, update, *, allow
+    p, role:org-admin, projects, delete, *, allow
     p, role:org-admin, logs, get, *, allow
     p, role:org-admin, exec, create, */*, allow
 
@@ -166,6 +170,36 @@ g, db-admins, role:staging-db-admins
 ```
 
 This example defines a *role* called `staging-db-admins` with *nine permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, `get` logs, `create` exec and `get` appprojects) against `*` (all) objects in the `staging-db-admins` Argo CD AppProject.
+
+## Policy CSV Composition
+
+It is possible to provide additional entries in the `argocd-rbac-cm`
+configmap to compose the final policy csv. In this case the key must
+follow the pattern `policy.<any string>.csv`. Argo CD will concatenate
+all additional policies it finds with this pattern below the main one
+('policy.csv'). The order of additional provided policies are
+determined by the key string. Example: if two additional policies are
+provided with keys `policy.A.csv` and `policy.B.csv`, it will first
+concatenate `policy.A.csv` and then `policy.B.csv`.
+
+This is useful to allow composing policies in config management tools
+like Kustomize, Helm, etc.
+
+The example below shows how a Kustomize patch can be provided in an
+overlay to add additional configuration to an existing RBAC policy.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+data:
+  policy.tester-overlay.csv: |
+    p, role:tester, applications, *, */*, allow
+    p, role:tester, projects, *, *, allow
+    g, my-org:team-qa, role:tester
+```
 
 ## Anonymous Access
 

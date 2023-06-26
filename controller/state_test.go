@@ -51,6 +51,91 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	assert.Len(t, app.Status.Conditions, 0)
 }
 
+// TestCompareAppStateNamespaceMetadataDiffers tests comparison when managed namespace metadata differs
+func TestCompareAppStateNamespaceMetadataDiffers(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
+		Labels: map[string]string{
+			"foo": "bar",
+		},
+		Annotations: map[string]string{
+			"foo": "bar",
+		},
+	}
+	app.Status.OperationState = &argoappv1.OperationState{
+		SyncResult: &argoappv1.SyncOperationResult{},
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
+	assert.Len(t, compRes.resources, 0)
+	assert.Len(t, compRes.managedResources, 0)
+	assert.Len(t, app.Status.Conditions, 0)
+}
+
+// TestCompareAppStateNamespaceMetadataIsTheSame tests comparison when managed namespace metadata is the same
+func TestCompareAppStateNamespaceMetadataIsTheSame(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
+		Labels: map[string]string{
+			"foo": "bar",
+		},
+		Annotations: map[string]string{
+			"foo": "bar",
+		},
+	}
+	app.Status.OperationState = &argoappv1.OperationState{
+		SyncResult: &argoappv1.SyncOperationResult{
+			ManagedNamespaceMetadata: &argoappv1.ManagedNamespaceMetadata{
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+				Annotations: map[string]string{
+					"foo": "bar",
+				},
+			},
+		},
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.Len(t, compRes.resources, 0)
+	assert.Len(t, compRes.managedResources, 0)
+	assert.Len(t, app.Status.Conditions, 0)
+}
+
 // TestCompareAppStateMissing tests when there is a manifest defined in the repo which doesn't exist in live
 func TestCompareAppStateMissing(t *testing.T) {
 	app := newFakeApp()
@@ -231,6 +316,74 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	assert.Equal(t, 1, len(compRes.managedResources))
 	assert.Equal(t, 0, len(compRes.reconciliationResult.Hooks))
 	assert.Equal(t, 0, len(app.Status.Conditions))
+}
+
+// TestAppRevisions tests that revisions are properly propagated for a single source app
+func TestAppRevisionsSingleSource(t *testing.T) {
+	obj1 := NewPod()
+	obj1.SetNamespace(test.FakeDestNamespace)
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{toJSON(t, obj1)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+
+	app := newFakeApp()
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.NotEmpty(t, compRes.syncStatus.Revision)
+	assert.Len(t, compRes.syncStatus.Revisions, 0)
+
+}
+
+// TestAppRevisions tests that revisions are properly propagated for a multi source app
+func TestAppRevisionsMultiSource(t *testing.T) {
+	obj1 := NewPod()
+	obj1.SetNamespace(test.FakeDestNamespace)
+	data := fakeData{
+		manifestResponses: []*apiclient.ManifestResponse{
+			{
+				Manifests: []string{toJSON(t, obj1)},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			{
+				Manifests: []string{toJSON(t, obj1)},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "def456",
+			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "ghi789",
+			},
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+
+	app := newFakeMultiSourceApp()
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.Empty(t, compRes.syncStatus.Revision)
+	assert.Len(t, compRes.syncStatus.Revisions, 3)
+	assert.Equal(t, "abc123", compRes.syncStatus.Revisions[0])
+	assert.Equal(t, "def456", compRes.syncStatus.Revisions[1])
+	assert.Equal(t, "ghi789", compRes.syncStatus.Revisions[2])
 }
 
 func toJSON(t *testing.T, obj *unstructured.Unstructured) string {

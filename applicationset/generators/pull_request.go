@@ -11,7 +11,6 @@ import (
 
 	"github.com/gosimple/slug"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
 	pullrequest "github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -66,7 +65,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		return nil, fmt.Errorf("failed to select pull request service provider: %v", err)
 	}
 
-	pulls, err := pull_request.ListPullRequests(ctx, svc, appSetGenerator.PullRequest.Filters)
+	pulls, err := pullrequest.ListPullRequests(ctx, svc, appSetGenerator.PullRequest.Filters)
 	if err != nil {
 		return nil, fmt.Errorf("error listing repos: %v", err)
 	}
@@ -84,18 +83,27 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	}
 
 	var shortSHALength int
+	var shortSHALength7 int
 	for _, pull := range pulls {
 		shortSHALength = 8
 		if len(pull.HeadSHA) < 8 {
 			shortSHALength = len(pull.HeadSHA)
 		}
 
+		shortSHALength7 = 7
+		if len(pull.HeadSHA) < 7 {
+			shortSHALength7 = len(pull.HeadSHA)
+		}
+
 		paramMap := map[string]interface{}{
-			"number":         strconv.Itoa(pull.Number),
-			"branch":         pull.Branch,
-			"branch_slug":    slug.Make(pull.Branch),
-			"head_sha":       pull.HeadSHA,
-			"head_short_sha": pull.HeadSHA[:shortSHALength],
+			"number":           	strconv.Itoa(pull.Number),
+			"branch":           	pull.Branch,
+			"branch_slug":      	slug.Make(pull.Branch),
+			"target_branch":		pull.TargetBranch,
+			"target_branch_slug": 	slug.Make(pull.TargetBranch),
+			"head_sha":         	pull.HeadSHA,
+			"head_short_sha":   	pull.HeadSHA[:shortSHALength],
+			"head_short_sha_7": 	pull.HeadSHA[:shortSHALength7],
 		}
 
 		// PR lables will only be supported for Go Template appsets, since fasttemplate will be deprecated.

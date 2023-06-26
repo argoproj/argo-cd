@@ -3,10 +3,9 @@
 .pod-logs-viewer {
     height: 90%;
     font-size: 14px;
-    line-height: 1.5em;
+    font-family: monospace;
     background-color: white;
-    padding: 15px;
-    padding-left: 5px;
+    padding: 0;
     color: black;
 
     &--inverted {
@@ -224,4 +223,19 @@ code {
     font-family: inherit;
     font-weight: inherit;
     color: inherit;
+}
+
+.ReactVirtualized__Grid__innerScrollContainer {
+    overflow: initial !important;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.noscroll::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.noscroll {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
 }

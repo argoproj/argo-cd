@@ -50,6 +50,7 @@ const (
 	guestbookPathLocal     = "./testdata/guestbook_local"
 	globalWithNoNameSpace  = "global-with-no-namespace"
 	guestbookWithNamespace = "guestbook-with-namespace"
+	resourceActions        = "resource-actions"
 	appLogsRetryCount      = 5
 )
 
@@ -252,7 +253,7 @@ func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusMissing))
 }
 
-func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
+func TestSyncToSignedCommitWithKnownKey(t *testing.T) {
 	SkipOnEnv(t, "GPG")
 	Given(t).
 		Project("gpg").
@@ -268,6 +269,62 @@ func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestSyncToSignedTagWithKnownKey(t *testing.T) {
+	SkipOnEnv(t, "GPG")
+	Given(t).
+		Project("gpg").
+		Revision("signed-tag").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedTag("signed-tag").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestSyncToSignedTagWithUnknownKey(t *testing.T) {
+	SkipOnEnv(t, "GPG")
+	Given(t).
+		Project("gpg").
+		Revision("signed-tag").
+		Path(guestbookPath).
+		Sleep(2).
+		When().
+		AddSignedTag("signed-tag").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing))
+}
+
+func TestSyncToUnsignedTag(t *testing.T) {
+	SkipOnEnv(t, "GPG")
+	Given(t).
+		Project("gpg").
+		Revision("unsigned-tag").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddTag("unsigned-tag").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing))
 }
 
 func TestAppCreation(t *testing.T) {
@@ -883,7 +940,7 @@ definitions:
     obj.metadata.labels.sample = 'test'
     return obj`
 
-func TestResourceAction(t *testing.T) {
+func TestOldStyleResourceAction(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}).
@@ -922,6 +979,224 @@ func TestResourceAction(t *testing.T) {
 			assert.NoError(t, err)
 
 			assert.Equal(t, "test", deployment.Labels["sample"])
+		})
+}
+
+const newStyleActionsConfig = `discovery.lua: return { sample = {} }
+definitions:
+- name: sample
+  action.lua: |
+    local os = require("os")
+
+    function deepCopy(object)
+      local lookup_table = {}
+      local function _copy(obj)
+        if type(obj) ~= "table" then
+          return obj
+        elseif lookup_table[obj] then
+          return lookup_table[obj]
+        elseif next(obj) == nil then
+          return nil
+        else
+          local new_table = {}
+          lookup_table[obj] = new_table
+          for key, value in pairs(obj) do
+            new_table[_copy(key)] = _copy(value)
+          end
+          return setmetatable(new_table, getmetatable(obj))
+        end
+      end
+      return _copy(object)
+    end
+  
+    job = {}
+    job.apiVersion = "batch/v1"
+    job.kind = "Job"
+  
+    job.metadata = {}
+    job.metadata.name = obj.metadata.name .. "-123"
+    job.metadata.namespace = obj.metadata.namespace
+  
+    ownerRef = {}
+    ownerRef.apiVersion = obj.apiVersion
+    ownerRef.kind = obj.kind
+    ownerRef.name = obj.metadata.name
+    ownerRef.uid = obj.metadata.uid
+    job.metadata.ownerReferences = {}
+    job.metadata.ownerReferences[1] = ownerRef
+  
+    job.spec = {}
+    job.spec.suspend = false
+    job.spec.template = {}
+    job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
+  
+    impactedResource = {}
+    impactedResource.operation = "create"
+    impactedResource.resource = job
+    result = {}
+    result[1] = impactedResource
+  
+    return result`
+
+func TestNewStyleResourceActionPermitted(t *testing.T) {
+	Given(t).
+		Path(resourceActions).
+		ResourceOverrides(map[string]ResourceOverride{"batch/CronJob": {Actions: newStyleActionsConfig}}).
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{
+				{Group: "batch", Kind: "Job"},
+				{Group: "batch", Kind: "CronJob"},
+			}}).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		And(func(app *Application) {
+
+			closer, client, err := ArgoCDClientset.NewApplicationClient()
+			assert.NoError(t, err)
+			defer io.Close(closer)
+
+			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
+				Name:         &app.Name,
+				Group:        pointer.String("batch"),
+				Kind:         pointer.String("CronJob"),
+				Version:      pointer.String("v1"),
+				Namespace:    pointer.String(DeploymentNamespace()),
+				ResourceName: pointer.String("hello"),
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
+
+			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
+				Group:        pointer.String("batch"),
+				Kind:         pointer.String("CronJob"),
+				Version:      pointer.String("v1"),
+				Namespace:    pointer.String(DeploymentNamespace()),
+				ResourceName: pointer.String("hello"),
+				Action:       pointer.String("sample"),
+			})
+			assert.NoError(t, err)
+
+			_, err = KubeClientset.BatchV1().Jobs(DeploymentNamespace()).Get(context.Background(), "hello-123", metav1.GetOptions{})
+			assert.NoError(t, err)
+		})
+}
+
+const newStyleActionsConfigMixedOk = `discovery.lua: return { sample = {} }
+definitions:
+- name: sample
+  action.lua: |
+    local os = require("os")
+
+    function deepCopy(object)
+      local lookup_table = {}
+      local function _copy(obj)
+        if type(obj) ~= "table" then
+          return obj
+        elseif lookup_table[obj] then
+          return lookup_table[obj]
+        elseif next(obj) == nil then
+          return nil
+        else
+          local new_table = {}
+          lookup_table[obj] = new_table
+          for key, value in pairs(obj) do
+            new_table[_copy(key)] = _copy(value)
+          end
+          return setmetatable(new_table, getmetatable(obj))
+        end
+      end
+      return _copy(object)
+    end
+  
+    job = {}
+    job.apiVersion = "batch/v1"
+    job.kind = "Job"
+  
+    job.metadata = {}
+    job.metadata.name = obj.metadata.name .. "-123"
+    job.metadata.namespace = obj.metadata.namespace
+  
+    ownerRef = {}
+    ownerRef.apiVersion = obj.apiVersion
+    ownerRef.kind = obj.kind
+    ownerRef.name = obj.metadata.name
+    ownerRef.uid = obj.metadata.uid
+    job.metadata.ownerReferences = {}
+    job.metadata.ownerReferences[1] = ownerRef
+  
+    job.spec = {}
+    job.spec.suspend = false
+    job.spec.template = {}
+    job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
+  
+    impactedResource1 = {}
+    impactedResource1.operation = "create"
+    impactedResource1.resource = job
+    result = {}
+    result[1] = impactedResource1
+
+    obj.metadata.labels["aKey"] = 'aValue'
+    impactedResource2 = {}
+    impactedResource2.operation = "patch"
+    impactedResource2.resource = obj
+
+    result[2] = impactedResource2
+  
+    return result`
+
+func TestNewStyleResourceActionMixedOk(t *testing.T) {
+	Given(t).
+		Path(resourceActions).
+		ResourceOverrides(map[string]ResourceOverride{"batch/CronJob": {Actions: newStyleActionsConfigMixedOk}}).
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{
+				{Group: "batch", Kind: "Job"},
+				{Group: "batch", Kind: "CronJob"},
+			}}).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		And(func(app *Application) {
+
+			closer, client, err := ArgoCDClientset.NewApplicationClient()
+			assert.NoError(t, err)
+			defer io.Close(closer)
+
+			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
+				Name:         &app.Name,
+				Group:        pointer.String("batch"),
+				Kind:         pointer.String("CronJob"),
+				Version:      pointer.String("v1"),
+				Namespace:    pointer.String(DeploymentNamespace()),
+				ResourceName: pointer.String("hello"),
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
+
+			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
+				Group:        pointer.String("batch"),
+				Kind:         pointer.String("CronJob"),
+				Version:      pointer.String("v1"),
+				Namespace:    pointer.String(DeploymentNamespace()),
+				ResourceName: pointer.String("hello"),
+				Action:       pointer.String("sample"),
+			})
+			assert.NoError(t, err)
+
+			// Assert new Job was created
+			_, err = KubeClientset.BatchV1().Jobs(DeploymentNamespace()).Get(context.Background(), "hello-123", metav1.GetOptions{})
+			assert.NoError(t, err)
+			// Assert the original CronJob was patched
+			cronJob, err := KubeClientset.BatchV1().CronJobs(DeploymentNamespace()).Get(context.Background(), "hello", metav1.GetOptions{})
+			assert.Equal(t, "aValue", cronJob.Labels["aKey"])
+			assert.NoError(t, err)
 		})
 }
 
