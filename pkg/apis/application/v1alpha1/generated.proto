@@ -1275,18 +1275,18 @@ message PullRequestGenerator {
 
   optional PullRequestGeneratorBitbucketServer bitbucketServer = 4;
 
-  optional PullRequestGeneratorBitbucket bitbucket = 5;
-
   // Filters for which pull requests should be considered.
-  repeated PullRequestGeneratorFilter filters = 6;
+  repeated PullRequestGeneratorFilter filters = 5;
 
   // Standard parameters.
-  optional int64 requeueAfterSeconds = 7;
+  optional int64 requeueAfterSeconds = 6;
 
-  optional ApplicationSetTemplate template = 8;
+  optional ApplicationSetTemplate template = 7;
+
+  optional PullRequestGeneratorBitbucket bitbucket = 8;
 }
 
-// PullRequestGenerator defines connection info specific to Bitbucket.
+// PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
 message PullRequestGeneratorBitbucket {
   // Workspace to scan. Required.
   optional string owner = 1;
@@ -1304,7 +1304,7 @@ message PullRequestGeneratorBitbucket {
   optional BearerTokenBitbucketCloud bearerToken = 5;
 }
 
-// PullRequestGenerator defines connection info specific to BitbucketServer.
+// PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
 message PullRequestGeneratorBitbucketServer {
   // Project to scan. Required.
   optional string project = 1;
@@ -1346,7 +1346,7 @@ message PullRequestGeneratorGitLab {
   optional string pullRequestState = 5;
 }
 
-// PullRequestGenerator defines connection info specific to Gitea.
+// PullRequestGeneratorGitea defines connection info specific to Gitea.
 message PullRequestGeneratorGitea {
   // Gitea org or user to scan. Required.
   optional string owner = 1;

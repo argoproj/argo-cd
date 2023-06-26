@@ -6,18 +6,18 @@ import (
 	"fmt"
 	"net/url"
 
-	bitbucket "github.com/ktrysmt/go-bitbucket"
+	"github.com/ktrysmt/go-bitbucket"
 )
 
 type BitbucketCloudService struct {
-	client         	*bitbucket.Client
-	owner     	string
-	repositorySlug 	string
+	client         *bitbucket.Client
+	owner          string
+	repositorySlug string
 }
 
 type BitbucketCloudPullRequest struct {
-	ID	int				`json:"id"`
-	Source 	BitbucketCloudPullRequestSource `json:"source"`
+	ID     int                             `json:"id"`
+	Source BitbucketCloudPullRequestSource `json:"source"`
 }
 
 type BitbucketCloudPullRequestSource struct {
@@ -34,12 +34,12 @@ type BitbucketCloudPullRequestSourceCommit struct {
 }
 
 type PullRequestResponse struct {
-	Page		int32		`json:"page"`
-	Size 		int32 		`json:"size"`
-	Pagelen 	int32 		`json:"pagelen"`
-	Next 		string 		`json:"next"`
-	Previous 	string 		`json:"previous"`
-	Items 		[]PullRequest 	`json:"values"`
+	Page     int32         `json:"page"`
+	Size     int32         `json:"size"`
+	Pagelen  int32         `json:"pagelen"`
+	Next     string        `json:"next"`
+	Previous string        `json:"previous"`
+	Items    []PullRequest `json:"values"`
 }
 
 var _ PullRequestService = (*BitbucketCloudService)(nil)
@@ -51,13 +51,13 @@ func parseUrl(uri string) (*url.URL, error) {
 
 	url, err := url.Parse(uri)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing string %s to url: %v", uri, err)
+		return nil, err
 	}
 
 	return url, nil
 }
 
-func NewBitbucketCloudServiceBasicAuth(username, password, baseUrl, owner, repositorySlug string) (PullRequestService, error) {
+func NewBitbucketCloudServiceBasicAuth(baseUrl, username, password, owner, repositorySlug string) (PullRequestService, error) {
 	url, err := parseUrl(baseUrl)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %v", baseUrl, owner, repositorySlug, err)
@@ -67,13 +67,13 @@ func NewBitbucketCloudServiceBasicAuth(username, password, baseUrl, owner, repos
 	bitbucketClient.SetApiBaseURL(*url)
 
 	return &BitbucketCloudService{
-		client:		bitbucketClient,
-		owner:		owner,
-		repositorySlug:	repositorySlug,
+		client:         bitbucketClient,
+		owner:          owner,
+		repositorySlug: repositorySlug,
 	}, nil
 }
 
-func NewBitbucketCloudServiceBearerToken(baseUrl, owner, repositorySlug string, bearerToken string) (PullRequestService, error) {
+func NewBitbucketCloudServiceBearerToken(baseUrl, bearerToken, owner, repositorySlug string) (PullRequestService, error) {
 	url, err := parseUrl(baseUrl)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %v", baseUrl, owner, repositorySlug, err)
@@ -84,20 +84,20 @@ func NewBitbucketCloudServiceBearerToken(baseUrl, owner, repositorySlug string, 
 
 	return &BitbucketCloudService{
 		client:         bitbucketClient,
-		owner:     	owner,
+		owner:          owner,
 		repositorySlug: repositorySlug,
 	}, nil
 }
 
 func NewBitbucketCloudServiceNoAuth(baseUrl, owner, repositorySlug string) (PullRequestService, error) {
 	// There is currently no method to explicitly not require auth
-	return NewBitbucketCloudServiceBearerToken(baseUrl, owner, repositorySlug, "")
+	return NewBitbucketCloudServiceBearerToken(baseUrl, "", owner, repositorySlug)
 }
 
 func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) {
 	opts := &bitbucket.PullRequestsOptions{
-		Owner:		b.owner,
-		RepoSlug: 	b.repositorySlug,
+		Owner:    b.owner,
+		RepoSlug: b.repositorySlug,
 	}
 
 	response, err := b.client.Repositories.PullRequests.Gets(opts)

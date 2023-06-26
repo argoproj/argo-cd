@@ -2689,11 +2689,6 @@ func (in *PullRequestGenerator) DeepCopyInto(out *PullRequestGenerator) {
 		*out = new(PullRequestGeneratorBitbucketServer)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Bitbucket != nil {
-		in, out := &in.Bitbucket, &out.Bitbucket
-		*out = new(PullRequestGeneratorBitbucket)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.Filters != nil {
 		in, out := &in.Filters, &out.Filters
 		*out = make([]PullRequestGeneratorFilter, len(*in))
@@ -2707,6 +2702,11 @@ func (in *PullRequestGenerator) DeepCopyInto(out *PullRequestGenerator) {
 		**out = **in
 	}
 	in.Template.DeepCopyInto(&out.Template)
+	if in.Bitbucket != nil {
+		in, out := &in.Bitbucket, &out.Bitbucket
+		*out = new(PullRequestGeneratorBitbucket)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

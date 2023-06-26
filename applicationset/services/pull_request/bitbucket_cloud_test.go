@@ -8,8 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -55,13 +56,13 @@ func TestParseUrlEmptyUrl(t *testing.T) {
 }
 
 func TestInvalidBaseUrlBasicAuthCloud(t *testing.T) {
-	_, err := NewBitbucketCloudServiceBasicAuth("user", "password", "http:// example.org", "OWNER", "REPO")
+	_, err := NewBitbucketCloudServiceBasicAuth("http:// example.org", "user", "password", "OWNER", "REPO")
 
 	assert.Error(t, err)
 }
 
 func TestInvalidBaseUrlBearerTokenCloud(t *testing.T) {
-	_, err := NewBitbucketCloudServiceBearerToken("http:// example.org", "OWNER", "REPO", "TOKEN")
+	_, err := NewBitbucketCloudServiceBearerToken("http:// example.org", "TOKEN", "OWNER", "REPO")
 
 	assert.Error(t, err)
 }
@@ -78,7 +79,7 @@ func TestListPullRequestBearerTokenCloud(t *testing.T) {
 		defaultHandlerCloud(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketCloudServiceBearerToken(ts.URL, "OWNER", "REPO", "TOKEN")
+	svc, err := NewBitbucketCloudServiceBearerToken(ts.URL, "TOKEN", "OWNER", "REPO")
 	assert.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	assert.NoError(t, err)
@@ -110,7 +111,7 @@ func TestListPullRequestBasicAuthCloud(t *testing.T) {
 		defaultHandlerCloud(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketCloudServiceBasicAuth("user", "password", ts.URL, "OWNER", "REPO")
+	svc, err := NewBitbucketCloudServiceBasicAuth(ts.URL, "user", "password", "OWNER", "REPO")
 	assert.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	assert.NoError(t, err)

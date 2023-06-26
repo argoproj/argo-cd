@@ -520,15 +520,15 @@ type PullRequestGenerator struct {
 	GitLab          *PullRequestGeneratorGitLab          `json:"gitlab,omitempty" protobuf:"bytes,2,opt,name=gitlab"`
 	Gitea           *PullRequestGeneratorGitea           `json:"gitea,omitempty" protobuf:"bytes,3,opt,name=gitea"`
 	BitbucketServer *PullRequestGeneratorBitbucketServer `json:"bitbucketServer,omitempty" protobuf:"bytes,4,opt,name=bitbucketServer"`
-	Bitbucket       *PullRequestGeneratorBitbucket       `json:"bitbucket,omitempty" protobuf:"bytes,5,opt,name=bitbucket"`
 	// Filters for which pull requests should be considered.
-	Filters []PullRequestGeneratorFilter `json:"filters,omitempty" protobuf:"bytes,6,rep,name=filters"`
+	Filters []PullRequestGeneratorFilter `json:"filters,omitempty" protobuf:"bytes,5,rep,name=filters"`
 	// Standard parameters.
-	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,7,opt,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,8,opt,name=template"`
+	RequeueAfterSeconds *int64                         `json:"requeueAfterSeconds,omitempty" protobuf:"varint,6,opt,name=requeueAfterSeconds"`
+	Template            ApplicationSetTemplate         `json:"template,omitempty" protobuf:"bytes,7,opt,name=template"`
+	Bitbucket           *PullRequestGeneratorBitbucket `json:"bitbucket,omitempty" protobuf:"bytes,8,opt,name=bitbucket"`
 }
 
-// PullRequestGenerator defines connection info specific to Gitea.
+// PullRequestGeneratorGitea defines connection info specific to Gitea.
 type PullRequestGeneratorGitea struct {
 	// Gitea org or user to scan. Required.
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
@@ -572,7 +572,7 @@ type PullRequestGeneratorGitLab struct {
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
 }
 
-// PullRequestGenerator defines connection info specific to BitbucketServer.
+// PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
 type PullRequestGeneratorBitbucketServer struct {
 	// Project to scan. Required.
 	Project string `json:"project" protobuf:"bytes,1,opt,name=project"`
@@ -584,7 +584,7 @@ type PullRequestGeneratorBitbucketServer struct {
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
 }
 
-// PullRequestGenerator defines connection info specific to Bitbucket.
+// PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
 type PullRequestGeneratorBitbucket struct {
 	// Workspace to scan. Required.
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`

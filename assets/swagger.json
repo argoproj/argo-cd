@@ -7457,7 +7457,7 @@
       }
     },
     "v1alpha1PullRequestGeneratorBitbucket": {
-      "description": "PullRequestGenerator defines connection info specific to Bitbucket.",
+      "description": "PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.",
       "type": "object",
       "properties": {
         "api": {
@@ -7481,7 +7481,7 @@
       }
     },
     "v1alpha1PullRequestGeneratorBitbucketServer": {
-      "description": "PullRequestGenerator defines connection info specific to BitbucketServer.",
+      "description": "PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.",
       "type": "object",
       "properties": {
         "api": {
@@ -7542,7 +7542,7 @@
       }
     },
     "v1alpha1PullRequestGeneratorGitea": {
-      "description": "PullRequestGenerator defines connection info specific to Gitea.",
+      "description": "PullRequestGeneratorGitea defines connection info specific to Gitea.",
       "type": "object",
       "properties": {
         "api": {

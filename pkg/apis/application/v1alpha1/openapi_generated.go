@@ -4551,11 +4551,6 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGenerator(ref common.Refere
 							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorBitbucketServer"),
 						},
 					},
-					"bitbucket": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorBitbucket"),
-						},
-					},
 					"filters": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Filters for which pull requests should be considered.",
@@ -4583,6 +4578,11 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGenerator(ref common.Refere
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
+					"bitbucket": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorBitbucket"),
+						},
+					},
 				},
 			},
 		},
@@ -4595,7 +4595,7 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorBitbucket(ref comm
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PullRequestGenerator defines connection info specific to Bitbucket.",
+				Description: "PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"owner": {
@@ -4646,7 +4646,7 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorBitbucketServer(re
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PullRequestGenerator defines connection info specific to BitbucketServer.",
+				Description: "PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"project": {
@@ -4776,7 +4776,7 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitea(ref common.R
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PullRequestGenerator defines connection info specific to Gitea.",
+				Description: "PullRequestGeneratorGitea defines connection info specific to Gitea.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"owner": {
