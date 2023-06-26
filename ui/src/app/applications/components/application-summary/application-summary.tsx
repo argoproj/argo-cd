@@ -255,7 +255,9 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             view: app.spec.revisionHistoryLimit,
             edit: (formApi: FormApi) => (
                 <div style={{position: 'relative'}}>
-                    <FormField formApi={formApi} field='spec.revisionHistoryLimit' componentProps={{style: {paddingRight: '1em'}, placeholder: '10'}} component={NumberField} />
+                    <div style={{marginRight: '2em'}}>
+                        <FormField formApi={formApi} field='spec.revisionHistoryLimit' componentProps={{placeholder: '10'}} component={NumberField} />
+                    </div>
                     <div style={{position: 'absolute', right: '0', top: '0'}}>
                         <HelpIcon
                             title='This limits the number of items kept in the apps revision history.
