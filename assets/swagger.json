@@ -6524,6 +6524,15 @@
         }
       }
     },
+    "v1alpha1BearerTokenBitbucketCloud": {
+      "description": "BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.",
+      "type": "object",
+      "properties": {
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
     "v1alpha1ChartDetails": {
       "type": "object",
       "title": "ChartDetails contains helm chart metadata for a specific version",
@@ -7429,6 +7438,9 @@
       "description": "PullRequestGenerator defines a generator that scrapes a PullRequest API to find candidate pull requests.",
       "type": "object",
       "properties": {
+        "bitbucket": {
+          "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucket"
+        },
         "bitbucketServer": {
           "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucketServer"
         },
@@ -7458,8 +7470,32 @@
         }
       }
     },
+    "v1alpha1PullRequestGeneratorBitbucket": {
+      "description": "PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.",
+      "type": "object",
+      "properties": {
+        "api": {
+          "description": "The Bitbucket REST API URL to talk to. If blank, uses https://api.bitbucket.org/2.0.",
+          "type": "string"
+        },
+        "basicAuth": {
+          "$ref": "#/definitions/v1alpha1BasicAuthBitbucketServer"
+        },
+        "bearerToken": {
+          "$ref": "#/definitions/v1alpha1BearerTokenBitbucketCloud"
+        },
+        "owner": {
+          "description": "Workspace to scan. Required.",
+          "type": "string"
+        },
+        "repo": {
+          "description": "Repo name to scan. Required.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1PullRequestGeneratorBitbucketServer": {
-      "description": "PullRequestGenerator defines connection info specific to BitbucketServer.",
+      "description": "PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.",
       "type": "object",
       "properties": {
         "api": {
@@ -7520,7 +7556,7 @@
       }
     },
     "v1alpha1PullRequestGeneratorGitea": {
-      "description": "PullRequestGenerator defines connection info specific to Gitea.",
+      "description": "PullRequestGeneratorGitea defines connection info specific to Gitea.",
       "type": "object",
       "properties": {
         "api": {
