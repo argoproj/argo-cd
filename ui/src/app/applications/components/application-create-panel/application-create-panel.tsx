@@ -108,6 +108,15 @@ export const ApplicationCreatePanel = (props: {
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
     const [destFormat, setDestFormat] = React.useState('URL');
     const [retry, setRetry] = React.useState(false);
+    const app = deepMerge(DEFAULT_APP, props.app || {});
+
+    React.useEffect(() => {
+        if (app?.spec?.destination?.name && app.spec.destination.name !== '') {
+            setDestFormat('NAME');
+        } else {
+            setDestFormat('URL');
+        }
+    }, []);
 
     function normalizeTypeFields(formApi: FormApi, type: models.AppSourceType) {
         const app = formApi.getFormState().values;
@@ -132,15 +141,10 @@ export const ApplicationCreatePanel = (props: {
                 }>
                 {({projects, clusters, reposInfo}) => {
                     const repos = reposInfo.map(info => info.repo).sort();
-                    const app = deepMerge(DEFAULT_APP, props.app || {});
+                    
                     const repoInfo = reposInfo.find(info => info.repo === app.spec.source.repoURL);
                     if (repoInfo) {
                         normalizeAppSource(app, repoInfo.type || 'git');
-                    }
-                    if (app?.spec?.destination?.name && app.spec.destination.name !== '') {
-                        setDestFormat('NAME');
-                    } else {
-                        setDestFormat('URL');
                     }
                     return (
                         <div className='application-create-panel'>
