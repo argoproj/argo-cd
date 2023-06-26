@@ -1616,8 +1616,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 						},
 					},
 					"values": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-strategy": "replace",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Values specifies Helm values to be passed to helm template, typically defined as a block",
+							Description: "Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1664,11 +1669,17 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							Format:      "",
 						},
 					},
+					"valuesObject": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.",
+							Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmFileParameter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmFileParameter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
 	}
 }
 

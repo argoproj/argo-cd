@@ -286,8 +286,15 @@ spec:
                             type: array
                           values:
                             description: Values specifies Helm values to be passed
-                              to helm template, typically defined as a block
+                              to helm template, typically defined as a block. ValuesObject
+                              takes precedence over Values, so use one or the other.
                             type: string
+                          valuesObject:
+                            description: ValuesObject specifies Helm values to be
+                              passed to helm template, defined as a map. This takes
+                              precedence over Values.
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
                           version:
                             description: Version is the Helm version to use for templating
                               ("3")
@@ -575,8 +582,15 @@ spec:
                               type: array
                             values:
                               description: Values specifies Helm values to be passed
-                                to helm template, typically defined as a block
+                                to helm template, typically defined as a block. ValuesObject
+                                takes precedence over Values, so use one or the other.
                               type: string
+                            valuesObject:
+                              description: ValuesObject specifies Helm values to be
+                                passed to helm template, defined as a map. This takes
+                                precedence over Values.
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
                             version:
                               description: Version is the Helm version to use for
                                 templating ("3")
@@ -981,8 +995,15 @@ spec:
                         type: array
                       values:
                         description: Values specifies Helm values to be passed to
-                          helm template, typically defined as a block
+                          helm template, typically defined as a block. ValuesObject
+                          takes precedence over Values, so use one or the other.
                         type: string
+                      valuesObject:
+                        description: ValuesObject specifies Helm values to be passed
+                          to helm template, defined as a map. This takes precedence
+                          over Values.
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
                       version:
                         description: Version is the Helm version to use for templating
                           ("3")
@@ -1261,8 +1282,15 @@ spec:
                           type: array
                         values:
                           description: Values specifies Helm values to be passed to
-                            helm template, typically defined as a block
+                            helm template, typically defined as a block. ValuesObject
+                            takes precedence over Values, so use one or the other.
                           type: string
+                        valuesObject:
+                          description: ValuesObject specifies Helm values to be passed
+                            to helm template, defined as a map. This takes precedence
+                            over Values.
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
                         version:
                           description: Version is the Helm version to use for templating
                             ("3")
@@ -1693,8 +1721,15 @@ spec:
                               type: array
                             values:
                               description: Values specifies Helm values to be passed
-                                to helm template, typically defined as a block
+                                to helm template, typically defined as a block. ValuesObject
+                                takes precedence over Values, so use one or the other.
                               type: string
+                            valuesObject:
+                              description: ValuesObject specifies Helm values to be
+                                passed to helm template, defined as a map. This takes
+                                precedence over Values.
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
                             version:
                               description: Version is the Helm version to use for
                                 templating ("3")
@@ -1986,8 +2021,16 @@ spec:
                                 type: array
                               values:
                                 description: Values specifies Helm values to be passed
-                                  to helm template, typically defined as a block
+                                  to helm template, typically defined as a block.
+                                  ValuesObject takes precedence over Values, so use
+                                  one or the other.
                                 type: string
+                              valuesObject:
+                                description: ValuesObject specifies Helm values to
+                                  be passed to helm template, defined as a map. This
+                                  takes precedence over Values.
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
                               version:
                                 description: Version is the Helm version to use for
                                   templating ("3")
@@ -2424,8 +2467,15 @@ spec:
                                   values:
                                     description: Values specifies Helm values to be
                                       passed to helm template, typically defined as
-                                      a block
+                                      a block. ValuesObject takes precedence over
+                                      Values, so use one or the other.
                                     type: string
+                                  valuesObject:
+                                    description: ValuesObject specifies Helm values
+                                      to be passed to helm template, defined as a
+                                      map. This takes precedence over Values.
+                                    type: object
+                                    x-kubernetes-preserve-unknown-fields: true
                                   version:
                                     description: Version is the Helm version to use
                                       for templating ("3")
@@ -2733,8 +2783,15 @@ spec:
                                     values:
                                       description: Values specifies Helm values to
                                         be passed to helm template, typically defined
-                                        as a block
+                                        as a block. ValuesObject takes precedence
+                                        over Values, so use one or the other.
                                       type: string
+                                    valuesObject:
+                                      description: ValuesObject specifies Helm values
+                                        to be passed to helm template, defined as
+                                        a map. This takes precedence over Values.
+                                      type: object
+                                      x-kubernetes-preserve-unknown-fields: true
                                     version:
                                       description: Version is the Helm version to
                                         use for templating ("3")
@@ -3159,8 +3216,16 @@ spec:
                                 type: array
                               values:
                                 description: Values specifies Helm values to be passed
-                                  to helm template, typically defined as a block
+                                  to helm template, typically defined as a block.
+                                  ValuesObject takes precedence over Values, so use
+                                  one or the other.
                                 type: string
+                              valuesObject:
+                                description: ValuesObject specifies Helm values to
+                                  be passed to helm template, defined as a map. This
+                                  takes precedence over Values.
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
                               version:
                                 description: Version is the Helm version to use for
                                   templating ("3")
@@ -3463,8 +3528,15 @@ spec:
                                 values:
                                   description: Values specifies Helm values to be
                                     passed to helm template, typically defined as
-                                    a block
+                                    a block. ValuesObject takes precedence over Values,
+                                    so use one or the other.
                                   type: string
+                                valuesObject:
+                                  description: ValuesObject specifies Helm values
+                                    to be passed to helm template, defined as a map.
+                                    This takes precedence over Values.
+                                  type: object
+                                  x-kubernetes-preserve-unknown-fields: true
                                 version:
                                   description: Version is the Helm version to use
                                     for templating ("3")
@@ -3872,8 +3944,16 @@ spec:
                                 type: array
                               values:
                                 description: Values specifies Helm values to be passed
-                                  to helm template, typically defined as a block
+                                  to helm template, typically defined as a block.
+                                  ValuesObject takes precedence over Values, so use
+                                  one or the other.
                                 type: string
+                              valuesObject:
+                                description: ValuesObject specifies Helm values to
+                                  be passed to helm template, defined as a map. This
+                                  takes precedence over Values.
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
                               version:
                                 description: Version is the Helm version to use for
                                   templating ("3")
@@ -4176,8 +4256,15 @@ spec:
                                 values:
                                   description: Values specifies Helm values to be
                                     passed to helm template, typically defined as
-                                    a block
+                                    a block. ValuesObject takes precedence over Values,
+                                    so use one or the other.
                                   type: string
+                                valuesObject:
+                                  description: ValuesObject specifies Helm values
+                                    to be passed to helm template, defined as a map.
+                                    This takes precedence over Values.
+                                  type: object
+                                  x-kubernetes-preserve-unknown-fields: true
                                 version:
                                   description: Version is the Helm version to use
                                     for templating ("3")
