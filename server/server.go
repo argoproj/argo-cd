@@ -161,7 +161,7 @@ func init() {
 	if replicasCount > 0 {
 		maxConcurrentLoginRequestsCount = maxConcurrentLoginRequestsCount / replicasCount
 	}
-	enableGRPCTimeHistogram = os.Getenv(common.EnvEnableGRPCTimeHistogramEnv) == "true"
+	enableGRPCTimeHistogram = env.ParseBoolFromEnv(common.EnvEnableGRPCTimeHistogramEnv, false)
 }
 
 // ArgoCDServer is the API server for Argo CD
@@ -202,7 +202,9 @@ type ArgoCDServerOpts struct {
 	Insecure              bool
 	StaticAssetsDir       string
 	ListenPort            int
+	ListenHost            string
 	MetricsPort           int
+	MetricsHost           string
 	Namespace             string
 	DexServerAddr         string
 	DexTLSConfig          *dex.DexTLSConfig
@@ -216,7 +218,6 @@ type ArgoCDServerOpts struct {
 	TLSConfigCustomizer   tlsutil.ConfigCustomizer
 	XFrameOptions         string
 	ContentSecurityPolicy string
-	ListenHost            string
 	ApplicationNamespaces []string
 	EnableProxyExtension  bool
 }
@@ -447,7 +448,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		httpsS.Handler = &bug21955Workaround{handler: httpsS.Handler}
 	}
 
-	metricsServ := metrics.NewMetricsServer(a.ListenHost, a.MetricsPort)
+	metricsServ := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
 	if a.RedisClient != nil {
 		cacheutil.CollectMetrics(a.RedisClient, metricsServ)
 	}

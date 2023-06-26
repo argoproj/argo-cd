@@ -27,5 +27,3 @@ spec:
           value: '2'
         args:
         - /usr/local/bin/argocd-server
-        - --redis
-        - "argocd-redis-ha-haproxy:6379"
