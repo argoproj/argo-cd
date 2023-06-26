@@ -9,10 +9,10 @@ sponsors:
 - TBD
 
 reviewers:
-- TBD
+- @jannfis
 
 approvers:
-- TBD
+- @jannfis
 
 creation-date: 2023-05-03
 
@@ -51,11 +51,12 @@ In all solutions, once controller determines that it does not have access to the
 
 ### Implementation decision
 
-It was decided that we will go with approach 3 from the above list, but we shall provide 2 boolean configurations options to users :
-   - `resource.respectRBAC.strict` : This will perform both the checks i.e. whether the list call response is forbidden/unauthorized and if it is make the `SelfSubjectAccessReview` call to confirm.
-   - `resource.respectRBAC.normal` : This will only check whether the list call response is forbidden/unauthorized and skip `SelfSubjectAccessReview` call.
+It was decided that we will go with approach 3 from the above list, but instead of a boolean flag we will have the `resource.respectRBAC` take 3 configuration options for the users :
+   - `strict` : This will perform both the checks i.e. whether the list call response is forbidden/unauthorized and if it is make the `SelfSubjectAccessReview` call to confirm.
+   - `normal` : This will only check whether the list call response is forbidden/unauthorized and skip `SelfSubjectAccessReview` call.
+   - unset/empty : This will disable the feature and controller will continue to monitor all resources.
 
-NOTE: `strict` has higher priority so irrespective of the status of `normal` if strict is set to true strict mode will be used.
+NOTE: By default `resource.respectRBAC` will be unset or `""` which disables the feature
 
 Users who are okay with an increase in kube api server calls can opt for strict option while users who are concerned with higher api calls can compromise on the accuracy and opt for the normal option.
 
