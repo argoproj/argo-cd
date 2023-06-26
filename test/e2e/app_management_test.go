@@ -271,6 +271,25 @@ func TestSyncToSignedCommitWithKnownKey(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
+func TestSyncToSignedCommitTargetBranchWithKnownKey(t *testing.T) {
+	SkipOnEnv(t, "GPG")
+	Given(t).
+		Project("gpg").
+		Path(guestbookPath).
+		Revision("master").
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
 func TestSyncToSignedTagWithKnownKey(t *testing.T) {
 	SkipOnEnv(t, "GPG")
 	Given(t).
