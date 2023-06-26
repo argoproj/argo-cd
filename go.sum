@@ -121,8 +121,8 @@ github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20210826220005-b48c857c3a0e/go.m
 github.com/antonmedv/expr v1.12.5 h1:Fq4okale9swwL3OeLLs9WD9H6GbgBLJyN/NUHRv+n0E=
 github.com/antonmedv/expr v1.12.5/go.mod h1:FPC8iWArxls7axbVLsW+kpg1mz29A1b2M6jt+hZfDkU=
 github.com/appscode/go v0.0.0-20191119085241-0887d8ec2ecc/go.mod h1:OawnOmAL4ZX3YaPdN+8HTNwBveT1jMsqP74moa9XUbE=
-github.com/argoproj/gitops-engine v0.7.1-0.20230526233214-ad9a694fe4bc h1:i6OgOvFFsoWiGBFEhhDNcYoRtxxtrVwcD7wCEeqhct4=
-github.com/argoproj/gitops-engine v0.7.1-0.20230526233214-ad9a694fe4bc/go.mod h1:WpA/B7tgwfz+sdNE3LqrTrb7ArEY1FOPI2pAGI0hfPc=
+github.com/argoproj/gitops-engine v0.7.1-0.20230607163028-425d65e07695 h1:w8OPbqHyhWxLyC4LZgs5JBUe7AOkJpNZqFa92yy7Kmc=
+github.com/argoproj/gitops-engine v0.7.1-0.20230607163028-425d65e07695/go.mod h1:WpA/B7tgwfz+sdNE3LqrTrb7ArEY1FOPI2pAGI0hfPc=
 github.com/argoproj/notifications-engine v0.4.1-0.20230620204159-3446d4ae8520 h1:ZCpg1Zk78E8QxMI52w6ZIddxkBHv27YWmfWQdxxWUkw=
 github.com/argoproj/notifications-engine v0.4.1-0.20230620204159-3446d4ae8520/go.mod h1:sbhf4EjAUGAqRdHIzifDIiWsjlsTfmytVJJCCiUdyVA=
 github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d h1:7fXEKF3OQ9i1PrgieA6FLrXOL3UAKyiotomn0RHevds=
@@ -141,8 +141,8 @@ github.com/auth0/go-jwt-middleware v1.0.1/go.mod h1:YSeUX3z6+TF2H+7padiEqNJ73Zy9
 github.com/aws/aws-sdk-go v1.35.24/go.mod h1:tlPOdRjfxPBpNIwqDj61rmsnA85v9jc0Ps9+muhnW+k=
 github.com/aws/aws-sdk-go v1.38.49/go.mod h1:hcU610XS61/+aQV88ixoOzUoG7v3b31pl2zKMmprdro=
 github.com/aws/aws-sdk-go v1.44.164/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
-github.com/aws/aws-sdk-go v1.44.288 h1:Ln7fIao/nl0ACtelgR1I4AiEw/GLNkKcXfCaHupUW5Q=
-github.com/aws/aws-sdk-go v1.44.288/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
+github.com/aws/aws-sdk-go v1.44.289 h1:5CVEjiHFvdiVlKPBzv0rjG4zH/21W/onT18R5AH/qx0=
+github.com/aws/aws-sdk-go v1.44.289/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/beevik/ntp v0.2.0/go.mod h1:hIHWr+l3+/clUnF44zdK+CWW7fO8dR5cIylAQ76NRpg=
 github.com/benbjohnson/clock v1.0.3/go.mod h1:bGMdMPoPVvcYyt1gHDf4J2KE153Yf9BuiUKYMaxlTDM=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=

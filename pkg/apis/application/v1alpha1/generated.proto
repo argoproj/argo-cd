@@ -431,7 +431,8 @@ message ApplicationSourceHelm {
   // ReleaseName is the Helm release name to use. If omitted it will use the application name
   optional string releaseName = 3;
 
-  // Values specifies Helm values to be passed to helm template, typically defined as a block
+  // Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.
+  // +patchStrategy=replace
   optional string values = 4;
 
   // FileParameters are file parameters to the helm template
@@ -448,6 +449,10 @@ message ApplicationSourceHelm {
 
   // SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
   optional bool skipCrds = 9;
+
+  // ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
+  // +kubebuilder:pruning:PreserveUnknownFields
+  optional k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -1661,6 +1666,8 @@ message ResourceOverride {
   optional string actions = 3;
 
   optional OverrideIgnoreDiff ignoreDifferences = 2;
+
+  optional OverrideIgnoreDiff ignoreResourceUpdates = 6;
 
   repeated KnownTypeField knownTypeFields = 4;
 }

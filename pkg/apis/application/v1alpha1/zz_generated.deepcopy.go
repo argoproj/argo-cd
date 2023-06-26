@@ -960,6 +960,11 @@ func (in *ApplicationSourceHelm) DeepCopyInto(out *ApplicationSourceHelm) {
 		*out = make([]HelmFileParameter, len(*in))
 		copy(*out, *in)
 	}
+	if in.ValuesObject != nil {
+		in, out := &in.ValuesObject, &out.ValuesObject
+		*out = new(runtime.RawExtension)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
@@ -3233,6 +3238,7 @@ func (in *ResourceNode) DeepCopy() *ResourceNode {
 func (in *ResourceOverride) DeepCopyInto(out *ResourceOverride) {
 	*out = *in
 	in.IgnoreDifferences.DeepCopyInto(&out.IgnoreDifferences)
+	in.IgnoreResourceUpdates.DeepCopyInto(&out.IgnoreResourceUpdates)
 	if in.KnownTypeFields != nil {
 		in, out := &in.KnownTypeFields, &out.KnownTypeFields
 		*out = make([]KnownTypeField, len(*in))
