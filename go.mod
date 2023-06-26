@@ -10,15 +10,16 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.30.3
 	github.com/antonmedv/expr v1.12.5
-	github.com/argoproj/gitops-engine v0.7.1-0.20230526233214-ad9a694fe4bc
-	github.com/argoproj/notifications-engine v0.4.1-0.20230228182525-f754726f03da
+	github.com/argoproj/gitops-engine v0.7.1-0.20230607163028-425d65e07695
+	github.com/argoproj/notifications-engine v0.4.1-0.20230620204159-3446d4ae8520
 	github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d
-	github.com/aws/aws-sdk-go v1.44.278
+	github.com/aws/aws-sdk-go v1.44.289
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/bombsimon/logrusr/v2 v2.0.1
-	github.com/bradleyfalzon/ghinstallation/v2 v2.4.0
-	github.com/casbin/casbin/v2 v2.70.0
+	github.com/bradleyfalzon/ghinstallation/v2 v2.5.0
+	github.com/casbin/casbin/v2 v2.71.1
 	github.com/coreos/go-oidc/v3 v3.6.0
+	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/dustin/go-humanize v1.0.1
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/fsnotify/fsnotify v1.6.0
@@ -47,17 +48,17 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-retryablehttp v0.7.4
 	github.com/imdario/mergo v0.3.16
-	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
+	github.com/improbable-eng/grpc-web v0.15.0
 	github.com/itchyny/gojq v0.12.13
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/ktrysmt/go-bitbucket v0.9.58
+	github.com/ktrysmt/go-bitbucket v0.9.60
 	github.com/mattn/go-isatty v0.0.19
 	github.com/mattn/go-zglob v0.0.4
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/prometheus/client_golang v1.15.1
+	github.com/prometheus/client_golang v1.16.0
 	github.com/r3labs/diff v1.1.0
 	github.com/redis/go-redis/v9 v9.0.5
 	github.com/robfig/cron/v3 v3.0.1
@@ -69,20 +70,20 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/whilp/git-urls v1.0.0
-	github.com/xanzy/go-gitlab v0.84.0
+	github.com/xanzy/go-gitlab v0.86.0
 	github.com/yuin/gopher-lua v1.1.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
 	go.opentelemetry.io/otel v1.16.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.16.0
 	go.opentelemetry.io/otel/sdk v1.16.0
-	golang.org/x/crypto v0.9.0
+	golang.org/x/crypto v0.10.0
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
-	golang.org/x/oauth2 v0.8.0
-	golang.org/x/sync v0.2.0
-	golang.org/x/term v0.8.0
-	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4
-	google.golang.org/grpc v1.55.0
-	google.golang.org/protobuf v1.30.0
+	golang.org/x/oauth2 v0.9.0
+	golang.org/x/sync v0.3.0
+	golang.org/x/term v0.9.0
+	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
+	google.golang.org/grpc v1.56.1
+	google.golang.org/protobuf v1.31.0
 	gopkg.in/go-playground/webhooks.v5 v5.17.0
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -104,7 +105,7 @@ require (
 )
 
 require (
-	cloud.google.com/go/compute v1.18.0 // indirect
+	cloud.google.com/go/compute v1.19.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
@@ -124,11 +125,12 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
-	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
 	github.com/cloudflare/circl v1.3.3 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
@@ -158,7 +160,7 @@ require (
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-github/v41 v41.0.0 // indirect
-	github.com/google/go-github/v52 v52.0.0 // indirect
+	github.com/google/go-github/v53 v53.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
@@ -202,7 +204,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
-	github.com/prometheus/procfs v0.9.0 // indirect
+	github.com/prometheus/procfs v0.10.1 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rs/cors v1.8.0 // indirect
 	github.com/russross/blackfriday v1.6.0 // indirect
@@ -211,7 +213,7 @@ require (
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/skeema/knownhosts v1.1.1 // indirect
 	github.com/slack-go/slack v0.12.1 // indirect
-	github.com/spf13/cast v1.4.1 // indirect
+	github.com/spf13/cast v1.5.0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/go-tinylfu v0.2.2 // indirect
@@ -227,9 +229,9 @@ require (
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	golang.org/x/mod v0.8.0 // indirect
-	golang.org/x/net v0.10.0 // indirect
-	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
+	golang.org/x/net v0.11.0 // indirect
+	golang.org/x/sys v0.9.0 // indirect
+	golang.org/x/text v0.10.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.6.0 // indirect
 	gomodules.xyz/envconfig v1.3.1-0.20190308184047-426f31af0d45 // indirect
@@ -247,6 +249,7 @@ require (
 	k8s.io/gengo v0.0.0-20211129171323-c02415ce4185 // indirect
 	k8s.io/kube-aggregator v0.24.2 // indirect
 	k8s.io/kubernetes v1.24.2 // indirect
+	nhooyr.io/websocket v1.8.6 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/kustomize/api v0.11.4 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.6 // indirect
@@ -258,7 +261,6 @@ replace (
 
 	github.com/golang/protobuf => github.com/golang/protobuf v1.4.2
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 
 	// Avoid CVE-2022-3064
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
