@@ -5,6 +5,8 @@ metadata:
     deployment.kubernetes.io/revision: "1"
   creationTimestamp: "2021-09-21T22:35:20Z"
   generation: 3
+  name: nginx-deploy
+  namespace: default  
 spec:
   progressDeadlineSeconds: 600
   replicas: 3

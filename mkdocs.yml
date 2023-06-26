@@ -43,8 +43,9 @@ nav:
   - operator-manual/tls.md
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
-  - operator-manual/high_availability.md
   - operator-manual/disaster_recovery.md
+  - operator-manual/high_availability.md
+  - operator-manual/reconcile.md
   - operator-manual/webhook.md
   - operator-manual/health.md
   - operator-manual/resource_actions.md

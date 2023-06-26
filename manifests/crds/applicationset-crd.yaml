@@ -29,6 +29,8 @@ spec:
             type: object
           spec:
             properties:
+              applyNestedSelectors:
+                type: boolean
               generators:
                 items:
                   properties:
@@ -224,6 +226,9 @@ spec:
                                           type: array
                                         values:
                                           type: string
+                                        valuesObject:
+                                          type: object
+                                          x-kubernetes-preserve-unknown-fields: true
                                         version:
                                           type: string
                                       type: object
@@ -401,6 +406,9 @@ spec:
                                             type: array
                                           values:
                                             type: string
+                                          valuesObject:
+                                            type: object
+                                            x-kubernetes-preserve-unknown-fields: true
                                           version:
                                             type: string
                                         type: object
@@ -737,6 +745,9 @@ spec:
                                           type: array
                                         values:
                                           type: string
+                                        valuesObject:
+                                          type: object
+                                          x-kubernetes-preserve-unknown-fields: true
                                         version:
                                           type: string
                                       type: object
@@ -914,6 +925,9 @@ spec:
                                             type: array
                                           values:
                                             type: string
+                                          valuesObject:
+                                            type: object
+                                            x-kubernetes-preserve-unknown-fields: true
                                           version:
                                             type: string
                                         type: object
@@ -1254,6 +1268,9 @@ spec:
                                           type: array
                                         values:
                                           type: string
+                                        valuesObject:
+                                          type: object
+                                          x-kubernetes-preserve-unknown-fields: true
                                         version:
                                           type: string
                                       type: object
@@ -1431,6 +1448,9 @@ spec:
                                             type: array
                                           values:
                                             type: string
+                                          valuesObject:
+                                            type: object
+                                            x-kubernetes-preserve-unknown-fields: true
                                           version:
                                             type: string
                                         type: object
@@ -1751,6 +1771,9 @@ spec:
                                           type: array
                                         values:
                                           type: string
+                                        valuesObject:
+                                          type: object
+                                          x-kubernetes-preserve-unknown-fields: true
                                         version:
                                           type: string
                                       type: object
@@ -1928,6 +1951,9 @@ spec:
                                             type: array
                                           values:
                                             type: string
+                                          valuesObject:
+                                            type: object
+                                            x-kubernetes-preserve-unknown-fields: true
                                           version:
                                             type: string
                                         type: object
@@ -2272,6 +2298,9 @@ spec:
                                                     type: array
                                                   values:
                                                     type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                   version:
                                                     type: string
                                                 type: object
@@ -2449,6 +2478,9 @@ spec:
                                                       type: array
                                                     values:
                                                       type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     version:
                                                       type: string
                                                   type: object
@@ -2785,6 +2817,9 @@ spec:
                                                     type: array
                                                   values:
                                                     type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                   version:
                                                     type: string
                                                 type: object
@@ -2962,6 +2997,9 @@ spec:
                                                       type: array
                                                     values:
                                                       type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     version:
                                                       type: string
                                                   type: object
@@ -3302,6 +3340,9 @@ spec:
                                                     type: array
                                                   values:
                                                     type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                   version:
                                                     type: string
                                                 type: object
@@ -3479,6 +3520,9 @@ spec:
                                                       type: array
                                                     values:
                                                       type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     version:
                                                       type: string
                                                   type: object
@@ -3799,6 +3843,9 @@ spec:
                                                     type: array
                                                   values:
                                                     type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                   version:
                                                     type: string
                                                 type: object
@@ -3976,6 +4023,9 @@ spec:
                                                       type: array
                                                     values:
                                                       type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     version:
                                                       type: string
                                                   type: object
@@ -4306,6 +4356,9 @@ spec:
                                                     type: array
                                                   values:
                                                     type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                   version:
                                                     type: string
                                                 type: object
@@ -4483,6 +4536,9 @@ spec:
                                                       type: array
                                                     values:
                                                       type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     version:
                                                       type: string
                                                   type: object
@@ -4917,6 +4973,9 @@ spec:
                                                     type: array
                                                   values:
                                                     type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                   version:
                                                     type: string
                                                 type: object
@@ -5094,6 +5153,9 @@ spec:
                                                       type: array
                                                     values:
                                                       type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     version:
                                                       type: string
                                                   type: object
@@ -5593,6 +5655,9 @@ spec:
                                                     type: array
                                                   values:
                                                     type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                   version:
                                                     type: string
                                                 type: object
@@ -5770,6 +5835,9 @@ spec:
                                                       type: array
                                                     values:
                                                       type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     version:
                                                       type: string
                                                   type: object
@@ -6104,6 +6172,9 @@ spec:
                                           type: array
                                         values:
                                           type: string
+                                        valuesObject:
+                                          type: object
+                                          x-kubernetes-preserve-unknown-fields: true
                                         version:
                                           type: string
                                       type: object
@@ -6281,6 +6352,9 @@ spec:
                                             type: array
                                           values:
                                             type: string
+                                          valuesObject:
+                                            type: object
+                                            x-kubernetes-preserve-unknown-fields: true
                                           version:
                                             type: string
                                         type: object
@@ -6625,6 +6699,9 @@ spec:
                                                     type: array
                                                   values:
                                                     type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                   version:
                                                     type: string
                                                 type: object
@@ -6802,6 +6879,9 @@ spec:
                                                       type: array
                                                     values:
                                                       type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     version:
                                                       type: string
                                                   type: object
@@ -7138,6 +7218,9 @@ spec:
                                                     type: array
                                                   values:
                                                     type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                   version:
                                                     type: string
                                                 type: object
@@ -7315,6 +7398,9 @@ spec:
                                                       type: array
                                                     values:
                                                       type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     version:
                                                       type: string
                                                   type: object
@@ -7655,6 +7741,9 @@ spec:
                                                     type: array
                                                   values:
                                                     type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                   version:
                                                     type: string
                                                 type: object
@@ -7832,6 +7921,9 @@ spec:
                                                       type: array
                                                     values:
                                                       type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     version:
                                                       type: string
                                                   type: object
@@ -8152,6 +8244,9 @@ spec:
                                                     type: array
                                                   values:
                                                     type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                   version:
                                                     type: string
                                                 type: object
@@ -8329,6 +8424,9 @@ spec:
                                                       type: array
                                                     values:
                                                       type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     version:
                                                       type: string
                                                   type: object
@@ -8659,6 +8757,9 @@ spec:
                                                     type: array
                                                   values:
                                                     type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                   version:
                                                     type: string
                                                 type: object
@@ -8836,6 +8937,9 @@ spec:
                                                       type: array
                                                     values:
                                                       type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     version:
                                                       type: string
                                                   type: object
@@ -9270,6 +9374,9 @@ spec:
                                                     type: array
                                                   values:
                                                     type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                   version:
                                                     type: string
                                                 type: object
@@ -9447,6 +9554,9 @@ spec:
                                                       type: array
                                                     values:
                                                       type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     version:
                                                       type: string
                                                   type: object
@@ -9946,6 +10056,9 @@ spec:
                                                     type: array
                                                   values:
                                                     type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
                                                   version:
                                                     type: string
                                                 type: object
@@ -10123,6 +10236,9 @@ spec:
                                                       type: array
                                                     values:
                                                       type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
                                                     version:
                                                       type: string
                                                   type: object
@@ -10461,6 +10577,9 @@ spec:
                                           type: array
                                         values:
                                           type: string
+                                        valuesObject:
+                                          type: object
+                                          x-kubernetes-preserve-unknown-fields: true
                                         version:
                                           type: string
                                       type: object
@@ -10638,6 +10757,9 @@ spec:
                                             type: array
                                           values:
                                             type: string
+                                          valuesObject:
+                                            type: object
+                                            x-kubernetes-preserve-unknown-fields: true
                                           version:
                                             type: string
                                         type: object
@@ -10965,6 +11087,9 @@ spec:
                                           type: array
                                         values:
                                           type: string
+                                        valuesObject:
+                                          type: object
+                                          x-kubernetes-preserve-unknown-fields: true
                                         version:
                                           type: string
                                       type: object
@@ -11142,6 +11267,9 @@ spec:
                                             type: array
                                           values:
                                             type: string
+                                          valuesObject:
+                                            type: object
+                                            x-kubernetes-preserve-unknown-fields: true
                                           version:
                                             type: string
                                         type: object
@@ -11576,6 +11704,9 @@ spec:
                                           type: array
                                         values:
                                           type: string
+                                        valuesObject:
+                                          type: object
+                                          x-kubernetes-preserve-unknown-fields: true
                                         version:
                                           type: string
                                       type: object
@@ -11753,6 +11884,9 @@ spec:
                                             type: array
                                           values:
                                             type: string
+                                          valuesObject:
+                                            type: object
+                                            x-kubernetes-preserve-unknown-fields: true
                                           version:
                                             type: string
                                         type: object
@@ -12252,6 +12386,9 @@ spec:
                                           type: array
                                         values:
                                           type: string
+                                        valuesObject:
+                                          type: object
+                                          x-kubernetes-preserve-unknown-fields: true
                                         version:
                                           type: string
                                       type: object
@@ -12429,6 +12566,9 @@ spec:
                                             type: array
                                           values:
                                             type: string
+                                          valuesObject:
+                                            type: object
+                                            x-kubernetes-preserve-unknown-fields: true
                                           version:
                                             type: string
                                         type: object
@@ -12819,6 +12959,9 @@ spec:
                                 type: array
                               values:
                                 type: string
+                              valuesObject:
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
                               version:
                                 type: string
                             type: object
@@ -12996,6 +13139,9 @@ spec:
                                   type: array
                                 values:
                                   type: string
+                                valuesObject:
+                                  type: object
+                                  x-kubernetes-preserve-unknown-fields: true
                                 version:
                                   type: string
                               type: object

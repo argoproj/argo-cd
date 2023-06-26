@@ -849,6 +849,11 @@ func (in *ApplicationSetTerminalGenerator) DeepCopyInto(out *ApplicationSetTermi
 		*out = new(PluginGenerator)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Selector != nil {
+		in, out := &in.Selector, &out.Selector
+		*out = new(v1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
@@ -954,6 +959,11 @@ func (in *ApplicationSourceHelm) DeepCopyInto(out *ApplicationSourceHelm) {
 		in, out := &in.FileParameters, &out.FileParameters
 		*out = make([]HelmFileParameter, len(*in))
 		copy(*out, *in)
+	}
+	if in.ValuesObject != nil {
+		in, out := &in.ValuesObject, &out.ValuesObject
+		*out = new(runtime.RawExtension)
+		(*in).DeepCopyInto(*out)
 	}
 	return
 }
@@ -3228,6 +3238,7 @@ func (in *ResourceNode) DeepCopy() *ResourceNode {
 func (in *ResourceOverride) DeepCopyInto(out *ResourceOverride) {
 	*out = *in
 	in.IgnoreDifferences.DeepCopyInto(&out.IgnoreDifferences)
+	in.IgnoreResourceUpdates.DeepCopyInto(&out.IgnoreResourceUpdates)
 	if in.KnownTypeFields != nil {
 		in, out := &in.KnownTypeFields, &out.KnownTypeFields
 		*out = make([]KnownTypeField, len(*in))

@@ -1087,7 +1087,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 		templateOpts.Values = resolvedValueFiles
 
-		if appHelm.Values != "" {
+		if !appHelm.ValuesIsEmpty() {
 			rand, err := uuid.NewRandom()
 			if err != nil {
 				return nil, err
@@ -1099,7 +1099,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 					_ = os.RemoveAll(p)
 				}
 			}()
-			err = os.WriteFile(p, []byte(appHelm.Values), 0644)
+			err = os.WriteFile(p, appHelm.ValuesYAML(), 0644)
 			if err != nil {
 				return nil, err
 			}
