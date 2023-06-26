@@ -813,8 +813,8 @@ func TestGenerateHelmWithValues(t *testing.T) {
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: ".",
 			Helm: &argoappv1.ApplicationSourceHelm{
-				ValueFiles: []string{"values-production.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+				ValueFiles:   []string{"values-production.yaml"},
+				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 			},
 		},
 		ProjectName:        "something",
@@ -905,7 +905,7 @@ func TestGenerateHelmWithEnvVars(t *testing.T) {
 }
 
 // The requested value file (`../minio/values.yaml`) is outside the app path (`./util/helm/testdata/redis`), however
-// since the requested value is sill under the repo directory (`~/go/src/github.com/argoproj/argo-cd`), it is allowed
+// since the requested value is still under the repo directory (`~/go/src/github.com/argoproj/argo-cd`), it is allowed
 func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 	service := newService("../../util/helm/testdata")
 	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
@@ -914,8 +914,8 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
-				ValueFiles: []string{"../minio/values.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+				ValueFiles:   []string{"../minio/values.yaml"},
+				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 			},
 		},
 		ProjectName:        "something",
@@ -1016,8 +1016,8 @@ func TestGenerateHelmWithURL(t *testing.T) {
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: ".",
 			Helm: &argoappv1.ApplicationSourceHelm{
-				ValueFiles: []string{"https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/helm-guestbook/values.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+				ValueFiles:   []string{"https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/helm-guestbook/values.yaml"},
+				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 			},
 		},
 		ProjectName:        "something",
@@ -1038,8 +1038,8 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ApplicationSource: &argoappv1.ApplicationSource{
 				Path: ".",
 				Helm: &argoappv1.ApplicationSourceHelm{
-					ValueFiles: []string{"../minio/values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					ValueFiles:   []string{"../minio/values.yaml"},
+					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1057,8 +1057,8 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ApplicationSource: &argoappv1.ApplicationSource{
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
-					ValueFiles: []string{"../my-chart/my-chart-values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					ValueFiles:   []string{"../my-chart/my-chart-values.yaml"},
+					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1075,8 +1075,8 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ApplicationSource: &argoappv1.ApplicationSource{
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
-					ValueFiles: []string{"/my-chart/my-chart-values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					ValueFiles:   []string{"/my-chart/my-chart-values.yaml"},
+					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1093,8 +1093,8 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ApplicationSource: &argoappv1.ApplicationSource{
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
-					ValueFiles: []string{"/../../../my-chart-values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					ValueFiles:   []string{"/../../../my-chart-values.yaml"},
+					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1112,8 +1112,8 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ApplicationSource: &argoappv1.ApplicationSource{
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
-					ValueFiles: []string{"file://../../../../my-chart-values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					ValueFiles:   []string{"file://../../../../my-chart-values.yaml"},
+					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1167,8 +1167,8 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
-				ValueFiles: []string{"values-production.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+				ValueFiles:   []string{"values-production.yaml"},
+				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				FileParameters: []argoappv1.HelmFileParameter{{
 					Name: "passwordContent",
 					Path: externalSecretPath,
@@ -1188,26 +1188,26 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 func TestGenerateHelmWithFileParameter(t *testing.T) {
 	service := newService("../../util/helm/testdata")
 
-	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:    &argoappv1.Repository{},
 		AppName: "test",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
-				ValueFiles: []string{"values-production.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
-				FileParameters: []argoappv1.HelmFileParameter{
-					argoappv1.HelmFileParameter{
-						Name: "passwordContent",
-						Path: "../external/external-secret.txt",
-					},
-				},
+				ValueFiles:   []string{"values-production.yaml"},
+				Values:       `cluster: {slaveCount: 10}`,
+				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
+				FileParameters: []argoappv1.HelmFileParameter{{
+					Name: "passwordContent",
+					Path: "../external/external-secret.txt",
+				}},
 			},
 		},
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	})
 	assert.NoError(t, err)
+	assert.Contains(t, res.Manifests[6], `"replicas":2`, "ValuesObject should override Values")
 }
 
 func TestGenerateNullList(t *testing.T) {
