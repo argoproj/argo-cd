@@ -55,9 +55,11 @@ To actually select your preferred tracking method edit the `resourceTrackingMeth
 
 ```yaml
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
 data:
   application.resourceTrackingMethod: annotation
-kind: ConfigMap
 ```
 Possible values are `label`, `annotation+label` and `annotation` as described in the previous section.
 
