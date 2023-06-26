@@ -9,10 +9,12 @@ export const ToggleButton = ({
     children,
     onToggle,
     toggled,
+    beat,
     disabled,
     icon
 }: {
     toggled: boolean;
+    beat?: boolean;
     onToggle: () => void;
     children?: ReactNode;
     title: string;
@@ -24,6 +26,7 @@ export const ToggleButton = ({
         onClick={onToggle}
         icon={icon}
         disabled={disabled}
+        beat={beat}
         style={{
             // these are the argo-button color swapped
             backgroundColor: toggled && ARGO_WARNING_COLOR,

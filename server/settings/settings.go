@@ -62,10 +62,6 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 	if err != nil {
 		return nil, err
 	}
-	plugins, err := s.plugins(ctx, false)
-	if err != nil {
-		return nil, err
-	}
 	userLoginsDisabled := true
 	accounts, err := s.mgr.GetAccounts()
 	if err != nil {
@@ -110,7 +106,6 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			ChatText:   help.ChatText,
 			BinaryUrls: help.BinaryURLs,
 		},
-		Plugins:                   plugins,
 		UserLoginsDisabled:        userLoginsDisabled,
 		KustomizeVersions:         kustomizeVersions,
 		UiCssURL:                  argoCDSettings.UiCssURL,
@@ -121,15 +116,6 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
-		configManagementPlugins, err := s.mgr.GetConfigManagementPlugins()
-		if err != nil {
-			return nil, err
-		}
-		tools := make([]*v1alpha1.ConfigManagementPlugin, len(configManagementPlugins))
-		for i := range configManagementPlugins {
-			tools[i] = &configManagementPlugins[i]
-		}
-		set.ConfigManagementPlugins = tools
 		set.UiBannerContent = argoCDSettings.UiBannerContent
 		set.UiBannerURL = argoCDSettings.UiBannerURL
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
@@ -160,39 +146,29 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 
 // GetPlugins returns a list of plugins
 func (s *Server) GetPlugins(ctx context.Context, q *settingspkg.SettingsQuery) (*settingspkg.SettingsPluginsResponse, error) {
-	plugins, err := s.plugins(ctx, true)
+	plugins, err := s.plugins(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return &settingspkg.SettingsPluginsResponse{Plugins: plugins}, nil
 }
 
-func (s *Server) plugins(ctx context.Context, includeV2Plugins bool) ([]*settingspkg.Plugin, error) {
-	in, err := s.mgr.GetConfigManagementPlugins()
+func (s *Server) plugins(ctx context.Context) ([]*settingspkg.Plugin, error) {
+	closer, client, err := s.repoClient.NewRepoServerClient()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating repo server client: %w", err)
 	}
+	defer ioutil.Close(closer)
+
+	pluginList, err := client.ListPlugins(ctx, &empty.Empty{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list sidecar plugins from reposerver: %w", err)
+	}
+
 	var out []*settingspkg.Plugin
-	for _, p := range in {
-		out = append(out, &settingspkg.Plugin{Name: p.Name})
-	}
-
-	if includeV2Plugins {
-		closer, client, err := s.repoClient.NewRepoServerClient()
-		if err != nil {
-			return nil, fmt.Errorf("error creating repo server client: %w", err)
-		}
-		defer ioutil.Close(closer)
-
-		pluginList, err := client.ListPlugins(ctx, &empty.Empty{})
-		if err != nil {
-			return nil, fmt.Errorf("failed to list sidecar plugins from reposerver: %w", err)
-		}
-
-		if pluginList != nil && len(pluginList.Items) > 0 {
-			for _, p := range pluginList.Items {
-				out = append(out, &settingspkg.Plugin{Name: p.Name})
-			}
+	if pluginList != nil && len(pluginList.Items) > 0 {
+		for _, p := range pluginList.Items {
+			out = append(out, &settingspkg.Plugin{Name: p.Name})
 		}
 	}
 
