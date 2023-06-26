@@ -21,6 +21,8 @@ type ExecRunOpts struct {
 	TimeoutBehavior argoexec.TimeoutBehavior
 	// SkipErrorLogging determines whether to skip logging of execution errors (rc > 0)
 	SkipErrorLogging bool
+	// CaptureStderr determines whether to capture stderr in addition to stdout
+	CaptureStderr bool
 }
 
 func init() {

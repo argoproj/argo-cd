@@ -104,6 +104,7 @@ type nativeGitClient struct {
 
 type runOpts struct {
 	SkipErrorLogging bool
+	CaptureStderr    bool
 }
 
 var (
@@ -662,7 +663,7 @@ func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error)
 func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
 	cmd := exec.Command("git", "describe", "--exact-match", revision)
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
-	if out != "" && err != nil {
+	if out != "" && err == nil {
 		return true
 	} else {
 		return false
@@ -744,6 +745,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 			ShouldWait: true,
 		},
 		SkipErrorLogging: ropts.SkipErrorLogging,
+		CaptureStderr:    ropts.CaptureStderr,
 	}
 	return executil.RunWithExecRunOpts(cmd, opts)
 }
