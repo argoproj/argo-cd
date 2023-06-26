@@ -656,6 +656,12 @@ message BasicAuthBitbucketServer {
   optional SecretRef passwordRef = 2;
 }
 
+// BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.
+message BearerTokenBitbucketCloud {
+  // Password (or personal access token) reference.
+  optional SecretRef tokenRef = 1;
+}
+
 // ChartDetails contains helm chart metadata for a specific version
 message ChartDetails {
   optional string description = 1;
@@ -1281,9 +1287,29 @@ message PullRequestGenerator {
   optional int64 requeueAfterSeconds = 6;
 
   optional ApplicationSetTemplate template = 7;
+
+  optional PullRequestGeneratorBitbucket bitbucket = 8;
 }
 
-// PullRequestGenerator defines connection info specific to BitbucketServer.
+// PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
+message PullRequestGeneratorBitbucket {
+  // Workspace to scan. Required.
+  optional string owner = 1;
+
+  // Repo name to scan. Required.
+  optional string repo = 2;
+
+  // The Bitbucket REST API URL to talk to. If blank, uses https://api.bitbucket.org/2.0.
+  optional string api = 3;
+
+  // Credentials for Basic auth
+  optional BasicAuthBitbucketServer basicAuth = 4;
+
+  // Credentials for AppToken (Bearer auth)
+  optional BearerTokenBitbucketCloud bearerToken = 5;
+}
+
+// PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
 message PullRequestGeneratorBitbucketServer {
   // Project to scan. Required.
   optional string project = 1;
@@ -1325,7 +1351,7 @@ message PullRequestGeneratorGitLab {
   optional string pullRequestState = 5;
 }
 
-// PullRequestGenerator defines connection info specific to Gitea.
+// PullRequestGeneratorGitea defines connection info specific to Gitea.
 message PullRequestGeneratorGitea {
   // Gitea org or user to scan. Required.
   optional string owner = 1;
