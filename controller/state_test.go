@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/gpg"
 )
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
@@ -706,6 +707,18 @@ var signedProj = argoappv1.AppProject{
 	},
 }
 
+func testResult(commitSHA, keyID, result, identity string) []*argoappv1.RevisionSignatureInfo {
+	return []*argoappv1.RevisionSignatureInfo{
+		{
+			CommitSHA:          commitSHA,
+			KeyID:              keyID,
+			VerificationResult: result,
+			Identity:           identity,
+			Date:               time.Now().Format(time.RFC822),
+		},
+	}
+}
+
 func TestSignedResponseNoSignatureRequired(t *testing.T) {
 	t.Setenv("ARGOCD_GPG_ENABLED", "true")
 
@@ -714,11 +727,11 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+				Manifests:          []string{},
+				Namespace:          test.FakeDestNamespace,
+				Server:             test.FakeClusterURL,
+				Revision:           "abc123",
+				VerificationResult: testResult("abc123", "4AEE18F83AFDEB23", gpg.VerificationResultGood, "Committer <comitter@example.com>"),
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -740,11 +753,11 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
+				Manifests:          []string{},
+				Namespace:          test.FakeDestNamespace,
+				Server:             test.FakeClusterURL,
+				Revision:           "abc123",
+				VerificationResult: testResult("abc123", "4AEE18F83AFDEB23", gpg.VerificationResultBad, "Committer <comitter@example.com>"),
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -771,11 +784,11 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+				Manifests:          []string{},
+				Namespace:          test.FakeDestNamespace,
+				Server:             test.FakeClusterURL,
+				Revision:           "abc123",
+				VerificationResult: testResult("abc123", "4AEE18F83AFDEB23", gpg.VerificationResultGood, "Committer <comitter@example.com>"),
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -797,11 +810,11 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
+				Manifests:          []string{},
+				Namespace:          test.FakeDestNamespace,
+				Server:             test.FakeClusterURL,
+				Revision:           "abc123",
+				VerificationResult: testResult("abc123", "4AEE18F83AFDEB23", gpg.VerificationResultBad, "Committer <comitter@example.com>"),
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -823,11 +836,11 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_malformed1.txt"),
+				Manifests:          []string{},
+				Namespace:          test.FakeDestNamespace,
+				Server:             test.FakeClusterURL,
+				Revision:           "abc123",
+				VerificationResult: testResult("abc123", "4AEE18F83AFDEB23", gpg.VerificationResultRevokedKey, "Committer <comitter@example.com>"),
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -849,11 +862,11 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: "",
+				Manifests:          []string{},
+				Namespace:          test.FakeDestNamespace,
+				Server:             test.FakeClusterURL,
+				Revision:           "abc123",
+				VerificationResult: testResult("abc123", "4AEE18F83AFDEB23", gpg.VerificationResultNoSignature, "Committer <comitter@example.com>"),
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -876,17 +889,17 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+				Manifests:          []string{},
+				Namespace:          test.FakeDestNamespace,
+				Server:             test.FakeClusterURL,
+				Revision:           "abc123",
+				VerificationResult: testResult("abc123", "4AEE18F83AFDEB23", gpg.VerificationResultGood, "Committer <comitter@example.com>"),
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
 		testProj := signedProj
-		testProj.Spec.SignatureKeys[0].KeyID = "4AEE18F83AFDEB24"
+		testProj.Spec.SignatureKeys[0].KeyID = "4AEE18F83AFDEB2"
 		sources := make([]argoappv1.ApplicationSource, 0)
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
@@ -898,18 +911,18 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		assert.Len(t, compRes.resources, 0)
 		assert.Len(t, compRes.managedResources, 0)
 		assert.Len(t, app.Status.Conditions, 1)
-		assert.Contains(t, app.Status.Conditions[0].Message, "key is not allowed")
+		assert.Contains(t, app.Status.Conditions[0].Message, "not trusted")
 	}
 	// Signature required and local manifests supplied - do not sync
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: "",
+				Manifests:          []string{},
+				Namespace:          test.FakeDestNamespace,
+				Server:             test.FakeClusterURL,
+				Revision:           "abc123",
+				VerificationResult: nil,
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -936,11 +949,11 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
+				Manifests:          []string{},
+				Namespace:          test.FakeDestNamespace,
+				Server:             test.FakeClusterURL,
+				Revision:           "abc123",
+				VerificationResult: testResult("abc123", "4AEE18F83AFDEB23", gpg.VerificationResultBad, "Committer <comitter@example.com>"),
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -963,11 +976,11 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: "",
+				Manifests:          []string{},
+				Namespace:          test.FakeDestNamespace,
+				Server:             test.FakeClusterURL,
+				Revision:           "abc123",
+				VerificationResult: nil,
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}

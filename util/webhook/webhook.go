@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/glob"
 	"html"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/argoproj/argo-cd/v2/util/glob"
 
 	gogsclient "github.com/gogits/go-gogs-client"
 	log "github.com/sirupsen/logrus"

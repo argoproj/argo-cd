@@ -1,6 +1,7 @@
 package gpg
 
 import (
+	_ "embed"
 	"fmt"
 	"io"
 	"os"
@@ -12,8 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/test"
 )
+
+//go:embed testdata/github.asc
+var goodKey string
+
+//go:embed testdata/multi.asc
+var multiKey string
 
 const (
 	longKeyID  = "5DE3E0509C47EA3CF04A42D34AEE18F83AFDEB23"
@@ -237,7 +243,7 @@ func Test_ImportPGPKeysFromString(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Import a single good key
-	keys, err := ImportPGPKeysFromString(test.MustLoadFileToString("testdata/github.asc"))
+	keys, err := ImportPGPKeysFromString(goodKey)
 	assert.NoError(t, err)
 	assert.Len(t, keys, 1)
 	assert.Equal(t, "4AEE18F83AFDEB23", keys[0].KeyID)
@@ -253,15 +259,13 @@ func Test_ValidateGPGKeysFromString(t *testing.T) {
 	assert.NoError(t, err)
 
 	{
-		keyData := test.MustLoadFileToString("testdata/github.asc")
-		keys, err := ValidatePGPKeysFromString(keyData)
+		keys, err := ValidatePGPKeysFromString(goodKey)
 		assert.NoError(t, err)
 		assert.Len(t, keys, 1)
 	}
 
 	{
-		keyData := test.MustLoadFileToString("testdata/multi.asc")
-		keys, err := ValidatePGPKeysFromString(keyData)
+		keys, err := ValidatePGPKeysFromString(multiKey)
 		assert.NoError(t, err)
 		assert.Len(t, keys, 2)
 	}
@@ -317,7 +321,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		assert.Equal(t, "RSA", res.Cipher)
 		assert.Equal(t, "ultimate", res.Trust)
 		assert.Equal(t, "Wed Feb 26 23:22:34 2020 CET", res.Date)
-		assert.Equal(t, VerifyResultGood, res.Result)
+		assert.Equal(t, VerificationResultGood, res.Result)
 	}
 
 	// Signature with unknown key - considered invalid
@@ -331,7 +335,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		assert.Equal(t, "RSA", res.Cipher)
 		assert.Equal(t, TrustUnknown, res.Trust)
 		assert.Equal(t, "Mon Aug 26 20:59:48 2019 CEST", res.Date)
-		assert.Equal(t, VerifyResultInvalid, res.Result)
+		assert.Equal(t, VerificationResultUnknown, res.Result)
 	}
 
 	// Signature with unknown key and additional fields - considered invalid
@@ -345,7 +349,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		assert.Equal(t, "RSA", res.Cipher)
 		assert.Equal(t, TrustUnknown, res.Trust)
 		assert.Equal(t, "Mon Aug 26 20:59:48 2019 CEST", res.Date)
-		assert.Equal(t, VerifyResultInvalid, res.Result)
+		assert.Equal(t, VerificationResultUnknown, res.Result)
 	}
 
 	// Bad signature with known key
@@ -359,7 +363,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		assert.Equal(t, "RSA", res.Cipher)
 		assert.Equal(t, "ultimate", res.Trust)
 		assert.Equal(t, "Wed Feb 26 23:22:34 2020 CET", res.Date)
-		assert.Equal(t, VerifyResultBad, res.Result)
+		assert.Equal(t, VerificationResultBad, res.Result)
 	}
 
 	// Bad case: Manipulated/invalid clear text signature
@@ -369,7 +373,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 			panic(err.Error())
 		}
 		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Equal(t, VerificationResultUnknown, res.Result)
 		assert.Contains(t, res.Message, "Could not parse output")
 	}
 
@@ -380,7 +384,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 			panic(err.Error())
 		}
 		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Equal(t, VerificationResultUnknown, res.Result)
 		assert.Contains(t, res.Message, "end-of-file")
 	}
 
@@ -391,7 +395,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 			panic(err.Error())
 		}
 		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Equal(t, VerificationResultUnknown, res.Result)
 		assert.Contains(t, res.Message, "end-of-file")
 	}
 
@@ -402,7 +406,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 			panic(err.Error())
 		}
 		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Equal(t, VerificationResultUnknown, res.Result)
 		assert.Contains(t, res.Message, "no verification data found")
 	}
 
@@ -413,7 +417,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 			panic(err.Error())
 		}
 		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Equal(t, VerificationResultUnknown, res.Result)
 		assert.Contains(t, res.Message, "no verification data found")
 	}
 
@@ -424,7 +428,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 			panic(err.Error())
 		}
 		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Equal(t, VerificationResultUnknown, res.Result)
 		assert.Contains(t, res.Message, "Could not parse key ID")
 	}
 
@@ -435,7 +439,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 			panic(err.Error())
 		}
 		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Equal(t, VerificationResultUnknown, res.Result)
 		assert.Contains(t, res.Message, "Could not parse result of verify")
 	}
 
@@ -446,7 +450,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 			panic(err.Error())
 		}
 		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Equal(t, VerificationResultUnknown, res.Result)
 		assert.Contains(t, res.Message, "Invalid PGP key ID")
 	}
 }

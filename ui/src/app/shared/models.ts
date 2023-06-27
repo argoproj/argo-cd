@@ -708,6 +708,10 @@ export interface ProjectSignatureKey {
     keyID: string;
 }
 
+export interface ProjectSourceVerificationRule {
+    mode: string;
+}
+
 export interface ProjectSpec {
     sourceRepos: string[];
     destinations: ApplicationDestination[];
@@ -718,6 +722,7 @@ export interface ProjectSpec {
     namespaceResourceBlacklist: GroupKind[];
     namespaceResourceWhitelist: GroupKind[];
     signatureKeys: ProjectSignatureKey[];
+    sourceVerification?: ProjectSourceVerificationRule[];
     orphanedResources?: {warn?: boolean; ignore: OrphanedResource[]};
     syncWindows?: SyncWindows;
 }

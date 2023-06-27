@@ -35,10 +35,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
-
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/collections"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	"github.com/argoproj/argo-cd/v2/util/security"
 )
@@ -970,6 +970,10 @@ func (in RevisionHistories) Trunc(n int) RevisionHistories {
 	return in
 }
 
+func (rh RevisionHistory) IsZero() bool {
+	return rh.Source.RepoURL == "" && len(rh.Sources) == 0
+}
+
 // HasIdentity determines whether a sync operation is identified by a manifest
 func (r SyncOperationResource) HasIdentity(name string, namespace string, gvk schema.GroupVersionKind) bool {
 	if name == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group && (r.Namespace == "" || namespace == r.Namespace) {
@@ -1326,6 +1330,10 @@ type RevisionHistory struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
 	// Revisions holds the revision of each source in sources field the sync was performed against
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,9,opt,name=revisions"`
+	// RevisionSignature is a signature of the Revision field
+	RevisionSignature string `json:"revisionSignature,omitempty" protobuf:"bytes,10,opt,name=revisionSignature"`
+	// RevisionSignatures is a signature of the Revisions field
+	RevisionSignatures []string `json:"revisionSignatures,omitempty" protobuf:"bytes,11,opt,name=revisionSignatures"`
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -1383,6 +1391,8 @@ const (
 	ApplicationConditionComparisonError = "ComparisonError"
 	// ApplicationConditionSyncError indicates controller failed to automatically sync the application
 	ApplicationConditionSyncError = "SyncError"
+	// ApplicationConditionSourceVerificationError indicates a source failed to verify
+	ApplicationConditionSourceVerificationError = "SourceVerificationError"
 	// ApplicationConditionUnknownError indicates an unknown controller error
 	ApplicationConditionUnknownError = "UnknownError"
 	// ApplicationConditionSharedResourceWarning indicates that controller detected resources which belongs to more than one application
@@ -1393,6 +1403,8 @@ const (
 	ApplicationConditionExcludedResourceWarning = "ExcludedResourceWarning"
 	// ApplicationConditionOrphanedResourceWarning indicates that application has orphaned resources
 	ApplicationConditionOrphanedResourceWarning = "OrphanedResourceWarning"
+	// ApplicationConditionSourceVerificationWarning indicates a non-fatal problem with source verification
+	ApplicationConditionSourceVerificationWarning = "SourceVerificationWarning"
 )
 
 // ApplicationCondition contains details about an application condition, which is usually an error or warning
@@ -2091,8 +2103,119 @@ func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
 
 // SignatureKey is the specification of a key required to verify commit signatures with
 type SignatureKey struct {
-	// The ID of the key in hexadecimal notation
+	// KeyID specifies the ID of the key in hexadecimal notation
 	KeyID string `json:"keyID" protobuf:"bytes,1,name=keyID"`
+}
+
+type SourceVerificationLevel string
+type SourceVerificationMethod string
+type SourceVerificationRepositoryType string
+
+const (
+	SourceVerificationLevelNone        SourceVerificationLevel = "off"
+	SourceVerificationLevelHead        SourceVerificationLevel = "head"
+	SourceVerificationLevelProgressive SourceVerificationLevel = "progressive"
+	SourceVerificationLevelStrict      SourceVerificationLevel = "strict"
+)
+
+const (
+	SourceVerificationTypeGPG SourceVerificationMethod = "gpg"
+)
+
+func (svm SourceVerificationLevel) String() string {
+	return string(svm)
+}
+
+func (svt SourceVerificationMethod) String() string {
+	return string(svt)
+}
+
+// SourceVerificationPolicy specifies how to verify a particular source
+type SourceVerificationPolicy struct {
+	// Note if you add fields to this struct, update the Differs() method.
+
+	// RepositoryPattern specifies the pattern a repository URL has to match for this policy
+	RepositoryPattern string `json:"repositoryPattern,omitempty" protobuf:"bytes,1,name=repositoryPattern"`
+	// RepositoryType specifies the type a repository has to match for this policy
+	RepositoryType string `json:"repositoryType,omitempty" protobuf:"bytes,2,name=repositoryType"`
+	// VerificationLevel specifies the source verification mode to use
+	VerificationLevel SourceVerificationLevel `json:"verificationLevel,omitempty" protobuf:"bytes,3,name=verificationLevel"`
+	// VerificationMethod specifies the type of verification to perform
+	VerificationMethod SourceVerificationMethod `json:"verificationMethod,omitempty" protobuf:"bytes,4,name=verificationMethod"`
+	// TrustedSigners defines a list of keys that signatures must be made by
+	TrustedSigners []SignatureKey `json:"trustedSigners,omitempty" protobuf:"bytes,5,name=trustedSigners"`
+	// BootstraPeriod defines the period in which an app may bootstrap when at progressive level. 0 to disable.
+	BootstrapPeriod time.Duration `json:"bootstrapPeriod,omitempty" protbuf:"bytes,6,name=bootstrapPeriod" protobuf:"varint,6,opt,name=bootstrapPeriod,casttype=time.Duration"`
+}
+
+// Differs returns true if SouceVerificationPolicy svp differs from cmp
+func (svp *SourceVerificationPolicy) Differs(cmp *SourceVerificationPolicy) bool {
+	if svp == nil && cmp == nil {
+		return false
+	}
+	if (svp == nil && cmp != nil) || (svp != nil && cmp == nil) {
+		return true
+	}
+	if svp.RepositoryPattern != cmp.RepositoryPattern {
+		return true
+	}
+	if svp.RepositoryType != cmp.RepositoryType {
+		return true
+	}
+	if svp.VerificationLevel != cmp.VerificationLevel {
+		return true
+	}
+	if svp.VerificationMethod != cmp.VerificationMethod {
+		return true
+	}
+	if len(svp.TrustedSigners) != len(cmp.TrustedSigners) {
+		return true
+	}
+	for i, k := range svp.TrustedSigners {
+		if cmp.TrustedSigners[i].KeyID != k.KeyID {
+			return true
+		}
+	}
+	return false
+}
+
+// SourceVerificationPolicy returns the first configured source verification mode
+//
+// For legacy reasons, if p.Spec.SignatureKeys is not empty, returns a policy that
+// emulates the previous GPG verification behaviour and issues a deprecation
+// warning to the logs.
+func (p *AppProject) SourceVerificationPolicy(repo string) *SourceVerificationPolicy {
+	logCtx := log.WithField("project", p.GetName())
+	if len(p.Spec.SignatureKeys) > 0 {
+		// Be annoyingly verbose about the deprecation
+		logCtx.Warnf("Usage of .spec.signatureKeys is deprecated, consider migrating to source verification policies.")
+		return &SourceVerificationPolicy{
+			RepositoryPattern:  "*",
+			VerificationLevel:  SourceVerificationLevelHead,
+			VerificationMethod: SourceVerificationTypeGPG,
+			TrustedSigners:     p.Spec.SignatureKeys,
+		}
+	}
+
+	if len(p.Spec.SourceVerificationPolicies) == 0 {
+		return nil
+	}
+
+	// First policy that matches wins
+	for _, pol := range p.Spec.SourceVerificationPolicies {
+		if glob.Match(pol.RepositoryPattern, repo) {
+			logCtx.Debugf("Applying source verification policy with method '%s' and level '%s' for source repository '%s'", pol.VerificationMethod, pol.VerificationLevel, repo)
+			return &pol
+		}
+	}
+
+	return nil
+}
+
+// HasSourceVerificationPolicy returns true if the project has any source
+// verification policy or legacy signature keys defined.
+func (p *AppProject) HasSourceVerificationPolicy() bool {
+	return len(p.Spec.SignatureKeys) > 0 || len(p.Spec.SourceVerificationPolicies) > 0
 }
 
 // AppProjectSpec is the specification of an AppProject
@@ -2123,6 +2246,8 @@ type AppProjectSpec struct {
 	SourceNamespaces []string `json:"sourceNamespaces,omitempty" protobuf:"bytes,12,opt,name=sourceNamespaces"`
 	// PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped
 	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
+	// SourceVerification specifies how to verify the source (head or full)
+	SourceVerificationPolicies []SourceVerificationPolicy `json:"sourceVerificationPolicies,omitempty" protobuf:"bytes,14,opt,name=sourceVerificationPolicies"`
 }
 
 // SyncWindows is a collection of sync windows in this project

@@ -4933,9 +4933,12 @@
         "sourceType": {
           "type": "string"
         },
-        "verifyResult": {
-          "type": "string",
-          "title": "Raw response of git verify-commit operation (always the empty string for Helm)"
+        "verificationResult": {
+          "type": "array",
+          "title": "List of commits and their signature verification results",
+          "items": {
+            "$ref": "#/definitions/v1alpha1RevisionSignatureInfo"
+          }
         }
       }
     },
@@ -5777,6 +5780,13 @@
           "title": "SourceRepos contains list of repository URLs which can be used for deployment",
           "items": {
             "type": "string"
+          }
+        },
+        "sourceVerificationPolicies": {
+          "type": "array",
+          "title": "SourceVerification specifies how to verify the source (head or full)",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SourceVerificationPolicy"
           }
         },
         "syncWindows": {
@@ -8389,6 +8399,17 @@
           "type": "string",
           "title": "Revision holds the revision the sync was performed against"
         },
+        "revisionSignature": {
+          "type": "string",
+          "title": "RevisionSignature is a signature of the Revision field"
+        },
+        "revisionSignatures": {
+          "type": "array",
+          "title": "RevisionSignatures is a signature of the Revisions field",
+          "items": {
+            "type": "string"
+          }
+        },
         "revisions": {
           "type": "array",
           "title": "Revisions holds the revision of each source in sources field the sync was performed against",
@@ -8433,6 +8454,31 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1RevisionSignatureInfo": {
+      "type": "object",
+      "properties": {
+        "commitSHA": {
+          "type": "string",
+          "title": "CommitSHA (or tag name)"
+        },
+        "date": {
+          "type": "string",
+          "title": "Date of the commit"
+        },
+        "identity": {
+          "type": "string",
+          "title": "Email associated with the commit"
+        },
+        "keyID": {
+          "type": "string",
+          "title": "ID of the key the signature was made with"
+        },
+        "verificationResult": {
+          "type": "string",
+          "title": "Raw result of the verification (one letter)"
         }
       }
     },
@@ -8714,7 +8760,41 @@
       "properties": {
         "keyID": {
           "type": "string",
-          "title": "The ID of the key in hexadecimal notation"
+          "title": "KeyID specifies the ID of the key in hexadecimal notation"
+        }
+      }
+    },
+    "v1alpha1SourceVerificationPolicy": {
+      "type": "object",
+      "title": "SourceVerificationPolicy specifies how to verify a particular source",
+      "properties": {
+        "bootstrapPeriod": {
+          "description": "BootstraPeriod defines the period in which an app may bootstrap when at progressive level. 0 to disable.",
+          "type": "string",
+          "format": "int64"
+        },
+        "repositoryPattern": {
+          "type": "string",
+          "title": "RepositoryPattern specifies the pattern a repository URL has to match for this policy"
+        },
+        "repositoryType": {
+          "type": "string",
+          "title": "RepositoryType specifies the type a repository has to match for this policy"
+        },
+        "trustedSigners": {
+          "type": "array",
+          "title": "TrustedSigners defines a list of keys that signatures must be made by",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SignatureKey"
+          }
+        },
+        "verificationLevel": {
+          "type": "string",
+          "title": "VerificationLevel specifies the source verification mode to use"
+        },
+        "verificationMethod": {
+          "type": "string",
+          "title": "VerificationMethod specifies the type of verification to perform"
         }
       }
     },

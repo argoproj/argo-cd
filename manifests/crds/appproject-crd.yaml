@@ -221,7 +221,8 @@ spec:
                     to verify commit signatures with
                   properties:
                     keyID:
-                      description: The ID of the key in hexadecimal notation
+                      description: KeyID specifies the ID of the key in hexadecimal
+                        notation
                       type: string
                   required:
                   - keyID
@@ -238,6 +239,51 @@ spec:
                   be used for deployment
                 items:
                   type: string
+                type: array
+              sourceVerificationPolicies:
+                description: SourceVerification specifies how to verify the source
+                  (head or full)
+                items:
+                  description: SourceVerificationPolicy specifies how to verify a
+                    particular source
+                  properties:
+                    bootstrapPeriod:
+                      description: BootstraPeriod defines the period in which an app
+                        may bootstrap when at progressive level. 0 to disable.
+                      format: int64
+                      type: integer
+                    repositoryPattern:
+                      description: RepositoryPattern specifies the pattern a repository
+                        URL has to match for this policy
+                      type: string
+                    repositoryType:
+                      description: RepositoryType specifies the type a repository
+                        has to match for this policy
+                      type: string
+                    trustedSigners:
+                      description: TrustedSigners defines a list of keys that signatures
+                        must be made by
+                      items:
+                        description: SignatureKey is the specification of a key required
+                          to verify commit signatures with
+                        properties:
+                          keyID:
+                            description: KeyID specifies the ID of the key in hexadecimal
+                              notation
+                            type: string
+                        required:
+                        - keyID
+                        type: object
+                      type: array
+                    verificationLevel:
+                      description: VerificationLevel specifies the source verification
+                        mode to use
+                      type: string
+                    verificationMethod:
+                      description: VerificationMethod specifies the type of verification
+                        to perform
+                      type: string
+                  type: object
                 type: array
               syncWindows:
                 description: SyncWindows controls when syncs can be run for apps in

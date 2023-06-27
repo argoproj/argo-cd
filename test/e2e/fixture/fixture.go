@@ -515,12 +515,14 @@ func SetParamInNotificationsConfigMap(key, value string) {
 type TestOption func(option *testOption)
 
 type testOption struct {
-	testdata string
+	testdata             string
+	signedInititalCommit bool
 }
 
 func newTestOption(opts ...TestOption) *testOption {
 	to := &testOption{
-		testdata: "testdata",
+		testdata:             "testdata",
+		signedInititalCommit: false,
 	}
 	for _, opt := range opts {
 		opt(to)
@@ -531,6 +533,12 @@ func newTestOption(opts ...TestOption) *testOption {
 func WithTestData(testdata string) TestOption {
 	return func(option *testOption) {
 		option.testdata = testdata
+	}
+}
+
+func WithInitialSignedCommit(sign bool) TestOption {
+	return func(option *testOption) {
+		option.signedInititalCommit = sign
 	}
 }
 
@@ -605,14 +613,80 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	})
 
 	// Create separate project for testing gpg signature verification
-	FailOnErr(RunCli("proj", "create", "gpg"))
-	SetProjectSpec("gpg", v1alpha1.AppProjectSpec{
+	FailOnErr(RunCli("proj", "create", "gpg-legacy"))
+	SetProjectSpec("gpg-legacy", v1alpha1.AppProjectSpec{
 		OrphanedResources:        nil,
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 		SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
 		SourceNamespaces:         []string{AppNamespace()},
+		// Legacy mode overrides any source verification policy
+		SourceVerificationPolicies: []v1alpha1.SourceVerificationPolicy{
+			{VerificationLevel: "full", RepositoryPattern: "*", VerificationMethod: "gpg", TrustedSigners: []v1alpha1.SignatureKey{{KeyID: "A" + GpgGoodKeyID[1:]}}},
+		},
+	})
+
+	FailOnErr(RunCli("proj", "create", "gpg-head"))
+	SetProjectSpec("gpg-head", v1alpha1.AppProjectSpec{
+		OrphanedResources:        nil,
+		SourceRepos:              []string{"*"},
+		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		SourceNamespaces:         []string{AppNamespace()},
+		SourceVerificationPolicies: []v1alpha1.SourceVerificationPolicy{
+			{RepositoryPattern: "*", VerificationLevel: "head", VerificationMethod: "gpg", TrustedSigners: []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}}},
+		},
+	})
+
+	FailOnErr(RunCli("proj", "create", "gpg-progressive"))
+	SetProjectSpec("gpg-progressive", v1alpha1.AppProjectSpec{
+		OrphanedResources:        nil,
+		SourceRepos:              []string{"*"},
+		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		SourceNamespaces:         []string{AppNamespace()},
+		SourceVerificationPolicies: []v1alpha1.SourceVerificationPolicy{
+			{RepositoryPattern: "*", VerificationLevel: "progressive", VerificationMethod: "gpg", TrustedSigners: []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}}},
+		},
+	})
+
+	FailOnErr(RunCli("proj", "create", "gpg-bootstrap"))
+	SetProjectSpec("gpg-bootstrap", v1alpha1.AppProjectSpec{
+		OrphanedResources:        nil,
+		SourceRepos:              []string{"*"},
+		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		SourceNamespaces:         []string{AppNamespace()},
+		SourceVerificationPolicies: []v1alpha1.SourceVerificationPolicy{
+			{RepositoryPattern: "*", VerificationLevel: "progressive", VerificationMethod: "gpg", TrustedSigners: []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}}, BootstrapPeriod: 10 * time.Second},
+		},
+	})
+
+	// Create separate project for testing gpg signature verification
+	FailOnErr(RunCli("proj", "create", "gpg-full"))
+	SetProjectSpec("gpg-full", v1alpha1.AppProjectSpec{
+		OrphanedResources:        nil,
+		SourceRepos:              []string{"*"},
+		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		SourceNamespaces:         []string{AppNamespace()},
+		SourceVerificationPolicies: []v1alpha1.SourceVerificationPolicy{
+			{RepositoryPattern: "*", VerificationLevel: "full", VerificationMethod: "gpg", TrustedSigners: []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}}},
+		},
+	})
+
+	// Create separate project for testing gpg signature verification
+	FailOnErr(RunCli("proj", "create", "gpg-nomatch"))
+	SetProjectSpec("gpg-nomatch", v1alpha1.AppProjectSpec{
+		OrphanedResources:        nil,
+		SourceRepos:              []string{"*"},
+		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		SourceNamespaces:         []string{AppNamespace()},
+		SourceVerificationPolicies: []v1alpha1.SourceVerificationPolicy{
+			{RepositoryPattern: "https://github.com/*", VerificationLevel: "full", VerificationMethod: "gpg", TrustedSigners: []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}}},
+		},
 	})
 
 	// Recreate temp dir
@@ -638,10 +712,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	FailOnErr(Run("", "chmod", "0700", TmpDir+"/gpg"))
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
 	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer func() {
+		os.Setenv("GNUPGHOME", prevGnuPGHome)
+	}()
 	// nolint:errcheck
 	Run("", "pkill", "-9", "gpg-agent")
 	FailOnErr(Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc"))
-	os.Setenv("GNUPGHOME", prevGnuPGHome)
 
 	// recreate GPG directories
 	if IsLocal() {
@@ -657,7 +733,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	FailOnErr(Run(repoDirectory(), "chmod", "777", "."))
 	FailOnErr(Run(repoDirectory(), "git", "init"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
-	FailOnErr(Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
+	FailOnErr(Run(repoDirectory(), "git", "config", "user.signingKey", GpgGoodKeyID))
+	if opt.signedInititalCommit {
+		FailOnErr(Run(repoDirectory(), "git", "commit", "-S", "-q", "-m", "initial commit"))
+	} else {
+		FailOnErr(Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
+	}
 
 	if IsRemote() {
 		FailOnErr(Run(repoDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE")))

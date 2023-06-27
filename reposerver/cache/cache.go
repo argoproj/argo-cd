@@ -16,6 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
@@ -355,6 +356,7 @@ func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {
 		MostRecentError:                 cmr.MostRecentError,
 		NumberOfCachedResponsesReturned: cmr.NumberOfCachedResponsesReturned,
 		NumberOfConsecutiveFailures:     cmr.NumberOfConsecutiveFailures,
+		VerificationPolicy:              cmr.VerificationPolicy,
 	}
 }
 
@@ -385,10 +387,11 @@ type CachedManifestResponse struct {
 
 	// NOTE: When adding fields to this struct, you MUST also update shallowCopy()
 
-	CacheEntryHash                  string                      `json:"cacheEntryHash"`
-	ManifestResponse                *apiclient.ManifestResponse `json:"manifestResponse"`
-	MostRecentError                 string                      `json:"mostRecentError"`
-	FirstFailureTimestamp           int64                       `json:"firstFailureTimestamp"`
-	NumberOfConsecutiveFailures     int                         `json:"numberOfConsecutiveFailures"`
-	NumberOfCachedResponsesReturned int                         `json:"numberOfCachedResponsesReturned"`
+	CacheEntryHash                  string                             `json:"cacheEntryHash"`
+	ManifestResponse                *apiclient.ManifestResponse        `json:"manifestResponse"`
+	MostRecentError                 string                             `json:"mostRecentError"`
+	FirstFailureTimestamp           int64                              `json:"firstFailureTimestamp"`
+	NumberOfConsecutiveFailures     int                                `json:"numberOfConsecutiveFailures"`
+	NumberOfCachedResponsesReturned int                                `json:"numberOfCachedResponsesReturned"`
+	VerificationPolicy              *v1alpha1.SourceVerificationPolicy `json:"verificationPolicy"`
 }

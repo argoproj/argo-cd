@@ -1,4 +1,4 @@
-import {AutocompleteField, FormField, HelpIcon, NotificationsApi, NotificationType, SlidingPanel, Tabs, Tooltip} from 'argo-ui';
+import {AutocompleteField, FormField, FormSelect, HelpIcon, NotificationsApi, NotificationType, SlidingPanel, Tabs, Tooltip} from 'argo-ui';
 import classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -117,6 +117,7 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             clusterResourceWhitelist: new Array<GroupKind>(),
             sourceRepos: [],
             signatureKeys: [],
+            sourceVerification: [],
             destinations: [],
             description: '',
             roles: [],
@@ -757,6 +758,37 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}
+                    title={
+                        <React.Fragment>
+                            SOURCE VERIFICATION RULES{' '}
+                            {helpTip('Configure how to verify Application sources before being allowed for sync. Currently, only one single rule can be created.')}
+                        </React.Fragment>
+                    }
+                    view={
+                        <React.Fragment>
+                            {proj.spec.sourceVerification
+                                ? proj.spec.sourceVerification.map((rule, i) => (
+                                      <div className='row white-box__details-row' key={i}>
+                                          <div className='columns small-12'>{rule.mode}</div>
+                                      </div>
+                                  ))
+                                : emptyMessage('source verification rules')}
+                        </React.Fragment>
+                    }
+                    edit={formApi => (
+                        <FormField
+                            formApi={formApi}
+                            field={`spec.sourceVerification[0].mode`}
+                            component={FormSelect}
+                            componentProps={{options: ['off', 'head', 'lax', 'strict']}}
+                        />
+                    )}
+                    items={[]}
+                />
+
+                <EditablePanel
+                    save={item => this.saveProject(item)}
+                    values={proj}
                     title={<React.Fragment>GPG SIGNATURE KEYS {helpTip('IDs of GnuPG keys that commits must be signed with in order to be allowed to sync to')}</React.Fragment>}
                     view={
                         <React.Fragment>
@@ -773,6 +805,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         <DataLoader load={() => services.gpgkeys.list()}>
                             {keys => (
                                 <React.Fragment>
+                                    IDs of allowed GnuPG keys{' '}
+                                    {helpTip('A list of GnuPG key IDs. Commits must be signed by either of the allowed keys in order for the sync to proceed')}
                                     {(formApi.values.spec.signatureKeys || []).map((_: Project, i: number) => (
                                         <div className='row white-box__details-row' key={i}>
                                             <div className='columns small-12'>
@@ -783,7 +817,6 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     componentProps={{items: keys.map(key => key.keyID)}}
                                                 />
                                             </div>
-                                            <i className='fa fa-times' onClick={() => formApi.setValue('spec.signatureKeys', removeEl(formApi.values.spec.signatureKeys, i))} />
                                         </div>
                                     ))}
                                     <button

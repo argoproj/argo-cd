@@ -90,6 +90,9 @@ message AppProjectSpec {
 
   // PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped
   optional bool permitOnlyProjectScopedClusters = 13;
+
+  // SourceVerification specifies how to verify the source (head or full)
+  repeated SourceVerificationPolicy sourceVerificationPolicies = 14;
 }
 
 // AppProjectStatus contains status information for AppProject CRs
@@ -1836,6 +1839,12 @@ message RevisionHistory {
 
   // Revisions holds the revision of each source in sources field the sync was performed against
   repeated string revisions = 9;
+
+  // RevisionSignature is a signature of the Revision field
+  optional string revisionSignature = 10;
+
+  // RevisionSignatures is a signature of the Revisions field
+  repeated string revisionSignatures = 11;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository
@@ -1857,6 +1866,23 @@ message RevisionMetadata {
 
   // SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
   optional string signatureInfo = 5;
+}
+
+message RevisionSignatureInfo {
+  // CommitSHA (or tag name)
+  optional string commitSHA = 1;
+
+  // Raw result of the verification (one letter)
+  optional string verificationResult = 2;
+
+  // ID of the key the signature was made with
+  optional string keyID = 3;
+
+  // Date of the commit
+  optional string date = 4;
+
+  // Email associated with the commit
+  optional string identity = 5;
 }
 
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.
@@ -2046,8 +2072,29 @@ message SecretRef {
 
 // SignatureKey is the specification of a key required to verify commit signatures with
 message SignatureKey {
-  // The ID of the key in hexadecimal notation
+  // KeyID specifies the ID of the key in hexadecimal notation
   optional string keyID = 1;
+}
+
+// SourceVerificationPolicy specifies how to verify a particular source
+message SourceVerificationPolicy {
+  // RepositoryPattern specifies the pattern a repository URL has to match for this policy
+  optional string repositoryPattern = 1;
+
+  // RepositoryType specifies the type a repository has to match for this policy
+  optional string repositoryType = 2;
+
+  // VerificationLevel specifies the source verification mode to use
+  optional string verificationLevel = 3;
+
+  // VerificationMethod specifies the type of verification to perform
+  optional string verificationMethod = 4;
+
+  // TrustedSigners defines a list of keys that signatures must be made by
+  repeated SignatureKey trustedSigners = 5;
+
+  // BootstraPeriod defines the period in which an app may bootstrap when at progressive level. 0 to disable.
+  optional int64 bootstrapPeriod = 6;
 }
 
 // SyncOperation contains details about a sync operation.

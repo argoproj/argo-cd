@@ -14,7 +14,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 )
 
@@ -57,6 +56,35 @@ Name-Email: noreply@argoproj.io
 Expire-Date: 6m
 %commit
 `
+
+// The letters each represent a given verification result, as output by git's pretty format.
+// See PRETTY FORMAT in git-rev-list(1) for more information.
+const (
+	VerificationResultGood             = "G"
+	VerificationResultBad              = "B"
+	VerificationResultUnknown          = "U"
+	VerificationResultExpiredSignature = "X"
+	VerificationResultExpiredKey       = "Y"
+	VerificationResultRevokedKey       = "R"
+	VerificationResultMissingKey       = "E"
+	VerificationResultNoSignature      = "N"
+)
+
+// PublicKey is a representation of a GnuPG public key
+type PublicKey struct {
+	// KeyID specifies the key ID, in hexadecimal string format
+	KeyID string
+	// Fingerprint is the fingerprint of the key
+	Fingerprint string
+	// Owner holds the owner identification, e.g. a name and e-mail address
+	Owner string
+	// Trust holds the level of trust assigned to this key
+	Trust string
+	// SubType holds the key's sub type (e.g. rsa4096)
+	SubType string
+	// KeyData holds the raw key data, in base64 encoded format
+	KeyData string
+}
 
 // Canary marker for GNUPGHOME created by Argo CD
 const canaryMarkerFilename = ".argocd-generated"
@@ -118,14 +146,6 @@ type PGPVerifyResult struct {
 	// Additional informational message
 	Message string
 }
-
-// Signature verification results
-const (
-	VerifyResultGood    = "Good"
-	VerifyResultBad     = "Bad"
-	VerifyResultInvalid = "Invalid"
-	VerifyResultUnknown = "Unknown"
-)
 
 // Key trust values
 const (
@@ -287,7 +307,7 @@ func InitializeGnuPG() error {
 	return err
 }
 
-func ImportPGPKeysFromString(keyData string) ([]*appsv1.GnuPGPublicKey, error) {
+func ImportPGPKeysFromString(keyData string) ([]*PublicKey, error) {
 	f, err := os.CreateTemp("", "gpg-key-import")
 	if err != nil {
 		return nil, err
@@ -311,8 +331,8 @@ func ImportPGPKeysFromString(keyData string) ([]*appsv1.GnuPGPublicKey, error) {
 
 // ImportPGPKeys imports one or more keys from a file into the local keyring and optionally
 // signs them with the transient private key for leveraging the trust DB.
-func ImportPGPKeys(keyFile string) ([]*appsv1.GnuPGPublicKey, error) {
-	keys := make([]*appsv1.GnuPGPublicKey, 0)
+func ImportPGPKeys(keyFile string) ([]*PublicKey, error) {
+	keys := make([]*PublicKey, 0)
 
 	cmd := exec.Command("gpg", "--no-permission-warning", "--logger-fd", "1", "--import", keyFile)
 	cmd.Env = getGPGEnviron()
@@ -333,7 +353,7 @@ func ImportPGPKeys(keyFile string) ([]*appsv1.GnuPGPublicKey, error) {
 			continue
 		}
 
-		key := appsv1.GnuPGPublicKey{
+		key := PublicKey{
 			KeyID: token[1],
 			Owner: token[2],
 			// By default, trust level is unknown
@@ -349,7 +369,7 @@ func ImportPGPKeys(keyFile string) ([]*appsv1.GnuPGPublicKey, error) {
 	return keys, nil
 }
 
-func ValidatePGPKeysFromString(keyData string) (map[string]*appsv1.GnuPGPublicKey, error) {
+func ValidatePGPKeysFromString(keyData string) (map[string]*PublicKey, error) {
 	f, err := writeKeyToFile(keyData)
 	if err != nil {
 		return nil, err
@@ -362,8 +382,8 @@ func ValidatePGPKeysFromString(keyData string) (map[string]*appsv1.GnuPGPublicKe
 // ValidatePGPKeys validates whether the keys in keyFile are valid PGP keys and can be imported
 // It does so by importing them into a temporary keyring. The returned keys are complete, that
 // is, they contain all relevant information
-func ValidatePGPKeys(keyFile string) (map[string]*appsv1.GnuPGPublicKey, error) {
-	keys := make(map[string]*appsv1.GnuPGPublicKey)
+func ValidatePGPKeys(keyFile string) (map[string]*PublicKey, error) {
+	keys := make(map[string]*PublicKey)
 	tempHome, err := os.MkdirTemp("", "gpg-verify-key")
 	if err != nil {
 		return nil, err
@@ -396,15 +416,15 @@ func ValidatePGPKeys(keyFile string) (map[string]*appsv1.GnuPGPublicKey, error) 
 
 // SetPGPTrustLevelById sets the given trust level on keys with specified key IDs
 func SetPGPTrustLevelById(kids []string, trustLevel string) error {
-	keys := make([]*appsv1.GnuPGPublicKey, 0)
+	keys := make([]*PublicKey, 0)
 	for _, kid := range kids {
-		keys = append(keys, &appsv1.GnuPGPublicKey{KeyID: kid})
+		keys = append(keys, &PublicKey{KeyID: kid})
 	}
 	return SetPGPTrustLevel(keys, trustLevel)
 }
 
 // SetPGPTrustLevel sets the given trust level on specified keys
-func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error {
+func SetPGPTrustLevel(pgpKeys []*PublicKey, trustLevel string) error {
 	trust, ok := pgpTrustLevels[trustLevel]
 	if !ok {
 		return fmt.Errorf("Unknown trust level: %s", trustLevel)
@@ -485,8 +505,8 @@ func IsSecretKey(keyID string) (bool, error) {
 }
 
 // GetInstalledPGPKeys() runs gpg to retrieve public keys from our keyring. If kids is non-empty, limit result to those key IDs
-func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
-	keys := make([]*appsv1.GnuPGPublicKey, 0)
+func GetInstalledPGPKeys(kids []string) ([]*PublicKey, error) {
+	keys := make([]*PublicKey, 0)
 
 	args := append([]string{}, "--no-permission-warning", "--list-public-keys")
 	// kids can contain an arbitrary list of key IDs we want to list. If empty, we list all keys.
@@ -502,7 +522,7 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 	}
 
 	scanner := bufio.NewScanner(strings.NewReader(out))
-	var curKey *appsv1.GnuPGPublicKey = nil
+	var curKey *PublicKey = nil
 	for scanner.Scan() {
 		if strings.HasPrefix(scanner.Text(), "pub ") {
 			// This is the beginning of a new key, time to store the previously parsed one in our list and start fresh.
@@ -511,7 +531,7 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 				curKey = nil
 			}
 
-			key := appsv1.GnuPGPublicKey{}
+			key := PublicKey{}
 
 			// Second field in pub output denotes key sub type (cipher and length)
 			token := subTypeMatch.FindStringSubmatch(scanner.Text())
@@ -583,14 +603,14 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 
 // ParseGitCommitVerification parses the output of "git verify-commit" and returns the result
 func ParseGitCommitVerification(signature string) PGPVerifyResult {
-	result := PGPVerifyResult{Result: VerifyResultUnknown}
+	result := PGPVerifyResult{Result: VerificationResultUnknown}
 	parseOk := false
 	linesParsed := 0
 
 	// Shortcut for returning an unknown verification result with a reason
 	unknownResult := func(reason string) PGPVerifyResult {
 		return PGPVerifyResult{
-			Result:  VerifyResultUnknown,
+			Result:  VerificationResultUnknown,
 			Message: reason,
 		}
 	}
@@ -638,7 +658,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 			}
 
 			if strings.HasPrefix(scanner.Text(), "gpg: Can't check signature: ") {
-				result.Result = VerifyResultInvalid
+				result.Result = VerificationResultUnknown
 				result.Identity = "unknown"
 				result.Trust = TrustUnknown
 				result.Message = scanner.Text()
@@ -650,11 +670,11 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 
 				switch strings.ToLower(sigState[1]) {
 				case "good":
-					result.Result = VerifyResultGood
+					result.Result = VerificationResultGood
 				case "bad":
-					result.Result = VerifyResultBad
+					result.Result = VerificationResultBad
 				default:
-					result.Result = VerifyResultInvalid
+					result.Result = VerificationResultUnknown
 				}
 				result.Identity = sigState[2]
 
@@ -722,7 +742,7 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 	}
 
 	// Collect GPG keys installed in the key ring
-	installed := make(map[string]*appsv1.GnuPGPublicKey)
+	installed := make(map[string]*PublicKey)
 	keys, err := GetInstalledPGPKeys(nil)
 	if err != nil {
 		return nil, nil, err
@@ -745,7 +765,7 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 			if err != nil {
 				return nil, nil, err
 			} else if len(importedKey) != 1 {
-				return nil, nil, fmt.Errorf("Could not get details of imported key ID %s", importedKey)
+				return nil, nil, fmt.Errorf("Could not get details of imported key ID %s", key)
 			}
 			newKeys = append(newKeys, key)
 			fingerprints = append(fingerprints, importedKey[0].Fingerprint)

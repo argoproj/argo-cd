@@ -2,6 +2,9 @@ package controller
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -33,6 +36,7 @@ import (
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -106,7 +110,7 @@ type appStateManager struct {
 	persistResourceHealth bool
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
 
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
@@ -178,8 +182,22 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			return nil, nil, fmt.Errorf("failed to get Kustomize options for source %d of %d: %w", i+1, len(sources), err)
 		}
 
+		// If this source does not have a verification policy, we work with an
+		// empty one.
+		svp := proj.SourceVerificationPolicy(source.RepoURL)
+		if svp == nil {
+			svp = &v1alpha1.SourceVerificationPolicy{
+				VerificationLevel: v1alpha1.SourceVerificationLevelNone,
+			}
+		}
+
+		prevRevision, err := m.getLastSyncedRevision(app, source, revisions[i], svp)
+		if err != nil {
+			return nil, nil, fmt.Errorf("could not get last synced revision for verification: %w", err)
+		}
+
 		ts.AddCheckpoint("version_ms")
-		log.Debugf("Generating Manifest for source %s revision %s", source, revisions[i])
+		log.Debugf("Generating Manifest for source %s revision %s (past revision: '%s')", source, revisions[i], prevRevision)
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 			Repo:               repo,
 			Repos:              permittedHelmRepos,
@@ -193,13 +211,14 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			KustomizeOptions:   kustomizeOptions,
 			KubeVersion:        serverVersion,
 			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
-			VerifySignature:    verifySignature,
+			VerificationPolicy: svp,
 			HelmRepoCreds:      permittedHelmCredentials,
 			TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
 			EnabledSourceTypes: enabledSourceTypes,
 			HelmOptions:        helmOptions,
 			HasMultipleSources: app.Spec.HasMultipleSources(),
 			RefSources:         refSources,
+			PreviousRevision:   prevRevision,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
@@ -223,6 +242,78 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 	logCtx.Info("getRepoObjs stats")
 	return targetObjs, manifestInfos, nil
+}
+
+// getLastSyncedRevision returns the revision app was last synced to, if the
+// source policy's verification level is progressive. It will verify the HMAC
+func (m *appStateManager) getLastSyncedRevision(app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, svp *v1alpha1.SourceVerificationPolicy) (string, error) {
+	var prevRevision, prevHMAC string
+	var hist v1alpha1.RevisionHistory
+
+	// No verification policy means we're good to go
+	if svp == nil {
+		return "", nil
+	}
+
+	logCtx := log.
+		WithField("application", app.QualifiedName()).
+		WithField("source", source.RepoURL).
+		WithField("targetRevision", revision)
+
+	// We only need information about the previous revision when in progressive
+	// verification mode.
+	if len(app.Status.History) > 0 && svp.VerificationLevel == v1alpha1.SourceVerificationLevelProgressive {
+		hist = app.Status.History.LastRevisionHistory()
+	} else {
+		hist = v1alpha1.RevisionHistory{}
+	}
+
+	//
+	if len(hist.Sources) > 0 {
+		if len(hist.Sources) != len(hist.Revisions) || len(hist.Sources) != len(hist.RevisionSignatures) {
+			return "", fmt.Errorf("misaligned length of sources (%d) and revisions (%d) or revisionSignatures (%d) in history", len(hist.Sources), len(hist.Revisions), len(hist.RevisionSignatures))
+		}
+		for i, s := range hist.Sources {
+			if s.Equals(&source) {
+				prevRevision = hist.Revisions[i]
+				prevHMAC = hist.RevisionSignatures[i]
+				break
+			}
+		}
+	} else if hist.Source.RepoURL != "" {
+		prevRevision = app.Status.History.LastRevisionHistory().Revision
+		prevHMAC = app.Status.History.LastRevisionHistory().RevisionSignature
+	}
+
+	// If the HMAC has been removed from the history (or did not exist in
+	// the first place), we set previous to the empty string, thereby
+	// effectively enforcing verification for the whole repository. If the
+	// HMAC exist, but can not be verified, we treat that situation as a
+	// hard error.
+	if prevRevision != "" {
+		if prevHMAC == "" {
+			return "", fmt.Errorf("no HMAC found in history")
+		} else {
+			err := m.VerifyRevisionHMAC(app, prevRevision, prevHMAC)
+			if err != nil {
+				return "", fmt.Errorf("error verifying HMAC: %w", err)
+			}
+			return prevRevision, nil
+		}
+	}
+
+	// If we do not have a sync history, but a bootstrap period was defined,
+	// we may temporarily switch to
+	if svp.VerificationLevel == v1alpha1.SourceVerificationLevelProgressive {
+		if svp.BootstrapPeriod > 0 && time.Since(app.GetCreationTimestamp().Time) < svp.BootstrapPeriod {
+			logCtx.Infof("Bootstrapping sync to progressive verification mode by temporarily setting verification level to head for this sync.")
+			svp.VerificationLevel = v1alpha1.SourceVerificationLevelHead
+		} else {
+			logCtx.Infof("No sync history found and bootstrap period expired, reverting progressive to strict verification")
+		}
+	}
+
+	return "", nil
 }
 
 func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error) {
@@ -296,40 +387,72 @@ func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.R
 	return appLabelKey, resourceOverrides, resFilter, nil
 }
 
-// verifyGnuPGSignature verifies the result of a GnuPG operation for a given git
-// revision.
-func verifyGnuPGSignature(revision string, project *v1alpha1.AppProject, manifestInfo *apiclient.ManifestResponse) []v1alpha1.ApplicationCondition {
+// ensureSignedRevisions ensures that the given git revision(s) have valid signatures,
+// and are signed by allowed key(s). The information about signatures are being
+// supplied in the manifestResponse from the repository server.
+func ensureSignedRevisions(revision, previousRevision string, app *v1alpha1.Application, project *v1alpha1.AppProject, source v1alpha1.ApplicationSource, manifestInfo *apiclient.ManifestResponse) []v1alpha1.ApplicationCondition {
 	now := metav1.Now()
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
-	// We need to have some data in the verification result to parse, otherwise there was no signature
-	if manifestInfo.VerifyResult != "" {
-		verifyResult := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
-		switch verifyResult.Result {
-		case gpg.VerifyResultGood:
-			// This is the only case we allow to sync to, but we need to make sure signing key is allowed
+
+	// If there ain't a policy for the source to be verified, or the policy
+	// is disabled, there's no reason to proceed with verification.
+	svp := project.SourceVerificationPolicy(source.RepoURL)
+	if svp == nil || svp.VerificationLevel == v1alpha1.SourceVerificationLevelNone {
+		return conditions
+	}
+
+	svpError := func(msg string) v1alpha1.ApplicationCondition {
+		return v1alpha1.ApplicationCondition{
+			Type:               v1alpha1.ApplicationConditionSourceVerificationError,
+			Message:            msg,
+			LastTransitionTime: &now,
+		}
+	}
+
+	if len(manifestInfo.VerificationResult) == 0 {
+		msg := "One or more commits need to be signed according to policy, but there are none."
+		conditions = append(conditions, svpError(msg))
+		return conditions
+	}
+
+	for _, vr := range manifestInfo.VerificationResult {
+		msg := ""
+		switch vr.VerificationResult {
+		case gpg.VerificationResultGood:
 			validKey := false
-			for _, k := range project.Spec.SignatureKeys {
-				if gpg.KeyID(k.KeyID) == gpg.KeyID(verifyResult.KeyID) && gpg.KeyID(k.KeyID) != "" {
-					validKey = true
-					break
+			// If no trusted signers are defined, we trust all
+			if len(svp.TrustedSigners) > 0 {
+				for _, k := range svp.TrustedSigners {
+					if gpg.KeyID(k.KeyID) == gpg.KeyID(vr.KeyID) && gpg.KeyID(k.KeyID) != "" {
+						validKey = true
+						break
+					}
 				}
+			} else {
+				validKey = true
 			}
 			if !validKey {
-				msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
-					verifyResult.Cipher, verifyResult.KeyID)
-				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+				msg = fmt.Sprintf("Found GOOD signature on revision %s in %s, but the signer %s is not trusted by the verification policy",
+					git.ShortCommitSHA(vr.CommitSHA), source.RepoURL, vr.KeyID)
 			}
-		case gpg.VerifyResultInvalid:
-			msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
-				verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+		case gpg.VerificationResultBad:
+			msg = fmt.Sprintf("Found BAD signature on revision %s in %s signed by %s",
+				git.ShortCommitSHA(vr.CommitSHA), source.RepoURL, vr.KeyID)
+		case gpg.VerificationResultMissingKey:
+			msg = fmt.Sprintf("Found UNKNOWN signature on revision %s in %s signed by %s",
+				git.ShortCommitSHA(vr.CommitSHA), source.RepoURL, vr.KeyID)
+		case gpg.VerificationResultNoSignature:
+			msg = fmt.Sprintf("Found UNSIGNED revision %s in %s, but signature of all commits is required by policy",
+				git.ShortCommitSHA(vr.CommitSHA), source.RepoURL)
 		default:
-			msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			msg = fmt.Sprintf("INVALID signature on commit %s in %s signed by %s with status %s",
+				vr.CommitSHA, source.RepoURL, vr.KeyID, vr.VerificationResult)
 		}
-	} else {
-		msg := fmt.Sprintf("Target revision %s in Git is not signed, but a signature is required", revision)
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+
+		if msg != "" {
+			conditions = append(conditions, svpError(msg))
+			break
+		}
 	}
 
 	return conditions
@@ -367,17 +490,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 	}
 
-	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
-	verifySignature := false
-	if project.Spec.SignatureKeys != nil && len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
-		verifySignature = true
-	}
+	logCtx := log.WithField("application", app.QualifiedName())
 
 	// do best effort loading live and target state to present as much information about app state as possible
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 
-	logCtx := log.WithField("application", app.QualifiedName())
 	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	var targetObjs []*unstructured.Unstructured
@@ -395,7 +513,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfos, err = m.getRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
+		targetObjs, manifestInfos, err = m.getRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, project)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := fmt.Sprintf("Failed to load target state: %s", err.Error())
@@ -405,7 +523,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	} else {
 		// Prevent applying local manifests for now when signature verification is enabled
 		// This is also enforced on API level, but as a last resort, we also enforce it here
-		if gpg.IsGPGEnabled() && verifySignature {
+		if gpg.IsGPGEnabled() && project.HasSourceVerificationPolicy() {
 			msg := "Cannot use local manifests when signature verification is required"
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
@@ -681,12 +799,20 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: fmt.Sprintf("error setting app health: %s", err.Error()), LastTransitionTime: &now})
 	}
 
-	// Git has already performed the signature verification via its GPG interface, and the result is available
-	// in the manifest info received from the repository server. We now need to form our opinion about the result
-	// and stop processing if we do not agree about the outcome.
-	for _, manifestInfo := range manifestInfos {
-		if gpg.IsGPGEnabled() && verifySignature && manifestInfo != nil {
-			conditions = append(conditions, verifyGnuPGSignature(manifestInfo.Revision, project, manifestInfo)...)
+	// The repo-server has already done the heavy-lifting of verifying the commit(s) that make up the manifests,
+	// we just need to ensure that commits are signed by an allowed key in order to continue.
+	for i, manifestInfo := range manifestInfos {
+		if gpg.IsGPGEnabled() && project.HasSourceVerificationPolicy() && manifestInfo != nil {
+			svp := project.SourceVerificationPolicy(sources[i].RepoURL)
+			prevRevision, err := m.getLastSyncedRevision(app, sources[i], manifestRevisions[i], svp)
+			if err != nil {
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:    v1alpha1.ApplicationConditionComparisonError,
+					Message: fmt.Sprintf("could not determine sync history required for source verification: %v", err),
+				})
+				break
+			}
+			conditions = append(conditions, ensureSignedRevisions(manifestInfo.Revision, prevRevision, app, project, sources[i], manifestInfo)...)
 		}
 	}
 
@@ -712,14 +838,47 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 
 	app.Status.SetConditions(conditions, map[v1alpha1.ApplicationConditionType]bool{
-		v1alpha1.ApplicationConditionComparisonError:         true,
-		v1alpha1.ApplicationConditionSharedResourceWarning:   true,
-		v1alpha1.ApplicationConditionRepeatedResourceWarning: true,
-		v1alpha1.ApplicationConditionExcludedResourceWarning: true,
+		v1alpha1.ApplicationConditionComparisonError:           true,
+		v1alpha1.ApplicationConditionSourceVerificationError:   true,
+		v1alpha1.ApplicationConditionSharedResourceWarning:     true,
+		v1alpha1.ApplicationConditionRepeatedResourceWarning:   true,
+		v1alpha1.ApplicationConditionExcludedResourceWarning:   true,
+		v1alpha1.ApplicationConditionSourceVerificationWarning: true,
 	})
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()
 	return &compRes
+}
+
+// VerifyRevisionHMAC verifies that the calculated HMAC of a revision for a
+// given app matches the expected one
+func (m *appStateManager) VerifyRevisionHMAC(app *v1alpha1.Application, revision, expected string) error {
+	if len(app.Status.History) == 0 {
+		return fmt.Errorf("application history is empty")
+	}
+	signature, err := m.generateRevisionHMAC(app, revision)
+	if err != nil {
+		return err
+	}
+	if signature != expected {
+		return fmt.Errorf("revision HMAC is invalid")
+	}
+	return nil
+}
+
+// generateRevisionHMAC generates and returns a HMAC for a given application's revision.
+func (m *appStateManager) generateRevisionHMAC(app *v1alpha1.Application, revision string) (string, error) {
+	settings, err := m.settingsMgr.GetSettings()
+	if err != nil {
+		return "", err
+	}
+	toSign := app.ObjectMeta.Namespace + "_" + app.ObjectMeta.Name + "_" + revision
+	hm := hmac.New(sha256.New, settings.ServerSignature)
+	_, err = hm.Write([]byte(toSign))
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hm.Sum(nil)), nil
 }
 
 func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, revisions []string, sources []v1alpha1.ApplicationSource, hasMultipleSources bool, startedAt metav1.Time) error {
@@ -729,20 +888,34 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 	}
 
 	if hasMultipleSources {
+		var err error
+		signatures := make([]string, len(revisions))
+		for i, r := range revisions {
+			signatures[i], err = m.generateRevisionHMAC(app, r)
+			if err != nil {
+				return fmt.Errorf("error creating signature for revisison %s: %w", r, err)
+			}
+		}
 		app.Status.History = append(app.Status.History, v1alpha1.RevisionHistory{
-			DeployedAt:      metav1.NewTime(time.Now().UTC()),
-			DeployStartedAt: &startedAt,
-			ID:              nextID,
-			Sources:         sources,
-			Revisions:       revisions,
+			DeployedAt:         metav1.NewTime(time.Now().UTC()),
+			DeployStartedAt:    &startedAt,
+			ID:                 nextID,
+			Sources:            sources,
+			Revisions:          revisions,
+			RevisionSignatures: signatures,
 		})
 	} else {
+		signature, err := m.generateRevisionHMAC(app, revision)
+		if err != nil {
+			return fmt.Errorf("error creating signature for revision %s: %w", revision, err)
+		}
 		app.Status.History = append(app.Status.History, v1alpha1.RevisionHistory{
-			Revision:        revision,
-			DeployedAt:      metav1.NewTime(time.Now().UTC()),
-			DeployStartedAt: &startedAt,
-			ID:              nextID,
-			Source:          source,
+			Revision:          revision,
+			RevisionSignature: signature,
+			DeployedAt:        metav1.NewTime(time.Now().UTC()),
+			DeployStartedAt:   &startedAt,
+			ID:                nextID,
+			Source:            source,
 		})
 	}
 

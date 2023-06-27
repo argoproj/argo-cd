@@ -2,7 +2,10 @@ package git
 
 import (
 	"crypto/tls"
+	"encoding/csv"
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"net/url"
@@ -46,6 +49,14 @@ type RevisionMetadata struct {
 	Message string
 }
 
+type RevisionSignatureInfo struct {
+	CommitSHA          string // SHA of the commit
+	VerificationResult string // Raw result of the verification (one letter)
+	KeyID              string // ID of the key the signature was made with
+	Date               string // Date of the commit
+	Identity           string // Email associated with the commit
+}
+
 // this should match reposerver/repository/repository.proto/RefsList
 type Refs struct {
 	Branches []string
@@ -71,8 +82,9 @@ type Client interface {
 	LsLargeFiles() ([]string, error)
 	CommitSHA() (string, error)
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
-	VerifyCommitSignature(string) (string, error)
-	IsAnnotatedTag(string) bool
+	IsAnnotatedTag(revision string) bool
+	LsRevisions(then, now string) ([]RevisionSignatureInfo, error)
+	VerifyTag(tagName string) (string, error)
 }
 
 type EventHandlers struct {
@@ -650,13 +662,82 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 	return &RevisionMetadata{author, time.Unix(authorDateUnixTimestamp, 0), tags, message}, nil
 }
 
-// VerifyCommitSignature Runs verify-commit on a given revision and returns the output
-func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error) {
-	out, err := m.runGnuPGWrapper("git-verify-wrapper.sh", revision)
+// LsRevisions gets a list of revisions according to then and now, which both
+// specify a particular revision in the repository. now must be a non-empty
+// string, but then can optionally be the empty string.
+//
+//   - If now equals then, LsRevisions returns information about a single commit
+//   - Otherwise, if then is the empty string, LsRevisions returns a list of all
+//     commits in the repository that led to the revision specified by now.
+//   - If then is a valid revision, LsRevisions returns a list of all commits
+//     between now and then, excluding the revision in then, that led to the
+//     revision now.
+func (m *nativeGitClient) LsRevisions(then, now string) ([]RevisionSignatureInfo, error) {
+	// See git-rev-list(1) for description of the format string
+	const revListFormat = `format:%H,%G?,%GK,"%aD","%ae","%an"`
+	const revListNumFields = 6
+
+	args := []string{"rev-list", "--pretty=" + revListFormat, "--no-commit-header"}
+	if then == now {
+		args = append(args, then, "-n", "1")
+	} else if then != "" {
+		args = append(args, fmt.Sprintf("%s..%s", then, now))
+	} else {
+		args = append(args, now)
+	}
+
+	cmd := exec.Command("git", args...)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
+	out, err := m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
+		return nil, err
+	}
+
+	if len(out) == 0 {
+		return nil, nil
+	}
+
+	// Final LF will be cut by executil
+	nl := strings.Count(out, "\n")
+	commits := make([]RevisionSignatureInfo, nl+1)
+	csvR := csv.NewReader(strings.NewReader(out))
+	for i := 0; i <= nl; i += 1 {
+		r, err := csvR.Read()
+		if r == nil || err != nil {
+			break
+		}
+		if len(out) < revListNumFields {
+			return nil, fmt.Errorf("invalid rev-list output, refusing to continue (fields=%d)", len(out))
+		}
+		rsd := RevisionSignatureInfo{
+			CommitSHA:          r[0],
+			VerificationResult: r[1],
+			KeyID:              r[2],
+			Date:               r[3],
+			Identity:           fmt.Sprintf("%s <%s>", r[5], r[4]),
+		}
+		commits[i] = rsd
+	}
+
+	// EOF means parsing had ended
+	if errors.Is(err, io.EOF) {
+		return commits, nil
+	} else {
+		return commits, err
+	}
+}
+
+// VerifyTag gets the textual signature of an annotated tag
+func (m *nativeGitClient) VerifyTag(tagName string) (string, error) {
+	// There seems not to be any alternative to verify-tag to get any information about a tag's PGP signature
+	cmd := exec.Command("git", "verify-tag", tagName)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
+	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: false, CaptureStderr: true})
+	if err == nil || (err != nil && strings.Contains(err.Error(), "failed exit status 1")) {
+		return out, nil
+	} else {
 		return "", err
 	}
-	return out, nil
 }
 
 // IsAnnotatedTag returns true if the revision points to an annotated tag
@@ -668,13 +749,6 @@ func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
 	} else {
 		return false
 	}
-}
-
-// runWrapper runs a custom command with all the semantics of running the Git client
-func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
-	cmd := exec.Command(wrapper, args...)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
-	return m.runCmdOutput(cmd, runOpts{})
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output

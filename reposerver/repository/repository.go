@@ -265,7 +265,7 @@ type operationContext struct {
 	appPath string
 
 	// output of 'git verify-(tag/commit)', if signature verification is enabled (otherwise "")
-	verificationResult string
+	revisionInfo []git.RevisionSignatureInfo
 }
 
 // The 'operation' function parameter of 'runRepoOperation' may call this function to retrieve
@@ -281,9 +281,10 @@ type operationContextSrc = func() (*operationContext, error)
 func (s *Service) runRepoOperation(
 	ctx context.Context,
 	revision string,
+	previousRevision string,
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
-	verifyCommit bool,
+	verificationPolicy *v1alpha1.SourceVerificationPolicy,
 	cacheFn func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error),
 	operation func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error,
 	settings operationSettings,
@@ -368,7 +369,7 @@ func (s *Service) runRepoOperation(
 			}
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{chartPath, ""}, nil
+			return &operationContext{chartPath, nil}, nil
 		})
 	} else {
 		closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
@@ -414,29 +415,94 @@ func (s *Service) runRepoOperation(
 		// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
 		// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
 		return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
-			var signature string
-			if verifyCommit {
-				// When the revision is an annotated tag, we need to pass the unresolved revision (i.e. the tag name)
-				// to the verification routine. For everything else, we work with the SHA that the target revision is
-				// pointing to (i.e. the resolved revision).
-				var rev string
-				if gitClient.IsAnnotatedTag(revision) {
-					rev = unresolvedRevision
-				} else {
-					rev = revision
-				}
-				signature, err = gitClient.VerifyCommitSignature(rev)
-				if err != nil {
-					return nil, err
-				}
+			signatures, err := getRevisionSignatureInfo(gitClient, revision, unresolvedRevision, previousRevision, verificationPolicy)
+			if err != nil {
+				return nil, err
 			}
 			appPath, err := argopath.Path(gitClient.Root(), source.Path)
 			if err != nil {
 				return nil, err
 			}
-			return &operationContext{appPath, signature}, nil
+			return &operationContext{appPath, signatures}, nil
 		})
 	}
+}
+
+// getRevisionSignatureInfo uses the Git client to generate detailed information
+// about signatures on a particular range of commits. The range of commits that
+// are verified depends on the following factors:
+//
+//   - If unresolvedRevision is the name of an annotated tag, and the verificiation
+//     mode is GpgVerificationModeHead, then only the tag and no particular
+//     commit(s) will be verified.
+//   - If unresolvedRevision is the name of an annotated tag, the verificiation
+//     mode is GpgVerificationModeFull and targetRevision is the empty string,
+//     then the tag and the single commit it points to will be verified.
+//   - If unresolvedRevision is any other than the name of an annotated tag and
+//     the verification mode is GpgVerificationModeHead, then only the commit
+//     in targetRevision will be verified.
+//   - If unresolvedRevision is any other than the name of an annotated tag,
+//     the verification mode is GpgVerificationModeAll and previousRevision is
+//     not the empty string (i.e. app has never synced before),
+//   - If previousRevision is not empty, and the mode is GpgVerificationModeAll,
+//     then all commits leading from previousRevision to revision are verified.
+//     If unresolvedRevision is the name of an annotated tag, then also the tag
+//     will be verified.
+func getRevisionSignatureInfo(gitClient git.Client, targetRevision, unresolvedRevision, previousRevision string, policy *v1alpha1.SourceVerificationPolicy) ([]git.RevisionSignatureInfo, error) {
+
+	// If verification is not enabled, we're just a noop
+	if policy == nil || policy.VerificationLevel == v1alpha1.SourceVerificationLevelNone {
+		log.Debugf("No verification policy submitted, skipping signature verification")
+		return nil, nil
+	}
+
+	result := make([]git.RevisionSignatureInfo, 0)
+
+	// If our target revision is an annotated tag, we verify the tag itself first.
+	// If the verification mode is 'head', the result of this operation is sufficient to determine whether to proceed or not.
+	// If the verification mode is 'full', we also proceed to check all commits in between the previous sync revision and the revision the tag is pointing to.
+	if gitClient.IsAnnotatedTag(unresolvedRevision) {
+		signature, err := gitClient.VerifyTag(unresolvedRevision)
+		if err != nil {
+			return nil, err
+		}
+		parsed := gpg.ParseGitCommitVerification(signature)
+		rsi := git.RevisionSignatureInfo{
+			CommitSHA:          unresolvedRevision,
+			VerificationResult: parsed.Result,
+			KeyID:              parsed.KeyID,
+			Identity:           parsed.Identity,
+			Date:               parsed.Date,
+		}
+		result = append(result, rsi)
+		if policy.VerificationLevel == v1alpha1.SourceVerificationLevelHead {
+			return result, nil
+		}
+	}
+
+	// We verify only a single commit under the following circumstances:
+	//
+	// - It's explicitly requested (verification mode 'head')
+	// - The target revision is not different from the previous revision (i.e. a force sync without changes)
+	if previousRevision == targetRevision || policy.VerificationLevel == v1alpha1.SourceVerificationLevelHead {
+		revisions, err := gitClient.LsRevisions(targetRevision, targetRevision)
+		if err != nil {
+			return nil, err
+		}
+		if len(revisions) != 1 {
+			return nil, fmt.Errorf("expected to receive info about 1 revision, but actually got %d", len(revisions))
+		}
+		return revisions, nil
+	}
+
+	// Get a list of all revisions that led from the previous synced revision to the one we are rendering now
+	revisions, err := gitClient.LsRevisions(previousRevision, targetRevision)
+	if err != nil {
+		return nil, err
+	}
+
+	result = append(result, revisions...)
+	return result, nil
 }
 
 func getRepoSanitizerRegex(rootDir string) *regexp.Regexp {
@@ -537,7 +603,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	}
 
 	settings := operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, noRevisionCache: q.NoRevisionCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()}
-	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings, q.HasMultipleSources, q.RefSources)
+	err = s.runRepoOperation(ctx, q.Revision, q.PreviousRevision, q.Repo, q.ApplicationSource, q.VerificationPolicy, cacheFn, operation, settings, q.HasMultipleSources, q.RefSources)
 
 	// if the tarDoneCh message is sent it means that the manifest
 	// generation is being managed by the cmp-server. In this case
@@ -594,7 +660,7 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 		if err != nil {
 			return nil, fmt.Errorf("failed to get app path: %w", err)
 		}
-		return &operationContext{appPath, ""}, nil
+		return &operationContext{appPath, nil}, nil
 	}, req)
 
 	var res *apiclient.ManifestResponse
@@ -813,6 +879,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
+			innerRes.VerificationPolicy = q.VerificationPolicy
 			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs)
 			if cacheErr != nil {
 				logCtx.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
@@ -834,9 +901,21 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		NumberOfConsecutiveFailures:     0,
 		FirstFailureTimestamp:           0,
 		MostRecentError:                 "",
+		VerificationPolicy:              q.VerificationPolicy,
 	}
 	manifestGenResult.Revision = commitSHA
-	manifestGenResult.VerifyResult = opContext.verificationResult
+	if len(opContext.revisionInfo) > 0 {
+		vr := make([]*v1alpha1.RevisionSignatureInfo, len(opContext.revisionInfo))
+		for i, ri := range opContext.revisionInfo {
+			vr[i] = &v1alpha1.RevisionSignatureInfo{}
+			vr[i].CommitSHA = ri.CommitSHA
+			vr[i].Date = ri.Date
+			vr[i].Identity = ri.Identity
+			vr[i].KeyID = ri.KeyID
+			vr[i].VerificationResult = ri.VerificationResult
+		}
+		manifestGenResult.VerificationResult = vr
+	}
 	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)
@@ -925,6 +1004,11 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 			// yet occurred to put us in that state.
 			log.Infof("manifest error cache miss: %s/%s", q.ApplicationSource.String(), cacheKey)
 			return false, res.ManifestResponse, nil
+		}
+
+		if q.VerificationPolicy.Differs(res.VerificationPolicy) {
+			log.Infof("manifest cache hit, but requested verification policy is different")
+			return false, nil, nil
 		}
 
 		log.Infof("manifest cache hit: %s/%s", q.ApplicationSource.String(), cacheKey)
@@ -1947,9 +2031,9 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		_ = s.cache.SetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), nil)
 		return nil
 	}
-
+	svp := &v1alpha1.SourceVerificationPolicy{VerificationLevel: v1alpha1.SourceVerificationLevelNone}
 	settings := operationSettings{allowConcurrent: q.Source.AllowsConcurrentProcessing(), noCache: q.NoCache, noRevisionCache: q.NoCache || q.NoRevisionCache}
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, cacheFn, operation, settings, false, nil)
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, "", q.Repo, q.Source, svp, cacheFn, operation, settings, false, nil)
 
 	return res, err
 }
@@ -2148,6 +2232,11 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	return nil
 }
 
+// sameCommitSHA returns true if compare is the same SHA as sha.
+func sameCommitSHA(sha, compare string) bool {
+	return sha == compare || len(compare) == 7 && strings.HasPrefix(sha, compare)
+}
+
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
 	if !(git.IsCommitSHA(q.Revision) || git.IsTruncatedCommitSHA(q.Revision)) {
 		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
@@ -2199,24 +2288,39 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 		return nil, err
 	}
 
-	// Run gpg verify-commit on the revision
+	// We optionally verify the signature on the requested revision. We don't
+	// care about full history verification at this point in time, because we
+	// are only interested in the particularly requested revision.
 	signatureInfo := ""
 	if gpg.IsGPGEnabled() && q.CheckSignature {
-		cs, err := gitClient.VerifyCommitSignature(q.Revision)
+
+		cs, err := gitClient.LsRevisions(q.Revision, q.Revision)
 		if err != nil {
-			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", q.Revision, q.Repo.Repo, err)
 			return nil, err
 		}
+		if len(cs) != 1 {
+			return nil, fmt.Errorf("could not verify signature for revision %s", q.Revision)
+		}
 
-		if cs != "" {
-			vr := gpg.ParseGitCommitVerification(cs)
-			if vr.Result == gpg.VerifyResultUnknown {
-				signatureInfo = fmt.Sprintf("UNKNOWN signature: %s", vr.Message)
-			} else {
-				signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
-			}
-		} else {
-			signatureInfo = "Revision is not signed."
+		// The revision that was supplied in the request could be a truncated,
+		// short-form of the revision. In case of revision metadata requests,
+		// it's OK to accept the truncated SHA for a comparison (as it will
+		// not lead to any modifications on the cluster resources).
+		if !sameCommitSHA(cs[0].CommitSHA, q.Revision) {
+			return nil, fmt.Errorf("expected verification result for commit '%s', but got '%s'", q.Revision, cs[0].CommitSHA)
+		}
+
+		switch cs[0].VerificationResult {
+		case gpg.VerificationResultGood:
+			signatureInfo = fmt.Sprintf("GOOD signature from %s", cs[0].KeyID)
+		case gpg.VerificationResultBad:
+			signatureInfo = fmt.Sprintf("BAD signature from key %s", cs[0].KeyID)
+		case gpg.VerificationResultMissingKey:
+			signatureInfo = fmt.Sprintf("UNKNOWN signature from key %s", cs[0].KeyID)
+		case gpg.VerificationResultNoSignature:
+			signatureInfo = "Not signed"
+		default:
+			signatureInfo = fmt.Sprintf("Unable to verify signature (code %s)", cs[0].VerificationResult)
 		}
 	}
 

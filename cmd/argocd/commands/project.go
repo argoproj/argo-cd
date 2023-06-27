@@ -52,6 +52,8 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectEditCommand(clientOpts))
 	command.AddCommand(NewProjectAddSignatureKeyCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveSignatureKeyCommand(clientOpts))
+	command.AddCommand(NewProjectAddVerificationRule(clientOpts))
+	command.AddCommand(NewProjectRemoveVerificationRule(clientOpts))
 	command.AddCommand(NewProjectAddDestinationCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveDestinationCommand(clientOpts))
 	command.AddCommand(NewProjectAddSourceCommand(clientOpts))
@@ -222,6 +224,153 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 	}
 
 	return command
+}
+
+// NewProjectAddVerificationRule adds or changes the source verification rule
+func NewProjectAddVerificationRule(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		repoPattern      string
+		sourceType       string
+		verificationType string
+		verificationMode string
+		signatureKeys    []string
+	)
+	var command = &cobra.Command{
+		Use:   "add-verification-rule PROJECT --repo-pattern=<pattern> --verification-type=<type> --verification-mode=<mode>",
+		Short: "Adds a source verification rule for given project",
+		Long: `
+The add-verification-rule command adds a source verification rule.
+
+A source verification rule defines how to verify the source repositories that
+are used by the project's applications.
+
+VERIFICATION MODES:
+
+- head:   This mode will verify only the commit that's pointed to by the HEAD
+          of the application's target revision. If given target revision is an
+          annotated tag, only the signature of the tag will be verified.
+- lax:    This mode will verify all commits between the revision an application
+          has last synced to and the target revision. If the target revision is
+		  an annotated tag, the tag's signature will be verified additionally.
+- strict: This mode will verify all commits in the repository that led up to
+          target revision. This mode ensures that all commits in the history
+		  of the repository have been signed.
+
+CURRENT LIMITATIONS AND CAVEATS:
+
+Each AppProject only supports a single verification rule, so any subsequent
+call to add-verification-rule will overwrite the existing verification rule
+instead of adding one. Also, a source verification rule has no effect when
+there is no GnuPG verification key defined.
+
+This will change in a future release of Argo CD, as the source verification
+feature is progressing.
+		`,
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			if repoPattern == "" {
+				c.HelpFunc()(c, args)
+				log.Fatalf("--repo-pattern must be specified")
+			}
+
+			var vm v1alpha1.SourceVerificationLevel
+			var vt v1alpha1.SourceVerificationMethod
+			switch strings.ToLower(verificationMode) {
+			case "off":
+				vm = v1alpha1.SourceVerificationLevelNone
+			case "head":
+				vm = v1alpha1.SourceVerificationLevelHead
+			case "lax":
+				vm = v1alpha1.SourceVerificationLevelProgressive
+			case "strict":
+				vm = v1alpha1.SourceVerificationLevelStrict
+			case "":
+				c.HelpFunc()(c, args)
+				log.Fatalf("The --verification-mode must be specified")
+			default:
+				c.HelpFunc()(c, args)
+				log.Fatalf("Unknown source verification mode: '%s'. Must be one of: head, lax, strict", verificationMode)
+			}
+
+			switch strings.ToLower(verificationType) {
+			case "gpg":
+				vt = v1alpha1.SourceVerificationTypeGPG
+			case "":
+				c.HelpFunc()(c, args)
+				log.Fatalf("The --verification-type must be specified")
+			default:
+				c.HelpFunc()(c, args)
+				log.Fatalf("Unknown source verification type: '%s'. Must be one of: gpg", verificationType)
+			}
+
+			policy := v1alpha1.SourceVerificationPolicy{}
+			policy.VerificationLevel = vm
+			policy.VerificationMethod = vt
+			policy.RepositoryPattern = repoPattern
+			for _, k := range signatureKeys {
+				policy.TrustedSigners = append(policy.TrustedSigners, v1alpha1.SignatureKey{KeyID: k})
+			}
+
+			if len(proj.Spec.SourceVerificationPolicies) == 0 {
+				proj.Spec.SourceVerificationPolicies = []v1alpha1.SourceVerificationPolicy{policy}
+			} else {
+				proj.Spec.SourceVerificationPolicies[0] = policy
+			}
+			log.Infof("Updating project: %v", proj.Spec)
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	command.Flags().StringVar(&repoPattern, "repo-pattern", "", "The repository pattern to match")
+	command.Flags().StringVar(&sourceType, "source-type", "git", "The source type (one of: git)")
+	command.Flags().StringVar(&verificationType, "verification-type", "gpg", "The verification type to use (one of: gpg)")
+	command.Flags().StringVar(&verificationMode, "verification-mode", "", "The verification mode to use (one of: off, head, lax, strict)")
+	command.Flags().StringSliceVar(&signatureKeys, "signature-keys", []string{}, "List of keys allowed to make signatures")
+	return command
+}
+
+// NewProjectRemoveVerificationRule removes the source verification rule
+func NewProjectRemoveVerificationRule(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "remove-verification-rule PROJECT",
+		Short: "Removes a source verification rule from a given project",
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			if len(proj.Spec.SourceVerificationPolicies) != 0 {
+				proj.Spec.SourceVerificationPolicies = []v1alpha1.SourceVerificationPolicy{}
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+			}
+		},
+	}
+	return command
+
 }
 
 // NewProjectAddDestinationCommand returns a new instance of an `argocd proj add-destination` command

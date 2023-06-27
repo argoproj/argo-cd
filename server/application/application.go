@@ -1418,7 +1418,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           repo,
 		Revision:       q.GetRevision(),
-		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
+		CheckSignature: proj.HasSourceVerificationPolicy(),
 	})
 }
 

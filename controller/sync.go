@@ -161,8 +161,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	// If there are any comparison or spec errors error conditions do not perform the operation
 	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
-		v1alpha1.ApplicationConditionComparisonError:  true,
-		v1alpha1.ApplicationConditionInvalidSpecError: true,
+		v1alpha1.ApplicationConditionComparisonError:         true,
+		v1alpha1.ApplicationConditionSourceVerificationError: true,
+		v1alpha1.ApplicationConditionInvalidSpecError:        true,
 	}); len(errConditions) > 0 {
 		state.Phase = common.OperationError
 		state.Message = argo.FormatAppConditions(errConditions)

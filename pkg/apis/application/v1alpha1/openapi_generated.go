@@ -137,6 +137,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RetryStrategy":                       schema_pkg_apis_application_v1alpha1_RetryStrategy(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionHistory":                     schema_pkg_apis_application_v1alpha1_RevisionHistory(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionMetadata":                    schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionSignatureInfo":               schema_pkg_apis_application_v1alpha1_RevisionSignatureInfo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGenerator":                schema_pkg_apis_application_v1alpha1_SCMProviderGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAWSCodeCommit":   schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorAWSCodeCommit(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAzureDevOps":     schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorAzureDevOps(ref),
@@ -148,6 +149,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitlab":          schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef":                           schema_pkg_apis_application_v1alpha1_SecretRef(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey":                        schema_pkg_apis_application_v1alpha1_SignatureKey(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceVerificationPolicy":            schema_pkg_apis_application_v1alpha1_SourceVerificationPolicy(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperation":                       schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResource":               schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResult":                 schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
@@ -457,11 +459,25 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Format:      "",
 						},
 					},
+					"sourceVerificationPolicies": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SourceVerification specifies how to verify the source (head or full)",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceVerificationPolicy"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncWindow", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceVerificationPolicy", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncWindow", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
 	}
 }
 
@@ -6373,6 +6389,28 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 							},
 						},
 					},
+					"revisionSignature": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RevisionSignature is a signature of the Revision field",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"revisionSignatures": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RevisionSignatures is a signature of the Revisions field",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"deployedAt", "id"},
 			},
@@ -6438,6 +6476,53 @@ func schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref common.ReferenceC
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RevisionSignatureInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"commitSHA": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CommitSHA (or tag name)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"verificationResult": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Raw result of the verification (one letter)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"keyID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ID of the key the signature was made with",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"date": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Date of the commit",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"identity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Email associated with the commit",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -7002,7 +7087,7 @@ func schema_pkg_apis_application_v1alpha1_SignatureKey(ref common.ReferenceCallb
 				Properties: map[string]spec.Schema{
 					"keyID": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The ID of the key in hexadecimal notation",
+							Description: "KeyID specifies the ID of the key in hexadecimal notation",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -7012,6 +7097,70 @@ func schema_pkg_apis_application_v1alpha1_SignatureKey(ref common.ReferenceCallb
 				Required: []string{"keyID"},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SourceVerificationPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SourceVerificationPolicy specifies how to verify a particular source",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"repositoryPattern": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RepositoryPattern specifies the pattern a repository URL has to match for this policy",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"repositoryType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RepositoryType specifies the type a repository has to match for this policy",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"verificationLevel": {
+						SchemaProps: spec.SchemaProps{
+							Description: "VerificationLevel specifies the source verification mode to use",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"verificationMethod": {
+						SchemaProps: spec.SchemaProps{
+							Description: "VerificationMethod specifies the type of verification to perform",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"trustedSigners": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TrustedSigners defines a list of keys that signatures must be made by",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey"),
+									},
+								},
+							},
+						},
+					},
+					"bootstrapPeriod": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BootstraPeriod defines the period in which an app may bootstrap when at progressive level. 0 to disable.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey"},
 	}
 }
 

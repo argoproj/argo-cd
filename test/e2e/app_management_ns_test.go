@@ -223,7 +223,7 @@ func TestNamespacedSyncToUnsignedCommit(t *testing.T) {
 	SkipOnEnv(t, "GPG")
 	GivenWithNamespace(t, AppNamespace()).
 		SetTrackingMethod("annotation").
-		Project("gpg").
+		Project("gpg-legacy").
 		Path(guestbookPath).
 		When().
 		IgnoreErrors().
@@ -240,7 +240,7 @@ func TestNamespacedSyncToSignedCommitWKK(t *testing.T) {
 	Given(t).
 		SetAppNamespace(AppNamespace()).
 		SetTrackingMethod("annotation").
-		Project("gpg").
+		Project("gpg-legacy").
 		Path(guestbookPath).
 		When().
 		AddSignedFile("test.yaml", "null").
@@ -258,7 +258,7 @@ func TestNamespacedSyncToSignedCommitKWKK(t *testing.T) {
 	Given(t).
 		SetAppNamespace(AppNamespace()).
 		SetTrackingMethod("annotation").
-		Project("gpg").
+		Project("gpg-legacy").
 		Path(guestbookPath).
 		GPGPublicKeyAdded().
 		Sleep(2).
