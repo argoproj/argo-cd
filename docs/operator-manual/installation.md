@@ -72,7 +72,7 @@ kind: Kustomization
 
 namespace: argocd
 resources:
-- github.com/argoproj/argo-cd/manifests/ha/base?ref=v2.6.2
+- https://raw.githubusercontent.com/argoproj/argo-cd/v2.7.2/manifests/install.yaml
 ```
 
 For an example of this, see the [kustomization.yaml](https://github.com/argoproj/argoproj-deployments/blob/master/argocd/kustomization.yaml)
@@ -99,3 +99,9 @@ For example if the latest minor version of ArgoCD are 2.4.3 and 2.3.5  while sup
 * Argo CD 2.3.5 on Kubernetes 1.24
 * Argo CD 2.3.5 on Kubernetes 1.23
 * Argo CD 2.3.5 on Kubernetes 1.22
+
+## Tested versions
+
+The following table shows the versions of Kubernetes that are tested with each version of Argo CD.
+
+{!docs/operator-manual/tested-kubernetes-versions.md!}

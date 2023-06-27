@@ -33,6 +33,7 @@ spec:
         ports:
         - containerPort: 6379
         securityContext:
+          readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
           capabilities:
             drop:
