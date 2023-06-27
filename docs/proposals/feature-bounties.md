@@ -42,7 +42,7 @@ A bounty is a special proposal created under `docs/proposals/feature-bounties`.
 * A bounty is limited to a single successful PR.
 * Those interested in working on the bounty are encouraged to comment on the issue, and users may team up to split a bounty if they prefer but collaboration is not required and users should not shame eachother for their preferences to work alone or together.
 * A comment of interest does not constitute a claim and will not be treated as such.
-* The first pull request submitted that is ready for merge will be reviewed by maintainers. Maintainer's will also consider any competing pull requests submitted within 24-hours. We expect this will be a very rare circumstance. If multiple, high-quality, merge ready pull requests are submitted, 3-5 maintainers will vote to decide the final pull request merged.
+* The first pull request submitted that is ready for merge will be reviewed by maintainers. Maintainers will also consider any competing pull requests submitted within 24-hours. We expect this will be a very rare circumstance. If multiple, high-quality, merge ready pull requests are submitted, 3-5 maintainers will vote to decide the final pull request merged.
 
 ### Funding
 The Argo Project has a small amount of funds from HackerOne bounties that can provide for a few feature bounties. 
