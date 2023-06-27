@@ -87,7 +87,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
                         },
                         hasMultipleSources,
-                        () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
+                        source.chart ? null : () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
                     )}
                     {appOperationState && (
                         <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
@@ -130,7 +130,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                     ' days since last sync. Click for the status of that sync.'
                             },
                             hasMultipleSources,
-                            () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '')
+                            source.chart ? null : () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '')
                         )}
                         <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                             <a onClick={() => showOperation && showOperation()}>
