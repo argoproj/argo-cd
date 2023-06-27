@@ -19,6 +19,10 @@ type ExecRunOpts struct {
 	Redactor func(text string) string
 	// TimeoutBehavior configures what to do in case of timeout
 	TimeoutBehavior argoexec.TimeoutBehavior
+	// SkipErrorLogging determines whether to skip logging of execution errors (rc > 0)
+	SkipErrorLogging bool
+	// CaptureStderr determines whether to capture stderr in addition to stdout
+	CaptureStderr bool
 }
 
 func init() {
@@ -43,7 +47,7 @@ func RunWithRedactor(cmd *exec.Cmd, redactor func(text string) string) (string, 
 }
 
 func RunWithExecRunOpts(cmd *exec.Cmd, opts ExecRunOpts) (string, error) {
-	cmdOpts := argoexec.CmdOpts{Timeout: timeout, Redactor: opts.Redactor, TimeoutBehavior: opts.TimeoutBehavior}
+	cmdOpts := argoexec.CmdOpts{Timeout: timeout, Redactor: opts.Redactor, TimeoutBehavior: opts.TimeoutBehavior, SkipErrorLogging: opts.SkipErrorLogging}
 	span := tracing.NewLoggingTracer(log.NewLogrusLogger(log.NewWithCurrentConfig())).StartSpan(fmt.Sprintf("exec %v", cmd.Args[0]))
 	span.SetBaggageItem("dir", fmt.Sprintf("%v", cmd.Dir))
 	if cmdOpts.Redactor != nil {
