@@ -43,7 +43,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		ssoPort     int
 		skipTestTLS bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "login SERVER",
 		Short: "Log in to Argo CD",
 		Long:  "Log in to Argo CD",
@@ -323,9 +323,10 @@ func oauth2Login(
 		log.Fatalf("Unsupported grant type: %v", grantType)
 	}
 	fmt.Printf("Performing %s flow login: %s\n", grantType, url)
+	if err := open.Start(url); err != nil {
+		fmt.Printf("Failed to open browser automatically, please visit %s to complete auth\n\n", url)
+	}
 	time.Sleep(1 * time.Second)
-	err = open.Start(url)
-	errors.CheckError(err)
 	go func() {
 		log.Debugf("Listen: %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
