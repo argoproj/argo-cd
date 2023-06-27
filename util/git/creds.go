@@ -279,7 +279,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		if err = file.Close(); err != nil {
 			log.WithFields(log.Fields{
 				common.SecurityField:    common.SecurityMedium,
-				common.SecurityCWEField: 775,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 			}).Errorf("error closing file %q: %v", file.Name(), err)
 		}
 	}()
@@ -456,15 +456,16 @@ func (g GitHubAppCreds) GetClientCertKey() string {
 // GoogleCloudCreds to authenticate to Google Cloud Source repositories
 type GoogleCloudCreds struct {
 	creds *google.Credentials
+	store CredsStore
 }
 
-func NewGoogleCloudCreds(jsonData string) GoogleCloudCreds {
+func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
 	creds, err := google.CredentialsFromJSON(context.Background(), []byte(jsonData), "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		// Invalid JSON
 		log.Errorf("Failed reading credentials from JSON: %+v", err)
 	}
-	return GoogleCloudCreds{creds}
+	return GoogleCloudCreds{creds, store}
 }
 
 func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
@@ -477,9 +478,13 @@ func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
 		return NopCloser{}, nil, fmt.Errorf("failed to get access token from creds: %w", err)
 	}
 
-	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), fmt.Sprintf("GIT_USERNAME=%s", username), fmt.Sprintf("GIT_PASSWORD=%s", token)}
+	nonce := c.store.Add(username, token)
+	env := getGitAskPassEnv(nonce)
 
-	return NopCloser{}, env, nil
+	return argoioutils.NewCloser(func() error {
+		c.store.Remove(nonce)
+		return NopCloser{}.Close()
+	}), env, nil
 }
 
 func (c GoogleCloudCreds) getUsername() (string, error) {

@@ -28,7 +28,6 @@ import (
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/pkg/sync"
-	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/handlers"
 	gmux "github.com/gorilla/mux"
@@ -38,6 +37,7 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -161,7 +161,7 @@ func init() {
 	if replicasCount > 0 {
 		maxConcurrentLoginRequestsCount = maxConcurrentLoginRequestsCount / replicasCount
 	}
-	enableGRPCTimeHistogram = os.Getenv(common.EnvEnableGRPCTimeHistogramEnv) == "true"
+	enableGRPCTimeHistogram = env.ParseBoolFromEnv(common.EnvEnableGRPCTimeHistogramEnv, false)
 }
 
 // ArgoCDServer is the API server for Argo CD
@@ -202,7 +202,9 @@ type ArgoCDServerOpts struct {
 	Insecure              bool
 	StaticAssetsDir       string
 	ListenPort            int
+	ListenHost            string
 	MetricsPort           int
+	MetricsHost           string
 	Namespace             string
 	DexServerAddr         string
 	DexTLSConfig          *dex.DexTLSConfig
@@ -216,7 +218,6 @@ type ArgoCDServerOpts struct {
 	TLSConfigCustomizer   tlsutil.ConfigCustomizer
 	XFrameOptions         string
 	ContentSecurityPolicy string
-	ListenHost            string
 	ApplicationNamespaces []string
 	EnableProxyExtension  bool
 }
@@ -447,7 +448,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		httpsS.Handler = &bug21955Workaround{handler: httpsS.Handler}
 	}
 
-	metricsServ := metrics.NewMetricsServer(a.ListenHost, a.MetricsPort)
+	metricsServ := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
 	if a.RedisClient != nil {
 		cacheutil.CollectMetrics(a.RedisClient, metricsServ)
 	}
@@ -468,8 +469,9 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 
 		// If not matched, we assume that its TLS.
 		tlsl := tcpm.Match(cmux.Any())
-		tlsConfig := tls.Config{
-			Certificates: []tls.Certificate{*a.settings.Certificate},
+		tlsConfig := tls.Config{}
+		tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return a.settings.Certificate, nil
 		}
 		if a.TLSConfigCustomizer != nil {
 			a.TLSConfigCustomizer(&tlsConfig)
@@ -612,8 +614,8 @@ func (a *ArgoCDServer) watchSettings() {
 				newCert, newCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
 			}
 			if newCert != prevCert || newCertKey != prevCertKey {
-				log.Infof("tls certificate modified. restarting")
-				break
+				log.Infof("tls certificate modified. reloading certificate")
+				// No need to break out of this loop since TlsConfig.GetCertificate will automagically reload the cert.
 			}
 		}
 	}
@@ -680,7 +682,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		"/repocreds.RepoCredsService/UpdateRepositoryCredentials": true,
 		"/application.ApplicationService/PatchResource":           true,
 		// Remove from logs both because the contents are sensitive and because they may be very large.
-		"/application.ApplicationService/GetManifestsWithFiles":   true,
+		"/application.ApplicationService/GetManifestsWithFiles": true,
 	}
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
@@ -767,6 +769,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.AppClientset,
 		a.appLister,
 		a.appInformer,
+		nil,
 		a.RepoClientset,
 		a.Cache,
 		kubectl,
@@ -777,7 +780,21 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.projInformer,
 		a.ApplicationNamespaces)
 
-	applicationSetService := applicationset.NewServer(a.db, a.KubeClientset, a.enf, a.Cache, a.AppClientset, a.appLister, a.appsetInformer, a.appsetLister, a.projLister, a.settingsMgr, a.Namespace, projectLock)
+	applicationSetService := applicationset.NewServer(
+		a.db,
+		a.KubeClientset,
+		a.enf,
+		a.Cache,
+		a.AppClientset,
+		a.appLister,
+		a.appsetInformer,
+		a.appsetLister,
+		a.projLister,
+		a.settingsMgr,
+		a.Namespace,
+		projectLock,
+		a.ApplicationNamespaces)
+
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db)
 	appsInAnyNamespaceEnabled := len(a.ArgoCDServerOpts.ApplicationNamespaces) > 0
 	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled)
@@ -943,7 +960,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.AppClientset, a.settings, a.settingsMgr, repocache.NewCache(a.Cache.GetCache(), 24*time.Hour, 3*time.Minute), a.Cache, argoDB)
+	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.ArgoCDServerOpts.ApplicationNamespaces, a.AppClientset, a.settings, a.settingsMgr, repocache.NewCache(a.Cache.GetCache(), 24*time.Hour, 3*time.Minute), a.Cache, argoDB)
+
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
 	// Serve cli binaries directly from API server
@@ -952,9 +970,13 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// Serve extensions
 	var extensionsSharedPath = "/tmp/extensions/"
 
-	mux.HandleFunc("/extensions.js", func(writer http.ResponseWriter, _ *http.Request) {
+	var extensionsHandler http.Handler = http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		a.serveExtensions(extensionsSharedPath, writer)
 	})
+	if a.ArgoCDServerOpts.EnableGZip {
+		extensionsHandler = compressHandler(extensionsHandler)
+	}
+	mux.Handle("/extensions.js", extensionsHandler)
 
 	// Serve UI static assets
 	var assetsHandler http.Handler = http.HandlerFunc(a.newStaticAssetsHandler())

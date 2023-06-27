@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "0/1 node(s) are ready"
+  inputPath: testdata/initializing.yaml
+- healthStatus:
+    status: Healthy
+    message: "1/1 node(s) are ready"
+  inputPath: testdata/ready.yaml
+- healthStatus:
+    status: Unknown
+    message: "Cluster is paused"
+  inputPath: testdata/paused.yaml
+- healthStatus:
+    status: Degraded
+    message: "Cluster is stopping (1/2 node(s) are ready)"
+  inputPath: testdata/stopping.yaml
+- healthStatus:
+    status: Degraded
+    message: "Cluster is on error: we lost node"
+  inputPath: testdata/error.yaml
+- healthStatus:
+    status: Unknown
+    message: "Cluster status is unknown. Ensure your ArgoCD is current and then check for/file a bug report: https://github.com/argoproj/argo-cd/issues"
+  inputPath: testdata/unknown.yaml

@@ -81,7 +81,7 @@ in your Argo CD installation namespace. You can simply retrieve this password
 using the `argocd` CLI:
 
 ```bash
-argocd admin initial-password
+argocd admin initial-password -n argocd
 ```
 
 !!! warning

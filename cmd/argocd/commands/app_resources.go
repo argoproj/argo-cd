@@ -54,7 +54,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer argoio.Close(conn)
@@ -116,7 +116,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer argoio.Close(conn)
@@ -182,7 +182,7 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 				os.Exit(1)
 			}
 			listAll := !c.Flag("orphaned").Changed
-			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			appResourceTree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{

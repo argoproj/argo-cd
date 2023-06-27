@@ -12,11 +12,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/tgzstream"
-	log "github.com/sirupsen/logrus"
 )
 
 // StreamSender defines the contract to send App files over stream
@@ -33,7 +34,7 @@ type StreamReceiver interface {
 // ReceiveRepoStream will receive the repository files and save them
 // in destDir. Will return the stream metadata if no error. Metadata
 // will be nil in case of errors.
-func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir string) (*pluginclient.ManifestRequestMetadata, error) {
+func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir string, preserveFileMode bool) (*pluginclient.ManifestRequestMetadata, error) {
 	header, err := receiver.Recv()
 	if err != nil {
 		return nil, fmt.Errorf("error receiving stream header: %w", err)
@@ -47,7 +48,7 @@ func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir str
 	if err != nil {
 		return nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
-	err = files.Untgz(destDir, tgzFile, math.MaxInt64)
+	err = files.Untgz(destDir, tgzFile, math.MaxInt64, preserveFileMode)
 	if err != nil {
 		return nil, fmt.Errorf("error decompressing tgz file: %w", err)
 	}
@@ -106,13 +107,13 @@ func SendRepoStream(ctx context.Context, appPath, repoPath string, sender Stream
 }
 
 func GetCompressedRepoAndMetadata(repoPath string, appPath string, env []string, excludedGlobs []string, opt *senderOption) (*os.File, *pluginclient.AppStreamRequest, error) {
-	// compress all files in appPath in tgz
+	// compress all files in repoPath in tgz
 	tgz, filesWritten, checksum, err := tgzstream.CompressFiles(repoPath, nil, excludedGlobs)
-	if filesWritten == 0 {
-		return nil, nil, fmt.Errorf("no files to send")
-	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
+	}
+	if filesWritten == 0 {
+		return nil, nil, fmt.Errorf("no files to send")
 	}
 	if opt != nil && opt.tarDoneChan != nil {
 		opt.tarDoneChan <- true

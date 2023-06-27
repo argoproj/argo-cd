@@ -1,7 +1,6 @@
 package generators
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -9,49 +8,17 @@ import (
 	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
+
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
-// type clientSet struct {
-// 	RepoServerServiceClient apiclient.RepoServerServiceClient
-// }
-
-// func (c *clientSet) NewRepoServerClient() (io.Closer, apiclient.RepoServerServiceClient, error) {
-// 	return io.NewCloser(func() error { return nil }), c.RepoServerServiceClient, nil
-// }
-
-type argoCDServiceMock struct {
-	mock *mock.Mock
-}
-
-func (a argoCDServiceMock) GetApps(ctx context.Context, repoURL string, revision string) ([]string, error) {
-	args := a.mock.Called(ctx, repoURL, revision)
-
-	return args.Get(0).([]string), args.Error(1)
-}
-
-func (a argoCDServiceMock) GetFiles(ctx context.Context, repoURL string, revision string, pattern string) (map[string][]byte, error) {
-	args := a.mock.Called(ctx, repoURL, revision, pattern)
-
-	return args.Get(0).(map[string][]byte), args.Error(1)
-}
-
-func (a argoCDServiceMock) GetFileContent(ctx context.Context, repoURL string, revision string, path string) ([]byte, error) {
-	args := a.mock.Called(ctx, repoURL, revision, path)
-
-	return args.Get(0).([]byte), args.Error(1)
-}
-
-func (a argoCDServiceMock) GetDirectories(ctx context.Context, repoURL string, revision string) ([]string, error) {
-	args := a.mock.Called(ctx, repoURL, revision)
-	return args.Get(0).([]string), args.Error(1)
-}
-
 func Test_generateParamsFromGitFile(t *testing.T) {
+	values := map[string]string{}
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`), false, "")
+`), values, false, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,10 +37,11 @@ foo:
 }
 
 func Test_generatePrefixedParamsFromGitFile(t *testing.T) {
+	values := map[string]string{}
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`), false, "myRepo")
+`), values, false, nil, "myRepo")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,10 +60,11 @@ foo:
 }
 
 func Test_generateParamsFromGitFileGoTemplate(t *testing.T) {
+	values := map[string]string{}
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`), true, "")
+`), values, true, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,10 +89,11 @@ foo:
 }
 
 func Test_generatePrefixedParamsFromGitFileGoTemplate(t *testing.T) {
+	values := map[string]string{}
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`), true, "myRepo")
+`), values, true, nil, "myRepo")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,6 +127,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		pathParamPrefix string
 		repoApps        []string
 		repoError       error
+		values          map[string]string
 		expected        []map[string]interface{}
 		expectedError   error
 	}{
@@ -248,6 +219,25 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			expectedError: nil,
 		},
 		{
+			name:        "Value variable interpolation",
+			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}, {Path: "*/*"}},
+			repoApps: []string{
+				"app1",
+				"p1/app2",
+			},
+			repoError: nil,
+			values: map[string]string{
+				"foo":   "bar",
+				"aaa":   "{{ path[0] }}",
+				"no-op": "{{ this-does-not-exist }}",
+			},
+			expected: []map[string]interface{}{
+				{"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "app1", "path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
+				{"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "p1", "path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
+			},
+			expectedError: nil,
+		},
+		{
 			name:          "handles empty response from repo server",
 			directories:   []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			repoApps:      []string{},
@@ -271,11 +261,11 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := argoCDServiceMock{mock: &mock.Mock{}}
+			argoCDServiceMock := mocks.Repos{}
 
-			argoCDServiceMock.mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
-			var gitGenerator = NewGitGenerator(argoCDServiceMock)
+			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -287,6 +277,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 							Revision:        "Revision",
 							Directories:     testCaseCopy.directories,
 							PathParamPrefix: testCaseCopy.pathParamPrefix,
+							Values:          testCaseCopy.values,
 						},
 					}},
 				},
@@ -301,7 +292,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 
-			argoCDServiceMock.mock.AssertExpectations(t)
+			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -566,11 +557,11 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := argoCDServiceMock{mock: &mock.Mock{}}
+			argoCDServiceMock := mocks.Repos{}
 
-			argoCDServiceMock.mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
-			var gitGenerator = NewGitGenerator(argoCDServiceMock)
+			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -597,7 +588,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 
-			argoCDServiceMock.mock.AssertExpectations(t)
+			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 
@@ -613,6 +604,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 		repoFileContents map[string][]byte
 		// if repoPathsError is non-nil, the call to GetPaths(...) will return this error value
 		repoPathsError error
+		values         map[string]string
 		expected       []map[string]interface{}
 		expectedError  error
 	}{
@@ -672,6 +664,74 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path.basenameNormalized": "staging",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name:  "Value variable interpolation",
+			files: []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
+   "cluster": {
+       "owner": "john.doe@example.com",
+       "name": "production",
+       "address": "https://kubernetes.default.svc"
+   },
+   "key1": "val1",
+   "key2": {
+       "key2_1": "val2_1",
+       "key2_2": {
+           "key2_2_1": "val2_2_1"
+       }
+   },
+   "key3": 123
+}`),
+				"cluster-config/staging/config.json": []byte(`{
+   "cluster": {
+       "owner": "foo.bar@example.com",
+       "name": "staging",
+       "address": "https://kubernetes.default.svc"
+   }
+}`),
+			},
+			repoPathsError: nil,
+			values: map[string]string{
+				"aaa":   "{{ cluster.owner }}",
+				"no-op": "{{ this-does-not-exist }}",
+			},
+			expected: []map[string]interface{}{
+				{
+					"cluster.owner":           "john.doe@example.com",
+					"cluster.name":            "production",
+					"cluster.address":         "https://kubernetes.default.svc",
+					"key1":                    "val1",
+					"key2.key2_1":             "val2_1",
+					"key2.key2_2.key2_2_1":    "val2_2_1",
+					"key3":                    "123",
+					"path":                    "cluster-config/production",
+					"path.basename":           "production",
+					"path[0]":                 "cluster-config",
+					"path[1]":                 "production",
+					"path.basenameNormalized": "production",
+					"path.filename":           "config.json",
+					"path.filenameNormalized": "config.json",
+					"values.aaa":              "john.doe@example.com",
+					"values.no-op":            "{{ this-does-not-exist }}",
+				},
+				{
+					"cluster.owner":           "foo.bar@example.com",
+					"cluster.name":            "staging",
+					"cluster.address":         "https://kubernetes.default.svc",
+					"path":                    "cluster-config/staging",
+					"path.basename":           "staging",
+					"path[0]":                 "cluster-config",
+					"path[1]":                 "staging",
+					"path.basenameNormalized": "staging",
+					"path.filename":           "config.json",
+					"path.filenameNormalized": "config.json",
+					"values.aaa":              "foo.bar@example.com",
+					"values.no-op":            "{{ this-does-not-exist }}",
 				},
 			},
 			expectedError: nil,
@@ -857,11 +917,11 @@ cluster:
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := argoCDServiceMock{mock: &mock.Mock{}}
-			argoCDServiceMock.mock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
-			var gitGenerator = NewGitGenerator(argoCDServiceMock)
+			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -872,6 +932,7 @@ cluster:
 							RepoURL:  "RepoURL",
 							Revision: "Revision",
 							Files:    testCaseCopy.files,
+							Values:   testCaseCopy.values,
 						},
 					}},
 				},
@@ -887,7 +948,7 @@ cluster:
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
 
-			argoCDServiceMock.mock.AssertExpectations(t)
+			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -1206,11 +1267,11 @@ cluster:
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := argoCDServiceMock{mock: &mock.Mock{}}
-			argoCDServiceMock.mock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
-			var gitGenerator = NewGitGenerator(argoCDServiceMock)
+			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -1237,7 +1298,7 @@ cluster:
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
 
-			argoCDServiceMock.mock.AssertExpectations(t)
+			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
