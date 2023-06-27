@@ -441,7 +441,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitHub webhook HMAC verification failed")
 		}
 	case r.Header.Get("X-Gitlab-Event") != "":
-		payload, err = a.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents)
+		payload, err = a.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.SystemHookEvents)
 		if errors.Is(err, gitlab.ErrGitLabTokenVerificationFailed) {
 			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab webhook token verification failed")
 		}
