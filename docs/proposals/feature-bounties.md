@@ -32,7 +32,7 @@ This proposal is experimental, meaning after trying a single bounty, we will rev
 #### Creating a Bounty
 A bounty is a special proposal created under `docs/proposals/feature-bounties`. 
 * A bounty proposal may only be created by an existing Argo maintainer.
-* The proposal meeting must be reviewed in regular maintainer meetings and an invitation for feedback will provide 7-days to comment.
+* The proposal document must be reviewed in regular maintainer meetings and an invitation for feedback will provide 7-days to comment.
 * Bounty should have approval with [lazy-consensus](https://community.apache.org/committers/lazyConsensus.html)
 * Once a bounty is created, they must be honored.
 * Bounty progress will be tracked in a Github issue linked in the proposal.
