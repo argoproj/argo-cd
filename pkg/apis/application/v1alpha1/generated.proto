@@ -1289,6 +1289,30 @@ message PullRequestGenerator {
   optional ApplicationSetTemplate template = 7;
 
   optional PullRequestGeneratorBitbucket bitbucket = 8;
+
+  // Additional provider to use and config for it.
+  optional PullRequestGeneratorAzureDevOps azuredevops = 9;
+}
+
+// PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
+message PullRequestGeneratorAzureDevOps {
+  // Azure DevOps org to scan. Required.
+  optional string organization = 1;
+
+  // Azure DevOps project name to scan. Required.
+  optional string project = 2;
+
+  // Azure DevOps repo name to scan. Required.
+  optional string repo = 3;
+
+  // The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.
+  optional string api = 4;
+
+  // Authentication token reference.
+  optional SecretRef tokenRef = 5;
+
+  // Labels is used to filter the PRs that you want to target
+  repeated string labels = 6;
 }
 
 // PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.

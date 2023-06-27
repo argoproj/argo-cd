@@ -4692,6 +4692,35 @@ spec:
                                 type: object
                               pullRequest:
                                 properties:
+                                  azuredevops:
+                                    properties:
+                                      api:
+                                        type: string
+                                      labels:
+                                        items:
+                                          type: string
+                                        type: array
+                                      organization:
+                                        type: string
+                                      project:
+                                        type: string
+                                      repo:
+                                        type: string
+                                      tokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                    required:
+                                    - organization
+                                    - project
+                                    - repo
+                                    type: object
                                   bitbucket:
                                     properties:
                                       api:
@@ -9138,6 +9167,35 @@ spec:
                                 type: object
                               pullRequest:
                                 properties:
+                                  azuredevops:
+                                    properties:
+                                      api:
+                                        type: string
+                                      labels:
+                                        items:
+                                          type: string
+                                        type: array
+                                      organization:
+                                        type: string
+                                      project:
+                                        type: string
+                                      repo:
+                                        type: string
+                                      tokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                    required:
+                                    - organization
+                                    - project
+                                    - repo
+                                    type: object
                                   bitbucket:
                                     properties:
                                       api:
@@ -11513,6 +11571,35 @@ spec:
                       type: object
                     pullRequest:
                       properties:
+                        azuredevops:
+                          properties:
+                            api:
+                              type: string
+                            labels:
+                              items:
+                                type: string
+                              type: array
+                            organization:
+                              type: string
+                            project:
+                              type: string
+                            repo:
+                              type: string
+                            tokenRef:
+                              properties:
+                                key:
+                                  type: string
+                                secretName:
+                                  type: string
+                              required:
+                              - key
+                              - secretName
+                              type: object
+                          required:
+                          - organization
+                          - project
+                          - repo
+                          type: object
                         bitbucket:
                           properties:
                             api:
