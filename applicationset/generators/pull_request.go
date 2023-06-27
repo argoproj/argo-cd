@@ -166,6 +166,14 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 			return pullrequest.NewBitbucketCloudServiceNoAuth(providerConfig.API, providerConfig.Owner, providerConfig.Repo)
 		}
 	}
+	if generatorConfig.AzureDevOps != nil {
+		providerConfig := generatorConfig.AzureDevOps
+		token, err := g.getSecretRef(ctx, providerConfig.TokenRef, applicationSetInfo.Namespace)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching Secret token: %v", err)
+		}
+		return pullrequest.NewAzureDevOpsService(ctx, token, providerConfig.API, providerConfig.Organization, providerConfig.Project, providerConfig.Repo, providerConfig.Labels)
+	}
 	return nil, fmt.Errorf("no Pull Request provider implementation configured")
 }
 
