@@ -32,7 +32,10 @@ job = {}
 job.apiVersion = "batch/v1"
 job.kind = "Job"
 
-job.metadata = {}
+job.metadata = deepCopy(obj.spec.jobTemplate.metadata)
+if job.metadata == nil then
+  job.metadata = {}
+end
 job.metadata.name = obj.metadata.name .. "-" ..os.date("!%Y%m%d%H%M")
 job.metadata.namespace = obj.metadata.namespace
 
@@ -47,6 +50,7 @@ job.metadata.ownerReferences[1] = ownerRef
 job.spec = {}
 job.spec.suspend = false
 job.spec.template = {}
+job.spec.template.metadata = deepCopy(obj.spec.jobTemplate.spec.template.metadata)
 job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
 
 impactedResource = {}
