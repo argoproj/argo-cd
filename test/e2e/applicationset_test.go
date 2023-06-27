@@ -46,6 +46,111 @@ var (
 	LabelKeyAppSetInstance = "argocd.argoproj.io/application-set-name"
 )
 
+func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
+
+	expectedApp := argov1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cluster-guestbook",
+			Namespace: utils.ArgoCDExternalNamespace,
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-list-generator-external",
+			},
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+		},
+		Spec: argov1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &argov1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				TargetRevision: "HEAD",
+				Path:           "guestbook",
+			},
+			Destination: argov1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook",
+			},
+		},
+	}
+	var expectedAppNewNamespace *argov1alpha1.Application
+	var expectedAppNewMetadata *argov1alpha1.Application
+
+	Given(t).
+		// Create a ListGenerator-based ApplicationSet
+		When().
+		SwitchToExternalNamespace().
+		CreateNamespace(utils.ArgoCDExternalNamespace).Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+		Name:      "simple-list-generator-external",
+		Namespace: utils.ArgoCDExternalNamespace,
+	},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &argov1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "{{.url}}",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+						}},
+					},
+				},
+			},
+		},
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
+
+		// Update the ApplicationSet template namespace, and verify it updates the Applications
+		When().
+		And(func() {
+			expectedAppNewNamespace = expectedApp.DeepCopy()
+			expectedAppNewNamespace.Spec.Destination.Namespace = "guestbook2"
+		}).
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
+
+		// Update the metadata fields in the appset template, and make sure it propagates to the apps
+		When().
+		And(func() {
+			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
+			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+				"label-key":            "label-value",
+				LabelKeyAppSetInstance: "simple-list-generator-external",
+			}
+		}).
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
+			appset.Spec.Template.Labels = map[string]string{
+				"label-key":            "label-value",
+				LabelKeyAppSetInstance: "simple-list-generator-external",
+			}
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
+
+		// verify the ApplicationSet status conditions were set correctly
+		Expect(ApplicationSetHasConditions("simple-list-generator-external", ExpectedConditions)).
+
+		// Delete the ApplicationSet, and verify it deletes the Applications
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
+
+}
+
 func TestSimpleListGenerator(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
@@ -1030,7 +1135,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 
 	Given(t).
 		When().
-		CreateNamespace().
+		CreateNamespace(utils.ApplicationsResourcesNamespace).
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
 			Name: "simple-git-generator",
@@ -1047,7 +1152,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 						},
 						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
-							Namespace: utils.ApplicationSetNamespace,
+							Namespace: utils.ApplicationsResourcesNamespace,
 						},
 
 						// Automatically create resources
@@ -1090,7 +1195,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 
 	Given(t).
 		When().
-		CreateNamespace().
+		CreateNamespace(utils.ApplicationsResourcesNamespace).
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
 			Name: "simple-git-generator",
@@ -1108,7 +1213,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 						},
 						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
-							Namespace: utils.ApplicationSetNamespace,
+							Namespace: utils.ApplicationsResourcesNamespace,
 						},
 
 						// Automatically create resources
