@@ -805,7 +805,7 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent {
 	appEventsCh := make(chan *argoappv1.ApplicationWatchEvent)
 	cancelled := false
-	appName, appNs := argo.ParseAppQualifiedName(appName, "")
+	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	go func() {
 		defer close(appEventsCh)
 		for !cancelled {

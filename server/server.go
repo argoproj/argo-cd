@@ -780,7 +780,21 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.projInformer,
 		a.ApplicationNamespaces)
 
-	applicationSetService := applicationset.NewServer(a.db, a.KubeClientset, a.enf, a.Cache, a.AppClientset, a.appLister, a.appsetInformer, a.appsetLister, a.projLister, a.settingsMgr, a.Namespace, projectLock)
+	applicationSetService := applicationset.NewServer(
+		a.db,
+		a.KubeClientset,
+		a.enf,
+		a.Cache,
+		a.AppClientset,
+		a.appLister,
+		a.appsetInformer,
+		a.appsetLister,
+		a.projLister,
+		a.settingsMgr,
+		a.Namespace,
+		projectLock,
+		a.ApplicationNamespaces)
+
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db)
 	appsInAnyNamespaceEnabled := len(a.ArgoCDServerOpts.ApplicationNamespaces) > 0
 	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled)
