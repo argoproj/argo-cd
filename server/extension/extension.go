@@ -496,7 +496,7 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 	if m.rbac == nil {
 		return nil, fmt.Errorf("rbac enforcer not set in extension manager")
 	}
-	appRBACName := security.AppRBACName(rr.ApplicationNamespace, rr.ProjectName, rr.ApplicationNamespace, rr.ApplicationName)
+	appRBACName := security.RBACName(rr.ApplicationNamespace, rr.ProjectName, rr.ApplicationNamespace, rr.ApplicationName)
 	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		return nil, fmt.Errorf("application authorization error: %s", err)
 	}

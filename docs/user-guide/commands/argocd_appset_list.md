@@ -16,10 +16,11 @@ argocd appset list [flags]
 ### Options
 
 ```
-  -h, --help                  help for list
-  -o, --output string         Output format. One of: wide|name|json|yaml (default "wide")
-  -p, --project stringArray   Filter by project name
-  -l, --selector string       List applicationsets by label
+  -N, --appset-namespace string   Only list applicationsets in namespace
+  -h, --help                      help for list
+  -o, --output string             Output format. One of: wide|name|json|yaml (default "wide")
+  -p, --project stringArray       Filter by project name
+  -l, --selector string           List applicationsets by label
 ```
 
 ### Options inherited from parent commands

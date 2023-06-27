@@ -282,7 +282,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 
-			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
 				Name:         &appName,
 				Refresh:      getRefreshType(refresh, hardRefresh),
@@ -366,7 +366,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 
 			retry := true
 			for retry {
@@ -610,7 +610,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := argocdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
@@ -688,7 +688,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
@@ -943,7 +943,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
 				Name:         &appName,
 				Refresh:      getRefreshType(refresh, hardRefresh),
@@ -1187,7 +1187,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			}
 
 			for _, appFullName := range appNames {
-				appName, appNs := argo.ParseAppQualifiedName(appFullName, "")
+				appName, appNs := argo.ParseFromQualifiedName(appFullName, "")
 				appDeleteReq := application.ApplicationDeleteRequest{
 					Name:         &appName,
 					AppNamespace: &appNs,
@@ -1615,7 +1615,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			for _, appQualifiedName := range appNames {
-				appName, appNs := argo.ParseAppQualifiedName(appQualifiedName, "")
+				appName, appNs := argo.ParseFromQualifiedName(appQualifiedName, "")
 
 				if len(selectedLabels) > 0 {
 					q := application.ApplicationManifestQuery{
@@ -2012,7 +2012,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// time when the sync status lags behind when an operation completes
 	refresh := false
 
-	appRealName, appNs := argo.ParseAppQualifiedName(appName, "")
+	appRealName, appNs := argo.ParseFromQualifiedName(appName, "")
 
 	printFinalStatus := func(app *argoappv1.Application) *argoappv1.Application {
 		var err error
@@ -2214,7 +2214,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			}
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
 				Name:         &appName,
 				AppNamespace: &appNs,
@@ -2265,7 +2265,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			var err error
 			depID := -1
 			if len(args) > 1 {
@@ -2347,7 +2347,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
@@ -2430,7 +2430,7 @@ func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *c
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			_, err := appIf.TerminateOperation(ctx, &application.OperationTerminateRequest{
@@ -2455,7 +2455,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
@@ -2517,7 +2517,7 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 
