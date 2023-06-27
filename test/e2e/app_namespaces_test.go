@@ -20,7 +20,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		Path(guestbookPath).
-		SetAppNamespace(ArgoCDAppNamespace).
+		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
 		Then().
@@ -28,8 +28,8 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, ctx.AppName(), app.Name)
 			assert.Equal(t, AppNamespace(), app.Namespace)
-			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
-			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
+			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.GetSource().RepoURL)
+			assert.Equal(t, guestbookPath, app.Spec.GetSource().Path)
 			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
@@ -57,7 +57,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, "label", app.Labels["test"])
 			assert.Equal(t, "annotation", app.Annotations["test"])
-			assert.Equal(t, "master", app.Spec.Source.TargetRevision)
+			assert.Equal(t, "master", app.Spec.GetSource().TargetRevision)
 		})
 }
 
@@ -83,7 +83,7 @@ func TestDeletingNamespacedAppStuckInSync(t *testing.T) {
 		})
 	}).
 		Async(true).
-		SetAppNamespace(ArgoCDAppNamespace).
+		SetAppNamespace(AppNamespace()).
 		Path("hook-custom-health").
 		When().
 		CreateApp().

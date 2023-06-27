@@ -247,7 +247,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			_, err := io.WriteString(w, testdata.ReposGiteaGoSdkContentsGiteaResponse)
 			require.NoError(t, err)
 		case "/api/v1/repos/gitea/go-sdk/contents/notathing?ref=master":
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 			_, err := io.WriteString(w, `{"errors":["object does not exist [id: , rel_path: notathing]"],"message":"GetContentsOrList","url":"https://gitea.com/api/swagger"}`)
 			require.NoError(t, err)
 		default:

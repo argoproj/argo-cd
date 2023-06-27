@@ -43,14 +43,15 @@ type Context struct {
 	helmPassCredentials    bool
 	helmSkipCrds           bool
 	trackingMethod         v1alpha1.TrackingMethod
+	sources                []v1alpha1.ApplicationSource
 }
 
 type ContextArgs struct {
 	AppNamespace string
 }
 
-func Given(t *testing.T) *Context {
-	fixture.EnsureCleanState(t)
+func Given(t *testing.T, opts ...fixture.TestOption) *Context {
+	fixture.EnsureCleanState(t, opts...)
 	return GivenWithSameState(t)
 }
 
@@ -299,13 +300,6 @@ func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
 	return c
 }
 
-// this both configures the plugin, but forces use of it
-func (c *Context) ConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin) *Context {
-	fixture.SetConfigManagementPlugins(plugin)
-	c.configManagementPlugin = plugin.Name
-	return c
-}
-
 func (c *Context) And(block func()) *Context {
 	block()
 	return c
@@ -364,4 +358,9 @@ func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
 
 func (c *Context) GetTrackingMethod() v1alpha1.TrackingMethod {
 	return c.trackingMethod
+}
+
+func (c *Context) Sources(sources []v1alpha1.ApplicationSource) *Context {
+	c.sources = sources
+	return c
 }

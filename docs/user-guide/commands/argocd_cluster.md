@@ -21,6 +21,9 @@ argocd cluster [flags]
   # Remove a target cluster context from ArgoCD
   argocd cluster rm example-cluster
 
+  # Set a target cluster context from ArgoCD
+  argocd cluster set CLUSTER_NAME --name new-cluster-name --namespace '*'
+  argocd cluster set CLUSTER_NAME --name new-cluster-name --namespace namespace-one --namespace namespace-two
 ```
 
 ### Options
@@ -78,4 +81,5 @@ argocd cluster [flags]
 * [argocd cluster list](argocd_cluster_list.md)	 - List configured clusters
 * [argocd cluster rm](argocd_cluster_rm.md)	 - Remove cluster credentials
 * [argocd cluster rotate-auth](argocd_cluster_rotate-auth.md)	 - argocd cluster rotate-auth SERVER/NAME
+* [argocd cluster set](argocd_cluster_set.md)	 - Set cluster information
 

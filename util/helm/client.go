@@ -2,6 +2,7 @@ package helm
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -20,6 +21,8 @@ import (
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
+	"oras.land/oras-go/v2/registry/remote"
+	"oras.land/oras-go/v2/registry/remote/auth"
 
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
@@ -51,6 +54,7 @@ type Client interface {
 	CleanChartCache(chart string, version string) error
 	ExtractChart(chart string, version string, passCredentials bool) (string, argoio.Closer, error)
 	GetIndex(noCache bool) (*Index, error)
+	GetTags(chart string, noCache bool) (*TagsList, error)
 	TestHelmOCI() (bool, error)
 }
 
@@ -62,7 +66,7 @@ func WithIndexCache(indexCache indexCache) ClientOpts {
 	}
 }
 
-func WithChartPaths(chartPaths *argoio.TempPaths) ClientOpts {
+func WithChartPaths(chartPaths argoio.TempPaths) ClientOpts {
 	return func(c *nativeHelmChart) {
 		c.chartCachePaths = chartPaths
 	}
@@ -79,7 +83,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 		repoLock:        repoLock,
 		enableOci:       enableOci,
 		proxy:           proxy,
-		chartCachePaths: argoio.NewTempPaths(os.TempDir()),
+		chartCachePaths: argoio.NewRandomizedTempPaths(os.TempDir()),
 	}
 	for i := range opts {
 		opts[i](c)
@@ -90,7 +94,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 var _ Client = &nativeHelmChart{}
 
 type nativeHelmChart struct {
-	chartCachePaths *argoio.TempPaths
+	chartCachePaths argoio.TempPaths
 	repoURL         string
 	creds           Creds
 	repoLock        sync.KeyLock
@@ -173,7 +177,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 			}
 
 			// 'helm pull' ensures that chart is downloaded into temp directory
-			_, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest)
+			_, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest, c.creds)
 			if err != nil {
 				return "", nil, err
 			}
@@ -283,7 +287,7 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", indexURL, nil)
+	req, err := http.NewRequest(http.MethodGet, indexURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -300,6 +304,7 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 	tr := &http.Transport{
 		Proxy:           proxy.GetCallback(c.proxy),
 		TLSClientConfig: tlsConf,
+		DisableKeepAlives: true,
 	}
 	client := http.Client{Transport: tr}
 	resp, err := client.Do(req)
@@ -308,7 +313,7 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return nil, errors.New("failed to get index: " + resp.Status)
 	}
 	return io.ReadAll(resp.Body)
@@ -380,4 +385,69 @@ func getIndexURL(rawURL string) (string, error) {
 	repoURL.Path = path.Join(repoURL.Path, indexFile)
 	repoURL.RawPath = path.Join(repoURL.RawPath, indexFile)
 	return repoURL.String(), nil
+}
+
+func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error) {
+	tagsURL := strings.Replace(fmt.Sprintf("%s/%s", c.repoURL, chart), "https://", "", 1)
+	indexLock.Lock(tagsURL)
+	defer indexLock.Unlock(tagsURL)
+
+	var data []byte
+	if !noCache && c.indexCache != nil {
+		if err := c.indexCache.GetHelmIndex(tagsURL, &data); err != nil && err != cache.ErrCacheMiss {
+			log.Warnf("Failed to load index cache for repo: %s: %v", tagsURL, err)
+		}
+	}
+
+	tags := &TagsList{}
+	if len(data) == 0 {
+		start := time.Now()
+		repo, err := remote.NewRepository(tagsURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize repository: %v", err)
+		}
+		tlsConf, err := newTLSConfig(c.creds)
+		if err != nil {
+			return nil, fmt.Errorf("failed setup tlsConfig: %v", err)
+		}
+		client := &http.Client{Transport: &http.Transport{
+			Proxy:           proxy.GetCallback(c.proxy),
+			TLSClientConfig: tlsConf,
+			DisableKeepAlives: true,
+		}}
+		repo.Client = &auth.Client{
+			Client: client,
+			Cache:  nil,
+			Credential: auth.StaticCredential(c.repoURL, auth.Credential{
+				Username: c.creds.Username,
+				Password: c.creds.Password,
+			}),
+		}
+
+		ctx := context.Background()
+		err = repo.Tags(ctx, "", func(tagResult []string) error {
+			tags.Tags = append(tags.Tags, tagResult...)
+			return nil
+		})
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tags: %v", err)
+		}
+		log.WithFields(
+			log.Fields{"seconds": time.Since(start).Seconds(), "chart": chart, "repo": c.repoURL},
+		).Info("took to get tags")
+
+		if c.indexCache != nil {
+			if err := c.indexCache.SetHelmIndex(tagsURL, data); err != nil {
+				log.Warnf("Failed to store tags list cache for repo: %s: %v", tagsURL, err)
+			}
+		}
+	} else {
+		err := json.Unmarshal(data, tags)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode tags: %v", err)
+		}
+	}
+
+	return tags, nil
 }
