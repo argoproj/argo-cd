@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	gooidc "github.com/coreos/go-oidc"
+	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -353,9 +353,12 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no id_token in token response", http.StatusInternalServerError)
 		return
 	}
-	idToken, err := a.provider.Verify(a.clientID, idTokenRAW)
+
+	idToken, err := a.provider.Verify(idTokenRAW, a.settings)
+
 	if err != nil {
-		http.Error(w, fmt.Sprintf("invalid session token: %v", err), http.StatusInternalServerError)
+		log.Warnf("Failed to verify token: %s", err)
+		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
 		return
 	}
 	path := "/"

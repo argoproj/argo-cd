@@ -18,8 +18,8 @@ spec:
         app.kubernetes.io/name: argocd-application-controller
     spec:
       containers:
-      - command:
-        - argocd-application-controller
+      - args:
+        - /usr/local/bin/argocd-application-controller
         env:
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "1"
@@ -142,6 +142,18 @@ spec:
               configMapKeyRef:
                 name: argocd-cmd-params-cm
                 key: application.namespaces
+                optional: true
+        - name: ARGOCD_CONTROLLER_SHARDING_ALGORITHM
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: controller.sharding.algorithm
+                optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: controller.kubectl.parallelism.limit
                 optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always

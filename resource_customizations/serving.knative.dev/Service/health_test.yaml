@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Ready is Unknown, since RolloutInProgress. A gradual rollout of the latest revision(s) is in progress.\nRoutesReady is Unknown, since RolloutInProgress. A gradual rollout of the latest revision(s) is in progress.\n"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "ConfigurationsReady is False, since RevisionFailed. Revision \"helloworld-00002\" failed with message: Container failed with: container exited with no error.\nReady is False, since RevisionFailed. Revision \"helloworld-00002\" failed with message: Container failed with: container exited with no error.\n"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: Knative Service is healthy.
+  inputPath: testdata/healthy.yaml

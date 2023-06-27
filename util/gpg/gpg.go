@@ -48,7 +48,7 @@ var verificationStatusMatch = regexp.MustCompile(`^gpg: ([a-zA-Z]+) signature fr
 // creating the trustdb in a specific argocd-repo-server pod.
 var batchKeyCreateRecipe = `%no-protection
 %transient-key
-Key-Type: default
+Key-Type: RSA
 Key-Length: 2048
 Key-Usage: sign
 Name-Real: Anon Ymous
@@ -170,7 +170,7 @@ func writeKeyToFile(keyData string) (string, error) {
 		if err != nil {
 			log.WithFields(log.Fields{
 				common.SecurityField:    common.SecurityMedium,
-				common.SecurityCWEField: 775,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 			}).Errorf("error closing file %q: %v", f.Name(), err)
 		}
 	}()
@@ -275,7 +275,7 @@ func InitializeGnuPG() error {
 		if err != nil {
 			log.WithFields(log.Fields{
 				common.SecurityField:    common.SecurityMedium,
-				common.SecurityCWEField: 775,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 			}).Errorf("error closing file %q: %v", f.Name(), err)
 		}
 	}()
@@ -302,7 +302,7 @@ func ImportPGPKeysFromString(keyData string) ([]*appsv1.GnuPGPublicKey, error) {
 		if err != nil {
 			log.WithFields(log.Fields{
 				common.SecurityField:    common.SecurityMedium,
-				common.SecurityCWEField: 775,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 			}).Errorf("error closing file %q: %v", f.Name(), err)
 		}
 	}()
@@ -430,7 +430,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 		if err != nil {
 			log.WithFields(log.Fields{
 				common.SecurityField:    common.SecurityMedium,
-				common.SecurityCWEField: 775,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 			}).Errorf("error closing file %q: %v", f.Name(), err)
 		}
 	}()
