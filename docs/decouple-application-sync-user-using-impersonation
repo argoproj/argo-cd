@@ -198,7 +198,7 @@ spec:
 
 #### Privelege Escalation
 
-There could be an issue of privelage escalation, if we allow users to impersonate without restrictions. This can be mitigated by providing an option to blacklist some service accounts both at `AppProject` level and at a global level. Also I believe impersonation itself being a kubernetes native concepts, should have some checks to avoid such security issues.
+There could be an issue of privilege escalation, if we allow users to impersonate without restrictions. This can be mitigated by providing an option to blacklist some service accounts both on a `AppProject` level and on a global level. Also I believe that impersonation itself being a Kubernetes native concept, should have some checks to avoid such security issues.
 Eg: service account name like `cluster-admin` and `admin` must not be allowed to be impersonated.
 
 
