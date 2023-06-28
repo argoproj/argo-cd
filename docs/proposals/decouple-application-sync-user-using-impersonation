@@ -1,0 +1,269 @@
+---
+title: Decouple Control plane and Application Sync priveleges
+authors:
+  - "@anandf" # Authors' github accounts here.
+sponsors:
+  - Red Hat   # List all interested parties here.
+reviewers:
+  - "@alexmt"
+  - "@jannfis"
+approvers:
+  - "@alexmt"
+  - "@jannfis"
+
+creation-date: 2023-06-23
+last-updated: 2023-06-23
+---
+
+# Decouple Application Sync using Impersonation
+
+Application syncs in Argo CD have the same privileges as the Argo CD control plane. As a consequence, the Argo CD control plane privileges needs to match the tenant that needs the highest privileges. As an example, if an Argo CD instance has 10 Applications and only one of them needs admin privileges, the Argo CD control plane then must have admin privileges in order to successfully sync for that one Application. Argo CD provides a multi-tenancy model to limit what each Application can do even though the control plane has high privileges however that creates a large attack surface since if Argo CD is compromised, attackers would have cluster-admin access to the cluster.
+
+The goal of this proposal is to perform the Application sync as a different user using impersonation and use the service account provided in the cluster config purely for control plane tasks.
+
+
+
+## Open Questions [optional]
+
+- Should the restrictions imposed as part of the AppProjects be honored if the impersonation feature is enabled ?
+- Can an Application refer to a service account with elevated privileges like say  `cluster-admin`, `admin`, and service accounts used for running the ArgoCD controllers itself ?
+
+
+## Summary
+
+In a multi team/multi tenant environment, an application team is typically granted access to a namespace to self-manage their Applications in a declarative way. Current implementation of ArgoCD requires the ArgoCD Administrator to create an AppProject with access settings configured to replicate the RBAC resources that are configured for each team. This approach requires duplication of effort and also requires syncing the access between both to maintain the security posture. It would be desirable for users to use the existing RBAC rules without having to revert to Argo CD API to create and manage these Applications. One namespace per team, or even one namespace per application is what we are looking to address as part of this proposal.
+
+## Motivation
+
+This proposal would allow ArgoCD administrators to manage the cluster permissions using kubernetes native RBAC implementation rather than using complex configurations in `AppProjects` to restrict access to individual applications. By decoupling the priveleges required for application sync from the privelege required for ArgoCD control plane, the security requirement of providing least privelage can be achieved there by improving the security posture of ArgoCD. For implementing multi team/tenant use cases, this decoupling would be greatly beneficial.
+
+### Assumptions
+
+- Namespaces are pre-populated with one or more ServiceAccounts that define the permissions for each application team (or application).
+- Users prefer to control access to k8s resources through kubernetes RBAC constructs instead of Argo specific constructs.
+- Each tenant is generally given access to a specific namespace along with a service account, role or cluster role and role binding to control access to that namespace.
+
+
+### Goals
+- Applications may only impersonate ServiceAccounts that live in the same namespace as the application itself. Application teams can then choose the appropriate ServiceAccount to be used for syncing each application themselves, without being able to elevate their privileges.
+- If impersonation feature is enabled, and no service account name is provided in the Application CR, then it should use a default service account setting specified in the AppProject and if not specified use the namespace's default service account.
+- Access restrictions implemented through properties in AppProject (if done) must have the existing behavior. From a security standpoint, any restrictions that were available before switching to a service account based approach should continue to exist even when the impersonation feature is enabled.
+
+### Non-Goals
+
+What is out of scope for this proposal? Listing non-goals helps to focus discussion and make
+progress.
+
+## Proposal
+
+- Enable users to specify a `serviceAccountName` in an Application CR. The service account should exist in the same namespace as that of the Application CR.
+
+```
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+  # This application would use the below service account to impersonate during the sync operation
+  serviceAccountName: guestbook-deployer
+```
+
+Enable ArgoCD Admin to specify a `defaultServiceAccountName` in `AppProjects` CR. This would be used for all Argo Applications associated with that AppProject if not specifically overridden in the Application CR.
+
+```
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: my-project
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Example Project
+  # Allow manifests to deploy from any Git repos
+  sourceRepos:
+  - '*'
+  destinations:
+  - namespace: guestbook
+    server: https://kubernetes.default.svc
+  # All applications associated to this project will use the below service account (in the same namespace of the application) for the Sync operations
+  defaultServiceAccountName: my-project-admin
+```
+
+### Use cases
+
+Add a list of detailed use cases this enhancement intends to take care of.
+
+#### Use case 1:
+
+As a user, I would like to use kubernetes security constructs to restrict user access for application sync
+So that, I can provided granular permissions based on the principal of least privelage required for syncing an application.
+
+#### Use case 2:
+
+As a user, I would like to configure a common service account for all applications associated to an AppProject
+So that, I can use a generic convention of naming service accounts and avoid associating the service account per application.
+
+### Implementation Details/Notes/Constraints
+
+#### Component : GitOps Engine
+
+Fix GitOps Engine code to honor Impersonate configuration set in the Application sync context for all kubectl commands that are being executed.
+
+#### Component: ArgoCD API
+
+- Support new property `serviceAccountName` for Argo Application 
+- Support new property `defaultServiceAccountName` in AppProject
+- Documentation of the new fields
+
+#### Component: ArgoCD Application Controller
+
+- Provide a configuration in argocd-cm  which can be modified to enable the Impersonation feature. Set applicationcontroller.enable.impersonation: true in the Argo CD ConfigMap.
+- Provide an option to override the Impersonation feature using environment variables.
+- Pass `--enable-impersonation` to the Application controller args.
+- Set `ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true` in the Application controller environment variables.
+- Fix Application Controller sync.go to set the Impersonate configuration from the Application CR to the SyncContext Object (rawConfig and restConfig field, need to understand which config is used for the actual sync and if both configs need to be impersonated.)
+#### Component: ArgoCD UI
+
+- Provide option to provide serviceAccountName for an Application created/updated via the console.
+- Provide option to provide defaultServiceAccount for an AppProject created/updated via the web console.
+- Update the User Guide documentation on how to use these newly added fields from the web console.
+#### Component: ArgoCD CLI
+
+- Provide option to provide serviceAccountName for an Application created/updated via the console.
+- Provide option to provide defaultServiceAccount for an AppProject created/updated via the web console.
+- Update the User Guide and other documentation where the CLI option usages are explained.
+
+
+### Detailed examples
+
+#### Example 1: Service account for application sync specified at the Application level
+
+
+```
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+  serviceAccountName: guestbook-deployer
+```
+
+#### Example 1: Service account for application sync specified at the AppProject level
+
+
+```
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+---
+
+```
+
+### Security Considerations
+
+* How does this proposal impact the security aspects of Argo CD workloads ?
+* Are there any unresolved follow-ups that need to be done to make the enhancement more robust ?
+
+### Risks and Mitigations
+
+#### Privelege Escalation
+
+There could be an issue of privelage escalation, if we allow users to impersonate without restrictions. This can be mitigated by providing an option to blacklist some service accounts both at `AppProject` level and at a global level. Also I believe impersonation itself being a kubernetes native concepts, should have some checks to avoid such security issues.
+Eg: service account name like `cluster-admin` and `admin` must not be allowed to be impersonated.
+
+
+
+### Upgrade / Downgrade Strategy
+
+If applicable, how will the component be upgraded and downgraded? Make sure this is in the test
+plan.
+
+Consider the following in developing an upgrade/downgrade strategy for this enhancement:
+
+- What changes (in invocations, configurations, API use, etc.) is an existing cluster required to
+  make on upgrade in order to keep previous behavior?
+- What changes (in invocations, configurations, API use, etc.) is an existing cluster required to
+  make on upgrade in order to make use of the enhancement?
+
+- This feature would be implemented on an `opt-in` based on a feature flag and disabled by default.
+- Changes would be required in both `application.argoproj.io/v1alpha1`  and `appprojects.argoproj.io/v1alpha1`. The new fields would be introduced as optional fields and would be enabled only if the feature is enabled explicitly by a feature flag. If new properties are used in the CR, but the feature flag is not enabled, then a warning message would be displayed during reconcilation of such CRs.
+
+
+## Drawbacks
+
+The idea is to find the best form of an argument why this enhancement should _not_ be implemented.
+
+## Alternatives
+
+### Option 1 
+Instead of introducing a new field  ServiceAccountName in the Application CR, we can extend the existing key-value pair based `SyncOptions` for allowing customers to provide the  impersonating service account. The `defaultServiceAccountName` should still be supported in `AppProject.spec` to support users to use a common `ServiceAccount` across all applications associated to the AppProject.
+
+```
+apiVersion: argoproj.io/v1alpha1 
+kind: Application 
+spec: 
+  syncPolicy: 
+    syncOptions: 
+      - ServiceAccountName=guestbook-deployer
+```
+
+Option 2
+Allow all options available in the `ImpersonationConfig` available to the user for both `Application` and `AppProject` CRs.
+
+```
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+  impersonate:
+    user: system:serviceaccount:dev_ns:admin
+    uid: 1234
+    groups:
+      - admin
+      - view
+      - edit
+```
+
+### Related issue
+
+https://github.com/argoproj/argo-cd/issues/7689
