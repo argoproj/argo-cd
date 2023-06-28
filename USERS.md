@@ -279,6 +279,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Vectra](https://www.vectra.ai)
 1. [Veepee](https://www.veepee.com)
 1. [Viaduct](https://www.viaduct.ai/)
+1. [VietMoney](https://vietmoney.vn/)
 1. [Vinted](https://vinted.com/)
 1. [Virtuo](https://www.govirtuo.com/)
 1. [VISITS Technologies](https://visits.world/en)
