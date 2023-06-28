@@ -1778,6 +1778,12 @@
             "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1846,6 +1852,12 @@
             "name": "name",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1875,6 +1887,12 @@
             "name": "name",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -6531,6 +6549,15 @@
         }
       }
     },
+    "v1alpha1BearerTokenBitbucketCloud": {
+      "description": "BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.",
+      "type": "object",
+      "properties": {
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
     "v1alpha1ChartDetails": {
       "type": "object",
       "title": "ChartDetails contains helm chart metadata for a specific version",
@@ -7454,6 +7481,12 @@
       "description": "PullRequestGenerator defines a generator that scrapes a PullRequest API to find candidate pull requests.",
       "type": "object",
       "properties": {
+        "azuredevops": {
+          "$ref": "#/definitions/v1alpha1PullRequestGeneratorAzureDevOps"
+        },
+        "bitbucket": {
+          "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucket"
+        },
         "bitbucketServer": {
           "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucketServer"
         },
@@ -7483,8 +7516,64 @@
         }
       }
     },
+    "v1alpha1PullRequestGeneratorAzureDevOps": {
+      "description": "PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.",
+      "type": "object",
+      "properties": {
+        "api": {
+          "description": "The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.",
+          "type": "string"
+        },
+        "labels": {
+          "type": "array",
+          "title": "Labels is used to filter the PRs that you want to target",
+          "items": {
+            "type": "string"
+          }
+        },
+        "organization": {
+          "description": "Azure DevOps org to scan. Required.",
+          "type": "string"
+        },
+        "project": {
+          "description": "Azure DevOps project name to scan. Required.",
+          "type": "string"
+        },
+        "repo": {
+          "description": "Azure DevOps repo name to scan. Required.",
+          "type": "string"
+        },
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
+    "v1alpha1PullRequestGeneratorBitbucket": {
+      "description": "PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.",
+      "type": "object",
+      "properties": {
+        "api": {
+          "description": "The Bitbucket REST API URL to talk to. If blank, uses https://api.bitbucket.org/2.0.",
+          "type": "string"
+        },
+        "basicAuth": {
+          "$ref": "#/definitions/v1alpha1BasicAuthBitbucketServer"
+        },
+        "bearerToken": {
+          "$ref": "#/definitions/v1alpha1BearerTokenBitbucketCloud"
+        },
+        "owner": {
+          "description": "Workspace to scan. Required.",
+          "type": "string"
+        },
+        "repo": {
+          "description": "Repo name to scan. Required.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1PullRequestGeneratorBitbucketServer": {
-      "description": "PullRequestGenerator defines connection info specific to BitbucketServer.",
+      "description": "PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.",
       "type": "object",
       "properties": {
         "api": {
@@ -7545,7 +7634,7 @@
       }
     },
     "v1alpha1PullRequestGeneratorGitea": {
-      "description": "PullRequestGenerator defines connection info specific to Gitea.",
+      "description": "PullRequestGeneratorGitea defines connection info specific to Gitea.",
       "type": "object",
       "properties": {
         "api": {

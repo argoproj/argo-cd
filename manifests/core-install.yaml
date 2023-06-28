@@ -9733,6 +9733,80 @@ spec:
                                 type: object
                               pullRequest:
                                 properties:
+                                  azuredevops:
+                                    properties:
+                                      api:
+                                        type: string
+                                      labels:
+                                        items:
+                                          type: string
+                                        type: array
+                                      organization:
+                                        type: string
+                                      project:
+                                        type: string
+                                      repo:
+                                        type: string
+                                      tokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                    required:
+                                    - organization
+                                    - project
+                                    - repo
+                                    type: object
+                                  bitbucket:
+                                    properties:
+                                      api:
+                                        type: string
+                                      basicAuth:
+                                        properties:
+                                          passwordRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                          username:
+                                            type: string
+                                        required:
+                                        - passwordRef
+                                        - username
+                                        type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
+                                        type: object
+                                      owner:
+                                        type: string
+                                      repo:
+                                        type: string
+                                    required:
+                                    - owner
+                                    - repo
+                                    type: object
                                   bitbucketServer:
                                     properties:
                                       api:
@@ -14358,6 +14432,80 @@ spec:
                                 type: object
                               pullRequest:
                                 properties:
+                                  azuredevops:
+                                    properties:
+                                      api:
+                                        type: string
+                                      labels:
+                                        items:
+                                          type: string
+                                        type: array
+                                      organization:
+                                        type: string
+                                      project:
+                                        type: string
+                                      repo:
+                                        type: string
+                                      tokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                    required:
+                                    - organization
+                                    - project
+                                    - repo
+                                    type: object
+                                  bitbucket:
+                                    properties:
+                                      api:
+                                        type: string
+                                      basicAuth:
+                                        properties:
+                                          passwordRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                          username:
+                                            type: string
+                                        required:
+                                        - passwordRef
+                                        - username
+                                        type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
+                                        type: object
+                                      owner:
+                                        type: string
+                                      repo:
+                                        type: string
+                                    required:
+                                    - owner
+                                    - repo
+                                    type: object
                                   bitbucketServer:
                                     properties:
                                       api:
@@ -16800,6 +16948,80 @@ spec:
                       type: object
                     pullRequest:
                       properties:
+                        azuredevops:
+                          properties:
+                            api:
+                              type: string
+                            labels:
+                              items:
+                                type: string
+                              type: array
+                            organization:
+                              type: string
+                            project:
+                              type: string
+                            repo:
+                              type: string
+                            tokenRef:
+                              properties:
+                                key:
+                                  type: string
+                                secretName:
+                                  type: string
+                              required:
+                              - key
+                              - secretName
+                              type: object
+                          required:
+                          - organization
+                          - project
+                          - repo
+                          type: object
+                        bitbucket:
+                          properties:
+                            api:
+                              type: string
+                            basicAuth:
+                              properties:
+                                passwordRef:
+                                  properties:
+                                    key:
+                                      type: string
+                                    secretName:
+                                      type: string
+                                  required:
+                                  - key
+                                  - secretName
+                                  type: object
+                                username:
+                                  type: string
+                              required:
+                              - passwordRef
+                              - username
+                              type: object
+                            bearerToken:
+                              properties:
+                                tokenRef:
+                                  properties:
+                                    key:
+                                      type: string
+                                    secretName:
+                                      type: string
+                                  required:
+                                  - key
+                                  - secretName
+                                  type: object
+                              required:
+                              - tokenRef
+                              type: object
+                            owner:
+                              type: string
+                            repo:
+                              type: string
+                          required:
+                          - owner
+                          - repo
+                          type: object
                         bitbucketServer:
                           properties:
                             api:
@@ -19518,12 +19740,6 @@ spec:
               key: applicationsetcontroller.enable.leader.election
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACE
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.namespace
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER
           valueFrom:
             configMapKeyRef:
@@ -19606,6 +19822,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.concurrent.reconciliations.max
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.namespaces
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest

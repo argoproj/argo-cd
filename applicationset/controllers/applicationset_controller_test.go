@@ -1815,13 +1815,14 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				Recorder:         record.NewFakeRecorder(1),
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
+				ArgoCDNamespace:  "namespace",
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
 			}
 
 			appSetInfo := v1alpha1.ApplicationSet{}
 
-			validationErrors, _ := r.validateGeneratedApplications(context.TODO(), cc.apps, appSetInfo, "namespace")
+			validationErrors, _ := r.validateGeneratedApplications(context.TODO(), cc.apps, appSetInfo)
 			var errorMessages []string
 			for _, v := range validationErrors {
 				errorMessages = append(errorMessages, v.Error())
@@ -1923,6 +1924,7 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 		ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 		KubeClientset:    kubeclientset,
 		Policy:           v1alpha1.ApplicationsSyncPolicySync,
+		ArgoCDNamespace:  "argocd",
 	}
 
 	req := ctrl.Request{
@@ -2069,6 +2071,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 			"List": generators.NewListGenerator(),
 		},
 		ArgoDB:               &argoDBMock,
+		ArgoCDNamespace:      "argocd",
 		ArgoAppClientset:     appclientset.NewSimpleClientset(argoObjs...),
 		KubeClientset:        kubeclientset,
 		Policy:               v1alpha1.ApplicationsSyncPolicySync,
@@ -2239,6 +2242,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 			"List": generators.NewListGenerator(),
 		},
 		ArgoDB:               &argoDBMock,
+		ArgoCDNamespace:      "argocd",
 		ArgoAppClientset:     appclientset.NewSimpleClientset(argoObjs...),
 		KubeClientset:        kubeclientset,
 		Policy:               v1alpha1.ApplicationsSyncPolicySync,
@@ -2543,6 +2547,7 @@ func TestPolicies(t *testing.T) {
 					"List": generators.NewListGenerator(),
 				},
 				ArgoDB:           &argoDBMock,
+				ArgoCDNamespace:  "argocd",
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
 				Policy:           policy,

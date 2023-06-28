@@ -162,8 +162,6 @@ data:
   ## ApplicationSet Controller Properties
   # Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.
   applicationsetcontroller.enable.leader.election: "false"
-  # Argo CD repo namespace (default: argocd)
-  applicationsetcontroller.namespace: ""
   # "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion), 'create-delete' (no update)"
   applicationsetcontroller.policy: "sync"
   # Print debug logs. Takes precedence over loglevel
@@ -178,6 +176,8 @@ data:
   applicationsetcontroller.enable.git.submodule: "true"
   # Enables use of the Progressive Syncs capability
   applicationsetcontroller.enable.progressive.syncs: "false"
+  # A list of glob patterns specifying where to look for ApplicationSet resources. (default is only the ns where the controller is installed)
+  applicationsetcontroller.namespaces: "argocd,argocd-appsets-*"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
