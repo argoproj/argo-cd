@@ -26,8 +26,6 @@ import {concatMaps} from '../../../shared/utils';
 import {getAppDefaultSource} from '../utils';
 import * as jsYaml from 'js-yaml';
 
-let isValuesRaw = false;
-
 const TextWithMetadataField = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
     const {
         fieldApi: {getValue, setValue}
@@ -133,11 +131,8 @@ export const ApplicationParameters = (props: {
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
 
     let attributes: EditablePanelItem[] = [];
-    let appValues: string;
-    if (source && source.helm && source.helm.values) {
-        isValuesRaw = typeof source.helm.values !== 'string'; // nolint
-        appValues = isValuesRaw ? jsYaml.safeDump(source.helm.values) : source.helm.values;
-        source.helm.values = appValues;
+    if (source && source.helm && source.helm.valuesObject) {
+        source.helm.values = jsYaml.safeDump(source.helm.valuesObject);
     }
     const [appParamsDeletedState, setAppParamsDeletedState] = React.useState([]);
 
@@ -225,7 +220,7 @@ export const ApplicationParameters = (props: {
             title: 'VALUES',
             view: source.helm && (
                 <Expandable>
-                    <pre>{appValues}</pre>
+                    <pre>{source.helm.values}</pre>
                 </Expandable>
             ),
             edit: (formApi: FormApi) => (
@@ -527,8 +522,8 @@ export const ApplicationParameters = (props: {
                         params = params.filter(param => !appParamsDeletedState.includes(param.name));
                         input.spec.source.plugin.parameters = params;
                     }
-                    if (input.spec.source.helm && input.spec.source.helm.values && isValuesRaw) {
-                        input.spec.source.helm.values = jsYaml.safeLoad(input.spec.source.helm.values); // Load values as json
+                    if (input.spec.source.helm && input.spec.source.helm.valuesObject) {
+                        input.spec.source.helm.values = jsYaml.safeLoad(input.spec.source.helm.valuesObject); // Load values as json
                     }
                     await props.save(input, {});
                     setRemovedOverrides(new Array<boolean>());
