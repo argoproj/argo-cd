@@ -35,7 +35,7 @@ In a multi team/multi tenant environment, an application team is typically grant
 
 ## Motivation
 
-This proposal would allow ArgoCD administrators to manage the cluster permissions using kubernetes native RBAC implementation rather than using complex configurations in `AppProjects` to restrict access to individual applications. By decoupling the priveleges required for application sync from the privelege required for ArgoCD control plane, the security requirement of providing least privelage can be achieved there by improving the security posture of ArgoCD. For implementing multi team/tenant use cases, this decoupling would be greatly beneficial.
+This proposal would allow Argo CD administrators to manage the cluster permissions using Kubernetes native RBAC implementation rather than using complex configurations in `AppProjects` to restrict access to individual applications. By decoupling the privileges required for application sync from the privileges required for the Argo CD control plane, the security requirement of providing least privilege can be achieved there by improving the security posture of ArgoCD. For implementing multi team/tenant use cases, this decoupling would be greatly beneficial.
 
 ### Assumptions
 
