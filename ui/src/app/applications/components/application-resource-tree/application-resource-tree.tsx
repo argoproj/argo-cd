@@ -179,7 +179,7 @@ function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph) {
             nodeIds.forEach((nodeId: string) => {
                 const index = nodes.findIndex(node => nodeId === node.uid || nodeId === nodeKey(node));
                 const graphNode = graph.node(nodeId);
-                if (!graphNode.podGroup && index > -1) {
+                if (!graphNode?.podGroup && index > -1) {
                     groupedNodeIds.push(nodeId);
                 } else {
                     podGroupIds.push(nodeId);
