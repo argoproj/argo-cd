@@ -7,12 +7,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/pkg/stats"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
+
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/tls"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/controllers"
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
@@ -52,7 +52,7 @@ func NewCommand() *cobra.Command {
 		probeBindAddr                string
 		webhookAddr                  string
 		enableLeaderElection         bool
-		namespace                    string
+		applicationSetNamespaces     []string
 		argocdRepoServer             string
 		policy                       string
 		enablePolicyOverride         bool
@@ -76,6 +76,8 @@ func NewCommand() *cobra.Command {
 
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
+			applicationSetNamespaces = append(applicationSetNamespaces, namespace)
+
 			errors.CheckError(err)
 			vers.LogStartupInfo(
 				"ArgoCD ApplicationSet Controller",
@@ -98,19 +100,25 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
+			// By default watch all namespace
+			var watchedNamespace string = ""
+
+			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
+			if len(applicationSetNamespaces) == 1 {
+				watchedNamespace = (applicationSetNamespaces)[0]
+			}
+
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-				Scheme:             scheme,
-				MetricsBindAddress: metricsAddr,
-				// Our cache and thus watches and client queries are restricted to the namespace we're running in. This assumes
-				// the applicationset controller is in the same namespace as argocd, which should be the same namespace of
-				// all cluster Secrets and Applications we interact with.
-				NewCache:               cache.MultiNamespacedCacheBuilder([]string{namespace}),
+				Scheme:                 scheme,
+				MetricsBindAddress:     metricsAddr,
+				Namespace:              watchedNamespace,
 				HealthProbeBindAddress: probeBindAddr,
 				Port:                   9443,
 				LeaderElection:         enableLeaderElection,
 				LeaderElectionID:       "58ac56fa.applicationsets.argoproj.io",
 				DryRunClient:           dryRun,
 			})
+
 			if err != nil {
 				log.Error(err, "unable to start manager")
 				os.Exit(1)
@@ -190,17 +198,19 @@ func NewCommand() *cobra.Command {
 			}
 
 			if err = (&controllers.ApplicationSetReconciler{
-				Generators:             topLevelGenerators,
-				Client:                 mgr.GetClient(),
-				Scheme:                 mgr.GetScheme(),
-				Recorder:               mgr.GetEventRecorderFor("applicationset-controller"),
-				Renderer:               &utils.Render{},
-				Policy:                 policyObj,
-				EnablePolicyOverride:   enablePolicyOverride,
-				ArgoAppClientset:       appSetConfig,
-				KubeClientset:          k8sClient,
-				ArgoDB:                 argoCDDB,
-				EnableProgressiveSyncs: enableProgressiveSyncs,
+				Generators:               topLevelGenerators,
+				Client:                   mgr.GetClient(),
+				Scheme:                   mgr.GetScheme(),
+				Recorder:                 mgr.GetEventRecorderFor("applicationset-controller"),
+				Renderer:                 &utils.Render{},
+				Policy:                   policyObj,
+				EnablePolicyOverride:     enablePolicyOverride,
+				ArgoAppClientset:         appSetConfig,
+				KubeClientset:            k8sClient,
+				ArgoDB:                   argoCDDB,
+				ArgoCDNamespace:          namespace,
+				ApplicationSetNamespaces: applicationSetNamespaces,
+				EnableProgressiveSyncs:   enableProgressiveSyncs,
 			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
@@ -222,7 +232,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableLeaderElection, "enable-leader-election", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_LEADER_ELECTION", false),
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	command.Flags().StringVar(&namespace, "namespace", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACE", ""), "Argo CD repo namespace (default: argocd)")
+	command.Flags().StringSliceVar(&applicationSetNamespaces, "applicationset-namespaces", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES", []string{}, ","), "Argo CD applicationset namespaces")
 	command.Flags().StringVar(&argocdRepoServer, "argocd-repo-server", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER", common.DefaultRepoServerAddr), "Argo CD repo server address")
 	command.Flags().StringVar(&policy, "policy", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_POLICY", ""), "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion), 'create-delete' (no update)")
 	command.Flags().BoolVar(&enablePolicyOverride, "enable-policy-override", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE", policy == ""), "For security reason if 'policy' is set, it is not possible to override it at applicationSet level. 'allow-policy-override' allows user to define their own policy")

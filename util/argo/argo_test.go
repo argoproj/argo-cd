@@ -1183,7 +1183,7 @@ func Test_ParseAppQualifiedName(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
-			appName, appNs := ParseAppQualifiedName(tt.input, tt.implicitNs)
+			appName, appNs := ParseFromQualifiedName(tt.input, tt.implicitNs)
 			assert.Equal(t, tt.appName, appName)
 			assert.Equal(t, tt.appNs, appNs)
 		})
@@ -1207,7 +1207,7 @@ func Test_ParseAppInstanceName(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
-			appName, appNs := ParseAppInstanceName(tt.input, tt.implicitNs)
+			appName, appNs := ParseInstanceName(tt.input, tt.implicitNs)
 			assert.Equal(t, tt.appName, appName)
 			assert.Equal(t, tt.appNs, appNs)
 		})
@@ -1251,7 +1251,7 @@ func Test_AppInstanceNameFromQualified(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
-			result := AppInstanceNameFromQualified(tt.appName, tt.defaultNs)
+			result := InstanceNameFromQualified(tt.appName, tt.defaultNs)
 			assert.Equal(t, tt.result, result)
 		})
 	}

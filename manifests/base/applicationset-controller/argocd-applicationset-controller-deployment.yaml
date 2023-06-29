@@ -37,12 +37,6 @@ spec:
                   key: applicationsetcontroller.enable.leader.election
                   name: argocd-cmd-params-cm
                   optional: true
-            - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACE
-              valueFrom:
-                configMapKeyRef:
-                  key: applicationsetcontroller.namespace
-                  name: argocd-cmd-params-cm
-                  optional: true
             - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER
               valueFrom:
                 configMapKeyRef:
@@ -126,6 +120,12 @@ spec:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
                   key: applicationsetcontroller.concurrent.reconciliations.max
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES
+              valueFrom:
+                configMapKeyRef:
+                  key: applicationsetcontroller.namespaces
+                  name: argocd-cmd-params-cm
                   optional: true
           volumeMounts:
             - mountPath: /app/config/ssh

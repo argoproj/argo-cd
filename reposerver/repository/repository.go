@@ -417,7 +417,16 @@ func (s *Service) runRepoOperation(
 		return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
 			var signature string
 			if verifyCommit {
-				signature, err = gitClient.VerifyCommitSignature(unresolvedRevision)
+				// When the revision is an annotated tag, we need to pass the unresolved revision (i.e. the tag name)
+				// to the verification routine. For everything else, we work with the SHA that the target revision is
+				// pointing to (i.e. the resolved revision).
+				var rev string
+				if gitClient.IsAnnotatedTag(revision) {
+					rev = unresolvedRevision
+				} else {
+					rev = revision
+				}
+				signature, err = gitClient.VerifyCommitSignature(rev)
 				if err != nil {
 					return nil, err
 				}
@@ -1057,7 +1066,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
 	// templating, thus, we just use the name part of the identifier.
-	appName, _ := argo.ParseAppInstanceName(q.AppName, "")
+	appName, _ := argo.ParseInstanceName(q.AppName, "")
 
 	templateOpts := &helm.TemplateOpts{
 		Name:        appName,

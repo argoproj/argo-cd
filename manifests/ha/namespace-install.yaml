@@ -1533,12 +1533,6 @@ spec:
               key: applicationsetcontroller.enable.leader.election
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACE
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.namespace
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER
           valueFrom:
             configMapKeyRef:
@@ -1621,6 +1615,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.concurrent.reconciliations.max
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.namespaces
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
