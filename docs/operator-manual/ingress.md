@@ -420,7 +420,7 @@ You can put ArgoCD behind Istio using following configurations. Here we will ach
 First we need to make sure that we can run ArgoCD with subpath (ie /argocd). For this we have used install.yaml from argocd project as is
 
 ```bash
-curl -kLs -o install.yaml https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml
+curl -kLs -o install.yaml https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 
 save following file as kustomization.yml
@@ -473,7 +473,7 @@ After that install ArgoCD  (there should be only 3 yml file defined above in cur
 kubectl apply -k ./ -n argocd --wait=true
 ```
 
-After that we create Istio Resources
+Be sure you create secret for Isito ( in our case secretname is argocd-server-tls on argocd Namespace). After that we create Istio Resources
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -500,7 +500,7 @@ spec:
     hosts:
     - "*"
     tls:
-      credentialName: cloud-cert
+      credentialName: argocd-server-tls
       maxProtocolVersion: TLSV1_3
       minProtocolVersion: TLSV1_2
       mode: SIMPLE
