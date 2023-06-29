@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 )
 
@@ -58,13 +57,13 @@ func Error(message, err string) Expectation {
 
 // ApplicationsExist checks whether each of the 'expectedApps' exist in the namespace, and are
 // equivalent to provided values.
-func ApplicationsExist(expectedApps []argov1alpha1.Application) Expectation {
+func ApplicationsExist(expectedApps []v1alpha1.Application) Expectation {
 	return func(c *Consequences) (state, string) {
 
 		for _, expectedApp := range expectedApps {
 			foundApp := c.app(expectedApp.Name)
 			if foundApp == nil {
-				return pending, fmt.Sprintf("missing app '%s'", expectedApp.Name)
+				return pending, fmt.Sprintf("missing app '%s'", expectedApp.QualifiedName())
 			}
 
 			if !appsAreEqual(expectedApp, *foundApp) {
@@ -74,7 +73,7 @@ func ApplicationsExist(expectedApps []argov1alpha1.Application) Expectation {
 					return failed, err.Error()
 				}
 
-				return pending, fmt.Sprintf("apps are not equal: '%s', diff: %s\n", expectedApp.Name, diff)
+				return pending, fmt.Sprintf("apps are not equal: '%s', diff: %s\n", expectedApp.QualifiedName(), diff)
 
 			}
 
@@ -107,13 +106,13 @@ func ApplicationSetHasConditions(applicationSetName string, expectedConditions [
 }
 
 // ApplicationsDoNotExist checks that each of the 'expectedApps' no longer exist in the namespace
-func ApplicationsDoNotExist(expectedApps []argov1alpha1.Application) Expectation {
+func ApplicationsDoNotExist(expectedApps []v1alpha1.Application) Expectation {
 	return func(c *Consequences) (state, string) {
 
 		for _, expectedApp := range expectedApps {
 			foundApp := c.app(expectedApp.Name)
 			if foundApp != nil {
-				return pending, fmt.Sprintf("app '%s' should no longer exist", expectedApp.Name)
+				return pending, fmt.Sprintf("app '%s' should no longer exist", expectedApp.QualifiedName())
 			}
 		}
 
@@ -124,7 +123,7 @@ func ApplicationsDoNotExist(expectedApps []argov1alpha1.Application) Expectation
 // Pod checks whether a specified condition is true for any of the pods in the namespace
 func Pod(predicate func(p corev1.Pod) bool) Expectation {
 	return func(c *Consequences) (state, string) {
-		pods, err := pods(utils.ApplicationSetNamespace)
+		pods, err := pods(utils.ApplicationsResourcesNamespace)
 		if err != nil {
 			return failed, err.Error()
 		}
@@ -145,7 +144,7 @@ func pods(namespace string) (*corev1.PodList, error) {
 }
 
 // getDiff returns a string containing a comparison result of two applications (for test output/debug purposes)
-func getDiff(orig, new argov1alpha1.Application) (string, error) {
+func getDiff(orig, new v1alpha1.Application) (string, error) {
 
 	bytes, _, err := diff.CreateTwoWayMergePatch(orig, new, orig)
 	if err != nil {
@@ -177,13 +176,13 @@ func getConditionDiff(orig, new []v1alpha1.ApplicationSetCondition) (string, err
 }
 
 // filterFields returns a copy of Application, but with unnecessary (for testing) fields removed
-func filterFields(input argov1alpha1.Application) argov1alpha1.Application {
+func filterFields(input v1alpha1.Application) v1alpha1.Application {
 
 	spec := input.Spec
 
 	metaCopy := input.ObjectMeta.DeepCopy()
 
-	output := argov1alpha1.Application{
+	output := v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      metaCopy.Labels,
 			Annotations: metaCopy.Annotations,
@@ -191,13 +190,13 @@ func filterFields(input argov1alpha1.Application) argov1alpha1.Application {
 			Namespace:   metaCopy.Namespace,
 			Finalizers:  metaCopy.Finalizers,
 		},
-		Spec: argov1alpha1.ApplicationSpec{
-			Source: argov1alpha1.ApplicationSource{
-				Path:           spec.Source.Path,
-				RepoURL:        spec.Source.RepoURL,
-				TargetRevision: spec.Source.TargetRevision,
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
+				Path:           spec.GetSource().Path,
+				RepoURL:        spec.GetSource().RepoURL,
+				TargetRevision: spec.GetSource().TargetRevision,
 			},
-			Destination: argov1alpha1.ApplicationDestination{
+			Destination: v1alpha1.ApplicationDestination{
 				Server:    spec.Destination.Server,
 				Name:      spec.Destination.Name,
 				Namespace: spec.Destination.Namespace,
@@ -227,7 +226,7 @@ func filterConditionFields(input *[]v1alpha1.ApplicationSetCondition) *[]v1alpha
 }
 
 // appsAreEqual returns true if the apps are equal, comparing only fields of interest
-func appsAreEqual(one argov1alpha1.Application, two argov1alpha1.Application) bool {
+func appsAreEqual(one v1alpha1.Application, two v1alpha1.Application) bool {
 	return reflect.DeepEqual(filterFields(one), filterFields(two))
 }
 

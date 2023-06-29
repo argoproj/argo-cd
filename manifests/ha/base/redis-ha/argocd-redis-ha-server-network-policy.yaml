@@ -10,33 +10,30 @@ spec:
   - Ingress
   - Egress
   ingress:
-    - from:
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: argocd-redis-ha-haproxy
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: argocd-redis-ha
-      ports:
-        - port: 6379
-          protocol: TCP
-        - port: 26379
-          protocol: TCP
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-redis-ha-haproxy
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-redis-ha
+    ports:
+    - port: 6379
+      protocol: TCP
+    - port: 26379
+      protocol: TCP
   egress:
-    - to:
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: argocd-redis-ha
-      ports:
-        - port: 6379
-          protocol: TCP
-        - port: 26379
-          protocol: TCP
-    - to:
-      - ipBlock:
-          cidr: 0.0.0.0/0
-      ports:
-        - port: 53
-          protocol: UDP
-        - port: 53
-          protocol: TCP
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-redis-ha
+    ports:
+    - port: 6379
+      protocol: TCP
+    - port: 26379
+      protocol: TCP
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP

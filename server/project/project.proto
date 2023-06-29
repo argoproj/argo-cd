@@ -9,7 +9,7 @@ package project;
 import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
-
+import "github.com/argoproj/argo-cd/v2/server/application/application.proto";
 
 // ProjectCreateRequest defines project creation parameters.
 message ProjectCreateRequest {
@@ -68,6 +68,10 @@ message DetailedProjectsResponse {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject project = 2;
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repositories = 3;
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster clusters = 4;
+}
+
+message ListProjectLinksRequest {
+  string name = 1;
 }
 
 // ProjectService
@@ -136,4 +140,10 @@ service ProjectService {
   rpc GetSyncWindowsState(SyncWindowsQuery) returns (SyncWindowsResponse) {
       option (google.api.http).get = "/api/v1/projects/{name}/syncwindows";
   }
+
+  // ListLinks returns all deep links for the particular project
+  rpc ListLinks(ListProjectLinksRequest) returns (application.LinksResponse) {
+    option (google.api.http).get = "/api/v1/projects/{name}/links";
+  }
+
 }

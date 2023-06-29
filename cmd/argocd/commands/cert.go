@@ -135,7 +135,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	return command
 }
 
-// NewCertAddCommand returns a new instance of an `argocd cert add` command
+// NewCertAddSSHCommand returns a new instance of an `argocd cert add` command
 func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		fromFile     string
