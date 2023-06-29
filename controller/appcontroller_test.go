@@ -958,7 +958,7 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 		}
 		return true, nil, nil
 	})
-	ctrl.setOperationState(newFakeApp(), &argoappv1.OperationState{Phase: synccommon.OperationSucceeded})
+	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
 	assert.Equal(t, hook.entries[0].Message, "error patching application with operation state: fake error")
 }
