@@ -268,5 +268,5 @@ func TestRemoveLabelWithInvalidData(t *testing.T) {
 
 	err = RemoveLabel(&obj, "valid-label")
 	assert.Error(t, err)
-	assert.Equal(t, ".metadata.labels accessor error: contains non-string key in the map: <nil> is of the type <nil>, expected string", err.Error())
+	assert.Equal(t, "failed to get labels for /v1, Kind=Service /my-service: .metadata.labels accessor error: contains non-string key in the map: <nil> is of the type <nil>, expected string", err.Error())
 }
