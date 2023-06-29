@@ -84,6 +84,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Farfetch](https://www.farfetch.com)
 1. [Faro](https://www.faro.com/)
 1. [Fave](https://myfave.com)
+1. [Flexport](https://www.flexport.com/)
 1. [Flip](https://flip.id)
 1. [Fonoa](https://www.fonoa.com/)
 1. [freee](https://corp.freee.co.jp/en/company/)
