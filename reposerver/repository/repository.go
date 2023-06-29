@@ -1397,7 +1397,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
 				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, q.Namespace, v1alpha1.TrackingMethod(q.TrackingMethod))
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("failed to set app instance tracking info on manifest: %w", err)
 				}
 			}
 			manifestStr, err := json.Marshal(target.Object)
