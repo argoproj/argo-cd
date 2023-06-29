@@ -528,11 +528,15 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         ))}
                     {(node.info || []).length > 4 && (
                         <Tooltip
-                            content={(node.info || []).map(i => (
-                                <div key={i.name}>
-                                    {i.name}: {i.value}
-                                </div>
-                            ))}
+                            content={
+                                <>
+                                    {(node.info || []).map(i => (
+                                        <div key={i.name}>
+                                            {i.name}: {i.value}
+                                        </div>
+                                    ))}
+                                </>
+                            }
                             key={node.uid}>
                             <span className='application-resource-tree__node-label' title='More'>
                                 More
@@ -822,11 +826,15 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     })}
                 {(node.info || []).length > 4 && (
                     <Tooltip
-                        content={(node.info || []).map(i => (
-                            <div key={i.name}>
-                                {i.name}: {i.value}
-                            </div>
-                        ))}
+                        content={
+                            <>
+                                {(node.info || []).map(i => (
+                                    <div key={i.name}>
+                                        {i.name}: {i.value}
+                                    </div>
+                                ))}
+                            </>
+                        }
                         key={node.uid}>
                         <span className='application-resource-tree__node-label' title='More'>
                             More

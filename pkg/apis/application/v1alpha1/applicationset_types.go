@@ -22,6 +22,7 @@ import (
 	"sort"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/security"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,8 +49,8 @@ type ApplicationSet struct {
 }
 
 // RBACName formats fully qualified application name for RBAC check.
-func (a *ApplicationSet) RBACName() string {
-	return fmt.Sprintf("%s/%s", a.Spec.Template.Spec.GetProject(), a.ObjectMeta.Name)
+func (a *ApplicationSet) RBACName(defaultNS string) string {
+	return security.RBACName(defaultNS, a.Spec.Template.Spec.GetProject(), a.Namespace, a.Name)
 }
 
 // ApplicationSetSpec represents a class of application set state.
@@ -61,6 +62,8 @@ type ApplicationSetSpec struct {
 	Strategy          *ApplicationSetStrategy     `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
 	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
 	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,7,opt,name=goTemplateOptions"`
+	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+	ApplyNestedSelectors bool `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
 }
 
 type ApplicationPreservedFields struct {
@@ -88,11 +91,39 @@ type ApplicationMatchExpression struct {
 	Values   []string `json:"values,omitempty" protobuf:"bytes,3,opt,name=values"`
 }
 
+// ApplicationsSyncPolicy representation
+// "create-only" means applications are only created. If the generator's result contains update, applications won't be updated
+// "create-update" means applications are only created/Updated. If the generator's result contains update, applications will be updated, but not deleted
+// "create-delete" means applications are only created/deleted. If the generator's result contains update, applications won't be updated, if it results in deleted applications, the applications will be deleted
+// "sync" means create/update/deleted. If the generator's result contains update, applications will be updated, if it results in deleted applications, the applications will be deleted
+// If no ApplicationsSyncPolicy is defined, it defaults it to sync
+type ApplicationsSyncPolicy string
+
+// sync / create-only / create-update / create-delete
+const (
+	ApplicationsSyncPolicyCreateOnly   ApplicationsSyncPolicy = "create-only"
+	ApplicationsSyncPolicyCreateUpdate ApplicationsSyncPolicy = "create-update"
+	ApplicationsSyncPolicyCreateDelete ApplicationsSyncPolicy = "create-delete"
+	ApplicationsSyncPolicySync         ApplicationsSyncPolicy = "sync"
+)
+
+func (s ApplicationsSyncPolicy) AllowUpdate() bool {
+	return s == ApplicationsSyncPolicyCreateUpdate || s == ApplicationsSyncPolicySync
+}
+
+func (s ApplicationsSyncPolicy) AllowDelete() bool {
+	return s == ApplicationsSyncPolicySync || s == ApplicationsSyncPolicyCreateDelete
+}
+
 // ApplicationSetSyncPolicy configures how generated Applications will relate to their
 // ApplicationSet.
 type ApplicationSetSyncPolicy struct {
 	// PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.
 	PreserveResourcesOnDeletion bool `json:"preserveResourcesOnDeletion,omitempty" protobuf:"bytes,1,name=syncPolicy"`
+	// ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, create-delete, sync
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=create-only;create-update;create-delete;sync
+	ApplicationsSync *ApplicationsSyncPolicy `json:"applicationsSync,omitempty" protobuf:"bytes,2,opt,name=applicationsSync,casttype=ApplicationsSyncPolicy"`
 }
 
 // ApplicationSetTemplate represents argocd ApplicationSpec
@@ -164,6 +195,9 @@ type ApplicationSetTerminalGenerator struct {
 	ClusterDecisionResource *DuckTypeGenerator    `json:"clusterDecisionResource,omitempty" protobuf:"bytes,5,name=clusterDecisionResource"`
 	PullRequest             *PullRequestGenerator `json:"pullRequest,omitempty" protobuf:"bytes,6,name=pullRequest"`
 	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=pullRequest"`
+
+	// Selector allows to post-filter all generator.
+	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,8,name=selector"`
 }
 
 type ApplicationSetTerminalGenerators []ApplicationSetTerminalGenerator
@@ -182,6 +216,7 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 			ClusterDecisionResource: terminalGenerator.ClusterDecisionResource,
 			PullRequest:             terminalGenerator.PullRequest,
 			Plugin:                  terminalGenerator.Plugin,
+			Selector:                terminalGenerator.Selector,
 		}
 	}
 	return nestedGenerators
@@ -489,11 +524,14 @@ type PullRequestGenerator struct {
 	// Filters for which pull requests should be considered.
 	Filters []PullRequestGeneratorFilter `json:"filters,omitempty" protobuf:"bytes,5,rep,name=filters"`
 	// Standard parameters.
-	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,6,opt,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,7,opt,name=template"`
+	RequeueAfterSeconds *int64                         `json:"requeueAfterSeconds,omitempty" protobuf:"varint,6,opt,name=requeueAfterSeconds"`
+	Template            ApplicationSetTemplate         `json:"template,omitempty" protobuf:"bytes,7,opt,name=template"`
+	Bitbucket           *PullRequestGeneratorBitbucket `json:"bitbucket,omitempty" protobuf:"bytes,8,opt,name=bitbucket"`
+	// Additional provider to use and config for it.
+	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,9,opt,name=azuredevops"`
 }
 
-// PullRequestGenerator defines connection info specific to Gitea.
+// PullRequestGeneratorGitea defines connection info specific to Gitea.
 type PullRequestGeneratorGitea struct {
 	// Gitea org or user to scan. Required.
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
@@ -505,6 +543,22 @@ type PullRequestGeneratorGitea struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`
 	// Allow insecure tls, for self-signed certificates; default: false.
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+}
+
+// PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
+type PullRequestGeneratorAzureDevOps struct {
+	// Azure DevOps org to scan. Required.
+	Organization string `json:"organization" protobuf:"bytes,1,opt,name=organization"`
+	// Azure DevOps project name to scan. Required.
+	Project string `json:"project" protobuf:"bytes,2,opt,name=project"`
+	// Azure DevOps repo name to scan. Required.
+	Repo string `json:"repo" protobuf:"bytes,3,opt,name=repo"`
+	// The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.
+	API string `json:"api,omitempty" protobuf:"bytes,4,opt,name=api"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,5,opt,name=tokenRef"`
+	// Labels is used to filter the PRs that you want to target
+	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
 }
 
 // PullRequestGenerator defines connection info specific to GitHub.
@@ -537,7 +591,7 @@ type PullRequestGeneratorGitLab struct {
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
 }
 
-// PullRequestGenerator defines connection info specific to BitbucketServer.
+// PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
 type PullRequestGeneratorBitbucketServer struct {
 	// Project to scan. Required.
 	Project string `json:"project" protobuf:"bytes,1,opt,name=project"`
@@ -547,6 +601,26 @@ type PullRequestGeneratorBitbucketServer struct {
 	API string `json:"api" protobuf:"bytes,3,opt,name=api"`
 	// Credentials for Basic auth
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
+}
+
+// PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
+type PullRequestGeneratorBitbucket struct {
+	// Workspace to scan. Required.
+	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
+	// Repo name to scan. Required.
+	Repo string `json:"repo" protobuf:"bytes,2,opt,name=repo"`
+	// The Bitbucket REST API URL to talk to. If blank, uses https://api.bitbucket.org/2.0.
+	API string `json:"api,omitempty" protobuf:"bytes,3,opt,name=api"`
+	// Credentials for Basic auth
+	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
+	// Credentials for AppToken (Bearer auth)
+	BearerToken *BearerTokenBitbucketCloud `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
+}
+
+// BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.
+type BearerTokenBitbucketCloud struct {
+	// Password (or personal access token) reference.
+	TokenRef *SecretRef `json:"tokenRef" protobuf:"bytes,1,opt,name=tokenRef"`
 }
 
 // BasicAuthBitbucketServer defines the username/(password or personal access token) for Basic auth.
@@ -740,4 +814,15 @@ func (status *ApplicationSetStatus) SetApplicationStatus(newStatus ApplicationSe
 		}
 	}
 	status.ApplicationStatus = append(status.ApplicationStatus, newStatus)
+}
+
+// QualifiedName returns the full qualified name of the applicationset, including
+// the name of the namespace it is created in delimited by a forward slash,
+// i.e. <namespace>/<appname>
+func (a *ApplicationSet) QualifiedName() string {
+	if a.Namespace == "" {
+		return a.Name
+	} else {
+		return a.Namespace + "/" + a.Name
+	}
 }

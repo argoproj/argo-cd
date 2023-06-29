@@ -37,12 +37,6 @@ spec:
                   key: applicationsetcontroller.enable.leader.election
                   name: argocd-cmd-params-cm
                   optional: true
-            - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACE
-              valueFrom:
-                configMapKeyRef:
-                  key: applicationsetcontroller.namespace
-                  name: argocd-cmd-params-cm
-                  optional: true
             - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER
               valueFrom:
                 configMapKeyRef:
@@ -53,6 +47,12 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   key: applicationsetcontroller.policy
+                  name: argocd-cmd-params-cm
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE
+              valueFrom:
+                configMapKeyRef:
+                  key: applicationsetcontroller.enable.policy.override
                   name: argocd-cmd-params-cm
                   optional: true
             - name: ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG
@@ -120,6 +120,12 @@ spec:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
                   key: applicationsetcontroller.concurrent.reconciliations.max
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES
+              valueFrom:
+                configMapKeyRef:
+                  key: applicationsetcontroller.namespaces
+                  name: argocd-cmd-params-cm
                   optional: true
           volumeMounts:
             - mountPath: /app/config/ssh

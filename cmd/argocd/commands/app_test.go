@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -778,7 +779,7 @@ func Test_unset(t *testing.T) {
 				},
 			},
 			PassCredentials: true,
-			Values:          "some: yaml",
+			ValuesObject:    &runtime.RawExtension{Raw: []byte("some: yaml")},
 			ValueFiles: []string{
 				"values-1.yaml",
 				"values-2.yaml",
@@ -864,9 +865,9 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, "some: yaml", helmSource.Helm.Values)
+	assert.Equal(t, "some: yaml", helmSource.Helm.ValuesString())
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
-	assert.Equal(t, "", helmSource.Helm.Values)
+	assert.Equal(t, "", helmSource.Helm.ValuesString())
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})

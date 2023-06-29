@@ -25,10 +25,5 @@ spec:
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: '2'
-        - name: ARGOCD_REDIS
-          valueFrom:
-            configMapKeyRef:
-              name: argocd-cmd-params-cm
-              key: redis.server
         args:
         - /usr/local/bin/argocd-server

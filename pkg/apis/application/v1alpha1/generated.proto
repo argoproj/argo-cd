@@ -296,6 +296,9 @@ message ApplicationSetSpec {
   optional ApplicationPreservedFields preservedFields = 6;
 
   repeated string goTemplateOptions = 7;
+
+  // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+  optional bool applyNestedSelectors = 8;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -319,6 +322,11 @@ message ApplicationSetStrategy {
 message ApplicationSetSyncPolicy {
   // PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.
   optional bool preserveResourcesOnDeletion = 1;
+
+  // ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, create-delete, sync
+  // +kubebuilder:validation:Optional
+  // +kubebuilder:validation:Enum=create-only;create-update;create-delete;sync
+  optional string applicationsSync = 2;
 }
 
 // ApplicationSetTemplate represents argocd ApplicationSpec
@@ -360,6 +368,9 @@ message ApplicationSetTerminalGenerator {
   optional PullRequestGenerator pullRequest = 6;
 
   optional PluginGenerator plugin = 7;
+
+  // Selector allows to post-filter all generator.
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
 }
 
 // ApplicationSource contains all required information about the source of an application
@@ -420,7 +431,8 @@ message ApplicationSourceHelm {
   // ReleaseName is the Helm release name to use. If omitted it will use the application name
   optional string releaseName = 3;
 
-  // Values specifies Helm values to be passed to helm template, typically defined as a block
+  // Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.
+  // +patchStrategy=replace
   optional string values = 4;
 
   // FileParameters are file parameters to the helm template
@@ -437,6 +449,10 @@ message ApplicationSourceHelm {
 
   // SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
   optional bool skipCrds = 9;
+
+  // ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
+  // +kubebuilder:pruning:PreserveUnknownFields
+  optional k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -638,6 +654,12 @@ message BasicAuthBitbucketServer {
 
   // Password (or personal access token) reference.
   optional SecretRef passwordRef = 2;
+}
+
+// BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.
+message BearerTokenBitbucketCloud {
+  // Password (or personal access token) reference.
+  optional SecretRef tokenRef = 1;
 }
 
 // ChartDetails contains helm chart metadata for a specific version
@@ -1265,9 +1287,53 @@ message PullRequestGenerator {
   optional int64 requeueAfterSeconds = 6;
 
   optional ApplicationSetTemplate template = 7;
+
+  optional PullRequestGeneratorBitbucket bitbucket = 8;
+
+  // Additional provider to use and config for it.
+  optional PullRequestGeneratorAzureDevOps azuredevops = 9;
 }
 
-// PullRequestGenerator defines connection info specific to BitbucketServer.
+// PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
+message PullRequestGeneratorAzureDevOps {
+  // Azure DevOps org to scan. Required.
+  optional string organization = 1;
+
+  // Azure DevOps project name to scan. Required.
+  optional string project = 2;
+
+  // Azure DevOps repo name to scan. Required.
+  optional string repo = 3;
+
+  // The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.
+  optional string api = 4;
+
+  // Authentication token reference.
+  optional SecretRef tokenRef = 5;
+
+  // Labels is used to filter the PRs that you want to target
+  repeated string labels = 6;
+}
+
+// PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
+message PullRequestGeneratorBitbucket {
+  // Workspace to scan. Required.
+  optional string owner = 1;
+
+  // Repo name to scan. Required.
+  optional string repo = 2;
+
+  // The Bitbucket REST API URL to talk to. If blank, uses https://api.bitbucket.org/2.0.
+  optional string api = 3;
+
+  // Credentials for Basic auth
+  optional BasicAuthBitbucketServer basicAuth = 4;
+
+  // Credentials for AppToken (Bearer auth)
+  optional BearerTokenBitbucketCloud bearerToken = 5;
+}
+
+// PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
 message PullRequestGeneratorBitbucketServer {
   // Project to scan. Required.
   optional string project = 1;
@@ -1309,7 +1375,7 @@ message PullRequestGeneratorGitLab {
   optional string pullRequestState = 5;
 }
 
-// PullRequestGenerator defines connection info specific to Gitea.
+// PullRequestGeneratorGitea defines connection info specific to Gitea.
 message PullRequestGeneratorGitea {
   // Gitea org or user to scan. Required.
   optional string owner = 1;
@@ -1650,6 +1716,8 @@ message ResourceOverride {
   optional string actions = 3;
 
   optional OverrideIgnoreDiff ignoreDifferences = 2;
+
+  optional OverrideIgnoreDiff ignoreResourceUpdates = 6;
 
   repeated KnownTypeField knownTypeFields = 4;
 }

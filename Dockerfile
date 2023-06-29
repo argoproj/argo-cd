@@ -1,10 +1,10 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:22.04@sha256:9a0bdde4188b896a372804be2384015e90e3f84906b750c1a53539b585fbbe7f
+ARG BASE_IMAGE=docker.io/library/ubuntu:22.04@sha256:ac58ff7fe25edc58bdf0067ca99df00014dbd032e2246d30a722fa348fd799a5
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.20.4@sha256:690e4135bf2a4571a572bfd5ddfa806b1cb9c3dea0446ebadaf32bc2ea09d4f9 AS builder
+FROM docker.io/library/golang:1.20.5@sha256:4b1fc02d16fca272e5e6e6adc98396219b43ef663a377eef4a97e881d364393f AS builder
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
@@ -83,7 +83,7 @@ WORKDIR /home/argocd
 ####################################################################################################
 # Argo CD UI stage
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/node:20.2.0@sha256:14f0471d0478fbb9177d0f9e8c146dc872273dcdcfc7fea93a27ed81fc6b0e96 AS argocd-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:20.3.1@sha256:2f0b0c15f97441defa812268ee943bbfaaf666ea6cf7cac62ee3f127906b35c6 AS argocd-ui
 
 WORKDIR /src
 COPY ["ui/package.json", "ui/yarn.lock", "./"]
@@ -101,7 +101,7 @@ RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OP
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.20.4@sha256:690e4135bf2a4571a572bfd5ddfa806b1cb9c3dea0446ebadaf32bc2ea09d4f9 AS argocd-build
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.20.5@sha256:4b1fc02d16fca272e5e6e6adc98396219b43ef663a377eef4a97e881d364393f AS argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 
@@ -113,7 +113,18 @@ COPY . .
 COPY --from=argocd-ui /src/dist/app /go/src/github.com/argoproj/argo-cd/ui/dist/app
 ARG TARGETOS
 ARG TARGETARCH
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make argocd-all
+# These build args are optional; if not specified the defaults will be taken from the Makefile
+ARG GIT_TAG
+ARG BUILD_DATE
+ARG GIT_TREE_STATE
+ARG GIT_COMMIT
+RUN GIT_COMMIT=$GIT_COMMIT \
+    GIT_TREE_STATE=$GIT_TREE_STATE \
+    GIT_TAG=$GIT_TAG \
+    BUILD_DATE=$BUILD_DATE \
+    GOOS=$TARGETOS \
+    GOARCH=$TARGETARCH \
+    make argocd-all
 
 ####################################################################################################
 # Final image

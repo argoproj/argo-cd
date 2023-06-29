@@ -10,7 +10,6 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -56,7 +55,6 @@ import (
 	argopath "github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
@@ -337,14 +335,6 @@ func (s *Service) runRepoOperation(
 		defer settings.sem.Release(1)
 	}
 
-	// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
-	if hasMultipleSources && source.Path == "" && source.Chart == "" {
-		log.WithFields(map[string]interface{}{
-			"source": source,
-		}).Debugf("not generating manifests as path and chart fields are empty")
-		return nil
-	}
-
 	if source.IsHelm() {
 		if settings.noCache {
 			err = helmClient.CleanChartCache(source.Chart, revision)
@@ -427,7 +417,16 @@ func (s *Service) runRepoOperation(
 		return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
 			var signature string
 			if verifyCommit {
-				signature, err = gitClient.VerifyCommitSignature(unresolvedRevision)
+				// When the revision is an annotated tag, we need to pass the unresolved revision (i.e. the tag name)
+				// to the verification routine. For everything else, we work with the SHA that the target revision is
+				// pointing to (i.e. the resolved revision).
+				var rev string
+				if gitClient.IsAnnotatedTag(revision) {
+					rev = unresolvedRevision
+				} else {
+					rev = revision
+				}
+				signature, err = gitClient.VerifyCommitSignature(rev)
 				if err != nil {
 					return nil, err
 				}
@@ -510,6 +509,17 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	var promise *ManifestResponsePromise
 
 	operation := func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error {
+		// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
+		if q.HasMultipleSources && q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
+			log.WithFields(map[string]interface{}{
+				"source": q.ApplicationSource,
+			}).Debugf("not generating manifests as path and chart fields are empty")
+			res = &apiclient.ManifestResponse{
+				Revision: commitSHA,
+			}
+			return nil
+		}
+
 		promise = s.runManifestGen(ctx, repoRoot, commitSHA, cacheKey, ctxSrc, q)
 		// The fist channel to send the message will resume this operation.
 		// The main purpose for using channels here is to be able to unlock
@@ -541,10 +551,6 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		case err := <-promise.errCh:
 			return nil, err
 		}
-	}
-
-	if q.HasMultipleSources && err == nil && res == nil {
-		res = &apiclient.ManifestResponse{}
 	}
 	return res, err
 }
@@ -1060,7 +1066,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
 	// templating, thus, we just use the name part of the identifier.
-	appName, _ := argo.ParseAppInstanceName(q.AppName, "")
+	appName, _ := argo.ParseInstanceName(q.AppName, "")
 
 	templateOpts := &helm.TemplateOpts{
 		Name:        appName,
@@ -1090,7 +1096,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 		templateOpts.Values = resolvedValueFiles
 
-		if appHelm.Values != "" {
+		if !appHelm.ValuesIsEmpty() {
 			rand, err := uuid.NewRandom()
 			if err != nil {
 				return nil, err
@@ -1102,7 +1108,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 					_ = os.RemoveAll(p)
 				}
 			}()
-			err = os.WriteFile(p, []byte(appHelm.Values), 0644)
+			err = os.WriteFile(p, appHelm.ValuesYAML(), 0644)
 			if err != nil {
 				return nil, err
 			}
@@ -1341,28 +1347,14 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		var plugin *v1alpha1.ConfigManagementPlugin
-		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
-			plugin = findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
+		pluginName := ""
+		if q.ApplicationSource.Plugin != nil {
+			pluginName = q.ApplicationSource.Plugin.Name
 		}
-		if plugin != nil {
-			// argocd-cm deprecated plugin is being used
-			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), plugin)
-			log.WithFields(map[string]interface{}{
-				"application": q.AppName,
-				"plugin":      q.ApplicationSource.Plugin.Name,
-			}).Warnf(common.ConfigMapPluginDeprecationWarning)
-		} else {
-			// if the named plugin was not found in argocd-cm try sidecar plugin
-			pluginName := ""
-			if q.ApplicationSource.Plugin != nil {
-				pluginName = q.ApplicationSource.Plugin.Name
-			}
-			// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
-			targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
-			if err != nil {
-				err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
-			}
+		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
+		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
+		if err != nil {
+			err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
 		}
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
@@ -1819,74 +1811,17 @@ func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 	return vm, nil
 }
 
-func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
-	if len(command.Command) == 0 {
-		return "", fmt.Errorf("Command is empty")
-	}
-	cmd := exec.Command(command.Command[0], append(command.Command[1:], command.Args...)...)
-	cmd.Env = env
-	cmd.Dir = path
-	return executil.Run(cmd)
-}
-
-func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alpha1.ConfigManagementPlugin {
-	for _, plugin := range plugins {
-		if plugin.Name == name {
-			return plugin
-		}
-	}
-	return nil
-}
-
-func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, plugin *v1alpha1.ConfigManagementPlugin) ([]*unstructured.Unstructured, error) {
-	// Plugins can request to lock the complete repository when they need to
-	// use git client operations.
-	if plugin.LockRepo {
-		manifestGenerateLock.Lock(repoRoot)
-		defer manifestGenerateLock.Unlock(repoRoot)
-	} else {
-		concurrencyAllowed := isConcurrencyAllowed(appPath)
-		if !concurrencyAllowed {
-			manifestGenerateLock.Lock(appPath)
-			defer manifestGenerateLock.Unlock(appPath)
-		}
-	}
-
-	env, err := getPluginEnvs(envVars, q, creds, false)
-	if err != nil {
-		return nil, err
-	}
-
-	if plugin.Init != nil {
-		_, err := runCommand(*plugin.Init, appPath, env)
-		if err != nil {
-			return nil, err
-		}
-	}
-	out, err := runCommand(plugin.Generate, appPath, env)
-	if err != nil {
-		return nil, err
-	}
-	return kube.SplitYAML([]byte(out))
-}
-
-func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, remote bool) ([]string, error) {
+func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
 	envVars := env.Environ()
 	envVars = append(envVars, "KUBE_VERSION="+text.SemVer(q.KubeVersion))
 	envVars = append(envVars, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
 
-	return getPluginParamEnvs(envVars, q.ApplicationSource.Plugin, creds, remote)
+	return getPluginParamEnvs(envVars, q.ApplicationSource.Plugin, creds)
 }
 
 // getPluginParamEnvs gets environment variables for plugin parameter announcement generation.
-func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlugin, creds git.Creds, remote bool) ([]string, error) {
+func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlugin, creds git.Creds) ([]string, error) {
 	env := envVars
-	// Local plugins need also to have access to the local environment variables.
-	// Remote sidecar plugins will use the environment in the sidecar
-	// container.
-	if !remote {
-		env = append(os.Environ(), envVars...)
-	}
 	if creds != nil {
 		closer, environ, err := creds.Environ()
 		if err != nil {
@@ -1923,12 +1858,12 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 
 func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string) ([]*unstructured.Unstructured, error) {
 	// compute variables.
-	env, err := getPluginEnvs(envVars, q, creds, true)
+	env, err := getPluginEnvs(envVars, q, creds)
 	if err != nil {
 		return nil, err
 	}
 
-	// detect config management plugin server (sidecar)
+	// detect config management plugin server
 	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, repoPath, pluginName, env, tarExcludedGlobs)
 	if err != nil {
 		return nil, err
@@ -2174,7 +2109,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 		fmt.Sprintf("ARGOCD_APP_SOURCE_TARGET_REVISION=%s", q.Source.TargetRevision),
 	}
 
-	env, err := getPluginParamEnvs(envVars, q.Source.Plugin, creds, true)
+	env, err := getPluginParamEnvs(envVars, q.Source.Plugin, creds)
 	if err != nil {
 		return fmt.Errorf("failed to get env vars for plugin: %w", err)
 	}
