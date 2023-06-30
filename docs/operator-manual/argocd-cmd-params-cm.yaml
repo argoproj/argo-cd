@@ -9,9 +9,6 @@ data:
   # Repo server address. (default "argocd-repo-server:8081")
   repo.server: "argocd-repo-server:8081"
 
-  # Dex server address (default "http://argocd-dex-server:5556")
-  dex.server: "http://argocd-dex-server:5556"
-
   # Redis server hostname and port (e.g. argocd-redis:6379)
   redis.server: "argocd-redis:6379"
   # Enable compression for data sent to Redis with the required compression algorithm. (default 'gzip')
@@ -86,6 +83,8 @@ data:
   server.repo.server.plaintext: "false"
   # Perform strict validation of TLS certificates when connecting to repo server
   server.repo.server.strict.tls: "false"
+  # Dex server address (default "http://argocd-dex-server:5556")
+  server.dex.server: "http://argocd-dex-server:5556"
   # Use a plaintext client (non-TLS) to connect to dex server
   server.dex.server.plaintext: "false"
   # Perform strict validation of TLS certificates when connecting to dex server
