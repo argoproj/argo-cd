@@ -14,19 +14,17 @@ export class RepoCredsService {
         username,
         password,
         tlsClientCertData,
-        tlsClientCertKey,
-        proxy
+        tlsClientCertKey
     }: {
         url: string;
         username: string;
         password: string;
         tlsClientCertData: string;
         tlsClientCertKey: string;
-        proxy: string;
     }): Promise<models.RepoCreds> {
         return requests
             .post('/repocreds')
-            .send({url, username, password, tlsClientCertData, tlsClientCertKey, proxy})
+            .send({url, username, password, tlsClientCertData, tlsClientCertKey})
             .then(res => res.body as models.RepoCreds);
     }
 
@@ -44,8 +42,7 @@ export class RepoCredsService {
         githubAppInstallationId,
         githubAppEnterpriseBaseURL,
         tlsClientCertData,
-        tlsClientCertKey,
-        proxy
+        tlsClientCertKey
     }: {
         url: string;
         githubAppPrivateKey: string;
@@ -54,18 +51,10 @@ export class RepoCredsService {
         githubAppEnterpriseBaseURL: string;
         tlsClientCertData: string;
         tlsClientCertKey: string;
-        proxy: string;
     }): Promise<models.RepoCreds> {
         return requests
             .post('/repocreds')
-            .send({url, githubAppPrivateKey, githubAppId, githubAppInstallationId, githubAppEnterpriseBaseURL, tlsClientCertData, tlsClientCertKey, proxy})
-            .then(res => res.body as models.RepoCreds);
-    }
-
-    public createGoogleCloudSource({url, gcpServiceAccountKey}: {url: string; gcpServiceAccountKey: string}): Promise<models.RepoCreds> {
-        return requests
-            .post('/repocreds')
-            .send({url, gcpServiceAccountKey})
+            .send({url, githubAppPrivateKey, githubAppId, githubAppInstallationId, githubAppEnterpriseBaseURL, tlsClientCertData, tlsClientCertKey})
             .then(res => res.body as models.RepoCreds);
     }
 
