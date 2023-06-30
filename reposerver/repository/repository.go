@@ -417,7 +417,16 @@ func (s *Service) runRepoOperation(
 		return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
 			var signature string
 			if verifyCommit {
-				signature, err = gitClient.VerifyCommitSignature(unresolvedRevision)
+				// When the revision is an annotated tag, we need to pass the unresolved revision (i.e. the tag name)
+				// to the verification routine. For everything else, we work with the SHA that the target revision is
+				// pointing to (i.e. the resolved revision).
+				var rev string
+				if gitClient.IsAnnotatedTag(revision) {
+					rev = unresolvedRevision
+				} else {
+					rev = revision
+				}
+				signature, err = gitClient.VerifyCommitSignature(rev)
 				if err != nil {
 					return nil, err
 				}
