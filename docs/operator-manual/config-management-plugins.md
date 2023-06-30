@@ -42,7 +42,7 @@ spec:
     command: [sh]
     args: [-c, 'echo "Initializing..."']
   # The generate command runs in the Application source directory each time manifests are generated. Standard output
-  # must be ONLY valid YAML manifests. A non-zero exit code will fail manifest generation.
+  # must be ONLY valid Kubernetes Objects in either YAML or JSON. A non-zero exit code will fail manifest generation.
   # Error output will be sent to the UI, so avoid printing sensitive information (such as secrets).
   generate:
     command: [sh, -c]
@@ -115,7 +115,7 @@ spec:
     While the ConfigManagementPlugin _looks like_ a Kubernetes object, it is not actually a custom resource. 
     It only follows kubernetes-style spec conventions.
 
-The `generate` command must print a valid YAML stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
+The `generate` command must print a valid Kubernetes YAML or JSON object stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
 
 The `discover.fileName` is used as [glob](https://pkg.go.dev/path/filepath#Glob) pattern to determine whether an
 application repository is supported by the plugin or not. 
@@ -363,7 +363,7 @@ data:
       init:                          # Optional command to initialize application source directory
         command: ["sample command"]
         args: ["sample args"]
-      generate:                      # Command to generate manifests YAML
+      generate:                      # Command to generate Kubernetes Objects in either YAML or JSON
         command: ["sample command"]
         args: ["sample args"]
       lockRepo: true                 # Defaults to false. See below.
@@ -380,7 +380,7 @@ spec:
   init:                          # Optional command to initialize application source directory
     command: ["sample command"]
     args: ["sample args"]
-  generate:                      # Command to generate manifests YAML
+  generate:                      # Command to generate Kubernetes Objects in either YAML or JSON
     command: ["sample command"]
     args: ["sample args"]
 ```
