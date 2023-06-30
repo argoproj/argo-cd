@@ -27,6 +27,7 @@ import {Filters, FiltersProps} from './application-resource-filter';
 import {getAppDefaultSource, urlPattern, helpTip} from '../utils';
 import {ChartDetails, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
+import {ApplicationSetsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
