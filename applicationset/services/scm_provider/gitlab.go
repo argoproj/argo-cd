@@ -3,11 +3,11 @@ package scm_provider
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
+	"net/http"
 	pathpkg "path"
 
-	"github.com/xanzy/go-gitlab"
+	gitlab "github.com/xanzy/go-gitlab"
 )
 
 type GitlabProvider struct {
@@ -65,7 +65,7 @@ func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
 	opt := &gitlab.ListGroupProjectsOptions{
 		ListOptions:      gitlab.ListOptions{PerPage: 100},
-		IncludeSubGroups: &g.includeSubgroups,
+		IncludeSubgroups: &g.includeSubgroups,
 	}
 	repos := []*Repository{}
 	for {

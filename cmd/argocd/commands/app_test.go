@@ -9,6 +9,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/google/go-cmp/cmp"
@@ -16,7 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -779,7 +779,7 @@ func Test_unset(t *testing.T) {
 				},
 			},
 			PassCredentials: true,
-			ValuesObject:    &runtime.RawExtension{Raw: []byte("some: yaml")},
+			Values:          "some: yaml",
 			ValueFiles: []string{
 				"values-1.yaml",
 				"values-2.yaml",
@@ -865,9 +865,9 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, "some: yaml", helmSource.Helm.ValuesString())
+	assert.Equal(t, "some: yaml", helmSource.Helm.Values)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
-	assert.Equal(t, "", helmSource.Helm.ValuesString())
+	assert.Equal(t, "", helmSource.Helm.Values)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
@@ -973,49 +973,49 @@ func TestFilterAppResources(t *testing.T) {
 	}
 	// Resource filters
 	var (
-		blankValues = v1alpha1.SyncOperationResource{
+		blankValues = argoappv1.SyncOperationResource{
 			Group:     "",
 			Kind:      "",
 			Name:      "",
 			Namespace: "",
 			Exclude:   false}
 		// *:*:*
-		includeAllResources = v1alpha1.SyncOperationResource{
+		includeAllResources = argoappv1.SyncOperationResource{
 			Group:     "*",
 			Kind:      "*",
 			Name:      "*",
 			Namespace: "",
 			Exclude:   false}
 		// !*:*:*
-		excludeAllResources = v1alpha1.SyncOperationResource{
+		excludeAllResources = argoappv1.SyncOperationResource{
 			Group:     "*",
 			Kind:      "*",
 			Name:      "*",
 			Namespace: "",
 			Exclude:   true}
 		// *:Service:*
-		includeAllServiceResources = v1alpha1.SyncOperationResource{
+		includeAllServiceResources = argoappv1.SyncOperationResource{
 			Group:     "*",
 			Kind:      "Service",
 			Name:      "*",
 			Namespace: "",
 			Exclude:   false}
 		// !*:Service:*
-		excludeAllServiceResources = v1alpha1.SyncOperationResource{
+		excludeAllServiceResources = argoappv1.SyncOperationResource{
 			Group:     "*",
 			Kind:      "Service",
 			Name:      "*",
 			Namespace: "",
 			Exclude:   true}
 		// apps:ReplicaSet:replicaSet-name1
-		includeReplicaSet1Resource = v1alpha1.SyncOperationResource{
+		includeReplicaSet1Resource = argoappv1.SyncOperationResource{
 			Group:     "apps",
 			Kind:      "ReplicaSet",
 			Name:      "replicaSet-name1",
 			Namespace: "",
 			Exclude:   false}
 		// !apps:ReplicaSet:replicaSet-name2
-		excludeReplicaSet2Resource = v1alpha1.SyncOperationResource{
+		excludeReplicaSet2Resource = argoappv1.SyncOperationResource{
 			Group:     "apps",
 			Kind:      "ReplicaSet",
 			Name:      "replicaSet-name2",
@@ -1064,60 +1064,60 @@ func TestFilterAppResources(t *testing.T) {
 	)
 	tests := []struct {
 		testName          string
-		selectedResources []*v1alpha1.SyncOperationResource
-		expectedResult    []*v1alpha1.SyncOperationResource
+		selectedResources []*argoappv1.SyncOperationResource
+		expectedResult    []*argoappv1.SyncOperationResource
 	}{
-		// --resource apps:ReplicaSet:replicaSet-name1 --resource *:Service:*
+		//--resource apps:ReplicaSet:replicaSet-name1 --resource *:Service:*
 		{testName: "Include ReplicaSet replicaSet-name1 resouce and all service resources",
-			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllServiceResources, &includeReplicaSet1Resource},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &service1, &service2},
+			selectedResources: []*argoappv1.SyncOperationResource{&includeAllServiceResources, &includeReplicaSet1Resource},
+			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1, &service1, &service2},
 		},
-		// --resource apps:ReplicaSet:replicaSet-name1 --resource !*:Service:*
+		//--resource apps:ReplicaSet:replicaSet-name1 --resource !*:Service:*
 		{testName: "Include ReplicaSet replicaSet-name1 resouce and exclude all service resources",
-			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSet1Resource},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
+			selectedResources: []*argoappv1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSet1Resource},
+			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2 --resource !*:Service:*
 		{testName: "Exclude ReplicaSet replicaSet-name2 resouce and all service resources",
-			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource, &excludeAllServiceResources},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
+			selectedResources: []*argoappv1.SyncOperationResource{&excludeReplicaSet2Resource, &excludeAllServiceResources},
+			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2
 		{testName: "Exclude ReplicaSet replicaSet-name2 resouce",
-			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &job, &service1, &service2, &deployment},
+			selectedResources: []*argoappv1.SyncOperationResource{&excludeReplicaSet2Resource},
+			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1, &job, &service1, &service2, &deployment},
 		},
 		// --resource apps:ReplicaSet:replicaSet-name1
 		{testName: "Include ReplicaSet replicaSet-name1 resouce",
-			selectedResources: []*v1alpha1.SyncOperationResource{&includeReplicaSet1Resource},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
+			selectedResources: []*argoappv1.SyncOperationResource{&includeReplicaSet1Resource},
+			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1},
 		},
 		// --resource !*:Service:*
 		{testName: "Exclude Service resouces",
-			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
+			selectedResources: []*argoappv1.SyncOperationResource{&excludeAllServiceResources},
+			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
 		},
 		// --resource *:Service:*
 		{testName: "Include Service resouces",
-			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllServiceResources},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&service1, &service2},
+			selectedResources: []*argoappv1.SyncOperationResource{&includeAllServiceResources},
+			expectedResult:    []*argoappv1.SyncOperationResource{&service1, &service2},
 		},
 		// --resource !*:*:*
 		{testName: "Exclude all resouces",
-			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllResources},
+			selectedResources: []*argoappv1.SyncOperationResource{&excludeAllResources},
 			expectedResult:    nil,
 		},
 		// --resource *:*:*
 		{testName: "Include all resouces",
-			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllResources},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
+			selectedResources: []*argoappv1.SyncOperationResource{&includeAllResources},
+			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
 		},
 		{testName: "No Filters",
-			selectedResources: []*v1alpha1.SyncOperationResource{&blankValues},
+			selectedResources: []*argoappv1.SyncOperationResource{&blankValues},
 			expectedResult:    nil,
 		},
 		{testName: "Empty Filter",
-			selectedResources: []*v1alpha1.SyncOperationResource{},
+			selectedResources: []*argoappv1.SyncOperationResource{},
 			expectedResult:    nil,
 		},
 	}
@@ -1440,8 +1440,8 @@ func TestCheckResourceStatus(t *testing.T) {
 
 func Test_hasAppChanged(t *testing.T) {
 	type args struct {
-		appReq *v1alpha1.Application
-		appRes *v1alpha1.Application
+		appReq *argoappv1.Application
+		appRes *argoappv1.Application
 		upsert bool
 	}
 	tests := []struct {
@@ -1503,16 +1503,16 @@ func Test_hasAppChanged(t *testing.T) {
 	}
 }
 
-func testApp(name, project string, labels map[string]string, annotations map[string]string, finalizers []string) *v1alpha1.Application {
-	return &v1alpha1.Application{
+func testApp(name, project string, labels map[string]string, annotations map[string]string, finalizers []string) *argoappv1.Application {
+	return &argoappv1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Labels:      labels,
 			Annotations: annotations,
 			Finalizers:  finalizers,
 		},
-		Spec: v1alpha1.ApplicationSpec{
-			Source: &v1alpha1.ApplicationSource{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{
 				RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
 			},
 			Project: project,

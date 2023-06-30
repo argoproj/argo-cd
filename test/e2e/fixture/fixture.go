@@ -15,6 +15,7 @@ import (
 
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,14 +23,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/util/env"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -143,7 +142,8 @@ func GetEnvWithDefault(envName, defaultValue string) string {
 // IsRemote returns true when the tests are being run against a workload that
 // is running in a remote cluster.
 func IsRemote() bool {
-	return env.ParseBoolFromEnv("ARGOCD_E2E_REMOTE", false)
+	r := os.Getenv("ARGOCD_E2E_REMOTE")
+	return r == "true"
 }
 
 // IsLocal returns when the tests are being run against a local workload
@@ -446,6 +446,17 @@ func SetPermissions(permissions []ACL, username string, roleName string) {
 		aclstr += fmt.Sprintf("g, %s, role:%s", username, roleName)
 		cm.Data["policy.csv"] = aclstr
 
+		return nil
+	})
+}
+
+func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(plugin)
+		if err != nil {
+			return err
+		}
+		cm.Data["configManagementPlugins"] = string(yamlBytes)
 		return nil
 	})
 }
@@ -849,18 +860,6 @@ func CreateSubmoduleRepos(repoType string) {
 	}
 
 	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldEnv))
-}
-
-func RemoveSubmodule() {
-	log.Info("removing submodule")
-
-	FailOnErr(Run(submoduleParentDirectory(), "git", "rm", "submodule/test"))
-	FailOnErr(Run(submoduleParentDirectory(), "touch", "submodule/.gitkeep"))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "submodule/.gitkeep"))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-m", "remove submodule"))
-	if IsRemote() {
-		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "-f", "origin", "master"))
-	}
 }
 
 // RestartRepoServer performs a restart of the repo server deployment and waits
