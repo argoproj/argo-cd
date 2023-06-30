@@ -24,6 +24,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Arctiq Inc.](https://www.arctiq.ca)
 1. [ARZ Allgemeines Rechenzentrum GmbH](https://www.arz.at/)
 1. [Axual B.V.](https://axual.com)
+1. [Back Market](https://www.backmarket.com)
 1. [Baloise](https://www.baloise.com)
 1. [BCDevExchange DevOps Platform](https://bcdevexchange.org/DevOpsPlatform)
 1. [Beat](https://thebeat.co/en/)
