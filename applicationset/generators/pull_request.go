@@ -25,12 +25,14 @@ type PullRequestGenerator struct {
 	client                    client.Client
 	selectServiceProviderFunc func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
 	auth                      SCMAuthProviders
+	allowedSCMProviders       []string
 }
 
-func NewPullRequestGenerator(client client.Client, auth SCMAuthProviders) Generator {
+func NewPullRequestGenerator(client client.Client, auth SCMAuthProviders, allowedScmProviders []string) Generator {
 	g := &PullRequestGenerator{
-		client: client,
-		auth:   auth,
+		client:              client,
+		auth:                auth,
+		allowedSCMProviders: allowedScmProviders,
 	}
 	g.selectServiceProviderFunc = g.selectServiceProvider
 	return g
@@ -118,10 +120,18 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 // selectServiceProvider selects the provider to get pull requests from the configuration
 func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, generatorConfig *argoprojiov1alpha1.PullRequestGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
 	if generatorConfig.Github != nil {
+		err := ScmProviderAllowed(generatorConfig.Github.API, g.allowedSCMProviders)
+		if err != nil {
+			return nil, fmt.Errorf("scm provider: %w", err)
+		}
 		return g.github(ctx, generatorConfig.Github, applicationSetInfo)
 	}
 	if generatorConfig.GitLab != nil {
 		providerConfig := generatorConfig.GitLab
+		err := ScmProviderAllowed(providerConfig.API, g.allowedSCMProviders)
+		if err != nil {
+			return nil, fmt.Errorf("scm provider: %w", err)
+		}
 		token, err := g.getSecretRef(ctx, providerConfig.TokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %v", err)
@@ -130,6 +140,10 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 	}
 	if generatorConfig.Gitea != nil {
 		providerConfig := generatorConfig.Gitea
+		err := ScmProviderAllowed(providerConfig.API, g.allowedSCMProviders)
+		if err != nil {
+			return nil, fmt.Errorf("scm provider: %w", err)
+		}
 		token, err := g.getSecretRef(ctx, providerConfig.TokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %v", err)
@@ -138,6 +152,10 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 	}
 	if generatorConfig.BitbucketServer != nil {
 		providerConfig := generatorConfig.BitbucketServer
+		err := ScmProviderAllowed(providerConfig.API, g.allowedSCMProviders)
+		if err != nil {
+			return nil, fmt.Errorf("scm provider: %w", err)
+		}
 		if providerConfig.BasicAuth != nil {
 			password, err := g.getSecretRef(ctx, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace)
 			if err != nil {

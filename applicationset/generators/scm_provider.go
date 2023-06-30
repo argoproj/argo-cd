@@ -26,16 +26,18 @@ type SCMProviderGenerator struct {
 	// Testing hooks.
 	overrideProvider scm_provider.SCMProviderService
 	SCMAuthProviders
+	allowedSCMProviders []string
 }
 
 type SCMAuthProviders struct {
 	GitHubApps github_app_auth.Credentials
 }
 
-func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders) Generator {
+func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders, allowedSCMProviders []string) Generator {
 	return &SCMProviderGenerator{
-		client:           client,
-		SCMAuthProviders: providers,
+		client:              client,
+		SCMAuthProviders:    providers,
+		allowedSCMProviders: allowedSCMProviders,
 	}
 }
 
@@ -58,6 +60,21 @@ func (g *SCMProviderGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.A
 	return &appSetGenerator.SCMProvider.Template
 }
 
+// Returns an error in case url is not the default provider URL or allowed with allowedScmProviders. If allowedScmProviders is empty it means all are allowed
+func ScmProviderAllowed(url string, allowedScmProviders []string) error {
+	if url == "" || len(allowedScmProviders) == 0 {
+		return nil
+	}
+
+	for _, allowedScmProvider := range allowedScmProviders {
+		if strings.HasPrefix(url, allowedScmProvider) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("%s is not allowed", url)
+}
+
 func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
@@ -76,11 +93,19 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		provider = g.overrideProvider
 	} else if providerConfig.Github != nil {
 		var err error
+		err = ScmProviderAllowed(providerConfig.Github.API, g.allowedSCMProviders)
+		if err != nil {
+			return nil, fmt.Errorf("scm provider: %w", err)
+		}
 		provider, err = g.githubProvider(ctx, providerConfig.Github, applicationSetInfo)
 		if err != nil {
 			return nil, fmt.Errorf("scm provider: %w", err)
 		}
 	} else if providerConfig.Gitlab != nil {
+		err := ScmProviderAllowed(providerConfig.Gitlab.API, g.allowedSCMProviders)
+		if err != nil {
+			return nil, fmt.Errorf("scm provider: %w", err)
+		}
 		token, err := g.getSecretRef(ctx, providerConfig.Gitlab.TokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitlab token: %v", err)
@@ -90,6 +115,10 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			return nil, fmt.Errorf("error initializing Gitlab service: %v", err)
 		}
 	} else if providerConfig.Gitea != nil {
+		err := ScmProviderAllowed(providerConfig.Gitea.API, g.allowedSCMProviders)
+		if err != nil {
+			return nil, fmt.Errorf("scm provider: %w", err)
+		}
 		token, err := g.getSecretRef(ctx, providerConfig.Gitea.TokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitea token: %v", err)
@@ -100,6 +129,10 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		}
 	} else if providerConfig.BitbucketServer != nil {
 		providerConfig := providerConfig.BitbucketServer
+		err := ScmProviderAllowed(providerConfig.API, g.allowedSCMProviders)
+		if err != nil {
+			return nil, fmt.Errorf("scm provider: %w", err)
+		}
 		var scmError error
 		if providerConfig.BasicAuth != nil {
 			password, err := g.getSecretRef(ctx, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace)
@@ -114,6 +147,10 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			return nil, fmt.Errorf("error initializing Bitbucket Server service: %v", scmError)
 		}
 	} else if providerConfig.AzureDevOps != nil {
+		err := ScmProviderAllowed(providerConfig.AzureDevOps.API, g.allowedSCMProviders)
+		if err != nil {
+			return nil, fmt.Errorf("scm provider: %w", err)
+		}
 		token, err := g.getSecretRef(ctx, providerConfig.AzureDevOps.AccessTokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Azure Devops access token: %v", err)
