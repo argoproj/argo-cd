@@ -10,7 +10,7 @@ data:
   repo.server: "argocd-repo-server:8081"
 
   # Dex server address (default "http://argocd-dex-server:5556")
-  dex.server: "http://argocd-dex-server:5556"
+  server.dex.server: "http://argocd-dex-server:5556"
 
   # Redis server hostname and port (e.g. argocd-redis:6379)
   redis.server: "argocd-redis:6379"
