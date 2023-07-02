@@ -1628,7 +1628,7 @@ func TestPermissionDeniedWithNegatedNamespace(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		Then().
-		Expect(Error("", "is not permitted in project"))
+		Expect(Error("", "do not match any of the allowed destinations in project"))
 }
 
 func TestPermissionDeniedWithNegatedServer(t *testing.T) {
@@ -1655,7 +1655,7 @@ func TestPermissionDeniedWithNegatedServer(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		Then().
-		Expect(Error("", "is not permitted in project"))
+		Expect(Error("", "do not match any of the allowed destinations in project"))
 }
 
 // make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false
