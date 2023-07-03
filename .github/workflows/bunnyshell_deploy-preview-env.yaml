@@ -1,0 +1,191 @@
+name: Bunnyshell - Deploy Preview Environment
+
+concurrency: bns-deploy-${{ github.event.workflow_run.referenced_workflows[0].ref || format('refs/pull/{0}/merge', github.event.issue.number) }}
+
+on:
+  workflow_run:
+    workflows:
+      - "Image"
+    types:
+      - completed
+  issue_comment:
+    types: [ created, edited ]
+
+jobs:
+  load-artifact:
+    name: Load bunnyshell artifact
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request' }}
+    outputs:
+      pr-number: ${{ env.PR_NUMBER }}
+      image-name: ${{ env.IMAGE_NAME }}
+      pr-has-preview-labels: ${{ env.PR_HAS_PREVIEW_LABELS }}
+    steps:
+      - name: Download artifact
+        uses: actions/github-script@v6
+        with:
+          script: |
+            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: context.payload.workflow_run.id,
+            });
+            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "bunnyshell"
+            })[0];
+            if (matchArtifact === undefined) {
+              throw TypeError('Bunnyshell Artifact not found!');
+            }
+            let download = await github.rest.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+            let fs = require('fs');
+            fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/artifact.zip`, Buffer.from(download.data));
+      - name: Load artifact data
+        run: |
+          unzip artifact.zip
+
+          echo 'EVENT_JSON<<EOFEVENTJSON' >> $GITHUB_ENV
+          cat event.json >> $GITHUB_ENV
+          echo -e '\nEOFEVENTJSON' >> $GITHUB_ENV
+
+          echo 'DATA_JSON<<EOFDATAJSON' >> $GITHUB_ENV
+          cat data.json >> $GITHUB_ENV
+          echo -e '\nEOFDATAJSON' >> $GITHUB_ENV
+
+      - name: Set variables
+        run: |
+          echo "PR_NUMBER=${{ fromJSON(env.EVENT_JSON).number }}" >> $GITHUB_ENV
+          echo "IMAGE_NAME=${{ fromJSON(env.DATA_JSON).image_name }}" >> $GITHUB_ENV
+          echo "PR_HAS_PREVIEW_LABELS=${{ contains(fromJSON(env.EVENT_JSON).pull_request.labels.*.name, 'bns:preview') }}" >> $GITHUB_ENV
+
+      - name: Configure Bunnyshell AWS Credentials
+        uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
+        with:
+          aws-access-key-id: ${{ secrets.bunnyshell_cr_username }}
+          aws-secret-access-key: ${{ secrets.bunnyshell_cr_password }}
+          aws-region: eu-west-1
+          mask-aws-account-id: 'no'
+
+      - name: Login to Bunnyshell Container Registry
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        with:
+          registry: 904643107945.dkr.ecr.eu-west-1.amazonaws.com
+
+      - name: Push image to Bunnyshell Container Registry
+        run: |
+          docker load --input image.tar
+          docker push ${{ env.IMAGE_NAME }}
+
+  prepare:
+    permissions:
+      contents: read
+    needs: load-artifact
+    if: ${{ always() && (needs.load-artifact.result == 'success' || github.event_name == 'issue_comment') }}
+    runs-on: ubuntu-22.04
+    outputs:
+      bunnyshell-yaml-contents: ${{ steps.prepare-bunnyshell-yaml.outputs.contents }}
+      git-ref: ${{ env.GIT_REF }}
+      pr-number: ${{ env.PR_NUMBER }}
+      pr-has-preview-labels: ${{ needs.load-artifact.outputs.pr-has-preview-labels }}
+    steps:
+      - name: setup-yq
+        uses: frenck/action-setup-yq@c4b5be8b4a215c536a41d436757d9feb92836d4f # v1.0.2
+      - name: determine-pr-number
+        run: |
+          prNumber=${{ needs.load-artifact.outputs.pr-number || github.event.issue.number }}
+          gitRef="refs/pull/$prNumber/head"
+
+          echo "PR_NUMBER=$prNumber" >> $GITHUB_ENV
+          echo "GIT_REF=$gitRef" >> $GITHUB_ENV
+      - name: Compute artifacts names
+        run: |
+          artifactName="argocd-image-${{ needs.load-artifact.outputs.pr-number || github.event.issue.number }}.txt"
+          echo "artifactName=$artifactName" >> "$GITHUB_ENV"
+      - name: Write artifacts
+        if: ${{ needs.load-artifact.outputs.image-name }}
+        run: |
+          echo "${{ needs.load-artifact.outputs.image-name }}" > ${{ env.artifactName }}
+      - name: Upload artifacts
+        if: ${{ needs.load-artifact.outputs.image-name }}
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce #v3.1.2
+        with:
+          name: ${{ env.artifactName }}
+          path: ${{ env.artifactName }}
+      - name: Check out the repo
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.3.0
+        with:
+          ref: ${{ env.GIT_REF }}
+          fetch-depth: 0
+      - name: Prepare vars
+        id: prepare-vars
+        run: |
+          echo "BNS_GIT_SHA=`git rev-parse --short HEAD`" >> "$GITHUB_ENV"
+
+          echo "BNS_BUNNYSHELL_YAML_PATH=${{ '.bunnyshell/templates/preview/bunnyshell.yaml' }}" >> "$GITHUB_ENV"
+
+          artifactArgocdImage=""
+          if [ "${{ needs.load-artifact.outputs.image-name }}" == "" ]; then
+
+            # this will also exit if no artifact was created before
+            gh run download -n ${{ env.artifactName }}
+
+            artifactArgocdImage=$(cat ${{ env.artifactName }})
+
+            # exit if artifact is empty, cannot continue
+            if [ "$artifactArgocdImage" == "" ]; then
+              echo "No argocd-image to use."
+              exit 1
+            fi
+
+            echo "BNS_ARGOCD_IMAGE=$artifactArgocdImage" >> "$GITHUB_ENV"
+          else
+            echo "BNS_ARGOCD_IMAGE=${{ needs.load-artifact.outputs.image-name }}" >> "$GITHUB_ENV"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Prepare bunnyshell.yaml
+        id: prepare-bunnyshell-yaml
+        run: |
+          set -e
+  
+          # update branch
+          yq "(.components[] | select(.gitBranch != null)).gitBranch |= \"${{ env.BNS_GIT_SHA }}\"" ${{ env.BNS_BUNNYSHELL_YAML_PATH }} > bunnyshell_wf_updated.yaml
+
+          # set environmentVariables
+          yq -i ".environmentVariables.ARGOCD_IMAGE |= \"${{ env.BNS_ARGOCD_IMAGE }}\"" bunnyshell_wf_updated.yaml
+
+          # set application variables
+          yq -i "(.components[] | select(.name == \"argocd-ttyd\")).environment.ARGOCD_PASS |= \"bns_secret(${{ secrets.bunnyshell_preview_password }})\"" bunnyshell_wf_updated.yaml
+
+          # encode the bunnyshell.yaml, as it contains secrets, to be able to pass it between jobs
+          result=$(gpg --symmetric --cipher-algo AES256 --batch --passphrase "${{ secrets.bunnyshell_encryption_passphrase }}" --output - bunnyshell_wf_updated.yaml | base64 -w0)
+       
+          # set outputs
+          echo "contents=$result" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    permissions:
+      pull-requests: write
+    name: Deploy Environment
+    needs: prepare
+    if: ${{ always() && needs.prepare.result == 'success' && (needs.prepare.outputs.pr-has-preview-labels == 'true' || github.event_name == 'issue_comment') }}
+    uses: bunnyshell/workflows/.github/workflows/prepare-and-deploy-env.yaml@39a6b57d1582432a9db85b909ce84f3ea03ec605 # v1.0.4
+    with:
+      project-id: ${{ vars.BUNNYSHELL_PROJECT_ID }}
+      cluster-id: ${{ vars.BUNNYSHELL_CLUSTER_ID }}
+      env-name: 'ArgoCD PR #${{ needs.prepare.outputs.pr-number || github.event.issue.number }}'
+      bunnyshell-yaml-contents: ${{ needs.prepare.outputs.bunnyshell-yaml-contents }}
+      allowed-users: ${{ vars.BUNNYSHELL_ALLOWED_USERS }}
+      comment-on-pr: true
+      pr-number: ${{ needs.prepare.outputs.pr-number }}
+      deploy-as-stopped: ${{ github.event_name == 'workflow_run' }}
+      git-ref: ${{ needs.prepare.outputs.git-ref }}
+      restricted-files: |
+          .bunnyshell/*
+    secrets:
+      bunnyshell-access-token: ${{ secrets.bunnyshell_access_token }}
+      bunnyshell-yaml-contents-encryption-passphrase: ${{ secrets.bunnyshell_encryption_passphrase }}

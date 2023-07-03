@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+    name: ttyd-ingress
+    annotations:
+        alb.ingress.kubernetes.io/target-type: ip
+        nginx.ingress.kubernetes.io/use-regex: 'true'
+    labels:
+        app.kubernetes.io/managed-by: Bunnyshell
+spec:
+    ingressClassName: bns-nginx
+    rules:
+        -
+            host: argocd-cli-{{ env.base_domain }}
+            http:
+                paths:
+                    -
+                        path: /
+                        pathType: Prefix
+                        backend:
+                            service:
+                                name: ttyd
+                                port:
+                                    number: 80
+
