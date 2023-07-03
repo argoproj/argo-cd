@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -226,7 +225,7 @@ func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
 		}
 
 		info.Gitlab = &prGeneratorGitlabInfo{
-			Project:     strconv.FormatInt(payload.ObjectAttributes.TargetProjectID, 10),
+			Project:     payload.Project.PathWithNamespace,
 			APIHostname: urlObj.Hostname(),
 		}
 	default:
