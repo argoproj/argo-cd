@@ -100,6 +100,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [gloat](https://gloat.com/)
 1. [GLOBIS](https://globis.com)
 1. [Glovo](https://www.glovoapp.com)
+1. [GlueOps](https://glueops.dev)
 1. [GMETRI](https://gmetri.com/)
 1. [Gojek](https://www.gojek.io/)
 1. [GoTo](https://www.goto.com/)
