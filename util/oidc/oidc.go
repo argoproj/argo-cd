@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	gooidc "github.com/coreos/go-oidc/v3/oidc"
+	gooidc "github.com/coreos/go-oidc"
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"

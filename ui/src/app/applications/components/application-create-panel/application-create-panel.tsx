@@ -137,11 +137,6 @@ export const ApplicationCreatePanel = (props: {
                     if (repoInfo) {
                         normalizeAppSource(app, repoInfo.type || 'git');
                     }
-                    if (app?.spec?.destination?.name && app.spec.destination.name !== '') {
-                        setDestFormat('NAME');
-                    } else {
-                        setDestFormat('URL');
-                    }
                     return (
                         <div className='application-create-panel'>
                             {(yamlMode && (
@@ -216,10 +211,7 @@ export const ApplicationCreatePanel = (props: {
                                                         qeId='application-create-field-project'
                                                         field='spec.project'
                                                         component={AutocompleteField}
-                                                        componentProps={{
-                                                            items: projects,
-                                                            filterSuggestions: true
-                                                        }}
+                                                        componentProps={{items: projects}}
                                                     />
                                                 </div>
                                                 <div className='argo-form-row'>

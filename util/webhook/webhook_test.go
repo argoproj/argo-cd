@@ -294,7 +294,7 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
 	eventJSON := "{\"test\": true}"
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", bytes.NewBufferString(eventJSON))
+	req := httptest.NewRequest("POST", "/api/webhook", bytes.NewBufferString(eventJSON))
 	req.Header.Set("X-Event-Key", "diagnostics:ping")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -325,22 +325,6 @@ func TestGitLabPushEvent(t *testing.T) {
 	h := NewMockHandler(nil, []string{})
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-Gitlab-Event", "Push Hook")
-	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
-	assert.NoError(t, err)
-	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-	w := httptest.NewRecorder()
-	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusOK)
-	expectedLogResult := "Received push event repo: https://gitlab/group/name, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
-	hook.Reset()
-}
-
-func TestGitLabSystemEvent(t *testing.T) {
-	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
-	req.Header.Set("X-Gitlab-Event", "System Hook")
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
 	assert.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
