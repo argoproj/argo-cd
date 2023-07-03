@@ -88,62 +88,6 @@ func TestGitHubCommitEvent(t *testing.T) {
 	hook.Reset()
 }
 
-// TestGitHubCommitEvent_MultiSource_Refresh makes sure that a webhook will refresh a multi-source app when at least
-// one source matches.
-func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
-	hook := test.NewGlobal()
-	var patched bool
-	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchAction := action.(kubetesting.PatchAction)
-		assert.Equal(t, "app-to-refresh", patchAction.GetName())
-		patched = true
-		return true, nil, nil
-	}
-	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app-to-refresh",
-			Namespace: "argocd",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: v1alpha1.ApplicationSources{
-				{
-					RepoURL: "https://github.com/some/unrelated-repo",
-					Path:    ".",
-				},
-				{
-					RepoURL: "https://github.com/jessesuen/test-repo",
-					Path:    ".",
-				},
-			},
-		},
-	}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "app-to-ignore",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: v1alpha1.ApplicationSources{
-				{
-					RepoURL: "https://github.com/some/unrelated-repo",
-					Path:    ".",
-				},
-			},
-		},
-	},
-	)
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
-	req.Header.Set("X-GitHub-Event", "push")
-	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-	assert.NoError(t, err)
-	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-	w := httptest.NewRecorder()
-	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusOK)
-	expectedLogResult := "Requested app 'app-to-refresh' refresh"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
-	assert.True(t, patched)
-	hook.Reset()
-}
-
 // TestGitHubCommitEvent_AppsInOtherNamespaces makes sure that webhooks properly find apps in the configured set of
 // allowed namespaces when Apps are allowed in any namespace
 func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
@@ -163,11 +107,9 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 				Namespace: "argocd",
 			},
 			Spec: v1alpha1.ApplicationSpec{
-				Sources: v1alpha1.ApplicationSources{
-					{
-						RepoURL: "https://github.com/jessesuen/test-repo",
-						Path:    ".",
-					},
+				Source: v1alpha1.ApplicationSource{
+					RepoURL: "https://github.com/jessesuen/test-repo",
+					Path:    ".",
 				},
 			},
 		}, &v1alpha1.Application{
@@ -176,11 +118,9 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 				Namespace: "kube-system",
 			},
 			Spec: v1alpha1.ApplicationSpec{
-				Sources: v1alpha1.ApplicationSources{
-					{
-						RepoURL: "https://github.com/jessesuen/test-repo",
-						Path:    ".",
-					},
+				Source: v1alpha1.ApplicationSource{
+					RepoURL: "https://github.com/jessesuen/test-repo",
+					Path:    ".",
 				},
 			},
 		}, &v1alpha1.Application{
@@ -189,11 +129,9 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 				Namespace: "end-to-end-tests",
 			},
 			Spec: v1alpha1.ApplicationSpec{
-				Sources: v1alpha1.ApplicationSources{
-					{
-						RepoURL: "https://github.com/jessesuen/test-repo",
-						Path:    ".",
-					},
+				Source: v1alpha1.ApplicationSource{
+					RepoURL: "https://github.com/jessesuen/test-repo",
+					Path:    ".",
 				},
 			},
 		}, &v1alpha1.Application{
@@ -202,11 +140,9 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 				Namespace: "app-team-two",
 			},
 			Spec: v1alpha1.ApplicationSpec{
-				Sources: v1alpha1.ApplicationSources{
-					{
-						RepoURL: "https://github.com/jessesuen/test-repo",
-						Path:    ".",
-					},
+				Source: v1alpha1.ApplicationSource{
+					RepoURL: "https://github.com/jessesuen/test-repo",
+					Path:    ".",
 				},
 			},
 		},
@@ -294,7 +230,7 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
 	eventJSON := "{\"test\": true}"
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", bytes.NewBufferString(eventJSON))
+	req := httptest.NewRequest("POST", "/api/webhook", bytes.NewBufferString(eventJSON))
 	req.Header.Set("X-Event-Key", "diagnostics:ping")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -325,22 +261,6 @@ func TestGitLabPushEvent(t *testing.T) {
 	h := NewMockHandler(nil, []string{})
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-Gitlab-Event", "Push Hook")
-	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
-	assert.NoError(t, err)
-	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-	w := httptest.NewRecorder()
-	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusOK)
-	expectedLogResult := "Received push event repo: https://gitlab/group/name, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
-	hook.Reset()
-}
-
-func TestGitLabSystemEvent(t *testing.T) {
-	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
-	req.Header.Set("X-Gitlab-Event", "System Hook")
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
 	assert.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
@@ -400,114 +320,94 @@ func getApp(annotation string, sourcePath string) *v1alpha1.Application {
 			},
 		},
 		Spec: v1alpha1.ApplicationSpec{
-			Source: &v1alpha1.ApplicationSource{
+			Source: v1alpha1.ApplicationSource{
 				Path: sourcePath,
 			},
 		},
 	}
 }
 
-func getMultiSourceApp(annotation string, paths ...string) *v1alpha1.Application {
-	var sources v1alpha1.ApplicationSources
-	for _, path := range paths {
-		sources = append(sources, v1alpha1.ApplicationSource{Path: path})
-	}
-	return &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				v1alpha1.AnnotationKeyManifestGeneratePaths: annotation,
-			},
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: sources,
-		},
-	}
-}
-
 func Test_getAppRefreshPrefix(t *testing.T) {
 	tests := []struct {
-		name           string
-		app            *v1alpha1.Application
-		files          []string
-		changeExpected bool
+		name  string
+		app   *v1alpha1.Application
+		files []string
+		want  bool
 	}{
 		{"default no path", &v1alpha1.Application{}, []string{"README.md"}, true},
 		{"relative path - matching", getApp(".", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"relative path, multi source - matching #1", getMultiSourceApp(".", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"relative path, multi source - matching #2", getMultiSourceApp(".", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
 		{"relative path - not matching", getApp(".", "source/path"), []string{"README.md"}, false},
-		{"relative path, multi source - not matching", getMultiSourceApp(".", "other/path", "unrelated/path"), []string{"README.md"}, false},
 		{"absolute path - matching", getApp("/source/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"absolute path, multi source - matching #1", getMultiSourceApp("/source/path", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"absolute path, multi source - matching #2", getMultiSourceApp("/source/path", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
 		{"absolute path - not matching", getApp("/source/path1", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
-		{"absolute path, multi source - not matching", getMultiSourceApp("/source/path1", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
 		{"two relative paths - matching", getApp(".;../shared", "my-app"), []string{"shared/my-deployment.yaml"}, true},
-		{"two relative paths, multi source - matching #1", getMultiSourceApp(".;../shared", "my-app", "other/path"), []string{"shared/my-deployment.yaml"}, true},
-		{"two relative paths, multi source - matching #2", getMultiSourceApp(".;../shared", "my-app", "other/path"), []string{"shared/my-deployment.yaml"}, true},
 		{"two relative paths - not matching", getApp(".;../shared", "my-app"), []string{"README.md"}, false},
-		{"two relative paths, multi source - not matching", getMultiSourceApp(".;../shared", "my-app", "other/path"), []string{"README.md"}, false},
 		{"file relative path - matching", getApp("./my-deployment.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file relative path, multi source - matching #1", getMultiSourceApp("./my-deployment.yaml", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file relative path, multi source - matching #2", getMultiSourceApp("./my-deployment.yaml", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
 		{"file relative path - not matching", getApp("./my-deployment.yaml", "source/path"), []string{"README.md"}, false},
-		{"file relative path, multi source - not matching", getMultiSourceApp("./my-deployment.yaml", "source/path", "other/path"), []string{"README.md"}, false},
 		{"file absolute path - matching", getApp("/source/path/my-deployment.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file absolute path, multi source - matching #1", getMultiSourceApp("/source/path/my-deployment.yaml", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file absolute path, multi source - matching #2", getMultiSourceApp("/source/path/my-deployment.yaml", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
 		{"file absolute path - not matching", getApp("/source/path1/README.md", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
-		{"file absolute path, multi source - not matching", getMultiSourceApp("/source/path1/README.md", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, false},
 		{"file two relative paths - matching", getApp("./README.md;../shared/my-deployment.yaml", "my-app"), []string{"shared/my-deployment.yaml"}, true},
-		{"file two relative paths, multi source - matching", getMultiSourceApp("./README.md;../shared/my-deployment.yaml", "my-app", "other-path"), []string{"shared/my-deployment.yaml"}, true},
 		{"file two relative paths - not matching", getApp(".README.md;../shared/my-deployment.yaml", "my-app"), []string{"kustomization.yaml"}, false},
-		{"file two relative paths, multi source - not matching", getMultiSourceApp(".README.md;../shared/my-deployment.yaml", "my-app", "other-path"), []string{"kustomization.yaml"}, false},
 	}
 	for _, tt := range tests {
-		ttc := tt
-		t.Run(ttc.name, func(t *testing.T) {
-			t.Parallel()
-			if got := appFilesHaveChanged(ttc.app, ttc.files); got != ttc.changeExpected {
-				t.Errorf("getAppRefreshPrefix() = %v, want %v", got, ttc.changeExpected)
+		t.Run(tt.name, func(t *testing.T) {
+			if got := appFilesHaveChanged(tt.app, tt.files); got != tt.want {
+				t.Errorf("getAppRefreshPrefix() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
 func TestAppRevisionHasChanged(t *testing.T) {
-	getSource := func(targetRevision string) v1alpha1.ApplicationSource {
-		return v1alpha1.ApplicationSource{TargetRevision: targetRevision}
-	}
+	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{},
+	}}, "master", true))
 
-	testCases := []struct {
-		name             string
-		source           v1alpha1.ApplicationSource
-		revision         string
-		touchedHead      bool
-		expectHasChanged bool
-	}{
-		{"no target revision, master, touched head", getSource(""), "master", true, true},
-		{"no target revision, master, did not touch head", getSource(""), "master", false, false},
-		{"dev target revision, master, touched head", getSource("dev"), "master", true, false},
-		{"dev target revision, dev, did not touch head", getSource("dev"), "dev", false, true},
-		{"refs/heads/dev target revision, master, touched head", getSource("refs/heads/dev"), "master", true, false},
-		{"refs/heads/dev target revision, dev, did not touch head", getSource("refs/heads/dev"), "dev", false, true},
-		{"env/test target revision, env/test, did not touch head", getSource("env/test"), "env/test", false, true},
-		{"refs/heads/env/test target revision, env/test, did not touch head", getSource("refs/heads/env/test"), "env/test", false, true},
-	}
+	assert.False(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{},
+	}}, "master", false))
 
-	for _, tc := range testCases {
-		tcc := tc
-		t.Run(tcc.name, func(t *testing.T) {
-			t.Parallel()
-			changed := sourceRevisionHasChanged(tcc.source, tcc.revision, tcc.touchedHead)
-			assert.Equal(t, tcc.expectHasChanged, changed)
-		})
-	}
+	assert.False(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{
+			TargetRevision: "dev",
+		},
+	}}, "master", true))
+
+	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{
+			TargetRevision: "dev",
+		},
+	}}, "dev", false))
+
+	assert.False(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{
+			TargetRevision: "refs/heads/dev",
+		},
+	}}, "master", true))
+
+	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{
+			TargetRevision: "refs/heads/dev",
+		},
+	}}, "dev", false))
+	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{
+			TargetRevision: "env/test",
+		},
+	}}, "env/test", false))
+	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{
+			TargetRevision: "refs/heads/env/test",
+		},
+	}}, "env/test", false))
 }
 
 func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
-	sourceWithRevision := func(targetRevision string) v1alpha1.ApplicationSource {
-		return v1alpha1.ApplicationSource{TargetRevision: targetRevision}
+	appWithRevision := func(targetRevision string) *v1alpha1.Application {
+		return &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: targetRevision,
+			},
+		}}
 	}
 
 	githubPushPayload := func(branchName string) github.PushPayload {
@@ -622,8 +522,8 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
 			_, revisionFromHook, _, _, _ := affectedRevisionInfo(testCopy.hookPayload)
-			if got := sourceRevisionHasChanged(sourceWithRevision(testCopy.targetRevision), revisionFromHook, false); got != testCopy.hasChanged {
-				t.Errorf("sourceRevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
+			if got := appRevisionHasChanged(appWithRevision(testCopy.targetRevision), revisionFromHook, false); got != testCopy.hasChanged {
+				t.Errorf("appRevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
 			}
 		})
 	}
@@ -660,7 +560,7 @@ func Test_getWebUrlRegex(t *testing.T) {
 			regexp, err := getWebUrlRegex(testCopy.webURL)
 			assert.NoError(t, err)
 			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
-				t.Errorf("sourceRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
+				t.Errorf("appRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
 			}
 		})
 	}

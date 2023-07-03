@@ -78,10 +78,10 @@ The API server can then be accessed using https://localhost:8080
 The initial password for the `admin` account is auto-generated and stored as
 clear text in the field `password` in a secret named `argocd-initial-admin-secret`
 in your Argo CD installation namespace. You can simply retrieve this password
-using the `argocd` CLI:
+using `kubectl`:
 
 ```bash
-argocd admin initial-password -n argocd
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
 ```
 
 !!! warning
