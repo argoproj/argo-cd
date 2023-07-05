@@ -2,11 +2,13 @@ package scm_provider
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
 	pathpkg "path"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/xanzy/go-gitlab"
 )
 
@@ -19,21 +21,31 @@ type GitlabProvider struct {
 
 var _ SCMProviderService = &GitlabProvider{}
 
-func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups bool) (*GitlabProvider, error) {
+func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups, insecure bool) (*GitlabProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITLAB_TOKEN")
 	}
 	var client *gitlab.Client
+
+	retryClient := &retryablehttp.Client{}
+	if insecure {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		retryClient := retryablehttp.NewClient()
+		retryClient.HTTPClient.Transport = tr
+	}
+
 	if url == "" {
 		var err error
-		client, err = gitlab.NewClient(token)
+		client, err = gitlab.NewClient(token, gitlab.WithHTTPClient(retryClient.HTTPClient))
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		var err error
-		client, err = gitlab.NewClient(token, gitlab.WithBaseURL(url))
+		client, err = gitlab.NewClient(token, gitlab.WithBaseURL(url), gitlab.WithHTTPClient(retryClient.HTTPClient))
 		if err != nil {
 			return nil, err
 		}

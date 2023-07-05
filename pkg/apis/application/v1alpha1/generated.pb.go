@@ -13016,6 +13016,14 @@ func (m *SCMProviderGeneratorGitlab) MarshalToSizedBuffer(dAtA []byte) (int, err
 	var l int
 	_ = l
 	i--
+	if m.Insecure {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x30
+	i--
 	if m.AllBranches {
 		dAtA[i] = 1
 	} else {
@@ -16838,6 +16846,7 @@ func (m *SCMProviderGeneratorGitlab) Size() (n int) {
 		n += 1 + l + sovGenerated(uint64(l))
 	}
 	n += 2
+	n += 2
 	return n
 }
 
@@ -19405,6 +19414,7 @@ func (this *SCMProviderGeneratorGitlab) String() string {
 		`API:` + fmt.Sprintf("%v", this.API) + `,`,
 		`TokenRef:` + strings.Replace(this.TokenRef.String(), "SecretRef", "SecretRef", 1) + `,`,
 		`AllBranches:` + fmt.Sprintf("%v", this.AllBranches) + `,`,
+		`Insecure:` + fmt.Sprintf("%v", this.Insecure) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -46196,6 +46206,26 @@ func (m *SCMProviderGeneratorGitlab) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.AllBranches = bool(v != 0)
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Insecure", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Insecure = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])

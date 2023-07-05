@@ -5553,6 +5553,8 @@ spec:
                                         type: string
                                       includeSubgroups:
                                         type: boolean
+                                      insecure:
+                                        type: boolean
                                       tokenRef:
                                         properties:
                                           key:
@@ -10028,6 +10030,8 @@ spec:
                                         type: string
                                       includeSubgroups:
                                         type: boolean
+                                      insecure:
+                                        type: boolean
                                       tokenRef:
                                         properties:
                                           key:
@@ -12431,6 +12435,8 @@ spec:
                             group:
                               type: string
                             includeSubgroups:
+                              type: boolean
+                            insecure:
                               type: boolean
                             tokenRef:
                               properties:

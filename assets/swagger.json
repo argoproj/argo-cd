@@ -8565,6 +8565,10 @@
           "type": "boolean",
           "title": "Recurse through subgroups (true) or scan only the base group (false).  Defaults to \"false\""
         },
+        "insecure": {
+          "type": "boolean",
+          "title": "Allow self-signed TLS / Certificates; default: false"
+        },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
         }

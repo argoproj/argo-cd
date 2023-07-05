@@ -2022,6 +2022,9 @@ message SCMProviderGeneratorGitlab {
 
   // Scan all branches instead of just the default branch.
   optional bool allBranches = 5;
+
+  // Allow self-signed TLS / Certificates; default: false
+  optional bool insecure = 6;
 }
 
 // Utility struct for a reference to a secret key.
