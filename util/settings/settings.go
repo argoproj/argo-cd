@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net/http"
 	"net/url"
 	"path"
 	"reflect"
@@ -1941,15 +1942,24 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 	return appendURLPath(a.URL, common.CallbackEndpoint)
 }
 
-func (a *ArgoCDSettings) RedirectURLForRequestURL(requestURL string) (string, error) {
+func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) {
 	if a == nil {
 		return "", errors.New("nil argocd settings")
 	}
-	if strings.HasPrefix(requestURL, a.URL) {
+
+	u, err := url.Parse(a.URL)
+	if err != nil {
+		return "", err
+	}
+	if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
 		return appendURLPath(a.URL, common.CallbackEndpoint)
 	}
 	for _, altURL := range a.URLs {
-		if strings.HasPrefix(requestURL, altURL) {
+		u, err := url.Parse(altURL)
+		if err != nil {
+			return "", err
+		}
+		if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
 			return appendURLPath(altURL, common.CallbackEndpoint)
 		}
 	}
