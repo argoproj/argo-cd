@@ -23,6 +23,38 @@ This feature needs [App in any namespace](../app-any-namespace.md) feature activ
 
 This feature can only be enabled and used when your Argo CD ApplicationSet controller is installed as a cluster-wide instance, so it has permissions to list and manipulate resources on a cluster scope. It will *not* work with an Argo CD installed in namespace-scoped mode.
 
+### Scm Providers secrets consideration
+
+By allowing ApplicationSet in any namespace you must be aware that any secrets can be exfiltrated using scmProvider or pullRequest generators.
+
+Here is an example:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+  - scmProvider:
+      gitea:
+        # The Gitea owner to scan.
+        owner: myorg
+        # The Gitea instance url
+        api: https://gitea.mydomain.com/
+        # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
+        allBranches: true
+        # Reference to a Secret containing an access token. (optional)
+        tokenRef:
+          secretName: gitea-token
+          key: token
+  template:
+```
+
+By setting `spec.generators[n].scmProvider.gitea.api=http://my-service.my-namespace.svc.cluster.local` user can send all request to a Pod that will log incoming requests including headers with tokens. By changing the `tokenRef` user can read in clear all secrets.
+
+Therefore administrator must restrict the urls of the allowed SCM Providers (example: `https://git.mydomain.com/,https://gitlab.mydomain.com/`) by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allowed.scm.providers`. If another url is used, it will be rejected by the applicationset controller.
+
 ## Implementation details
 
 ### Overview
@@ -162,38 +194,6 @@ GET /api/v1/applicationsets/foo?appsetNamespace=bar
 For other operations such as `POST` and `PUT`, the `appNamespace` parameter must be part of the request's payload.
 
 For `ApplicationSet` resources in the control plane namespace, this parameter can be omitted.
-
-## Scm Providers secrets consideration
-
-By allowing ApplicationSet in any namespace you must be aware that any secrets can be exfiltrated using scmProvider or pullRequest generators.
-
-Here is an example:
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
-metadata:
-  name: myapps
-spec:
-  generators:
-  - scmProvider:
-      gitea:
-        # The Gitea owner to scan.
-        owner: myorg
-        # The Gitea instance url
-        api: https://gitea.mydomain.com/
-        # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
-        allBranches: true
-        # Reference to a Secret containing an access token. (optional)
-        tokenRef:
-          secretName: gitea-token
-          key: token
-  template:
-```
-
-By setting `spec.generators[n].scmProvider.gitea.api=http://my-service.my-namespace.svc.cluster.local` user can send all request to a Pod that will log incoming requests including headers with tokens. By changing the `tokenRef` user can read in clear all secrets.
-
-Administrator can restrict the urls of the allowed SCM Providers (example: `https://git.mydomain.com/,https://gitlab.mydomain.com/`) by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allowed.scm.providers`. If another url is used, it will be rejected by the applicationset controller.
 
 ## Clusters secrets consideration
 

@@ -97,7 +97,7 @@ func NewCommand() *cobra.Command {
 
 			policyObj, exists := utils.Policies[policy]
 			if !exists {
-				log.Info("Policy value can be: sync, create-only, create-update, create-delete, default value: sync")
+				log.Error("Policy value can be: sync, create-only, create-update, create-delete, default value: sync")
 				os.Exit(1)
 			}
 
@@ -107,6 +107,9 @@ func NewCommand() *cobra.Command {
 			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
 			if len(applicationSetNamespaces) == 1 {
 				watchedNamespace = (applicationSetNamespaces)[0]
+			} else if len(allowedScmProviders) == 0 {
+				log.Error("When enabling applicationset in any namespace using applicationset-namespaces, allowed-scm-providers is required")
+				os.Exit(1)
 			}
 
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
