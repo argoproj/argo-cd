@@ -22,3 +22,18 @@ spec:
   selector:
     secret:
       name: existing-secret
+status:
+  conditions:
+    - lastTransitionTime: '2023-07-05T20:49:16Z'
+      message: PushSecret synced successfully
+      reason: Synced
+      status: 'True'
+      type: Ready
+  syncedPushSecrets:
+    ClusterSecretStore/my-store:
+      remote/path/test:
+        match:
+          remoteRef:
+            property: test
+            remoteKey: remote/path
+          secretKey: test
