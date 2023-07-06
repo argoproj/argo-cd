@@ -33,6 +33,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -51,6 +52,7 @@ import (
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
@@ -2332,10 +2334,12 @@ func printOperationResult(opState *argoappv1.OperationState) {
 // NewApplicationManifestsCommand returns a new instance of an `argocd app manifests` command
 func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		source        string
-		revision      string
-		local         string
-		localRepoRoot string
+		source           string
+		revision         string
+		local            string
+		localRepoRoot    string
+		localAppManifest string
+		kubeVersion      string
 	)
 	var command = &cobra.Command{
 		Use:   "manifests APPNAME",
@@ -2348,35 +2352,56 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				os.Exit(1)
 			}
 			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
-			clientset := headless.NewClientOrDie(clientOpts, c)
-			conn, appIf := clientset.NewApplicationClientOrDie()
-			defer argoio.Close(conn)
-			resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{
-				ApplicationName: &appName,
-				AppNamespace:    &appNs,
-			})
-			errors.CheckError(err)
 
 			var unstructureds []*unstructured.Unstructured
 			switch source {
 			case "git":
 				if local != "" {
-					app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
-					errors.CheckError(err)
+					if localAppManifest != "" {
+						// get app from file
+						apps, err := cmdutil.ConstructApps(localAppManifest, appName, []string{}, []string{}, args, cmdutil.AppOptions{}, c.Flags())
+						errors.CheckError(err)
+						KustomizeOptions := argoappv1.KustomizeOptions{BuildOptions: "--enable-helm --load-restrictor=LoadRestrictionsNone"}
 
-					settingsConn, settingsIf := clientset.NewSettingsClientOrDie()
-					defer argoio.Close(settingsConn)
-					argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
-					errors.CheckError(err)
+						for _, app := range apps {
+							projSources := []string{app.Spec.Source.RepoURL}
+							proj := &argoappv1.AppProject{
+								Spec: argoappv1.AppProjectSpec{
+									SourceRepos: projSources,
+								},
+								ObjectMeta: metav1.ObjectMeta{
+									Name: app.Spec.Project,
+								},
+							}
 
-					clusterConn, clusterIf := clientset.NewClusterClientOrDie()
-					defer argoio.Close(clusterConn)
-					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
-					errors.CheckError(err)
+							unstructureds = getLocalObjects(context.Background(), app, proj, local, localRepoRoot, argocommon.LabelKeyAppInstance, kubeVersion, []string{""}, &KustomizeOptions, "")
+						}
+					} else {
+						clientset := headless.NewClientOrDie(clientOpts, c)
+						conn, appIf := clientset.NewApplicationClientOrDie()
+						defer argoio.Close(conn)
 
-					proj := getProject(c, clientOpts, ctx, app.Spec.Project)
-					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
+						app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
+						errors.CheckError(err)
+
+						settingsConn, settingsIf := clientset.NewSettingsClientOrDie()
+						defer argoio.Close(settingsConn)
+						argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
+						errors.CheckError(err)
+
+						clusterConn, clusterIf := clientset.NewClusterClientOrDie()
+						defer argoio.Close(clusterConn)
+						cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
+						errors.CheckError(err)
+
+						proj := getProject(c, clientOpts, ctx, app.Spec.Project)
+						unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
+					}
 				} else if revision != "" {
+					clientset := headless.NewClientOrDie(clientOpts, c)
+					conn, appIf := clientset.NewApplicationClientOrDie()
+					defer argoio.Close(conn)
+
 					q := application.ApplicationManifestQuery{
 						Name:         &appName,
 						AppNamespace: &appNs,
@@ -2391,11 +2416,29 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 						unstructureds = append(unstructureds, obj)
 					}
 				} else {
+					clientset := headless.NewClientOrDie(clientOpts, c)
+					conn, appIf := clientset.NewApplicationClientOrDie()
+					defer argoio.Close(conn)
+					resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{
+						ApplicationName: &appName,
+						AppNamespace:    &appNs,
+					})
+					errors.CheckError(err)
+
 					targetObjs, err := targetObjects(resources.Items)
 					errors.CheckError(err)
 					unstructureds = targetObjs
 				}
 			case "live":
+				clientset := headless.NewClientOrDie(clientOpts, c)
+				conn, appIf := clientset.NewApplicationClientOrDie()
+				defer argoio.Close(conn)
+				resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{
+					ApplicationName: &appName,
+					AppNamespace:    &appNs,
+				})
+				errors.CheckError(err)
+
 				liveObjs, err := cmdutil.LiveObjects(resources.Items)
 				errors.CheckError(err)
 				unstructureds = liveObjs
@@ -2415,6 +2458,8 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 	command.Flags().StringVar(&revision, "revision", "", "Show manifests at a specific revision")
 	command.Flags().StringVar(&local, "local", "", "If set, show locally-generated manifests. Value is the absolute path to app manifests within the manifest repo. Example: '/home/username/apps/env/app-1'.")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", ".", "Path to the local repository root. Used together with --local allows setting the repository root. Example: '/home/username/apps'.")
+	command.Flags().StringVar(&localAppManifest, "local-app-manifest", "", "Path to the local app. Used together with --local and --local-repo-root allows using the local application. Example: '/home/username/apps/app-manifest.yaml'.")
+	command.Flags().StringVar(&kubeVersion, "kube-version", "v1.27.0", "Target kubernetes cluster version. Used together with --local-app-manifest. Example: 'v1.26.4'.")
 	return command
 }
 
