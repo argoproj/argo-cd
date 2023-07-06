@@ -60,7 +60,7 @@ An example `argocd-cm.yaml` file with deep links and their variations :
   # sample application level links
   application.links: |
     # pkg.go.dev/text/template is used for evaluating url templates
-    - url: https://mycompany.splunk.com?search={{.application.spec.destination.namespace}}&env={{.project.metadata.label.env}}
+    - url: https://mycompany.splunk.com?search={{.application.spec.destination.namespace}}&env={{.project.metadata.labels.env}}
       title: Splunk
     # conditionally show link e.g. for specific project
     # github.com/antonmedv/expr is used for evaluation of conditions
@@ -72,7 +72,7 @@ An example `argocd-cm.yaml` file with deep links and their variations :
       if: application.metadata.annotations.splunkhost != ""
   # sample resource level links
   resource.links: |
-    - url: https://mycompany.splunk.com?search={{.resource.metadata.name}}&env={{.project.metadata.label.env}}
+    - url: https://mycompany.splunk.com?search={{.resource.metadata.name}}&env={{.project.metadata.labels.env}}
       title: Splunk
       if: resource.kind == "Pod" || resource.kind == "Deployment"
 ```
