@@ -14,17 +14,6 @@ import (
 
 var timeout time.Duration
 
-type ExecRunOpts struct {
-	// Redactor redacts tokens from the output
-	Redactor func(text string) string
-	// TimeoutBehavior configures what to do in case of timeout
-	TimeoutBehavior argoexec.TimeoutBehavior
-	// SkipErrorLogging determines whether to skip logging of execution errors (rc > 0)
-	SkipErrorLogging bool
-	// CaptureStderr determines whether to capture stderr in addition to stdout
-	CaptureStderr bool
-}
-
 func init() {
 	initTimeout()
 }
@@ -42,19 +31,15 @@ func Run(cmd *exec.Cmd) (string, error) {
 }
 
 func RunWithRedactor(cmd *exec.Cmd, redactor func(text string) string) (string, error) {
-	opts := ExecRunOpts{Redactor: redactor}
-	return RunWithExecRunOpts(cmd, opts)
-}
-
-func RunWithExecRunOpts(cmd *exec.Cmd, opts ExecRunOpts) (string, error) {
-	cmdOpts := argoexec.CmdOpts{Timeout: timeout, Redactor: opts.Redactor, TimeoutBehavior: opts.TimeoutBehavior, SkipErrorLogging: opts.SkipErrorLogging}
+	opts := argoexec.CmdOpts{Timeout: timeout}
 	span := tracing.NewLoggingTracer(log.NewLogrusLogger(log.NewWithCurrentConfig())).StartSpan(fmt.Sprintf("exec %v", cmd.Args[0]))
 	span.SetBaggageItem("dir", fmt.Sprintf("%v", cmd.Dir))
-	if cmdOpts.Redactor != nil {
-		span.SetBaggageItem("args", opts.Redactor(fmt.Sprintf("%v", cmd.Args)))
+	if redactor != nil {
+		span.SetBaggageItem("args", redactor(fmt.Sprintf("%v", cmd.Args)))
+		opts.Redactor = redactor
 	} else {
 		span.SetBaggageItem("args", fmt.Sprintf("%v", cmd.Args))
 	}
 	defer span.Finish()
-	return argoexec.RunCommandExt(cmd, cmdOpts)
+	return argoexec.RunCommandExt(cmd, opts)
 }

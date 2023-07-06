@@ -1,8 +1,9 @@
 package util
 
 import (
-	"gopkg.in/yaml.v2"
 	"os"
+
+	"gopkg.in/yaml.v2"
 )
 
 type SourceOpts struct {
@@ -33,7 +34,6 @@ type ClusterOpts struct {
 	ValuesFilePath       string `yaml:"valuesFilePath"`
 	DestinationNamespace string `yaml:"destinationNamespace"`
 	ClusterNamePrefix    string `yaml:"clusterNamePrefix"`
-	Concurrency          int    `yaml:"parallel"`
 }
 
 type GenerateOpts struct {
@@ -45,12 +45,6 @@ type GenerateOpts struct {
 	Namespace       string `yaml:"namespace"`
 }
 
-func setDefaults(opts *GenerateOpts) {
-	if opts.ClusterOpts.Concurrency == 0 {
-		opts.ClusterOpts.Concurrency = 2
-	}
-}
-
 func Parse(opts *GenerateOpts, file string) error {
 	fp, err := os.ReadFile(file)
 	if err != nil {
@@ -60,8 +54,6 @@ func Parse(opts *GenerateOpts, file string) error {
 	if e := yaml.Unmarshal(fp, &opts); e != nil {
 		return e
 	}
-
-	setDefaults(opts)
 
 	return nil
 }
