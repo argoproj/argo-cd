@@ -350,10 +350,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         useTitleOnly={true}
                                         topBarTitle={this.getPageTitle(pref.view)}
                                         toolbar={{
-                                            breadcrumbs: [
-                                                {title: 'Applications', path: '/applications'},
-                                                {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
-                                            ],
+                                            breadcrumbs: this.getBreadcrumbs(application),
                                             actionMenu: {items: this.getApplicationActionMenu(application, true)},
                                             tools: (
                                                 <React.Fragment key='app-list-tools'>
@@ -931,6 +928,21 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             }
         }
         return {kind, health, sync, namespace, name};
+    }
+
+    private getBreadcrumbs(app: appModels.Application) {
+        const appLabel = 'app.kubernetes.io/instance';
+        const breadcrumbs = new Array<{title: string | React.ReactNode; path?: string}>();
+
+        breadcrumbs.push({title: 'Applications', path: '/applications'});
+
+        if (app.metadata.labels && appLabel in app.metadata.labels) {
+            breadcrumbs.push({title: app.metadata.labels[appLabel], path: `/applications/${app.metadata.labels[appLabel]}`});
+        }
+
+        breadcrumbs.push({title: <ApplicationsDetailsAppDropdown appName={app.metadata.name} />});
+
+        return breadcrumbs;
     }
 
     private setOperationStatusVisible(isVisible: boolean) {
