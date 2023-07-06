@@ -191,6 +191,7 @@ data:
   policy.csv: |
     p, my-org:team-alpha, applications, sync, my-project/*, allow
     g, my-org:team-beta, role:admin
+    g, user@example.org, role:admin
   policy.default: role:readonly
   scopes: '[groups, email]'
 ```
