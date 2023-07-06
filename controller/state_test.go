@@ -341,7 +341,6 @@ func TestAppRevisionsSingleSource(t *testing.T) {
 	assert.NotNil(t, compRes.syncStatus)
 	assert.NotEmpty(t, compRes.syncStatus.Revision)
 	assert.Len(t, compRes.syncStatus.Revisions, 0)
-
 }
 
 // TestAppRevisions tests that revisions are properly propagated for a multi source app
@@ -708,9 +707,8 @@ var signedProj = argoappv1.AppProject{
 }
 
 func TestSignedResponseNoSignatureRequired(t *testing.T) {
-	oldval := os.Getenv("ARGOCD_GPG_ENABLED")
-	os.Setenv("ARGOCD_GPG_ENABLED", "true")
-	defer os.Setenv("ARGOCD_GPG_ENABLED", oldval)
+	t.Setenv("ARGOCD_GPG_ENABLED", "true")
+
 	// We have a good signature response, but project does not require signed commits
 	{
 		app := newFakeApp()
@@ -766,9 +764,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 }
 
 func TestSignedResponseSignatureRequired(t *testing.T) {
-	oldval := os.Getenv("ARGOCD_GPG_ENABLED")
-	os.Setenv("ARGOCD_GPG_ENABLED", "true")
-	defer os.Setenv("ARGOCD_GPG_ENABLED", oldval)
+	t.Setenv("ARGOCD_GPG_ENABLED", "true")
 
 	// We have a good signature response, valid key, and signing is required - sync!
 	{
@@ -934,7 +930,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		assert.Contains(t, app.Status.Conditions[0].Message, "Cannot use local manifests")
 	}
 
-	os.Setenv("ARGOCD_GPG_ENABLED", "false")
+	t.Setenv("ARGOCD_GPG_ENABLED", "false")
 	// We have a bad signature response and signing would be required, but GPG subsystem is disabled - sync
 	{
 		app := newFakeApp()
@@ -990,7 +986,6 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		assert.Len(t, compRes.managedResources, 0)
 		assert.Len(t, app.Status.Conditions, 0)
 	}
-
 }
 
 func TestComparisonResult_GetHealthStatus(t *testing.T) {
