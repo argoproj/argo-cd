@@ -27,13 +27,13 @@ func TestCache_GetAppManagedResources(t *testing.T) {
 	// cache miss
 	value := &[]*ResourceDiff{}
 	err := cache.GetAppManagedResources("my-appname", value)
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	// populate cache
 	err = cache.SetAppManagedResources("my-appname", []*ResourceDiff{{Name: "my-name"}})
 	assert.NoError(t, err)
 	// cache miss
 	err = cache.GetAppManagedResources("other-appname", value)
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	// cache hit
 	err = cache.GetAppManagedResources("my-appname", value)
 	assert.NoError(t, err)
@@ -45,13 +45,13 @@ func TestCache_GetAppResourcesTree(t *testing.T) {
 	// cache miss
 	value := &ApplicationTree{}
 	err := cache.GetAppResourcesTree("my-appname", value)
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	// populate cache
 	err = cache.SetAppResourcesTree("my-appname", &ApplicationTree{Nodes: []ResourceNode{{}}})
 	assert.NoError(t, err)
 	// cache miss
 	err = cache.GetAppResourcesTree("other-appname", value)
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	// cache hit
 	err = cache.GetAppResourcesTree("my-appname", value)
 	assert.NoError(t, err)
