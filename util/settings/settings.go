@@ -396,6 +396,8 @@ const (
 	settingServerPrivateKey = "tls.key"
 	// settingURLKey designates the key where Argo CD's external URL is set
 	settingURLKey = "url"
+	// settingURLsKey designates the key where Argo CD's external URLs is set
+	settingURLsKey = "urls"
 	// repositoriesKey designates the key where ArgoCDs repositories list is set
 	repositoriesKey = "repositories"
 	// repositoryCredentialsKey designates the key where ArgoCDs repositories credentials list is set
@@ -1425,6 +1427,16 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.URL = argoCDCM.Data[settingURLKey]
 	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
+	}
+	if argoCDCM.Data[settingURLsKey] != "" {
+		if err := yaml.Unmarshal([]byte(argoCDCM.Data[settingURLsKey]), &settings.URLs); err != nil {
+			log.Warnf("Failed decode all UI banner URLs in configmap: %v", err)
+		}
+	}
+	for _, url := range settings.URLs {
+		if err := validateExternalURL(url); err != nil {
+			log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
+		}
 	}
 	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
 	settings.UserSessionDuration = time.Hour * 24
