@@ -18,6 +18,7 @@ import (
 	"time"
 
 	timeutil "github.com/argoproj/pkg/time"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -29,7 +30,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -421,10 +421,10 @@ const (
 	resourceExclusionsKey = "resource.exclusions"
 	// resourceInclusions is the key to the list of explicitly watched resources
 	resourceInclusionsKey = "resource.inclusions"
-	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
-	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
 	resourceCustomLabelsKey = "resource.customLabels"
+	// configManagementPluginsKey is the key to the list of config management plugins
+	configManagementPluginsKey = "configManagementPlugins"
 	// kustomizeBuildOptionsKey is a string of kustomize build parameters
 	kustomizeBuildOptionsKey = "kustomize.buildOptions"
 	// kustomizeVersionKeyPrefix is a kustomize version key prefix
@@ -530,9 +530,6 @@ type ArgoCDDiffOptions struct {
 
 	// If set to true then differences caused by status are ignored.
 	IgnoreResourceStatusField IgnoreStatus `json:"ignoreResourceStatusField,omitempty"`
-
-	// If set to true then ignoreDifferences are applied to ignore application refresh on resource updates.
-	IgnoreDifferencesOnResourceUpdates bool `json:"ignoreDifferencesOnResourceUpdates,omitempty"`
 }
 
 func (e *incompleteSettingsError) Error() string {
@@ -748,6 +745,21 @@ func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACLogEnforceEnableKey])
 }
 
+func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManagementPlugin, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	plugins := make([]v1alpha1.ConfigManagementPlugin, 0)
+	if value, ok := argoCDCM.Data[configManagementPluginsKey]; ok {
+		err := yaml.Unmarshal([]byte(value), &plugins)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return plugins, nil
+}
+
 func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -780,54 +792,6 @@ func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
 	// plugin based manifest generation cannot be disabled
 	res[string(v1alpha1.ApplicationSourceTypePlugin)] = true
 	return res, nil
-}
-
-func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error) {
-	compareOptions, err := mgr.GetResourceCompareOptions()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get compare options: %w", err)
-	}
-
-	resourceOverrides, err := mgr.GetResourceOverrides()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get resource overrides: %w", err)
-	}
-
-	for k, v := range resourceOverrides {
-		resourceUpdates := v.IgnoreResourceUpdates
-		if compareOptions.IgnoreDifferencesOnResourceUpdates {
-			resourceUpdates.JQPathExpressions = append(resourceUpdates.JQPathExpressions, v.IgnoreDifferences.JQPathExpressions...)
-			resourceUpdates.JSONPointers = append(resourceUpdates.JSONPointers, v.IgnoreDifferences.JSONPointers...)
-			resourceUpdates.ManagedFieldsManagers = append(resourceUpdates.ManagedFieldsManagers, v.IgnoreDifferences.ManagedFieldsManagers...)
-		}
-		// Set the IgnoreDifferences because these are the overrides used by Normalizers
-		v.IgnoreDifferences = resourceUpdates
-		v.IgnoreResourceUpdates = v1alpha1.OverrideIgnoreDiff{}
-		resourceOverrides[k] = v
-	}
-
-	if compareOptions.IgnoreDifferencesOnResourceUpdates {
-		log.Info("Using diffing customizations to ignore resource updates")
-	}
-
-	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/resourceVersion")
-	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/generation")
-	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/managedFields")
-
-	return resourceOverrides, nil
-}
-
-func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return false, err
-	}
-
-	if argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey] == "" {
-		return false, nil
-	}
-
-	return strconv.ParseBool(argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey])
 }
 
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
@@ -946,13 +910,6 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 				return err
 			}
 			overrideVal.IgnoreDifferences = overrideIgnoreDiff
-		case "ignoreResourceUpdates":
-			overrideIgnoreUpdate := v1alpha1.OverrideIgnoreDiff{}
-			err := yaml.Unmarshal([]byte(v), &overrideIgnoreUpdate)
-			if err != nil {
-				return err
-			}
-			overrideVal.IgnoreResourceUpdates = overrideIgnoreUpdate
 		case "knownTypeFields":
 			var knownTypeFields []v1alpha1.KnownTypeField
 			err := yaml.Unmarshal([]byte(v), &knownTypeFields)
@@ -982,7 +939,7 @@ func convertToOverrideKey(groupKind string) (string, error) {
 }
 
 func GetDefaultDiffOptions() ArgoCDDiffOptions {
-	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false, IgnoreDifferencesOnResourceUpdates: false}
+	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false}
 }
 
 // GetResourceCompareOptions loads the resource compare options settings from the ConfigMap
@@ -1723,26 +1680,13 @@ func (a *ArgoCDSettings) oidcConfig() *oidcConfig {
 	if a.OIDCConfigRAW == "" {
 		return nil
 	}
-	configMap := map[string]interface{}{}
-	err := yaml.Unmarshal([]byte(a.OIDCConfigRAW), &configMap)
+	config, err := unmarshalOIDCConfig(a.OIDCConfigRAW)
 	if err != nil {
 		log.Warnf("invalid oidc config: %v", err)
 		return nil
 	}
-
-	configMap = ReplaceMapSecrets(configMap, a.Secrets)
-	data, err := yaml.Marshal(configMap)
-	if err != nil {
-		log.Warnf("invalid oidc config: %v", err)
-		return nil
-	}
-
-	config, err := unmarshalOIDCConfig(string(data))
-	if err != nil {
-		log.Warnf("invalid oidc config: %v", err)
-		return nil
-	}
-
+	config.ClientSecret = ReplaceStringSecret(config.ClientSecret, a.Secrets)
+	config.ClientID = ReplaceStringSecret(config.ClientID, a.Secrets)
 	return &config
 }
 
@@ -2031,42 +1975,6 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		return mgr.GetSettings()
 	}
 	return cdSettings, nil
-}
-
-// ReplaceMapSecrets takes a json object and recursively looks for any secret key references in the
-// object and replaces the value with the secret value
-func ReplaceMapSecrets(obj map[string]interface{}, secretValues map[string]string) map[string]interface{} {
-	newObj := make(map[string]interface{})
-	for k, v := range obj {
-		switch val := v.(type) {
-		case map[string]interface{}:
-			newObj[k] = ReplaceMapSecrets(val, secretValues)
-		case []interface{}:
-			newObj[k] = replaceListSecrets(val, secretValues)
-		case string:
-			newObj[k] = ReplaceStringSecret(val, secretValues)
-		default:
-			newObj[k] = val
-		}
-	}
-	return newObj
-}
-
-func replaceListSecrets(obj []interface{}, secretValues map[string]string) []interface{} {
-	newObj := make([]interface{}, len(obj))
-	for i, v := range obj {
-		switch val := v.(type) {
-		case map[string]interface{}:
-			newObj[i] = ReplaceMapSecrets(val, secretValues)
-		case []interface{}:
-			newObj[i] = replaceListSecrets(val, secretValues)
-		case string:
-			newObj[i] = ReplaceStringSecret(val, secretValues)
-		default:
-			newObj[i] = val
-		}
-	}
-	return newObj
 }
 
 // ReplaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map

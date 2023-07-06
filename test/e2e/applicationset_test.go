@@ -43,113 +43,7 @@ var (
 			Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
 		},
 	}
-	LabelKeyAppSetInstance = "argocd.argoproj.io/application-set-name"
 )
-
-func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
-
-	expectedApp := argov1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cluster-guestbook",
-			Namespace: utils.ArgoCDExternalNamespace,
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator-external",
-			},
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-		},
-		Spec: argov1alpha1.ApplicationSpec{
-			Project: "default",
-			Source: &argov1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-				TargetRevision: "HEAD",
-				Path:           "guestbook",
-			},
-			Destination: argov1alpha1.ApplicationDestination{
-				Server:    "https://kubernetes.default.svc",
-				Namespace: "guestbook",
-			},
-		},
-	}
-	var expectedAppNewNamespace *argov1alpha1.Application
-	var expectedAppNewMetadata *argov1alpha1.Application
-
-	Given(t).
-		// Create a ListGenerator-based ApplicationSet
-		When().
-		SwitchToExternalNamespace().
-		CreateNamespace(utils.ArgoCDExternalNamespace).Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
-		Name:      "simple-list-generator-external",
-		Namespace: utils.ArgoCDExternalNamespace,
-	},
-		Spec: v1alpha1.ApplicationSetSpec{
-			GoTemplate: true,
-			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
-				Spec: argov1alpha1.ApplicationSpec{
-					Project: "default",
-					Source: &argov1alpha1.ApplicationSource{
-						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-						TargetRevision: "HEAD",
-						Path:           "guestbook",
-					},
-					Destination: argov1alpha1.ApplicationDestination{
-						Server:    "{{.url}}",
-						Namespace: "guestbook",
-					},
-				},
-			},
-			Generators: []v1alpha1.ApplicationSetGenerator{
-				{
-					List: &v1alpha1.ListGenerator{
-						Elements: []apiextensionsv1.JSON{{
-							Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
-						}},
-					},
-				},
-			},
-		},
-	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
-
-		// Update the ApplicationSet template namespace, and verify it updates the Applications
-		When().
-		And(func() {
-			expectedAppNewNamespace = expectedApp.DeepCopy()
-			expectedAppNewNamespace.Spec.Destination.Namespace = "guestbook2"
-		}).
-		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
-
-		// Update the metadata fields in the appset template, and make sure it propagates to the apps
-		When().
-		And(func() {
-			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
-			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-				"label-key":            "label-value",
-				LabelKeyAppSetInstance: "simple-list-generator-external",
-			}
-		}).
-		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			appset.Spec.Template.Labels = map[string]string{
-				"label-key":            "label-value",
-				LabelKeyAppSetInstance: "simple-list-generator-external",
-			}
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
-
-		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions("simple-list-generator-external", ExpectedConditions)).
-
-		// Delete the ApplicationSet, and verify it deletes the Applications
-		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
-
-}
 
 func TestSimpleListGenerator(t *testing.T) {
 
@@ -159,11 +53,8 @@ func TestSimpleListGenerator(t *testing.T) {
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cluster-guestbook",
-			Namespace: fixture.TestNamespace(),
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator",
-			},
+			Name:       "my-cluster-guestbook",
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -230,10 +121,7 @@ func TestSimpleListGenerator(t *testing.T) {
 		And(func() {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator",
-				"label-key":            "label-value",
-			}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
@@ -260,9 +148,6 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -329,10 +214,7 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 		And(func() {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator",
-				"label-key":            "label-value",
-			}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
@@ -348,327 +230,6 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 
 }
 
-func TestSyncPolicyCreateUpdate(t *testing.T) {
-
-	expectedApp := argov1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook-sync-policy-create-update",
-			Namespace:  utils.ArgoCDNamespace,
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "sync-policy-create-update",
-			},
-		},
-		Spec: argov1alpha1.ApplicationSpec{
-			Project: "default",
-			Source: &argov1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-				TargetRevision: "HEAD",
-				Path:           "guestbook",
-			},
-			Destination: argov1alpha1.ApplicationDestination{
-				Server:    "https://kubernetes.default.svc",
-				Namespace: "guestbook",
-			},
-		},
-	}
-	var expectedAppNewNamespace *argov1alpha1.Application
-	var expectedAppNewMetadata *argov1alpha1.Application
-
-	Given(t).
-		// Create a ListGenerator-based ApplicationSet
-		When().Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
-		Name: "sync-policy-create-update",
-	},
-		Spec: v1alpha1.ApplicationSetSpec{
-			GoTemplate: true,
-			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook-sync-policy-create-update"},
-				Spec: argov1alpha1.ApplicationSpec{
-					Project: "default",
-					Source: &argov1alpha1.ApplicationSource{
-						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-						TargetRevision: "HEAD",
-						Path:           "guestbook",
-					},
-					Destination: argov1alpha1.ApplicationDestination{
-						Server:    "{{.url}}",
-						Namespace: "guestbook",
-					},
-				},
-			},
-			Generators: []v1alpha1.ApplicationSetGenerator{
-				{
-					List: &v1alpha1.ListGenerator{
-						Elements: []apiextensionsv1.JSON{{
-							Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
-						}},
-					},
-				},
-			},
-		},
-	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
-
-		// Update the ApplicationSet template namespace, and verify it updates the Applications
-		When().
-		And(func() {
-			expectedAppNewNamespace = expectedApp.DeepCopy()
-			expectedAppNewNamespace.Spec.Destination.Namespace = "guestbook2"
-		}).
-		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
-
-		// Update the metadata fields in the appset template
-		// Update as well the policy
-		// As policy is create-update, updates must reflected
-		When().
-		And(func() {
-			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
-			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-				LabelKeyAppSetInstance: "sync-policy-create-update",
-				"label-key":            "label-value",
-			}
-		}).
-		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			appset.Spec.Template.Labels = map[string]string{
-				LabelKeyAppSetInstance: "sync-policy-create-update",
-				"label-key":            "label-value",
-			}
-			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyCreateUpdate
-			appset.Spec.SyncPolicy = &argov1alpha1.ApplicationSetSyncPolicy{
-				ApplicationsSync: &applicationsSyncPolicy,
-			}
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
-
-		// Update the list and remove element
-		// As policy is create-update, app deletion must not be reflected
-		When().
-		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Generators = []v1alpha1.ApplicationSetGenerator{}
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
-
-		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions("sync-policy-create-update", ExpectedConditions)).
-
-		// Delete the ApplicationSet, and verify it deletes the Applications
-		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
-
-}
-
-func TestSyncPolicyCreateDelete(t *testing.T) {
-
-	expectedApp := argov1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook-sync-policy-create-delete",
-			Namespace:  utils.ArgoCDNamespace,
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "sync-policy-create-delete",
-			},
-		},
-		Spec: argov1alpha1.ApplicationSpec{
-			Project: "default",
-			Source: &argov1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-				TargetRevision: "HEAD",
-				Path:           "guestbook",
-			},
-			Destination: argov1alpha1.ApplicationDestination{
-				Server:    "https://kubernetes.default.svc",
-				Namespace: "guestbook",
-			},
-		},
-	}
-	var expectedAppNewNamespace *argov1alpha1.Application
-
-	Given(t).
-		// Create a ListGenerator-based ApplicationSet
-		When().Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
-		Name: "sync-policy-create-delete",
-	},
-		Spec: v1alpha1.ApplicationSetSpec{
-			GoTemplate: true,
-			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook-sync-policy-create-delete"},
-				Spec: argov1alpha1.ApplicationSpec{
-					Project: "default",
-					Source: &argov1alpha1.ApplicationSource{
-						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-						TargetRevision: "HEAD",
-						Path:           "guestbook",
-					},
-					Destination: argov1alpha1.ApplicationDestination{
-						Server:    "{{.url}}",
-						Namespace: "guestbook",
-					},
-				},
-			},
-			Generators: []v1alpha1.ApplicationSetGenerator{
-				{
-					List: &v1alpha1.ListGenerator{
-						Elements: []apiextensionsv1.JSON{{
-							Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
-						}},
-					},
-				},
-			},
-		},
-	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
-
-		// Update the ApplicationSet template namespace, and verify it updates the Applications
-		When().
-		And(func() {
-			expectedAppNewNamespace = expectedApp.DeepCopy()
-			expectedAppNewNamespace.Spec.Destination.Namespace = "guestbook2"
-		}).
-		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
-
-		// Update the metadata fields in the appset template
-		// Update as well the policy
-		// As policy is create-delete, updates must not be reflected
-		When().
-		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyCreateDelete
-			appset.Spec.SyncPolicy = &argov1alpha1.ApplicationSetSyncPolicy{
-				ApplicationsSync: &applicationsSyncPolicy,
-			}
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
-
-		// Update the list and remove element
-		// As policy is create-delete, app deletion must be reflected
-		When().
-		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Generators = []v1alpha1.ApplicationSetGenerator{}
-		}).Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
-
-		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions("sync-policy-create-delete", ExpectedConditions)).
-
-		// Delete the ApplicationSet
-		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
-
-}
-
-func TestSyncPolicyCreateOnly(t *testing.T) {
-
-	expectedApp := argov1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook-sync-policy-create-only",
-			Namespace:  utils.ArgoCDNamespace,
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "sync-policy-create-only",
-			},
-		},
-		Spec: argov1alpha1.ApplicationSpec{
-			Project: "default",
-			Source: &argov1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-				TargetRevision: "HEAD",
-				Path:           "guestbook",
-			},
-			Destination: argov1alpha1.ApplicationDestination{
-				Server:    "https://kubernetes.default.svc",
-				Namespace: "guestbook",
-			},
-		},
-	}
-	var expectedAppNewNamespace *argov1alpha1.Application
-
-	Given(t).
-		// Create a ListGenerator-based ApplicationSet
-		When().Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
-		Name: "sync-policy-create-only",
-	},
-		Spec: v1alpha1.ApplicationSetSpec{
-			GoTemplate: true,
-			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook-sync-policy-create-only"},
-				Spec: argov1alpha1.ApplicationSpec{
-					Project: "default",
-					Source: &argov1alpha1.ApplicationSource{
-						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-						TargetRevision: "HEAD",
-						Path:           "guestbook",
-					},
-					Destination: argov1alpha1.ApplicationDestination{
-						Server:    "{{.url}}",
-						Namespace: "guestbook",
-					},
-				},
-			},
-			Generators: []v1alpha1.ApplicationSetGenerator{
-				{
-					List: &v1alpha1.ListGenerator{
-						Elements: []apiextensionsv1.JSON{{
-							Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
-						}},
-					},
-				},
-			},
-		},
-	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
-
-		// Update the ApplicationSet template namespace, and verify it updates the Applications
-		When().
-		And(func() {
-			expectedAppNewNamespace = expectedApp.DeepCopy()
-			expectedAppNewNamespace.Spec.Destination.Namespace = "guestbook2"
-		}).
-		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
-
-		// Update the metadata fields in the appset template
-		// Update as well the policy
-		// As policy is create-only, updates must not be reflected
-		When().
-		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyCreateOnly
-			appset.Spec.SyncPolicy = &argov1alpha1.ApplicationSetSyncPolicy{
-				ApplicationsSync: &applicationsSyncPolicy,
-			}
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
-
-		// Update the list and remove element
-		// As policy is create-only, app deletion must not be reflected
-		When().
-		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Generators = []v1alpha1.ApplicationSetGenerator{}
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
-
-		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions("sync-policy-create-only", ExpectedConditions)).
-
-		// Delete the ApplicationSet, and verify it deletes the Applications
-		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
-
-}
-
 func TestSimpleGitDirectoryGenerator(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
@@ -680,9 +241,6 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-				Labels: map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -764,10 +322,7 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-					"label-key":            "label-value",
-				}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -795,9 +350,6 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-				Labels: map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -880,10 +432,7 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-					"label-key":            "label-value",
-				}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -912,9 +461,6 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-				Labels: map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -995,10 +541,7 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-					"label-key":            "label-value",
-				}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -1027,9 +570,6 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-				Labels: map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -1111,10 +651,7 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-					"label-key":            "label-value",
-				}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -1135,7 +672,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 
 	Given(t).
 		When().
-		CreateNamespace(utils.ApplicationsResourcesNamespace).
+		CreateNamespace().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
 			Name: "simple-git-generator",
@@ -1152,7 +689,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 						},
 						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
-							Namespace: utils.ApplicationsResourcesNamespace,
+							Namespace: utils.ApplicationSetNamespace,
 						},
 
 						// Automatically create resources
@@ -1195,7 +732,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 
 	Given(t).
 		When().
-		CreateNamespace(utils.ApplicationsResourcesNamespace).
+		CreateNamespace().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
 			Name: "simple-git-generator",
@@ -1213,7 +750,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 						},
 						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
-							Namespace: utils.ApplicationsResourcesNamespace,
+							Namespace: utils.ApplicationSetNamespace,
 						},
 
 						// Automatically create resources
@@ -1456,9 +993,6 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 			Name:       "argo-cd-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-scm-provider-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1532,9 +1066,6 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 			Name:       "argo-cd-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-scm-provider-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1604,9 +1135,6 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1673,9 +1201,6 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1746,10 +1271,6 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
         "name": "preview"
       }
     ],
-	"base": {
-		"ref": "master",
-		"sha": "7a4a5c987fdfb2b0629e9dbf5f31636c69ba4775"
-	},
     "head": {
       "ref": "pull-request",
       "sha": "824a5c987fdfb2b0629e9dbf5f31636c69ba4772"
@@ -1780,9 +1301,6 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 			Name:       "guestbook-1",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-pull-request-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1858,10 +1376,7 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 			Name:       "guestbook-1",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				"app":                  "preview",
-				LabelKeyAppSetInstance: "simple-pull-request-generator",
-			},
+			Labels:     map[string]string{"app": "preview"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1937,9 +1452,6 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-				Labels: map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator-private",
-				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -2015,9 +1527,6 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-				Labels: map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator-private",
-				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",

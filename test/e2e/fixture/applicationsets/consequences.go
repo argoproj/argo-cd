@@ -3,14 +3,12 @@ package applicationsets
 import (
 	"context"
 	"encoding/json"
-	"time"
-
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"time"
 
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
@@ -76,15 +74,8 @@ func (c *Consequences) app(name string) *v1alpha1.Application {
 
 func (c *Consequences) apps() []v1alpha1.Application {
 
-	var namespace string
-	if c.context.useExternalNamespace {
-		namespace = utils.ArgoCDExternalNamespace
-	} else {
-		namespace = fixture.TestNamespace()
-	}
-
 	fixtureClient := utils.GetE2EFixtureK8sClient()
-	list, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), metav1.ListOptions{})
+	list, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).List(context.Background(), metav1.ListOptions{})
 	errors.CheckError(err)
 
 	if list == nil {
@@ -97,16 +88,7 @@ func (c *Consequences) apps() []v1alpha1.Application {
 func (c *Consequences) applicationSet(applicationSetName string) *v1alpha1.ApplicationSet {
 
 	fixtureClient := utils.GetE2EFixtureK8sClient()
-
-	var appSetClientSet dynamic.ResourceInterface
-
-	if c.context.useExternalNamespace {
-		appSetClientSet = fixtureClient.ExternalAppSetClientset
-	} else {
-		appSetClientSet = fixtureClient.AppSetClientset
-	}
-
-	list, err := appSetClientSet.Get(context.Background(), c.actions.context.name, metav1.GetOptions{})
+	list, err := fixtureClient.AppSetClientset.Get(context.Background(), c.actions.context.name, metav1.GetOptions{})
 	errors.CheckError(err)
 
 	var appSet v1alpha1.ApplicationSet
