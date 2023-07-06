@@ -40,6 +40,7 @@ const ShardControllerMappingKey = "shardControllerMapping"
 
 type DistributionFunction func(c *v1alpha1.Cluster) int
 type ClusterFilterFunction func(c *v1alpha1.Cluster) bool
+type clusterAccessor func() []*v1alpha1.Cluster
 
 // shardApplicationControllerMapping stores the mapping of Shard Number to Application Controller in ConfigMap.
 // It also stores the heartbeat of last synced time of the application controller.
@@ -73,12 +74,12 @@ func GetClusterFilter(db db.ArgoDB, distributionFunction DistributionFunction, s
 
 // GetDistributionFunction returns which DistributionFunction should be used based on the passed algorithm and
 // the current datas.
-func GetDistributionFunction(db db.ArgoDB, shardingAlgorithm string) DistributionFunction {
+func GetDistributionFunction(db db.ArgoDB, clusters clusterAccessor, shardingAlgorithm string) DistributionFunction {
 	log.Infof("Using filter function:  %s", shardingAlgorithm)
 	distributionFunction := LegacyDistributionFunction(db)
 	switch shardingAlgorithm {
 	case common.RoundRobinShardingAlgorithm:
-		distributionFunction = RoundRobinDistributionFunction(db)
+		distributionFunction = RoundRobinDistributionFunction(db, clusters)
 	case common.LegacyShardingAlgorithm:
 		distributionFunction = LegacyDistributionFunction(db)
 	default:
@@ -121,14 +122,16 @@ func LegacyDistributionFunction(db db.ArgoDB) DistributionFunction {
 // This function ensures an homogenous distribution: each shards got assigned the same number of
 // clusters +/-1 , but with the drawback of a reshuffling of clusters accross shards in case of some changes
 // in the cluster list
-func RoundRobinDistributionFunction(db db.ArgoDB) DistributionFunction {
+
+func RoundRobinDistributionFunction(db db.ArgoDB, clusters clusterAccessor) DistributionFunction {
+	//replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	replicas := db.GetApplicationControllerReplicas()
 	return func(c *v1alpha1.Cluster) int {
 		if replicas > 0 {
 			if c == nil { // in-cluster does not necessarly have a secret assigned. So we are receiving a nil cluster here.
 				return 0
 			} else {
-				clusterIndexdByClusterIdMap := createClusterIndexByClusterIdMap(db)
+				clusterIndexdByClusterIdMap := createClusterIndexByClusterIdMap(clusters)
 				clusterIndex, ok := clusterIndexdByClusterIdMap[c.ID]
 				if !ok {
 					log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
@@ -161,24 +164,18 @@ func InferShard() (int, error) {
 	return int(shard), nil
 }
 
-func getSortedClustersList(db db.ArgoDB) []v1alpha1.Cluster {
-	ctx := context.Background()
-	clustersList, dbErr := db.ListClusters(ctx)
-	if dbErr != nil {
-		log.Warnf("Error while querying clusters list from database: %v", dbErr)
-		return []v1alpha1.Cluster{}
-	}
-	clusters := clustersList.Items
+func getSortedClustersList(getCluster clusterAccessor) []*v1alpha1.Cluster {
+	clusters := getCluster()
 	sort.Slice(clusters, func(i, j int) bool {
 		return clusters[i].ID < clusters[j].ID
 	})
 	return clusters
 }
 
-func createClusterIndexByClusterIdMap(db db.ArgoDB) map[string]int {
-	clusters := getSortedClustersList(db)
+func createClusterIndexByClusterIdMap(getCluster clusterAccessor) map[string]int {
+	clusters := getSortedClustersList(getCluster)
 	log.Debugf("ClustersList has %d items", len(clusters))
-	clusterById := make(map[string]v1alpha1.Cluster)
+	clusterById := make(map[string]*v1alpha1.Cluster)
 	clusterIndexedByClusterId := make(map[string]int)
 	for i, cluster := range clusters {
 		log.Debugf("Adding cluster with id=%s and name=%s to cluster's map", cluster.ID, cluster.Name)
@@ -194,7 +191,6 @@ func createClusterIndexByClusterIdMap(db db.ArgoDB) map[string]int {
 // If the shard value passed to this function is -1, that is, the shard was not set as an environment variable,
 // we default the shard number to 0 for computing the default config map.
 func GetOrUpdateShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, replicas, shard int) (int, error) {
-
 	hostname, err := osHostnameFunction()
 	if err != nil {
 		return -1, err

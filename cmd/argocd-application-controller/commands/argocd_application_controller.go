@@ -146,7 +146,8 @@ func NewCommand() *cobra.Command {
 				appController.InvalidateProjectsCache()
 			}))
 			kubectl := kubeutil.NewKubectl()
-			clusterFilter := getClusterFilter(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
+			errors.CheckError(err)
+			clusterSharding := getClusterSharding(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -164,7 +165,7 @@ func NewCommand() *cobra.Command {
 				metricsAplicationLabels,
 				kubectlParallelismLimit,
 				persistResourceHealth,
-				clusterFilter,
+				clusterSharding,
 				applicationNamespaces,
 				&workqueueRateLimit,
 				serverSideDiff,
@@ -235,8 +236,7 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) sharding.ClusterFilterFunction {
-
+func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) sharding.ClusterSharding {
 	var replicas int
 	shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
 
@@ -254,7 +254,7 @@ func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.Se
 		replicas = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	}
 
-	var clusterFilter func(cluster *v1alpha1.Cluster) bool
+	db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
 	if replicas > 1 {
 		// check for shard mapping using configmap if application-controller is a deployment
 		// else use existing logic to infer shard from pod name if application-controller is a statefulset
@@ -279,13 +279,8 @@ func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.Se
 				errors.CheckError(err)
 			}
 		}
-		log.Infof("Processing clusters from shard %d", shard)
-		db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
-		log.Infof("Using filter function:  %s", shardingAlgorithm)
-		distributionFunction := sharding.GetDistributionFunction(db, shardingAlgorithm)
-		clusterFilter = sharding.GetClusterFilter(db, distributionFunction, shard)
 	} else {
 		log.Info("Processing all cluster shards")
 	}
-	return clusterFilter
+	return sharding.NewClusterSharding(db, shard, replicas, shardingAlgorithm)
 }
