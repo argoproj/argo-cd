@@ -171,6 +171,33 @@ g, db-admins, role:staging-db-admins
 
 This example defines a *role* called `staging-db-admins` with *nine permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, `get` logs, `create` exec and `get` appprojects) against `*` (all) objects in the `staging-db-admins` Argo CD AppProject.
 
+!!! note
+    The `scopes` field controls which OIDC scopes to examine during rbac
+    enforcement (in addition to `sub` scope). If omitted, defaults to:
+    `'[groups]'`. The scope value can be a string, or a list of strings.
+
+Following example shows targeting `email` as well as `groups` from your OIDC provider.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  policy.csv: |
+    p, my-org:team-alpha, applications, sync, my-project/*, allow
+    g, my-org:team-beta, role:admin
+    g, user@example.org, role:admin
+  policy.default: role:readonly
+  scopes: '[groups, email]'
+```
+
+For more information on `scopes` please review the [User Management Documentation](user-management/index.md).
+
 ## Policy CSV Composition
 
 It is possible to provide additional entries in the `argocd-rbac-cm`
