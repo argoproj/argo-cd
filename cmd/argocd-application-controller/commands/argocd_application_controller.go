@@ -23,7 +23,6 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
@@ -136,7 +135,7 @@ func NewCommand() *cobra.Command {
 				appController.InvalidateProjectsCache()
 			}))
 			kubectl := kubeutil.NewKubectl()
-			clusterFilter := getClusterFilter(kubeClient, settingsMgr, shardingAlgorithm)
+			clusterSharding := getClusterSharding(shardingAlgorithm)
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -153,7 +152,7 @@ func NewCommand() *cobra.Command {
 				metricsAplicationLabels,
 				kubectlParallelismLimit,
 				persistResourceHealth,
-				clusterFilter,
+				clusterSharding,
 				applicationNamespaces,
 			)
 			errors.CheckError(err)
@@ -205,23 +204,13 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string) sharding.ClusterFilterFunction {
+func getClusterSharding(shardingAlgorithm string) sharding.ClusterSharding {
 	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
-	var clusterFilter func(cluster *v1alpha1.Cluster) bool
-	if replicas > 1 {
-		if shard < 0 {
-			var err error
-			shard, err = sharding.InferShard()
-			errors.CheckError(err)
-		}
-		log.Infof("Processing clusters from shard %d", shard)
-		db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
-		log.Infof("Using filter function:  %s", shardingAlgorithm)
-		distributionFunction := sharding.GetDistributionFunction(db, shardingAlgorithm)
-		clusterFilter = sharding.GetClusterFilter(distributionFunction, shard)
-	} else {
-		log.Info("Processing all cluster shards")
+	if shard < 0 {
+		var err error
+		shard, err = sharding.InferShard()
+		errors.CheckError(err)
 	}
-	return clusterFilter
+	return sharding.NewClusterSharding(shard, replicas, shardingAlgorithm)
 }

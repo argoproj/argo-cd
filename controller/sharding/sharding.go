@@ -1,7 +1,6 @@
 package sharding
 
 import (
-	"context"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -13,7 +12,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
-	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	log "github.com/sirupsen/logrus"
 )
@@ -22,38 +20,16 @@ import (
 var osHostnameFunction = os.Hostname
 
 type DistributionFunction func(c *v1alpha1.Cluster) int
-type ClusterFilterFunction func(c *v1alpha1.Cluster) bool
-
-// GetClusterFilter returns a ClusterFilterFunction which is a function taking a cluster as a parameter
-// and returns wheter or not the cluster should be processed by a given shard. It calls the distributionFunction
-// to determine which shard will process the cluster, and if the given shard is equal to the calculated shard
-// the function will return true.
-func GetClusterFilter(distributionFunction DistributionFunction, shard int) ClusterFilterFunction {
-	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
-	return func(c *v1alpha1.Cluster) bool {
-		clusterShard := 0
-		if c != nil && c.Shard != nil {
-			requestedShard := int(*c.Shard)
-			if requestedShard < replicas {
-				clusterShard = requestedShard
-			} else {
-				log.Warnf("Specified cluster shard (%d) for cluster: %s is greater than the number of available shard. Assigning automatically.", requestedShard, c.Name)
-			}
-		} else {
-			clusterShard = distributionFunction(c)
-		}
-		return clusterShard == shard
-	}
-}
+type clusterAccessor func() []*v1alpha1.Cluster
 
 // GetDistributionFunction returns which DistributionFunction should be used based on the passed algorithm and
 // the current datas.
-func GetDistributionFunction(db db.ArgoDB, shardingAlgorithm string) DistributionFunction {
+func getDistributionFunction(clusters clusterAccessor, shardingAlgorithm string) DistributionFunction {
 	log.Infof("Using filter function:  %s", shardingAlgorithm)
 	distributionFunction := LegacyDistributionFunction()
 	switch shardingAlgorithm {
 	case common.RoundRobinShardingAlgorithm:
-		distributionFunction = RoundRobinDistributionFunction(db)
+		distributionFunction = RoundRobinDistributionFunction(clusters)
 	case common.LegacyShardingAlgorithm:
 		distributionFunction = LegacyDistributionFunction()
 	default:
@@ -96,14 +72,14 @@ func LegacyDistributionFunction() DistributionFunction {
 // This function ensures an homogenous distribution: each shards got assigned the same number of
 // clusters +/-1 , but with the drawback of a reshuffling of clusters accross shards in case of some changes
 // in the cluster list
-func RoundRobinDistributionFunction(db db.ArgoDB) DistributionFunction {
+func RoundRobinDistributionFunction(clusters clusterAccessor) DistributionFunction {
 	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	return func(c *v1alpha1.Cluster) int {
 		if replicas > 0 {
 			if c == nil { // in-cluster does not necessarly have a secret assigned. So we are receiving a nil cluster here.
 				return 0
 			} else {
-				clusterIndexdByClusterIdMap := createClusterIndexByClusterIdMap(db)
+				clusterIndexdByClusterIdMap := createClusterIndexByClusterIdMap(clusters)
 				clusterIndex, ok := clusterIndexdByClusterIdMap[c.ID]
 				if !ok {
 					log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
@@ -136,24 +112,18 @@ func InferShard() (int, error) {
 	return int(shard), nil
 }
 
-func getSortedClustersList(db db.ArgoDB) []v1alpha1.Cluster {
-	ctx := context.Background()
-	clustersList, dbErr := db.ListClusters(ctx)
-	if dbErr != nil {
-		log.Warnf("Error while querying clusters list from database: %v", dbErr)
-		return []v1alpha1.Cluster{}
-	}
-	clusters := clustersList.Items
+func getSortedClustersList(getCluster clusterAccessor) []*v1alpha1.Cluster {
+	clusters := getCluster()
 	sort.Slice(clusters, func(i, j int) bool {
 		return clusters[i].ID < clusters[j].ID
 	})
 	return clusters
 }
 
-func createClusterIndexByClusterIdMap(db db.ArgoDB) map[string]int {
-	clusters := getSortedClustersList(db)
+func createClusterIndexByClusterIdMap(getCluster clusterAccessor) map[string]int {
+	clusters := getSortedClustersList(getCluster)
 	log.Debugf("ClustersList has %d items", len(clusters))
-	clusterById := make(map[string]v1alpha1.Cluster)
+	clusterById := make(map[string]*v1alpha1.Cluster)
 	clusterIndexedByClusterId := make(map[string]int)
 	for i, cluster := range clusters {
 		log.Debugf("Adding cluster with id=%s and name=%s to cluster's map", cluster.ID, cluster.Name)
