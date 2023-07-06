@@ -56,13 +56,14 @@ export const FiltersGroup = (props: {children?: React.ReactNode; content: React.
     return (
         !props.collapsed && (
             <div className='filters-group'>
-                {props.appliedFilter?.length > 0 && props.onClearFilter && (
-                    <div className='filters-group__header'>
+                <div className='filters-group__header'>
+                    FILTERS{' '}
+                    {props.appliedFilter?.length > 0 && props.onClearFilter && (
                         <button onClick={() => props.onClearFilter()} className='argo-button argo-button--base argo-button--sm'>
-                            <i className='fa fa-times-circle' /> CLEAR ALL
+                            CLEAR ALL
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
                 <>{props.children}</>
                 <div className='filters-group__content'>{props.content}</div>
             </div>

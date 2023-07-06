@@ -1,7 +1,6 @@
 package kube
 
 import (
-	"fmt"
 	"regexp"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -21,11 +20,7 @@ func IsValidResourceName(name string) bool {
 // SetAppInstanceLabel the recommended app.kubernetes.io/instance label against an unstructured object
 // Uses the legacy labeling if environment variable is set
 func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) error {
-	// Do not use target.GetLabels(), https://github.com/argoproj/argo-cd/issues/13730
-	labels, _, err := unstructured.NestedStringMap(target.Object, "metadata", "labels")
-	if err != nil {
-		return fmt.Errorf("failed to get labels from target object %s %s/%s: %w", target.GroupVersionKind().String(), target.GetNamespace(), target.GetName(), err)
-	}
+	labels := target.GetLabels()
 	if labels == nil {
 		labels = make(map[string]string)
 	}
@@ -101,11 +96,7 @@ func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) err
 // SetAppInstanceAnnotation the recommended app.kubernetes.io/instance annotation against an unstructured object
 // Uses the legacy labeling if environment variable is set
 func SetAppInstanceAnnotation(target *unstructured.Unstructured, key, val string) error {
-	// Do not use target.GetAnnotations(), https://github.com/argoproj/argo-cd/issues/13730
-	annotations, _, err := unstructured.NestedStringMap(target.Object, "metadata", "annotations")
-	if err != nil {
-		return err
-	}
+	annotations := target.GetAnnotations()
 	if annotations == nil {
 		annotations = make(map[string]string)
 	}
@@ -115,40 +106,26 @@ func SetAppInstanceAnnotation(target *unstructured.Unstructured, key, val string
 }
 
 // GetAppInstanceAnnotation returns the application instance name from annotation
-func GetAppInstanceAnnotation(un *unstructured.Unstructured, key string) (string, error) {
-	// Do not use target.GetAnnotations(), https://github.com/argoproj/argo-cd/issues/13730
-	annotations, _, err := unstructured.NestedStringMap(un.Object, "metadata", "annotations")
-	if err != nil {
-		return "", err
+func GetAppInstanceAnnotation(un *unstructured.Unstructured, key string) string {
+	if annotations := un.GetAnnotations(); annotations != nil {
+		return annotations[key]
 	}
-	if annotations != nil {
-		return annotations[key], nil
-	}
-	return "", nil
+	return ""
 }
 
 // GetAppInstanceLabel returns the application instance name from labels
-func GetAppInstanceLabel(un *unstructured.Unstructured, key string) (string, error) {
-	// Do not use target.GetLabels(), https://github.com/argoproj/argo-cd/issues/13730
-	labels, _, err := unstructured.NestedStringMap(un.Object, "metadata", "labels")
-	if err != nil {
-		return "", fmt.Errorf("failed to get labels for %s %s/%s: %w", un.GroupVersionKind().String(), un.GetNamespace(), un.GetName(), err)
+func GetAppInstanceLabel(un *unstructured.Unstructured, key string) string {
+	if labels := un.GetLabels(); labels != nil {
+		return labels[key]
 	}
-	if labels != nil {
-		return labels[key], nil
-	}
-	return "", nil
+	return ""
 }
 
 // RemoveLabel removes label with the specified name
-func RemoveLabel(un *unstructured.Unstructured, key string) error {
-	// Do not use target.GetLabels(), https://github.com/argoproj/argo-cd/issues/13730
-	labels, _, err := unstructured.NestedStringMap(un.Object, "metadata", "labels")
-	if err != nil {
-		return fmt.Errorf("failed to get labels for %s %s/%s: %w", un.GroupVersionKind().String(), un.GetNamespace(), un.GetName(), err)
-	}
+func RemoveLabel(un *unstructured.Unstructured, key string) {
+	labels := un.GetLabels()
 	if labels == nil {
-		return nil
+		return
 	}
 
 	for k := range labels {
@@ -162,5 +139,4 @@ func RemoveLabel(un *unstructured.Unstructured, key string) error {
 			break
 		}
 	}
-	return nil
 }

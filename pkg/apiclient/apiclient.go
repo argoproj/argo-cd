@@ -15,12 +15,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/coreos/go-oidc"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/protobuf/ptypes/empty"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
-	"github.com/hashicorp/go-retryablehttp"
+	retryablehttp "github.com/hashicorp/go-retryablehttp"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/oauth2"
@@ -203,7 +203,9 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.UserAgent = fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)
 	}
 	// Override server address if specified in env or CLI flag
-	c.ServerAddr = env.StringFromEnv(EnvArgoCDServer, c.ServerAddr)
+	if serverFromEnv := os.Getenv(EnvArgoCDServer); serverFromEnv != "" {
+		c.ServerAddr = serverFromEnv
+	}
 	if opts.PortForward || opts.PortForwardNamespace != "" {
 		if opts.KubeOverrides == nil {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
@@ -227,7 +229,9 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.ServerAddr += ":443"
 	}
 	// Override auth-token if specified in env variable or CLI flag
-	c.AuthToken = env.StringFromEnv(EnvArgoCDAuthToken, c.AuthToken)
+	if authFromEnv := os.Getenv(EnvArgoCDAuthToken); authFromEnv != "" {
+		c.AuthToken = authFromEnv
+	}
 	if opts.AuthToken != "" {
 		c.AuthToken = strings.TrimSpace(opts.AuthToken)
 	}
@@ -281,8 +285,8 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		}
 	}
 	if !c.GRPCWeb {
-		// test if we need to set it to true
-		// if a call to grpc failed, then try again with GRPCWeb
+		//test if we need to set it to true
+		//if a call to grpc failed, then try again with GRPCWeb
 		conn, versionIf, err := c.NewVersionClient()
 		if err == nil {
 			defer argoio.Close(conn)
@@ -805,7 +809,7 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent {
 	appEventsCh := make(chan *argoappv1.ApplicationWatchEvent)
 	cancelled := false
-	appName, appNs := argo.ParseFromQualifiedName(appName, "")
+	appName, appNs := argo.ParseAppQualifiedName(appName, "")
 	go func() {
 		defer close(appEventsCh)
 		for !cancelled {

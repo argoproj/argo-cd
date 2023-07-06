@@ -51,24 +51,8 @@ spec:
       # Ignore locally missing valueFiles when installing Helm chart. Defaults to false
       ignoreMissingValueFiles: false
 
-      # Values file as block file. Prefer to use valuesObject if possible (see below)
+      # Values file as block file
       values: |
-        ingress:
-          enabled: true
-          path: /
-          hosts:
-            - mydomain.example.com
-          annotations:
-            kubernetes.io/ingress.class: nginx
-            kubernetes.io/tls-acme: "true"
-          labels: {}
-          tls:
-            - secretName: mydomain-tls
-              hosts:
-                - mydomain.example.com
-
-      # Values file as block file. This takes precedence over values
-      valuesObject:
         ingress:
           enabled: true
           path: /
@@ -100,16 +84,10 @@ spec:
       commonLabels:
         foo: bar
       commonAnnotations:
-        beep: boop-${ARGOCD_APP_REVISION}
-      # Toggle which enables/disables env variables substitution in commonAnnotations
-      commonAnnotationsEnvsubst: true
+        beep: boop
       images:
       - gcr.io/heptio-images/ks-guestbook-demo:0.2
       - my-app=gcr.io/my-repo/my-app:0.1
-      namespace: custom-namespace
-      replicas:
-      - name: kustomize-guestbook-ui
-        count: 4
 
     # directory
     directory:

@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
@@ -38,7 +37,7 @@ func TestGetCallBack(t *testing.T) {
 		proxyEnv := "http://proxy:8888"
 		os.Setenv("http_proxy", "http://proxy:8888")
 		defer os.Unsetenv("http_proxy")
-		url, err := GetCallback("")(httptest.NewRequest(http.MethodGet, proxyEnv, nil))
+		url, err := GetCallback("")(httptest.NewRequest("GET", proxyEnv, nil))
 		assert.Nil(t, err)
 		assert.Equal(t, proxyEnv, url.String())
 	})
