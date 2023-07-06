@@ -524,6 +524,7 @@ export const ApplicationParameters = (props: {
                     }
                     if (input.spec.source.helm && input.spec.source.helm.valuesObject) {
                         input.spec.source.helm.valuesObject = jsYaml.safeLoad(input.spec.source.helm.values); // Deserialize json
+                        input.spec.source.helm.values = ""
                     }
                     await props.save(input, {});
                     setRemovedOverrides(new Array<boolean>());
