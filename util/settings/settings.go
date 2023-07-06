@@ -48,9 +48,9 @@ type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach Argo CD.
 	// The value here is used when configuring SSO. Omitting this value will disable SSO.
 	URL string `json:"url,omitempty"`
-	// AdditionalURLS is a list of externally facing URLs users will visit to reach Argo CD.
+	// URLs is a list of externally facing URLs users will visit to reach Argo CD.
 	// The value here is used when configuring SSO reachable from multiple domains.
-	AdditionalUrls []string `json:"additionalUrls,omitempty"`
+	URLs []string `json:"urls,omitempty"`
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Indicates if status badge custom root URL should be used.
@@ -1936,7 +1936,7 @@ func (a *ArgoCDSettings) RedirectURLForRequestURL(requestURL string) (string, er
 	if strings.HasPrefix(requestURL, a.URL) {
 		return appendURLPath(a.URL, common.CallbackEndpoint)
 	}
-	for _, altURL := range a.AdditionalUrls {
+	for _, altURL := range a.URLs {
 		if strings.HasPrefix(requestURL, altURL) {
 			return appendURLPath(altURL, common.CallbackEndpoint)
 		}

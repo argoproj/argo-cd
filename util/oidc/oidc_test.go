@@ -193,7 +193,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 	t.Run("with additional base URL", func(t *testing.T) {
 		cdSettings := &settings.ArgoCDSettings{
 			URL:                       "https://argocd.example.com",
-			AdditionalUrls:            []string{"https://localhost:8080", "https://other.argocd.example.com"},
+			URLs:                      []string{"https://localhost:8080", "https://other.argocd.example.com"},
 			OIDCTLSInsecureSkipVerify: true,
 			DexConfig: `connectors:
 			- type: github

@@ -292,7 +292,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	returnURL := r.FormValue("return_url")
 	// Check if return_url is valid, otherwise abort processing (see https://github.com/argoproj/argo-cd/pull/4780)
 
-	if !isValidRedirectURL(returnURL, append([]string{a.settings.URL}, a.settings.AdditionalUrls...)) {
+	if !isValidRedirectURL(returnURL, append([]string{a.settings.URL}, a.settings.URLs...)) {
 		http.Error(w, "Invalid redirect URL: the protocol and host (including port) must match and the path must be within allowed URLs if provided", http.StatusBadRequest)
 		return
 	}
