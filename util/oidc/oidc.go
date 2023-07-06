@@ -153,7 +153,7 @@ func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	redirectURL, err := a.settings.RedirectURLForRequestURL(r.URL.String())
+	redirectURL, err := a.settings.RedirectURLForRequest(r)
 	if err != nil {
 		redirectURL = a.redirectURI
 	}
