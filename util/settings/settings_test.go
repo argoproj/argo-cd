@@ -1,10 +1,12 @@
 package settings
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -12,8 +14,10 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/scheme"
 	testutil "github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/test"
+	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -50,6 +54,20 @@ func fixtures(data map[string]string, opts ...func(secret *v1.Secret)) (*fake.Cl
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 
 	return kubeClient, settingsManager
+}
+
+func TestDocumentedArgoCDConfigMapIsValid(t *testing.T) {
+	settings := ArgoCDSettings{}
+	fd, err := os.Open("../../docs/operator-manual/argocd-cm.yaml")
+	require.NoError(t, err)
+	reader := yaml.NewYAMLReader(bufio.NewReader(fd))
+	data, err := reader.Read()
+	require.NoError(t, err)
+	o, _, err := scheme.Codecs.UniversalDeserializer().Decode(data, nil, &v1.ConfigMap{})
+	require.NoError(t, err)
+	cm, ok := o.(*v1.ConfigMap)
+	require.True(t, ok)
+	updateSettingsFromConfigMap(&settings, cm)
 }
 
 func TestGetRepositories(t *testing.T) {
