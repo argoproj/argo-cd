@@ -56,7 +56,7 @@ spec:
     helm:
       valueFiles:
       - $values/charts/prometheus/values.yaml
-  - repoURL: 'https://git.example.gom/org/value-files.git'
+  - repoURL: 'https://git.example.com/org/value-files.git'
     targetRevision: dev
     ref: values
 ```

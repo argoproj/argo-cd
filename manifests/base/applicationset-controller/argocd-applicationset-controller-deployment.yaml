@@ -37,12 +37,6 @@ spec:
                   key: applicationsetcontroller.enable.leader.election
                   name: argocd-cmd-params-cm
                   optional: true
-            - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACE
-              valueFrom:
-                configMapKeyRef:
-                  key: applicationsetcontroller.namespace
-                  name: argocd-cmd-params-cm
-                  optional: true
             - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER
               valueFrom:
                 configMapKeyRef:
@@ -53,6 +47,12 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   key: applicationsetcontroller.policy
+                  name: argocd-cmd-params-cm
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE
+              valueFrom:
+                configMapKeyRef:
+                  key: applicationsetcontroller.enable.policy.override
                   name: argocd-cmd-params-cm
                   optional: true
             - name: ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG
@@ -91,17 +91,41 @@ spec:
                   key: applicationsetcontroller.enable.progressive.syncs
                   name: argocd-cmd-params-cm
                   optional: true
-            - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
               valueFrom:
                 configMapKeyRef:
+                  key: applicationsetcontroller.enable.new.git.file.globbing
                   name: argocd-cmd-params-cm
-                  key: controller.repo.server.plaintext
                   optional: true
-            - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_PLAINTEXT
               valueFrom:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
-                  key: controller.repo.server.strict.tls
+                  key: applicationsetcontroller.repo.server.plaintext
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.repo.server.strict.tls
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.repo.server.timeout.seconds
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.concurrent.reconciliations.max
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES
+              valueFrom:
+                configMapKeyRef:
+                  key: applicationsetcontroller.namespaces
+                  name: argocd-cmd-params-cm
                   optional: true
           volumeMounts:
             - mountPath: /app/config/ssh

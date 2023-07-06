@@ -16,9 +16,9 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/ghodss/yaml"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -26,6 +26,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
@@ -33,6 +34,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/collections"
@@ -298,8 +300,9 @@ type ApplicationSourceHelm struct {
 	Parameters []HelmParameter `json:"parameters,omitempty" protobuf:"bytes,2,opt,name=parameters"`
 	// ReleaseName is the Helm release name to use. If omitted it will use the application name
 	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
-	// Values specifies Helm values to be passed to helm template, typically defined as a block
-	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
+	// Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.
+	// +patchStrategy=replace
+	Values string `json:"values,omitempty" patchStrategy:"replace" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
 	// Version is the Helm version to use for templating ("3")
@@ -310,6 +313,9 @@ type ApplicationSourceHelm struct {
 	IgnoreMissingValueFiles bool `json:"ignoreMissingValueFiles,omitempty" protobuf:"bytes,8,opt,name=ignoreMissingValueFiles"`
 	// SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
 	SkipCrds bool `json:"skipCrds,omitempty" protobuf:"bytes,9,opt,name=skipCrds"`
+	// ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	ValuesObject *runtime.RawExtension `json:"valuesObject,omitempty" protobuf:"bytes,10,opt,name=valuesObject"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
@@ -391,7 +397,7 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 
 // IsZero Returns true if the Helm options in an application source are considered zero
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == "" && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds
 }
 
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
@@ -500,6 +506,7 @@ func NewKustomizeReplica(text string) (*KustomizeReplica, error) {
 func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 	return len(k.Images) == 0 &&
 		len(k.CommonLabels) == 0 &&
+		len(k.CommonAnnotations) == 0 &&
 		k.NamePrefix == "" &&
 		k.Namespace == "" &&
 		k.NameSuffix == ""
@@ -892,6 +899,8 @@ type ApplicationStatus struct {
 	ResourceHealthSource ResourceHealthLocation `json:"resourceHealthSource,omitempty" protobuf:"bytes,11,opt,name=resourceHealthSource"`
 	// SourceTypes specifies the type of the sources included in the application
 	SourceTypes []ApplicationSourceType `json:"sourceTypes,omitempty" protobuf:"bytes,12,opt,name=sourceTypes"`
+	// ControllerNamespace indicates the namespace in which the application controller is located
+	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
 }
 
 // JWTTokens represents a list of JWT tokens
@@ -1152,7 +1161,7 @@ type Backoff struct {
 type SyncPolicyAutomated struct {
 	// Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
-	// SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)
+	// SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
@@ -1233,6 +1242,8 @@ type SyncOperationResult struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,4,opt,name=sources"`
 	// Revisions holds the revision this sync operation was performed for respective indexed source in sources field
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,5,opt,name=revisions"`
+	// ManagedNamespaceMetadata contains the current sync state of managed namespace metadata
+	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,6,opt,name=managedNamespaceMetadata"`
 }
 
 // ResourceResult holds the operation result details of a specific resource
@@ -1377,7 +1388,7 @@ const (
 	ApplicationConditionOrphanedResourceWarning = "OrphanedResourceWarning"
 )
 
-// ApplicationCondition contains details about an application condition, which is usally an error or warning
+// ApplicationCondition contains details about an application condition, which is usually an error or warning
 type ApplicationCondition struct {
 	// Type is an application condition type
 	Type ApplicationConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
@@ -1832,9 +1843,9 @@ type KnownTypeField struct {
 // OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between
 // the desired state and live state
 type OverrideIgnoreDiff struct {
-	//JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)
+	// JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)
 	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
-	//JQPathExpressions is a JQ path list that will be evaludated during the diff process
+	// JQPathExpressions is a JQ path list that will be evaludated during the diff process
 	JQPathExpressions []string `json:"jqPathExpressions" protobuf:"bytes,2,opt,name=jqPathExpressions"`
 	// ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
 	// desired state defined in the SCM and won't be displayed in diffs
@@ -1842,21 +1853,23 @@ type OverrideIgnoreDiff struct {
 }
 
 type rawResourceOverride struct {
-	HealthLua         string           `json:"health.lua,omitempty"`
-	UseOpenLibs       bool             `json:"health.lua.useOpenLibs,omitempty"`
-	Actions           string           `json:"actions,omitempty"`
-	IgnoreDifferences string           `json:"ignoreDifferences,omitempty"`
-	KnownTypeFields   []KnownTypeField `json:"knownTypeFields,omitempty"`
+	HealthLua             string           `json:"health.lua,omitempty"`
+	UseOpenLibs           bool             `json:"health.lua.useOpenLibs,omitempty"`
+	Actions               string           `json:"actions,omitempty"`
+	IgnoreDifferences     string           `json:"ignoreDifferences,omitempty"`
+	IgnoreResourceUpdates string           `json:"ignoreResourceUpdates,omitempty"`
+	KnownTypeFields       []KnownTypeField `json:"knownTypeFields,omitempty"`
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 // TODO: describe the members of this type
 type ResourceOverride struct {
-	HealthLua         string             `protobuf:"bytes,1,opt,name=healthLua"`
-	UseOpenLibs       bool               `protobuf:"bytes,5,opt,name=useOpenLibs"`
-	Actions           string             `protobuf:"bytes,3,opt,name=actions"`
-	IgnoreDifferences OverrideIgnoreDiff `protobuf:"bytes,2,opt,name=ignoreDifferences"`
-	KnownTypeFields   []KnownTypeField   `protobuf:"bytes,4,opt,name=knownTypeFields"`
+	HealthLua             string             `protobuf:"bytes,1,opt,name=healthLua"`
+	UseOpenLibs           bool               `protobuf:"bytes,5,opt,name=useOpenLibs"`
+	Actions               string             `protobuf:"bytes,3,opt,name=actions"`
+	IgnoreDifferences     OverrideIgnoreDiff `protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	IgnoreResourceUpdates OverrideIgnoreDiff `protobuf:"bytes,6,opt,name=ignoreResourceUpdates"`
+	KnownTypeFields       []KnownTypeField   `protobuf:"bytes,4,opt,name=knownTypeFields"`
 }
 
 // TODO: describe this method
@@ -1869,7 +1882,15 @@ func (s *ResourceOverride) UnmarshalJSON(data []byte) error {
 	s.HealthLua = raw.HealthLua
 	s.UseOpenLibs = raw.UseOpenLibs
 	s.Actions = raw.Actions
-	return yaml.Unmarshal([]byte(raw.IgnoreDifferences), &s.IgnoreDifferences)
+	err := yaml.Unmarshal([]byte(raw.IgnoreDifferences), &s.IgnoreDifferences)
+	if err != nil {
+		return err
+	}
+	err = yaml.Unmarshal([]byte(raw.IgnoreResourceUpdates), &s.IgnoreResourceUpdates)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // TODO: describe this method
@@ -1878,7 +1899,11 @@ func (s ResourceOverride) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	raw := &rawResourceOverride{s.HealthLua, s.UseOpenLibs, s.Actions, string(ignoreDifferencesData), s.KnownTypeFields}
+	ignoreResourceUpdatesData, err := yaml.Marshal(s.IgnoreResourceUpdates)
+	if err != nil {
+		return nil, err
+	}
+	raw := &rawResourceOverride{s.HealthLua, s.UseOpenLibs, s.Actions, string(ignoreDifferencesData), string(ignoreResourceUpdatesData), s.KnownTypeFields}
 	return json.Marshal(raw)
 }
 
@@ -2108,7 +2133,7 @@ type SyncWindow struct {
 	Clusters []string `json:"clusters,omitempty" protobuf:"bytes,6,opt,name=clusters"`
 	// ManualSync enables manual syncs when they would otherwise be blocked
 	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
-	//TimeZone of the sync that will be applied to the schedule
+	// TimeZone of the sync that will be applied to the schedule
 	TimeZone string `json:"timeZone,omitempty" protobuf:"bytes,8,opt,name=timeZone"`
 }
 
@@ -2302,6 +2327,10 @@ func (w *SyncWindows) CanSync(isManual bool) bool {
 		} else {
 			return false
 		}
+	}
+
+	if active.hasAllow() {
+		return true
 	}
 
 	inactiveAllows := w.InactiveAllows()
@@ -2578,6 +2607,13 @@ func (app *Application) GetPropagationPolicy() string {
 	return ""
 }
 
+// HasChangedManagedNamespaceMetadata checks whether app.Spec.SyncPolicy.ManagedNamespaceMetadata differs from the
+// managed namespace metadata which has been stored app.Status.OperationState.SyncResult. If they differ a refresh should
+// be triggered.
+func (app *Application) HasChangedManagedNamespaceMetadata() bool {
+	return app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil && app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil && !reflect.DeepEqual(app.Spec.SyncPolicy.ManagedNamespaceMetadata, app.Status.OperationState.SyncResult.ManagedNamespaceMetadata)
+}
+
 // IsFinalizerPresent checks if the app has a given finalizer
 func (app *Application) IsFinalizerPresent(finalizer string) bool {
 	return getFinalizerIndex(app.ObjectMeta, finalizer) > -1
@@ -2810,7 +2846,7 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 func (c *Cluster) RawRestConfig() *rest.Config {
 	var config *rest.Config
 	var err error
-	if c.Server == KubernetesInternalAPIServerAddr && os.Getenv(EnvVarFakeInClusterConfig) == "true" {
+	if c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false) {
 		conf, exists := os.LookupEnv("KUBECONFIG")
 		if exists {
 			config, err = clientcmd.BuildConfigFromFlags("", conf)
@@ -2979,5 +3015,5 @@ func (a *Application) QualifiedName() string {
 // RBACName returns the full qualified RBAC resource name for the application
 // in a backwards-compatible way.
 func (a *Application) RBACName(defaultNS string) string {
-	return security.AppRBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
+	return security.RBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
 }
