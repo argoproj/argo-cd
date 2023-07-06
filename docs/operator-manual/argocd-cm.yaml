@@ -11,7 +11,7 @@ data:
   url: https://argo-cd-demo.argoproj.io
 
   # Additional externally facing base URLs (optional)
-  additionalUrls: |
+  urls: |
     - https://argo-cd-demo2.argoproj.io
 
   # Enables application status badge feature
