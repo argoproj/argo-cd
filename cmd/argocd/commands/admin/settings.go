@@ -12,6 +12,7 @@ import (
 	"text/tabwriter"
 
 	healthutil "github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -20,7 +21,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -233,6 +233,13 @@ var validatorsByGroup = map[string]settingValidator{
 		_, err := manager.GetGoogleAnalytics()
 		return "", err
 	}),
+	"plugins": func(manager *settings.SettingsManager) (string, error) {
+		plugins, err := manager.GetConfigManagementPlugins()
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%d plugins", len(plugins)), nil
+	},
 	"kustomize": func(manager *settings.SettingsManager) (string, error) {
 		opts, err := manager.GetKustomizeSettings()
 		if err != nil {

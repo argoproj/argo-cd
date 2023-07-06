@@ -94,12 +94,6 @@ export interface RevisionMetadata {
     signatureInfo?: string;
 }
 
-export interface ChartDetails {
-    description?: string;
-    maintainers?: string[];
-    home?: string;
-}
-
 export interface SyncOperationResult {
     resources: ResourceResult[];
     revision: string;

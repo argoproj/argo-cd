@@ -32,7 +32,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -57,10 +56,6 @@ const (
 	//   https://github.com/argoproj-labs/argocd-notifications/blob/33d345fa838829bb50fca5c08523aba380d2c12b/pkg/controller/state.go#L17
 	NotifiedAnnotationKey             = "notified.notifications.argoproj.io"
 	ReconcileRequeueOnValidationError = time.Minute * 3
-
-	// LabelKeyAppSetInstance is the label key to use to uniquely identify the apps of an applicationset
-	// The ArgoCD applicationset name is used as the instance name
-	LabelKeyAppSetInstance = "argocd.argoproj.io/application-set-name"
 )
 
 var (
@@ -73,14 +68,13 @@ var (
 // ApplicationSetReconciler reconciles a ApplicationSet object
 type ApplicationSetReconciler struct {
 	client.Client
-	Scheme               *runtime.Scheme
-	Recorder             record.EventRecorder
-	Generators           map[string]generators.Generator
-	ArgoDB               db.ArgoDB
-	ArgoAppClientset     appclientset.Interface
-	KubeClientset        kubernetes.Interface
-	Policy               argov1alpha1.ApplicationsSyncPolicy
-	EnablePolicyOverride bool
+	Scheme           *runtime.Scheme
+	Recorder         record.EventRecorder
+	Generators       map[string]generators.Generator
+	ArgoDB           db.ArgoDB
+	ArgoAppClientset appclientset.Interface
+	KubeClientset    kubernetes.Interface
+	utils.Policy
 	utils.Renderer
 
 	EnableProgressiveSyncs bool
@@ -227,7 +221,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowUpdate() {
+	if r.Policy.Update() {
 		err = r.createOrUpdateInCluster(ctx, applicationSetInfo, validApps)
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,
@@ -257,7 +251,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete() {
+	if r.Policy.Delete() {
 		err = r.deleteInCluster(ctx, applicationSetInfo, desiredApplications)
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,
@@ -509,13 +503,9 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 
 		for _, a := range t {
 			tmplApplication := getTempApplication(a.Template)
-			if tmplApplication.Labels == nil {
-				tmplApplication.Labels = make(map[string]string)
-			}
-			tmplApplication.Labels[LabelKeyAppSetInstance] = applicationSetInfo.Name
 
 			for _, p := range a.Params {
-				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
+				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate)
 				if err != nil {
 					log.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
 						Error("error generating application from params")
@@ -537,7 +527,7 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 	return res, applicationSetReason, firstError
 }
 
-func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProgressiveSyncs bool, maxConcurrentReconciliations int) error {
+func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProgressiveSyncs bool) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &argov1alpha1.Application{}, ".metadata.controller", func(rawObj client.Object) []string {
 		// grab the job object, extract the owner...
 		app := rawObj.(*argov1alpha1.Application)
@@ -558,9 +548,8 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 
 	ownsHandler := getOwnsHandlerPredicates(enableProgressiveSyncs)
 
-	return ctrl.NewControllerManagedBy(mgr).WithOptions(controller.Options{
-		MaxConcurrentReconciles: maxConcurrentReconciliations,
-	}).For(&argov1alpha1.ApplicationSet{}).
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&argov1alpha1.ApplicationSet{}).
 		Owns(&argov1alpha1.Application{}, builder.WithPredicates(ownsHandler)).
 		Watches(
 			&source.Kind{Type: &corev1.Secret{}},
@@ -1047,7 +1036,12 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 		}
 
 		if currentAppStatus.Status == "Pending" {
-			if operationPhaseString == "Succeeded" && app.Status.OperationState.StartedAt.After(currentAppStatus.LastTransitionTime.Time) {
+			// check for successful syncs started less than 10s before the Application transitioned to Pending
+			// this covers race conditions where syncs initiated by RollingSync miraculously have a sync time before the transition to Pending state occurred (could be a few seconds)
+			if operationPhaseString == "Succeeded" && app.Status.OperationState.StartedAt.Add(time.Duration(10)*time.Second).After(currentAppStatus.LastTransitionTime.Time) {
+				if !app.Status.OperationState.StartedAt.After(currentAppStatus.LastTransitionTime.Time) {
+					log.Warnf("Application %v was synced less than 10s prior to entering Pending status, we'll assume the AppSet controller triggered this sync and update its status to Progressing", app.Name)
+				}
 				log.Infof("Application %v has completed a sync successfully, updating its ApplicationSet status to Progressing", app.Name)
 				currentAppStatus.LastTransitionTime = &now
 				currentAppStatus.Status = "Progressing"

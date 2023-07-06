@@ -18,6 +18,7 @@ import (
 	"time"
 
 	timeutil "github.com/argoproj/pkg/time"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -29,7 +30,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -423,6 +423,8 @@ const (
 	resourceInclusionsKey = "resource.inclusions"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
 	resourceCustomLabelsKey = "resource.customLabels"
+	// configManagementPluginsKey is the key to the list of config management plugins
+	configManagementPluginsKey = "configManagementPlugins"
 	// kustomizeBuildOptionsKey is a string of kustomize build parameters
 	kustomizeBuildOptionsKey = "kustomize.buildOptions"
 	// kustomizeVersionKeyPrefix is a kustomize version key prefix
@@ -741,6 +743,21 @@ func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACLogEnforceEnableKey])
+}
+
+func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManagementPlugin, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	plugins := make([]v1alpha1.ConfigManagementPlugin, 0)
+	if value, ok := argoCDCM.Data[configManagementPluginsKey]; ok {
+		err := yaml.Unmarshal([]byte(value), &plugins)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return plugins, nil
 }
 
 func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {
@@ -1663,26 +1680,13 @@ func (a *ArgoCDSettings) oidcConfig() *oidcConfig {
 	if a.OIDCConfigRAW == "" {
 		return nil
 	}
-	configMap := map[string]interface{}{}
-	err := yaml.Unmarshal([]byte(a.OIDCConfigRAW), &configMap)
+	config, err := unmarshalOIDCConfig(a.OIDCConfigRAW)
 	if err != nil {
 		log.Warnf("invalid oidc config: %v", err)
 		return nil
 	}
-
-	configMap = ReplaceMapSecrets(configMap, a.Secrets)
-	data, err := yaml.Marshal(configMap)
-	if err != nil {
-		log.Warnf("invalid oidc config: %v", err)
-		return nil
-	}
-
-	config, err := unmarshalOIDCConfig(string(data))
-	if err != nil {
-		log.Warnf("invalid oidc config: %v", err)
-		return nil
-	}
-
+	config.ClientSecret = ReplaceStringSecret(config.ClientSecret, a.Secrets)
+	config.ClientID = ReplaceStringSecret(config.ClientID, a.Secrets)
 	return &config
 }
 
@@ -1971,42 +1975,6 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		return mgr.GetSettings()
 	}
 	return cdSettings, nil
-}
-
-// ReplaceMapSecrets takes a json object and recursively looks for any secret key references in the
-// object and replaces the value with the secret value
-func ReplaceMapSecrets(obj map[string]interface{}, secretValues map[string]string) map[string]interface{} {
-	newObj := make(map[string]interface{})
-	for k, v := range obj {
-		switch val := v.(type) {
-		case map[string]interface{}:
-			newObj[k] = ReplaceMapSecrets(val, secretValues)
-		case []interface{}:
-			newObj[k] = replaceListSecrets(val, secretValues)
-		case string:
-			newObj[k] = ReplaceStringSecret(val, secretValues)
-		default:
-			newObj[k] = val
-		}
-	}
-	return newObj
-}
-
-func replaceListSecrets(obj []interface{}, secretValues map[string]string) []interface{} {
-	newObj := make([]interface{}, len(obj))
-	for i, v := range obj {
-		switch val := v.(type) {
-		case map[string]interface{}:
-			newObj[i] = ReplaceMapSecrets(val, secretValues)
-		case []interface{}:
-			newObj[i] = replaceListSecrets(val, secretValues)
-		case string:
-			newObj[i] = ReplaceStringSecret(val, secretValues)
-		default:
-			newObj[i] = val
-		}
-	}
-	return newObj
 }
 
 // ReplaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map
