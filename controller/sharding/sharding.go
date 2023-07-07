@@ -147,6 +147,11 @@ func RoundRobinDistributionFunction(db db.ArgoDB, clusters clusterAccessor) Dist
 	}
 }
 
+// NoShardingDistributionFunction returns a DistributionFunction that will process all shards
+func NoShardingDistributionFunction(shard int) DistributionFunction {
+	return func(c *v1alpha1.Cluster) int { return shard }
+}
+
 // InferShard extracts the shard index based on its hostname.
 func InferShard() (int, error) {
 	hostname, err := osHostnameFunction()
