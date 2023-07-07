@@ -41,14 +41,17 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argov1alpha "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
+
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -229,10 +232,12 @@ func (ctrl *ApplicationController) InvalidateProjectsCache(names ...string) {
 			ctrl.projByNameCache.Delete(name)
 		}
 	} else {
-		ctrl.projByNameCache.Range(func(key, _ interface{}) bool {
-			ctrl.projByNameCache.Delete(key)
-			return true
-		})
+		if ctrl != nil {
+			ctrl.projByNameCache.Range(func(key, _ interface{}) bool {
+				ctrl.projByNameCache.Delete(key)
+				return true
+			})
+		}
 	}
 }
 
@@ -354,17 +359,18 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 			level = CompareWithRecent
 		}
 
-		// Additional check for debug level so we don't need to evaluate the
-		// format string in case of non-debug scenarios
-		if log.GetLevel() >= log.DebugLevel {
-			var resKey string
-			if ref.Namespace != "" {
-				resKey = ref.Namespace + "/" + ref.Name
-			} else {
-				resKey = "(cluster-scoped)/" + ref.Name
-			}
-			log.Debugf("Refreshing app %s for change in cluster of object %s of type %s/%s", appKey, resKey, ref.APIVersion, ref.Kind)
+		namespace := ref.Namespace
+		if ref.Namespace == "" {
+			namespace = "(cluster-scoped)"
 		}
+		log.WithFields(log.Fields{
+			"application": appKey,
+			"level":       level,
+			"namespace":   namespace,
+			"name":        ref.Name,
+			"api-version": ref.APIVersion,
+			"kind":        ref.Kind,
+		}).Debug("Requesting app refresh caused by object update")
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
 	}
@@ -2012,3 +2018,5 @@ func (ctrl *ApplicationController) toAppKey(appName string) string {
 func (ctrl *ApplicationController) toAppQualifiedName(appName, appNamespace string) string {
 	return fmt.Sprintf("%s/%s", appNamespace, appName)
 }
+
+type ClusterFilterFunction func(c *argov1alpha.Cluster, distributionFunction sharding.DistributionFunction) bool

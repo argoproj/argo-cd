@@ -96,14 +96,14 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		}
 
 		paramMap := map[string]interface{}{
-			"number":           	strconv.Itoa(pull.Number),
-			"branch":           	pull.Branch,
-			"branch_slug":      	slug.Make(pull.Branch),
-			"target_branch":		pull.TargetBranch,
-			"target_branch_slug": 	slug.Make(pull.TargetBranch),
-			"head_sha":         	pull.HeadSHA,
-			"head_short_sha":   	pull.HeadSHA[:shortSHALength],
-			"head_short_sha_7": 	pull.HeadSHA[:shortSHALength7],
+			"number":             strconv.Itoa(pull.Number),
+			"branch":             pull.Branch,
+			"branch_slug":        slug.Make(pull.Branch),
+			"target_branch":      pull.TargetBranch,
+			"target_branch_slug": slug.Make(pull.TargetBranch),
+			"head_sha":           pull.HeadSHA,
+			"head_short_sha":     pull.HeadSHA[:shortSHALength],
+			"head_short_sha_7":   pull.HeadSHA[:shortSHALength7],
 		}
 
 		// PR lables will only be supported for Go Template appsets, since fasttemplate will be deprecated.
@@ -147,6 +147,32 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		} else {
 			return pullrequest.NewBitbucketServiceNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.Repo)
 		}
+	}
+	if generatorConfig.Bitbucket != nil {
+		providerConfig := generatorConfig.Bitbucket
+		if providerConfig.BearerToken != nil {
+			appToken, err := g.getSecretRef(ctx, providerConfig.BearerToken.TokenRef, applicationSetInfo.Namespace)
+			if err != nil {
+				return nil, fmt.Errorf("error fetching Secret Bearer token: %v", err)
+			}
+			return pullrequest.NewBitbucketCloudServiceBearerToken(providerConfig.API, appToken, providerConfig.Owner, providerConfig.Repo)
+		} else if providerConfig.BasicAuth != nil {
+			password, err := g.getSecretRef(ctx, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace)
+			if err != nil {
+				return nil, fmt.Errorf("error fetching Secret token: %v", err)
+			}
+			return pullrequest.NewBitbucketCloudServiceBasicAuth(providerConfig.API, providerConfig.BasicAuth.Username, password, providerConfig.Owner, providerConfig.Repo)
+		} else {
+			return pullrequest.NewBitbucketCloudServiceNoAuth(providerConfig.API, providerConfig.Owner, providerConfig.Repo)
+		}
+	}
+	if generatorConfig.AzureDevOps != nil {
+		providerConfig := generatorConfig.AzureDevOps
+		token, err := g.getSecretRef(ctx, providerConfig.TokenRef, applicationSetInfo.Namespace)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching Secret token: %v", err)
+		}
+		return pullrequest.NewAzureDevOpsService(ctx, token, providerConfig.API, providerConfig.Organization, providerConfig.Project, providerConfig.Repo, providerConfig.Labels)
 	}
 	return nil, fmt.Errorf("no Pull Request provider implementation configured")
 }

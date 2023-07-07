@@ -52,7 +52,28 @@ source:
 
 ## Values
 
-Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.values` key.
+Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.valuesObject` key.
+
+```
+source:
+  helm:
+    valuesObject:
+      ingress:
+        enabled: true
+        path: /
+        hosts:
+          - mydomain.example.com
+        annotations:
+          kubernetes.io/ingress.class: nginx
+          kubernetes.io/tls-acme: "true"
+        labels: {}
+        tls:
+          - secretName: mydomain-tls
+            hosts:
+              - mydomain.example.com
+```
+
+Alternatively, values can be passed in as a string using the `source.helm.values` key.
 
 ```
 source:
@@ -145,6 +166,9 @@ Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Ar
 | `helm.sh/resource-policy: keep` | Supported as equivalent to `argocd.argoproj.io/sync-options: Delete=false`. |
 
 Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl apply`, rather than `kubectl create`. This means that if the hook is named and already exists, it will not change unless you have annotated it with `before-hook-creation`.
+
+!!! warning "Helm hooks + ArgoCD hooks"
+    If you define some Argo CD hooks in addition to the Helm ones, the Helm hooks will be ignored.   
 
 !!! warning "'install' vs 'upgrade' vs 'sync'"
     Argo CD cannot know if it is running a first-time "install" or an "upgrade" - every operation is a "sync'. This means that, by default, apps that have `pre-install` and `pre-upgrade` will have those hooks run at the same time.

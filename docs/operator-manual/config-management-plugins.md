@@ -18,18 +18,6 @@ The following sections will describe how to create, install, and use plugins. Ch
 
 ## Installing a config management plugin
 
-There are two ways to install a Config Management Plugin:
-
- * **Sidecar plugin**
-   
-    This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap. A copy of the repository is
-    sent to the sidecar container as a tarball and processed individually per application.
-
- * **ConfigMap plugin** (**this method is deprecated and will be removed in a future 
-   version**)
-   
-    The repo-server container will run your plugin's commands.
-
 ### Sidecar plugin
 
 An operator can configure a plugin tool via a sidecar to repo-server. The following changes are required to configure a new plugin:
@@ -54,7 +42,7 @@ spec:
     command: [sh]
     args: [-c, 'echo "Initializing..."']
   # The generate command runs in the Application source directory each time manifests are generated. Standard output
-  # must be ONLY valid YAML manifests. A non-zero exit code will fail manifest generation.
+  # must be ONLY valid Kubernetes Objects in either YAML or JSON. A non-zero exit code will fail manifest generation.
   # Error output will be sent to the UI, so avoid printing sensitive information (such as secrets).
   generate:
     command: [sh, -c]
@@ -67,8 +55,8 @@ spec:
   # Only one of fileName, find.glob, or find.command should be specified. If multiple are specified then only the 
   # first (in that order) is evaluated.
   discover:
-    # fileName is a glob pattern (https://pkg.go.dev/path/filepath#Glob) that is applied to the repository's root 
-    # directory (not the Application source directory). If there is a match, this plugin may be used for the repository.
+    # fileName is a glob pattern (https://pkg.go.dev/path/filepath#Glob) that is applied to the Application's source 
+    # directory. If there is a match, this plugin may be used for the Application.
     fileName: "./subdir/s*.yaml"
     find:
       # This does the same thing as fileName, but it supports double-start (nested directory) glob patterns.
@@ -127,7 +115,7 @@ spec:
     While the ConfigManagementPlugin _looks like_ a Kubernetes object, it is not actually a custom resource. 
     It only follows kubernetes-style spec conventions.
 
-The `generate` command must print a valid YAML stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
+The `generate` command must print a valid Kubernetes YAML or JSON object stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
 
 The `discover.fileName` is used as [glob](https://pkg.go.dev/path/filepath#Glob) pattern to determine whether an
 application repository is supported by the plugin or not. 
@@ -216,45 +204,11 @@ volumes:
     2. Make sure that sidecar container is running as user 999.
     3. Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/plugin.yaml`. It can either be volume mapped via configmap or baked into image.
 
-### ConfigMap plugin
-
-!!! warning "Deprecated"
-    ConfigMap plugins are deprecated and will no longer be supported in 2.7.
-
-The following changes are required to configure a new plugin:
-
-1. Make sure required binaries are available in `argocd-repo-server` pod. The binaries can be added via volume mounts or
-   using a custom image (see [custom_tools](../operator-manual/custom_tools.md) for examples of both).
-2. Register a new plugin in `argocd-cm` ConfigMap:
-
-        data:
-          configManagementPlugins: |
-            - name: pluginName
-              init:                          # Optional command to initialize application source directory
-                command: ["sample command"]
-                args: ["sample args"]
-              generate:                      # Command to generate manifests YAML
-                command: ["sample command"]
-                args: ["sample args"]
-              lockRepo: true                 # Defaults to false. See below.
-   
-    The `generate` command must print a valid YAML or JSON stream to stdout. Both `init` and `generate` commands are executed inside the application source directory or in `path` when specified for the app.
-
-3. [Create an Application which uses your new CMP](#using-a-cmp).
-
-More CMP examples are available in [argocd-example-apps](https://github.com/argoproj/argocd-example-apps/tree/master/plugins).
-
-!!!note "Repository locking"
-    If your plugin makes use of `git` (e.g. `git crypt`), it is advised to set
-    `lockRepo` to `true` so that your plugin will have exclusive access to the
-    repository at the time it is executed. Otherwise, two applications synced
-    at the same time may result in a race condition and sync failure.
-
 ### Using environment variables in your plugin
 
 Plugin commands have access to
 
-1. The system environment variables (of the repo-server container for argocd-cm plugins or of the sidecar for sidecar plugins)
+1. The system environment variables of the sidecar
 2. [Standard build environment variables](../user-guide/build-environment.md)
 3. Variables in the Application spec (References to system and build variables will get interpolated in the variables' values):
 
@@ -268,19 +222,12 @@ Plugin commands have access to
                   value: bar
                 - name: REV
                   value: test-$ARGOCD_APP_REVISION
-   
-    !!! note
-        The `discover.find.command` command only has access to the above environment starting with v2.4.
     
     Before reaching the `init.command`, `generate.command`, and `discover.find.command` commands, Argo CD prefixes all 
     user-supplied environment variables (#3 above) with `ARGOCD_ENV_`. This prevents users from directly setting 
     potentially-sensitive environment variables.
-    
-    If your plugin was written before 2.4 and depends on user-supplied environment variables, then you will need to update
-    your plugin's behavior to work with 2.4. If you use a third-party plugin, make sure they explicitly advertise support
-    for 2.4.
 
-4. (Starting in v2.6) Parameters in the Application spec:
+4. Parameters in the Application spec:
 
         apiVersion: argoproj.io/v1alpha1
         kind: Application
@@ -327,14 +274,7 @@ Plugin commands have access to
 
 ## Using a config management plugin with an Application
 
-If your CMP is defined in the `argocd-cm` ConfigMap, you can create a new Application using the CLI. Replace 
-`<pluginName>` with the name configured in `argocd-cm`.
-
-```bash
-argocd app create <appName> --config-management-plugin <pluginName>
-```
-
-If your CMP is defined as a sidecar, you must manually define the Application manifest. You may leave the `name` field
+You may leave the `name` field
 empty in the `plugin` section for the plugin to be automatically matched with the Application based on its discovery rules. If you do mention the name make sure 
 it is either `<metadata.name>-<spec.version>` if version is mentioned in the `ConfigManagementPlugin` spec or else just `<metadata.name>`. When name is explicitly 
 specified only that particular plugin will be used iff its discovery pattern/command matches the provided application repo.
@@ -352,7 +292,6 @@ spec:
     targetRevision: HEAD
     path: guestbook
     plugin:
-      # For either argocd-cm- or sidecar-installed CMPs, you can pass environment variables to the CMP.
       env:
         - name: FOO
           value: bar
@@ -365,7 +304,7 @@ If you don't need to set any environment variables, you can set an empty plugin 
 ```
 
 !!! important
-    If your sidecar CMP command runs too long, the command will be killed, and the UI will show an error. The CMP server
+    If your CMP command runs too long, the command will be killed, and the UI will show an error. The CMP server
     respects the timeouts set by the `server.repo.server.timeout.seconds` and `controller.repo.server.timeout.seconds` 
     items in `argocd-cm`. Increase their values from the default of 60s.
 
@@ -424,7 +363,7 @@ data:
       init:                          # Optional command to initialize application source directory
         command: ["sample command"]
         args: ["sample args"]
-      generate:                      # Command to generate manifests YAML
+      generate:                      # Command to generate Kubernetes Objects in either YAML or JSON
         command: ["sample command"]
         args: ["sample args"]
       lockRepo: true                 # Defaults to false. See below.
@@ -441,7 +380,7 @@ spec:
   init:                          # Optional command to initialize application source directory
     command: ["sample command"]
     args: ["sample args"]
-  generate:                      # Command to generate manifests YAML
+  generate:                      # Command to generate Kubernetes Objects in either YAML or JSON
     command: ["sample command"]
     args: ["sample args"]
 ```
