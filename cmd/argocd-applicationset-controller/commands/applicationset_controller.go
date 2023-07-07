@@ -64,6 +64,7 @@ func NewCommand() *cobra.Command {
 		repoServerStrictTLS          bool
 		repoServerTimeoutSeconds     int
 		maxConcurrentReconciliations int
+		rootCAPath                   string
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -211,6 +212,7 @@ func NewCommand() *cobra.Command {
 				ArgoCDNamespace:          namespace,
 				ApplicationSetNamespaces: applicationSetNamespaces,
 				EnableProgressiveSyncs:   enableProgressiveSyncs,
+				RootCAPath:               rootCAPath,
 			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
@@ -246,6 +248,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&maxConcurrentReconciliations, "concurrent-reconciliations", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS", 10, 1, 100), "Max concurrent reconciliations limit for the controller")
+	command.Flags().StringVar(&rootCAPath, "scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
 	return &command
 }
 

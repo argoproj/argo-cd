@@ -2,9 +2,12 @@ package utils
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"regexp"
 	"sort"
@@ -405,4 +408,39 @@ func SanitizeName(name string) string {
 	}
 
 	return strings.Trim(name, "-.")
+}
+
+func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
+
+	tlsConfig := &tls.Config{}
+
+	if scmRootCAPath != "" {
+		_, err := os.Stat(scmRootCAPath)
+		if os.IsNotExist(err) {
+			log.Warnf("scmRootCAPath '%s' specified does not exist: %s", scmRootCAPath, err)
+			return tlsConfig
+		}
+		rootCA, err := os.ReadFile(scmRootCAPath)
+		if err != nil {
+			log.Warnf("error reading certificate from file '%s', proceeding without custom rootCA : %s", scmRootCAPath, err)
+			return tlsConfig
+		}
+		certPool := x509.NewCertPool()
+		ok := certPool.AppendCertsFromPEM([]byte(rootCA))
+		if !ok {
+			log.Warnf("failed to append certificates from PEM: proceeding without custom rootCA")
+		} else {
+			tlsConfig.RootCAs = certPool
+		}
+	}
+	return tlsConfig
+}
+
+func GetTlsConfig(scmRootCAPath string, insecure bool) *tls.Config {
+	tlsConfig := getTlsConfigWithCACert(scmRootCAPath)
+
+	if insecure {
+		tlsConfig.InsecureSkipVerify = true
+	}
+	return tlsConfig
 }

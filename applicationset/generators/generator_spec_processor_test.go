@@ -86,7 +86,7 @@ func TestMatchValues(t *testing.T) {
 				}},
 				data,
 				emptyTemplate(),
-				&applicationSetInfo, nil)
+				&applicationSetInfo, nil, "")
 
 			assert.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
@@ -169,7 +169,7 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 				}},
 				data,
 				emptyTemplate(),
-				&applicationSetInfo, nil)
+				&applicationSetInfo, nil, "")
 
 			assert.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
@@ -238,7 +238,7 @@ func TestTransForm(t *testing.T) {
 					}},
 				testGenerators,
 				emptyTemplate(),
-				&applicationSetInfo, nil)
+				&applicationSetInfo, nil, "")
 
 			assert.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
