@@ -637,7 +637,9 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 		if app.Name == "" {
 			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
 		}
-		if args[0] == app.Name {
+		if len(args) == 1 && args[0] == app.Name {
+			filteredApps = append(filteredApps, app)
+		} else if appName == app.Name {
 			filteredApps = append(filteredApps, app)
 		}
 	}
