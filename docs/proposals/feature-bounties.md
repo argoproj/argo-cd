@@ -36,6 +36,7 @@ A bounty is a special proposal created under `docs/proposals/feature-bounties`.
 * Bounty should have approval with [lazy-consensus](https://community.apache.org/committers/lazyConsensus.html)
 * Once a bounty is created, they must be honored.
 * Bounty progress will be tracked in a Github issue linked in the proposal.
+* Creating a bounty requires the funds be available and not already committed elsewhere. 
 
 #### Claiming a Bounty
 * Argo will pay out bounties once a pull request implementing the requested features/changes/fixes is merged.
