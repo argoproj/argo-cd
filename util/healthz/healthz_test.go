@@ -45,14 +45,14 @@ func TestHealthCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != 200 {
 		t.Fatalf("Was expecting status code 200 from health check, but got %d instead", resp.StatusCode)
 	}
 
 	sentinel = true
 
 	resp, _ = http.Get(server + "/healthz")
-	if resp.StatusCode != http.StatusServiceUnavailable {
+	if resp.StatusCode != 503 {
 		t.Fatalf("Was expecting status code 503 from health check, but got %d instead", resp.StatusCode)
 	}
 

@@ -5,17 +5,18 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	gitopsCache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
-	"sigs.k8s.io/yaml"
 
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -206,7 +207,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 		metricsServ.registry.MustRegister(collector)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -291,7 +292,8 @@ argocd_app_labels{label_non_existing="",name="my-app-3",namespace="argocd",proje
 }
 
 func TestLegacyMetrics(t *testing.T) {
-	t.Setenv(EnvVarLegacyControllerMetrics, "true")
+	os.Setenv(EnvVarLegacyControllerMetrics, "true")
+	defer os.Unsetenv(EnvVarLegacyControllerMetrics)
 
 	expectedResponse := `
 # HELP argocd_app_created_time Creation time in unix timestamp for an application.
@@ -335,7 +337,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationSucceeded})
 	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationSucceeded})
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -389,7 +391,7 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	fakeApp := newFakeApp(fakeApp)
 	metricsServ.IncReconcile(fakeApp, 5*time.Second)
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -413,7 +415,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Succeeded",project="important-project"} 2
 `
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -424,7 +426,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	err = metricsServ.SetExpiration(time.Second)
 	assert.NoError(t, err)
 	time.Sleep(2 * time.Second)
-	req, err = http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err = http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)
 	rr = httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)

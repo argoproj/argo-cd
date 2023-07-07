@@ -43,7 +43,6 @@ const APP_FIELDS = [
     'status.sync.revision',
     'status.health',
     'status.operationState.phase',
-    'status.operationState.finishedAt',
     'status.operationState.operation.sync',
     'status.summary',
     'status.resources'
@@ -114,7 +113,7 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                     .filter(item => !!item);
                             }
                             if (params.get('autoSync') != null) {
-                                viewPref.autoSyncFilter = params
+                                viewPref.autosyncFilter = params
                                     .get('autoSync')
                                     .split(',')
                                     .filter(item => !!item);
@@ -517,18 +516,6 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                 </h5>
                                                                             </EmptyState>
                                                                         )}
-                                                                        sortOptions={[
-                                                                            {title: 'Name', compare: (a, b) => a.metadata.name.localeCompare(b.metadata.name)},
-                                                                            {
-                                                                                title: 'Created At',
-                                                                                compare: (b, a) => a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp)
-                                                                            },
-                                                                            {
-                                                                                title: 'Synchronized',
-                                                                                compare: (b, a) =>
-                                                                                    a.status.operationState?.finishedAt?.localeCompare(b.status.operationState?.finishedAt)
-                                                                            }
-                                                                        ]}
                                                                         data={filteredApps}
                                                                         onPageChange={page => ctx.navigation.goto('.', {page})}>
                                                                         {data =>
