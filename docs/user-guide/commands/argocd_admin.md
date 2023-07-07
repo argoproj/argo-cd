@@ -9,9 +9,7 @@ argocd admin [flags]
 ### Options
 
 ```
-  -h, --help               help for admin
-      --logformat string   Set the logging format. One of: text|json (default "text")
-      --loglevel string    Set the logging level. One of: debug|info|warn|error (default "info")
+  -h, --help   help for admin
 ```
 
 ### Options inherited from parent commands
@@ -28,6 +26,8 @@ argocd admin [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
+      --logformat string                Set the logging format. One of: text|json (default "text")
+      --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
@@ -43,7 +43,6 @@ argocd admin [flags]
 * [argocd admin dashboard](argocd_admin_dashboard.md)	 - Starts Argo CD Web UI locally
 * [argocd admin export](argocd_admin_export.md)	 - Export all Argo CD data to stdout (default) or a file
 * [argocd admin import](argocd_admin_import.md)	 - Import Argo CD data from stdin (specify `-') or a file
-* [argocd admin initial-password](argocd_admin_initial-password.md)	 - Prints initial password to log in to Argo CD for the first time
 * [argocd admin notifications](argocd_admin_notifications.md)	 - Set of CLI commands that helps manage notifications settings
 * [argocd admin proj](argocd_admin_proj.md)	 - Manage projects configuration
 * [argocd admin repo](argocd_admin_repo.md)	 - Manage repositories configuration

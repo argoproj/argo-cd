@@ -1,9 +1,0 @@
-tests:
-- healthStatus:
-    status: Degraded
-    message: ''
-  inputPath: testdata/degraded_expectedMachines.yaml
-- healthStatus:
-    status: Healthy
-    message: ''
-  inputPath: testdata/healthy.yaml

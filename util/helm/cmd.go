@@ -176,7 +176,7 @@ func writeToTmp(data []byte) (string, argoio.Closer, error) {
 		if err = file.Close(); err != nil {
 			log.WithFields(log.Fields{
 				common.SecurityField:    common.SecurityMedium,
-				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
+				common.SecurityCWEField: 775,
 			}).Errorf("error closing file %q: %v", file.Name(), err)
 		}
 	}()
@@ -228,18 +228,15 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	return c.run(args...)
 }
 
-func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds) (string, error) {
-	args := []string{"pull", fmt.Sprintf("oci://%s/%s", repo, chart), "--version",
+func (c *Cmd) PullOCI(repo string, chart string, version string, destination string) (string, error) {
+	return c.run(
+		"pull",
+		fmt.Sprintf("oci://%s/%s", repo, chart),
+		"--version",
 		version,
 		"--destination",
-		destination}
-	if creds.CAPath != "" {
-		args = append(args, "--ca-file", creds.CAPath)
-	}
-	if creds.InsecureSkipVerify && c.insecureSkipVerifySupported {
-		args = append(args, "--insecure-skip-tls-verify")
-	}
-	return c.run(args...)
+		destination,
+	)
 }
 
 func (c *Cmd) dependencyBuild() (string, error) {
@@ -248,10 +245,6 @@ func (c *Cmd) dependencyBuild() (string, error) {
 
 func (c *Cmd) inspectValues(values string) (string, error) {
 	return c.run(c.showCommand, "values", values)
-}
-
-func (c *Cmd) InspectChart() (string, error) {
-	return c.run(c.showCommand, "chart", ".")
 }
 
 type TemplateOpts struct {

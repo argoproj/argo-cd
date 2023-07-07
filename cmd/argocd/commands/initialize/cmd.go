@@ -3,11 +3,12 @@ package initialize
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	flag "github.com/spf13/pflag"
 
 	"github.com/argoproj/argo-cd/v2/util/cli"
 )
 
-func RetrieveContextIfChanged(contextFlag *pflag.Flag) string {
+func RetrieveContextIfChanged(contextFlag *flag.Flag) string {
 	if contextFlag != nil && contextFlag.Changed {
 		return contextFlag.Value.String()
 	}

@@ -25,7 +25,9 @@ const DEFAULT_LINE_HEIGHT = 18;
 
 const MonacoEditorLazy = React.lazy(() =>
     import('monaco-editor').then(monaco => {
-        const Component = (props: MonacoProps) => {
+        require('monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js');
+
+        const component = (props: MonacoProps) => {
             const [height, setHeight] = React.useState(0);
 
             return (
@@ -75,7 +77,7 @@ const MonacoEditorLazy = React.lazy(() =>
         };
 
         return {
-            default: Component
+            default: component
         };
     })
 );

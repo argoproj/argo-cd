@@ -2,7 +2,6 @@ package version
 
 import (
 	"context"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-jsonnet"
 
@@ -14,7 +13,7 @@ import (
 	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 )
 
-type Server struct {
+type server struct {
 	kustomizeVersion string
 	helmVersion      string
 	jsonnetVersion   string
@@ -22,12 +21,12 @@ type Server struct {
 	disableAuth      func() (bool, error)
 }
 
-func NewServer(authenticator settings.Authenticator, disableAuth func() (bool, error)) *Server {
-	return &Server{authenticator: authenticator, disableAuth: disableAuth}
+func NewServer(authenticator settings.Authenticator, disableAuth func() (bool, error)) *server {
+	return &server{authenticator: authenticator, disableAuth: disableAuth}
 }
 
 // Version returns the version of the API server
-func (s *Server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionMessage, error) {
+func (s *server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionMessage, error) {
 	vers := common.GetVersion()
 	disableAuth, err := s.disableAuth()
 	if err != nil {
@@ -68,12 +67,11 @@ func (s *Server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionM
 		HelmVersion:      s.helmVersion,
 		JsonnetVersion:   s.jsonnetVersion,
 		KubectlVersion:   vers.KubectlVersion,
-		ExtraBuildInfo:   vers.ExtraBuildInfo,
 	}, nil
 }
 
 // AuthFuncOverride allows the version to be returned without auth
-func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
+func (s *server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
 	if s.authenticator != nil {
 		// this authenticates the user, but ignores any error, so that we have claims populated
 		ctx, _ = s.authenticator.Authenticate(ctx)

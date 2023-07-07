@@ -12,12 +12,11 @@ import (
 type Context struct {
 	t *testing.T
 	// seconds
-	timeout    int
-	name       string
-	project    string
-	server     string
-	upsert     bool
-	namespaces []string
+	timeout int
+	name    string
+	project string
+	server  string
+	upsert  bool
 }
 
 func Given(t *testing.T) *Context {
@@ -43,11 +42,6 @@ func (c *Context) Name(name string) *Context {
 
 func (c *Context) Server(server string) *Context {
 	c.server = server
-	return c
-}
-
-func (c *Context) Namespaces(namespaces []string) *Context {
-	c.namespaces = namespaces
 	return c
 }
 
