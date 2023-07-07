@@ -8,11 +8,12 @@ import (
 )
 
 type ClusterSharding interface {
-	// Init() error
+	Init(clusters *v1alpha1.ClusterList)
 	Add(c *v1alpha1.Cluster)
 	Delete(clusterServer string)
 	Update(c *v1alpha1.Cluster)
 	IsManagedCluster(c *v1alpha1.Cluster) bool
+	GetDistribution() map[string]int
 }
 
 type clusterSharding struct {
@@ -24,29 +25,21 @@ type clusterSharding struct {
 	getClusterShard DistributionFunction
 }
 
-type noClusterSharding struct{}
-
-func (d *noClusterSharding) Add(c *v1alpha1.Cluster)     {}
-func (d *noClusterSharding) Delete(clusterServer string) {}
-func (d *noClusterSharding) Update(c *v1alpha1.Cluster)  {}
-func (d *noClusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
-	return true
-}
-
 func NewClusterSharding(shard, replicas int, shardingAlgorithm string) ClusterSharding {
-	if replicas <= 1 {
-		log.Info("Processing all cluster shards")
-		return &noClusterSharding{}
-	}
-
-	log.Infof("Processing clusters from shard %d", shard)
-	log.Infof("Using filter function:  %s", shardingAlgorithm)
 	clusterSharding := &clusterSharding{
 		shard:    shard,
 		shards:   make(map[string]int),
 		clusters: make(map[string]*v1alpha1.Cluster),
 	}
-	distributionFunc := getDistributionFunction(clusterSharding.getClusterAccessor(), shardingAlgorithm)
+
+	distributionFunc := NoShardingDistributionFunction(0)
+	if replicas > 1 {
+		log.Infof("Processing clusters from shard %d", shard)
+		log.Infof("Using filter function:  %s", shardingAlgorithm)
+		distributionFunc = getDistributionFunction(clusterSharding.getClusterAccessor(), shardingAlgorithm)
+	} else {
+		log.Info("Processing all cluster shards")
+	}
 	clusterSharding.getClusterShard = distributionFunc
 	return clusterSharding
 }
@@ -65,12 +58,28 @@ func (d *clusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
 	return clusterShard == d.shard
 }
 
+func (d *clusterSharding) Init(clusters *v1alpha1.ClusterList) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	newClusters := make(map[string]*v1alpha1.Cluster, len(clusters.Items))
+	for _, c := range clusters.Items {
+		newClusters[c.Server] = &c
+	}
+	d.clusters = newClusters
+	d.updateDistribution()
+}
+
 func (d *clusterSharding) Add(c *v1alpha1.Cluster) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
+	old, ok := d.clusters[c.Server]
 	d.clusters[c.Server] = c
-	d.updateDistribution()
+	if !ok || hasShardingUpdates(old, c) {
+		d.updateDistribution()
+	} else {
+		log.Debugf("Skipping sharding distribution update. Cluster already added")
+	}
 }
 
 func (d *clusterSharding) Delete(clusterServer string) {
@@ -94,6 +103,18 @@ func (d *clusterSharding) Update(c *v1alpha1.Cluster) {
 	} else {
 		log.Debugf("Skipping sharding distribution update. No relevant changes")
 	}
+}
+
+func (d *clusterSharding) GetDistribution() map[string]int {
+	d.lock.RLock()
+	shards := d.shards
+	d.lock.RUnlock()
+
+	distribution := make(map[string]int, len(shards))
+	for k, v := range shards {
+		distribution[k] = v
+	}
+	return distribution
 }
 
 func (d *clusterSharding) updateDistribution() {

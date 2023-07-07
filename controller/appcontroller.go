@@ -723,6 +723,13 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
 
+	clusters, err := ctrl.db.ListClusters(ctx)
+	if err != nil {
+		log.Warnf("Cannot init sharding. Error while querying clusters list from database: %v", err)
+	} else {
+		ctrl.clusterSharding.Init(clusters)
+	}
+
 	errors.CheckError(ctrl.stateCache.Init())
 
 	if !cache.WaitForCacheSync(ctx.Done(), ctrl.appInformer.HasSynced, ctrl.projInformer.HasSynced) {

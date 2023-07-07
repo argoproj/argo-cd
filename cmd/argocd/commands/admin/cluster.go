@@ -68,7 +68,7 @@ type ClusterWithInfo struct {
 	Namespaces []string
 }
 
-func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClient *versioned.Clientset, replicas int, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int) ([]ClusterWithInfo, error) {
+func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClient *versioned.Clientset, replicas int, shardingAlgorithm string, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int) ([]ClusterWithInfo, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
 
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClient)
@@ -76,6 +76,10 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 	if err != nil {
 		return nil, err
 	}
+	clusterSharding := sharding.NewClusterSharding(shard, replicas, shardingAlgorithm)
+	clusterSharding.Init(clustersList)
+	clusterShards := clusterSharding.GetDistribution()
+
 	var cache *appstatecache.Cache
 	if portForwardRedis {
 		overrides := clientcmd.ConfigOverrides{}
@@ -116,14 +120,9 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 		}
 		batch := clustersList.Items[batchStart:batchEnd]
 		_ = kube.RunAllAsync(len(batch), func(i int) error {
-			clusterShard := 0
 			cluster := batch[i]
-			if replicas > 0 {
-				distributionFunction := sharding.GetDistributionFunction(argoDB, common.DefaultShardingAlgorithm)
-				distributionFunction(&cluster)
-				cluster.Shard = pointer.Int64Ptr(int64(clusterShard))
-				log.Infof("Cluster with uid: %s will be processed by shard %d", cluster.ID, clusterShard)
-			}
+			clusterShard := clusterShards[cluster.Server]
+			cluster.Shard = pointer.Int64Ptr(int64(clusterShard))
 
 			if shard != -1 && clusterShard != shard {
 				return nil
@@ -157,15 +156,16 @@ func getControllerReplicas(ctx context.Context, kubeClient *kubernetes.Clientset
 
 func NewClusterShardsCommand() *cobra.Command {
 	var (
-		shard            int
-		replicas         int
-		clientConfig     clientcmd.ClientConfig
-		cacheSrc         func() (*appstatecache.Cache, error)
-		portForwardRedis bool
+		shard             int
+		replicas          int
+		shardingAlgorithm string
+		clientConfig      clientcmd.ClientConfig
+		cacheSrc          func() (*appstatecache.Cache, error)
+		portForwardRedis  bool
 	)
 	var command = cobra.Command{
 		Use:   "shards",
-		Short: "Print information about each controller shard and portion of Kubernetes resources it is responsible for.",
+		Short: "Print information about each controller shard and the estimated portion of Kubernetes resources it is responsible for.",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
 
@@ -186,7 +186,7 @@ func NewClusterShardsCommand() *cobra.Command {
 				return
 			}
 
-			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, namespace, portForwardRedis, cacheSrc, shard)
+			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, shardingAlgorithm, namespace, portForwardRedis, cacheSrc, shard)
 			errors.CheckError(err)
 			if len(clusters) == 0 {
 				return
@@ -198,7 +198,9 @@ func NewClusterShardsCommand() *cobra.Command {
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&shard, "shard", -1, "Cluster shard filter")
 	command.Flags().IntVar(&replicas, "replicas", 0, "Application controller replicas count. Inferred from number of running controller pods if not specified")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin] ")
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
+
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
 	return &command
 }
@@ -435,15 +437,16 @@ func NewClusterDisableNamespacedMode() *cobra.Command {
 
 func NewClusterStatsCommand() *cobra.Command {
 	var (
-		shard            int
-		replicas         int
-		clientConfig     clientcmd.ClientConfig
-		cacheSrc         func() (*appstatecache.Cache, error)
-		portForwardRedis bool
+		shard             int
+		replicas          int
+		shardingAlgorithm string
+		clientConfig      clientcmd.ClientConfig
+		cacheSrc          func() (*appstatecache.Cache, error)
+		portForwardRedis  bool
 	)
 	var command = cobra.Command{
 		Use:   "stats",
-		Short: "Prints information cluster statistics and inferred shard number",
+		Short: "Prints estimated cluster statistics and inferred shard number",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
 
@@ -460,7 +463,7 @@ func NewClusterStatsCommand() *cobra.Command {
 				replicas, err = getControllerReplicas(ctx, kubeClient, namespace)
 				errors.CheckError(err)
 			}
-			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, namespace, portForwardRedis, cacheSrc, shard)
+			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, shardingAlgorithm, namespace, portForwardRedis, cacheSrc, shard)
 			errors.CheckError(err)
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -474,6 +477,7 @@ func NewClusterStatsCommand() *cobra.Command {
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&shard, "shard", -1, "Cluster shard filter")
 	command.Flags().IntVar(&replicas, "replicas", 0, "Application controller replicas count. Inferred from number of running controller pods if not specified")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin] ")
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
 	return &command
