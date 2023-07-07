@@ -591,6 +591,8 @@ type PullRequestGeneratorGitLab struct {
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,4,rep,name=labels"`
 	// PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
+	// Allow insecure tls, for self-signed certificates; default: false.
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
 }
 
 // PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.

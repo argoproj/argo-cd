@@ -10753,6 +10753,14 @@ func (m *PullRequestGeneratorGitLab) MarshalToSizedBuffer(dAtA []byte) (int, err
 	_ = i
 	var l int
 	_ = l
+	i--
+	if m.Insecure {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x30
 	i -= len(m.PullRequestState)
 	copy(dAtA[i:], m.PullRequestState)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.PullRequestState)))
@@ -16019,6 +16027,7 @@ func (m *PullRequestGeneratorGitLab) Size() (n int) {
 	}
 	l = len(m.PullRequestState)
 	n += 1 + l + sovGenerated(uint64(l))
+	n += 2
 	return n
 }
 
@@ -18822,6 +18831,7 @@ func (this *PullRequestGeneratorGitLab) String() string {
 		`TokenRef:` + strings.Replace(this.TokenRef.String(), "SecretRef", "SecretRef", 1) + `,`,
 		`Labels:` + fmt.Sprintf("%v", this.Labels) + `,`,
 		`PullRequestState:` + fmt.Sprintf("%v", this.PullRequestState) + `,`,
+		`Insecure:` + fmt.Sprintf("%v", this.Insecure) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -38135,6 +38145,26 @@ func (m *PullRequestGeneratorGitLab) Unmarshal(dAtA []byte) error {
 			}
 			m.PullRequestState = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Insecure", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Insecure = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])

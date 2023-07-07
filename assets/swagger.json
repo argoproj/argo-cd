@@ -7595,6 +7595,10 @@
           "description": "The GitLab API URL to talk to. If blank, uses https://gitlab.com/.",
           "type": "string"
         },
+        "insecure": {
+          "description": "Allow insecure tls, for self-signed certificates; default: false.",
+          "type": "boolean"
+        },
         "labels": {
           "type": "array",
           "title": "Labels is used to filter the MRs that you want to target",

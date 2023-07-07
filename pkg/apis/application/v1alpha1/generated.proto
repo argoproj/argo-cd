@@ -1376,6 +1376,9 @@ message PullRequestGeneratorGitLab {
 
   // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
   optional string pullRequestState = 5;
+
+  // Allow insecure tls, for self-signed certificates; default: false.
+  optional bool insecure = 6;
 }
 
 // PullRequestGeneratorGitea defines connection info specific to Gitea.

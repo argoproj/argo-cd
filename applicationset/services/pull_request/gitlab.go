@@ -2,9 +2,12 @@ package pull_request
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"os"
 
+	"github.com/hashicorp/go-retryablehttp"
 	gitlab "github.com/xanzy/go-gitlab"
 )
 
@@ -17,7 +20,7 @@ type GitLabService struct {
 
 var _ PullRequestService = (*GitLabService)(nil)
 
-func NewGitLabService(ctx context.Context, token, url, project string, labels []string, pullRequestState string) (PullRequestService, error) {
+func NewGitLabService(ctx context.Context, token, url, project string, labels []string, pullRequestState string, insecure bool) (PullRequestService, error) {
 	var clientOptionFns []gitlab.ClientOptionFunc
 
 	// Set a custom Gitlab base URL if one is provided
@@ -28,6 +31,17 @@ func NewGitLabService(ctx context.Context, token, url, project string, labels []
 	if token == "" {
 		token = os.Getenv("GITLAB_TOKEN")
 	}
+
+	retryClient := &retryablehttp.Client{}
+	if insecure {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		retryClient := retryablehttp.NewClient()
+		retryClient.HTTPClient.Transport = tr
+	}
+
+	clientOptionFns = append(clientOptionFns, gitlab.WithHTTPClient(retryClient.HTTPClient))
 
 	client, err := gitlab.NewClient(token, clientOptionFns...)
 	if err != nil {
