@@ -49,7 +49,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
-	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v2/util/app/discovery"
 	argopath "github.com/argoproj/argo-cd/v2/util/app/path"
@@ -85,7 +84,7 @@ type Service struct {
 	chartPaths                io.TempPaths
 	gitRepoInitializer        func(rootPath string) goio.Closer
 	repoLock                  *repositoryLock
-	cache                     *reposervercache.Cache
+	cache                     *cache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
 	resourceTracking          argo.ResourceTracking
@@ -110,7 +109,7 @@ type RepoServerInitConstants struct {
 }
 
 // NewService returns a new instance of the Manifest service
-func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, initConstants RepoServerInitConstants, resourceTracking argo.ResourceTracking, gitCredsStore git.CredsStore, rootDir string) *Service {
+func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initConstants RepoServerInitConstants, resourceTracking argo.ResourceTracking, gitCredsStore git.CredsStore, rootDir string) *Service {
 	var parallelismLimitSemaphore *semaphore.Weighted
 	if initConstants.ParallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(initConstants.ParallelismLimit)
@@ -147,16 +146,16 @@ func (s *Service) Init() error {
 		// give itself read permissions to list previously written directories
 		err = os.Chmod(s.rootDir, 0700)
 	}
-	var files []fs.DirEntry
+	var dirEntries []fs.DirEntry
 	if err == nil {
-		files, err = os.ReadDir(s.rootDir)
+		dirEntries, err = os.ReadDir(s.rootDir)
 	}
 	if err != nil {
 		log.Warnf("Failed to restore cloned repositories paths: %v", err)
 		return nil
 	}
 
-	for _, file := range files {
+	for _, file := range dirEntries {
 		if !file.IsDir() {
 			continue
 		}
@@ -173,7 +172,7 @@ func (s *Service) Init() error {
 	return os.Chmod(s.rootDir, 0300)
 }
 
-// List a subset of the refs (currently, branches and tags) of a git repo
+// ListRefs List a subset of the refs (currently, branches and tags) of a git repo
 func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
 	gitClient, err := s.newClient(q.Repo)
 	if err != nil {
@@ -240,7 +239,7 @@ func (s *Service) ListPlugins(ctx context.Context, _ *empty.Empty) (*apiclient.P
 		return nil, fmt.Errorf("failed to get plugins from dir %v, error=%w", pluginSockFilePath, err)
 	}
 
-	plugins := []*apiclient.PluginInfo{}
+	var plugins []*apiclient.PluginInfo
 	for _, file := range sockFiles {
 		if file.Type() == os.ModeSocket {
 			plugins = append(plugins, &apiclient.PluginInfo{Name: strings.TrimSuffix(file.Name(), ".sock")})
@@ -292,7 +291,7 @@ func (s *Service) runRepoOperation(
 	refSources map[string]*v1alpha1.RefTarget) error {
 
 	if sanitizer, ok := grpc.SanitizerFromContext(ctx); ok {
-		// make sure randomized path replaced with '.' in the error message
+		// make sure a randomized path replaced with '.' in the error message
 		sanitizer.AddRegexReplacement(getRepoSanitizerRegex(s.rootDir), "<path to cached source>")
 	}
 
@@ -458,38 +457,38 @@ type gitClientGetter func(repo *v1alpha1.Repository, revision string, opts ...gi
 // should be updated.
 func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter) (map[string]string, error) {
 	repoRefs := make(map[string]string)
-	if hasMultipleSources {
-		if source != nil {
-			for _, valueFile := range source.ValueFiles {
-				if strings.HasPrefix(valueFile, "$") {
-					refVar := strings.Split(valueFile, "/")[0]
+	if !hasMultipleSources || source == nil {
+		return repoRefs, nil
+	}
 
-					refSourceMapping, ok := refSources[refVar]
-					if !ok {
-						if len(refSources) == 0 {
-							return nil, fmt.Errorf("source referenced %q, but no source has a 'ref' field defined", refVar)
-						}
-						refKeys := make([]string, 0)
-						for refKey := range refSources {
-							refKeys = append(refKeys, refKey)
-						}
-						return nil, fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
-					}
-					if refSourceMapping.Chart != "" {
-						return nil, fmt.Errorf("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
-					}
-					normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
-					_, ok = repoRefs[normalizedRepoURL]
-					if !ok {
-						_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
-						if err != nil {
-							log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
-							return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
-						}
+	for _, valueFile := range source.ValueFiles {
+		if strings.HasPrefix(valueFile, "$") {
+			refVar := strings.Split(valueFile, "/")[0]
 
-						repoRefs[normalizedRepoURL] = referencedCommitSHA
-					}
+			refSourceMapping, ok := refSources[refVar]
+			if !ok {
+				if len(refSources) == 0 {
+					return nil, fmt.Errorf("source referenced %q, but no source has a 'ref' field defined", refVar)
 				}
+				refKeys := make([]string, 0)
+				for refKey := range refSources {
+					refKeys = append(refKeys, refKey)
+				}
+				return nil, fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
+			}
+			if refSourceMapping.Chart != "" {
+				return nil, fmt.Errorf("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
+			}
+			normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
+			_, ok = repoRefs[normalizedRepoURL]
+			if !ok {
+				_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
+				if err != nil {
+					log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
+					return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
+				}
+
+				repoRefs[normalizedRepoURL] = referencedCommitSHA
 			}
 		}
 	}
@@ -784,6 +783,11 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		}
 	}
 	if err != nil {
+		logCtx := log.WithFields(log.Fields{
+			"application":  q.AppName,
+			"appNamespace": q.Namespace,
+		})
+
 		// If manifest generation error caching is enabled
 		if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 {
 			cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifests error", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
@@ -792,8 +796,8 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
 			innerRes := &cache.CachedManifestResponse{}
 			cacheErr := s.cache.GetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs)
-			if cacheErr != nil && cacheErr != reposervercache.ErrCacheMiss {
-				log.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
+			if cacheErr != nil && cacheErr != cache.ErrCacheMiss {
+				logCtx.Warnf("manifest cache get error %s: %v", appSourceCopy.String(), cacheErr)
 				ch.errCh <- cacheErr
 				return
 			}
@@ -811,7 +815,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			innerRes.MostRecentError = err.Error()
 			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs)
 			if cacheErr != nil {
-				log.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
+				logCtx.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
 				ch.errCh <- cacheErr
 				return
 			}
@@ -927,7 +931,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 		return true, res.ManifestResponse, nil
 	}
 
-	if err != reposervercache.ErrCacheMiss {
+	if err != cache.ErrCacheMiss {
 		log.Warnf("manifest cache error %s: %v", q.ApplicationSource.String(), err)
 	} else {
 		log.Infof("manifest cache miss: %s/%s", q.ApplicationSource.String(), cacheKey)
@@ -1397,7 +1401,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
 				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, q.Namespace, v1alpha1.TrackingMethod(q.TrackingMethod))
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("failed to set app instance tracking info on manifest: %w", err)
 				}
 			}
 			manifestStr, err := json.Marshal(target.Object)
@@ -1960,7 +1964,7 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 			return true, nil
 		}
 
-		if err != reposervercache.ErrCacheMiss {
+		if err != cache.ErrCacheMiss {
 			log.Warnf("app details cache error %s: %v", revision, q.Source)
 		} else {
 			log.Infof("app details cache miss: %s/%s", revision, q.Source)
@@ -2032,7 +2036,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	for _, v := range fileParameters(q) {
 		res.Helm.FileParameters = append(res.Helm.FileParameters, &v1alpha1.HelmFileParameter{
 			Name: v.Name,
-			Path: v.Path, //filepath.Join(appPath, v.Path),
+			Path: v.Path, // filepath.Join(appPath, v.Path),
 		})
 	}
 	return nil
@@ -2167,7 +2171,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 			return metadata, nil
 		}
 	} else {
-		if err != reposervercache.ErrCacheMiss {
+		if err != cache.ErrCacheMiss {
 			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
 		} else {
 			log.Infof("revision metadata cache miss: %s/%s", q.Repo.Repo, q.Revision)
@@ -2230,7 +2234,7 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 		log.Infof("revision chart details cache hit: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
 		return details, nil
 	} else {
-		if err == reposervercache.ErrCacheMiss {
+		if err == cache.ErrCacheMiss {
 			log.Infof("revision metadata cache miss: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
 		} else {
 			log.Warnf("revision metadata cache error %s/%s/%s: %v", q.Repo.Repo, q.Name, q.Revision, err)

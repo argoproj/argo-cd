@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -292,8 +291,7 @@ argocd_app_labels{label_non_existing="",name="my-app-3",namespace="argocd",proje
 }
 
 func TestLegacyMetrics(t *testing.T) {
-	os.Setenv(EnvVarLegacyControllerMetrics, "true")
-	defer os.Unsetenv(EnvVarLegacyControllerMetrics)
+	t.Setenv(EnvVarLegacyControllerMetrics, "true")
 
 	expectedResponse := `
 # HELP argocd_app_created_time Creation time in unix timestamp for an application.
