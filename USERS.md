@@ -281,6 +281,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Urbantz](https://urbantz.com/)
 1. [Vectra](https://www.vectra.ai)
 1. [Veepee](https://www.veepee.com)
+1. [U.S. Veterans Affairs Department](https://www.va.gov/) 
 1. [Viaduct](https://www.viaduct.ai/)
 1. [VietMoney](https://vietmoney.vn/)
 1. [Vinted](https://vinted.com/)
