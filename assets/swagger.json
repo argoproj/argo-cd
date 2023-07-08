@@ -1502,51 +1502,6 @@
         }
       }
     },
-    "/api/v1/applications/{name}/revisions/{revision}/chartdetails": {
-      "get": {
-        "tags": [
-          "ApplicationService"
-        ],
-        "summary": "Get the chart metadata (description, maintainers, home) for a specific revision of the application",
-        "operationId": "ApplicationService_RevisionChartDetails",
-        "parameters": [
-          {
-            "type": "string",
-            "description": "the application's name",
-            "name": "name",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "description": "the revision of the app",
-            "name": "revision",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "description": "the application's namespace.",
-            "name": "appNamespace",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1alpha1ChartDetails"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
-          }
-        }
-      }
-    },
     "/api/v1/applications/{name}/revisions/{revision}/metadata": {
       "get": {
         "tags": [
@@ -1778,12 +1733,6 @@
             "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "The application set namespace. Default empty is argocd control plane namespace.",
-            "name": "appsetNamespace",
-            "in": "query"
           }
         ],
         "responses": {
@@ -1852,12 +1801,6 @@
             "name": "name",
             "in": "path",
             "required": true
-          },
-          {
-            "type": "string",
-            "description": "The application set namespace. Default empty is argocd control plane namespace.",
-            "name": "appsetNamespace",
-            "in": "query"
           }
         ],
         "responses": {
@@ -1887,12 +1830,6 @@
             "name": "name",
             "in": "path",
             "required": true
-          },
-          {
-            "type": "string",
-            "description": "The application set namespace. Default empty is argocd control plane namespace.",
-            "name": "appsetNamespace",
-            "in": "query"
           }
         ],
         "responses": {
@@ -4385,7 +4322,6 @@
           "type": "boolean"
         },
         "configManagementPlugins": {
-          "description": "Deprecated: use sidecar plugins instead.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ConfigManagementPlugin"
@@ -4968,17 +4904,6 @@
         },
         "message": {
           "type": "string"
-        }
-      }
-    },
-    "runtimeRawExtension": {
-      "description": "RawExtension is used to hold extensions in external versions.\n\nTo use this, make a field which has RawExtension as its type in your external, versioned\nstruct, and Object in your internal struct. You also need to register your\nvarious plugin types.\n\n// Internal package:\ntype MyAPIObject struct {\n\truntime.TypeMeta `json:\",inline\"`\n\tMyPlugin runtime.Object `json:\"myPlugin\"`\n}\ntype PluginA struct {\n\tAOption string `json:\"aOption\"`\n}\n\n// External package:\ntype MyAPIObject struct {\n\truntime.TypeMeta `json:\",inline\"`\n\tMyPlugin runtime.RawExtension `json:\"myPlugin\"`\n}\ntype PluginA struct {\n\tAOption string `json:\"aOption\"`\n}\n\n// On the wire, the JSON will look something like this:\n{\n\t\"kind\":\"MyAPIObject\",\n\t\"apiVersion\":\"v1\",\n\t\"myPlugin\": {\n\t\t\"kind\":\"PluginA\",\n\t\t\"aOption\":\"foo\",\n\t},\n}\n\nSo what happens? Decode first uses json or yaml to unmarshal the serialized data into\nyour external MyAPIObject. That causes the raw JSON to be stored, but not unpacked.\nThe next step is to copy (using pkg/conversion) into the internal struct. The runtime\npackage's DefaultScheme has conversion functions installed which will unpack the\nJSON stored in RawExtension, turning it into the correct object type, and storing it\nin the Object. (TODO: In the case where the object is of an unknown type, a\nruntime.Unknown object will be created and stored.)\n\n+k8s:deepcopy-gen=true\n+protobuf=true\n+k8s:openapi-gen=true",
-      "type": "object",
-      "properties": {
-        "raw": {
-          "description": "Raw is the underlying serialization of this object.\n\nTODO: Determine how to detect ContentType and ContentEncoding of 'Raw' data.",
-          "type": "string",
-          "format": "byte"
         }
       }
     },
@@ -5715,7 +5640,7 @@
     },
     "v1alpha1ApplicationCondition": {
       "type": "object",
-      "title": "ApplicationCondition contains details about an application condition, which is usually an error or warning",
+      "title": "ApplicationCondition contains details about an application condition, which is usally an error or warning",
       "properties": {
         "lastTransitionTime": {
           "$ref": "#/definitions/v1Time"
@@ -5878,9 +5803,6 @@
         "merge": {
           "$ref": "#/definitions/v1alpha1MergeGenerator"
         },
-        "plugin": {
-          "$ref": "#/definitions/v1alpha1PluginGenerator"
-        },
         "pullRequest": {
           "$ref": "#/definitions/v1alpha1PullRequestGenerator"
         },
@@ -5929,9 +5851,6 @@
         "merge": {
           "$ref": "#/definitions/v1JSON"
         },
-        "plugin": {
-          "$ref": "#/definitions/v1alpha1PluginGenerator"
-        },
         "pullRequest": {
           "$ref": "#/definitions/v1alpha1PullRequestGenerator"
         },
@@ -5972,10 +5891,6 @@
       "description": "ApplicationSetSpec represents a class of application set state.",
       "type": "object",
       "properties": {
-        "applyNestedSelectors": {
-          "type": "boolean",
-          "title": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators"
-        },
         "generators": {
           "type": "array",
           "items": {
@@ -5984,12 +5899,6 @@
         },
         "goTemplate": {
           "type": "boolean"
-        },
-        "goTemplateOptions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         },
         "preservedFields": {
           "$ref": "#/definitions/v1alpha1ApplicationPreservedFields"
@@ -6040,10 +5949,6 @@
       "description": "ApplicationSetSyncPolicy configures how generated Applications will relate to their\nApplicationSet.",
       "type": "object",
       "properties": {
-        "applicationsSync": {
-          "type": "string",
-          "title": "ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, create-delete, sync\n+kubebuilder:validation:Optional\n+kubebuilder:validation:Enum=create-only;create-update;create-delete;sync"
-        },
         "preserveResourcesOnDeletion": {
           "description": "PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.",
           "type": "boolean"
@@ -6194,10 +6099,7 @@
         },
         "values": {
           "type": "string",
-          "title": "Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.\n+patchStrategy=replace"
-        },
-        "valuesObject": {
-          "$ref": "#/definitions/runtimeRawExtension"
+          "title": "Values specifies Helm values to be passed to helm template, typically defined as a block"
         },
         "version": {
           "type": "string",
@@ -6398,10 +6300,6 @@
             "$ref": "#/definitions/v1alpha1ApplicationCondition"
           }
         },
-        "controllerNamespace": {
-          "type": "string",
-          "title": "ControllerNamespace indicates the namespace in which the application controller is located"
-        },
         "health": {
           "$ref": "#/definitions/v1alpha1HealthStatus"
         },
@@ -6539,35 +6437,6 @@
         "username": {
           "type": "string",
           "title": "Username for Basic auth"
-        }
-      }
-    },
-    "v1alpha1BearerTokenBitbucketCloud": {
-      "description": "BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.",
-      "type": "object",
-      "properties": {
-        "tokenRef": {
-          "$ref": "#/definitions/v1alpha1SecretRef"
-        }
-      }
-    },
-    "v1alpha1ChartDetails": {
-      "type": "object",
-      "title": "ChartDetails contains helm chart metadata for a specific version",
-      "properties": {
-        "description": {
-          "type": "string"
-        },
-        "home": {
-          "type": "string",
-          "title": "The URL of this projects home page, e.g. \"http://example.com\""
-        },
-        "maintainers": {
-          "type": "array",
-          "title": "List of maintainer details, name and email, e.g. [\"John Doe <john_doe@my-company.com>\"]",
-          "items": {
-            "type": "string"
-          }
         }
       }
     },
@@ -6767,13 +6636,6 @@
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
         },
-        "ignoreDifferences": {
-          "type": "array",
-          "title": "IgnoreDifferences is a reference to the application's ignored differences used for comparison",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
-          }
-        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
@@ -6932,13 +6794,6 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
-        },
-        "values": {
-          "type": "object",
-          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
-          "additionalProperties": {
-            "type": "string"
-          }
         }
       }
     },
@@ -7376,54 +7231,6 @@
         }
       }
     },
-    "v1alpha1PluginConfigMapRef": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string",
-          "title": "Name of the ConfigMap"
-        }
-      }
-    },
-    "v1alpha1PluginGenerator": {
-      "description": "PluginGenerator defines connection info specific to Plugin.",
-      "type": "object",
-      "properties": {
-        "configMapRef": {
-          "$ref": "#/definitions/v1alpha1PluginConfigMapRef"
-        },
-        "input": {
-          "$ref": "#/definitions/v1alpha1PluginInput"
-        },
-        "requeueAfterSeconds": {
-          "description": "RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.",
-          "type": "string",
-          "format": "int64"
-        },
-        "template": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
-        },
-        "values": {
-          "description": "Values contains key/value pairs which are passed directly as parameters to the template. These values will not be\nsent as parameters to the plugin.",
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "v1alpha1PluginInput": {
-      "type": "object",
-      "properties": {
-        "parameters": {
-          "description": "Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the\nvalues can be any type.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/v1JSON"
-          }
-        }
-      }
-    },
     "v1alpha1ProjectRole": {
       "type": "object",
       "title": "ProjectRole represents a role that has access to a project",
@@ -7463,12 +7270,6 @@
       "description": "PullRequestGenerator defines a generator that scrapes a PullRequest API to find candidate pull requests.",
       "type": "object",
       "properties": {
-        "azuredevops": {
-          "$ref": "#/definitions/v1alpha1PullRequestGeneratorAzureDevOps"
-        },
-        "bitbucket": {
-          "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucket"
-        },
         "bitbucketServer": {
           "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucketServer"
         },
@@ -7498,64 +7299,8 @@
         }
       }
     },
-    "v1alpha1PullRequestGeneratorAzureDevOps": {
-      "description": "PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.",
-      "type": "object",
-      "properties": {
-        "api": {
-          "description": "The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.",
-          "type": "string"
-        },
-        "labels": {
-          "type": "array",
-          "title": "Labels is used to filter the PRs that you want to target",
-          "items": {
-            "type": "string"
-          }
-        },
-        "organization": {
-          "description": "Azure DevOps org to scan. Required.",
-          "type": "string"
-        },
-        "project": {
-          "description": "Azure DevOps project name to scan. Required.",
-          "type": "string"
-        },
-        "repo": {
-          "description": "Azure DevOps repo name to scan. Required.",
-          "type": "string"
-        },
-        "tokenRef": {
-          "$ref": "#/definitions/v1alpha1SecretRef"
-        }
-      }
-    },
-    "v1alpha1PullRequestGeneratorBitbucket": {
-      "description": "PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.",
-      "type": "object",
-      "properties": {
-        "api": {
-          "description": "The Bitbucket REST API URL to talk to. If blank, uses https://api.bitbucket.org/2.0.",
-          "type": "string"
-        },
-        "basicAuth": {
-          "$ref": "#/definitions/v1alpha1BasicAuthBitbucketServer"
-        },
-        "bearerToken": {
-          "$ref": "#/definitions/v1alpha1BearerTokenBitbucketCloud"
-        },
-        "owner": {
-          "description": "Workspace to scan. Required.",
-          "type": "string"
-        },
-        "repo": {
-          "description": "Repo name to scan. Required.",
-          "type": "string"
-        }
-      }
-    },
     "v1alpha1PullRequestGeneratorBitbucketServer": {
-      "description": "PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.",
+      "description": "PullRequestGenerator defines connection info specific to BitbucketServer.",
       "type": "object",
       "properties": {
         "api": {
@@ -7580,9 +7325,6 @@
       "type": "object",
       "properties": {
         "branchMatch": {
-          "type": "string"
-        },
-        "targetBranchMatch": {
           "type": "string"
         }
       }
@@ -7616,7 +7358,7 @@
       }
     },
     "v1alpha1PullRequestGeneratorGitea": {
-      "description": "PullRequestGeneratorGitea defines connection info specific to Gitea.",
+      "description": "PullRequestGenerator defines connection info specific to Gitea.",
       "type": "object",
       "properties": {
         "api": {
@@ -8117,9 +7859,6 @@
         "ignoreDifferences": {
           "$ref": "#/definitions/v1alpha1OverrideIgnoreDiff"
         },
-        "ignoreResourceUpdates": {
-          "$ref": "#/definitions/v1alpha1OverrideIgnoreDiff"
-        },
         "knownTypeFields": {
           "type": "array",
           "items": {
@@ -8322,9 +8061,6 @@
       "description": "SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.",
       "type": "object",
       "properties": {
-        "awsCodeCommit": {
-          "$ref": "#/definitions/v1alpha1SCMProviderGeneratorAWSCodeCommit"
-        },
         "azureDevOps": {
           "$ref": "#/definitions/v1alpha1SCMProviderGeneratorAzureDevOps"
         },
@@ -8361,38 +8097,6 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
-        },
-        "values": {
-          "type": "object",
-          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
-          "additionalProperties": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "v1alpha1SCMProviderGeneratorAWSCodeCommit": {
-      "description": "SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.",
-      "type": "object",
-      "properties": {
-        "allBranches": {
-          "description": "Scan all branches instead of just the default branch.",
-          "type": "boolean"
-        },
-        "region": {
-          "description": "Region provides the AWS region to discover repos.\nif not provided, AppSet controller will infer the current region from environment.",
-          "type": "string"
-        },
-        "role": {
-          "description": "Role provides the AWS IAM role to assume, for cross-account repo discovery\nif not provided, AppSet controller will use its pod/node identity to discover.",
-          "type": "string"
-        },
-        "tagFilters": {
-          "type": "array",
-          "title": "TagFilters provides the tag filter(s) for repo discovery",
-          "items": {
-            "$ref": "#/definitions/v1alpha1TagFilter"
-          }
         }
       }
     },
@@ -8673,9 +8377,6 @@
       "type": "object",
       "title": "SyncOperationResult represent result of sync operation",
       "properties": {
-        "managedNamespaceMetadata": {
-          "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata"
-        },
         "resources": {
           "type": "array",
           "title": "Resources contains a list of sync result items for each individual resource in a sync operation",
@@ -8742,7 +8443,7 @@
         },
         "selfHeal": {
           "type": "boolean",
-          "title": "SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)"
+          "title": "SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)"
         }
       }
     },
@@ -8877,17 +8578,6 @@
         }
       }
     },
-    "v1alpha1TagFilter": {
-      "type": "object",
-      "properties": {
-        "key": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        }
-      }
-    },
     "versionVersionMessage": {
       "type": "object",
       "title": "VersionMessage represents version of the Argo CD API server",
@@ -8896,9 +8586,6 @@
           "type": "string"
         },
         "Compiler": {
-          "type": "string"
-        },
-        "ExtraBuildInfo": {
           "type": "string"
         },
         "GitCommit": {
