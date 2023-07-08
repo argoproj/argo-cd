@@ -1,6 +1,6 @@
 # Reconcile Optimization
 
-By default, an Argo CD Application is refreshed everytime a resource that belongs to it changes.
+By default, an Argo CD Application is refreshed every time a resource that belongs to it changes.
 
 Kubernetes controllers often update the resources they watch periodically, causing continuous reconcile operation on the Application
 and a high CPU usage on the `argocd-application-controller`. Argo CD allows you to optionally ignore resource updates on specific fields

@@ -221,7 +221,7 @@ Some things to note here:
 
 ## With matrix and pull request example
 
-In the following example, the plugin implementation is returning a set of image digests for the given branch. The returned list contains only one item correspondng to the latest builded image for the branch.
+In the following example, the plugin implementation is returning a set of image digests for the given branch. The returned list contains only one item corresponding to the latest built image for the branch.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
