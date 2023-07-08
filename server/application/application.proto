@@ -266,23 +266,6 @@ message ManagedResourcesResponse {
 	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
 }
 
-message LinkInfo {
-	required string title = 1;
-	required string url = 2;
-	optional string description = 3;
-	optional string iconClass = 4;
-}
-
-message LinksResponse {
-	repeated LinkInfo items = 1;
-}
-
-message ListAppLinksRequest {
-	required string name = 1;
-	optional string namespace = 3;
-}
-
-
 // ApplicationService
 service ApplicationService {
 
@@ -322,11 +305,6 @@ service ApplicationService {
 	// Get the meta-data (author, date, tags, message) for a specific revision of the application
 	rpc RevisionMetadata (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RevisionMetadata) {
 		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/metadata";
-	}
-
-	// Get the chart metadata (description, maintainers, home) for a specific revision of the application
-	rpc RevisionChartDetails (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ChartDetails) {
-		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/chartdetails";
 	}
 
 	// GetManifests returns application manifests
@@ -448,15 +426,5 @@ service ApplicationService {
 				get: "/api/v1/applications/{name}/logs"
 			}
 		};
-	}
-
-	// ListLinks returns the list of all application deep links
-	rpc ListLinks(ListAppLinksRequest) returns (LinksResponse) {
-		option (google.api.http).get = "/api/v1/applications/{name}/links";
-	}
-
-	// ListResourceLinks returns the list of all resource deep links
-	rpc ListResourceLinks(ApplicationResourceRequest) returns (LinksResponse) {
-		option (google.api.http).get = "/api/v1/applications/{name}/resource/links";
 	}
 }

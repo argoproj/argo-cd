@@ -2,13 +2,12 @@ import {ErrorNotification, NotificationType} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {Form, FormApi} from 'react-form';
-import {helpTip} from '../../../applications/components/utils';
+
 import {Consumer} from '../../context';
 import {Spinner} from '../spinner';
 
 export interface EditablePanelItem {
     title: string;
-    customTitle?: string | React.ReactNode;
     key?: string;
     before?: React.ReactNode;
     view: string | React.ReactNode;
@@ -26,7 +25,6 @@ export interface EditablePanelProps<T> {
     noReadonlyMode?: boolean;
     view?: string | React.ReactNode;
     edit?: (formApi: FormApi) => React.ReactNode;
-    hasMultipleSources?: boolean;
 }
 
 interface EditablePanelState {
@@ -66,10 +64,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                                 this.setState({edit: true});
                                                 this.onModeSwitch();
                                             }}
-                                            disabled={this.props.hasMultipleSources}
                                             className='argo-button argo-button--base'>
-                                            {this.props.hasMultipleSources &&
-                                                helpTip('Parameters are not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')}{' '}
                                             Edit
                                         </button>
                                     )}
@@ -104,7 +99,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                             <React.Fragment key={item.key || item.title}>
                                                 {item.before}
                                                 <div className='row white-box__details-row'>
-                                                    <div className='columns small-3'>{item.customTitle || item.title}</div>
+                                                    <div className='columns small-3'>{item.title}</div>
                                                     <div className='columns small-9'>{item.view}</div>
                                                 </div>
                                             </React.Fragment>
@@ -142,7 +137,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                                 <React.Fragment key={item.key || item.title}>
                                                     {item.before}
                                                     <div className='row white-box__details-row'>
-                                                        <div className='columns small-3'>{(item.titleEdit && item.titleEdit(api)) || item.customTitle || item.title}</div>
+                                                        <div className='columns small-3'>{(item.titleEdit && item.titleEdit(api)) || item.title}</div>
                                                         <div className='columns small-9'>{(item.edit && item.edit(api)) || item.view}</div>
                                                     </div>
                                                 </React.Fragment>

@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/sync"
+	"github.com/ghodss/yaml"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -23,8 +24,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	k8sappsv1 "k8s.io/api/apps/v1"
-	k8sbatchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -36,7 +35,6 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -268,186 +266,6 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 				Nodes: nodes,
 			})
 			require.NoError(t, err)
-		}
-	}
-	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour, time.Hour)
-
-	kubectl := &kubetest.MockKubectlCmd{}
-	kubectl = kubectl.WithGetResourceFunc(func(_ context.Context, _ *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
-		for _, obj := range objects {
-			if obj.GetObjectKind().GroupVersionKind().GroupKind() == gvk.GroupKind() {
-				if obj, ok := obj.(*unstructured.Unstructured); ok && obj.GetName() == name && obj.GetNamespace() == namespace {
-					return obj, nil
-				}
-			}
-		}
-		return nil, nil
-	})
-
-	server, _ := NewServer(
-		testNamespace,
-		kubeclientset,
-		fakeAppsClientset,
-		factory.Argoproj().V1alpha1().Applications().Lister(),
-		appInformer,
-		broadcaster,
-		mockRepoClient,
-		appCache,
-		kubectl,
-		db,
-		enforcer,
-		sync.NewKeyLock(),
-		settingsMgr,
-		projInformer,
-		[]string{},
-	)
-	return server.(*Server)
-}
-
-// return an ApplicationServiceServer which returns fake data
-func newTestAppServerWithBenchmark(b *testing.B, objects ...runtime.Object) *Server {
-	f := func(enf *rbac.Enforcer) {
-		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
-		enf.SetDefaultRole("role:admin")
-	}
-	return newTestAppServerWithEnforcerConfigureWithBenchmark(f, b, objects...)
-}
-
-func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), b *testing.B, objects ...runtime.Object) *Server {
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "argocd-cm",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
-		},
-	}, &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: testNamespace,
-		},
-		Data: map[string][]byte{
-			"admin.password":   []byte("test"),
-			"server.secretkey": []byte("test"),
-		},
-	})
-	ctx := context.Background()
-	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
-	_, err := db.CreateRepository(ctx, fakeRepo())
-	require.NoError(b, err)
-	_, err = db.CreateCluster(ctx, fakeCluster())
-	require.NoError(b, err)
-
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
-
-	defaultProj := &appsv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
-			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-		},
-	}
-	myProj := &appsv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-proj", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
-			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-		},
-	}
-	projWithSyncWindows := &appsv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "proj-maint", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
-			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-			SyncWindows:  appsv1.SyncWindows{},
-		},
-	}
-	matchingWindow := &appsv1.SyncWindow{
-		Kind:         "allow",
-		Schedule:     "* * * * *",
-		Duration:     "1h",
-		Applications: []string{"test-app"},
-	}
-	projWithSyncWindows.Spec.SyncWindows = append(projWithSyncWindows.Spec.SyncWindows, matchingWindow)
-
-	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
-
-	fakeAppsClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
-	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
-
-	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
-	f(enforcer)
-	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
-
-	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
-
-	// populate the app informer with the fake objects
-	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
-
-	go appInformer.Run(ctx.Done())
-	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
-		panic("Timed out waiting for caches to sync")
-	}
-
-	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
-	go projInformer.Run(ctx.Done())
-	if !k8scache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
-		panic("Timed out waiting for caches to sync")
-	}
-
-	broadcaster := new(appmocks.Broadcaster)
-	broadcaster.On("Subscribe", mock.Anything, mock.Anything).Return(func() {}).Run(func(args mock.Arguments) {
-		// Simulate the broadcaster notifying the subscriber of an application update.
-		// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
-		// might require implementing those.
-		go func() {
-			events := args.Get(0).(chan *appsv1.ApplicationWatchEvent)
-			for _, obj := range objects {
-				app, ok := obj.(*appsv1.Application)
-				if ok {
-					oldVersion, err := strconv.Atoi(app.ResourceVersion)
-					if err != nil {
-						oldVersion = 0
-					}
-					clonedApp := app.DeepCopy()
-					clonedApp.ResourceVersion = fmt.Sprintf("%d", oldVersion+1)
-					events <- &appsv1.ApplicationWatchEvent{Type: watch.Added, Application: *clonedApp}
-				}
-			}
-		}()
-	})
-	broadcaster.On("OnAdd", mock.Anything).Return()
-	broadcaster.On("OnUpdate", mock.Anything, mock.Anything).Return()
-	broadcaster.On("OnDelete", mock.Anything).Return()
-
-	appStateCache := appstate.NewCache(cache.NewCache(cache.NewInMemoryCache(time.Hour)), time.Hour)
-	// pre-populate the app cache
-	for _, obj := range objects {
-		app, ok := obj.(*appsv1.Application)
-		if ok {
-			err := appStateCache.SetAppManagedResources(app.Name, []*appsv1.ResourceDiff{})
-			require.NoError(b, err)
-
-			// Pre-populate the resource tree based on the app's resources.
-			nodes := make([]appsv1.ResourceNode, len(app.Status.Resources))
-			for i, res := range app.Status.Resources {
-				nodes[i] = appsv1.ResourceNode{
-					ResourceRef: appsv1.ResourceRef{
-						Group:     res.Group,
-						Kind:      res.Kind,
-						Version:   res.Version,
-						Name:      res.Name,
-						Namespace: res.Namespace,
-						UID:       "fake",
-					},
-				}
-			}
-			err = appStateCache.SetAppResourcesTree(app.Name, &appsv1.ApplicationTree{
-				Nodes: nodes,
-			})
-			require.NoError(b, err)
 		}
 	}
 	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour, time.Hour)
@@ -730,13 +548,10 @@ func TestNoAppEnumeration(t *testing.T) {
 	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 
 	t.Run("Get", func(t *testing.T) {
-		// nolint:staticcheck
 		_, err := appServer.Get(adminCtx, &application.ApplicationQuery{Name: pointer.String("test")})
 		assert.NoError(t, err)
-		// nolint:staticcheck
 		_, err = appServer.Get(noRoleCtx, &application.ApplicationQuery{Name: pointer.String("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		// nolint:staticcheck
 		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: pointer.String("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 	})
@@ -762,17 +577,17 @@ func TestNoAppEnumeration(t *testing.T) {
 	t.Run("UpdateSpec", func(t *testing.T) {
 		_, err := appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("test"), Spec: &appsv1.ApplicationSpec{
 			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
-			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
+			Source:      appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.NoError(t, err)
 		_, err = appServer.UpdateSpec(noRoleCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("test"), Spec: &appsv1.ApplicationSpec{
 			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
-			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
+			Source:      appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("doest-not-exist"), Spec: &appsv1.ApplicationSpec{
 			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
-			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
+			Source:      appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 	})
@@ -928,24 +743,6 @@ func TestNoAppEnumeration(t *testing.T) {
 		err = appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: noRoleCtx})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		err = appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("does-not-exist")}, &TestPodLogsServer{ctx: adminCtx})
-		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-	})
-
-	t.Run("ListLinks", func(t *testing.T) {
-		_, err := appServer.ListLinks(adminCtx, &application.ListAppLinksRequest{Name: pointer.String("test")})
-		assert.NoError(t, err)
-		_, err = appServer.ListLinks(noRoleCtx, &application.ListAppLinksRequest{Name: pointer.String("test")})
-		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ListLinks(adminCtx, &application.ListAppLinksRequest{Name: pointer.String("does-not-exist")})
-		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-	})
-
-	t.Run("ListResourceLinks", func(t *testing.T) {
-		_, err := appServer.ListResourceLinks(adminCtx, &application.ApplicationResourceRequest{Name: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
-		assert.NoError(t, err)
-		_, err = appServer.ListResourceLinks(noRoleCtx, &application.ApplicationResourceRequest{Name: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
-		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ListResourceLinks(adminCtx, &application.ApplicationResourceRequest{Name: pointer.String("does-not-exist"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 	})
 
@@ -1194,135 +991,6 @@ g, group-49, role:test3
 	assert.Equal(t, 300, len(names))
 }
 
-func generateTestApp(num int) []*appsv1.Application {
-	apps := []*appsv1.Application{}
-	for i := 0; i < num; i++ {
-		apps = append(apps, newTestApp(func(app *appsv1.Application) {
-			app.Name = fmt.Sprintf("test-app%.6d", i)
-		}))
-	}
-
-	return apps
-}
-
-func BenchmarkListMuchApps(b *testing.B) {
-	// 10000 apps
-	apps := generateTestApp(10000)
-	obj := make([]runtime.Object, len(apps))
-	for i, v := range apps {
-		obj[i] = v
-	}
-	appServer := newTestAppServerWithBenchmark(b, obj...)
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		_, err := appServer.List(context.Background(), &application.ApplicationQuery{})
-		if err != nil {
-			break
-		}
-	}
-}
-
-func BenchmarkListSomeApps(b *testing.B) {
-	// 500 apps
-	apps := generateTestApp(500)
-	obj := make([]runtime.Object, len(apps))
-	for i, v := range apps {
-		obj[i] = v
-	}
-	appServer := newTestAppServerWithBenchmark(b, obj...)
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		_, err := appServer.List(context.Background(), &application.ApplicationQuery{})
-		if err != nil {
-			break
-		}
-	}
-}
-
-func BenchmarkListFewApps(b *testing.B) {
-	// 10 apps
-	apps := generateTestApp(10)
-	obj := make([]runtime.Object, len(apps))
-	for i, v := range apps {
-		obj[i] = v
-	}
-	appServer := newTestAppServerWithBenchmark(b, obj...)
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		_, err := appServer.List(context.Background(), &application.ApplicationQuery{})
-		if err != nil {
-			break
-		}
-	}
-}
-
-func strToPtr(v string) *string {
-	return &v
-}
-
-func BenchmarkListMuchAppsWithName(b *testing.B) {
-	// 10000 apps
-	appsMuch := generateTestApp(10000)
-	obj := make([]runtime.Object, len(appsMuch))
-	for i, v := range appsMuch {
-		obj[i] = v
-	}
-	appServer := newTestAppServerWithBenchmark(b, obj...)
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		app := &application.ApplicationQuery{Name: strToPtr("test-app000099")}
-		_, err := appServer.List(context.Background(), app)
-		if err != nil {
-			break
-		}
-	}
-}
-
-func BenchmarkListMuchAppsWithProjects(b *testing.B) {
-	// 10000 apps
-	appsMuch := generateTestApp(10000)
-	appsMuch[999].Spec.Project = "test-project1"
-	appsMuch[1999].Spec.Project = "test-project2"
-	obj := make([]runtime.Object, len(appsMuch))
-	for i, v := range appsMuch {
-		obj[i] = v
-	}
-	appServer := newTestAppServerWithBenchmark(b, obj...)
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		app := &application.ApplicationQuery{Project: []string{"test-project1", "test-project2"}}
-		_, err := appServer.List(context.Background(), app)
-		if err != nil {
-			break
-		}
-	}
-}
-
-func BenchmarkListMuchAppsWithRepo(b *testing.B) {
-	// 10000 apps
-	appsMuch := generateTestApp(10000)
-	appsMuch[999].Spec.Source.RepoURL = "https://some-fake-source"
-	obj := make([]runtime.Object, len(appsMuch))
-	for i, v := range appsMuch {
-		obj[i] = v
-	}
-	appServer := newTestAppServerWithBenchmark(b, obj...)
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		app := &application.ApplicationQuery{Repo: strToPtr("https://some-fake-source")}
-		_, err := appServer.List(context.Background(), app)
-		if err != nil {
-			break
-		}
-	}
-}
-
 func TestCreateApp(t *testing.T) {
 	testApp := newTestApp()
 	appServer := newTestAppServer(t)
@@ -1400,9 +1068,6 @@ func TestDeleteApp(t *testing.T) {
 	fakeAppCs.AddReactor("delete", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		deleted = true
 		return true, nil, nil
-	})
-	fakeAppCs.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, &appsv1.Application{Spec: appsv1.ApplicationSpec{Source: &appsv1.ApplicationSource{}}}, nil
 	})
 	appServer.appclientset = fakeAppCs
 
@@ -1724,9 +1389,6 @@ func TestGetCachedAppState(t *testing.T) {
 	}
 	appServer := newTestAppServer(t, testApp, testProj)
 	fakeClientSet := appServer.appclientset.(*apps.Clientset)
-	fakeClientSet.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, &appsv1.Application{Spec: appsv1.ApplicationSpec{Source: &appsv1.ApplicationSource{}}}, nil
-	})
 	t.Run("NoError", func(t *testing.T) {
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
 			return nil
@@ -1749,9 +1411,6 @@ func TestGetCachedAppState(t *testing.T) {
 				updated.ResourceVersion = "2"
 				appServer.appBroadcaster.OnUpdate(testApp, updated)
 				return true, testApp, nil
-			})
-			fakeClientSet.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-				return true, &appsv1.Application{Spec: appsv1.ApplicationSpec{Source: &appsv1.ApplicationSource{}}}, nil
 			})
 			fakeClientSet.Unlock()
 			fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
@@ -1879,7 +1538,7 @@ func TestLogsGetSelectedPod(t *testing.T) {
 // refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done
 func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32, appServer *Server, appName string, ch chan string) {
 	for ctx.Err() == nil {
-		aName, appNs := argo.ParseFromQualifiedName(appName, appServer.ns)
+		aName, appNs := argo.ParseAppQualifiedName(appName, appServer.ns)
 		a, err := appServer.appLister.Applications(appNs).Get(aName)
 		require.NoError(t, err)
 		a = a.DeepCopy()
@@ -1952,7 +1611,7 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	assert.NoError(t, err)
 	require.NotNil(t, getAppDetailsQuery)
 	assert.True(t, getAppDetailsQuery.NoCache)
-	assert.Equal(t, testApp.Spec.Source, getAppDetailsQuery.Source)
+	assert.Equal(t, &testApp.Spec.Source, getAppDetailsQuery.Source)
 
 	assert.NoError(t, err)
 	select {
@@ -2001,204 +1660,4 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 
 	assert.Equal(t, health.HealthStatusDegraded, testApp.Status.Resources[0].Health.Status)
 	assert.Nil(t, testApp.Status.Resources[1].Health)
-}
-
-func TestRunNewStyleResourceAction(t *testing.T) {
-	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-
-	group := "batch"
-	kind := "CronJob"
-	version := "v1"
-	resourceName := "my-cron-job"
-	namespace := testNamespace
-	action := "create-job"
-	uid := "1"
-
-	resources := []appsv1.ResourceStatus{{
-		Group:     group,
-		Kind:      kind,
-		Name:      resourceName,
-		Namespace: testNamespace,
-		Version:   version,
-	}}
-
-	appStateCache := appstate.NewCache(cacheClient, time.Minute)
-
-	nodes := []appsv1.ResourceNode{{
-		ResourceRef: appsv1.ResourceRef{
-			Group:     group,
-			Kind:      kind,
-			Version:   version,
-			Name:      resourceName,
-			Namespace: testNamespace,
-			UID:       uid,
-		},
-	}}
-
-	createJobDenyingProj := &appsv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "createJobDenyingProj", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
-			SourceRepos:                []string{"*"},
-			Destinations:               []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "never", Kind: "mind"}},
-		},
-	}
-
-	cronJob := k8sbatchv1.CronJob{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "batch/v1",
-			Kind:       "CronJob",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cron-job",
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				"some": "label",
-			},
-		},
-		Spec: k8sbatchv1.CronJobSpec{
-			Schedule: "* * * * *",
-			JobTemplate: k8sbatchv1.JobTemplateSpec{
-				Spec: k8sbatchv1.JobSpec{
-					Template: corev1.PodTemplateSpec{
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Name:            "hello",
-									Image:           "busybox:1.28",
-									ImagePullPolicy: "IfNotPresent",
-									Command:         []string{"/bin/sh", "-c", "date; echo Hello from the Kubernetes cluster"},
-								},
-							},
-							RestartPolicy: corev1.RestartPolicyOnFailure,
-						},
-					},
-				},
-			},
-		},
-	}
-
-	t.Run("CreateOperationNotPermitted", func(t *testing.T) {
-		testApp := newTestApp()
-		testApp.Spec.Project = "createJobDenyingProj"
-		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
-		testApp.Status.Resources = resources
-
-		appServer := newTestAppServer(t, testApp, createJobDenyingProj, kube.MustToUnstructured(&cronJob))
-		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
-
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
-		require.NoError(t, err)
-
-		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
-			Name:         &testApp.Name,
-			Namespace:    &namespace,
-			Action:       &action,
-			AppNamespace: &testApp.Namespace,
-			ResourceName: &resourceName,
-			Version:      &version,
-			Group:        &group,
-			Kind:         &kind,
-		})
-
-		assert.Contains(t, runErr.Error(), "is not permitted to manage")
-		assert.Nil(t, appResponse)
-	})
-
-	t.Run("CreateOperationPermitted", func(t *testing.T) {
-		testApp := newTestApp()
-		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
-		testApp.Status.Resources = resources
-
-		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&cronJob))
-		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
-
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
-		require.NoError(t, err)
-
-		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
-			Name:         &testApp.Name,
-			Namespace:    &namespace,
-			Action:       &action,
-			AppNamespace: &testApp.Namespace,
-			ResourceName: &resourceName,
-			Version:      &version,
-			Group:        &group,
-			Kind:         &kind,
-		})
-
-		require.NoError(t, runErr)
-		assert.NotNil(t, appResponse)
-	})
-}
-
-func TestRunOldStyleResourceAction(t *testing.T) {
-	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-
-	group := "apps"
-	kind := "Deployment"
-	version := "v1"
-	resourceName := "nginx-deploy"
-	namespace := testNamespace
-	action := "pause"
-	uid := "2"
-
-	resources := []appsv1.ResourceStatus{{
-		Group:     group,
-		Kind:      kind,
-		Name:      resourceName,
-		Namespace: testNamespace,
-		Version:   version,
-	}}
-
-	appStateCache := appstate.NewCache(cacheClient, time.Minute)
-
-	nodes := []appsv1.ResourceNode{{
-		ResourceRef: appsv1.ResourceRef{
-			Group:     group,
-			Kind:      kind,
-			Version:   version,
-			Name:      resourceName,
-			Namespace: testNamespace,
-			UID:       uid,
-		},
-	}}
-
-	deployment := k8sappsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "nginx-deploy",
-			Namespace: testNamespace,
-		},
-	}
-
-	t.Run("DefaultPatchOperation", func(t *testing.T) {
-		testApp := newTestApp()
-		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
-		testApp.Status.Resources = resources
-
-		// appServer := newTestAppServer(t, testApp, returnDeployment())
-		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&deployment))
-		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
-
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
-		require.NoError(t, err)
-
-		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
-			Name:         &testApp.Name,
-			Namespace:    &namespace,
-			Action:       &action,
-			AppNamespace: &testApp.Namespace,
-			ResourceName: &resourceName,
-			Version:      &version,
-			Group:        &group,
-			Kind:         &kind,
-		})
-
-		require.NoError(t, runErr)
-		assert.NotNil(t, appResponse)
-	})
 }
