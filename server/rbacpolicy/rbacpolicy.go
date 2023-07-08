@@ -24,7 +24,6 @@ const (
 	ResourceGPGKeys         = "gpgkeys"
 	ResourceLogs            = "logs"
 	ResourceExec            = "exec"
-	ResourceExtensions      = "extensions"
 
 	// please add new items to Actions
 	ActionGet      = "get"
@@ -34,7 +33,6 @@ const (
 	ActionSync     = "sync"
 	ActionOverride = "override"
 	ActionAction   = "action"
-	ActionInvoke   = "invoke"
 )
 
 var (
