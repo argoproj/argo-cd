@@ -80,6 +80,7 @@ func TestList(t *testing.T) {
 	assert.Len(t, prs, 1)
 	assert.Equal(t, prs[0].Number, 15442)
 	assert.Equal(t, prs[0].Branch, "use-structured-logging-for-db-load-balancer")
+	assert.Equal(t, prs[0].TargetBranch, "master")
 	assert.Equal(t, prs[0].HeadSHA, "2fc4e8b972ff3208ec63b6143e34ad67ff343ad7")
 }
 

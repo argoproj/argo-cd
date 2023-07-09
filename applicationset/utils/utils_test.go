@@ -8,11 +8,11 @@ import (
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
-	argoappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -41,7 +41,7 @@ func TestRenderTemplateParams(t *testing.T) {
 			Namespace:         "default",
 		},
 		Spec: argoappsv1.ApplicationSpec{
-			Source: argoappsv1.ApplicationSource{
+			Source: &argoappsv1.ApplicationSource{
 				Path:           "",
 				RepoURL:        "",
 				TargetRevision: "",
@@ -174,7 +174,7 @@ func TestRenderTemplateParams(t *testing.T) {
 
 				// Render the cloned application, into a new application
 				render := Render{}
-				newApplication, err := render.RenderTemplateParams(application, nil, test.params, false)
+				newApplication, err := render.RenderTemplateParams(application, nil, test.params, false, nil)
 
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
@@ -220,7 +220,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			Namespace:         "default",
 		},
 		Spec: argoappsv1.ApplicationSpec{
-			Source: argoappsv1.ApplicationSource{
+			Source: &argoappsv1.ApplicationSource{
 				Path:           "",
 				RepoURL:        "",
 				TargetRevision: "",
@@ -236,11 +236,12 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
-		fieldVal     string
-		params       map[string]interface{}
-		expectedVal  string
-		errorMessage string
+		name            string
+		fieldVal        string
+		params          map[string]interface{}
+		expectedVal     string
+		errorMessage    string
+		templateOptions []string
 	}{
 		{
 			name:        "simple substitution",
@@ -423,6 +424,26 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			},
 			errorMessage: `failed to execute go template {{.data.test}}: template: :1:7: executing "" at <.data.test>: can't evaluate field test in type interface {}`,
 		},
+		{
+			name:        "lookup missing value with missingkey=default",
+			fieldVal:    `--> {{.doesnotexist}} <--`,
+			expectedVal: `--> <no value> <--`,
+			params: map[string]interface{}{
+				// if no params are passed then for some reason templating is skipped
+				"unused": "this is not used",
+			},
+		},
+		{
+			name:        "lookup missing value with missingkey=error",
+			fieldVal:    `--> {{.doesnotexist}} <--`,
+			expectedVal: "",
+			params: map[string]interface{}{
+				// if no params are passed then for some reason templating is skipped
+				"unused": "this is not used",
+			},
+			templateOptions: []string{"missingkey=error"},
+			errorMessage:    `failed to execute go template --> {{.doesnotexist}} <--: template: :1:6: executing "" at <.doesnotexist>: map has no entry for key "doesnotexist"`,
+		},
 	}
 
 	for _, test := range tests {
@@ -439,7 +460,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 
 				// Render the cloned application, into a new application
 				render := Render{}
-				newApplication, err := render.RenderTemplateParams(application, nil, test.params, true)
+				newApplication, err := render.RenderTemplateParams(application, nil, test.params, true, test.templateOptions)
 
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
@@ -464,6 +485,34 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 	}
 }
 
+func TestRenderGeneratorParams_does_not_panic(t *testing.T) {
+	// This test verifies that the RenderGeneratorParams function does not panic when the value in a map is a non-
+	// nillable type. This is a regression test.
+	render := Render{}
+	params := map[string]interface{}{
+		"branch": "master",
+	}
+	generator := &argoappsv1.ApplicationSetGenerator{
+		Plugin: &argoappsv1.PluginGenerator{
+			ConfigMapRef: argoappsv1.PluginConfigMapRef{
+				Name: "cm-plugin",
+			},
+			Input: argoappsv1.PluginInput{
+				Parameters: map[string]apiextensionsv1.JSON{
+					"branch": {
+						Raw: []byte(`"{{.branch}}"`),
+					},
+					"repo": {
+						Raw: []byte(`"argo-test"`),
+					},
+				},
+			},
+		},
+	}
+	_, err := render.RenderGeneratorParams(generator, params, true, []string{})
+	assert.NoError(t, err)
+}
+
 func TestRenderTemplateKeys(t *testing.T) {
 	t.Run("fasttemplate", func(t *testing.T) {
 		application := &argoappsv1.Application{
@@ -480,7 +529,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 		}
 
 		render := Render{}
-		newApplication, err := render.RenderTemplateParams(application, nil, params, false)
+		newApplication, err := render.RenderTemplateParams(application, nil, params, false, nil)
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
 		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
@@ -500,7 +549,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 		}
 
 		render := Render{}
-		newApplication, err := render.RenderTemplateParams(application, nil, params, true)
+		newApplication, err := render.RenderTemplateParams(application, nil, params, true, nil)
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
 		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
@@ -511,7 +560,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 
 	emptyApplication := &argoappsv1.Application{
 		Spec: argoappsv1.ApplicationSpec{
-			Source: argoappsv1.ApplicationSource{
+			Source: &argoappsv1.ApplicationSource{
 				Path:           "",
 				RepoURL:        "",
 				TargetRevision: "",
@@ -528,7 +577,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 
 	for _, c := range []struct {
 		testName           string
-		syncPolicy         *argoappsetv1.ApplicationSetSyncPolicy
+		syncPolicy         *argoappsv1.ApplicationSetSyncPolicy
 		existingFinalizers []string
 		expectedFinalizers []string
 	}{
@@ -567,13 +616,13 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 		{
 			testName:           "non-nil sync policy should use standard finalizer",
 			existingFinalizers: nil,
-			syncPolicy:         &argoappsetv1.ApplicationSetSyncPolicy{},
+			syncPolicy:         &argoappsv1.ApplicationSetSyncPolicy{},
 			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		{
 			testName:           "preserveResourcesOnDeletion should not have a finalizer",
 			existingFinalizers: nil,
-			syncPolicy: &argoappsetv1.ApplicationSetSyncPolicy{
+			syncPolicy: &argoappsv1.ApplicationSetSyncPolicy{
 				PreserveResourcesOnDeletion: true,
 			},
 			expectedFinalizers: nil,
@@ -581,7 +630,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 		{
 			testName:           "user-specified finalizer should overwrite preserveResourcesOnDeletion",
 			existingFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
-			syncPolicy: &argoappsetv1.ApplicationSetSyncPolicy{
+			syncPolicy: &argoappsv1.ApplicationSetSyncPolicy{
 				PreserveResourcesOnDeletion: true,
 			},
 			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
@@ -601,7 +650,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			// Render the cloned application, into a new application
 			render := Render{}
 
-			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true)
+			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true, nil)
 			assert.Nil(t, err)
 
 			assert.ElementsMatch(t, res.Finalizers, c.expectedFinalizers)
@@ -615,27 +664,27 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 func TestCheckInvalidGenerators(t *testing.T) {
 
 	scheme := runtime.NewScheme()
-	err := argoappsetv1.AddToScheme(scheme)
+	err := argoappsv1.AddToScheme(scheme)
 	assert.Nil(t, err)
 	err = argoappsv1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
 	for _, c := range []struct {
 		testName    string
-		appSet      argoappsetv1.ApplicationSet
+		appSet      argoappsv1.ApplicationSet
 		expectedMsg string
 	}{
 		{
 			testName: "invalid generator, without annotation",
-			appSet: argoappsetv1.ApplicationSet{
+			appSet: argoappsv1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-app-set",
 					Namespace: "namespace",
 				},
-				Spec: argoappsetv1.ApplicationSetSpec{
-					Generators: []argoappsetv1.ApplicationSetGenerator{
+				Spec: argoappsv1.ApplicationSetSpec{
+					Generators: []argoappsv1.ApplicationSetGenerator{
 						{
-							List:     &argoappsetv1.ListGenerator{},
+							List:     &argoappsv1.ListGenerator{},
 							Clusters: nil,
 							Git:      nil,
 						},
@@ -647,7 +696,7 @@ func TestCheckInvalidGenerators(t *testing.T) {
 						{
 							List:     nil,
 							Clusters: nil,
-							Git:      &argoappsetv1.GitGenerator{},
+							Git:      &argoappsv1.GitGenerator{},
 						},
 					},
 				},
@@ -656,7 +705,7 @@ func TestCheckInvalidGenerators(t *testing.T) {
 		},
 		{
 			testName: "invalid generator, with annotation",
-			appSet: argoappsetv1.ApplicationSet{
+			appSet: argoappsv1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-app-set",
 					Namespace: "namespace",
@@ -673,10 +722,10 @@ func TestCheckInvalidGenerators(t *testing.T) {
 						}`,
 					},
 				},
-				Spec: argoappsetv1.ApplicationSetSpec{
-					Generators: []argoappsetv1.ApplicationSetGenerator{
+				Spec: argoappsv1.ApplicationSetSpec{
+					Generators: []argoappsv1.ApplicationSetGenerator{
 						{
-							List:     &argoappsetv1.ListGenerator{},
+							List:     &argoappsv1.ListGenerator{},
 							Clusters: nil,
 							Git:      nil,
 						},
@@ -688,7 +737,7 @@ func TestCheckInvalidGenerators(t *testing.T) {
 						{
 							List:     nil,
 							Clusters: nil,
-							Git:      &argoappsetv1.GitGenerator{},
+							Git:      &argoappsv1.GitGenerator{},
 						},
 						{
 							List:     nil,
@@ -719,20 +768,20 @@ func TestCheckInvalidGenerators(t *testing.T) {
 func TestInvalidGenerators(t *testing.T) {
 
 	scheme := runtime.NewScheme()
-	err := argoappsetv1.AddToScheme(scheme)
+	err := argoappsv1.AddToScheme(scheme)
 	assert.Nil(t, err)
 	err = argoappsv1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
 	for _, c := range []struct {
 		testName        string
-		appSet          argoappsetv1.ApplicationSet
+		appSet          argoappsv1.ApplicationSet
 		expectedInvalid bool
 		expectedNames   map[string]bool
 	}{
 		{
 			testName: "valid generators, with annotation",
-			appSet: argoappsetv1.ApplicationSet{
+			appSet: argoappsv1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -748,22 +797,22 @@ func TestInvalidGenerators(t *testing.T) {
 						}`,
 					},
 				},
-				Spec: argoappsetv1.ApplicationSetSpec{
-					Generators: []argoappsetv1.ApplicationSetGenerator{
+				Spec: argoappsv1.ApplicationSetSpec{
+					Generators: []argoappsv1.ApplicationSetGenerator{
 						{
-							List:     &argoappsetv1.ListGenerator{},
+							List:     &argoappsv1.ListGenerator{},
 							Clusters: nil,
 							Git:      nil,
 						},
 						{
 							List:     nil,
-							Clusters: &argoappsetv1.ClusterGenerator{},
+							Clusters: &argoappsv1.ClusterGenerator{},
 							Git:      nil,
 						},
 						{
 							List:     nil,
 							Clusters: nil,
-							Git:      &argoappsetv1.GitGenerator{},
+							Git:      &argoappsv1.GitGenerator{},
 						},
 					},
 				},
@@ -773,13 +822,13 @@ func TestInvalidGenerators(t *testing.T) {
 		},
 		{
 			testName: "invalid generators, no annotation",
-			appSet: argoappsetv1.ApplicationSet{
+			appSet: argoappsv1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoappsetv1.ApplicationSetSpec{
-					Generators: []argoappsetv1.ApplicationSetGenerator{
+				Spec: argoappsv1.ApplicationSetSpec{
+					Generators: []argoappsv1.ApplicationSetGenerator{
 						{
 							List:     nil,
 							Clusters: nil,
@@ -798,16 +847,16 @@ func TestInvalidGenerators(t *testing.T) {
 		},
 		{
 			testName: "valid and invalid generators, no annotation",
-			appSet: argoappsetv1.ApplicationSet{
+			appSet: argoappsv1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoappsetv1.ApplicationSetSpec{
-					Generators: []argoappsetv1.ApplicationSetGenerator{
+				Spec: argoappsv1.ApplicationSetSpec{
+					Generators: []argoappsv1.ApplicationSetGenerator{
 						{
 							List:     nil,
-							Clusters: &argoappsetv1.ClusterGenerator{},
+							Clusters: &argoappsv1.ClusterGenerator{},
 							Git:      nil,
 						},
 						{
@@ -818,7 +867,7 @@ func TestInvalidGenerators(t *testing.T) {
 						{
 							List:     nil,
 							Clusters: nil,
-							Git:      &argoappsetv1.GitGenerator{},
+							Git:      &argoappsv1.GitGenerator{},
 						},
 					},
 				},
@@ -828,7 +877,7 @@ func TestInvalidGenerators(t *testing.T) {
 		},
 		{
 			testName: "valid and invalid generators, with annotation",
-			appSet: argoappsetv1.ApplicationSet{
+			appSet: argoappsv1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -845,11 +894,11 @@ func TestInvalidGenerators(t *testing.T) {
 						}`,
 					},
 				},
-				Spec: argoappsetv1.ApplicationSetSpec{
-					Generators: []argoappsetv1.ApplicationSetGenerator{
+				Spec: argoappsv1.ApplicationSetSpec{
+					Generators: []argoappsv1.ApplicationSetGenerator{
 						{
 							List:     nil,
-							Clusters: &argoappsetv1.ClusterGenerator{},
+							Clusters: &argoappsv1.ClusterGenerator{},
 							Git:      nil,
 						},
 						{
@@ -860,7 +909,7 @@ func TestInvalidGenerators(t *testing.T) {
 						{
 							List:     nil,
 							Clusters: nil,
-							Git:      &argoappsetv1.GitGenerator{},
+							Git:      &argoappsv1.GitGenerator{},
 						},
 						{
 							List:     nil,
@@ -878,7 +927,7 @@ func TestInvalidGenerators(t *testing.T) {
 		},
 		{
 			testName: "invalid generator, annotation with missing spec",
-			appSet: argoappsetv1.ApplicationSet{
+			appSet: argoappsv1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -887,8 +936,8 @@ func TestInvalidGenerators(t *testing.T) {
 						}`,
 					},
 				},
-				Spec: argoappsetv1.ApplicationSetSpec{
-					Generators: []argoappsetv1.ApplicationSetGenerator{
+				Spec: argoappsv1.ApplicationSetSpec{
+					Generators: []argoappsv1.ApplicationSetGenerator{
 						{
 							List:     nil,
 							Clusters: nil,
@@ -902,7 +951,7 @@ func TestInvalidGenerators(t *testing.T) {
 		},
 		{
 			testName: "invalid generator, annotation with missing generators array",
-			appSet: argoappsetv1.ApplicationSet{
+			appSet: argoappsv1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -913,8 +962,8 @@ func TestInvalidGenerators(t *testing.T) {
 						}`,
 					},
 				},
-				Spec: argoappsetv1.ApplicationSetSpec{
-					Generators: []argoappsetv1.ApplicationSetGenerator{
+				Spec: argoappsv1.ApplicationSetSpec{
+					Generators: []argoappsv1.ApplicationSetGenerator{
 						{
 							List:     nil,
 							Clusters: nil,
@@ -928,7 +977,7 @@ func TestInvalidGenerators(t *testing.T) {
 		},
 		{
 			testName: "invalid generator, annotation with empty generators array",
-			appSet: argoappsetv1.ApplicationSet{
+			appSet: argoappsv1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -941,8 +990,8 @@ func TestInvalidGenerators(t *testing.T) {
 						}`,
 					},
 				},
-				Spec: argoappsetv1.ApplicationSetSpec{
-					Generators: []argoappsetv1.ApplicationSetGenerator{
+				Spec: argoappsv1.ApplicationSetSpec{
+					Generators: []argoappsv1.ApplicationSetGenerator{
 						{
 							List:     nil,
 							Clusters: nil,
@@ -956,7 +1005,7 @@ func TestInvalidGenerators(t *testing.T) {
 		},
 		{
 			testName: "invalid generator, annotation with empty generator",
-			appSet: argoappsetv1.ApplicationSet{
+			appSet: argoappsv1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -970,8 +1019,8 @@ func TestInvalidGenerators(t *testing.T) {
 						}`,
 					},
 				},
-				Spec: argoappsetv1.ApplicationSetSpec{
-					Generators: []argoappsetv1.ApplicationSetGenerator{
+				Spec: argoappsv1.ApplicationSetSpec{
+					Generators: []argoappsv1.ApplicationSetGenerator{
 						{
 							List:     nil,
 							Clusters: nil,

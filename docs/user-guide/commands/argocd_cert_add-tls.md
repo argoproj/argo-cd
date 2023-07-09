@@ -9,7 +9,7 @@ argocd cert add-tls SERVERNAME [flags]
 ### Options
 
 ```
-      --from string   read TLS certificate data from file (default is to read from stdin)
+      --from string   Read TLS certificate data from file (default is to read from stdin)
   -h, --help          help for add-tls
       --upsert        Replace existing TLS certificate if certificate is different in input
 ```

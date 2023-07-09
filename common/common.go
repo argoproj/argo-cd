@@ -1,12 +1,15 @@
 package common
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -26,9 +29,9 @@ const (
 	ArgoCDNotificationsConfigMapName = "argocd-notifications-cm"
 	ArgoCDNotificationsSecretName    = "argocd-notifications-secret"
 	ArgoCDRBACConfigMapName          = "argocd-rbac-cm"
-	// Contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
+	// ArgoCDKnownHostsConfigMapName contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
-	// Contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
+	// ArgoCDTLSCertsConfigMapName contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDTLSCertsConfigMapName = "argocd-tls-certs-cm"
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
 )
@@ -48,28 +51,32 @@ const (
 	DefaultPortRepoServerMetrics      = 8084
 )
 
-// Default listener address for ArgoCD components
+// DefaultAddressAPIServer for ArgoCD components
 const (
-	DefaultAddressAPIServer = "localhost"
+	DefaultAddressAdminDashboard    = "localhost"
+	DefaultAddressAPIServer         = "0.0.0.0"
+	DefaultAddressAPIServerMetrics  = "0.0.0.0"
+	DefaultAddressRepoServer        = "0.0.0.0"
+	DefaultAddressRepoServerMetrics = "0.0.0.0"
 )
 
 // Default paths on the pod's file system
 const (
-	// The default path where TLS certificates for repositories are located
+	// DefaultPathTLSConfig is the default path where TLS certificates for repositories are located
 	DefaultPathTLSConfig = "/app/config/tls"
-	// The default path where SSH known hosts are stored
+	// DefaultPathSSHConfig is the default path where SSH known hosts are stored
 	DefaultPathSSHConfig = "/app/config/ssh"
-	// Default name for the SSH known hosts file
+	// DefaultSSHKnownHostsName is the Default name for the SSH known hosts file
 	DefaultSSHKnownHostsName = "ssh_known_hosts"
-	// Default path to GnuPG home directory
+	// DefaultGnuPgHomePath is the Default path to GnuPG home directory
 	DefaultGnuPgHomePath = "/app/config/gpg/keys"
-	// Default path to repo server TLS endpoint config
+	// DefaultAppConfigPath is the Default path to repo server TLS endpoint config
 	DefaultAppConfigPath = "/app/config"
-	// Default path to cmp server plugin socket file
+	// DefaultPluginSockFilePath is the Default path to cmp server plugin socket file
 	DefaultPluginSockFilePath = "/home/argocd/cmp-server/plugins"
-	// Default path to cmp server plugin configuration file
+	// DefaultPluginConfigFilePath is the Default path to cmp server plugin configuration file
 	DefaultPluginConfigFilePath = "/home/argocd/cmp-server/config"
-	// Plugin Config File is a ConfigManagementPlugin manifest located inside the plugin container
+	// PluginConfigFileName is the Plugin Config File is a ConfigManagementPlugin manifest located inside the plugin container
 	PluginConfigFileName = "plugin.yaml"
 )
 
@@ -96,6 +103,12 @@ const (
 
 	// PasswordPatten is the default password patten
 	PasswordPatten = `^.{8,32}$`
+
+	// LegacyShardingAlgorithm is the default value for Sharding Algorithm it uses an `uid` based distribution (non-uniform)
+	LegacyShardingAlgorithm = "legacy"
+	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
+	RoundRobinShardingAlgorithm = "round-robin"
+	DefaultShardingAlgorithm    = LegacyShardingAlgorithm
 )
 
 // Dex related constants
@@ -136,7 +149,7 @@ const (
 	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
 	LabelValueSecretTypeRepoCreds = "repo-creds"
 
-	// The Argo CD application name is used as the instance name
+	// AnnotationKeyAppInstance is the Argo CD application name is used as the instance name
 	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
@@ -156,6 +169,10 @@ const (
 	// Ex: "http://grafana.example.com/d/yu5UH4MMz/deployments"
 	// Ex: "Go to Dashboard|http://grafana.example.com/d/yu5UH4MMz/deployments"
 	AnnotationKeyLinkPrefix = "link.argocd.argoproj.io/"
+
+	// AnnotationKeyAppSkipReconcile tells the Application to skip the Application controller reconcile.
+	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
+	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
 )
 
 // Environment variables for tuning and debugging Argo CD
@@ -164,19 +181,19 @@ const (
 	EnvVarSSODebug = "ARGOCD_SSO_DEBUG"
 	// EnvVarRBACDebug is an environment variable to enable additional RBAC debugging in the API server
 	EnvVarRBACDebug = "ARGOCD_RBAC_DEBUG"
-	// Overrides the location where SSH known hosts for repo access data is stored
+	// EnvVarSSHDataPath overrides the location where SSH known hosts for repo access data is stored
 	EnvVarSSHDataPath = "ARGOCD_SSH_DATA_PATH"
-	// Overrides the location where TLS certificate for repo access data is stored
+	// EnvVarTLSDataPath overrides the location where TLS certificate for repo access data is stored
 	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
-	// Specifies number of git remote operations attempts count
+	// EnvGitAttemptsCount specifies number of git remote operations attempts count
 	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
-	// Specifices max duration of git remote operation retry
+	// EnvGitRetryMaxDuration specifices max duration of git remote operation retry
 	EnvGitRetryMaxDuration = "ARGOCD_GIT_RETRY_MAX_DURATION"
-	// Specifies duration of git remote operation retry
+	// EnvGitRetryDuration specifies duration of git remote operation retry
 	EnvGitRetryDuration = "ARGOCD_GIT_RETRY_DURATION"
-	// Specifies fator of git remote operation retry
+	// EnvGitRetryFactor specifies fator of git remote operation retry
 	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
-	// Overrides git submodule support, true by default
+	// EnvGitSubmoduleEnabled overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
@@ -192,13 +209,15 @@ const (
 	EnvControllerReplicas = "ARGOCD_CONTROLLER_REPLICAS"
 	// EnvControllerShard is the shard number that should be handled by controller
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
+	// EnvControllerShardingAlgorithm is the distribution sharding algorithm to be used: legacy or round-robin
+	EnvControllerShardingAlgorithm = "ARGOCD_CONTROLLER_SHARDING_ALGORITHM"
 	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection
 	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
 	// EnvGithubAppCredsExpirationDuration controls the caching of Github app credentials. This value is in minutes (default: 60)
 	EnvGithubAppCredsExpirationDuration = "ARGOCD_GITHUB_APP_CREDS_EXPIRATION_DURATION"
 	// EnvHelmIndexCacheDuration controls how the helm repository index file is cached for (default: 0)
 	EnvHelmIndexCacheDuration = "ARGOCD_HELM_INDEX_CACHE_DURATION"
-	// EnvRepoServerConfigPath allows to override the configuration path for repo server
+	// EnvAppConfigPath allows to override the configuration path for repo server
 	EnvAppConfigPath = "ARGOCD_APP_CONF_PATH"
 	// EnvLogFormat log format that is defined by `--logformat` option
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
@@ -212,6 +231,8 @@ const (
 	EnvCMPChunkSize = "ARGOCD_CMP_CHUNK_SIZE"
 	// EnvCMPWorkDir defines the full path of the work directory used by the CMP server
 	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
+	// EnvGPGDataPath overrides the location where GPG keyring for signature verification is stored
+	EnvGPGDataPath = "ARGOCD_GPG_DATA_PATH"
 )
 
 // Config Management Plugin related constants
@@ -222,13 +243,7 @@ const (
 	// DefaultCMPWorkDirName defines the work directory name used by the cmp-server
 	DefaultCMPWorkDirName = "_cmp_server"
 
-	ConfigMapPluginDeprecationWarning = "argocd-cm plugins are deprecated, and support will be removed in v2.6. Upgrade your plugin to be installed via sidecar. https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/"
-
-	ConfigMapPluginCLIDeprecationWarning = "spec.plugin.name is set, which means this Application uses a plugin installed in the " +
-		"argocd-cm ConfigMap. Installing plugins via that ConfigMap is deprecated in Argo CD v2.5. " +
-		"Starting in Argo CD v2.6, this Application will fail to sync. Contact your Argo CD admin " +
-		"to make sure an upgrade plan is in place. More info: " +
-		"https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/2.4-2.5/"
+	ConfigMapPluginDeprecationWarning = "argocd-cm plugins are deprecated, and support will be removed in v2.7. Upgrade your plugin to be installed via sidecar. https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/"
 )
 
 const (
@@ -295,24 +310,34 @@ func GetCMPWorkDir() string {
 }
 
 const (
-	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.
+	// AnnotationApplicationSetRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.
 	AnnotationApplicationSetRefresh = "argocd.argoproj.io/application-set-refresh"
 )
 
 // gRPC settings
 const (
 	GRPCKeepAliveEnforcementMinimum = 10 * time.Second
-	// Keep alive is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
+	// GRPCKeepAliveTime is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
 	GRPCKeepAliveTime = 2 * GRPCKeepAliveEnforcementMinimum
 )
 
 // Security severity logging
 const (
-	SecurityField     = "security"
-	SecurityCWEField  = "CWE"
-	SecurityEmergency = 5 // Indicates unmistakably malicious events that should NEVER occur accidentally and indicates an active attack (i.e. brute forcing, DoS)
-	SecurityCritical  = 4 // Indicates any malicious or exploitable event that had a side effect (i.e. secrets being left behind on the filesystem)
-	SecurityHigh      = 3 // Indicates likely malicious events but one that had no side effects or was blocked (i.e. out of bounds symlinks in repos)
-	SecurityMedium    = 2 // Could indicate malicious events, but has a high likelihood of being user/system error (i.e. access denied)
-	SecurityLow       = 1 // Unexceptional entries (i.e. successful access logs)
+	SecurityField = "security"
+	// SecurityCWEField is the logs field for the CWE associated with a log line. CWE stands for Common Weakness Enumeration. See https://cwe.mitre.org/
+	SecurityCWEField                          = "CWE"
+	SecurityCWEIncompleteCleanup              = 459
+	SecurityCWEMissingReleaseOfFileDescriptor = 775
+	SecurityEmergency                         = 5 // Indicates unmistakably malicious events that should NEVER occur accidentally and indicates an active attack (i.e. brute forcing, DoS)
+	SecurityCritical                          = 4 // Indicates any malicious or exploitable event that had a side effect (i.e. secrets being left behind on the filesystem)
+	SecurityHigh                              = 3 // Indicates likely malicious events but one that had no side effects or was blocked (i.e. out of bounds symlinks in repos)
+	SecurityMedium                            = 2 // Could indicate malicious events, but has a high likelihood of being user/system error (i.e. access denied)
+	SecurityLow                               = 1 // Unexceptional entries (i.e. successful access logs)
 )
+
+// TokenVerificationError is a generic error message for a failure to verify a JWT
+const TokenVerificationError = "failed to verify the token"
+
+var TokenVerificationErr = errors.New(TokenVerificationError)
+
+var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")

@@ -137,7 +137,7 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffi
 	return caData, cert, key, nil
 }
 
-//TODO: also should provision service for vcluster pod
+// TODO: also should provision service for vcluster pod
 func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace string, releaseName string) error {
 	cmd, err := helm.NewCmd("/tmp", "v3", "")
 	if err != nil {
@@ -175,71 +175,85 @@ func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) 
 	return "", nil
 }
 
-func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
-	for i := 1; i <= opts.ClusterOpts.Samples; i++ {
-		log.Printf("Generate cluster #%v of #%v", i, opts.ClusterOpts.Samples)
+func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
+	log.Printf("Generate cluster #%v of #%v", i, opts.ClusterOpts.Samples)
 
-		namespace := opts.ClusterOpts.NamespacePrefix + "-" + util.GetRandomString()
+	namespace := opts.ClusterOpts.NamespacePrefix + "-" + util.GetRandomString()
 
-		log.Printf("Namespace is %s", namespace)
+	log.Printf("Namespace is %s", namespace)
 
-		releaseSuffix := util.GetRandomString()
+	releaseSuffix := util.GetRandomString()
 
-		log.Printf("Release suffix is %s", namespace)
+	log.Printf("Release suffix is %s", namespace)
 
-		err := cg.installVCluster(opts, namespace, POD_PREFIX+"-"+releaseSuffix)
-		if err != nil {
-			log.Printf("Skip cluster installation due error %v", err.Error())
-			continue
-		}
-
-		log.Print("Get cluster credentials")
-		caData, cert, key, err := cg.getClusterCredentials(namespace, releaseSuffix)
-
-		for o := 0; o < 5; o++ {
-			if err == nil {
-				break
-			}
-			log.Printf("Failed to get cluster credentials %s, retrying...", releaseSuffix)
-			time.Sleep(10 * time.Second) 
-			caData, cert, key, err = cg.getClusterCredentials(namespace, releaseSuffix)
-		}
-		if err != nil {
-			return err
-		}
-		
-
-		log.Print("Get cluster server uri")
-
-		uri, err := cg.retrieveClusterUri(namespace, releaseSuffix)
-		if err != nil {
-			return err
-		}
-
-		log.Printf("Cluster server uri is %s", uri)
-
-		log.Print("Create cluster")
-		_, err = cg.db.CreateCluster(context.TODO(), &argoappv1.Cluster{
-			Server: uri,
-			Name:   opts.ClusterOpts.ClusterNamePrefix + "-" + util.GetRandomString(),
-			Config: argoappv1.ClusterConfig{
-				TLSClientConfig: argoappv1.TLSClientConfig{
-					Insecure:   false,
-					ServerName: "kubernetes.default.svc",
-					CAData:     caData,
-					CertData:   cert,
-					KeyData:    key,
-				},
-			},
-			ConnectionState: argoappv1.ConnectionState{},
-			ServerVersion:   "1.18",
-			Namespaces:      []string{opts.ClusterOpts.DestinationNamespace},
-			Labels:          labels,
-		})
-		if err != nil {
-			return err
-		}
+	err := cg.installVCluster(opts, namespace, POD_PREFIX+"-"+releaseSuffix)
+	if err != nil {
+		log.Printf("Skip cluster installation due error %v", err.Error())
 	}
+
+	log.Print("Get cluster credentials")
+	caData, cert, key, err := cg.getClusterCredentials(namespace, releaseSuffix)
+
+	for o := 0; o < 5; o++ {
+		if err == nil {
+			break
+		}
+		log.Printf("Failed to get cluster credentials %s, retrying...", releaseSuffix)
+		time.Sleep(10 * time.Second)
+		caData, cert, key, err = cg.getClusterCredentials(namespace, releaseSuffix)
+	}
+	if err != nil {
+		return err
+	}
+
+	log.Print("Get cluster server uri")
+
+	uri, err := cg.retrieveClusterUri(namespace, releaseSuffix)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Cluster server uri is %s", uri)
+
+	log.Print("Create cluster")
+	_, err = cg.db.CreateCluster(context.TODO(), &argoappv1.Cluster{
+		Server: uri,
+		Name:   opts.ClusterOpts.ClusterNamePrefix + "-" + util.GetRandomString(),
+		Config: argoappv1.ClusterConfig{
+			TLSClientConfig: argoappv1.TLSClientConfig{
+				Insecure:   false,
+				ServerName: "kubernetes.default.svc",
+				CAData:     caData,
+				CertData:   cert,
+				KeyData:    key,
+			},
+		},
+		ConnectionState: argoappv1.ConnectionState{},
+		ServerVersion:   "1.18",
+		Namespaces:      []string{opts.ClusterOpts.DestinationNamespace},
+		Labels:          labels,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
+	log.Printf("Excute in parallel with %v", opts.ClusterOpts.Concurrency)
+
+	wg := util.New(opts.ClusterOpts.Concurrency)
+	for l := 1; l <= opts.ClusterOpts.Samples; l++ {
+		wg.Add()
+		go func(i int) {
+			defer wg.Done()
+			err := cg.generate(i, opts)
+			if err != nil {
+				log.Printf("Failed to generate cluster #%v due to : %s", i, err.Error())
+			}
+		}(l)
+	}
+	wg.Wait()
 	return nil
 }
 
