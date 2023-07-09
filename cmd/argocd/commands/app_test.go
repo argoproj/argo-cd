@@ -307,8 +307,8 @@ func Test_groupObjsByKey(t *testing.T) {
 	}
 
 	expected := map[kube.ResourceKey]*unstructured.Unstructured{
-		kube.ResourceKey{Group: "", Kind: "Pod", Namespace: "default", Name: "pod-name"}:                                                       localObjs[0],
-		kube.ResourceKey{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition", Namespace: "", Name: "certificates.cert-manager.io"}: localObjs[1],
+		{Group: "", Kind: "Pod", Namespace: "default", Name: "pod-name"}:                                                       localObjs[0],
+		{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition", Namespace: "", Name: "certificates.cert-manager.io"}: localObjs[1],
 	}
 
 	objByKey := groupObjsByKey(localObjs, liveObjs, "default")

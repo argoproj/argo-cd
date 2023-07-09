@@ -271,6 +271,61 @@ func TestSyncToSignedCommitWithKnownKey(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
+func TestSyncToSignedBranchWithKnownKey(t *testing.T) {
+	SkipOnEnv(t, "GPG")
+	Given(t).
+		Project("gpg").
+		Path(guestbookPath).
+		Revision("master").
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestSyncToSignedBranchWithUnknownKey(t *testing.T) {
+	SkipOnEnv(t, "GPG")
+	Given(t).
+		Project("gpg").
+		Path(guestbookPath).
+		Revision("master").
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing))
+}
+
+func TestSyncToUnsignedBranch(t *testing.T) {
+	SkipOnEnv(t, "GPG")
+	Given(t).
+		Project("gpg").
+		Revision("master").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing))
+}
+
 func TestSyncToSignedTagWithKnownKey(t *testing.T) {
 	SkipOnEnv(t, "GPG")
 	Given(t).
@@ -1417,7 +1472,7 @@ func TestPermissions(t *testing.T) {
 		Create()
 
 	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'argo-project'", RepoURL(RepoURLTypeFile))
-	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'argo-project'", KubernetesInternalAPIServerAddr, DeploymentNamespace())
+	destinationError := fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project 'argo-project'", KubernetesInternalAPIServerAddr, DeploymentNamespace())
 
 	appCtx.
 		Path("guestbook-logs").
@@ -1573,7 +1628,7 @@ func TestPermissionDeniedWithNegatedNamespace(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		Then().
-		Expect(Error("", "is not permitted in project"))
+		Expect(Error("", "do not match any of the allowed destinations in project"))
 }
 
 func TestPermissionDeniedWithNegatedServer(t *testing.T) {
@@ -1600,7 +1655,7 @@ func TestPermissionDeniedWithNegatedServer(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		Then().
-		Expect(Error("", "is not permitted in project"))
+		Expect(Error("", "do not match any of the allowed destinations in project"))
 }
 
 // make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false

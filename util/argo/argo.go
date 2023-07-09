@@ -585,7 +585,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if !permitted {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application destination {%s %s} is not permitted in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
+				Message: fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
 			})
 		}
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
