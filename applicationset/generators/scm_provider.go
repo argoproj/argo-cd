@@ -63,7 +63,6 @@ func (g *SCMProviderGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.A
 	return &appSetGenerator.SCMProvider.Template
 }
 
-// Returns an error in case url is not the default provider URL or allowed with allowedScmProviders. If allowedScmProviders is empty it means all are allowed
 func ScmProviderAllowed(applicationSetInfo *argoprojiov1alpha1.ApplicationSet, url string, allowedScmProviders []string) bool {
 	if url == "" || len(allowedScmProviders) == 0 {
 		return true
