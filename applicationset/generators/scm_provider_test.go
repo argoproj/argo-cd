@@ -211,46 +211,46 @@ func TestAllowedSCMProvider(t *testing.T) {
 			name: "Error Github",
 			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
 				Github: &argoprojiov1alpha1.SCMProviderGeneratorGithub{
-					API: "myservice.mynamespace.svc.cluster.local",
+					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: "scm provider: myservice.mynamespace.svc.cluster.local is not allowed",
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 		{
 			name: "Error Gitlab",
 			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
 				Gitlab: &argoprojiov1alpha1.SCMProviderGeneratorGitlab{
-					API: "myservice.mynamespace.svc.cluster.local",
+					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: "scm provider: myservice.mynamespace.svc.cluster.local is not allowed",
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 		{
 			name: "Error Gitea",
 			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
 				Gitea: &argoprojiov1alpha1.SCMProviderGeneratorGitea{
-					API: "myservice.mynamespace.svc.cluster.local",
+					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: "scm provider: myservice.mynamespace.svc.cluster.local is not allowed",
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 		{
 			name: "Error Bitbucket",
 			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
 				BitbucketServer: &argoprojiov1alpha1.SCMProviderGeneratorBitbucketServer{
-					API: "myservice.mynamespace.svc.cluster.local",
+					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: "scm provider: myservice.mynamespace.svc.cluster.local is not allowed",
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 		{
 			name: "Error AzureDevops",
 			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
 				AzureDevOps: &argoprojiov1alpha1.SCMProviderGeneratorAzureDevOps{
-					API: "myservice.mynamespace.svc.cluster.local",
+					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: "scm provider: myservice.mynamespace.svc.cluster.local is not allowed",
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 	}
 

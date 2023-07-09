@@ -284,37 +284,37 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 			name: "Error Github",
 			providerConfig: &argoprojiov1alpha1.PullRequestGenerator{
 				Github: &argoprojiov1alpha1.PullRequestGeneratorGithub{
-					API: "myservice.mynamespace.svc.cluster.local",
+					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: "failed to select pull request service provider: scm provider: myservice.mynamespace.svc.cluster.local is not allowed",
+			expectedError: "failed to select pull request service provider: scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 		{
 			name: "Error Gitlab",
 			providerConfig: &argoprojiov1alpha1.PullRequestGenerator{
 				GitLab: &argoprojiov1alpha1.PullRequestGeneratorGitLab{
-					API: "myservice.mynamespace.svc.cluster.local",
+					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: "failed to select pull request service provider: scm provider: myservice.mynamespace.svc.cluster.local is not allowed",
+			expectedError: "failed to select pull request service provider: scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 		{
 			name: "Error Gitea",
 			providerConfig: &argoprojiov1alpha1.PullRequestGenerator{
 				Gitea: &argoprojiov1alpha1.PullRequestGeneratorGitea{
-					API: "myservice.mynamespace.svc.cluster.local",
+					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: "failed to select pull request service provider: scm provider: myservice.mynamespace.svc.cluster.local is not allowed",
+			expectedError: "failed to select pull request service provider: scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 		{
 			name: "Error Bitbucket",
 			providerConfig: &argoprojiov1alpha1.PullRequestGenerator{
 				BitbucketServer: &argoprojiov1alpha1.PullRequestGeneratorBitbucketServer{
-					API: "myservice.mynamespace.svc.cluster.local",
+					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: "failed to select pull request service provider: scm provider: myservice.mynamespace.svc.cluster.local is not allowed",
+			expectedError: "failed to select pull request service provider: scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 	}
 

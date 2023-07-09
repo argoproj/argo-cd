@@ -1670,7 +1670,7 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 			// app should be listed
 			output, err := fixture.RunCli("appset", "get", "scm-provider-generator-scm-provider-not-allowed")
 			assert.NoError(t, err)
-			assert.Contains(t, output, "scm provider: http://myservice.mynamespace.svc.cluster.local is not allowed")
+			assert.Contains(t, output, "scm provider not allowed: http://myservice.mynamespace.svc.cluster.local")
 		})
 }
 
@@ -2085,7 +2085,7 @@ func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 			// app should be listed
 			output, err := fixture.RunCli("appset", "get", "pull-request-generator-not-allowed-scm")
 			assert.NoError(t, err)
-			assert.Contains(t, output, "failed to select pull request service provider: scm provider: http://myservice.mynamespace.svc.cluster.local is not allowed")
+			assert.Contains(t, output, "failed to select pull request service provider: scm provider not allowed: http://myservice.mynamespace.svc.cluster.local")
 		})
 }
 
