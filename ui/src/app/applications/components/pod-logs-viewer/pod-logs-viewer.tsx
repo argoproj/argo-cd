@@ -26,8 +26,7 @@ import {TailSelector} from './tail-selector';
 import {PodNamesToggleButton} from './pod-names-toggle-button';
 import Ansi from 'ansi-to-react';
 import {AutoScrollButton} from './auto-scroll-button';
-import {GridCellProps, GridCellRenderer} from 'react-virtualized/dist/es/Grid';
-import {CellRenderer} from 'react-virtualized';
+import {GridCellProps} from 'react-virtualized/dist/es/Grid';
 
 export interface PodLogsProps {
     namespace: string;
