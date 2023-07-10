@@ -70,7 +70,7 @@ The following command will verify the signature of an attestation and how it was
 Run the following command as per the [slsa-verifier documentation](https://github.com/slsa-framework/slsa-verifier/tree/main#containers):
 
 ```bash
-# Get the immutable container image to prevent TOCTOU attacks.
+# Get the immutable container image to prevent TOCTOU attacks https://github.com/slsa-framework/slsa-verifier#toctou-attacks
 IMAGE=quay.io/argoproj/argocd:v2.7.0
 IMAGE="${IMAGE}@"$(crane digest "${IMAGE}")
 # Verify provenance, including the tag to prevent rollback attacks.
