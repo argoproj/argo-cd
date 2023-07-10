@@ -27,8 +27,6 @@ An operator can configure a plugin tool via a sidecar to repo-server. The follow
 Plugins will be configured via a ConfigManagementPlugin manifest located inside the plugin container.
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: ConfigManagementPlugin
 metadata:
   # The name of the plugin must be unique within a given Argo CD instance.
   name: my-plugin
@@ -151,8 +149,6 @@ metadata:
   name: my-plugin-config
 data:
   plugin.yaml: |
-    apiVersion: argoproj.io/v1alpha1
-    kind: ConfigManagementPlugin
     metadata:
       name: my-plugin
     spec:
@@ -372,8 +368,6 @@ data:
 The `pluginName` item would be converted to a config file like this:
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: ConfigManagementPlugin
 metadata:
   name: pluginName
 spec:
@@ -440,8 +434,6 @@ reasons. If you want to preserve original file mode, you can set `preserveFileMo
     files with executable permissions which can be a security risk.
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: ConfigManagementPlugin
 metadata:
   name: pluginName
 spec:

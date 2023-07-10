@@ -112,7 +112,6 @@ metadata:
 		{
 			name: "empty generate command",
 			fileContents: `
-kind: ConfigManagementPlugin
 metadata:
   name: name
 `,
@@ -122,7 +121,6 @@ metadata:
 		{
 			name: "valid config",
 			fileContents: `
-kind: ConfigManagementPlugin
 metadata:
   name: name
 spec:
@@ -130,9 +128,6 @@ spec:
     command: [command]
 `,
 			expected: &PluginConfig{
-				TypeMeta: v1.TypeMeta{
-					Kind: ConfigManagementPluginKind,
-				},
 				Metadata: v1.ObjectMeta{
 					Name: "name",
 				},
@@ -177,9 +172,6 @@ func Test_PluginConfig_Address(t *testing.T) {
 		{
 			name: "no version specified",
 			config: &PluginConfig{
-				TypeMeta: v1.TypeMeta{
-					Kind: ConfigManagementPluginKind,
-				},
 				Metadata: v1.ObjectMeta{
 					Name: "name",
 				},
@@ -189,9 +181,6 @@ func Test_PluginConfig_Address(t *testing.T) {
 		{
 			name: "version specified",
 			config: &PluginConfig{
-				TypeMeta: v1.TypeMeta{
-					Kind: ConfigManagementPluginKind,
-				},
 				Metadata: v1.ObjectMeta{
 					Name: "name",
 				},
