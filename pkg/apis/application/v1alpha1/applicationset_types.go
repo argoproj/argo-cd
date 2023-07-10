@@ -439,7 +439,7 @@ type SCMProviderGeneratorGitlab struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,5,opt,name=allBranches"`
-	// Allow self-signed TLS / Certificates; default: false
+	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
 }
 
@@ -591,7 +591,7 @@ type PullRequestGeneratorGitLab struct {
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,4,rep,name=labels"`
 	// PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
-	// Allow insecure tls, for self-signed certificates; default: false.
+	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
 }
 

@@ -86,7 +86,7 @@ type ApplicationSetReconciler struct {
 	ArgoCDNamespace          string
 	ApplicationSetNamespaces []string
 	EnableProgressiveSyncs   bool
-	RootCAPath               string
+	SCMRootCAPath            string
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -499,7 +499,7 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 	var applicationSetReason argov1alpha1.ApplicationSetReasonType
 
 	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
-		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{}, r.RootCAPath)
+		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{}, r.SCMRootCAPath)
 		if err != nil {
 			log.WithError(err).WithField("generator", requestedGenerator).
 				Error("error generating application from params")

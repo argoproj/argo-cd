@@ -7596,8 +7596,8 @@
           "type": "string"
         },
         "insecure": {
-          "description": "Allow insecure tls, for self-signed certificates; default: false.",
-          "type": "boolean"
+          "type": "boolean",
+          "title": "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false"
         },
         "labels": {
           "type": "array",
@@ -8571,7 +8571,7 @@
         },
         "insecure": {
           "type": "boolean",
-          "title": "Allow self-signed TLS / Certificates; default: false"
+          "title": "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false"
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"

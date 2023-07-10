@@ -1377,7 +1377,7 @@ message PullRequestGeneratorGitLab {
   // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
   optional string pullRequestState = 5;
 
-  // Allow insecure tls, for self-signed certificates; default: false.
+  // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
   optional bool insecure = 6;
 }
 
@@ -2026,7 +2026,7 @@ message SCMProviderGeneratorGitlab {
   // Scan all branches instead of just the default branch.
   optional bool allBranches = 5;
 
-  // Allow self-signed TLS / Certificates; default: false
+  // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
   optional bool insecure = 6;
 }
 

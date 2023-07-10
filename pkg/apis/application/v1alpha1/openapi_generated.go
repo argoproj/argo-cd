@@ -4865,7 +4865,7 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref common.
 					},
 					"insecure": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Allow insecure tls, for self-signed certificates; default: false.",
+							Description: "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -6932,7 +6932,7 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref common.
 					},
 					"insecure": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Allow self-signed TLS / Certificates; default: false",
+							Description: "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
