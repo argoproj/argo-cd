@@ -79,7 +79,7 @@ slsa-verifier verify-image "$IMAGE" \
     --source-tag v2.7.0
 ```
 
-If you only want to verify the major or minor verion of the source repository tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification:
+If you only want to verify up to the major or minor verion of the source repository tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification:
 
 ```shell
 slsa-verifier verify-image "$IMAGE" \
@@ -115,7 +115,7 @@ slsa-verifier verify-artifact argocd-linux-amd64 \
   --source-tag v2.7.0
 ```
 
-If you only want to verify the major or minor tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification:
+If you only want to verify up to the major or minor verion of the source repository tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification:
 
 ```shell
 slsa-verifier verify-artifact argocd-linux-amd64 \
