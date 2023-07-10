@@ -3,6 +3,7 @@
 ## Prerequisites
 - cosign `v2.0.0` or higher [installation instructions](https://docs.sigstore.dev/cosign/installation)
 - slsa-verifier [installation instructions](https://github.com/slsa-framework/slsa-verifier#installation)
+- crane [installation instructions](https://github.com/google/go-containerregistry/blob/main/cmd/crane/README.md) (for container verification only)
 
 ***
 ## Release Assets
@@ -66,7 +67,7 @@ A [SLSA](https://slsa.dev/) Level 3 provenance is generated using [slsa-github-g
 
 The following command will verify the signature of an attestation and how it was issued. It will contain the payloadType, payload, and signature.
 
-Follow the [slsa-verifier instruction](https://github.com/slsa-framework/slsa-verifier/tree/main#containers) for verifying a container:
+Run the following command as per the [slsa-verifier documentation](https://github.com/slsa-framework/slsa-verifier/tree/main#containers):
 
 ```bash
 # Get the immutable container image to prevent TOCTOU attacks.
@@ -78,9 +79,16 @@ slsa-verifier verify-image "$IMAGE" \
     --source-tag v2.7.0
 ```
 
-If you only want to verify the major or minor tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification: `--source-versioned-tag v2` or `--source-versioned-tag v2.7`.
+If you only want to verify the major or minor tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification:
 
-The payload is a non-forgeable provenance which is base64 encoded and can be viewed by passing the `--print-provenance` option to the commands above:
+```shell
+# Verify provenance, including the tag to prevent rollback attacks.
+slsa-verifier verify-image "$IMAGE" \
+    --source-uri github.com/argoproj/argo-cd \
+    --source-versioned-tag v2
+```
+
+The attestation payload contains a non-forgeable provenance which is base64 encoded and can be viewed by passing the `--print-provenance` option to the commands above:
 
 ```bash
 slsa-verifier verify-image "$IMAGE" \
@@ -95,6 +103,7 @@ If you prefer using cosign, follow these [instructions](https://github.com/slsa-
 !!! tip
     `cosign` or `slsa-verifier` can both be used to verify image attestations.
     Check the documentation of each binary for detailed instructions.
+```
 
 ***
 
