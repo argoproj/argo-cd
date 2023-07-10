@@ -141,7 +141,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
 
-			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
+			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags(), false)
 			errors.CheckError(err)
 
 			for _, app := range apps {
@@ -2371,7 +2371,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				if local != "" {
 					if localAppManifest != "" {
 						// get app from file
-						apps, err := cmdutil.ConstructApps(localAppManifest, appName, []string{}, []string{}, args, cmdutil.AppOptions{}, c.Flags())
+						apps, err := cmdutil.ConstructApps(localAppManifest, "", []string{}, []string{}, args, cmdutil.AppOptions{}, c.Flags(), true)
 						errors.CheckError(err)
 						KustomizeOptions := argoappv1.KustomizeOptions{BuildOptions: "--enable-helm --load-restrictor=LoadRestrictionsNone"}
 
