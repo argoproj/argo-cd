@@ -672,13 +672,20 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 	var out string
 	var err error
+
+	out, err = RunCli(args...)
+	if err == nil {
+		return out, nil
+	}
+
 	for i := 0; i < maxRetries; i++ {
+		time.Sleep(time.Second)
 		out, err = RunCli(args...)
 		if err == nil {
-			break
+			return out, nil
 		}
-		time.Sleep(time.Second)
 	}
+
 	return out, err
 }
 

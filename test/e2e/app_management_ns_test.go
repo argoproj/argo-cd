@@ -2298,7 +2298,6 @@ definitions:
 }
 
 func TestNamespacedAppLogs(t *testing.T) {
-	SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
 		SetAppNamespace(AppNamespace()).
 		SetTrackingMethod("annotation").

@@ -2333,7 +2333,6 @@ definitions:
 }
 
 func TestAppLogs(t *testing.T) {
-	SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
 		Path("guestbook-logs").
 		When().
