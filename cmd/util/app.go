@@ -632,19 +632,24 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 	}
 	filteredApps := make([]*argoappv1.Application, 0)
 
-	//the file may contain more than one app spec
-	for _, app := range apps {
-		if app.Name == "" {
-			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
+	if len(args) == 1 {
+		if appName != "" && appName != args[0] {
+			return nil, fmt.Errorf("--name argument '%s' does not match app name %s", appName, args[0])
 		}
-		if len(args) == 1 && args[0] == app.Name {
-			filteredApps = append(filteredApps, app)
-		} else if appName == app.Name {
+		appName = args[0]
+	}
+	for _, app := range apps {
+		if len(appName) > 0 {
+			if appName == app.Name {
+				filteredApps = append(filteredApps, app)
+			}
+		} else {
 			filteredApps = append(filteredApps, app)
 		}
 	}
-	if len(filteredApps) == 0 {
-		return nil, fmt.Errorf("App name '%s' does not match any app spec in '%s'", args[0], fileURL)
+
+	if len(appName) > 0 && len(filteredApps) == 0 {
+		return nil, fmt.Errorf("App name '%s' does not match any app spec in '%s'", appName, fileURL)
 	}
 	for _, app := range filteredApps {
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
