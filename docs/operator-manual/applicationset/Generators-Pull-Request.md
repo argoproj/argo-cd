@@ -91,6 +91,8 @@ spec:
         - preview
         # MR state is used to filter MRs only with a certain state. (optional)
         pullRequestState: opened
+        # If true, allows for self-signed TLS certificates
+        insecure: false
       requeueAfterSeconds: 1800
   template:
   # ...
@@ -101,6 +103,9 @@ spec:
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the MRs that you want to target. (Optional)
 * `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
+* `insecure`: By default (false) - Allow for self-signed TLS certificates.
+
+You can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Add-self-signed-TLS-Certs.md).
 
 ## Gitea
 

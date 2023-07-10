@@ -104,6 +104,8 @@ spec:
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `insecure`: By default (false) - Allow for self-signed TLS certificates.
 
+You can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Add-self-signed-TLS-Certs.md).
+
 For label filtering, the repository tags are used.
 
 Available clone protocols are `ssh` and `https`.
