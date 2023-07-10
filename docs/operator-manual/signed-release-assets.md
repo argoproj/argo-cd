@@ -65,35 +65,62 @@ The following checks were performed on each of these signatures:
 A [SLSA](https://slsa.dev/) Level 3 provenance is generated using [slsa-github-generator](https://github.com/slsa-framework/slsa-github-generator).
 
 The following command will verify the signature of an attestation and how it was issued. It will contain the payloadType, payload, and signature.
+
+Follow the [slsa-verifier instruction](https://github.com/slsa-framework/slsa-verifier/tree/main#containers) for verifying a container:
+
 ```bash
-cosign verify-attestation --type slsaprovenance \
---certificate-identity-regexp https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@refs/tags/v \
---certificate-oidc-issuer https://token.actions.githubusercontent.com \
-quay.io/argoproj/argocd:v2.7.0 | jq
+# Get the immutable container image to prevent TOCTOU attacks.
+IMAGE=quay.io/argoproj/argocd:v2.7.0
+IMAGE="${IMAGE}@"$(crane digest "${IMAGE}")
+# Verify provenance, including the tag to prevent rollback attacks.
+slsa-verifier verify-image "$IMAGE" \
+    --source-uri github.com/argoproj/argo-cd \
+    --source-tag v2.7.0
 ```
-The payload is a non-falsifiable provenance which is base64 encoded and can be viewed by using the command below:
+
+If you only want to verify the major or minor tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification: `--source-versioned-tag v2` or `--source-versioned-tag v2.7`.
+
+The payload is a non-forgeable provenance which is base64 encoded and can be viewed by passing the `--print-provenance` option to the commands above:
+
 ```bash
-cosign verify-attestation --type slsaprovenance \
---certificate-identity-regexp https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@refs/tags/v \
---certificate-oidc-issuer https://token.actions.githubusercontent.com \
-quay.io/argoproj/argocd:v2.7.0 | jq -r .payload | base64 -d | jq
+slsa-verifier verify-image "$IMAGE" \
+    --source-uri github.com/argoproj/argo-cd \
+    --source-tag v2.7.0
+    --print-provenance | jq
+```
+
+If you prefer using cosign, follow these [instructions](https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#cosign).
+
 ```
 !!! tip
     `cosign` or `slsa-verifier` can both be used to verify image attestations.
     Check the documentation of each binary for detailed instructions.
 
 ***
+
 ## Verification of CLI artifacts with attestations
 
 A single attestation (`argocd-cli.intoto.jsonl`) from each release is provided. This can be used with [slsa-verifier](https://github.com/slsa-framework/slsa-verifier#verification-for-github-builders) to verify that a CLI binary was generated using Argo CD workflows on GitHub and ensures it was cryptographically signed.
-```bash
-slsa-verifier verify-artifact argocd-linux-amd64 --provenance-path argocd-cli.intoto.jsonl  --source-uri github.com/argoproj/argo-cd
-```
-## Verifying an artifact and output the provenance
 
 ```bash
-slsa-verifier verify-artifact argocd-linux-amd64 --provenance-path argocd-cli.intoto.jsonl  --source-uri github.com/argoproj/argo-cd --print-provenance | jq
+slsa-verifier verify-artifact argocd-linux-amd64 \
+  --provenance-path argocd-cli.intoto.jsonl \
+  --source-uri github.com/argoproj/argo-cd \
+  --source-tag v2.7.0
 ```
+
+If you only want to verify the major or minor tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification: `--source-versioned-tag v2` or `--source-versioned-tag v2.7`.
+
+The payload is a non-forgeable provenance which is base64 encoded and can be viewed by passing the `--print-provenance` option to the commands above:
+
+```bash
+slsa-verifier verify-artifact argocd-linux-amd64 \
+  --provenance-path argocd-cli.intoto.jsonl \
+  --source-uri github.com/argoproj/argo-cd \
+  --source-tag v2.7.0 \
+  --print-provenance | jq
+```
+
 ## Verification of Sbom
 
 ```bash
