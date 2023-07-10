@@ -2859,7 +2859,12 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 		if exists {
 			config, err = clientcmd.BuildConfigFromFlags("", conf)
 		} else {
-			config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
+			var homeDir string
+			homeDir, err = os.UserHomeDir()
+			if err != nil {
+				homeDir = ""
+			}
+			config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(homeDir, ".kube", "config"))
 		}
 	} else if c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
 		config, err = rest.InClusterConfig()
