@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/jeremywohl/flatten"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 
 	"k8s.io/apimachinery/pkg/labels"
 

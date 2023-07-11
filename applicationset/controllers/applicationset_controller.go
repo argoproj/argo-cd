@@ -86,6 +86,7 @@ type ApplicationSetReconciler struct {
 	ArgoCDNamespace          string
 	ApplicationSetNamespaces []string
 	EnableProgressiveSyncs   bool
+	SCMRootCAPath            string
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
