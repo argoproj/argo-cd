@@ -188,7 +188,7 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				},
 			}
 
-			got, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, "")
+			got, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
 
 			if testCaseCopy.expectedError != nil {
 				assert.EqualError(t, err, testCaseCopy.expectedError.Error())

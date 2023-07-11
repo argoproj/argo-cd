@@ -32,7 +32,7 @@ func NewMatrixGenerator(supportedGenerators map[string]Generator) Generator {
 	return m
 }
 
-func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, scmRootCAPath string) ([]map[string]interface{}, error) {
+func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 
 	if appSetGenerator.Matrix == nil {
 		return nil, EmptyAppSetGeneratorError
@@ -119,8 +119,7 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 		m.supportedGenerators,
 		argoprojiov1alpha1.ApplicationSetTemplate{},
 		appSet,
-		params,
-		"")
+		params)
 
 	if err != nil {
 		return nil, fmt.Errorf("child generator returned an error on parameter generation: %v", err)

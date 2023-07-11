@@ -50,7 +50,7 @@ func (m *MergeGenerator) getParamSetsForAllGenerators(generators []argoprojiov1a
 }
 
 // GenerateParams gets the params produced by the MergeGenerator.
-func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, scmRootCAPath string) ([]map[string]interface{}, error) {
+func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 	if appSetGenerator.Merge == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -176,8 +176,7 @@ func (m *MergeGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Applic
 		m.supportedGenerators,
 		argoprojiov1alpha1.ApplicationSetTemplate{},
 		appSet,
-		map[string]interface{}{},
-		"")
+		map[string]interface{}{})
 
 	if err != nil {
 		return nil, fmt.Errorf("child generator returned an error on parameter generation: %v", err)

@@ -23,14 +23,16 @@ const (
 
 type PullRequestGenerator struct {
 	client                    client.Client
-	selectServiceProviderFunc func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet, string) (pullrequest.PullRequestService, error)
+	selectServiceProviderFunc func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
 	auth                      SCMAuthProviders
+	scmRootCAPath             string
 }
 
-func NewPullRequestGenerator(client client.Client, auth SCMAuthProviders) Generator {
+func NewPullRequestGenerator(client client.Client, auth SCMAuthProviders, scmRootCAPath string) Generator {
 	g := &PullRequestGenerator{
-		client: client,
-		auth:   auth,
+		client:        client,
+		auth:          auth,
+		scmRootCAPath: scmRootCAPath,
 	}
 	g.selectServiceProviderFunc = g.selectServiceProvider
 	return g
@@ -50,7 +52,7 @@ func (g *PullRequestGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.A
 	return &appSetGenerator.PullRequest.Template
 }
 
-func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, scmRootCAPath string) ([]map[string]interface{}, error) {
+func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -60,7 +62,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	}
 
 	ctx := context.Background()
-	svc, err := g.selectServiceProviderFunc(ctx, appSetGenerator.PullRequest, applicationSetInfo, scmRootCAPath)
+	svc, err := g.selectServiceProviderFunc(ctx, appSetGenerator.PullRequest, applicationSetInfo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select pull request service provider: %v", err)
 	}
@@ -116,7 +118,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 }
 
 // selectServiceProvider selects the provider to get pull requests from the configuration
-func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, generatorConfig *argoprojiov1alpha1.PullRequestGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, scmRootCAPath string) (pullrequest.PullRequestService, error) {
+func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, generatorConfig *argoprojiov1alpha1.PullRequestGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
 	if generatorConfig.Github != nil {
 		return g.github(ctx, generatorConfig.Github, applicationSetInfo)
 	}
@@ -126,7 +128,7 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %v", err)
 		}
-		return pullrequest.NewGitLabService(ctx, token, providerConfig.API, providerConfig.Project, providerConfig.Labels, providerConfig.PullRequestState, scmRootCAPath, providerConfig.Insecure)
+		return pullrequest.NewGitLabService(ctx, token, providerConfig.API, providerConfig.Project, providerConfig.Labels, providerConfig.PullRequestState, g.scmRootCAPath, providerConfig.Insecure)
 	}
 	if generatorConfig.Gitea != nil {
 		providerConfig := generatorConfig.Gitea

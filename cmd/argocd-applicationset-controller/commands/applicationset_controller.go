@@ -159,9 +159,9 @@ func NewCommand() *cobra.Command {
 				"List":                    generators.NewListGenerator(),
 				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
 				"Git":                     generators.NewGitGenerator(argoCDService),
-				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth),
+				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth, scmRootCAPath),
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
-				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth),
+				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth, scmRootCAPath),
 				"Plugin":                  generators.NewPluginGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
 			}
 

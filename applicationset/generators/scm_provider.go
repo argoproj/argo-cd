@@ -26,16 +26,18 @@ type SCMProviderGenerator struct {
 	// Testing hooks.
 	overrideProvider scm_provider.SCMProviderService
 	SCMAuthProviders
+	scmRootCAPath string
 }
 
 type SCMAuthProviders struct {
 	GitHubApps github_app_auth.Credentials
 }
 
-func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders) Generator {
+func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders, scmRootCAPath string) Generator {
 	return &SCMProviderGenerator{
 		client:           client,
 		SCMAuthProviders: providers,
+		scmRootCAPath:    scmRootCAPath,
 	}
 }
 
@@ -58,7 +60,7 @@ func (g *SCMProviderGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.A
 	return &appSetGenerator.SCMProvider.Template
 }
 
-func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, scmRootCAPath string) ([]map[string]interface{}, error) {
+func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -85,7 +87,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitlab token: %v", err)
 		}
-		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Gitlab.Group, token, providerConfig.Gitlab.API, providerConfig.Gitlab.AllBranches, providerConfig.Gitlab.IncludeSubgroups, providerConfig.Gitlab.Insecure, scmRootCAPath)
+		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Gitlab.Group, token, providerConfig.Gitlab.API, providerConfig.Gitlab.AllBranches, providerConfig.Gitlab.IncludeSubgroups, providerConfig.Gitlab.Insecure, g.scmRootCAPath)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitlab service: %v", err)
 		}

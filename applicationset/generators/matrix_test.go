@@ -181,7 +181,7 @@ func TestMatrixGenerate(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet, "")
+			}, appSet)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -376,7 +376,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet, "")
+			}, appSet)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -636,7 +636,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet, "")
+			}, appSet)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -824,7 +824,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet, "")
+			}, appSet)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -990,7 +990,7 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet, "")
+			}, appSet)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -1014,7 +1014,7 @@ func (g *generatorMock) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applicat
 	return args.Get(0).(*argoprojiov1alpha1.ApplicationSetTemplate)
 }
 
-func (g *generatorMock) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, scmRootCAPath string) ([]map[string]interface{}, error) {
+func (g *generatorMock) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 	args := g.Called(appSetGenerator, appSet)
 
 	return args.Get(0).([]map[string]interface{}), args.Error(1)
@@ -1082,7 +1082,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	}
 	params, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
 		Matrix: matrixGeneratorSpec,
-	}, &argoprojiov1alpha1.ApplicationSet{}, "")
+	}, &argoprojiov1alpha1.ApplicationSet{})
 	require.NoError(t, err)
 	assert.Equal(t, []map[string]interface{}{{
 		"path":                    "some",

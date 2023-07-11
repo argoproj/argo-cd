@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"sigs.k8s.io/yaml"
+
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*ListGenerator)(nil)
@@ -27,7 +28,7 @@ func (g *ListGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applicat
 	return &appSetGenerator.List.Template
 }
 
-func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, scmRootCAPath string) ([]map[string]interface{}, error) {
+func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}

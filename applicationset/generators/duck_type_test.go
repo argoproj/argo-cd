@@ -3,6 +3,7 @@ package generators
 import (
 	"context"
 	"fmt"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -15,8 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
-	"testing"
 )
 
 const resourceApiVersion = "mallard.io/v1"
@@ -309,7 +308,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 					LabelSelector: testCase.labelSelector,
 					Values:        testCase.values,
 				},
-			}, &applicationSetInfo, "")
+			}, &applicationSetInfo)
 
 			if testCase.expectedError != nil {
 				assert.EqualError(t, err, testCase.expectedError.Error())
@@ -609,7 +608,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 					LabelSelector: testCase.labelSelector,
 					Values:        testCase.values,
 				},
-			}, &applicationSetInfo, "")
+			}, &applicationSetInfo)
 
 			if testCase.expectedError != nil {
 				assert.EqualError(t, err, testCase.expectedError.Error())
