@@ -56,7 +56,7 @@ const RenderContainerState = (props: {container: any}) => {
                 <>
                     {' '}
                     It is <span className='application-node-info__container--highlight'>{props.container?.started ? 'started' : 'not started'}</span>
-                    <span className='application-node-info__container--highlight'>{props.container?.ready ? (status === 'Completed' ? '.' : 'and ready.') : 'and not ready.'}</span>
+                    <span className='application-node-info__container--highlight'>{status === 'Completed' ? '.' : props.container?.ready ? ' and ready.' : ' and not ready.'}</span>
                 </>
                 <br />
                 {lastState && (
