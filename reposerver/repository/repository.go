@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
+	"github.com/bmatcuk/doublestar/v4"
 	jsonpatch "github.com/evanphx/json-patch"
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/google/go-jsonnet"
@@ -1254,7 +1255,8 @@ func getResolvedValueFiles(
 		}
 
 		if !isRemote {
-			paths, err := filepath.Glob(string(resolvedPath))
+			paths, err := doublestar.FilepathGlob(string(resolvedPath))
+
 			if err != nil {
 				return nil, fmt.Errorf("failed to get Helm values file by glob pattern: %w", err)
 			}
