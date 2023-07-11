@@ -224,8 +224,8 @@ export const ApplicationParameters = (props: {
             ),
             edit: (formApi: FormApi) => {
                 // In case source.helm.valuesObject is set, set source.helm.values to its value
-                if(source.helm) {
-                    source.helm.values = helmValues
+                if (source.helm) {
+                    source.helm.values = helmValues;
                 }
 
                 return (
