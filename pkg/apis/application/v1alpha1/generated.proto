@@ -1376,6 +1376,9 @@ message PullRequestGeneratorGitLab {
 
   // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
   optional string pullRequestState = 5;
+
+  // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
+  optional bool insecure = 6;
 }
 
 // PullRequestGeneratorGitea defines connection info specific to Gitea.
@@ -2022,6 +2025,9 @@ message SCMProviderGeneratorGitlab {
 
   // Scan all branches instead of just the default branch.
   optional bool allBranches = 5;
+
+  // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
+  optional bool insecure = 6;
 }
 
 // Utility struct for a reference to a secret key.
