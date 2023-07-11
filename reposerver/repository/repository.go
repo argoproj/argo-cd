@@ -1256,7 +1256,7 @@ func getResolvedValueFiles(
 		if !isRemote {
 			paths, err := filepath.Glob(string(resolvedPath))
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to get Helm values file by glob pattern: %w", err)
 			}
 			// To guarantee lexical order
 			sort.Strings(paths)
