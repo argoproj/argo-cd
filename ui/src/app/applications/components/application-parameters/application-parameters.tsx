@@ -126,14 +126,13 @@ export const ApplicationParameters = (props: {
     save?: (application: models.Application, query: {validate?: boolean}) => Promise<any>;
     noReadonlyMode?: boolean;
 }) => {
-    const app = props.application;
+    const app = cloneDeep(props.application);
     const source = getAppDefaultSource(app);
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
 
     let attributes: EditablePanelItem[] = [];
-    if (source && source.helm && source.helm.valuesObject) {
-        source.helm.values = jsYaml.safeDump(source.helm.valuesObject);
-    }
+    const isValuesObject = source?.helm?.valuesObject;
+    const helmValues = isValuesObject ? jsYaml.safeDump(source.helm.valuesObject) : source?.helm?.values;
     const [appParamsDeletedState, setAppParamsDeletedState] = React.useState([]);
 
     if (props.details.type === 'Kustomize' && props.details.kustomize) {
@@ -220,16 +219,23 @@ export const ApplicationParameters = (props: {
             title: 'VALUES',
             view: source.helm && (
                 <Expandable>
-                    <pre>{source.helm.values}</pre>
+                    <pre>{helmValues}</pre>
                 </Expandable>
             ),
-            edit: (formApi: FormApi) => (
-                <div>
-                    <pre>
-                        <FormField formApi={formApi} field='spec.source.helm.values' component={TextArea} />
-                    </pre>
-                </div>
-            )
+            edit: (formApi: FormApi) => {
+                // In case source.helm.valuesObject is set, set source.helm.values to its value
+                if(source.helm) {
+                    source.helm.values = helmValues
+                }
+
+                return (
+                    <div>
+                        <pre>
+                            <FormField formApi={formApi} field='spec.source.helm.values' component={TextArea} />
+                        </pre>
+                    </div>
+                );
+            }
         });
         const paramsByName = new Map<string, models.HelmParameter>();
         (props.details.helm.parameters || []).forEach(param => paramsByName.set(param.name, param));
