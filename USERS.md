@@ -273,6 +273,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Trusting Social](https://trustingsocial.com/)
 1. [Twilio SendGrid](https://sendgrid.com)
 1. [tZERO](https://www.tzero.com/)
+1. [U.S. Veterans Affairs Department](https://www.va.gov/) 
 1. [UBIO](https://ub.io/)
 1. [UFirstGroup](https://www.ufirstgroup.com/en/)
 1. [ungleich.ch](https://ungleich.ch/)
