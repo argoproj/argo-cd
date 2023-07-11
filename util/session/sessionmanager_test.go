@@ -264,6 +264,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 		name                 string
 		authDisabled         bool
 		cookieHeader         bool
+		authorizationHeader  bool
 		verifiedClaims       *claimsMock
 		verifyTokenErr       error
 		expectedStatusCode   int
@@ -275,6 +276,17 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will authenticate successfully",
 			authDisabled:         false,
 			cookieHeader:         true,
+			authorizationHeader:  false,
+			verifiedClaims:       &claimsMock{},
+			verifyTokenErr:       nil,
+			expectedStatusCode:   200,
+			expectedResponseBody: strPointer("Ok"),
+		},
+		{
+			name:                 "will authenticate successfully with Authorization Header",
+			authDisabled:         false,
+			cookieHeader:         false,
+			authorizationHeader:  true,
 			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       nil,
 			expectedStatusCode:   200,
@@ -284,6 +296,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will be noop if auth is disabled",
 			authDisabled:         true,
 			cookieHeader:         false,
+			authorizationHeader:  false,
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
 			expectedStatusCode:   200,
@@ -293,6 +306,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will return 400 if no cookie header",
 			authDisabled:         false,
 			cookieHeader:         false,
+			authorizationHeader:  false,
 			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       nil,
 			expectedStatusCode:   400,
@@ -302,6 +316,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will return 401 verify token fails",
 			authDisabled:         false,
 			cookieHeader:         true,
+			authorizationHeader:  false,
 			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       stderrors.New("token error"),
 			expectedStatusCode:   401,
@@ -311,6 +326,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will return 200 if claims are nil",
 			authDisabled:         false,
 			cookieHeader:         true,
+			authorizationHeader:  false,
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
 			expectedStatusCode:   200,
@@ -335,6 +351,10 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			}
 			if tc.cookieHeader {
 				req.Header.Add("Cookie", "argocd.token=123456")
+			}
+
+			if tc.authorizationHeader {
+				req.Header.Add("Authorization", "Bearer 123456")
 			}
 
 			// when
