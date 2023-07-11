@@ -2,7 +2,6 @@ package scm_provider
 
 import (
 	"context"
-	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -213,6 +212,7 @@ func TestMultiFilterAnd(t *testing.T) {
 	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
 		{
 			RepositoryMatch: strp("w"),
+			PathsExist:      []string{"two"},
 			LabelMatch:      strp("^prod-.*$"),
 		},
 	}
@@ -228,20 +228,34 @@ func TestMultiFilterOr(t *testing.T) {
 			{
 				Repository: "one",
 				Labels:     []string{"prod-one", "prod-two", "staging"},
+				Branch:     "devel",
 			},
 			{
 				Repository: "two",
-				Labels:     []string{"prod-two"},
+				Labels:     []string{"prod-one", "prod-two", "staging"},
+				Branch:     "feature/ABC",
+			},
+			{
+				Repository: "two",
+				Labels:     []string{"prod-one", "prod-two", "staging"},
+				Branch:     "main",
 			},
 			{
 				Repository: "three",
 				Labels:     []string{"staging"},
+				Branch:     "feature/XYZ",
+			},
+			{
+				Repository: "four",
+				Labels:     []string{"dev"},
+				Branch:     "feature/IDK",
 			},
 		},
 	}
 	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
 		{
 			RepositoryMatch: strp("e"),
+			BranchMatch:     strp("feature/.*"),
 		},
 		{
 			LabelMatch: strp("^prod-.*$"),
@@ -249,10 +263,11 @@ func TestMultiFilterOr(t *testing.T) {
 	}
 	repos, err := ListRepos(context.Background(), provider, filters, "")
 	assert.Nil(t, err)
-	assert.Len(t, repos, 3)
+	assert.Len(t, repos, 4)
 	assert.Equal(t, "one", repos[0].Repository)
 	assert.Equal(t, "two", repos[1].Repository)
-	assert.Equal(t, "three", repos[2].Repository)
+	assert.Equal(t, "two", repos[2].Repository)
+	assert.Equal(t, "three", repos[3].Repository)
 }
 
 func TestNoFilters(t *testing.T) {
@@ -279,41 +294,4 @@ func TestNoFilters(t *testing.T) {
 	assert.Equal(t, "one", repos[0].Repository)
 	assert.Equal(t, "two", repos[1].Repository)
 	assert.Equal(t, "three", repos[2].Repository)
-}
-
-// tests the getApplicableFilters function, passing in all the filters, and an unset filter, plus an additional
-// branch filter
-func TestApplicableFilterMap(t *testing.T) {
-	branchFilter := Filter{
-		BranchMatch: &regexp.Regexp{},
-		FilterType:  FilterTypeBranch,
-	}
-	repoFilter := Filter{
-		RepositoryMatch: &regexp.Regexp{},
-		FilterType:      FilterTypeRepo,
-	}
-	pathExistsFilter := Filter{
-		PathsExist: []string{"test"},
-		FilterType: FilterTypeBranch,
-	}
-	pathDoesntExistsFilter := Filter{
-		PathsDoNotExist: []string{"test"},
-		FilterType:      FilterTypeBranch,
-	}
-	labelMatchFilter := Filter{
-		LabelMatch: &regexp.Regexp{},
-		FilterType: FilterTypeRepo,
-	}
-	unsetFilter := Filter{
-		LabelMatch: &regexp.Regexp{},
-	}
-	additionalBranchFilter := Filter{
-		BranchMatch: &regexp.Regexp{},
-		FilterType:  FilterTypeBranch,
-	}
-	filterMap := getApplicableFilters([]*Filter{&branchFilter, &repoFilter,
-		&pathExistsFilter, &labelMatchFilter, &unsetFilter, &additionalBranchFilter, &pathDoesntExistsFilter})
-
-	assert.Len(t, filterMap[FilterTypeRepo], 2)
-	assert.Len(t, filterMap[FilterTypeBranch], 4)
 }
