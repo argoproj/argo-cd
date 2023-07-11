@@ -50,6 +50,21 @@ source:
     - values-production.yaml
 ```
 
+ArgoCD now supports Glob expressions for valueFiles (especially useful when using umbrella charts with a lot of dependencies) :
+
+```bash
+argocd app set helm-guestbook --values subdir/**/values-*.yaml
+```
+
+In the declarative syntax:
+
+```yaml
+source:
+  helm:
+    valueFiles:
+    - subdir/**/values-*.yaml
+```
+
 ## Values
 
 Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.valuesObject` key.

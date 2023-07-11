@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -1253,16 +1254,26 @@ func getResolvedValueFiles(
 		}
 
 		if !isRemote {
-			_, err = os.Stat(string(resolvedPath))
-			if os.IsNotExist(err) {
+			paths, err := filepath.Glob(string(resolvedPath))
+			if err != nil {
+				return nil, err
+			}
+			// To guarantee lexical order
+			sort.Strings(paths)
+			if len(paths) > 0 {
+				for _, path := range paths {
+					resolvedValueFiles = append(resolvedValueFiles, pathutil.ResolvedFilePath(path))
+				}
+			} else {
 				if ignoreMissingValueFiles {
 					log.Debugf(" %s values file does not exist", resolvedPath)
 					continue
 				}
+				resolvedValueFiles = append(resolvedValueFiles, resolvedPath)
 			}
+		} else {
+			resolvedValueFiles = append(resolvedValueFiles, resolvedPath)
 		}
-
-		resolvedValueFiles = append(resolvedValueFiles, resolvedPath)
 	}
 	return resolvedValueFiles, nil
 }
