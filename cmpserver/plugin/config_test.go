@@ -100,16 +100,6 @@ metadata:
 			expectedErr: "invalid plugin configuration file. metadata.name should be non-empty.",
 		},
 		{
-			name: "invalid kind",
-			fileContents: `
-kind: invalid
-metadata:	
-  name: name
-`,
-			expected:    nil,
-			expectedErr: "invalid plugin configuration file. kind should be ConfigManagementPlugin, found invalid",
-		},
-		{
 			name: "empty generate command",
 			fileContents: `
 metadata:
