@@ -27,7 +27,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 				return pullrequest.NewFakeService(
 					ctx,
 					[]*pullrequest.PullRequest{
-						{
+						&pullrequest.PullRequest{
 							Number:       1,
 							Branch:       "branch1",
 							TargetBranch: "master",
@@ -56,7 +56,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 				return pullrequest.NewFakeService(
 					ctx,
 					[]*pullrequest.PullRequest{
-						{
+						&pullrequest.PullRequest{
 							Number:       2,
 							Branch:       "feat/areally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
 							TargetBranch: "feat/anotherreally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
@@ -85,7 +85,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 				return pullrequest.NewFakeService(
 					ctx,
 					[]*pullrequest.PullRequest{
-						{
+						&pullrequest.PullRequest{
 							Number:       1,
 							Branch:       "a-very-short-sha",
 							TargetBranch: "master",
@@ -125,7 +125,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 				return pullrequest.NewFakeService(
 					ctx,
 					[]*pullrequest.PullRequest{
-						{
+						&pullrequest.PullRequest{
 							Number:       1,
 							Branch:       "branch1",
 							TargetBranch: "master",
@@ -162,7 +162,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 				return pullrequest.NewFakeService(
 					ctx,
 					[]*pullrequest.PullRequest{
-						{
+						&pullrequest.PullRequest{
 							Number:       1,
 							Branch:       "branch1",
 							TargetBranch: "master",
