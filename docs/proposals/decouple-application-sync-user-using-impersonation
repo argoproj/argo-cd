@@ -12,7 +12,7 @@ approvers:
   - "@jannfis"
 
 creation-date: 2023-06-23
-last-updated: 2023-06-23
+last-updated: 2023-07-12
 ---
 
 # Decouple Application Sync using Impersonation
@@ -25,8 +25,10 @@ The goal of this proposal is to perform the Application sync as a different user
 
 ## Open Questions [optional]
 
-- Should the restrictions imposed as part of the AppProjects be honored if the impersonation feature is enabled ?
+- Should the restrictions imposed as part of the `AppProjects` be honored if the impersonation feature is enabled ?
+Yes, other restrictions implemented by `AppProject` should be continued.
 - Can an Application refer to a service account with elevated privileges like say  `cluster-admin`, `admin`, and service accounts used for running the ArgoCD controllers itself ?
+- This is addressed by the new option where we don't allow service account name to be specified as part of the `Application.spec` and instead control only via `AppProject` access to which is limited only to the Admin user.
 
 
 ## Summary
@@ -131,29 +133,8 @@ Fix GitOps Engine code to honor Impersonate configuration set in the Application
 
 ### Detailed examples
 
-#### Example 1: Service account for application sync specified at the Application level
-
-
-```
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: guestbook
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/argoproj/argocd-example-apps.git
-    targetRevision: HEAD
-    path: guestbook
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: guestbook
-  serviceAccountName: guestbook-deployer
-```
-
-#### Example 1: Service account for application sync specified at the AppProject level
-
+#### Example 1: Service account for application sync specified at the AppProject level for all namespaces
+In this specific scenario, service account name `generic-deployer` will get used for the application sync as the namespace `guestbook` matches the regex `*`.
 
 ```
 apiVersion: argoproj.io/v1alpha1
@@ -162,7 +143,7 @@ metadata:
   name: guestbook
   namespace: argocd
 spec:
-  project: default
+  project: my-project
   source:
     repoURL: https://github.com/argoproj/argocd-example-apps.git
     targetRevision: HEAD
@@ -171,7 +152,62 @@ spec:
     server: https://kubernetes.default.svc
     namespace: guestbook
 ---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: my-project
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Example Project
+  # Allow manifests to deploy from any Git repos
+  sourceRepos:
+  - '*'
+  destinations:
+  - namespace: *
+    server: https://kubernetes.default.svc
+    serviceAccountName: generic-deployer
+```
 
+#### Example 2: Service account for application sync specified at the AppProject level for specific namespaces
+
+In this specific scenario, service account name `guestbook-deployer` will get used as it matches to the specific namespace `guestbook`.
+```
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  project: my-project
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: my-project
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Example Project
+  # Allow manifests to deploy from any Git repos
+  sourceRepos:
+  - '*'
+  destinations:
+  - namespace: *
+    server: https://kubernetes.default.svc
+    serviceAccountName: generic-deployer
+  - namespace: guestbook
+    server: https://kubernetes.default.svc
+    serviceAccountName: guestbook-deployer
 ```
 
 ### Security Considerations
