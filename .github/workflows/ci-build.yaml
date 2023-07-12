@@ -267,7 +267,7 @@ jobs:
       - name: Setup NodeJS
         uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8 # v3.7.0
         with:
-          node-version: '20.3.1'
+          node-version: '20.4.0'
       - name: Restore node dependency cache
         id: cache-dependencies
         uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1

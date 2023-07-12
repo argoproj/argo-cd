@@ -26,16 +26,18 @@ type SCMProviderGenerator struct {
 	// Testing hooks.
 	overrideProvider scm_provider.SCMProviderService
 	SCMAuthProviders
+	scmRootCAPath string
 }
 
 type SCMAuthProviders struct {
 	GitHubApps github_app_auth.Credentials
 }
 
-func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders) Generator {
+func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders, scmRootCAPath string) Generator {
 	return &SCMProviderGenerator{
 		client:           client,
 		SCMAuthProviders: providers,
+		scmRootCAPath:    scmRootCAPath,
 	}
 }
 
@@ -85,7 +87,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitlab token: %v", err)
 		}
-		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Gitlab.Group, token, providerConfig.Gitlab.API, providerConfig.Gitlab.AllBranches, providerConfig.Gitlab.IncludeSubgroups)
+		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Gitlab.Group, token, providerConfig.Gitlab.API, providerConfig.Gitlab.AllBranches, providerConfig.Gitlab.IncludeSubgroups, providerConfig.Gitlab.Insecure, g.scmRootCAPath)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitlab service: %v", err)
 		}
