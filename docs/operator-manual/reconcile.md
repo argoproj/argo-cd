@@ -68,6 +68,18 @@ reveal the high-churn resource kinds.
 !!!note 
     These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
 
+Once you have identified some resources which change often, you can try to determine which fields are changing. Here is
+one approach:
+
+```shell
+kubectl get <resource> -o yaml > /tmp/before.yaml
+# Wait a minute or two.
+kubectl get <resource> -o yaml > /tmp/after.yaml
+diff /tmp/before.yaml /tmp/after
+```
+
+The diff can give you a sense for which fields are changing and should perhaps be ignored.
+
 ## Checking Whether Resource Updates are Ignored
 
 Whenever Argo CD skips a refresh due to an ignored resource update, the controller logs the following line:
@@ -77,3 +89,25 @@ Search the application-controller logs for this line to confirm that your resour
 
 !!!note
     These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
+
+## Examples
+
+### argoproj.io/Application
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
+    jsonPointers:
+    # Ignore when ownerReferences change, for example when a parent ApplicationSet changes often.
+    - /metadata/ownerReferences
+    # Ignore reconciledAt, since by itself it doesn't indicate any important change.
+    - /status/reconciledAt
+    jqPathExpressions:
+    # Ignore lastTransitionTime for conditions; helpful when SharedResourceWarnings are being regularly updated but not
+    # actually changing in content.
+    - .status.conditions[].lastTransitionTime
+```
