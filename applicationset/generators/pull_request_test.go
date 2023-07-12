@@ -324,7 +324,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			pullRequestGenerator := NewPullRequestGenerator(nil, SCMAuthProviders{}, []string{
+			pullRequestGenerator := NewPullRequestGenerator(nil, SCMAuthProviders{}, "", []string{
 				"github.myorg.com",
 				"gitlab.myorg.com",
 				"gitea.myorg.com",
