@@ -27,7 +27,7 @@ Add the ability to mark a proposal with a bounty and a specific amount. When a P
 
 This proposal is experimental, meaning after trying a single bounty, we will review as a project and decide if we would like to continue this program. Accepting this proposal only constitutes the program for a single bounty as an experiment. 
 
-### Guidlines and Rules
+### Guidelines and Rules
 
 #### Creating a Bounty
 A bounty is a special proposal created under `docs/proposals/feature-bounties`. 
