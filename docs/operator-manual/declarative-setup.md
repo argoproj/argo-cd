@@ -868,7 +868,10 @@ that it does not have the permission to list/access. Possible values for `resour
 
 Users who are comfortable with an increase in kube api-server calls can opt for `strict` option while users who are concerned with higher api calls and are willing to compromise on the accuracy can opt for the `normal` option.
 
-NOTE: when set to use `strict` mode controller must have rbac permission to `create` a `SelfSubjectAccessReview` resource.
+Notes:
+
+* When set to use `strict` mode controller must have rbac permission to `create` a `SelfSubjectAccessReview` resource 
+* The `SelfSubjectAccessReview` request will be only made for the `list` verb, it is assumed that if `list` is allowed for a resource then all other permissions are also available to the controller.
 
 Example argocd cm with `resource.respectRBAC` set to `strict`:
 
