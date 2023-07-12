@@ -13,7 +13,8 @@ When a resource update is ignored, if the resource's [health status](./health.md
 Argo CD allows ignoring resource updates at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902) and [JQ path expressions](https://stedolan.github.io/jq/manual/#path(path_expression)). It can be configured for a specified group and kind
 in `resource.customizations` key of the `argocd-cm` ConfigMap.
 
-The feature is behind a flag. To enable it, set `resource.ignoreResourceUpdatesEnabled` to `"true"` in the `argocd-cm` ConfigMap.
+!!!important "Enabling the feature"
+    The feature is behind a flag. To enable it, set `resource.ignoreResourceUpdatesEnabled` to `"true"` in the `argocd-cm` ConfigMap.
 
 Following is an example of a customization which ignores the `refreshTime` status field of an [`ExternalSecret`](https://external-secrets.io/main/api/externalsecret/) resource:
 
@@ -22,6 +23,9 @@ data:
   resource.customizations.ignoreResourceUpdates.external-secrets.io_ExternalSecret: |
     jsonPointers:
     - /status/refreshTime
+    # JQ equivalent of the above:
+    # jqPathExpressions:
+    # - .status.refreshTime
 ```
 
 It is possible to configure `ignoreResourceUpdates` to be applied to all tracked resources in every Application managed by an Argo CD instance. In order to do so, resource customizations can be configured like in the example below:
@@ -61,4 +65,15 @@ To find these logs, search for `"Requesting app refresh caused by object update"
 fields for `api-version` and `kind`.  Counting the number of refreshes triggered, by api-version/kind should
 reveal the high-churn resource kinds.
 
-Note that these logs are at the `debug` level. Configure the application-controller's log level to `debug`.
+!!!note 
+    These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
+
+## Checking Whether Resource Updates are Ignored
+
+Whenever Argo CD skips a refresh due to an ignored resource update, the controller logs the following line:
+"Ignoring change of object because none of the watched resource fields have changed".
+
+Search the application-controller logs for this line to confirm that your resource ignore rules are being applied.
+
+!!!note
+    These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
