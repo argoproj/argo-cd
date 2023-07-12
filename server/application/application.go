@@ -224,7 +224,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 	for _, a := range filteredApps {
 		// Skip any application that is neither in the control plane's namespace
 		// nor in the list of enabled namespaces.
-		if s.isNamespaceEnabled(a.Namespace) {
+		if !s.isNamespaceEnabled(a.Namespace) {
 			continue
 		}
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
@@ -1023,7 +1023,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 			return
 		}
 
-		if s.isNamespaceEnabled(a.Namespace) {
+		if !s.isNamespaceEnabled(a.Namespace) {
 			return
 		}
 
