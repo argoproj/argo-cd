@@ -9350,6 +9350,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      insecure:
+                                        type: boolean
                                       labels:
                                         items:
                                           type: string
@@ -10039,6 +10041,8 @@ spec:
                                       group:
                                         type: string
                                       includeSubgroups:
+                                        type: boolean
+                                      insecure:
                                         type: boolean
                                       tokenRef:
                                         properties:
@@ -13825,6 +13829,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      insecure:
+                                        type: boolean
                                       labels:
                                         items:
                                           type: string
@@ -14514,6 +14520,8 @@ spec:
                                       group:
                                         type: string
                                       includeSubgroups:
+                                        type: boolean
+                                      insecure:
                                         type: boolean
                                       tokenRef:
                                         properties:
@@ -16229,6 +16237,8 @@ spec:
                           properties:
                             api:
                               type: string
+                            insecure:
+                              type: boolean
                             labels:
                               items:
                                 type: string
@@ -16918,6 +16928,8 @@ spec:
                             group:
                               type: string
                             includeSubgroups:
+                              type: boolean
+                            insecure:
                               type: boolean
                             tokenRef:
                               properties:
@@ -19192,6 +19204,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.scm.root.ca.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_ALLOWED_SCM_PROVIDERS
