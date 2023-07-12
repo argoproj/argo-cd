@@ -1,5 +1,5 @@
 ---
-title: Decouple Control plane and Application Sync priveleges
+title: Decouple Control plane and Application Sync privileges
 authors:
   - "@anandf" # Authors' github accounts here.
 sponsors:
@@ -35,7 +35,7 @@ In a multi team/multi tenant environment, an application team is typically grant
 
 ## Motivation
 
-This proposal would allow ArgoCD administrators to manage the cluster permissions using kubernetes native RBAC implementation rather than using complex configurations in `AppProjects` to restrict access to individual applications. By decoupling the priveleges required for application sync from the privelege required for ArgoCD control plane, the security requirement of providing least privelage can be achieved there by improving the security posture of ArgoCD. For implementing multi team/tenant use cases, this decoupling would be greatly beneficial.
+This proposal would allow ArgoCD administrators to manage the cluster permissions using kubernetes native RBAC implementation rather than using complex configurations in `AppProjects` to restrict access to individual applications. By decoupling the privileges required for application sync from the privileges required for ArgoCD control plane, the security requirement of providing least privileges can be achieved there by improving the security posture of ArgoCD. For implementing multi team/tenant use cases, this decoupling would be greatly beneficial.
 
 ### Assumptions
 
@@ -56,28 +56,7 @@ progress.
 
 ## Proposal
 
-- Enable users to specify a `serviceAccountName` in an Application CR. The service account should exist in the same namespace as that of the Application CR.
-
-```
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: guestbook
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/argoproj/argocd-example-apps.git
-    targetRevision: HEAD
-    path: guestbook
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: guestbook
-  # This application would use the below service account to impersonate during the sync operation
-  serviceAccountName: guestbook-deployer
-```
-
-Enable ArgoCD Admin to specify a `defaultServiceAccountName` in `AppProjects` CR. This would be used for all Argo Applications associated with that AppProject if not specifically overridden in the Application CR.
+Enable ArgoCD Admin to specify a `serviceAccountName` in `AppProjects` CR on a per `destination` basis.
 
 ```
 apiVersion: argoproj.io/v1alpha1
@@ -95,8 +74,16 @@ spec:
   destinations:
   - namespace: guestbook
     server: https://kubernetes.default.svc
-  # All applications associated to this project will use the below service account (in the same namespace of the application) for the Sync operations
-  defaultServiceAccountName: my-project-admin
+    serviceAccountName: guestbook-deployer
+  - namespace: guestbook-dev
+    server: https://kubernetes.default.svc
+    serviceAccountName: guestbook-dev-deployer
+  - namespace: guestbook-stage
+    server: https://kubernetes.default.svc
+    serviceAccountName: guestbook-stage-deployer
+  - namespace: *
+    server: https://kubernetes.default.svc
+    serviceAccountName: generic-deployer
 ```
 
 ### Use cases
@@ -121,8 +108,7 @@ Fix GitOps Engine code to honor Impersonate configuration set in the Application
 
 #### Component: ArgoCD API
 
-- Support new property `serviceAccountName` for Argo Application 
-- Support new property `defaultServiceAccountName` in AppProject
+- Support new property `serviceAccountName` in `Destination` section of `AppProject`
 - Documentation of the new fields
 
 #### Component: ArgoCD Application Controller
@@ -134,8 +120,7 @@ Fix GitOps Engine code to honor Impersonate configuration set in the Application
 - Fix Application Controller sync.go to set the Impersonate configuration from the Application CR to the SyncContext Object (rawConfig and restConfig field, need to understand which config is used for the actual sync and if both configs need to be impersonated.)
 #### Component: ArgoCD UI
 
-- Provide option to provide serviceAccountName for an Application created/updated via the console.
-- Provide option to provide defaultServiceAccount for an AppProject created/updated via the web console.
+- Provide option to provide `serviceAccountName` for a `Destination` section in an `AppProject` created/updated via the web console.
 - Update the User Guide documentation on how to use these newly added fields from the web console.
 #### Component: ArgoCD CLI
 
@@ -196,10 +181,9 @@ spec:
 
 ### Risks and Mitigations
 
-#### Privelege Escalation
+#### Privilege Escalation
 
-There could be an issue of privelage escalation, if we allow users to impersonate without restrictions. This can be mitigated by providing an option to blacklist some service accounts both at `AppProject` level and at a global level. Also I believe impersonation itself being a kubernetes native concepts, should have some checks to avoid such security issues.
-Eg: service account name like `cluster-admin` and `admin` must not be allowed to be impersonated.
+There could be an issue of privilege escalation, if we allow users to impersonate without restrictions. This is mitigated by only allowing admin users to 
 
 
 
@@ -226,6 +210,27 @@ The idea is to find the best form of an argument why this enhancement should _no
 ## Alternatives
 
 ### Option 1 
+Allow service account name to be specified in the `Application` level as well and control the allowed service account names in the corresponding `AppProject` CR.
+
+```
+apiVersion: argoproj.io/v1alpha1 
+kind: Application 
+spec: 
+  serviceAccountName: guestbook-deployer
+```
+
+```
+apiVersion: argoproj.io/v1alpha1 
+kind: AppProject 
+spec:
+  defaultServiceAccountName: guestbook-deployer
+  allowedServiceAccountNames: 
+    - guestbook-deployer
+    - default-deployer
+```
+
+
+### Option 2
 Instead of introducing a new field  ServiceAccountName in the Application CR, we can extend the existing key-value pair based `SyncOptions` for allowing customers to provide the  impersonating service account. The `defaultServiceAccountName` should still be supported in `AppProject.spec` to support users to use a common `ServiceAccount` across all applications associated to the AppProject.
 
 ```
@@ -237,7 +242,18 @@ spec:
       - ServiceAccountName=guestbook-deployer
 ```
 
-Option 2
+Instead of introducing a new field  ServiceAccountName in the Application CR, we can extend the existing key-value pair based `SyncOptions` for allowing customers to provide the  impersonating service account. The `defaultServiceAccountName` should still be supported in `AppProject.spec` to support users to use a common `ServiceAccount` across all applications associated to the AppProject.
+
+```
+apiVersion: argoproj.io/v1alpha1 
+kind: Application 
+spec: 
+  syncPolicy: 
+    syncOptions: 
+      - ServiceAccountName=guestbook-deployer
+```
+
+### Option 2
 Allow all options available in the `ImpersonationConfig` available to the user for both `Application` and `AppProject` CRs.
 
 ```
