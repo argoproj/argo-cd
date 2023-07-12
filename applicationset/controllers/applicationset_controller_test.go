@@ -26,10 +26,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -372,6 +373,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 						Namespace:       "namespace",
 						ResourceVersion: "1",
 					},
+					Spec: v1alpha1.ApplicationSpec{Project: "default"},
 				},
 			},
 		},
@@ -896,6 +898,60 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
+					},
+				},
+			},
+		}, {
+			name: "Ensure that the app spec is normalized before applying",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "project",
+							Source: &v1alpha1.ApplicationSource{
+								Directory: &v1alpha1.ApplicationSourceDirectory{
+									Jsonnet: v1alpha1.ApplicationSourceJsonnet{},
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Source: &v1alpha1.ApplicationSource{
+							Directory: &v1alpha1.ApplicationSourceDirectory{
+								Jsonnet: v1alpha1.ApplicationSourceJsonnet{},
+							},
+						},
+					},
+				},
+			},
+			expected: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Source:  &v1alpha1.ApplicationSource{
+							// Directory and jsonnet block are removed
+						},
 					},
 				},
 			},
