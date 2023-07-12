@@ -50,7 +50,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/glob"
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/lua"
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
@@ -225,7 +224,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 	for _, a := range filteredApps {
 		// Skip any application that is neither in the control plane's namespace
 		// nor in the list of enabled namespaces.
-		if a.Namespace != s.ns && !glob.MatchStringInList(s.enabledNamespaces, a.Namespace, false) {
+		if s.isNamespaceEnabled(a.Namespace) {
 			continue
 		}
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
@@ -1021,6 +1020,10 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		}
 		matchedEvent := (appName == "" || (a.Name == appName && a.Namespace == appNs)) && selector.Matches(labels.Set(a.Labels))
 		if !matchedEvent {
+			return
+		}
+
+		if s.isNamespaceEnabled(a.Namespace) {
 			return
 		}
 
