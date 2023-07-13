@@ -127,7 +127,7 @@ jobs:
       upload-assets: true
 
   generate-sbom:
-    name: Create Sbom and sign assets
+    name: Create SBOM and generate hash
     needs:
       - argocd-image
       - goreleaser
@@ -191,6 +191,14 @@ jobs:
           # base64 -w0 encodes to base64 and outputs on a single line.
           # sha256sum /tmp/sbom.tar.gz ... | base64 -w0
           echo "hashes=$(sha256sum /tmp/sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
+      
+      - name: Upload SBOM
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            /tmp/sbom.tar.gz
   
   sbom-provenance:
     needs: [generate-sbom]
