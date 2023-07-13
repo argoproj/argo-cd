@@ -25,12 +25,14 @@ type PullRequestGenerator struct {
 	client                    client.Client
 	selectServiceProviderFunc func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
 	auth                      SCMAuthProviders
+	scmRootCAPath             string
 }
 
-func NewPullRequestGenerator(client client.Client, auth SCMAuthProviders) Generator {
+func NewPullRequestGenerator(client client.Client, auth SCMAuthProviders, scmRootCAPath string) Generator {
 	g := &PullRequestGenerator{
-		client: client,
-		auth:   auth,
+		client:        client,
+		auth:          auth,
+		scmRootCAPath: scmRootCAPath,
 	}
 	g.selectServiceProviderFunc = g.selectServiceProvider
 	return g
@@ -126,7 +128,7 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %v", err)
 		}
-		return pullrequest.NewGitLabService(ctx, token, providerConfig.API, providerConfig.Project, providerConfig.Labels, providerConfig.PullRequestState)
+		return pullrequest.NewGitLabService(ctx, token, providerConfig.API, providerConfig.Project, providerConfig.Labels, providerConfig.PullRequestState, g.scmRootCAPath, providerConfig.Insecure)
 	}
 	if generatorConfig.Gitea != nil {
 		providerConfig := generatorConfig.Gitea
