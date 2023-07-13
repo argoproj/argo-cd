@@ -738,8 +738,8 @@ github.com/bombsimon/logrusr/v2 v2.0.1 h1:1VgxVNQMCvjirZIYaT9JYn6sAVGVEcNtRE0y4m
 github.com/bombsimon/logrusr/v2 v2.0.1/go.mod h1:ByVAX+vHdLGAfdroiMg6q0zgq2FODY2lc5YJvzmOJio=
 github.com/boombuler/barcode v1.0.0/go.mod h1:paBWMcWSl3LHKBqUq+rly7CNSldXjb2rDl3JlRe0mD8=
 github.com/boombuler/barcode v1.0.1/go.mod h1:paBWMcWSl3LHKBqUq+rly7CNSldXjb2rDl3JlRe0mD8=
-github.com/bradleyfalzon/ghinstallation/v2 v2.5.0 h1:yaYcGQ7yEIGbsJfW/9z7v1sLiZg/5rSNNXwmMct5XaE=
-github.com/bradleyfalzon/ghinstallation/v2 v2.5.0/go.mod h1:amcvPQMrRkWNdueWOjPytGL25xQGzox7425qMgzo+Vo=
+github.com/bradleyfalzon/ghinstallation/v2 v2.6.0 h1:IRY7Xy588KylkoycsUhFpW7cdGpy5Y5BPsz4IfuJtGk=
+github.com/bradleyfalzon/ghinstallation/v2 v2.6.0/go.mod h1:oQ3etOwN3TRH4EwgW5/7MxSVMGlMlzG/O8TU7eYdoSk=
 github.com/bsm/ginkgo/v2 v2.7.0 h1:ItPMPH90RbmZJt5GtkcNvIRuGEdwlBItdNVoyzaNQao=
 github.com/bsm/gomega v1.26.0 h1:LhQm+AFcgV2M0WyKroMASzAzCAJVpAxQXv4SaI9a69Y=
 github.com/bwesterb/go-ristretto v1.2.0/go.mod h1:fUIoIZaG73pV5biE2Blr2xEzDoMj7NFEuV9ekS419A0=
@@ -1143,8 +1143,8 @@ github.com/google/go-github/v35 v35.3.0 h1:fU+WBzuukn0VssbayTT+Zo3/ESKX9JYWjbZTL
 github.com/google/go-github/v35 v35.3.0/go.mod h1:yWB7uCcVWaUbUP74Aq3whuMySRMatyRmq5U9FTNlbio=
 github.com/google/go-github/v41 v41.0.0 h1:HseJrM2JFf2vfiZJ8anY2hqBjdfY1Vlj/K27ueww4gg=
 github.com/google/go-github/v41 v41.0.0/go.mod h1:XgmCA5H323A9rtgExdTcnDkcqp6S30AVACCBDOonIxg=
-github.com/google/go-github/v53 v53.0.0 h1:T1RyHbSnpHYnoF0ZYKiIPSgPtuJ8G6vgc0MKodXsQDQ=
-github.com/google/go-github/v53 v53.0.0/go.mod h1:XhFRObz+m/l+UCm9b7KSIC3lT3NWSXGt7mOsAWEloao=
+github.com/google/go-github/v53 v53.2.0 h1:wvz3FyF53v4BK+AsnvCmeNhf8AkTaeh2SoYu/XUvTtI=
+github.com/google/go-github/v53 v53.2.0/go.mod h1:XhFRObz+m/l+UCm9b7KSIC3lT3NWSXGt7mOsAWEloao=
 github.com/google/go-jsonnet v0.20.0 h1:WG4TTSARuV7bSm4PMB4ohjxe33IHT5WVTrJSU33uT4g=
 github.com/google/go-jsonnet v0.20.0/go.mod h1:VbgWF9JX7ztlv770x/TolZNGGFfiHEVx9G6ca2eUmeA=
 github.com/google/go-querystring v1.0.0/go.mod h1:odCYkC5MyYFN7vkCjXpyrEuKhc/BUO6wN/zVPAxq5ck=
