@@ -50,7 +50,7 @@ source:
     - values-production.yaml
 ```
 
-ArgoCD now supports Glob expressions for valueFiles (especially useful when using umbrella charts with a lot of dependencies) :
+Argo CD now supports Glob expressions for valueFiles (especially useful when using umbrella charts with a lot of dependencies) :
 
 ```bash
 argocd app set helm-guestbook --values subdir/**/values-*.yaml
