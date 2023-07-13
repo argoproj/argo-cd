@@ -2233,7 +2233,7 @@ func TestIsApplicationPermitted(t *testing.T) {
 	t.Run("Application namespace is incorrect", func(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, "demo", nil, *testApp)
 		assert.False(t, permitted)
 	})
 
