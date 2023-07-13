@@ -16,7 +16,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.299
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/bombsimon/logrusr/v2 v2.0.1
-	github.com/bradleyfalzon/ghinstallation/v2 v2.5.0
+	github.com/bradleyfalzon/ghinstallation/v2 v2.6.0
 	github.com/casbin/casbin/v2 v2.71.1
 	github.com/coreos/go-oidc/v3 v3.6.0
 	github.com/cyphar/filepath-securejoin v0.2.3
@@ -165,7 +165,7 @@ require (
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-github/v41 v41.0.0 // indirect
-	github.com/google/go-github/v53 v53.0.0 // indirect
+	github.com/google/go-github/v53 v53.2.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
