@@ -724,6 +724,12 @@ spec:
               key: applicationsetcontroller.namespaces
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.scm.root.ca.path
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller

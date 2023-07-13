@@ -91,6 +91,8 @@ spec:
         tokenRef:
           secretName: gitlab-token
           key: token
+        # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
+        insecure: false
   template:
   # ...
 ```
@@ -100,6 +102,9 @@ spec:
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `includeSubgroups`: By default (false) the controller will only search for repos directly in the base group. If this is true, it will recurse through all the subgroups searching for repos to scan.
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
+* `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
+
+As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Add-self-signed-TLS-Certs.md).
 
 For label filtering, the repository tags are used.
 
