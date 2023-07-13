@@ -985,6 +985,31 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
+func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a appv1.Application) bool {
+	if len(projects) > 0 && !projects[a.Spec.GetProject()] {
+		return false
+	}
+
+	if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
+		return false
+	}
+	matchedEvent := (appName == "" || (a.Name == appName && a.Namespace == appNs)) && selector.Matches(labels.Set(a.Labels))
+	if !matchedEvent {
+		return false
+	}
+
+	if !s.isNamespaceEnabled(a.Namespace) {
+		return false
+	}
+
+	if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
+		// do not emit apps user does not have accessing
+		return false
+	}
+
+	return true
+}
+
 func (s *Server) Watch(q *application.ApplicationQuery, ws application.ApplicationService_WatchServer) error {
 	appName := q.GetName()
 	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
@@ -1011,24 +1036,8 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(a appv1.Application, eventType watch.EventType) {
-		if len(projects) > 0 && !projects[a.Spec.GetProject()] {
-			return
-		}
-
-		if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
-			return
-		}
-		matchedEvent := (appName == "" || (a.Name == appName && a.Namespace == appNs)) && selector.Matches(labels.Set(a.Labels))
-		if !matchedEvent {
-			return
-		}
-
-		if !s.isNamespaceEnabled(a.Namespace) {
-			return
-		}
-
-		if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
-			// do not emit apps user does not have accessing
+		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, a)
+		if !permitted {
 			return
 		}
 		s.inferResourcesStatusHealth(&a)
