@@ -396,9 +396,10 @@ export class ApplicationsService {
             .then(() => true);
     }
 
-    public getLinks(applicationName: string): Promise<models.LinksResponse> {
+    public getLinks(applicationName: string, namespace: string): Promise<models.LinksResponse> {
         return requests
             .get(`/applications/${applicationName}/links`)
+            .query({namespace})
             .send()
             .then(res => res.body as models.LinksResponse);
     }
