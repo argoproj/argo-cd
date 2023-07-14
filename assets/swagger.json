@@ -6767,6 +6767,13 @@
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
         },
+        "ignoreDifferences": {
+          "type": "array",
+          "title": "IgnoreDifferences is a reference to the application's ignored differences used for comparison",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
+          }
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
@@ -7587,6 +7594,10 @@
         "api": {
           "description": "The GitLab API URL to talk to. If blank, uses https://gitlab.com/.",
           "type": "string"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false"
         },
         "labels": {
           "type": "array",
@@ -8557,6 +8568,10 @@
         "includeSubgroups": {
           "type": "boolean",
           "title": "Recurse through subgroups (true) or scan only the base group (false).  Defaults to \"false\""
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false"
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"

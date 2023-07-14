@@ -189,6 +189,8 @@ data:
   applicationsetcontroller.matrix.children.max: 2
   # A list of glob patterns specifying where to look for ApplicationSet resources. (default is only the ns where the controller is installed)
   applicationsetcontroller.namespaces: "argocd,argocd-appsets-*"
+  # Path of the self-signed TLS certificate for SCM/PR Gitlab Generator
+  applicationsetcontroller.scm.root.ca.path: ""
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
