@@ -61,8 +61,7 @@ func (g *ClusterGenerator) GetTemplate(appSetGenerator *argoappsetv1alpha1.Appli
 	return &appSetGenerator.Clusters.Template
 }
 
-func (g *ClusterGenerator) GenerateParams(
-	appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
+func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
@@ -109,7 +108,7 @@ func (g *ClusterGenerator) GenerateParams(
 			params["nameNormalized"] = cluster.Name
 			params["server"] = cluster.Server
 
-			err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate)
+			err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 			if err != nil {
 				return nil, err
 			}
@@ -149,7 +148,7 @@ func (g *ClusterGenerator) GenerateParams(
 			}
 		}
 
-		err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate)
+		err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 		if err != nil {
 			return nil, err
 		}

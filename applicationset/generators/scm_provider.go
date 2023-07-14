@@ -26,16 +26,18 @@ type SCMProviderGenerator struct {
 	// Testing hooks.
 	overrideProvider scm_provider.SCMProviderService
 	SCMAuthProviders
+	scmRootCAPath string
 }
 
 type SCMAuthProviders struct {
 	GitHubApps github_app_auth.Credentials
 }
 
-func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders) Generator {
+func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders, scmRootCAPath string) Generator {
 	return &SCMProviderGenerator{
 		client:           client,
 		SCMAuthProviders: providers,
+		scmRootCAPath:    scmRootCAPath,
 	}
 }
 
@@ -85,7 +87,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitlab token: %v", err)
 		}
-		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Gitlab.Group, token, providerConfig.Gitlab.API, providerConfig.Gitlab.AllBranches, providerConfig.Gitlab.IncludeSubgroups)
+		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Gitlab.Group, token, providerConfig.Gitlab.API, providerConfig.Gitlab.AllBranches, providerConfig.Gitlab.IncludeSubgroups, providerConfig.Gitlab.Insecure, g.scmRootCAPath)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitlab service: %v", err)
 		}
@@ -131,6 +133,12 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Bitbucket cloud service: %v", err)
 		}
+	} else if providerConfig.AWSCodeCommit != nil {
+		var awsErr error
+		provider, awsErr = scm_provider.NewAWSCodeCommitProvider(ctx, providerConfig.AWSCodeCommit.TagFilters, providerConfig.AWSCodeCommit.Role, providerConfig.AWSCodeCommit.Region, providerConfig.AWSCodeCommit.AllBranches)
+		if awsErr != nil {
+			return nil, fmt.Errorf("error initializing AWS codecommit service: %v", awsErr)
+		}
 	} else {
 		return nil, fmt.Errorf("no SCM provider implementation configured")
 	}
@@ -166,7 +174,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"branchNormalized": utils.SanitizeName(repo.Branch),
 		}
 
-		err := appendTemplatedValues(appSetGenerator.SCMProvider.Values, params, applicationSetInfo.Spec.GoTemplate)
+		err := appendTemplatedValues(appSetGenerator.SCMProvider.Values, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append templated values: %w", err)
 		}

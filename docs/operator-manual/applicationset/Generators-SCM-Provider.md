@@ -91,6 +91,8 @@ spec:
         tokenRef:
           secretName: gitlab-token
           key: token
+        # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
+        insecure: false
   template:
   # ...
 ```
@@ -100,6 +102,9 @@ spec:
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `includeSubgroups`: By default (false) the controller will only search for repos directly in the base group. If this is true, it will recurse through all the subgroups searching for repos to scan.
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
+* `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
+
+As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Add-self-signed-TLS-Certs.md).
 
 For label filtering, the repository tags are used.
 
@@ -254,6 +259,87 @@ spec:
 This SCM provider does not yet support label filtering
 
 Available clone protocols are `ssh` and `https`.
+
+## AWS CodeCommit (Alpha)
+
+Uses AWS ResourceGroupsTagging and AWS CodeCommit APIs to scan repos across AWS accounts and regions.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+    - scmProvider:
+        awsCodeCommit:
+          # AWS region to scan repos.
+          # default to the environmental region from ApplicationSet controller.
+          region: us-east-1
+          # AWS role to assume to scan repos.
+          # default to the environmental role from ApplicationSet controller.
+          role: arn:aws:iam::111111111111:role/argocd-application-set-discovery
+          # If true, scan every branch of every repository. If false, scan only the main branch. Defaults to false.
+          allBranches: true
+          # AWS resource tags to filter repos with.
+          # see https://docs.aws.amazon.com/resourcegroupstagging/latest/APIReference/API_GetResources.html#resourcegrouptagging-GetResources-request-TagFilters for details
+          # default to no tagFilters, to include all repos in the region.
+          tagFilters:
+            - key: organization
+              value: platform-engineering
+            - key: argo-ready
+  template:
+  # ...
+```
+
+* `region`: (Optional) AWS region to scan repos. By default, use ApplicationSet controller's current region.
+* `role`: (Optional) AWS role to assume to scan repos. By default, use ApplicationSet controller's current role.
+* `allBranches`: (Optional) If `true`, scans every branch of eligible repositories. If `false`, check only the default branch of the eligible repositories. Default `false`.
+* `tagFilters`: (Optional) A list of tagFilters to filter AWS CodeCommit repos with. See [AWS ResourceGroupsTagging API](https://docs.aws.amazon.com/resourcegroupstagging/latest/APIReference/API_GetResources.html#resourcegrouptagging-GetResources-request-TagFilters) for details. By default, no filter is included.
+
+This SCM provider does not support the following features
+
+* label filtering
+* `sha`, `short_sha` and `short_sha_7` template parameters
+
+Available clone protocols are `ssh`, `https` and `https-fips`.
+
+### AWS IAM Permission Considerations
+
+In order to call AWS APIs to discover AWS CodeCommit repos, ApplicationSet controller must be configured with valid environmental AWS config, like current AWS region and AWS credentials.
+AWS config can be provided via all standard options, like Instance Metadata Service (IMDS), config file, environment variables, or IAM roles for service accounts (IRSA).
+
+Depending on whether `role` is provided in `awsCodeCommit` property, AWS IAM permission requirement is different.
+
+#### Discover AWS CodeCommit Repositories in the same AWS Account as ApplicationSet Controller
+
+Without specifying `role`, ApplicationSet controller will use its own AWS identity to scan AWS CodeCommit repos.
+This is suitable when you have a simple setup that all AWS CodeCommit repos reside in the same AWS account as your ArgoCD.
+
+As the ApplicationSet controller AWS identity is used directly for repo discovery, it must be granted below AWS permissions.
+
+* `tag:GetResources`
+* `codecommit:ListRepositories`
+* `codecommit:GetRepository`
+* `codecommit:GetFolder`
+* `codecommit:ListBranches`
+
+#### Discover AWS CodeCommit Repositories across AWS Accounts and Regions
+
+By specifying `role`, ApplicationSet controller will first assume the `role`, and use it for repo discovery.
+This enables more complicated use cases to discover repos from different AWS accounts and regions.
+
+The ApplicationSet controller AWS identity should be granted permission to assume target AWS roles.
+
+* `sts:AssumeRole`
+
+All AWS roles must have repo discovery related permissions.
+
+* `tag:GetResources`
+* `codecommit:ListRepositories`
+* `codecommit:GetRepository`
+* `codecommit:GetFolder`
+* `codecommit:ListBranches`
 
 ## Filters
 

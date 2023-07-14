@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"crypto/x509"
+	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -8,6 +11,7 @@ import (
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -173,7 +177,7 @@ func TestRenderTemplateParams(t *testing.T) {
 
 				// Render the cloned application, into a new application
 				render := Render{}
-				newApplication, err := render.RenderTemplateParams(application, nil, test.params, false)
+				newApplication, err := render.RenderTemplateParams(application, nil, test.params, false, nil)
 
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
@@ -235,11 +239,12 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
-		fieldVal     string
-		params       map[string]interface{}
-		expectedVal  string
-		errorMessage string
+		name            string
+		fieldVal        string
+		params          map[string]interface{}
+		expectedVal     string
+		errorMessage    string
+		templateOptions []string
 	}{
 		{
 			name:        "simple substitution",
@@ -422,6 +427,26 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			},
 			errorMessage: `failed to execute go template {{.data.test}}: template: :1:7: executing "" at <.data.test>: can't evaluate field test in type interface {}`,
 		},
+		{
+			name:        "lookup missing value with missingkey=default",
+			fieldVal:    `--> {{.doesnotexist}} <--`,
+			expectedVal: `--> <no value> <--`,
+			params: map[string]interface{}{
+				// if no params are passed then for some reason templating is skipped
+				"unused": "this is not used",
+			},
+		},
+		{
+			name:        "lookup missing value with missingkey=error",
+			fieldVal:    `--> {{.doesnotexist}} <--`,
+			expectedVal: "",
+			params: map[string]interface{}{
+				// if no params are passed then for some reason templating is skipped
+				"unused": "this is not used",
+			},
+			templateOptions: []string{"missingkey=error"},
+			errorMessage:    `failed to execute go template --> {{.doesnotexist}} <--: template: :1:6: executing "" at <.doesnotexist>: map has no entry for key "doesnotexist"`,
+		},
 	}
 
 	for _, test := range tests {
@@ -438,7 +463,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 
 				// Render the cloned application, into a new application
 				render := Render{}
-				newApplication, err := render.RenderTemplateParams(application, nil, test.params, true)
+				newApplication, err := render.RenderTemplateParams(application, nil, test.params, true, test.templateOptions)
 
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
@@ -463,6 +488,34 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 	}
 }
 
+func TestRenderGeneratorParams_does_not_panic(t *testing.T) {
+	// This test verifies that the RenderGeneratorParams function does not panic when the value in a map is a non-
+	// nillable type. This is a regression test.
+	render := Render{}
+	params := map[string]interface{}{
+		"branch": "master",
+	}
+	generator := &argoappsv1.ApplicationSetGenerator{
+		Plugin: &argoappsv1.PluginGenerator{
+			ConfigMapRef: argoappsv1.PluginConfigMapRef{
+				Name: "cm-plugin",
+			},
+			Input: argoappsv1.PluginInput{
+				Parameters: map[string]apiextensionsv1.JSON{
+					"branch": {
+						Raw: []byte(`"{{.branch}}"`),
+					},
+					"repo": {
+						Raw: []byte(`"argo-test"`),
+					},
+				},
+			},
+		},
+	}
+	_, err := render.RenderGeneratorParams(generator, params, true, []string{})
+	assert.NoError(t, err)
+}
+
 func TestRenderTemplateKeys(t *testing.T) {
 	t.Run("fasttemplate", func(t *testing.T) {
 		application := &argoappsv1.Application{
@@ -479,7 +532,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 		}
 
 		render := Render{}
-		newApplication, err := render.RenderTemplateParams(application, nil, params, false)
+		newApplication, err := render.RenderTemplateParams(application, nil, params, false, nil)
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
 		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
@@ -499,7 +552,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 		}
 
 		render := Render{}
-		newApplication, err := render.RenderTemplateParams(application, nil, params, true)
+		newApplication, err := render.RenderTemplateParams(application, nil, params, true, nil)
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
 		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
@@ -600,7 +653,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			// Render the cloned application, into a new application
 			render := Render{}
 
-			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true)
+			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true, nil)
 			assert.Nil(t, err)
 
 			assert.ElementsMatch(t, res.Finalizers, c.expectedFinalizers)
@@ -1013,5 +1066,94 @@ func TestNormalizeBitbucketBasePath(t *testing.T) {
 	} {
 		result := NormalizeBitbucketBasePath(c.basePath)
 		assert.Equal(t, c.expectedBasePath, result, c.testName)
+	}
+}
+
+func TestGetTLSConfig(t *testing.T) {
+	// certParsed, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
+	// require.NoError(t, err)
+
+	temppath := t.TempDir()
+	cert := `
+-----BEGIN CERTIFICATE-----
+MIIFvTCCA6WgAwIBAgIUGrTmW3qc39zqnE08e3qNDhUkeWswDQYJKoZIhvcNAQEL
+BQAwbjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAklMMRAwDgYDVQQHDAdDaGljYWdv
+MRQwEgYDVQQKDAtDYXBvbmUsIEluYzEQMA4GA1UECwwHU3BlY09wczEYMBYGA1UE
+AwwPZm9vLmV4YW1wbGUuY29tMB4XDTE5MDcwODEzNTUwNVoXDTIwMDcwNzEzNTUw
+NVowbjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAklMMRAwDgYDVQQHDAdDaGljYWdv
+MRQwEgYDVQQKDAtDYXBvbmUsIEluYzEQMA4GA1UECwwHU3BlY09wczEYMBYGA1UE
+AwwPZm9vLmV4YW1wbGUuY29tMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKC
+AgEA3csSO13w7qQXKeSLNcpeuAe6wAjXYbRkRl6ariqzTEDcFTKmy2QiXJTKoEGn
+bvwxq0T91var7rxY88SGL/qi8Zmo0tVSR0XvKSKcghFIkQOTyDmVgMPZGCvixt4q
+gQ7hUVSk4KkFmtcqBVuvnzI1d/DKfZAGKdmGcfRpuAsnVhac3swP0w4Tl1BFrK9U
+vuIkz4KwXG77s5oB8rMUnyuLasLsGNpvpvXhkcQRhp6vpcCO2bS7kOTTelAPIucw
+P37qkOEdZdiWCLrr57dmhg6tmcVlmBMg6JtmfLxn2HQd9ZrCKlkWxMk5NYs6CAW5
+kgbDZUWQTAsnHeoJKbcgtPkIbxDRxNpPukFMtbA4VEWv1EkODXy9FyEKDOI/PV6K
+/80oLkgCIhCkP2mvwSFheU0RHTuZ0o0vVolP5TEOq5iufnDN4wrxqb12o//XLRc0
+RiLqGVVxhFdyKCjVxcLfII9AAp5Tse4PMh6bf6jDfB3OMvGkhMbJWhKXdR2NUTl0
+esKawMPRXIn5g3oBdNm8kyRsTTnvB567pU8uNSmA8j3jxfGCPynI8JdiwKQuW/+P
+WgLIflgxqAfG85dVVOsFmF9o5o24dDslvv9yHnHH102c6ijPCg1EobqlyFzqqxOD
+Wf2OPjIkzoTH+O27VRugnY/maIU1nshNO7ViRX5zIxEUtNMCAwEAAaNTMFEwHQYD
+VR0OBBYEFNY4gDLgPBidogkmpO8nq5yAq5g+MB8GA1UdIwQYMBaAFNY4gDLgPBid
+ogkmpO8nq5yAq5g+MA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggIB
+AJ0WGioNtGNg3m6ywpmxNThorQD5ZvDMlmZlDVk78E2wfNyMhwbVhKhlAnONv0wv
+kmsGjibY75nRZ+EK9PxSJ644841fryQXQ+bli5fhr7DW3uTKwaRsnzETJXRJuljq
+6+c6Zyg1/mqwnyx7YvPgVh3w496DYx/jm6Fm1IEq3BzOmn6H/gGPq3gbURzEqI3h
+P+kC2vJa8RZWrpa05Xk/Q1QUkErDX9vJghb9z3+GgirISZQzqWRghII/znv3NOE6
+zoIgaaWNFn8KPeBVpUoboH+IhpgibsnbTbI0G7AMtFq6qm3kn/4DZ2N2tuh1G2tT
+zR2Fh7hJbU7CrqxANrgnIoHG/nLSvzE24ckLb0Vj69uGQlwnZkn9fz6F7KytU+Az
+NoB2rjufaB0GQi1azdboMvdGSOxhSCAR8otWT5yDrywCqVnEvjw0oxKmuRduNe2/
+6AcG6TtK2/K+LHuhymiAwZM2qE6VD2odvb+tCzDkZOIeoIz/JcVlNpXE9FuVl250
+9NWvugeghq7tUv81iJ8ninBefJ4lUfxAehTPQqX+zXcfxgjvMRCi/ig73nLyhmjx
+r2AaraPFgrprnxUibP4L7jxdr+iiw5bWN9/B81PodrS7n5TNtnfnpZD6X6rThqOP
+xO7Tr5lAo74vNUkF2EHNaI28/RGnJPm2TIxZqy4rNH6L
+-----END CERTIFICATE-----
+`
+
+	rootCAPath := path.Join(temppath, "foo.example.com")
+	err := os.WriteFile(rootCAPath, []byte(cert), 0666)
+	if err != nil {
+		panic(err)
+	}
+
+	certPool := x509.NewCertPool()
+	ok := certPool.AppendCertsFromPEM([]byte(cert))
+	assert.True(t, ok)
+
+	testCases := []struct {
+		name                    string
+		scmRootCAPath           string
+		insecure                bool
+		validateCertInTlsConfig bool
+	}{
+		{
+			name:                    "Insecure mode configured, SCM Root CA Path not set",
+			scmRootCAPath:           "",
+			insecure:                true,
+			validateCertInTlsConfig: false,
+		},
+		{
+			name:                    "SCM Root CA Path set, Insecure mode set to false",
+			scmRootCAPath:           rootCAPath,
+			insecure:                false,
+			validateCertInTlsConfig: true,
+		},
+		{
+			name:                    "SCM Root CA Path set, Insecure mode set to true",
+			scmRootCAPath:           rootCAPath,
+			insecure:                true,
+			validateCertInTlsConfig: true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			tlsConfig := GetTlsConfig(testCase.scmRootCAPath, testCase.insecure)
+			assert.Equal(t, testCase.insecure, tlsConfig.InsecureSkipVerify)
+			if testCase.validateCertInTlsConfig {
+				assert.NotNil(t, tlsConfig)
+				assert.True(t, tlsConfig.RootCAs.Equal(certPool))
+			}
+		})
 	}
 }
