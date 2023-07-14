@@ -5115,6 +5115,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      insecure:
+                                        type: boolean
                                       labels:
                                         items:
                                           type: string
@@ -5832,6 +5834,8 @@ spec:
                                       group:
                                         type: string
                                       includeSubgroups:
+                                        type: boolean
+                                      insecure:
                                         type: boolean
                                       tokenRef:
                                         properties:
@@ -9814,6 +9818,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      insecure:
+                                        type: boolean
                                       labels:
                                         items:
                                           type: string
@@ -10531,6 +10537,8 @@ spec:
                                       group:
                                         type: string
                                       includeSubgroups:
+                                        type: boolean
+                                      insecure:
                                         type: boolean
                                       tokenRef:
                                         properties:
@@ -12330,6 +12338,8 @@ spec:
                           properties:
                             api:
                               type: string
+                            insecure:
+                              type: boolean
                             labels:
                               items:
                                 type: string
@@ -13047,6 +13057,8 @@ spec:
                             group:
                               type: string
                             includeSubgroups:
+                              type: boolean
+                            insecure:
                               type: boolean
                             tokenRef:
                               properties:

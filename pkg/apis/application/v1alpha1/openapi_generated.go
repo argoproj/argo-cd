@@ -4915,6 +4915,13 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref common.
 							Format:      "",
 						},
 					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"project"},
 			},
@@ -6971,6 +6978,13 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref common.
 					"allBranches": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Scan all branches instead of just the default branch.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
