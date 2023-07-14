@@ -133,7 +133,6 @@ jobs:
       - goreleaser
     permissions:
       contents: write # Needed for release uploads
-      id-token: write # Needed for signing Sbom
     outputs:
       hashes: ${{ steps.sbom-hash.outputs.hashes}}
     if: github.repository == 'argoproj/argo-cd'
