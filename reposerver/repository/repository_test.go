@@ -1277,6 +1277,7 @@ func TestListApps(t *testing.T) {
 		"oci-dependencies":                  "Helm",
 		"out-of-bounds-values-file-link":    "Helm",
 		"values-files":                      "Helm",
+		"helm-with-dependencies":            "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }
@@ -2603,19 +2604,35 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	})
 }
 
-func TestOCIDependencies(t *testing.T) {
+func TestGetHelmRepos_OCIDependencies(t *testing.T) {
 	src := argoappv1.ApplicationSource{Path: "."}
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{
 		{URL: "example.com", Username: "test", Password: "test", EnableOCI: true},
 	}}
 
-	err := populateRequestRepos("./testdata/oci-dependencies", &q)
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
 	assert.Nil(t, err)
 
-	assert.Equal(t, len(q.Repos), 1)
-	assert.Equal(t, q.Repos[0].Username, "test")
-	assert.Equal(t, q.Repos[0].EnableOCI, true)
-	assert.Equal(t, q.Repos[0].Repo, "example.com")
+	assert.Equal(t, len(helmRepos), 1)
+	assert.Equal(t, helmRepos[0].Username, "test")
+	assert.Equal(t, helmRepos[0].EnableOci, true)
+	assert.Equal(t, helmRepos[0].Repo, "example.com")
+}
+
+func TestGetHelmRepo_NamedRepos(t *testing.T) {
+	src := argoappv1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, Repos: []*argoappv1.Repository{{
+		Name:     "custom-repo",
+		Repo:     "https://example.com",
+		Username: "test",
+	}}}
+
+	helmRepos, err := getHelmRepos("./testdata/helm-with-dependencies", q.Repos, q.HelmRepoCreds)
+	assert.Nil(t, err)
+
+	assert.Equal(t, len(helmRepos), 1)
+	assert.Equal(t, helmRepos[0].Username, "test")
+	assert.Equal(t, helmRepos[0].Repo, "https://example.com")
 }
 
 func Test_getResolvedValueFiles(t *testing.T) {
