@@ -1196,7 +1196,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			// the AppProject which the application is a part of
 			for _, repo := range helmRepos {
 				match := regexp.MustCompile(fmt.Sprintf("could not download (oci|https?)://%s", repo.Repo))
-				if match.MatchString(err.Error()) && !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
+				if (strings.Contains(err.Error(), "401 Unauthorized") || match.MatchString(err.Error())) && !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
 					reposNotPermitted = append(reposNotPermitted, repo.Repo)
 				}
 			}
