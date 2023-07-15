@@ -88,14 +88,14 @@ func fakeAppList() *apiclient.AppList {
 	}
 }
 
-func fakeResolveRevesionResponse() *apiclient.ResolveRevisionResponse {
+func fakeResolveRevisionResponse() *apiclient.ResolveRevisionResponse {
 	return &apiclient.ResolveRevisionResponse{
 		Revision:          "f9ba9e98119bf8c1176fbd65dbae26a71d044add",
 		AmbiguousRevision: "HEAD (f9ba9e98119bf8c1176fbd65dbae26a71d044add)",
 	}
 }
 
-func fakeResolveRevesionResponseHelm() *apiclient.ResolveRevisionResponse {
+func fakeResolveRevisionResponseHelm() *apiclient.ResolveRevisionResponse {
 	return &apiclient.ResolveRevisionResponse{
 		Revision:          "0.7.*",
 		AmbiguousRevision: "0.7.* (0.7.2)",
@@ -113,11 +113,12 @@ func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
 	mockWithFilesClient.On("Send", mock.Anything).Return(nil)
 	mockWithFilesClient.On("CloseAndRecv").Return(&apiclient.ManifestResponse{}, nil)
 	mockRepoServiceClient.On("GenerateManifestWithFiles", mock.Anything, mock.Anything).Return(mockWithFilesClient, nil)
+	mockRepoServiceClient.On("GetRevisionChartDetails", mock.Anything, mock.Anything).Return(&appsv1.ChartDetails{}, nil)
 
 	if isHelm {
-		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevesionResponseHelm(), nil)
+		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevisionResponseHelm(), nil)
 	} else {
-		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevesionResponse(), nil)
+		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevisionResponse(), nil)
 	}
 
 	return &mockRepoServiceClient
@@ -722,8 +723,31 @@ func TestNoAppEnumeration(t *testing.T) {
 			},
 		}
 	})
+	testHelmApp := newTestApp(func(app *appsv1.Application) {
+		app.Name = "test-helm"
+		app.Spec.Source.Path = ""
+		app.Spec.Source.Chart = "test"
+		app.Status.Resources = []appsv1.ResourceStatus{
+			{
+				Group:     deployment.GroupVersionKind().Group,
+				Kind:      deployment.GroupVersionKind().Kind,
+				Version:   deployment.GroupVersionKind().Version,
+				Name:      deployment.Name,
+				Namespace: deployment.Namespace,
+				Status:    "Synced",
+			},
+		}
+		app.Status.History = []appsv1.RevisionHistory{
+			{
+				ID: 0,
+				Source: appsv1.ApplicationSource{
+					TargetRevision: "something-old",
+				},
+			},
+		}
+	})
 	testDeployment := kube.MustToUnstructured(&deployment)
-	appServer := newTestAppServerWithEnforcerConfigure(f, t, testApp, testDeployment)
+	appServer := newTestAppServerWithEnforcerConfigure(f, t, testApp, testHelmApp, testDeployment)
 
 	noRoleCtx := context.Background()
 	// nolint:staticcheck
@@ -830,6 +854,15 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err = appServer.RevisionMetadata(noRoleCtx, &application.RevisionMetadataQuery{Name: pointer.String("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: pointer.String("doest-not-exist")})
+		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+	})
+
+	t.Run("RevisionChartDetails", func(t *testing.T) {
+		_, err := appServer.RevisionChartDetails(adminCtx, &application.RevisionMetadataQuery{Name: pointer.String("test-helm")})
+		assert.NoError(t, err)
+		_, err = appServer.RevisionChartDetails(noRoleCtx, &application.RevisionMetadataQuery{Name: pointer.String("test-helm")})
+		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.RevisionChartDetails(adminCtx, &application.RevisionMetadataQuery{Name: pointer.String("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 	})
 
