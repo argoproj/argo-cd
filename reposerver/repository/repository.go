@@ -1195,8 +1195,12 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			// We do a sanity check here to give a nicer error message in case any of the Helm repositories are not permitted by
 			// the AppProject which the application is a part of
 			for _, repo := range helmRepos {
-				match := regexp.MustCompile(fmt.Sprintf("could not download (oci|https?)://%s", repo.Repo))
-				if (strings.Contains(err.Error(), "401 Unauthorized") || match.MatchString(err.Error())) && !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
+				msg := err.Error()
+
+				chartCannotBeReached := strings.Contains(msg, "is not a valid chart repository or cannot be reached")
+				couldNotDownloadChart := strings.Contains(msg, "could not download")
+
+				if (chartCannotBeReached || couldNotDownloadChart) && !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
 					reposNotPermitted = append(reposNotPermitted, repo.Repo)
 				}
 			}
