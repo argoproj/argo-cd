@@ -7,12 +7,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/pkg/stats"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
+
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/tls"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/controllers"
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
@@ -52,9 +52,10 @@ func NewCommand() *cobra.Command {
 		probeBindAddr                string
 		webhookAddr                  string
 		enableLeaderElection         bool
-		namespace                    string
+		applicationSetNamespaces     []string
 		argocdRepoServer             string
 		policy                       string
+		enablePolicyOverride         bool
 		debugLog                     bool
 		dryRun                       bool
 		enableProgressiveSyncs       bool
@@ -63,6 +64,7 @@ func NewCommand() *cobra.Command {
 		repoServerStrictTLS          bool
 		repoServerTimeoutSeconds     int
 		maxConcurrentReconciliations int
+		scmRootCAPath                string
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -75,6 +77,8 @@ func NewCommand() *cobra.Command {
 
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
+			applicationSetNamespaces = append(applicationSetNamespaces, namespace)
+
 			errors.CheckError(err)
 			vers.LogStartupInfo(
 				"ArgoCD ApplicationSet Controller",
@@ -93,23 +97,29 @@ func NewCommand() *cobra.Command {
 
 			policyObj, exists := utils.Policies[policy]
 			if !exists {
-				log.Info("Policy value can be: sync, create-only, create-update, create-delete")
+				log.Info("Policy value can be: sync, create-only, create-update, create-delete, default value: sync")
 				os.Exit(1)
 			}
 
+			// By default watch all namespace
+			var watchedNamespace string = ""
+
+			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
+			if len(applicationSetNamespaces) == 1 {
+				watchedNamespace = (applicationSetNamespaces)[0]
+			}
+
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-				Scheme:             scheme,
-				MetricsBindAddress: metricsAddr,
-				// Our cache and thus watches and client queries are restricted to the namespace we're running in. This assumes
-				// the applicationset controller is in the same namespace as argocd, which should be the same namespace of
-				// all cluster Secrets and Applications we interact with.
-				NewCache:               cache.MultiNamespacedCacheBuilder([]string{namespace}),
+				Scheme:                 scheme,
+				MetricsBindAddress:     metricsAddr,
+				Namespace:              watchedNamespace,
 				HealthProbeBindAddress: probeBindAddr,
 				Port:                   9443,
 				LeaderElection:         enableLeaderElection,
 				LeaderElectionID:       "58ac56fa.applicationsets.argoproj.io",
 				DryRunClient:           dryRun,
 			})
+
 			if err != nil {
 				log.Error(err, "unable to start manager")
 				os.Exit(1)
@@ -149,9 +159,9 @@ func NewCommand() *cobra.Command {
 				"List":                    generators.NewListGenerator(),
 				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
 				"Git":                     generators.NewGitGenerator(argoCDService),
-				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth),
+				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth, scmRootCAPath),
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
-				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth),
+				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth, scmRootCAPath),
 				"Plugin":                  generators.NewPluginGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
 			}
 
@@ -189,16 +199,20 @@ func NewCommand() *cobra.Command {
 			}
 
 			if err = (&controllers.ApplicationSetReconciler{
-				Generators:             topLevelGenerators,
-				Client:                 mgr.GetClient(),
-				Scheme:                 mgr.GetScheme(),
-				Recorder:               mgr.GetEventRecorderFor("applicationset-controller"),
-				Renderer:               &utils.Render{},
-				Policy:                 policyObj,
-				ArgoAppClientset:       appSetConfig,
-				KubeClientset:          k8sClient,
-				ArgoDB:                 argoCDDB,
-				EnableProgressiveSyncs: enableProgressiveSyncs,
+				Generators:               topLevelGenerators,
+				Client:                   mgr.GetClient(),
+				Scheme:                   mgr.GetScheme(),
+				Recorder:                 mgr.GetEventRecorderFor("applicationset-controller"),
+				Renderer:                 &utils.Render{},
+				Policy:                   policyObj,
+				EnablePolicyOverride:     enablePolicyOverride,
+				ArgoAppClientset:         appSetConfig,
+				KubeClientset:            k8sClient,
+				ArgoDB:                   argoCDDB,
+				ArgoCDNamespace:          namespace,
+				ApplicationSetNamespaces: applicationSetNamespaces,
+				EnableProgressiveSyncs:   enableProgressiveSyncs,
+				SCMRootCAPath:            scmRootCAPath,
 			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
@@ -220,9 +234,10 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableLeaderElection, "enable-leader-election", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_LEADER_ELECTION", false),
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	command.Flags().StringVar(&namespace, "namespace", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACE", ""), "Argo CD repo namespace (default: argocd)")
+	command.Flags().StringSliceVar(&applicationSetNamespaces, "applicationset-namespaces", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES", []string{}, ","), "Argo CD applicationset namespaces")
 	command.Flags().StringVar(&argocdRepoServer, "argocd-repo-server", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER", common.DefaultRepoServerAddr), "Argo CD repo server address")
-	command.Flags().StringVar(&policy, "policy", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_POLICY", "sync"), "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion), 'create-delete' (no update)")
+	command.Flags().StringVar(&policy, "policy", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_POLICY", ""), "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion), 'create-delete' (no update)")
+	command.Flags().BoolVar(&enablePolicyOverride, "enable-policy-override", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE", policy == ""), "For security reason if 'policy' is set, it is not possible to override it at applicationSet level. 'allow-policy-override' allows user to define their own policy")
 	command.Flags().BoolVar(&debugLog, "debug", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG", false), "Print debug logs. Takes precedence over loglevel")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
@@ -233,6 +248,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&maxConcurrentReconciliations, "concurrent-reconciliations", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS", 10, 1, 100), "Max concurrent reconciliations limit for the controller")
+	command.Flags().StringVar(&scmRootCAPath, "scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
 	return &command
 }
 

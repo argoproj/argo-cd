@@ -149,7 +149,7 @@ jobs:
           go-version: ${{ env.GOLANG_VERSION }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@dd6b2e2b610a11fd73dd187a43d57cc1394e35f9 # v3.0.5
+        uses: sigstore/cosign-installer@6e04d228eb30da1757ee4e1dd75a0ec73a653e06 # v3.1.1
         with:
           cosign-release: 'v2.0.0'
 

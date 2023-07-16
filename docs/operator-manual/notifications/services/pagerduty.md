@@ -35,7 +35,7 @@ data:
 
 ## Template
 
-Notification templates support specifying subject for pagerduty notifications:
+[Notification templates](../templates.md) support specifying subject for pagerduty notifications:
 
 ```yaml
 apiVersion: v1

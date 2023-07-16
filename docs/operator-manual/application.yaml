@@ -6,7 +6,10 @@ metadata:
   namespace: argocd
   # Add this finalizer ONLY if you want these to cascade delete.
   finalizers:
+    # The default behaviour is foreground cascading deletion
     - resources-finalizer.argocd.argoproj.io
+    # Alternatively, you can use background cascading deletion
+    # - resources-finalizer.argocd.argoproj.io/background
   # Add labels to your application object.
   labels:
     name: guestbook
@@ -48,8 +51,24 @@ spec:
       # Ignore locally missing valueFiles when installing Helm chart. Defaults to false
       ignoreMissingValueFiles: false
 
-      # Values file as block file
+      # Values file as block file. Prefer to use valuesObject if possible (see below)
       values: |
+        ingress:
+          enabled: true
+          path: /
+          hosts:
+            - mydomain.example.com
+          annotations:
+            kubernetes.io/ingress.class: nginx
+            kubernetes.io/tls-acme: "true"
+          labels: {}
+          tls:
+            - secretName: mydomain-tls
+              hosts:
+                - mydomain.example.com
+
+      # Values file as block file. This takes precedence over values
+      valuesObject:
         ingress:
           enabled: true
           path: /
