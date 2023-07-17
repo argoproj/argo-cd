@@ -74,7 +74,7 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 			continue
 		}
 		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
-			if settings.InClusterEnabled {
+			if inClusterEnabled {
 				hasInClusterCredentials = true
 				clusterList.Items = append(clusterList.Items, *cluster)
 			}
