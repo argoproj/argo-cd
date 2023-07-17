@@ -30,19 +30,16 @@ import (
 )
 
 const (
-	failureRetryCountEnv              = "ARGOCD_K8S_RETRY_COUNT"
-	failureRetryPeriodMilliSecondsEnv = "ARGOCD_K8S_RETRY_DURATION_MILLISECONDS"
+	failureRetryCountEnv                  = "ARGOCD_K8S_RETRY_COUNT"
+	failureRetryPeriodMilliSecondsEnv     = "ARGOCD_K8S_RETRY_DURATION_MILLISECONDS"
+	defaultFailureRetryCount              = 0
+	defaultFailureRetryPeriodMilliSeconds = 100
 )
 
 var (
-	failureRetryCount              = 0
-	failureRetryPeriodMilliSeconds = 100
+	failureRetryCount              = env.ParseNumFromEnv(failureRetryCountEnv, defaultFailureRetryCount, 0, 10)
+	failureRetryPeriodMilliSeconds = env.ParseNumFromEnv(failureRetryPeriodMilliSecondsEnv, defaultFailureRetryPeriodMilliSeconds, 0, 1000)
 )
-
-func init() {
-	failureRetryCount = env.ParseNumFromEnv(failureRetryCountEnv, failureRetryCount, 0, 10)
-	failureRetryPeriodMilliSeconds = env.ParseNumFromEnv(failureRetryPeriodMilliSecondsEnv, failureRetryPeriodMilliSeconds, 0, 1000)
-}
 
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
