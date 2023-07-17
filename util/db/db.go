@@ -100,15 +100,18 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 		ns:            namespace,
 		kubeclientset: kubeclientset,
 	}
-	clusterSecrets, err := dbInstance.listSecretsByType(common.LabelValueSecretTypeCluster)
+	dbInstance.sanityCheck()
+	return &dbInstance
+}
+
+func (db *db) sanityCheck() {
+	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
 	if err != nil {
 		log.WithError(err).Errorln("could not list secrets by type")
-		return &dbInstance
 	}
-	dbSettings, err := dbInstance.settingsMgr.GetSettings()
+	dbSettings, err := db.settingsMgr.GetSettings()
 	if err != nil {
 		log.WithError(err).Errorln("could not get DB settings")
-		return &dbInstance
 	}
 	for _, clusterSecret := range clusterSecrets {
 		cluster, err := secretToCluster(clusterSecret)
@@ -122,7 +125,6 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 			}
 		}
 	}
-	return &dbInstance
 }
 
 func (db *db) getSecret(name string, cache map[string]*v1.Secret) (*v1.Secret, error) {
