@@ -37,12 +37,13 @@ func Test_printClusterTable(t *testing.T) {
 				TLSClientConfig: v1alpha1.TLSClientConfig{},
 				AWSAuthConfig:   nil,
 			},
-			ConnectionState: v1alpha1.ConnectionState{
-				Status:     "my-status",
-				Message:    "my-message",
-				ModifiedAt: &metav1.Time{},
-			},
-			ServerVersion: "my-version",
+			Info: v1alpha1.ClusterInfo{
+				ConnectionState: v1alpha1.ConnectionState{
+					Status:     "my-status",
+					Message:    "my-message",
+					ModifiedAt: &metav1.Time{},
+				},
+				ServerVersion: "my-version"},
 		},
 	})
 }

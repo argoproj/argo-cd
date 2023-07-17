@@ -434,7 +434,7 @@ func printClusterTable(clusters []argoappv1.Cluster) {
 		if len(c.Namespaces) > 0 {
 			server = fmt.Sprintf("%s (%d namespaces)", c.Server, len(c.Namespaces))
 		}
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", server, c.Name, c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message, c.Project)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", server, c.Name, c.Info.ServerVersion, c.Info.ConnectionState.Status, c.Info.ConnectionState.Message, c.Project)
 	}
 	_ = w.Flush()
 }
