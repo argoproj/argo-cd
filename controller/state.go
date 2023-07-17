@@ -351,7 +351,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		if hasMultipleSources {
 			return &comparisonResult{
 				syncStatus: &v1alpha1.SyncStatus{
-					ComparedTo: v1alpha1.ComparedTo{Destination: app.Spec.Destination, Sources: sources},
+					ComparedTo: v1alpha1.ComparedTo{Destination: app.Spec.Destination, Sources: sources, IgnoreDifferences: app.Spec.IgnoreDifferences},
 					Status:     v1alpha1.SyncStatusCodeUnknown,
 					Revisions:  revisions,
 				},
@@ -360,7 +360,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		} else {
 			return &comparisonResult{
 				syncStatus: &v1alpha1.SyncStatus{
-					ComparedTo: v1alpha1.ComparedTo{Source: sources[0], Destination: app.Spec.Destination},
+					ComparedTo: v1alpha1.ComparedTo{Source: sources[0], Destination: app.Spec.Destination, IgnoreDifferences: app.Spec.IgnoreDifferences},
 					Status:     v1alpha1.SyncStatusCodeUnknown,
 					Revision:   revisions[0],
 				},
@@ -506,7 +506,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	// restore comparison using cached diff result if previous comparison was performed for the same revision
 	revisionChanged := len(manifestInfos) != len(sources) || !reflect.DeepEqual(app.Status.Sync.Revisions, manifestRevisions)
-	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, Sources: sources})
+	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, Sources: sources, IgnoreDifferences: app.Spec.IgnoreDifferences})
 
 	_, refreshRequested := app.IsRefreshRequested()
 	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout) || specChanged || revisionChanged
@@ -647,8 +647,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	if hasMultipleSources {
 		syncStatus = v1alpha1.SyncStatus{
 			ComparedTo: v1alpha1.ComparedTo{
-				Destination: app.Spec.Destination,
-				Sources:     sources,
+				Destination:       app.Spec.Destination,
+				Sources:           sources,
+				IgnoreDifferences: app.Spec.IgnoreDifferences,
 			},
 			Status:    syncCode,
 			Revisions: manifestRevisions,
@@ -656,8 +657,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	} else {
 		syncStatus = v1alpha1.SyncStatus{
 			ComparedTo: v1alpha1.ComparedTo{
-				Destination: app.Spec.Destination,
-				Source:      app.Spec.GetSource(),
+				Destination:       app.Spec.Destination,
+				Source:            app.Spec.GetSource(),
+				IgnoreDifferences: app.Spec.IgnoreDifferences,
 			},
 			Status:   syncCode,
 			Revision: revision,
