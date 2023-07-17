@@ -100,11 +100,11 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 		ns:            namespace,
 		kubeclientset: kubeclientset,
 	}
-	dbInstance.sanityCheck()
+	dbInstance.logInClusterWarning()
 	return &dbInstance
 }
 
-func (db *db) sanityCheck() {
+func (db *db) logInClusterWarning() {
 	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
 	if err != nil {
 		log.WithError(err).Errorln("could not list secrets by type")
