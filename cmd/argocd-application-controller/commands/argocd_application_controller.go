@@ -64,6 +64,7 @@ func NewCommand() *cobra.Command {
 		applicationNamespaces    []string
 		persistResourceHealth    bool
 		shardingAlgorithm        string
+		statsTickerInterval      time.Duration
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -160,7 +161,7 @@ func NewCommand() *cobra.Command {
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
 
 			stats.RegisterStackDumper()
-			stats.StartStatsTicker(10 * time.Minute)
+			stats.StartStatsTicker(statsTickerInterval)
 			stats.RegisterHeapDumper("memprofile")
 
 			if otlpAddress != "" {
@@ -199,6 +200,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that applications are allowed to be reconciled from")
 	command.Flags().BoolVar(&persistResourceHealth, "persist-resource-health", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", true), "Enables storing the managed resources health in the Application CRD")
 	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.DefaultShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin] ")
+	command.Flags().DurationVar(&statsTickerInterval, "stats-ticker-interval", env.ParseDurationFromEnv(common.EnvStatsTickerInterval, 10*time.Minute, 1*time.Minute, 1*time.Hour), "Interval between logging of server statistics")
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})

@@ -233,6 +233,8 @@ const (
 	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
 	// EnvGPGDataPath overrides the location where GPG keyring for signature verification is stored
 	EnvGPGDataPath = "ARGOCD_GPG_DATA_PATH"
+	// EnvStatsTickerInterval  defines the interval at which the stats ticker runs.
+	EnvStatsTickerInterval = "ARGOCD_STATS_TICKER_INTERVAL"
 )
 
 // Config Management Plugin related constants
