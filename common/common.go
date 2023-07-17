@@ -34,6 +34,8 @@ const (
 	// ArgoCDTLSCertsConfigMapName contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDTLSCertsConfigMapName = "argocd-tls-certs-cm"
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
+	// ArgoCDAppControllerShardConfigMapName contains the application controller to shard mapping
+	ArgoCDAppControllerShardConfigMapName = "argocd-app-controller-shard-cm"
 )
 
 // Some default configurables

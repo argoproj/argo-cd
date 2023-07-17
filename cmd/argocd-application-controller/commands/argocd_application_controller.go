@@ -214,7 +214,7 @@ func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.Se
 	if replicas > 1 {
 		if shard < 0 {
 			var err error
-			shard, err = sharding.InferShard()
+			shard, err = sharding.InferShard(kubeClient, settingsMgr)
 			errors.CheckError(err)
 		}
 		log.Infof("Processing clusters from shard %d", shard)
