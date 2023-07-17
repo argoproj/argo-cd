@@ -8,7 +8,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {IndividualDiffSection} from './individual-diff-section';
 
-import './application-resources-diff.scss';
+require('./application-resources-diff.scss');
 
 export interface ApplicationResourcesDiffProps {
     states: models.ResourceDiff[];

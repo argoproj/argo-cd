@@ -1,9 +1,0 @@
-tests:
-  - healthStatus:
-      status: Degraded
-      message: 'unable to validate store'
-    inputPath: testdata/degraded.yaml
-  - healthStatus:
-      status: Healthy
-      message: 'store validated'
-    inputPath: testdata/healthy.yaml
