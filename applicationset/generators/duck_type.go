@@ -232,5 +232,9 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 		return nil, nil
 	}
 
+	if appSetGenerator.ClusterDecisionResource.ParamPrefix != "" {
+		res = utils.PrefixParams(appSetGenerator.ClusterDecisionResource.ParamPrefix, res)
+	}
+
 	return res, nil
 }

@@ -63,6 +63,8 @@ spec:
                           type: object
                         name:
                           type: string
+                        paramPrefix:
+                          type: string
                         requeueAfterSeconds:
                           format: int64
                           type: integer
@@ -562,6 +564,8 @@ spec:
                       type: object
                     clusters:
                       properties:
+                        paramPrefix:
+                          type: string
                         selector:
                           properties:
                             matchExpressions:
@@ -1099,6 +1103,8 @@ spec:
                             - path
                             type: object
                           type: array
+                        paramPrefix:
+                          type: string
                         pathParamPrefix:
                           type: string
                         repoURL:
@@ -2135,6 +2141,8 @@ spec:
                                     type: object
                                   name:
                                     type: string
+                                  paramPrefix:
+                                    type: string
                                   requeueAfterSeconds:
                                     format: int64
                                     type: integer
@@ -2634,6 +2642,8 @@ spec:
                                 type: object
                               clusters:
                                 properties:
+                                  paramPrefix:
+                                    type: string
                                   selector:
                                     properties:
                                       matchExpressions:
@@ -3171,6 +3181,8 @@ spec:
                                       - path
                                       type: object
                                     type: array
+                                  paramPrefix:
+                                    type: string
                                   pathParamPrefix:
                                     type: string
                                   repoURL:
@@ -4193,6 +4205,8 @@ spec:
                                           x-kubernetes-preserve-unknown-fields: true
                                         type: object
                                     type: object
+                                  paramPrefix:
+                                    type: string
                                   requeueAfterSeconds:
                                     format: int64
                                     type: integer
@@ -4886,6 +4900,8 @@ spec:
                                     required:
                                     - project
                                     type: object
+                                  paramPrefix:
+                                    type: string
                                   requeueAfterSeconds:
                                     format: int64
                                     type: integer
@@ -5570,6 +5586,8 @@ spec:
                                     required:
                                     - group
                                     type: object
+                                  paramPrefix:
+                                    type: string
                                   requeueAfterSeconds:
                                     format: int64
                                     type: integer
@@ -6614,6 +6632,8 @@ spec:
                                     type: object
                                   name:
                                     type: string
+                                  paramPrefix:
+                                    type: string
                                   requeueAfterSeconds:
                                     format: int64
                                     type: integer
@@ -7113,6 +7133,8 @@ spec:
                                 type: object
                               clusters:
                                 properties:
+                                  paramPrefix:
+                                    type: string
                                   selector:
                                     properties:
                                       matchExpressions:
@@ -7650,6 +7672,8 @@ spec:
                                       - path
                                       type: object
                                     type: array
+                                  paramPrefix:
+                                    type: string
                                   pathParamPrefix:
                                     type: string
                                   repoURL:
@@ -8672,6 +8696,8 @@ spec:
                                           x-kubernetes-preserve-unknown-fields: true
                                         type: object
                                     type: object
+                                  paramPrefix:
+                                    type: string
                                   requeueAfterSeconds:
                                     format: int64
                                     type: integer
@@ -9365,6 +9391,8 @@ spec:
                                     required:
                                     - project
                                     type: object
+                                  paramPrefix:
+                                    type: string
                                   requeueAfterSeconds:
                                     format: int64
                                     type: integer
@@ -10049,6 +10077,8 @@ spec:
                                     required:
                                     - group
                                     type: object
+                                  paramPrefix:
+                                    type: string
                                   requeueAfterSeconds:
                                     format: int64
                                     type: integer
@@ -11080,6 +11110,8 @@ spec:
                                 x-kubernetes-preserve-unknown-fields: true
                               type: object
                           type: object
+                        paramPrefix:
+                          type: string
                         requeueAfterSeconds:
                           format: int64
                           type: integer
@@ -11773,6 +11805,8 @@ spec:
                           required:
                           - project
                           type: object
+                        paramPrefix:
+                          type: string
                         requeueAfterSeconds:
                           format: int64
                           type: integer
@@ -12457,6 +12491,8 @@ spec:
                           required:
                           - group
                           type: object
+                        paramPrefix:
+                          type: string
                         requeueAfterSeconds:
                           format: int64
                           type: integer
