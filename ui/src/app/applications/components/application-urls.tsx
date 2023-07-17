@@ -1,6 +1,5 @@
 import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
-import {isValidURL} from '../../shared/utils';
 
 export class InvalidExternalLinkError extends Error {
     constructor(message: string) {
@@ -23,8 +22,23 @@ export class ExternalLink {
             this.title = url;
             this.ref = url;
         }
-        if (!isValidURL(this.ref)) {
+        if (!ExternalLink.isValidURL(this.ref)) {
             throw new InvalidExternalLinkError('Invalid URL');
+        }
+    }
+
+    private static isValidURL(url: string): boolean {
+        try {
+            const parsedUrl = new URL(url);
+            return parsedUrl.protocol !== 'javascript:' && parsedUrl.protocol !== 'data:';
+        } catch (TypeError) {
+            try {
+                // Try parsing as a relative URL.
+                const parsedUrl = new URL(url, window.location.origin);
+                return parsedUrl.protocol !== 'javascript:' && parsedUrl.protocol !== 'data:';
+            } catch (TypeError) {
+                return false;
+            }
         }
     }
 }

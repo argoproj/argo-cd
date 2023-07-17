@@ -1,18 +1,7 @@
-# Webhook
+## Configuration
 
 The webhook notification service allows sending a generic HTTP request using the templatized request body and URL.
 Using Webhook you might trigger a Jenkins job, update Github commit status.
-
-## Parameters
-
-The Webhook notification service configuration includes following settings:
-
-- `url` - the url to send the webhook to
-- `headers` - optional, the headers to pass along with the webhook
-- `basicAuth` - optional, the basic authentication to pass along with the webook
-- `insecureSkipVerify` - optional bool, true or false
-
-## Configuration
 
 Use the following steps to configure webhook:
 
@@ -32,7 +21,6 @@ data:
     basicAuth: #optional username password
       username: <username>
       password: <api-key>
-    insecureSkipVerify: true #optional bool
 ```
 
 2 Define template that customizes webhook request method, path and body:
