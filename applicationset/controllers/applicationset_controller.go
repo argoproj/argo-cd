@@ -597,9 +597,6 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 		appLog := log.WithFields(log.Fields{"app": generatedApp.Name, "appSet": applicationSet.Name})
 		generatedApp.Namespace = applicationSet.Namespace
 
-		// Normalize to avoid fighting with the application controller.
-		generatedApp.Spec = *argoutil.NormalizeApplicationSpec(&generatedApp.Spec)
-
 		found := &argov1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      generatedApp.Name,

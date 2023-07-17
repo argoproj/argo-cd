@@ -3156,7 +3156,7 @@ func TestGetCAPath(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	t.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
+	os.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
 	validcert := []string{
 		"https://foo.example.com",
 		"oci://foo.example.com",

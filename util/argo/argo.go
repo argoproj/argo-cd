@@ -856,8 +856,7 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		for _, source := range spec.Sources {
 			NormalizeSource(&source)
 		}
-	} else if spec.Source != nil {
-		// In practice, spec.Source should never be nil.
+	} else {
 		NormalizeSource(spec.Source)
 	}
 	return spec
