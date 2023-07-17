@@ -10,11 +10,17 @@ import (
 	"strconv"
 	"strings"
 
+	"encoding/json"
+
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -161,4 +167,79 @@ func createClusterIndexByClusterIdMap(db db.ArgoDB) map[string]int {
 		clusterIndexedByClusterId[cluster.ID] = i
 	}
 	return clusterIndexedByClusterId
+}
+
+func GetShardMappingConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager) (int, error) {
+	shardMappingCM, err := settingsMgr.GetConfigMapByName(common.ArgoCDAppControllerShardConfigMapName)
+	if err != nil {
+		return -1, err
+	}
+
+	if shardMappingCM == nil {
+		replicas, err := GetAppControllerDeploymentReplicas(kubeClient, settingsMgr)
+		if err != nil {
+			return -1, err
+		}
+		shardMappingCM = generateDefaultShardMappingCM(settingsMgr.GetNamespace(), *replicas)
+		_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Create(context.Background(), shardMappingCM, metav1.CreateOptions{})
+
+	} else {
+		_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Update(context.Background(), shardMappingCM, metav1.UpdateOptions{})
+	}
+
+	return -1, err
+}
+
+func generateDefaultShardMappingCM(namespace string, replicas int32) (*v1.ConfigMap, error) {
+
+	shardingCM := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDAppControllerShardConfigMapName,
+			Namespace: namespace,
+		},
+		Data: map[string]string{},
+	}
+	shardMappingData := make([]shardApplicationControllerMapping, 0)
+
+	for i := int32(0); i < replicas; i++ {
+		shardMappingData = append(shardMappingData, shardApplicationControllerMapping{
+			shardNumber: i,
+		})
+	}
+	hostname, err := osHostnameFunction()
+	if err != nil {
+		return nil, fmt.Errorf("error getting hostname of the pod %s", err)
+	}
+	shardMappingData[0].controllerName = &hostname
+
+	data, err := json.Marshal(shardMappingData)
+	if err != nil {
+		return nil, fmt.Errorf("error generating defualt ConfigMap: %s", err)
+	}
+	shardingCM.Data["shardControllerMapping"] = string(data)
+
+	return shardingCM, nil
+}
+
+type shardApplicationControllerMapping struct {
+	shardNumber    int32
+	controllerName *string
+	heartbeatTime  *metav1.Time
+}
+
+func GetAppControllerDeploymentReplicas(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager) (*int32, error) {
+
+	appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), "argocd-application-controller", metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("no Deployment found for Application Controller")
+	}
+
+	replicas := appControllerDeployment.Spec.Replicas
+
+	if replicas == nil || *replicas < int32(1) {
+		return nil, fmt.Errorf("Application Controller replicas can not be less than 1")
+	}
+
+	return replicas, nil
+
 }
