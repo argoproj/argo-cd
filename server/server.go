@@ -291,6 +291,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 
 	apiFactory := api.NewFactory(settings_notif.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm"), opts.Namespace, secretInformer, configMapInformer)
 
+	dbInstance := db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset)
+	dbInstance.LogInClusterWarning()
 	return &ArgoCDServer{
 		ArgoCDServerOpts:  opts,
 		log:               log.NewEntry(log.StandardLogger()),
@@ -307,7 +309,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		policyEnforcer:    policyEnf,
 		userStateStorage:  userStateStorage,
 		staticAssets:      http.FS(staticFS),
-		db:                db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset),
+		db:                dbInstance,
 		apiFactory:        apiFactory,
 		secretInformer:    secretInformer,
 		configMapInformer: configMapInformer,

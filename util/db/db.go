@@ -85,6 +85,8 @@ type ArgoDB interface {
 	AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*appv1.GnuPGPublicKey, []string, error)
 	// DeleteGPGPublicKey removes a GPG public key from the configuration
 	DeleteGPGPublicKey(ctx context.Context, keyID string) error
+	// LogInClusterWarning checks the in-cluster configuration and prints out any warnings.
+	LogInClusterWarning()
 }
 
 type db struct {
@@ -100,11 +102,11 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 		ns:            namespace,
 		kubeclientset: kubeclientset,
 	}
-	dbInstance.logInClusterWarning()
 	return &dbInstance
 }
 
-func (db *db) logInClusterWarning() {
+// LogInClusterWarning checks the in-cluster configuration and prints out any warnings.
+func (db *db) LogInClusterWarning() {
 	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
 	if err != nil {
 		log.WithError(err).Errorln("could not list secrets by type")
