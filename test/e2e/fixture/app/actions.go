@@ -76,12 +76,6 @@ func (a *Actions) AddTag(name string) *Actions {
 	return a
 }
 
-func (a *Actions) RemoveSubmodule() *Actions {
-	a.context.t.Helper()
-	fixture.RemoveSubmodule()
-	return a
-}
-
 func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
 	tmpFile, err := os.CreateTemp("", "")
@@ -277,7 +271,7 @@ func (a *Actions) Declarative(filename string) *Actions {
 func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Actions {
 	a.context.t.Helper()
 	values := map[string]interface{}{
-		"ArgoCDNamespace":     fixture.TestNamespace(),
+		"ArgoCDNamespace":     fixture.ArgoCDNamespace,
 		"DeploymentNamespace": fixture.DeploymentNamespace(),
 		"Name":                a.context.AppName(),
 		"Path":                a.context.path,
@@ -328,9 +322,6 @@ func (a *Actions) Sync(args ...string) *Actions {
 	}
 
 	if a.context.resource != "" {
-		// Waiting for the app to be successfully created.
-		// Else the sync would fail to retrieve the app resources.
-		a.context.Sleep(5)
 		args = append(args, "--resource", a.context.resource)
 	}
 
@@ -368,12 +359,6 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 
 	a.runCli("app", "get", a.context.AppQualifiedName(), flag)
 
-	return a
-}
-
-func (a *Actions) Get() *Actions {
-	a.context.t.Helper()
-	a.runCli("app", "get", a.context.AppQualifiedName())
 	return a
 }
 

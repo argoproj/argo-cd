@@ -26,18 +26,16 @@ type SCMProviderGenerator struct {
 	// Testing hooks.
 	overrideProvider scm_provider.SCMProviderService
 	SCMAuthProviders
-	scmRootCAPath string
 }
 
 type SCMAuthProviders struct {
 	GitHubApps github_app_auth.Credentials
 }
 
-func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders, scmRootCAPath string) Generator {
+func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders) Generator {
 	return &SCMProviderGenerator{
 		client:           client,
 		SCMAuthProviders: providers,
-		scmRootCAPath:    scmRootCAPath,
 	}
 }
 
@@ -87,7 +85,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitlab token: %v", err)
 		}
-		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Gitlab.Group, token, providerConfig.Gitlab.API, providerConfig.Gitlab.AllBranches, providerConfig.Gitlab.IncludeSubgroups, providerConfig.Gitlab.Insecure, g.scmRootCAPath)
+		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Gitlab.Group, token, providerConfig.Gitlab.API, providerConfig.Gitlab.AllBranches, providerConfig.Gitlab.IncludeSubgroups)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitlab service: %v", err)
 		}
@@ -133,12 +131,6 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Bitbucket cloud service: %v", err)
 		}
-	} else if providerConfig.AWSCodeCommit != nil {
-		var awsErr error
-		provider, awsErr = scm_provider.NewAWSCodeCommitProvider(ctx, providerConfig.AWSCodeCommit.TagFilters, providerConfig.AWSCodeCommit.Role, providerConfig.AWSCodeCommit.Region, providerConfig.AWSCodeCommit.AllBranches)
-		if awsErr != nil {
-			return nil, fmt.Errorf("error initializing AWS codecommit service: %v", awsErr)
-		}
 	} else {
 		return nil, fmt.Errorf("no SCM provider implementation configured")
 	}
@@ -148,40 +140,26 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	if err != nil {
 		return nil, fmt.Errorf("error listing repos: %v", err)
 	}
-	paramsArray := make([]map[string]interface{}, 0, len(repos))
+	params := make([]map[string]interface{}, 0, len(repos))
 	var shortSHALength int
-	var shortSHALength7 int
 	for _, repo := range repos {
 		shortSHALength = 8
 		if len(repo.SHA) < 8 {
 			shortSHALength = len(repo.SHA)
 		}
 
-		shortSHALength7 = 7
-		if len(repo.SHA) < 7 {
-			shortSHALength7 = len(repo.SHA)
-		}
-
-		params := map[string]interface{}{
+		params = append(params, map[string]interface{}{
 			"organization":     repo.Organization,
 			"repository":       repo.Repository,
 			"url":              repo.URL,
 			"branch":           repo.Branch,
 			"sha":              repo.SHA,
 			"short_sha":        repo.SHA[:shortSHALength],
-			"short_sha_7":      repo.SHA[:shortSHALength7],
 			"labels":           strings.Join(repo.Labels, ","),
 			"branchNormalized": utils.SanitizeName(repo.Branch),
-		}
-
-		err := appendTemplatedValues(appSetGenerator.SCMProvider.Values, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
-		if err != nil {
-			return nil, fmt.Errorf("failed to append templated values: %w", err)
-		}
-
-		paramsArray = append(paramsArray, params)
+		})
 	}
-	return paramsArray, nil
+	return params, nil
 }
 
 func (g *SCMProviderGenerator) getSecretRef(ctx context.Context, ref *argoprojiov1alpha1.SecretRef, namespace string) (string, error) {
