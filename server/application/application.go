@@ -1383,17 +1383,12 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 
 // RevisionChartDetails returns the helm chart metadata, as fetched from the reposerver
 func (s *Server) RevisionChartDetails(ctx context.Context, q *application.RevisionMetadataQuery) (*appv1.ChartDetails, error) {
-	appName := q.GetName()
-	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
-	a, err := s.appLister.Applications(appNs).Get(appName)
+	a, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetAppNamespace(), q.GetName())
 	if err != nil {
-		return nil, fmt.Errorf("error getting app by name: %w", err)
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
-		return nil, fmt.Errorf("error enforcing claims: %w", err)
+		return nil, err
 	}
 	if a.Spec.Source.Chart == "" {
-		return nil, fmt.Errorf("no chart found for application: %v", appName)
+		return nil, fmt.Errorf("no chart found for application: %v", a.QualifiedName())
 	}
 	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
 	if err != nil {
