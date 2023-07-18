@@ -24,6 +24,9 @@ import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
 import {concatMaps} from '../../../shared/utils';
 import {getAppDefaultSource} from '../utils';
+import * as jsYaml from 'js-yaml';
+
+let isValuesRaw = false;
 
 const TextWithMetadataField = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
     const {
@@ -130,6 +133,12 @@ export const ApplicationParameters = (props: {
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
 
     let attributes: EditablePanelItem[] = [];
+    let appValues: string;
+    if (source && source.helm && source.helm.values) {
+        isValuesRaw = typeof source.helm.values !== 'string'; // nolint
+        appValues = isValuesRaw ? jsYaml.safeDump(source.helm.values) : source.helm.values;
+        source.helm.values = appValues;
+    }
     const [appParamsDeletedState, setAppParamsDeletedState] = React.useState([]);
 
     if (props.details.type === 'Kustomize' && props.details.kustomize) {
@@ -216,7 +225,7 @@ export const ApplicationParameters = (props: {
             title: 'VALUES',
             view: source.helm && (
                 <Expandable>
-                    <pre>{source.helm.values}</pre>
+                    <pre>{appValues}</pre>
                 </Expandable>
             ),
             edit: (formApi: FormApi) => (
@@ -319,7 +328,7 @@ export const ApplicationParameters = (props: {
             const liveParam = app.spec.source.plugin?.parameters?.find(param => param.name === name);
             const pluginIcon =
                 announcement && liveParam ? 'This parameter has been provided by plugin, but is overridden in application manifest.' : 'This parameter is provided by the plugin.';
-            const isPluginPar = announcement ? true : false;
+            const isPluginPar = !!announcement;
             if ((announcement?.collectionType === undefined && liveParam?.map) || announcement?.collectionType === 'map') {
                 let liveParamMap;
                 if (liveParam) {
@@ -351,7 +360,7 @@ export const ApplicationParameters = (props: {
                         <FormField
                             field='spec.source.plugin.parameters'
                             componentProps={{
-                                name: announcement?.title ?? announcement?.name ?? name,
+                                name: announcement?.name ?? name,
                                 defaultVal: announcement?.map,
                                 isPluginPar,
                                 setAppParamsDeletedState
@@ -388,7 +397,7 @@ export const ApplicationParameters = (props: {
                         <FormField
                             field='spec.source.plugin.parameters'
                             componentProps={{
-                                name: announcement?.title ?? announcement?.name ?? name,
+                                name: announcement?.name ?? name,
                                 defaultVal: announcement?.array,
                                 isPluginPar,
                                 setAppParamsDeletedState
@@ -429,7 +438,7 @@ export const ApplicationParameters = (props: {
                         <FormField
                             field='spec.source.plugin.parameters'
                             componentProps={{
-                                name: announcement?.title ?? announcement?.name ?? name,
+                                name: announcement?.name ?? name,
                                 defaultVal: announcement?.string,
                                 isPluginPar,
                                 setAppParamsDeletedState
@@ -518,7 +527,9 @@ export const ApplicationParameters = (props: {
                         params = params.filter(param => !appParamsDeletedState.includes(param.name));
                         input.spec.source.plugin.parameters = params;
                     }
-
+                    if (input.spec.source.helm && input.spec.source.helm.values && isValuesRaw) {
+                        input.spec.source.helm.values = jsYaml.safeLoad(input.spec.source.helm.values); // Load values as json
+                    }
                     await props.save(input, {});
                     setRemovedOverrides(new Array<boolean>());
                 })
@@ -530,6 +541,11 @@ export const ApplicationParameters = (props: {
                 for (const fieldPath of ['spec.source.directory.jsonnet.tlas', 'spec.source.directory.jsonnet.extVars']) {
                     const invalid = ((getNestedField(updatedApp, fieldPath) || []) as Array<models.JsonnetVar>).filter(item => !item.name && !item.code);
                     errors[fieldPath] = invalid.length > 0 ? 'All fields must have name' : null;
+                }
+
+                if (updatedApp.spec.source.helm && updatedApp.spec.source.helm.values) {
+                    const parsedValues = jsYaml.safeLoad(updatedApp.spec.source.helm.values);
+                    errors['spec.source.helm.values'] = typeof parsedValues === 'object' ? null : 'Values must be a map';
                 }
 
                 return errors;

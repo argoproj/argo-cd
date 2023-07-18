@@ -9,11 +9,11 @@ argocd cert list [flags]
 ### Options
 
 ```
-      --cert-type string          only list certificates of given type, valid: 'ssh','https'
+      --cert-type string          Only list certificates of given type, valid: 'ssh','https'
   -h, --help                      help for list
-      --hostname-pattern string   only list certificates for hosts matching given glob-pattern
+      --hostname-pattern string   Only list certificates for hosts matching given glob-pattern
   -o, --output string             Output format. One of: json|yaml|wide (default "wide")
-      --sort string               set display sort order for output format wide. One of: hostname|type
+      --sort string               Set display sort order for output format wide. One of: hostname|type
 ```
 
 ### Options inherited from parent commands

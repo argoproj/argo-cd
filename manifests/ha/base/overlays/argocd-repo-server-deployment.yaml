@@ -24,5 +24,3 @@ spec:
       - name: argocd-repo-server
         args:
         - /usr/local/bin/argocd-repo-server
-        - --redis
-        - "argocd-redis-ha-haproxy:6379"

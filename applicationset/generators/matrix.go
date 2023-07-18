@@ -8,6 +8,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var _ Generator = (*MatrixGenerator)(nil)
@@ -84,9 +86,21 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 	if err != nil {
 		return nil, err
 	}
+	if matrixGen != nil && !appSet.Spec.ApplyNestedSelectors {
+		foundSelector := dropDisabledNestedSelectors(matrixGen.Generators)
+		if foundSelector {
+			log.Warnf("AppSet '%v' defines selector on nested matrix generator's generator without enabling them via 'spec.applyNestedSelectors', ignoring nested selectors", appSet.Name)
+		}
+	}
 	mergeGen, err := getMergeGenerator(appSetBaseGenerator)
 	if err != nil {
 		return nil, err
+	}
+	if mergeGen != nil && !appSet.Spec.ApplyNestedSelectors {
+		foundSelector := dropDisabledNestedSelectors(mergeGen.Generators)
+		if foundSelector {
+			log.Warnf("AppSet '%v' defines selector on nested merge generator's generator without enabling them via 'spec.applyNestedSelectors', ignoring nested selectors", appSet.Name)
+		}
 	}
 
 	t, err := Transform(
@@ -97,6 +111,7 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 			SCMProvider:             appSetBaseGenerator.SCMProvider,
 			ClusterDecisionResource: appSetBaseGenerator.ClusterDecisionResource,
 			PullRequest:             appSetBaseGenerator.PullRequest,
+			Plugin:                  appSetBaseGenerator.Plugin,
 			Matrix:                  matrixGen,
 			Merge:                   mergeGen,
 			Selector:                appSetBaseGenerator.Selector,
@@ -135,6 +150,7 @@ func (m *MatrixGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 			Clusters:    r.Clusters,
 			Git:         r.Git,
 			PullRequest: r.PullRequest,
+			Plugin:      r.Plugin,
 			Matrix:      matrixGen,
 			Merge:       mergeGen,
 		}
