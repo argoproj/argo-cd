@@ -17,7 +17,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.6.0
-	github.com/casbin/casbin/v2 v2.71.1
+	github.com/casbin/casbin/v2 v2.72.1
 	github.com/coreos/go-oidc/v3 v3.6.0
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/dustin/go-humanize v1.0.1
@@ -105,6 +105,9 @@ require (
 )
 
 require (
+	github.com/tidwall/gjson v1.14.4 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	google.golang.org/genproto v0.0.0-20230530153820-e85fd2cbaebc // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc // indirect
 )
