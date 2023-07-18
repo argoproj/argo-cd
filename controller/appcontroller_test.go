@@ -950,7 +950,8 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 			app.Status.Sync = v1alpha1.SyncStatus{
 				Status: v1alpha1.SyncStatusCodeSynced,
 				ComparedTo: v1alpha1.ComparedTo{
-					Destination: app.Spec.Destination,
+					Destination:       app.Spec.Destination,
+					IgnoreDifferences: app.Spec.IgnoreDifferences,
 				},
 			}
 
@@ -1019,7 +1020,8 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 				app.Status.Sync = v1alpha1.SyncStatus{
 					Status: v1alpha1.SyncStatusCodeSynced,
 					ComparedTo: v1alpha1.ComparedTo{
-						Destination: app.Spec.Destination,
+						Destination:       app.Spec.Destination,
+						IgnoreDifferences: app.Spec.IgnoreDifferences,
 					},
 				}
 				if app.Spec.HasMultipleSources() {
@@ -1214,7 +1216,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	app := newFakeApp()
 	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Second))
 	app.Status = v1alpha1.ApplicationStatus{ReconciledAt: &reconciledAt}
-	app.Status.Sync = v1alpha1.SyncStatus{ComparedTo: v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination}}
+	app.Status.Sync = v1alpha1.SyncStatus{ComparedTo: v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, IgnoreDifferences: app.Spec.IgnoreDifferences}}
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
