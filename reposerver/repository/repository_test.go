@@ -63,6 +63,7 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 		gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
 		gitClient.On("CommitSHA").Return(mock.Anything, nil)
 		gitClient.On("Root").Return(root)
+		gitClient.On("IsAnnotatedTag").Return(false)
 		if signed {
 			gitClient.On("VerifyCommitSignature", mock.Anything).Return(testSignature, nil)
 		} else {
@@ -813,8 +814,8 @@ func TestGenerateHelmWithValues(t *testing.T) {
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: ".",
 			Helm: &argoappv1.ApplicationSourceHelm{
-				ValueFiles: []string{"values-production.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+				ValueFiles:   []string{"values-production.yaml"},
+				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 			},
 		},
 		ProjectName:        "something",
@@ -905,7 +906,7 @@ func TestGenerateHelmWithEnvVars(t *testing.T) {
 }
 
 // The requested value file (`../minio/values.yaml`) is outside the app path (`./util/helm/testdata/redis`), however
-// since the requested value is sill under the repo directory (`~/go/src/github.com/argoproj/argo-cd`), it is allowed
+// since the requested value is still under the repo directory (`~/go/src/github.com/argoproj/argo-cd`), it is allowed
 func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 	service := newService("../../util/helm/testdata")
 	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
@@ -914,8 +915,8 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
-				ValueFiles: []string{"../minio/values.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+				ValueFiles:   []string{"../minio/values.yaml"},
+				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 			},
 		},
 		ProjectName:        "something",
@@ -1016,8 +1017,8 @@ func TestGenerateHelmWithURL(t *testing.T) {
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: ".",
 			Helm: &argoappv1.ApplicationSourceHelm{
-				ValueFiles: []string{"https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/helm-guestbook/values.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+				ValueFiles:   []string{"https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/helm-guestbook/values.yaml"},
+				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 			},
 		},
 		ProjectName:        "something",
@@ -1038,8 +1039,8 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ApplicationSource: &argoappv1.ApplicationSource{
 				Path: ".",
 				Helm: &argoappv1.ApplicationSourceHelm{
-					ValueFiles: []string{"../minio/values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					ValueFiles:   []string{"../minio/values.yaml"},
+					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1057,8 +1058,8 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ApplicationSource: &argoappv1.ApplicationSource{
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
-					ValueFiles: []string{"../my-chart/my-chart-values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					ValueFiles:   []string{"../my-chart/my-chart-values.yaml"},
+					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1075,8 +1076,8 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ApplicationSource: &argoappv1.ApplicationSource{
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
-					ValueFiles: []string{"/my-chart/my-chart-values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					ValueFiles:   []string{"/my-chart/my-chart-values.yaml"},
+					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1093,8 +1094,8 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ApplicationSource: &argoappv1.ApplicationSource{
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
-					ValueFiles: []string{"/../../../my-chart-values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					ValueFiles:   []string{"/../../../my-chart-values.yaml"},
+					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1112,8 +1113,8 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ApplicationSource: &argoappv1.ApplicationSource{
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
-					ValueFiles: []string{"file://../../../../my-chart-values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					ValueFiles:   []string{"file://../../../../my-chart-values.yaml"},
+					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1167,8 +1168,8 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
-				ValueFiles: []string{"values-production.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+				ValueFiles:   []string{"values-production.yaml"},
+				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				FileParameters: []argoappv1.HelmFileParameter{{
 					Name: "passwordContent",
 					Path: externalSecretPath,
@@ -1188,26 +1189,26 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 func TestGenerateHelmWithFileParameter(t *testing.T) {
 	service := newService("../../util/helm/testdata")
 
-	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:    &argoappv1.Repository{},
 		AppName: "test",
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path: "./redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
-				ValueFiles: []string{"values-production.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
-				FileParameters: []argoappv1.HelmFileParameter{
-					argoappv1.HelmFileParameter{
-						Name: "passwordContent",
-						Path: "../external/external-secret.txt",
-					},
-				},
+				ValueFiles:   []string{"values-production.yaml"},
+				Values:       `cluster: {slaveCount: 10}`,
+				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
+				FileParameters: []argoappv1.HelmFileParameter{{
+					Name: "passwordContent",
+					Path: "../external/external-secret.txt",
+				}},
 			},
 		},
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	})
 	assert.NoError(t, err)
+	assert.Contains(t, res.Manifests[6], `"replicas":2`, "ValuesObject should override Values")
 }
 
 func TestGenerateNullList(t *testing.T) {
@@ -1264,51 +1265,6 @@ func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
 	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/Kustomization", "./testdata", "testapp", map[string]bool{}, []string{})
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
-}
-
-func TestRunCustomTool(t *testing.T) {
-	service := newService(".")
-
-	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		AppName:   "test-app",
-		Namespace: "test-namespace",
-		ApplicationSource: &argoappv1.ApplicationSource{
-			Plugin: &argoappv1.ApplicationSourcePlugin{
-				Name: "test",
-				Env: argoappv1.Env{
-					{
-						Name:  "TEST_REVISION",
-						Value: "prefix-$ARGOCD_APP_REVISION",
-					},
-				},
-			},
-		},
-		Plugins: []*argoappv1.ConfigManagementPlugin{{
-			Name: "test",
-			Generate: argoappv1.Command{
-				Command: []string{"sh", "-c"},
-				Args:    []string{`echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GIT_ASKPASS\": \"$GIT_ASKPASS\", \"GIT_USERNAME\": \"$GIT_USERNAME\", \"GIT_PASSWORD\": \"$GIT_PASSWORD\"}, \"labels\": {\"revision\": \"$ARGOCD_ENV_TEST_REVISION\"}}}"`},
-			},
-		}},
-		Repo: &argoappv1.Repository{
-			Username: "foo", Password: "bar",
-		},
-		ProjectName:        "something",
-		ProjectSourceRepos: []string{"*"},
-	})
-
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(res.Manifests))
-
-	obj := &unstructured.Unstructured{}
-	assert.NoError(t, json.Unmarshal([]byte(res.Manifests[0]), obj))
-
-	assert.Equal(t, obj.GetName(), "test-app")
-	assert.Equal(t, obj.GetNamespace(), "test-namespace")
-	assert.Empty(t, obj.GetAnnotations()["GIT_USERNAME"])
-	assert.Empty(t, obj.GetAnnotations()["GIT_PASSWORD"])
-	// Git client is mocked, so the revision is always mock.Anything
-	assert.Equal(t, map[string]string{"revision": "prefix-mock.Anything"}, obj.GetLabels())
 }
 
 func TestGenerateFromUTF16(t *testing.T) {

@@ -231,6 +231,8 @@ message ApplicationSetGenerator {
 
   // Selector allows to post-filter all generator.
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
+
+  optional PluginGenerator plugin = 10;
 }
 
 // ApplicationSetList contains a list of ApplicationSet
@@ -265,6 +267,8 @@ message ApplicationSetNestedGenerator {
 
   // Selector allows to post-filter all generator.
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
+
+  optional PluginGenerator plugin = 10;
 }
 
 message ApplicationSetRolloutStep {
@@ -292,6 +296,9 @@ message ApplicationSetSpec {
   optional ApplicationPreservedFields preservedFields = 6;
 
   repeated string goTemplateOptions = 7;
+
+  // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+  optional bool applyNestedSelectors = 8;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -315,6 +322,11 @@ message ApplicationSetStrategy {
 message ApplicationSetSyncPolicy {
   // PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.
   optional bool preserveResourcesOnDeletion = 1;
+
+  // ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, create-delete, sync
+  // +kubebuilder:validation:Optional
+  // +kubebuilder:validation:Enum=create-only;create-update;create-delete;sync
+  optional string applicationsSync = 2;
 }
 
 // ApplicationSetTemplate represents argocd ApplicationSpec
@@ -354,6 +366,11 @@ message ApplicationSetTerminalGenerator {
   optional DuckTypeGenerator clusterDecisionResource = 5;
 
   optional PullRequestGenerator pullRequest = 6;
+
+  optional PluginGenerator plugin = 7;
+
+  // Selector allows to post-filter all generator.
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
 }
 
 // ApplicationSource contains all required information about the source of an application
@@ -414,7 +431,8 @@ message ApplicationSourceHelm {
   // ReleaseName is the Helm release name to use. If omitted it will use the application name
   optional string releaseName = 3;
 
-  // Values specifies Helm values to be passed to helm template, typically defined as a block
+  // Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.
+  // +patchStrategy=replace
   optional string values = 4;
 
   // FileParameters are file parameters to the helm template
@@ -431,6 +449,10 @@ message ApplicationSourceHelm {
 
   // SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
   optional bool skipCrds = 9;
+
+  // ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
+  // +kubebuilder:pruning:PreserveUnknownFields
+  optional k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -634,6 +656,12 @@ message BasicAuthBitbucketServer {
   optional SecretRef passwordRef = 2;
 }
 
+// BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.
+message BearerTokenBitbucketCloud {
+  // Password (or personal access token) reference.
+  optional SecretRef tokenRef = 1;
+}
+
 // ChartDetails contains helm chart metadata for a specific version
 message ChartDetails {
   optional string description = 1;
@@ -779,6 +807,9 @@ message ComparedTo {
 
   // Sources is a reference to the application's multiple sources used for comparison
   repeated ApplicationSource sources = 3;
+
+  // IgnoreDifferences is a reference to the application's ignored differences used for comparison
+  repeated ResourceIgnoreDifferences ignoreDifferences = 4;
 }
 
 // ComponentParameter contains information about component parameter value
@@ -1196,6 +1227,33 @@ message OverrideIgnoreDiff {
   repeated string managedFieldsManagers = 3;
 }
 
+message PluginConfigMapRef {
+  // Name of the ConfigMap
+  optional string name = 1;
+}
+
+// PluginGenerator defines connection info specific to Plugin.
+message PluginGenerator {
+  optional PluginConfigMapRef configMapRef = 1;
+
+  optional PluginInput input = 2;
+
+  // RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.
+  optional int64 requeueAfterSeconds = 3;
+
+  optional ApplicationSetTemplate template = 4;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template. These values will not be
+  // sent as parameters to the plugin.
+  map<string, string> values = 5;
+}
+
+message PluginInput {
+  // Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the
+  // values can be any type.
+  map<string, k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON> parameters = 1;
+}
+
 // ProjectRole represents a role that has access to a project
 message ProjectRole {
   // Name is a name for this role
@@ -1232,9 +1290,53 @@ message PullRequestGenerator {
   optional int64 requeueAfterSeconds = 6;
 
   optional ApplicationSetTemplate template = 7;
+
+  optional PullRequestGeneratorBitbucket bitbucket = 8;
+
+  // Additional provider to use and config for it.
+  optional PullRequestGeneratorAzureDevOps azuredevops = 9;
 }
 
-// PullRequestGenerator defines connection info specific to BitbucketServer.
+// PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
+message PullRequestGeneratorAzureDevOps {
+  // Azure DevOps org to scan. Required.
+  optional string organization = 1;
+
+  // Azure DevOps project name to scan. Required.
+  optional string project = 2;
+
+  // Azure DevOps repo name to scan. Required.
+  optional string repo = 3;
+
+  // The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.
+  optional string api = 4;
+
+  // Authentication token reference.
+  optional SecretRef tokenRef = 5;
+
+  // Labels is used to filter the PRs that you want to target
+  repeated string labels = 6;
+}
+
+// PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
+message PullRequestGeneratorBitbucket {
+  // Workspace to scan. Required.
+  optional string owner = 1;
+
+  // Repo name to scan. Required.
+  optional string repo = 2;
+
+  // The Bitbucket REST API URL to talk to. If blank, uses https://api.bitbucket.org/2.0.
+  optional string api = 3;
+
+  // Credentials for Basic auth
+  optional BasicAuthBitbucketServer basicAuth = 4;
+
+  // Credentials for AppToken (Bearer auth)
+  optional BearerTokenBitbucketCloud bearerToken = 5;
+}
+
+// PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
 message PullRequestGeneratorBitbucketServer {
   // Project to scan. Required.
   optional string project = 1;
@@ -1274,9 +1376,12 @@ message PullRequestGeneratorGitLab {
 
   // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
   optional string pullRequestState = 5;
+
+  // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
+  optional bool insecure = 6;
 }
 
-// PullRequestGenerator defines connection info specific to Gitea.
+// PullRequestGeneratorGitea defines connection info specific to Gitea.
 message PullRequestGeneratorGitea {
   // Gitea org or user to scan. Required.
   optional string owner = 1;
@@ -1618,6 +1723,8 @@ message ResourceOverride {
 
   optional OverrideIgnoreDiff ignoreDifferences = 2;
 
+  optional OverrideIgnoreDiff ignoreResourceUpdates = 6;
+
   repeated KnownTypeField knownTypeFields = 4;
 }
 
@@ -1918,6 +2025,9 @@ message SCMProviderGeneratorGitlab {
 
   // Scan all branches instead of just the default branch.
   optional bool allBranches = 5;
+
+  // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
+  optional bool insecure = 6;
 }
 
 // Utility struct for a reference to a secret key.

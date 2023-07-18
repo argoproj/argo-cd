@@ -4,9 +4,11 @@ import (
 	"context"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -93,10 +95,35 @@ type db struct {
 
 // NewDB returns a new instance of the argo database
 func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientset kubernetes.Interface) ArgoDB {
-	return &db{
+	dbInstance := db{
 		settingsMgr:   settingsMgr,
 		ns:            namespace,
 		kubeclientset: kubeclientset,
+	}
+	dbInstance.logInClusterWarning()
+	return &dbInstance
+}
+
+func (db *db) logInClusterWarning() {
+	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
+	if err != nil {
+		log.WithError(err).Errorln("could not list secrets by type")
+	}
+	dbSettings, err := db.settingsMgr.GetSettings()
+	if err != nil {
+		log.WithError(err).Errorln("could not get DB settings")
+	}
+	for _, clusterSecret := range clusterSecrets {
+		cluster, err := secretToCluster(clusterSecret)
+		if err != nil {
+			log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
+			continue
+		}
+		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
+			if !dbSettings.InClusterEnabled {
+				log.Warnf("cluster %q uses in-cluster server address but it's disabled in Argo CD settings", cluster.Name)
+			}
+		}
 	}
 }
 

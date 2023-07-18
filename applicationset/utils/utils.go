@@ -2,9 +2,12 @@ package utils
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"regexp"
 	"sort"
@@ -143,7 +146,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		}
 		for _, key := range original.MapKeys() {
 			originalValue := original.MapIndex(key)
-			if originalValue.Kind() != reflect.String && originalValue.IsNil() {
+			if originalValue.Kind() != reflect.String && isNillable(originalValue) && originalValue.IsNil() {
 				continue
 			}
 			// New gives us a pointer, but again we want the value
@@ -189,6 +192,16 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		}
 	}
 	return nil
+}
+
+// isNillable returns true if the value is something which may be set to nil. This function is meant to guard against a
+// panic from calling IsNil on a non-pointer type.
+func isNillable(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+		return true
+	}
+	return false
 }
 
 func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.Application, error) {
@@ -395,4 +408,39 @@ func SanitizeName(name string) string {
 	}
 
 	return strings.Trim(name, "-.")
+}
+
+func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
+
+	tlsConfig := &tls.Config{}
+
+	if scmRootCAPath != "" {
+		_, err := os.Stat(scmRootCAPath)
+		if os.IsNotExist(err) {
+			log.Errorf("scmRootCAPath '%s' specified does not exist: %s", scmRootCAPath, err)
+			return tlsConfig
+		}
+		rootCA, err := os.ReadFile(scmRootCAPath)
+		if err != nil {
+			log.Errorf("error reading certificate from file '%s', proceeding without custom rootCA : %s", scmRootCAPath, err)
+			return tlsConfig
+		}
+		certPool := x509.NewCertPool()
+		ok := certPool.AppendCertsFromPEM([]byte(rootCA))
+		if !ok {
+			log.Errorf("failed to append certificates from PEM: proceeding without custom rootCA")
+		} else {
+			tlsConfig.RootCAs = certPool
+		}
+	}
+	return tlsConfig
+}
+
+func GetTlsConfig(scmRootCAPath string, insecure bool) *tls.Config {
+	tlsConfig := getTlsConfigWithCACert(scmRootCAPath)
+
+	if insecure {
+		tlsConfig.InsecureSkipVerify = true
+	}
+	return tlsConfig
 }
