@@ -27,6 +27,11 @@ func Test_isValidRBACAction(t *testing.T) {
 	})
 }
 
+func Test_isValidRBACAction_ActionAction(t *testing.T) {
+	ok := isValidRBACAction("action/apps/Deployment/restart")
+	assert.True(t, ok)
+}
+
 func Test_isValidRBACResource(t *testing.T) {
 	for k := range validRBACResources {
 		t.Run(k, func(t *testing.T) {
