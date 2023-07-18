@@ -4442,6 +4442,9 @@
         "trackingMethod": {
           "type": "string"
         },
+        "uiBannerBackgroundColor": {
+          "type": "string"
+        },
         "uiBannerContent": {
           "type": "string"
         },
@@ -4449,6 +4452,9 @@
           "type": "boolean"
         },
         "uiBannerPosition": {
+          "type": "string"
+        },
+        "uiBannerTextColor": {
           "type": "string"
         },
         "uiBannerURL": {

@@ -89,6 +89,10 @@ type ArgoCDSettings struct {
 	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"`
 	// Position of UI Banner
 	UiBannerPosition string `json:"uiBannerPosition,omitempty"`
+	// Color of UI Banner background
+	UiBannerBackgroundColor string `json:"uiBannerBackgroundColor,omitempty"`
+	// Color of UI Banner text
+	UiBannerTextColor string `json:"uiBannerTextColor,omitempty"`
 	// PasswordPattern for password regular expression
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 	// BinaryUrls contains the URLs for downloading argocd binaries
@@ -445,6 +449,10 @@ const (
 	settingUiBannerURLKey = "ui.bannerurl"
 	// settingUiBannerPermanentKey designates the key for whether the banner is permanent and not closeable
 	settingUiBannerPermanentKey = "ui.bannerpermanent"
+	// settingUiBannerBackgroundColorKey designates the key for the color of the banner background
+	settingUiBannerBackgroundColorKey = "ui.bannerbackgroundcolor"
+	// settingUiBannerTextColorKey designates the key for the color of the banner text
+	settingUiBannerTextColorKey = "ui.bannertextcolor"
 	// settingUiBannerPositionKey designates the key for the position of the banner
 	settingUiBannerPositionKey = "ui.bannerposition"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
@@ -1382,6 +1390,8 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
 	settings.UiBannerPermanent = argoCDCM.Data[settingUiBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUiBannerPositionKey]
+	settings.UiBannerBackgroundColor = argoCDCM.Data[settingUiBannerBackgroundColorKey]
+	settings.UiBannerTextColor = argoCDCM.Data[settingUiBannerTextColorKey]
 	settings.ServerRBACLogEnforceEnable = argoCDCM.Data[settingsServerRBACLogEnforceEnableKey] == "true"
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {

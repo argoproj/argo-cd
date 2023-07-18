@@ -22,7 +22,9 @@ export const Banner = (props: React.Props<any>) => {
                             permanent: items[0].uiBannerPermanent,
                             chatText: items[0].help.chatText,
                             chatUrl: items[0].help.chatUrl,
-                            position: items[0].uiBannerPosition
+                            position: items[0].uiBannerPosition,
+                            backgroundColor: items[0].uiBannerBackgroundColor,
+                            textColor: items[0].uiBannerTextColor
                         };
                     })
                 )
@@ -34,7 +36,9 @@ export const Banner = (props: React.Props<any>) => {
                 permanent,
                 chatText,
                 chatUrl,
-                position
+                position,
+                backgroundColor,
+                textColor
             }: {
                 content: string;
                 url: string;
@@ -43,6 +47,8 @@ export const Banner = (props: React.Props<any>) => {
                 chatText: string;
                 chatUrl: string;
                 position: string;
+                backgroundColor: string;
+                textColor: string;
             }) => {
                 const heightOfBanner = permanent ? '28px' : '70px';
                 const leftOffset = prefs.hideSidebar ? '60px' : '230px';
@@ -79,7 +85,9 @@ export const Banner = (props: React.Props<any>) => {
                 }
                 return (
                     <React.Fragment>
-                        <div className={combinedBannerClassName} style={{visibility: show ? 'visible' : 'hidden', height: heightOfBanner, marginLeft: leftOffset}}>
+                        <div
+                            className={combinedBannerClassName}
+                            style={{visibility: show ? 'visible' : 'hidden', height: heightOfBanner, marginLeft: leftOffset, background: backgroundColor, color: textColor}}>
                             <div className='ui-banner-text' style={{maxHeight: permanent ? '25px' : '50px'}}>
                                 {url !== undefined ? (
                                     <a href={url} target='_blank' rel='noopener noreferrer'>

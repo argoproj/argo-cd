@@ -479,6 +479,8 @@ export interface AuthSettings {
     uiBannerContent: string;
     uiBannerURL: string;
     uiBannerPermanent: boolean;
+    uiBannerBackgroundColor: string;
+    uiBannerTextColor: string;
     uiBannerPosition: string;
     execEnabled: boolean;
     appsInAnyNamespaceEnabled: boolean;

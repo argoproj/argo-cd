@@ -42,6 +42,8 @@ message Settings {
     bool execEnabled = 22;
     string controllerNamespace = 23;
     bool appsInAnyNamespaceEnabled = 24;
+    string uiBannerBackgroundColor = 25;
+    string uiBannerTextColor = 26;
 }
 
 message GoogleAnalyticsConfig {
