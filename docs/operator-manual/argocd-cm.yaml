@@ -86,7 +86,8 @@ data:
   # Keys are in the form: resource.customizations.ignoreDifferences.<group_kind>, resource.customizations.health.<group_kind>
   # resource.customizations.actions.<group_kind>, resource.customizations.knownTypeFields.<group-kind>
   # resource.customizations.ignoreResourceUpdates.<group-kind>
-  resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
+  resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration:
+    |
     jsonPointers:
     - /webhooks/0/clientConfig/caBundle
     jqPathExpressions:
@@ -117,7 +118,8 @@ data:
     - /status
 
   # jsonPointers and jqPathExpressions can be specified.
-  resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler: |
+  resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler:
+    |
     jqPathExpressions:
     - '.metadata.annotations."autoscaling.alpha.kubernetes.io/behavior"'
     - '.metadata.annotations."autoscaling.alpha.kubernetes.io/conditions"'
@@ -307,6 +309,10 @@ data:
   # An option to specify the position of the banner, either the top or bottom of the page. The default is at the top.
   # Uncomment to make the banner appear at the bottom of the page. Any value other than "bottom" will make the banner appear at the top.
   # ui.bannerposition: "bottom"
+  # Uncomment to change to banner background color
+  # ui.bannerbackgroundcolor: "black"
+  # Uncomment to change to banner text color
+  # ui.bannertextcolor: "white"
 
   # Application reconciliation timeout is the max amount of time required to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.
