@@ -4,11 +4,9 @@ import (
 	"context"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -85,8 +83,6 @@ type ArgoDB interface {
 	AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*appv1.GnuPGPublicKey, []string, error)
 	// DeleteGPGPublicKey removes a GPG public key from the configuration
 	DeleteGPGPublicKey(ctx context.Context, keyID string) error
-	// LogInClusterWarning checks the in-cluster configuration and prints out any warnings.
-	LogInClusterWarning()
 }
 
 type db struct {
@@ -101,30 +97,6 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 		settingsMgr:   settingsMgr,
 		ns:            namespace,
 		kubeclientset: kubeclientset,
-	}
-}
-
-// LogInClusterWarning checks the in-cluster configuration and prints out any warnings.
-func (db *db) LogInClusterWarning() {
-	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
-	if err != nil {
-		log.WithError(err).Errorln("could not list secrets by type")
-	}
-	dbSettings, err := db.settingsMgr.GetSettings()
-	if err != nil {
-		log.WithError(err).Errorln("could not get DB settings")
-	}
-	for _, clusterSecret := range clusterSecrets {
-		cluster, err := secretToCluster(clusterSecret)
-		if err != nil {
-			log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
-			continue
-		}
-		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
-			if !dbSettings.InClusterEnabled {
-				log.Warnf("cluster %q uses in-cluster server address but it's disabled in Argo CD settings", cluster.Name)
-			}
-		}
 	}
 }
 

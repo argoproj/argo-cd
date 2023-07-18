@@ -621,8 +621,3 @@ func (_m *ArgoDB) WatchClusters(ctx context.Context, handleAddEvent func(*v1alph
 
 	return r0
 }
-
-// LogInClusterWarning checks the in-cluster configuration and prints out any warnings.
-func (_m *ArgoDB) LogInClusterWarning() {
-	return
-}
