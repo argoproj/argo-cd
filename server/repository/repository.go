@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -67,6 +68,7 @@ func NewServer(
 
 var (
 	errPermissionDenied = status.Error(codes.PermissionDenied, "permission denied")
+	defaultTimeout      = 20 * time.Second
 )
 
 func (s *Server) getRepo(ctx context.Context, url string) (*appsv1.Repository, error) {
@@ -93,6 +95,13 @@ func (s *Server) getConnectionState(ctx context.Context, url string, forceRefres
 			return connectionState
 		}
 	}
+
+	if _, ok := ctx.Deadline(); !ok {
+		newCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
+		ctx = newCtx
+		defer cancel()
+	}
+
 	now := metav1.Now()
 	connectionState := appsv1.ConnectionState{
 		Status:     appsv1.ConnectionStatusSuccessful,
