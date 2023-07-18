@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -373,6 +374,9 @@ func resolveRBACResourceName(name string) string {
 
 // isValidRBACAction checks whether a given action is a valid RBAC action
 func isValidRBACAction(action string) bool {
+	if strings.HasPrefix(action, rbacpolicy.ActionAction+"/") {
+		return true
+	}
 	_, ok := validRBACActions[action]
 	return ok
 }
