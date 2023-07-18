@@ -1990,7 +1990,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			}
 		case v1alpha1.ApplicationSourceTypePlugin:
 			if err := populatePluginAppDetails(ctx, res, opContext.appPath, repoRoot, q, s.gitCredsStore, s.initConstants.CMPTarExcludedGlobs); err != nil {
-				return fmt.Errorf("failed to populate plugin app details: %w", err)
+				log.Warnf("failed to populate plugin app details - this is expected if the app is meant to use an argocd-cm plugin: %v", err)
 			}
 		}
 		_ = s.cache.SetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), nil)
