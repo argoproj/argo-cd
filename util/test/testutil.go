@@ -131,7 +131,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 }`, url))
 			require.NoError(t, err)
 		default:
-			w.WriteHeader(http.StatusNotFound)
+			w.WriteHeader(404)
 		}
 	}
 }
@@ -184,7 +184,7 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
 			_, err = io.WriteString(w, string(out))
 			require.NoError(t, err)
 		default:
-			w.WriteHeader(http.StatusNotFound)
+			w.WriteHeader(404)
 		}
 	}
 }

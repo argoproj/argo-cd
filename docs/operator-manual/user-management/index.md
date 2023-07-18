@@ -44,24 +44,6 @@ Each user might have two capabilities:
 * apiKey - allows generating authentication tokens for API access
 * login - allows to login using UI
 
-### Delete user
-
-In order to delete a user, you must remove the corresponding entry defined in the `argocd-cm` ConfigMap:
-
-Example:
-
-```bash
-kubectl patch -n argocd cm argocd-cm --type='json' -p='[{"op": "remove", "path": "/data/accounts.alice"}]'
-```
-
-It is recommended to also remove the password entry in the `argocd-secret` Secret:
-
-Example:
-
-```bash
-kubectl patch -n argocd secrets argocd-secret --type='json' -p='[{"op": "remove", "path": "/data/accounts.alice.password"}]'
-```
-
 ### Disable admin user
 
 As soon as additional users are created it is recommended to disable `admin` user:
@@ -321,7 +303,7 @@ data:
     clientSecret: $oidc.okta.clientSecret
     
     # Optional list of allowed aud claims. If omitted or empty, defaults to the clientID value above (and the 
-    # cliClientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must 
+    # cliCientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must 
     # explicitly include it in the list.
     # Token verification will pass if any of the token's audiences matches any of the audiences in this list.
     allowedAudiences:

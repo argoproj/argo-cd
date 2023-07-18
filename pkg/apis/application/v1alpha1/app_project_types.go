@@ -187,10 +187,6 @@ func (p *AppProject) ValidateProject() error {
 
 	srcRepos := make(map[string]bool)
 	for _, src := range p.Spec.SourceRepos {
-		if src == "!*" {
-			return status.Errorf(codes.InvalidArgument, "source repository has an invalid format, '!*'")
-		}
-
 		if _, ok := srcRepos[src]; ok {
 			return status.Errorf(codes.InvalidArgument, "source repository '%s' already added", src)
 		}
@@ -369,7 +365,7 @@ func (proj *AppProject) RemoveFinalizer() {
 }
 
 func globMatch(pattern string, val string, allowNegation bool, separators ...rune) bool {
-	if allowNegation && isDenyPattern(pattern) {
+	if allowNegation && isDenyDestination(pattern) {
 		return !glob.Match(pattern[1:], val, separators...)
 	}
 
@@ -382,26 +378,13 @@ func globMatch(pattern string, val string, allowNegation bool, separators ...run
 // IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
 func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 	srcNormalized := git.NormalizeGitURL(src.RepoURL)
-
-	var normalized string
-	anySourceMatched := false
-
 	for _, repoURL := range proj.Spec.SourceRepos {
-		if isDenyPattern(repoURL) {
-			normalized = "!" + git.NormalizeGitURL(strings.TrimPrefix(repoURL, "!"))
-		} else {
-			normalized = git.NormalizeGitURL(repoURL)
-		}
-
-		matched := globMatch(normalized, srcNormalized, true, '/')
-		if matched {
-			anySourceMatched = true
-		} else if !matched && isDenyPattern(normalized) {
-			return false
+		normalized := git.NormalizeGitURL(repoURL)
+		if globMatch(normalized, srcNormalized, false, '/') {
+			return true
 		}
 	}
-
-	return anySourceMatched
+	return false
 }
 
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
@@ -437,7 +420,7 @@ func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 		matched := (dstServerMatched || dstNameMatched) && dstNamespaceMatched
 		if matched {
 			anyDestinationMatched = true
-		} else if ((!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server))) || (!dstNamespaceMatched && isDenyPattern(item.Namespace)) {
+		} else if ((!dstNameMatched && isDenyDestination(item.Name)) || (!dstServerMatched && isDenyDestination(item.Server))) || (!dstNamespaceMatched && isDenyDestination(item.Namespace)) {
 			noDenyDestinationsMatched = false
 		}
 	}
@@ -445,7 +428,7 @@ func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 	return anyDestinationMatched && noDenyDestinationsMatched
 }
 
-func isDenyPattern(pattern string) bool {
+func isDenyDestination(pattern string) bool {
 	return strings.HasPrefix(pattern, "!")
 }
 

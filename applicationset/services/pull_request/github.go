@@ -65,11 +65,9 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 				continue
 			}
 			pullRequests = append(pullRequests, &PullRequest{
-				Number:       *pull.Number,
-				Branch:       *pull.Head.Ref,
-				TargetBranch: *pull.Base.Ref,
-				HeadSHA:      *pull.Head.SHA,
-				Labels:       getGithubPRLabelNames(pull.Labels),
+				Number:  *pull.Number,
+				Branch:  *pull.Head.Ref,
+				HeadSHA: *pull.Head.SHA,
 			})
 		}
 		if resp.NextPage == 0 {
@@ -98,13 +96,4 @@ func containLabels(expectedLabels []string, gotLabels []*github.Label) bool {
 		}
 	}
 	return true
-}
-
-// Get the Github pull request label names.
-func getGithubPRLabelNames(gitHubLabels []*github.Label) []string {
-	var labelNames []string
-	for _, gitHubLabel := range gitHubLabels {
-		labelNames = append(labelNames, *gitHubLabel.Name)
-	}
-	return labelNames
 }
