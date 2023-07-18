@@ -277,20 +277,14 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 				{
 					List: &argoprojiov1alpha1.ListGenerator{
 						Elements: []apiextensionsv1.JSON{
-							{Raw: []byte(`{"booleanFalse": false}`)},
-							{Raw: []byte(`{"booleanTrue": true}`)},
-							{Raw: []byte(`{"stringFalse": "false"}`)},
-							{Raw: []byte(`{"stringTrue": "true"}`)},
+							{Raw: []byte(`{"booleanFalse": false, "booleanTrue": true, "stringFalse": "false", "stringTrue": "true"}`)},
 						},
 					},
 				},
 				{
 					List: &argoprojiov1alpha1.ListGenerator{
 						Elements: []apiextensionsv1.JSON{
-							{Raw: []byte(`{"booleanFalse": true}`)},
-							{Raw: []byte(`{"booleanTrue": false}`)},
-							{Raw: []byte(`{"stringFalse": "true"}`)},
-							{Raw: []byte(`{"stringTrue": "false"}`)},
+							{Raw: []byte(`{"booleanFalse": true, "booleanTrue": false, "stringFalse": "true", "stringTrue": "false"}`)},
 						},
 					},
 				},
