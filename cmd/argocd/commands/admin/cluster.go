@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/redis/go-redis/v9"
+	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +19,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/pointer"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -116,13 +115,10 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 		}
 		batch := clustersList.Items[batchStart:batchEnd]
 		_ = kube.RunAllAsync(len(batch), func(i int) error {
-			clusterShard := 0
 			cluster := batch[i]
+			clusterShard := 0
 			if replicas > 0 {
-				distributionFunction := sharding.GetDistributionFunction(argoDB, common.DefaultShardingAlgorithm)
-				distributionFunction(&cluster)
-				cluster.Shard = pointer.Int64Ptr(int64(clusterShard))
-				log.Infof("Cluster with uid: %s will be processed by shard %d", cluster.ID, clusterShard)
+				clusterShard = sharding.GetShardByID(cluster.ID, replicas)
 			}
 
 			if shard != -1 && clusterShard != shard {
@@ -269,7 +265,9 @@ func runClusterNamespacesCommand(ctx context.Context, clientConfig clientcmd.Cli
 					}
 				}
 			} else {
-				nsSet[app.Spec.Destination.Namespace] = true
+				if app.Spec.Destination.Server == cluster.Server {
+					nsSet[app.Spec.Destination.Namespace] = true
+				}
 			}
 		}
 		var namespaces []string
@@ -545,11 +543,6 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 				return
 			}
 
-			if clusterOpts.InCluster && clusterOpts.ClusterEndpoint != "" {
-				log.Fatal("Can only use one of --in-cluster or --cluster-endpoint")
-				return
-			}
-
 			overrides := clientcmd.ConfigOverrides{
 				Context: *clstContext,
 			}
@@ -589,12 +582,8 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			errors.CheckError(err)
 
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, bearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
-			if clusterOpts.InClusterEndpoint() {
+			if clusterOpts.InCluster {
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
-			}
-			if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {
-				// Ignore `kube-public` cluster endpoints, since this command is intended to run without invoking any network connections.
-				log.Warn("kube-public cluster endpoints are not supported. Falling back to the endpoint listed in the kubconfig context.")
 			}
 			if clusterOpts.Shard >= 0 {
 				clst.Shard = &clusterOpts.Shard
