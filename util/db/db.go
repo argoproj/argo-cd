@@ -97,12 +97,11 @@ type db struct {
 
 // NewDB returns a new instance of the argo database
 func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientset kubernetes.Interface) ArgoDB {
-	dbInstance := db{
+	return &db{
 		settingsMgr:   settingsMgr,
 		ns:            namespace,
 		kubeclientset: kubeclientset,
 	}
-	return &dbInstance
 }
 
 // LogInClusterWarning checks the in-cluster configuration and prints out any warnings.
