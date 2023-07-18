@@ -154,7 +154,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 	})
 	if project != "" {
 		// The user has provided everything we need to perform an initial RBAC check.
-		givenRBACName := security.AppRBACName(s.ns, project, namespace, name)
+		givenRBACName := security.RBACName(s.ns, project, namespace, name)
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, action, givenRBACName); err != nil {
 			logCtx.WithFields(map[string]interface{}{
 				"project":                project,
@@ -1440,7 +1440,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 
 // RevisionChartDetails returns the helm chart metadata, as fetched from the reposerver
 func (s *Server) RevisionChartDetails(ctx context.Context, q *application.RevisionMetadataQuery) (*appv1.ChartDetails, error) {
-	a, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetAppNamespace(), q.GetName())
+	a, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
 		return nil, err
 	}

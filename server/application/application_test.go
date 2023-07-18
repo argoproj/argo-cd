@@ -5,11 +5,12 @@ import (
 	coreerrors "errors"
 	"fmt"
 	"io"
-	"k8s.io/apimachinery/pkg/labels"
 	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -891,6 +892,8 @@ func TestNoAppEnumeration(t *testing.T) {
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.RevisionChartDetails(adminCtx, &application.RevisionMetadataQuery{Name: pointer.String("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.RevisionChartDetails(adminCtx, &application.RevisionMetadataQuery{Name: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("ManagedResources", func(t *testing.T) {
