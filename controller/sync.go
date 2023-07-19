@@ -463,6 +463,8 @@ func intersectMap(templateMap, valueMap map[string]interface{}) map[string]inter
 						} else {
 							items = append(items, innerVSlice[idx])
 						}
+					} else {
+						items = append(items, innerTSliceValue)
 					}
 				}
 				if len(items) > 0 {

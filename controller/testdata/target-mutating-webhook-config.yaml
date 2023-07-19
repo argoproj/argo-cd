@@ -1,0 +1,94 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  labels:
+    app.kubernetes.io/instance: aws-lb-controller
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: aws-load-balancer-controller
+    app.kubernetes.io/version: v2.5.2
+    argocd.argoproj.io/instance: my-aws-lb-controller
+    helm.sh/chart: aws-load-balancer-controller-1.5.3
+  name: aws-load-balancer-webhook
+webhooks:
+  - admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      caBundle: >-
+        something-new
+      service:
+        name: aws-load-balancer-webhook-service
+        namespace: kube-system
+        path: /mutate-v1-pod
+    failurePolicy: Fail
+    name: mpod.elbv2.k8s.aws
+    namespaceSelector:
+      matchExpressions:
+        - key: elbv2.k8s.aws/pod-readiness-gate-inject
+          operator: In
+          values:
+            - enabled
+    objectSelector:
+      matchExpressions:
+        - key: app.kubernetes.io/name
+          operator: NotIn
+          values:
+            - aws-load-balancer-controller
+    rules:
+      - apiGroups:
+          - ''
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+        resources:
+          - pods
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      caBundle: >-
+        something-new
+      service:
+        name: aws-load-balancer-webhook-service
+        namespace: kube-system
+        path: /mutate-v1-service
+    failurePolicy: Fail
+    name: mservice.elbv2.k8s.aws
+    objectSelector:
+      matchExpressions:
+        - key: app.kubernetes.io/name
+          operator: NotIn
+          values:
+            - aws-load-balancer-controller
+    rules:
+      - apiGroups:
+          - ''
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+        resources:
+          - services
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      caBundle: >-
+        something-new
+      service:
+        name: aws-load-balancer-webhook-service
+        namespace: kube-system
+        path: /mutate-elbv2-k8s-aws-v1beta1-targetgroupbinding
+    failurePolicy: Fail
+    name: mtargetgroupbinding.elbv2.k8s.aws
+    rules:
+      - apiGroups:
+          - elbv2.k8s.aws
+        apiVersions:
+          - v1beta1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - targetgroupbindings
+    sideEffects: None

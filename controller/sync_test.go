@@ -361,7 +361,6 @@ func TestNormalizeTargetResources(t *testing.T) {
 		assert.Equal(t, int64(4), replicas)
 	})
 	t.Run("will keep new array entries not found in live state if not ignored", func(t *testing.T) {
-		t.Skip("limitation in the current implementation")
 		// given
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
@@ -384,5 +383,40 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ok)
 		assert.Equal(t, 2, len(containers))
+	})
+	t.Run("mutating-webhook-config", func(t *testing.T) {
+		// given
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "admissionregistration.k8s.io",
+				Kind:              "MutatingWebhookConfiguration",
+				JQPathExpressions: []string{".webhooks[]?.clientConfig.caBundle"},
+			},
+		}
+		f := setup(t, ignores)
+		live := test.YamlToUnstructured(testdata.LiveMutatingWebhookConfigYaml)
+		target := test.YamlToUnstructured(testdata.TargetMutatingWebhookConfigYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		// when
+		targets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(targets))
+		webhooks, ok, err := unstructured.NestedSlice(targets[0].Object, "webhooks")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, 3, len(webhooks))
+
+		first := webhooks[0]
+		second := webhooks[1]
+		third := webhooks[2]
+
+		assert.Equal(t, "something", (first.(map[string]interface{})["clientConfig"]).(map[string]interface{})["caBundle"])
+		assert.Equal(t, "something", (second.(map[string]interface{})["clientConfig"]).(map[string]interface{})["caBundle"])
+		assert.Equal(t, "something-new", (third.(map[string]interface{})["clientConfig"]).(map[string]interface{})["caBundle"])
 	})
 }
