@@ -9,6 +9,12 @@ var (
 	//go:embed target-deployment.yaml
 	TargetDeploymentYaml string
 
+	//go:embed live-image-replicas-deployment.yaml
+	LiveImageReplicaDeploymentYaml string
+
+	//go:embed target-image-replicas-deployment.yaml
+	TargetImageReplicaDeploymentYaml string
+
 	//go:embed live-mutating-webhook-config.yaml
 	LiveMutatingWebhookConfigYaml string
 
