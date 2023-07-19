@@ -1,0 +1,60 @@
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleJob
+metadata:
+  creationTimestamp: "2023-07-18T14:17:54Z"
+  generation: 1
+  labels:
+    tower_job_id: "99"
+  name: successdemo
+  namespace: myawx
+  resourceVersion: "25464240"
+  uid: 18c034a8-b610-430f-87f7-5ce8b2d2e4a7
+spec:
+  job_template_name: successdemo
+  tower_auth_secret: awxsecret
+status:
+  ansibleJobResult:
+    changed: true
+    elapsed: "5.939"
+    failed: false
+    finished: "2023-07-18T14:18:11.561015Z"
+    started: "2023-07-18T14:18:05.622110Z"
+    status: successful
+    url: https://templates-awx-awx.apps.omachace.phw9.p1.openshiftapps.com/#/jobs/playbook/99
+  conditions:
+  - lastTransitionTime: "2023-07-18T14:18:02Z"
+    message: ""
+    reason: ""
+    status: "False"
+    type: Failure
+  - ansibleResult:
+      changed: 0
+      completion: 2023-07-19T06:50:29.120353
+      failures: 0
+      ok: 3
+      skipped: 1
+    lastTransitionTime: "2023-07-18T14:17:54Z"
+    message: Awaiting next reconciliation
+    reason: Successful
+    status: "True"
+    type: Running
+  - lastTransitionTime: "2023-07-19T06:50:29Z"
+    message: Last reconciliation succeeded
+    reason: Successful
+    status: "True"
+    type: Successful
+  isFinished: true
+  k8sJob:
+    created: true
+    env:
+      secretNamespacedName: myawx/awxsecret
+      templateName: successdemo
+      verifySSL: false
+    message: |-
+      Monitor the job.batch status for more details with the following commands:
+      'kubectl -n myawx get job.batch/successdemo'
+      'kubectl -n myawx describe job.batch/successdemo'
+      'kubectl -n myawx logs -f job.batch/successdemo'
+    namespacedName: myawx/successdemo
+  message: This job instance is already running or has reached its end state.
+  

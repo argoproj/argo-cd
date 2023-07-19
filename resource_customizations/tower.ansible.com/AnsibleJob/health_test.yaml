@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "No status available"
+  inputPath: testdata/progressing_nostatus.yaml
+- healthStatus:
+    status: Progressing
+    message: "Job is running"
+  inputPath: testdata/progressing_started.yaml
+- healthStatus:
+    status: Healthy
+    message: "Done"
+  inputPath: testdata/healthy_ready.yaml  
+- healthStatus:
+    status: "Degraded"
+    message: "Failed"
+  inputPath: testdata/failed.yaml

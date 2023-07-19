@@ -1,0 +1,56 @@
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleJob
+metadata:
+  creationTimestamp: "2023-07-18T14:11:51Z"
+  generation: 1
+  labels:
+    tower_job_id: "98"
+  name: faildemo
+  namespace: myawx
+  resourceVersion: "25464236"
+  uid: 835f35de-e437-4d32-accf-48f39c85bef2
+spec:
+  job_template_name: faildemo
+  tower_auth_secret: awxsecret
+status:
+  ansibleJobResult:
+    changed: true
+    failed: false
+    status: error
+    url: https://templates-awx-awx.apps.omachace.phw9.p1.openshiftapps.com/#/jobs/playbook/98
+  conditions:
+  - lastTransitionTime: "2023-07-18T14:11:59Z"
+    message: ""
+    reason: ""
+    status: "False"
+    type: Failure
+  - ansibleResult:
+      changed: 0
+      completion: 2023-07-19T06:50:29.092309
+      failures: 0
+      ok: 3
+      skipped: 1
+    lastTransitionTime: "2023-07-18T14:11:51Z"
+    message: Awaiting next reconciliation
+    reason: Successful
+    status: "True"
+    type: Running
+  - lastTransitionTime: "2023-07-19T06:50:29Z"
+    message: Last reconciliation succeeded
+    reason: Successful
+    status: "True"
+    type: Successful
+  isFinished: true
+  k8sJob:
+    created: true
+    env:
+      secretNamespacedName: myawx/awxsecret
+      templateName: faildemo
+      verifySSL: false
+    message: |-
+      Monitor the job.batch status for more details with the following commands:
+      'kubectl -n myawx get job.batch/faildemo'
+      'kubectl -n myawx describe job.batch/faildemo'
+      'kubectl -n myawx logs -f job.batch/faildemo'
+    namespacedName: myawx/faildemo
+  message: This job instance is already running or has reached its end state.

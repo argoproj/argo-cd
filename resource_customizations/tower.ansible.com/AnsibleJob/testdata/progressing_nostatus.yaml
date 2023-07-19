@@ -1,0 +1,15 @@
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleJob
+metadata:
+  creationTimestamp: "2023-07-18T14:11:51Z"
+  generation: 1
+  labels:
+    tower_job_id: "98"
+  name: faildemo
+  namespace: myawx
+  resourceVersion: "25464236"
+  uid: 835f35de-e437-4d32-accf-48f39c85bef2
+spec:
+  job_template_name: faildemo
+  tower_auth_secret: awxsecret
+status: {}
