@@ -138,6 +138,8 @@ const (
 	// LabelKeyAppInstance is the label key to use to uniquely identify the instance of an application
 	// The Argo CD application name is used as the instance name
 	LabelKeyAppInstance = "app.kubernetes.io/instance"
+	// LabelKeyAppName is the name of the Kubernetes application
+	LabelKeyAppName = "app.kubernetes.io/name"
 	// LabelKeyLegacyApplicationName is the legacy label (v0.10 and below) and is superseded by 'app.kubernetes.io/instance'
 	LabelKeyLegacyApplicationName = "applications.argoproj.io/app-name"
 	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster', 'repository', 'repo-config' or 'repo-creds')
@@ -233,6 +235,16 @@ const (
 	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
 	// EnvGPGDataPath overrides the location where GPG keyring for signature verification is stored
 	EnvGPGDataPath = "ARGOCD_GPG_DATA_PATH"
+	// EnvServerName is the pod selector labels of the Argo CD server component.
+	EnvServerName = "ARGOCD_SERVER_NAME"
+	// EnvRepoServerName is the pod selector labels of the Argo CD repo server component.
+	EnvRepoServerName = "ARGOCD_REPO_SERVER_NAME"
+	// EnvAppControllerName is the pod selector labels of the Argo CD application controller component.
+	EnvAppControllerName = "ARGOCD_APPLICATION_CONTROLLER_NAME"
+	// EnvRedisName is the pod selector labels of the Argo CD redis component.
+	EnvRedisName = "ARGOCD_REDIS_NAME"
+	// EnvRedisHaHaproxyName is the pod selector labels of the Argo CD Redis HA proxy component.
+	EnvRedisHaHaproxyName = "ARGOCD_REDIS_HAPROXY_NAME"
 )
 
 // Config Management Plugin related constants
@@ -266,6 +278,15 @@ const (
 	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
 	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s
 	DefaultGitRetryFactor                    = int64(2)
+)
+
+// Constants represent the pod selector labels of the ArgoCD component names
+const (
+	DefaultServerName                = "argocd-server"
+	DefaultRepoServerName            = "argocd-repo-server"
+	DefaultApplicationControllerName = "argocd-application-controller"
+	DefaultRedisName                 = "argocd-redis"
+	DefaultRedisHaHaproxyName        = "argocd-redis-ha-haproxy"
 )
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
