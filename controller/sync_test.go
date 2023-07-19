@@ -419,7 +419,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		assert.Equal(t, "something", (second.(map[string]interface{})["clientConfig"]).(map[string]interface{})["caBundle"])
 		assert.Equal(t, "something-new", (third.(map[string]interface{})["clientConfig"]).(map[string]interface{})["caBundle"])
 	})
-	t.Run("ignore-deployment-image-replicas-changes", func(t *testing.T) {
+	t.Run("ignore-deployment-image-replicas-changes-additive", func(t *testing.T) {
 		// given
 
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
@@ -434,8 +434,8 @@ func TestNormalizeTargetResources(t *testing.T) {
 			},
 		}
 		f := setup(t, ignores)
-		live := test.YamlToUnstructured(testdata.LiveImageReplicaDeploymentYaml)
-		target := test.YamlToUnstructured(testdata.TargetImageReplicaDeploymentYaml)
+		live := test.YamlToUnstructured(testdata.MinimalImageReplicaDeploymentYaml)
+		target := test.YamlToUnstructured(testdata.AdditionalImageReplicaDeploymentYaml)
 		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
@@ -493,6 +493,81 @@ func TestNormalizeTargetResources(t *testing.T) {
 		env0 := env[0].(map[string]interface{})
 		assert.Equal(t, "EV", env0["name"])
 		assert.Equal(t, "here", env0["value"])
+	})
+	t.Run("ignore-deployment-image-replicas-changes-reductive", func(t *testing.T) {
+		// given
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				JSONPointers: []string{"/spec/replicas"},
+			}, {
+				Group:             "apps",
+				Kind:              "Deployment",
+				JQPathExpressions: []string{".spec.template.spec.containers[].image"},
+			},
+		}
+		f := setup(t, ignores)
+		live := test.YamlToUnstructured(testdata.AdditionalImageReplicaDeploymentYaml)
+		target := test.YamlToUnstructured(testdata.MinimalImageReplicaDeploymentYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		// when
+		targets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(targets))
+		metadata, ok, err := unstructured.NestedMap(targets[0].Object, "metadata")
+		require.NoError(t, err)
+		require.True(t, ok)
+		labels, ok := metadata["labels"].(map[string]interface{})
+		require.True(t, ok)
+		assert.Equal(t, 1, len(labels))
+		_, ok, err = unstructured.NestedMap(labels, "appProcess")
+		require.NoError(t, err)
+		require.False(t, ok)
+
+		spec, ok, err := unstructured.NestedMap(targets[0].Object, "spec")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		assert.Equal(t, int64(2), spec["replicas"])
+
+		template, ok := spec["template"].(map[string]interface{})
+		require.True(t, ok)
+
+		tMetadata, ok := template["metadata"].(map[string]interface{})
+		require.True(t, ok)
+		tLabels, ok := tMetadata["labels"].(map[string]interface{})
+		require.True(t, ok)
+		assert.Equal(t, 1, len(tLabels))
+		_, ok, err = unstructured.NestedMap(tLabels, "appProcess")
+		require.NoError(t, err)
+		require.False(t, ok)
+
+		tSpec, ok := template["spec"].(map[string]interface{})
+		require.True(t, ok)
+		containers, ok, err := unstructured.NestedSlice(tSpec, "containers")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, 1, len(containers))
+
+		first := containers[0].(map[string]interface{})
+		assert.Equal(t, "alpine:2", first["image"])
+
+		resources, ok := first["resources"].(map[string]interface{})
+		require.True(t, ok)
+		assert.Equal(t, 0, len(resources))
+		_, ok, err = unstructured.NestedMap(resources, "requests")
+		require.NoError(t, err)
+		require.False(t, ok)
+
+		_, ok, err = unstructured.NestedSlice(first, "env")
+		require.NoError(t, err)
+		require.False(t, ok)
 
 	})
 }
