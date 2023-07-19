@@ -7,7 +7,7 @@ import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
-import {Consumer, Context, ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListViewKey, AppsListPreferences, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
@@ -40,8 +40,10 @@ const APP_FIELDS = [
     'spec',
     'operation.sync',
     'status.sync.status',
+    'status.sync.revision',
     'status.health',
     'status.operationState.phase',
+    'status.operationState.finishedAt',
     'status.operationState.operation.sync',
     'status.summary',
     'status.resources'
@@ -108,6 +110,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                             if (params.get('sync') != null) {
                                 viewPref.syncFilter = params
                                     .get('sync')
+                                    .split(',')
+                                    .filter(item => !!item);
+                            }
+                            if (params.get('autoSync') != null) {
+                                viewPref.autoSyncFilter = params
+                                    .get('autoSync')
                                     .split(',')
                                     .filter(item => !!item);
                             }
@@ -190,6 +198,7 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
 
     const {useKeybinding} = React.useContext(KeybindingContext);
     const [isFocused, setFocus] = React.useState(false);
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
     useKeybinding({
         keys: Key.SLASH,
@@ -258,7 +267,7 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
             }}
             onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
             value={content || ''}
-            items={apps.map(app => app.metadata.namespace + '/' + app.metadata.name)}
+            items={apps.map(app => AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled))}
         />
     );
 };
@@ -284,7 +293,7 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
                                                 style={{marginRight: 2}}
                                                 key={i}>
                                                 {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
-                                                {item.title}
+                                                <span className='show-for-large'>{item.title}</span>
                                             </button>
                                         ))}
                                     </React.Fragment>
@@ -332,6 +341,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             {
                 proj: newPref.projectsFilter.join(','),
                 sync: newPref.syncFilter.join(','),
+                autoSync: newPref.autoSyncFilter.join(','),
                 health: newPref.healthFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
                 cluster: newPref.clustersFilter.join(','),
@@ -507,6 +517,18 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                 </h5>
                                                                             </EmptyState>
                                                                         )}
+                                                                        sortOptions={[
+                                                                            {title: 'Name', compare: (a, b) => a.metadata.name.localeCompare(b.metadata.name)},
+                                                                            {
+                                                                                title: 'Created At',
+                                                                                compare: (b, a) => a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp)
+                                                                            },
+                                                                            {
+                                                                                title: 'Synchronized',
+                                                                                compare: (b, a) =>
+                                                                                    a.status.operationState?.finishedAt?.localeCompare(b.status.operationState?.finishedAt)
+                                                                            }
+                                                                        ]}
                                                                         data={filteredApps}
                                                                         onPageChange={page => ctx.navigation.goto('.', {page})}>
                                                                         {data =>

@@ -274,6 +274,8 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
+		case "/api/v4/projects/27084533/repository/branches/foo":
+			w.WriteHeader(http.StatusNotFound)
 		default:
 			_, err := io.WriteString(w, `[]`)
 			if err != nil {
@@ -284,10 +286,10 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 func TestGitlabListRepos(t *testing.T) {
 	cases := []struct {
-		name, proto, url                        string
-		hasError, allBranches, includeSubgroups bool
-		branches                                []string
-		filters                                 []v1alpha1.SCMProviderGeneratorFilter
+		name, proto, url                                  string
+		hasError, allBranches, includeSubgroups, insecure bool
+		branches                                          []string
+		filters                                           []v1alpha1.SCMProviderGeneratorFilter
 	}{
 		{
 			name:     "blank protocol",
@@ -321,7 +323,7 @@ func TestGitlabListRepos(t *testing.T) {
 	}))
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups)
+			provider, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.insecure, "")
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				assert.NotNil(t, err)
@@ -350,7 +352,7 @@ func TestGitlabHasPath(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gitlabMockHandler(t)(w, r)
 	}))
-	host, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true)
+	host, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, false, "")
 	repo := &Repository{
 		Organization: "test-argocd-proton",
 		Repository:   "argocd",
@@ -390,4 +392,30 @@ func TestGitlabHasPath(t *testing.T) {
 			assert.Equal(t, c.exists, ok)
 		})
 	}
+}
+
+func TestGitlabGetBranches(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gitlabMockHandler(t)(w, r)
+	}))
+	host, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, false, "")
+
+	repo := &Repository{
+		RepositoryId: 27084533,
+		Branch:       "master",
+	}
+	t.Run("branch exists", func(t *testing.T) {
+		repos, err := host.GetBranches(context.Background(), repo)
+		assert.Nil(t, err)
+		assert.Equal(t, repos[0].Branch, "master")
+	})
+
+	repo2 := &Repository{
+		RepositoryId: 27084533,
+		Branch:       "foo",
+	}
+	t.Run("unknown branch", func(t *testing.T) {
+		_, err := host.GetBranches(context.Background(), repo2)
+		assert.NoError(t, err)
+	})
 }

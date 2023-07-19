@@ -32,6 +32,18 @@ var appFields = map[string]func(app *v1alpha1.Application) interface{}{
 	"status.sync.status":         func(app *v1alpha1.Application) interface{} { return app.Status.Sync.Status },
 	"status.health":              func(app *v1alpha1.Application) interface{} { return app.Status.Health },
 	"status.summary":             func(app *v1alpha1.Application) interface{} { return app.Status.Summary },
+	"status.operationState.startedAt": func(app *v1alpha1.Application) interface{} {
+		if app.Status.OperationState != nil {
+			return app.Status.OperationState.StartedAt
+		}
+		return nil
+	},
+	"status.operationState.finishedAt": func(app *v1alpha1.Application) interface{} {
+		if app.Status.OperationState != nil {
+			return app.Status.OperationState.FinishedAt
+		}
+		return nil
+	},
 	"status.resources": func(app *v1alpha1.Application) interface{} {
 		if len(app.Status.Resources) > 0 {
 			return app.Status.Resources
@@ -69,14 +81,15 @@ func processApplicationListField(v interface{}, fields map[string]interface{}, e
 					continue
 				}
 				value := fn(&app)
+				if value == nil {
+					continue
+				}
 				parts := strings.Split(field, ".")
 				item := converted
 				for i := 0; i < len(parts); i++ {
 					subField := parts[i]
 					if i == len(parts)-1 {
-						if value != nil {
-							item[subField] = value
-						}
+						item[subField] = value
 					} else {
 						if _, ok := item[subField]; !ok {
 							item[subField] = make(map[string]interface{})

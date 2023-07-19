@@ -9,7 +9,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,6 +17,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	kubecache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/yaml"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/controller"
@@ -401,7 +401,12 @@ func reconcileApplications(
 			return nil, err
 		}
 
-		res := appStateManager.CompareAppState(&app, proj, app.Spec.Source.TargetRevision, app.Spec.Source, false, false, nil)
+		sources := make([]v1alpha1.ApplicationSource, 0)
+		revisions := make([]string, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions = append(revisions, app.Spec.GetSource().TargetRevision)
+
+		res := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false)
 		items = append(items, appReconcileResult{
 			Name:       app.Name,
 			Conditions: app.Status.Conditions,

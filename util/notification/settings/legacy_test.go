@@ -124,7 +124,7 @@ func TestGetDestinations(t *testing.T) {
 
 func TestGetDestinations_DefaultTrigger(t *testing.T) {
 	res := GetLegacyDestinations(map[string]string{
-		"recipients.argocd-notifications.argoproj.io": "slack:my-channel",
+		annotationKey: "slack:my-channel",
 	}, []string{"my-trigger"}, nil)
 	assert.Equal(t, services.Destinations{
 		"my-trigger": []services.Destination{{
@@ -136,7 +136,7 @@ func TestGetDestinations_DefaultTrigger(t *testing.T) {
 
 func TestGetDestinations_ServiceDefaultTriggers(t *testing.T) {
 	res := GetLegacyDestinations(map[string]string{
-		"recipients.argocd-notifications.argoproj.io": "slack:my-channel",
+		annotationKey: "slack:my-channel",
 	}, []string{}, map[string][]string{
 		"slack": {
 			"trigger-a",

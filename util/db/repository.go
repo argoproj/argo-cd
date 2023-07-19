@@ -32,6 +32,8 @@ const (
 	tlsClientCertKey = "tlsClientCertKey"
 	// The name of the key storing the GitHub App private key in the secret
 	githubAppPrivateKey = "githubAppPrivateKey"
+	// The name of the key storing the service account to access Google Cloud Source repositories
+	gcpServiceAccountKey = "gcpServiceAccountKey"
 )
 
 // repositoryBackend defines the API for types that wish to provide interaction with repository storage
