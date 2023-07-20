@@ -180,10 +180,17 @@ func GetShardMappingConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *set
 		if err != nil {
 			return -1, err
 		}
-		shardMappingCM = generateDefaultShardMappingCM(settingsMgr.GetNamespace(), *replicas)
+		shardMappingCM, err = generateDefaultShardMappingCM(settingsMgr.GetNamespace(), *replicas)
+		if err != nil {
+			return -1, err
+		}
 		_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Create(context.Background(), shardMappingCM, metav1.CreateOptions{})
 
 	} else {
+
+		// Identify the available shard and update the ConfigMap
+		data := shardMappingCM.Data["shardAppControllerMappings"]
+		log.Infof("CM Data : %s", data)
 		_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Update(context.Background(), shardMappingCM, metav1.UpdateOptions{})
 	}
 
