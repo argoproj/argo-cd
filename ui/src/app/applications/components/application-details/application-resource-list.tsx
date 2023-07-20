@@ -24,7 +24,7 @@ export const ApplicationResourceList = ({
                 <div className='columns small-1 xxxlarge-1' />
                 <div className='columns small-2 xxxlarge-2'>NAME</div>
                 <div className='columns small-2 xxxlarge-2'>GROUP/KIND</div>
-                <div className='columns small-1 xxxlarge-2'>SYNC ORDER</div>
+                <div className='columns small-1 xxxlarge-1'>SYNC ORDER</div>
                 <div className='columns small-2 xxxlarge-2'>NAMESPACE</div>
                 <div className='columns small-2 xxxlarge-2'>CREATED AT</div>
                 <div className='columns small-2 xxxlarge-2'>STATUS</div>
@@ -62,7 +62,7 @@ export const ApplicationResourceList = ({
                             )}
                         </div>
                         <div className='columns small-2 xxxlarge-2'>{[res.group, res.kind].filter(item => !!item).join('/')}</div>
-                        <div className='columns small-1 xxxlarge-2'>{res.syncWave || '-'}</div>
+                        <div className='columns small-1 xxxlarge-1'>{res.syncWave || '-'}</div>
                         <div className='columns small-2 xxxlarge-2'>{res.namespace}</div>
                         <div className='columns small-2 xxxlarge-2'>{res.createdAt}</div>
                         <div className='columns small-2 xxxlarge-2'>
