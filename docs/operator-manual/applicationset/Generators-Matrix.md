@@ -170,7 +170,7 @@ with the label `kubernetes.io/environment: dev` will have only dev-specific conf
 
 ## Overriding parameters from one child generator in another child generator
 
-The matrix generator allows to define parameters with the same name in multiple child generators. This is useful for example to define default values for all stages in one generator and override them with stage-specific values in another generator. The example below generates a Helm-based app using a matrix generator with two git generators: the first one provides stage-specific values (one directory per stage) and the second one provides global values for all stages.
+The Matrix Generator allows parameters with the same name to be defined in multiple child generators. This is useful, for example, to define default values for all stages in one generator and override them with stage-specific values in another generator. The example below generates a Helm-based application using a matrix generator with two git generators: the first provides stage-specific values (one directory per stage) and the second provides global values for all stages.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
