@@ -65,7 +65,6 @@ import (
 type AppResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
 
 const (
-	maxPodLogsToRender                 = 10
 	backgroundPropagationPolicy string = "background"
 	foregroundPropagationPolicy string = "foreground"
 )
@@ -1570,8 +1569,13 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return nil
 	}
 
-	if len(pods) > maxPodLogsToRender {
-		return errors.New("Max pods to view logs are reached. Please provide more granular query.")
+	maxPodLogsToRender, err := s.settingsMgr.GetMaxPodLogsToRender()
+	if err != nil {
+		return fmt.Errorf("error getting MaxPodLogsToRender config: %w", err)
+	}
+
+	if int64(len(pods)) > maxPodLogsToRender {
+		return status.Error(codes.InvalidArgument, "max pods to view logs are reached. Please provide more granular query")
 	}
 
 	var streams []chan logEntry
