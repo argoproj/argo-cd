@@ -9,11 +9,11 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.30.4
-	github.com/antonmedv/expr v1.12.6
+	github.com/antonmedv/expr v1.12.7
 	github.com/argoproj/gitops-engine v0.7.1-0.20230607163028-425d65e07695
 	github.com/argoproj/notifications-engine v0.4.1-0.20230620204159-3446d4ae8520
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
-	github.com/aws/aws-sdk-go v1.44.301
+	github.com/aws/aws-sdk-go v1.44.304
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.6.0
@@ -70,7 +70,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/whilp/git-urls v1.0.0
-	github.com/xanzy/go-gitlab v0.86.0
+	github.com/xanzy/go-gitlab v0.88.0
 	github.com/yuin/gopher-lua v1.1.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
 	go.opentelemetry.io/otel v1.16.0
