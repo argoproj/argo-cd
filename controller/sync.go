@@ -449,32 +449,34 @@ func intersectMap(templateMap, valueMap map[string]interface{}) map[string]inter
 		if innerTMap, ok := v.(map[string]interface{}); ok {
 			if innerVMap, ok := valueMap[k].(map[string]interface{}); ok {
 				result[k] = intersectMap(innerTMap, innerVMap)
+			} else {
+				result[k] = innerTMap
 			}
 		} else if innerTSlice, ok := v.([]interface{}); ok {
 			if innerVSlice, ok := valueMap[k].([]interface{}); ok {
 				items := []interface{}{}
 				for idx, innerTSliceValue := range innerTSlice {
-					if idx < len(innerVSlice) {
-						if tSliceValueMap, ok := innerTSliceValue.(map[string]interface{}); ok {
+					if tSliceValueMap, ok := innerTSliceValue.(map[string]interface{}); ok {
+						if idx < len(innerVSlice) {
 							if vSliceValueMap, ok := innerVSlice[idx].(map[string]interface{}); ok {
 								item := intersectMap(tSliceValueMap, vSliceValueMap)
 								items = append(items, item)
+							} else {
+								items = append(items, tSliceValueMap)
 							}
 						} else {
-							items = append(items, innerVSlice[idx])
+							items = append(items, tSliceValueMap)
 						}
-					} else {
-						items = append(items, innerTSliceValue)
 					}
 				}
 				if len(items) > 0 {
 					result[k] = items
 				}
+			} else {
+				result[k] = innerTSlice
 			}
-		} else {
-			if _, ok := valueMap[k]; ok {
-				result[k] = valueMap[k]
-			}
+		} else if _, ok := valueMap[k]; ok {
+			result[k] = valueMap[k]
 		}
 	}
 	return result
