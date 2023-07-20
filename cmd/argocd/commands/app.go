@@ -1535,6 +1535,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		force                   bool
 		replace                 bool
 		serverSideApply         bool
+		applyOutOfSyncOnly      bool
 		async                   bool
 		retryLimit              int64
 		retryBackoffDuration    time.Duration
@@ -1706,6 +1707,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					}
 					if serverSideApply {
 						items = append(items, common.SyncOptionServerSideApply)
+					}
+					if applyOutOfSyncOnly {
+						items = append(items, common.SyncOptionApplyOutOfSyncOnly)
 					}
 
 					if len(items) == 0 {
