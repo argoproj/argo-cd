@@ -25,4 +25,3 @@ export * from './timestamp';
 export * from './spinner';
 export * from './badge-panel/badge-panel';
 export * from './number-field';
-export * from './clipboard-text';

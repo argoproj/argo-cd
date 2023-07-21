@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/stats"
-	"github.com/redis/go-redis/v9"
+	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -49,9 +49,7 @@ func NewCommand() *cobra.Command {
 	var (
 		redisClient              *redis.Client
 		insecure                 bool
-		listenHost               string
 		listenPort               int
-		metricsHost              string
 		metricsPort              int
 		otlpAddress              string
 		glogLevel                int
@@ -73,7 +71,6 @@ func NewCommand() *cobra.Command {
 		dexServerStrictTLS       bool
 		staticAssetsDir          string
 		applicationNamespaces    []string
-		enableProxyExtension     bool
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
@@ -169,9 +166,7 @@ func NewCommand() *cobra.Command {
 			argoCDOpts := server.ArgoCDServerOpts{
 				Insecure:              insecure,
 				ListenPort:            listenPort,
-				ListenHost:            listenHost,
 				MetricsPort:           metricsPort,
-				MetricsHost:           metricsHost,
 				Namespace:             namespace,
 				BaseHRef:              baseHRef,
 				RootPath:              rootPath,
@@ -189,7 +184,6 @@ func NewCommand() *cobra.Command {
 				RedisClient:           redisClient,
 				StaticAssetsDir:       staticAssetsDir,
 				ApplicationNamespaces: applicationNamespaces,
-				EnableProxyExtension:  enableProxyExtension,
 			}
 
 			stats.RegisterStackDumper()
@@ -228,11 +222,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_SERVER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address")
 	command.Flags().StringVar(&dexServerAddress, "dex-server", env.StringFromEnv("ARGOCD_SERVER_DEX_SERVER", common.DefaultDexServerAddr), "Dex server address")
 	command.Flags().BoolVar(&disableAuth, "disable-auth", env.ParseBoolFromEnv("ARGOCD_SERVER_DISABLE_AUTH", false), "Disable client authentication")
-	command.Flags().BoolVar(&enableGZip, "enable-gzip", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_GZIP", true), "Enable GZIP compression")
+	command.Flags().BoolVar(&enableGZip, "enable-gzip", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_GZIP", false), "Enable GZIP compression")
 	command.AddCommand(cli.NewVersionCmd(cliName))
-	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_SERVER_LISTEN_ADDRESS", common.DefaultAddressAPIServer), "Listen on given address")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortAPIServer, "Listen on given port")
-	command.Flags().StringVar(&metricsHost, env.StringFromEnv("ARGOCD_SERVER_METRICS_LISTEN_ADDRESS", "metrics-address"), common.DefaultAddressAPIServerMetrics, "Listen for metrics on given address")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
@@ -243,7 +235,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&dexServerPlaintext, "dex-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to dex server")
 	command.Flags().BoolVar(&dexServerStrictTLS, "dex-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to dex server")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
-	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
 		redisClient = client

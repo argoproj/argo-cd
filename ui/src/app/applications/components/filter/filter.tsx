@@ -15,7 +15,6 @@ interface FilterProps {
     retry?: () => void;
     loading?: boolean;
     radio?: boolean;
-    collapsed?: boolean;
 }
 
 export interface CheckboxOption {
@@ -56,13 +55,14 @@ export const FiltersGroup = (props: {children?: React.ReactNode; content: React.
     return (
         !props.collapsed && (
             <div className='filters-group'>
-                {props.appliedFilter?.length > 0 && props.onClearFilter && (
-                    <div className='filters-group__header'>
+                <div className='filters-group__header'>
+                    FILTERS{' '}
+                    {props.appliedFilter?.length > 0 && props.onClearFilter && (
                         <button onClick={() => props.onClearFilter()} className='argo-button argo-button--base argo-button--sm'>
-                            <i className='fa fa-times-circle' /> CLEAR ALL
+                            CLEAR ALL
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
                 <>{props.children}</>
                 <div className='filters-group__content'>{props.content}</div>
             </div>
@@ -77,7 +77,7 @@ export const Filter = (props: FilterProps) => {
     const [values, setValues] = React.useState(init);
     const [tags, setTags] = React.useState([]);
     const [input, setInput] = React.useState('');
-    const [collapsed, setCollapsed] = React.useState(props.collapsed || false);
+    const [collapsed, setCollapsed] = React.useState(false);
     const [options, setOptions] = React.useState(props.options);
 
     React.useEffect(() => {

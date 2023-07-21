@@ -1,17 +1,16 @@
 import {DataLoader, DropDownMenu, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import Moment from 'react-moment';
 import {Key, KeybindingContext, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
 import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState} from '../utils';
+import {OperationState} from '../utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
 import {services} from '../../../shared/services';
-import './applications-table.scss';
+require('./applications-table.scss');
 
 export const ApplicationsTable = (props: {
     applications: models.Application[];
@@ -83,7 +82,7 @@ export const ApplicationsTable = (props: {
                                                                     />
                                                                 </button>
                                                             </Tooltip>
-                                                            <ApplicationURLs urls={app.status.summary.externalURLs} />
+                                                            <ApplicationURLs urls={AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)} />
                                                         </div>
                                                     </div>
                                                     <div className='show-for-xxlarge columns small-4'>Project:</div>
@@ -93,16 +92,7 @@ export const ApplicationsTable = (props: {
                                                     <div className=' columns small-2' />
                                                     <div className='show-for-xxlarge columns small-4'>Name:</div>
                                                     <div className='columns small-12 xxlarge-6'>
-                                                        <Tooltip
-                                                            content={
-                                                                <>
-                                                                    {app.metadata.name}
-                                                                    <br />
-                                                                    <Moment fromNow={true} ago={true}>
-                                                                        {app.metadata.creationTimestamp}
-                                                                    </Moment>
-                                                                </>
-                                                            }>
+                                                        <Tooltip content={app.metadata.name}>
                                                             <span>{app.metadata.name}</span>
                                                         </Tooltip>
                                                     </div>
@@ -114,7 +104,7 @@ export const ApplicationsTable = (props: {
                                                     <div className='show-for-xxlarge columns small-2'>Source:</div>
                                                     <div className='columns small-12 xxlarge-10 applications-table-source' style={{position: 'relative'}}>
                                                         <div className='applications-table-source__link'>
-                                                            <ApplicationsSource source={getAppDefaultSource(app)} />
+                                                            <ApplicationsSource source={app.spec.source} />
                                                         </div>
                                                         <div className='applications-table-source__labels'>
                                                             <ApplicationsLabels app={app} />
@@ -128,7 +118,6 @@ export const ApplicationsTable = (props: {
                                                     </div>
                                                 </div>
                                             </div>
-
                                             <div className='columns small-2'>
                                                 <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
                                                 <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />

@@ -2,7 +2,7 @@
 
 ## Run Argo CD outside of Kubernetes
 
-During development, it might be viable to run Argo CD outside a Kubernetes cluster. This will greatly speed up development, as you don't have to constantly build, push and install new Argo CD Docker images with your latest changes.
+During development, it might be viable to run Argo CD outside of a Kubernetes cluster. This will greatly speed up development, as you don't have to constantly build, push and install new Argo CD Docker images with your latest changes.
 
 You will still need a working Kubernetes cluster, as described in the [Toolchain Guide](toolchain-guide.md), where Argo CD will store all of its resources and configuration.
 
@@ -179,7 +179,7 @@ For your final tests, it might be necessary to build your own images and run the
 
 ### Create Docker account and login
 
-You might need to create an account on [Docker Hub](https://hub.docker.com) if you don't have one already. Once you created your account, login from your development environment:
+You might need to create a account on [Docker Hub](https://hub.docker.com) if you don't have one already. Once you created your account, login from your development environment:
 
 ```bash
 docker login
