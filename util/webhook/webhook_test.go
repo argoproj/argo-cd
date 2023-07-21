@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/types"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -149,10 +150,10 @@ func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
 func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	hook := test.NewGlobal()
 
-	patchedApps := make([]string, 0, 3)
+	patchedApps := make([]types.NamespacedName, 0, 3)
 	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patchAction := action.(kubetesting.PatchAction)
-		patchedApps = append(patchedApps, patchAction.GetName())
+		patchedApps = append(patchedApps, types.NamespacedName{Name: patchAction.GetName(), Namespace: patchAction.GetNamespace()})
 		return true, nil, nil
 	}
 
@@ -231,10 +232,10 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	assert.Contains(t, logMessages, "Requested app 'app-to-refresh-in-globbed-namespace' refresh")
 	assert.NotContains(t, logMessages, "Requested app 'app-to-ignore' refresh")
 
-	assert.Contains(t, patchedApps, "app-to-refresh-in-default-namespace")
-	assert.Contains(t, patchedApps, "app-to-refresh-in-exact-match-namespace")
-	assert.Contains(t, patchedApps, "app-to-refresh-in-globbed-namespace")
-	assert.NotContains(t, patchedApps, "app-to-ignore")
+	assert.Contains(t, patchedApps, types.NamespacedName{Name: "app-to-refresh-in-default-namespace", Namespace: "argocd"})
+	assert.Contains(t, patchedApps, types.NamespacedName{Name: "app-to-refresh-in-exact-match-namespace", Namespace: "end-to-end-tests"})
+	assert.Contains(t, patchedApps, types.NamespacedName{Name: "app-to-refresh-in-globbed-namespace", Namespace: "app-team-two"})
+	assert.NotContains(t, patchedApps, types.NamespacedName{Name: "app-to-ignore", Namespace: "kube-system"})
 	assert.Len(t, patchedApps, 3)
 
 	hook.Reset()
