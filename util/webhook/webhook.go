@@ -264,7 +264,8 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 			for _, source := range app.Spec.GetSources() {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
 					if appFilesHaveChanged(&app, changedFiles) {
-						_, err = argo.RefreshApp(appIf, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
+						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
+						_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
 						if err != nil {
 							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
 							continue
