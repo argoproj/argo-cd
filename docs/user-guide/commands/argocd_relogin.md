@@ -14,8 +14,8 @@ argocd relogin [flags]
 
 ```
   -h, --help              help for relogin
-      --password string   the password of an account to authenticate
-      --sso-port int      port to run local OAuth2 login application (default 8085)
+      --password string   The password of an account to authenticate
+      --sso-port int      Port to run local OAuth2 login application (default 8085)
 ```
 
 ### Options inherited from parent commands

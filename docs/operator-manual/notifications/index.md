@@ -17,8 +17,9 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 * Add Email username and password token to `argocd-notifications-secret` secret
 
 ```bash
-export EMAIL_USER=<your-username>
-export PASSWORD=<your-password>
+EMAIL_USER=<your-username>
+ PASSWORD=<your-password>
+
 kubectl apply -n argocd -f - << EOF
 apiVersion: v1
 kind: Secret

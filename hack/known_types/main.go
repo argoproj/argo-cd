@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"go/importer"
+	"go/token"
 	"go/types"
 	"os"
 	"strings"
@@ -36,15 +37,16 @@ func newCommand() *cobra.Command {
 			packagePath := args[1]
 			outputPath := args[2]
 
-			// nolint:staticcheck
-			imprt := importer.For("source", nil)
+			if !strings.HasPrefix(packagePath, packagePrefix) {
+				return fmt.Errorf("package must be under %s", packagePrefix)
+			}
+
+			imprt := importer.ForCompiler(token.NewFileSet(), "source", nil)
 			pkg, err := imprt.Import(packagePath)
 			if err != nil {
 				return err
 			}
-			if !strings.HasPrefix(packagePath, packagePrefix) {
-				return fmt.Errorf("package must be under %s", packagePrefix)
-			}
+
 			shortPackagePath := strings.TrimPrefix(packagePath, packagePrefix)
 
 			var mapItems []string
