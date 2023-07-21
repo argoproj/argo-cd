@@ -198,6 +198,13 @@ func TestRenderTemplateParams(t *testing.T) {
 
 }
 
+func Test_Render_Replace_no_panic_on_missing_closing_brace(t *testing.T) {
+	r := &Render{}
+	assert.NotPanics(t, func() {
+		r.Replace("{{properly.closed}} {{improperly.closed}", nil, false, []string{})
+	})
+}
+
 func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 
 	// Believe it or not, this is actually less complex than the equivalent solution using reflection
