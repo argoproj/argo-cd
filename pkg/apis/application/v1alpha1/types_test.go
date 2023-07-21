@@ -3161,6 +3161,8 @@ func TestGetCAPath(t *testing.T) {
 		"https://foo.example.com",
 		"oci://foo.example.com",
 		"foo.example.com",
+		"foo.example.com:5000",
+		"https://foo.example.com:5000",
 	}
 	invalidpath := []string{
 		"https://bar.example.com",
