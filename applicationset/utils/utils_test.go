@@ -563,7 +563,7 @@ func Test_Render_Replace_no_panic_on_missing_closing_brace(t *testing.T) {
 	r := &Render{}
 	assert.NotPanics(t, func() {
 		_, err := r.Replace("{{properly.closed}} {{improperly.closed}", nil, false, []string{})
-		assert.NoError(t, err)
+		assert.Error(t, err)
 	})
 }
 
