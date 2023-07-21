@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {FormApi, NestedForm, Text, Form} from 'react-form';
 import {Checkbox, FormField} from 'argo-ui';
-import {omit} from 'lodash-es';
+import {omit} from 'lodash';
 import {NumberField} from '../../../shared/components';
 import * as models from '../../../shared/models';
 
