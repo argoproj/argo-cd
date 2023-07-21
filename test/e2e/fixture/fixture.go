@@ -672,7 +672,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	namespaces, err := KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
 	CheckError(err)
 	for _, namespace := range namespaces.Items {
-		if strings.HasPrefix(namespace.Name, "e2e-test-") {
+		if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
 			FailOnErr(Run("", "kubectl", "delete", "ns", namespace.Name))
 		}
 	}
