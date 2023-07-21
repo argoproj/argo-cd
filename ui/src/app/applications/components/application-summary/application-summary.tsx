@@ -2,7 +2,7 @@ import {AutocompleteField, DropDownMenu, ErrorNotification, FormField, FormSelec
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {
-    ClipboardText,
+    ARGO_WARNING_COLOR,
     Cluster,
     DataLoader,
     EditablePanel,
@@ -151,7 +151,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         },
         {
             title: 'NAMESPACE',
-            view: <ClipboardText text={app.spec.destination.namespace} />,
+            view: app.spec.destination.namespace,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
         {
