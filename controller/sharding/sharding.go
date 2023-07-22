@@ -169,7 +169,7 @@ func createClusterIndexByClusterIdMap(db db.ArgoDB) map[string]int {
 	return clusterIndexedByClusterId
 }
 
-func GetShardMappingConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager) (int, error) {
+func InferShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager) (int, error) {
 	shardMappingCM, err := settingsMgr.GetConfigMapByName(common.ArgoCDAppControllerShardConfigMapName)
 	if err != nil {
 		return -1, err
