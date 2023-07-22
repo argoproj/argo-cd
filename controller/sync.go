@@ -407,7 +407,7 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			}
 			// generate a minimal patch that uses the fields from targetPatch (template)
 			// with livePatch values
-			patch, err := compilePatch(targetPatch, livePatch)
+			patch, err := compilePatch(targetPatch, livePatch, live.Object)
 			if err != nil {
 				return nil, err
 			}
@@ -426,7 +426,7 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 
 // compilePatch will generate a patch using the fields from templatePatch with
 // the values from valuePatch.
-func compilePatch(templatePatch, valuePatch []byte) ([]byte, error) {
+func compilePatch(templatePatch, valuePatch []byte, liveObjectMap map[string]interface{}) ([]byte, error) {
 	templateMap := make(map[string]interface{})
 	err := json.Unmarshal(templatePatch, &templateMap)
 	if err != nil {
@@ -437,40 +437,46 @@ func compilePatch(templatePatch, valuePatch []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	resultMap := intersectMap(templateMap, valueMap)
+	resultMap := intersectMap(templateMap, valueMap, liveObjectMap)
 	return json.Marshal(resultMap)
 }
 
 // intersectMap will return map with the fields intersection from the 2 provided
 // maps populated with the valueMap values.
-func intersectMap(templateMap, valueMap map[string]interface{}) map[string]interface{} {
+func intersectMap(templateMap, valueMap, liveMap map[string]interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
 	for k, v := range templateMap {
 		if innerTMap, ok := v.(map[string]interface{}); ok {
 			if innerVMap, ok := valueMap[k].(map[string]interface{}); ok {
-				result[k] = intersectMap(innerTMap, innerVMap)
-			} else {
+				if innerLMap, ok := liveMap[k].(map[string]interface{}); ok {
+					result[k] = intersectMap(innerTMap, innerVMap, innerLMap)
+				}
+			} else if _, ok := liveMap[k].(map[string]interface{}); !ok {
 				result[k] = innerTMap
 			}
 		} else if innerTSlice, ok := v.([]interface{}); ok {
 			if innerVSlice, ok := valueMap[k].([]interface{}); ok {
-				items := []interface{}{}
-				for idx, innerTSliceValue := range innerTSlice {
-					if tSliceValueMap, ok := innerTSliceValue.(map[string]interface{}); ok {
-						if idx < len(innerVSlice) {
-							if vSliceValueMap, ok := innerVSlice[idx].(map[string]interface{}); ok {
-								item := intersectMap(tSliceValueMap, vSliceValueMap)
-								items = append(items, item)
+				if innerLSlice, ok := liveMap[k].([]interface{}); ok {
+					items := []interface{}{}
+					for idx, innerTSliceValue := range innerTSlice {
+						if tSliceValueMap, ok := innerTSliceValue.(map[string]interface{}); ok {
+							if idx < len(innerVSlice) {
+								if vSliceValueMap, ok := innerVSlice[idx].(map[string]interface{}); ok {
+									if lSliceValueMap, ok := innerLSlice[idx].(map[string]interface{}); ok {
+										item := intersectMap(tSliceValueMap, vSliceValueMap, lSliceValueMap)
+										items = append(items, item)
+									}
+								} else {
+									items = append(items, tSliceValueMap)
+								}
 							} else {
 								items = append(items, tSliceValueMap)
 							}
-						} else {
-							items = append(items, tSliceValueMap)
 						}
 					}
-				}
-				if len(items) > 0 {
-					result[k] = items
+					if len(items) > 0 {
+						result[k] = items
+					}
 				}
 			} else {
 				result[k] = innerTSlice
@@ -483,7 +489,7 @@ func intersectMap(templateMap, valueMap map[string]interface{}) map[string]inter
 }
 
 // getMergePatch calculates and returns the patch between the original and the
-// modified unstructures.
+// modified unstructured.
 func getMergePatch(original, modified *unstructured.Unstructured) ([]byte, error) {
 	originalJSON, err := original.MarshalJSON()
 	if err != nil {
@@ -497,7 +503,7 @@ func getMergePatch(original, modified *unstructured.Unstructured) ([]byte, error
 }
 
 // applyMergePatch will apply the given patch in the obj and return the patched
-// unstructure.
+// unstructured.
 func applyMergePatch(obj *unstructured.Unstructured, patch []byte) (*unstructured.Unstructured, error) {
 	originalJSON, err := obj.MarshalJSON()
 	if err != nil {
@@ -517,7 +523,7 @@ func applyMergePatch(obj *unstructured.Unstructured, patch []byte) (*unstructure
 
 // hasSharedResourceCondition will check if the Application has any resource that has already
 // been synced by another Application. If the resource is found in another Application it returns
-// true along with a human readable message of which specific resource has this condition.
+// true along with a human-readable message of which specific resource has this condition.
 func hasSharedResourceCondition(app *v1alpha1.Application) (bool, string) {
 	for _, condition := range app.Status.Conditions {
 		if condition.Type == v1alpha1.ApplicationConditionSharedResourceWarning {
