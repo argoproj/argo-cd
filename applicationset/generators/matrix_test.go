@@ -304,18 +304,20 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 					},
 				},
 				{
-					List: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
-						{
-							List: &argoprojiov1alpha1.ListGenerator{
-								Elements: []apiextensionsv1.JSON{
-									{Raw: []byte(`{"booleanFalse": true, "booleanTrue": false, "stringFirst": "2nd", "stringSecond": "2nd", "stringSecondOnly": "2nd"}`)},
+					List: &argoprojiov1alpha1.ListGenerator{
+						Elements: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+							{
+								List: &argoprojiov1alpha1.ListGenerator{
+									Elements: []apiextensionsv1.JSON{
+										{Raw: []byte(`{"booleanFalse": true, "booleanTrue": false, "stringFirst": "2nd", "stringSecond": "2nd", "stringSecondOnly": "2nd"}`)},
+									},
 								},
 							},
-						},
-						{
-							List: &argoprojiov1alpha1.ListGenerator{
-								Elements: []apiextensionsv1.JSON{
-									{Raw: []byte(`{"booleanFalse": true, "booleanTrue": false, "stringFirst": "3rd", "stringSecond": "3rd", "stringThird": "3rd", "stringThirdOnly": "3rd"}`)},
+							{
+								List: &argoprojiov1alpha1.ListGenerator{
+									Elements: []apiextensionsv1.JSON{
+										{Raw: []byte(`{"booleanFalse": true, "booleanTrue": false, "stringFirst": "3rd", "stringSecond": "3rd", "stringThird": "3rd", "stringThirdOnly": "3rd"}`)},
+									},
 								},
 							},
 						},
