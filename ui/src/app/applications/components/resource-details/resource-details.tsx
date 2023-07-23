@@ -4,7 +4,7 @@ import {useState} from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
-import {Context} from '../../../shared/context';
+import {AuthSettingsCtx, Context} from '../../../shared/context';
 import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTabExtension} from '../../../shared/services/extensions-service';
@@ -37,6 +37,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const {selectedNode, updateApp, application, isAppSelected, tree} = {...props};
     const [activeContainer, setActiveContainer] = useState();
     const appContext = React.useContext(Context);
+    const settingsContext = React.useContext(AuthSettingsCtx);
     const tab = new URLSearchParams(appContext.history.location.search).get('tab');
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
@@ -277,8 +278,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             }
                         }
 
-                        const settings = await services.authService.settings();
-                        const execEnabled = settings.execEnabled;
+                        const execEnabled = settingsContext.execEnabled;
                         const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
                         const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
