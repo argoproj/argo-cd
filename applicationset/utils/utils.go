@@ -283,7 +283,10 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTe
 		return tmpl, nil
 	}
 
-	fstTmpl := fasttemplate.New(tmpl, "{{", "}}")
+	fstTmpl, err := fasttemplate.NewTemplate(tmpl, "{{", "}}")
+	if err != nil {
+		return "", fmt.Errorf("invalid template: %w", err)
+	}
 	replacedTmpl := fstTmpl.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
 		trimmedTag := strings.TrimSpace(tag)
 		replacement, ok := replaceMap[trimmedTag].(string)
