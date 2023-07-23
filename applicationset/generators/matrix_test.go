@@ -294,41 +294,6 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 			},
 		},
 		{
-			name: "parameter override: nested generators",
-			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
-				{
-					List: &argoprojiov1alpha1.ListGenerator{
-						Elements: []apiextensionsv1.JSON{
-							{Raw: []byte(`{"booleanFalse": false, "booleanTrue": true, "stringFirst": "1st", "stringFirstOnly": "1st"}`)},
-						},
-					},
-				},
-				{
-					List: &argoprojiov1alpha1.ListGenerator{
-						Elements: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
-							{
-								List: &argoprojiov1alpha1.ListGenerator{
-									Elements: []apiextensionsv1.JSON{
-										{Raw: []byte(`{"booleanFalse": true, "booleanTrue": false, "stringFirst": "2nd", "stringSecond": "2nd", "stringSecondOnly": "2nd"}`)},
-									},
-								},
-							},
-							{
-								List: &argoprojiov1alpha1.ListGenerator{
-									Elements: []apiextensionsv1.JSON{
-										{Raw: []byte(`{"booleanFalse": true, "booleanTrue": false, "stringFirst": "3rd", "stringSecond": "3rd", "stringThird": "3rd", "stringThirdOnly": "3rd"}`)},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []map[string]interface{}{
-				{"booleanFalse": false, "booleanTrue": true, "stringFirst": "1st", "stringFirstOnly": "1st", "stringSecond": "2nd", "stringSecondOnly": "2nd", "stringThird": "3rd", "stringThirdOnly": "3rd"},
-			},
-		},
-		{
 			name: "returns error if there is less than two base generators",
 			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
 				{
