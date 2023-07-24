@@ -179,7 +179,7 @@ function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph) {
             nodeIds.forEach((nodeId: string) => {
                 const index = nodes.findIndex(node => nodeId === node.uid || nodeId === nodeKey(node));
                 const graphNode = graph.node(nodeId);
-                if (!graphNode.podGroup && index > -1) {
+                if (!graphNode?.podGroup && index > -1) {
                     groupedNodeIds.push(nodeId);
                 } else {
                     podGroupIds.push(nodeId);
@@ -935,22 +935,20 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
     }, [props.filters]);
 
-    const [defaultCompactView, setDefaultCompactView] = React.useState(false);
+    const podCount = nodes.filter(node => node.kind === 'Pod').length;
     React.useEffect(() => {
         const {podGroupCount, setShowCompactNodes, appContext} = props;
-        const podCount = nodes.filter(node => node.kind === 'Pod').length;
-
-        if (!defaultCompactView && podCount > podGroupCount) {
+        if (podCount > podGroupCount) {
             setShowCompactNodes(true);
-            setDefaultCompactView(true);
-
             appContext.apis.notifications.show({
                 content: `Since the number of pods has surpassed the threshold pod count of ${podGroupCount}, you will now be switched to the group node view.
                  If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`,
                 type: NotificationType.Success
             });
+        } else {
+            props.setShowCompactNodes(false);
         }
-    }, [props.setShowCompactNodes, props.showCompactNodes, defaultCompactView]);
+    }, [podCount]);
 
     function filterGraph(app: models.Application, filteredIndicatorParent: string, graphNodesFilter: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
         const appKey = appNodeKey(app);
