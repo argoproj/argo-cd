@@ -130,6 +130,22 @@ func TestDeepLinks(t *testing.T) {
 			}},
 			error: []string{"link condition '1 + 1' evaluated to non-boolean value for resource test"},
 		},
+		{
+			appObj:      appObj,
+			resourceObj: resourceObj,
+			projectObj:  projectObj,
+			clusterObj:  clusterObj,
+			inputLinks: []settings.DeepLink{{
+				Title:     "link",
+				URL:       "http://example.com/{{ .cluster.name | replace \"-\" \"_\" }}&{{ first .project.spec.sourceRepos }}",
+				Condition: pointer.String(`application.metadata.name == "test" && project.metadata.name == "test-project"`),
+			}},
+			outputLinks: []*application.LinkInfo{{
+				Title: pointer.String("link"),
+				Url:   pointer.String("http://example.com/test_cluster&test-repo.git"),
+			}},
+			error: []string{},
+		},
 	}
 
 	for _, tc := range testTable {
