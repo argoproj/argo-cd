@@ -1,7 +1,6 @@
 package kube
 
 import (
-	"fmt"
 	"regexp"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -24,7 +23,7 @@ func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) err
 	// Do not use target.GetLabels(), https://github.com/argoproj/argo-cd/issues/13730
 	labels, _, err := unstructured.NestedStringMap(target.Object, "metadata", "labels")
 	if err != nil {
-		return fmt.Errorf("failed to get labels from target object %s %s/%s: %w", target.GroupVersionKind().String(), target.GetNamespace(), target.GetName(), err)
+		return err
 	}
 	if labels == nil {
 		labels = make(map[string]string)
@@ -132,7 +131,7 @@ func GetAppInstanceLabel(un *unstructured.Unstructured, key string) (string, err
 	// Do not use target.GetLabels(), https://github.com/argoproj/argo-cd/issues/13730
 	labels, _, err := unstructured.NestedStringMap(un.Object, "metadata", "labels")
 	if err != nil {
-		return "", fmt.Errorf("failed to get labels for %s %s/%s: %w", un.GroupVersionKind().String(), un.GetNamespace(), un.GetName(), err)
+		return "", err
 	}
 	if labels != nil {
 		return labels[key], nil
@@ -145,7 +144,7 @@ func RemoveLabel(un *unstructured.Unstructured, key string) error {
 	// Do not use target.GetLabels(), https://github.com/argoproj/argo-cd/issues/13730
 	labels, _, err := unstructured.NestedStringMap(un.Object, "metadata", "labels")
 	if err != nil {
-		return fmt.Errorf("failed to get labels for %s %s/%s: %w", un.GroupVersionKind().String(), un.GetNamespace(), un.GetName(), err)
+		return err
 	}
 	if labels == nil {
 		return nil

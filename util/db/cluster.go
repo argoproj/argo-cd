@@ -78,7 +78,7 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 				hasInClusterCredentials = true
 				clusterList.Items = append(clusterList.Items, *cluster)
 			} else {
-				log.Warnf("failed to add cluster %q to cluster list: in-cluster server address is disabled in Argo CD settings", cluster.Name)
+				log.Errorf("failed to add cluster %q to cluster list: in-cluster server address is disabled in Argo CD settings", cluster.Name)
 			}
 		} else {
 			clusterList.Items = append(clusterList.Items, *cluster)

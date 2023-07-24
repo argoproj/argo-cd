@@ -56,7 +56,7 @@ func NewCommand() *cobra.Command {
 		metricsCacheExpiration   time.Duration
 		metricsAplicationLabels  []string
 		kubectlParallelismLimit  int64
-		cacheSource              func() (*appstatecache.Cache, error)
+		cacheSrc                 func() (*appstatecache.Cache, error)
 		redisClient              *redis.Client
 		repoServerPlaintext      bool
 		repoServerStrictTLS      bool
@@ -126,7 +126,7 @@ func NewCommand() *cobra.Command {
 
 			repoClientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
 
-			cache, err := cacheSource()
+			cache, err := cacheSrc()
 			errors.CheckError(err)
 			cache.Cache.SetClient(cacheutil.NewTwoLevelClient(cache.Cache.GetClient(), 10*time.Minute))
 
@@ -199,7 +199,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that applications are allowed to be reconciled from")
 	command.Flags().BoolVar(&persistResourceHealth, "persist-resource-health", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", true), "Enables storing the managed resources health in the Application CRD")
 	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.DefaultShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin] ")
-	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
+	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})
 	return &command
