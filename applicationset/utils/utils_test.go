@@ -471,6 +471,7 @@ func Test_Render_Replace_no_panic_on_missing_closing_brace(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
 func TestRenderTemplateKeys(t *testing.T) {
 	t.Run("fasttemplate", func(t *testing.T) {
 		application := &argoappsv1.Application{
