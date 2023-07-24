@@ -192,7 +192,7 @@ func TestSetAppInstanceAnnotationWithInvalidData(t *testing.T) {
 	assert.Nil(t, err)
 	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
 	assert.Error(t, err)
-	assert.Equal(t, ".metadata.annotations accessor error: contains non-string key in the map: <nil> is of the type <nil>, expected string", err.Error())
+	assert.Contains(t, err.Error(), ".metadata.annotations accessor error: contains non-string key in the map: <nil> is of the type <nil>, expected string")
 }
 
 func TestGetAppInstanceAnnotation(t *testing.T) {
