@@ -43,7 +43,7 @@ func Test_secretToCluster(t *testing.T) {
 			"config": []byte("{\"username\":\"foo\"}"),
 		},
 	}
-	cluster, err := secretToCluster(secret)
+	cluster, err := SecretToCluster(secret)
 	require.NoError(t, err)
 	assert.Equal(t, *cluster, v1alpha1.Cluster{
 		Name:   "test",
@@ -89,7 +89,7 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 			"server": []byte("http://mycluster"),
 		},
 	}
-	cluster, err := secretToCluster(secret)
+	cluster, err := SecretToCluster(secret)
 	assert.NoError(t, err)
 	assert.Equal(t, *cluster, v1alpha1.Cluster{
 		Name:        "test",
@@ -111,7 +111,7 @@ func Test_secretToCluster_InvalidConfig(t *testing.T) {
 			"config": []byte("{'tlsClientConfig':{'insecure':false}}"),
 		},
 	}
-	cluster, err := secretToCluster(secret)
+	cluster, err := SecretToCluster(secret)
 	require.Error(t, err)
 	assert.Nil(t, cluster)
 }

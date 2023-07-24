@@ -68,7 +68,7 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 	inClusterEnabled := settings.InClusterEnabled
 	hasInClusterCredentials := false
 	for _, clusterSecret := range clusterSecrets {
-		cluster, err := secretToCluster(clusterSecret)
+		cluster, err := SecretToCluster(clusterSecret)
 		if err != nil {
 			log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
 			continue
@@ -120,7 +120,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		return nil, err
 	}
 
-	cluster, err := secretToCluster(clusterSecret)
+	cluster, err := SecretToCluster(clusterSecret)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not unmarshal cluster secret %s", clusterSecret.Name)
 	}
@@ -148,7 +148,7 @@ func (db *db) WatchClusters(ctx context.Context,
 		common.LabelValueSecretTypeCluster,
 
 		func(secret *apiv1.Secret) {
-			cluster, err := secretToCluster(secret)
+			cluster, err := SecretToCluster(secret)
 			if err != nil {
 				log.Errorf("could not unmarshal cluster secret %s", secret.Name)
 				return
@@ -163,12 +163,12 @@ func (db *db) WatchClusters(ctx context.Context,
 		},
 
 		func(oldSecret *apiv1.Secret, newSecret *apiv1.Secret) {
-			oldCluster, err := secretToCluster(oldSecret)
+			oldCluster, err := SecretToCluster(oldSecret)
 			if err != nil {
 				log.Errorf("could not unmarshal cluster secret %s", oldSecret.Name)
 				return
 			}
-			newCluster, err := secretToCluster(newSecret)
+			newCluster, err := SecretToCluster(newSecret)
 			if err != nil {
 				log.Errorf("could not unmarshal cluster secret %s", newSecret.Name)
 				return
@@ -218,7 +218,7 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 		return nil, err
 	}
 	if len(res) > 0 {
-		return secretToCluster(res[0].(*apiv1.Secret))
+		return SecretToCluster(res[0].(*apiv1.Secret))
 	}
 	if server == appv1.KubernetesInternalAPIServerAddr {
 		return db.getLocalCluster(), nil
@@ -239,7 +239,7 @@ func (db *db) GetProjectClusters(ctx context.Context, project string) ([]*appv1.
 	}
 	var res []*appv1.Cluster
 	for i := range secrets {
-		cluster, err := secretToCluster(secrets[i].(*apiv1.Secret))
+		cluster, err := SecretToCluster(secrets[i].(*apiv1.Secret))
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert secret to cluster: %w", err)
 		}
@@ -293,7 +293,7 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	if err != nil {
 		return nil, err
 	}
-	cluster, err := secretToCluster(clusterSecret)
+	cluster, err := SecretToCluster(clusterSecret)
 	if err != nil {
 		log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
 		return nil, err
@@ -360,8 +360,8 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	return nil
 }
 
-// secretToCluster converts a secret into a Cluster object
-func secretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
+// SecretToCluster converts a secret into a Cluster object
+func SecretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 	var config appv1.ClusterConfig
 	if len(s.Data["config"]) > 0 {
 		err := json.Unmarshal(s.Data["config"], &config)
