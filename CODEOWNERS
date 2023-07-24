@@ -1,0 +1,40 @@
+# All
+** @argoproj/argocd-approvers
+
+# Docs
+/docs/** @argoproj/argocd-approvers
+
+# CI
+/.github/**       @argoproj/argocd-approvers
+/.goreleaser.yaml @argoproj/argocd-approvers
+
+# owners:
+# - alexmt
+# - jessesuen
+#
+# approvers:
+# - alexec
+# - alexmt
+# - jannfis
+# - jessesuen
+# - jgwest
+# - keithchong
+# - mayzhang2000
+# - rbreeze
+# - leoluz
+# - crenshaw-dev
+# - pasha-codefresh
+#
+# reviewers:
+# - terrytangyuan
+# - wtam2018
+# - ishitasequeira
+# - reginapizza
+# - hblixt
+# - chetan-rns
+# - wanghong230
+# - ciiay
+# - saumeya
+# - zachaller
+# - 34fathombelow
+# - alexef
