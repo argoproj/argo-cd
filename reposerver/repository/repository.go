@@ -956,11 +956,13 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 
 	repos := make([]helm.HelmRepository, 0)
 	for _, dep := range dependencies {
+		// find matching repo credentials by URL or name
 		repo, ok := reposByUrl[dep.Repo]
 		if !ok && dep.Name != "" {
 			repo, ok = reposByName[dep.Name]
 		}
 		if !ok {
+			// if no matching repo credentials found, use the repo creds from the credential list
 			repo = &v1alpha1.Repository{Repo: dep.Repo, Name: dep.Name, EnableOCI: dep.EnableOCI}
 			if repositoryCredential := getRepoCredential(helmRepoCreds, dep.Repo); repositoryCredential != nil {
 				repo.EnableOCI = repositoryCredential.EnableOCI
@@ -969,6 +971,16 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 				repo.SSHPrivateKey = repositoryCredential.SSHPrivateKey
 				repo.TLSClientCertData = repositoryCredential.TLSClientCertData
 				repo.TLSClientCertKey = repositoryCredential.TLSClientCertKey
+			} else if repo.EnableOCI {
+				// finally if repo is OCI and no credentials found, use the first OCI credential matching by hostname
+				// see https://github.com/argoproj/argo-cd/issues/14636
+				for _, cred := range repositories {
+					if depURL, err := url.Parse("oci://" + dep.Repo); err == nil && cred.EnableOCI && depURL.Host == cred.Repo {
+						repo.Username = cred.Username
+						repo.Password = cred.Password
+						break
+					}
+				}
 			}
 		}
 		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds(), EnableOci: repo.EnableOCI})
