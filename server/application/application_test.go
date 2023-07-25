@@ -5,8 +5,8 @@ import (
 	coreerrors "errors"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/labels"
 	"strconv"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,7 +15,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/sync"
-	"github.com/ghodss/yaml"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -35,6 +34,7 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -47,7 +47,6 @@ import (
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
@@ -86,14 +85,14 @@ func fakeAppList() *apiclient.AppList {
 	}
 }
 
-func fakeResolveRevesionResponse() *apiclient.ResolveRevisionResponse {
+func fakeResolveRevisionResponse() *apiclient.ResolveRevisionResponse {
 	return &apiclient.ResolveRevisionResponse{
 		Revision:          "f9ba9e98119bf8c1176fbd65dbae26a71d044add",
 		AmbiguousRevision: "HEAD (f9ba9e98119bf8c1176fbd65dbae26a71d044add)",
 	}
 }
 
-func fakeResolveRevesionResponseHelm() *apiclient.ResolveRevisionResponse {
+func fakeResolveRevisionResponseHelm() *apiclient.ResolveRevisionResponse {
 	return &apiclient.ResolveRevisionResponse{
 		Revision:          "0.7.*",
 		AmbiguousRevision: "0.7.* (0.7.2)",
@@ -113,9 +112,9 @@ func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
 	mockRepoServiceClient.On("GenerateManifestWithFiles", mock.Anything, mock.Anything).Return(mockWithFilesClient, nil)
 
 	if isHelm {
-		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevesionResponseHelm(), nil)
+		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevisionResponseHelm(), nil)
 	} else {
-		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevesionResponse(), nil)
+		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevisionResponse(), nil)
 	}
 
 	return &mockRepoServiceClient
@@ -720,18 +719,44 @@ func TestNoAppEnumeration(t *testing.T) {
 			},
 		}
 	})
+	testHelmApp := newTestApp(func(app *appsv1.Application) {
+		app.Name = "test-helm"
+		app.Spec.Source.Path = ""
+		app.Spec.Source.Chart = "test"
+		app.Status.Resources = []appsv1.ResourceStatus{
+			{
+				Group:     deployment.GroupVersionKind().Group,
+				Kind:      deployment.GroupVersionKind().Kind,
+				Version:   deployment.GroupVersionKind().Version,
+				Name:      deployment.Name,
+				Namespace: deployment.Namespace,
+				Status:    "Synced",
+			},
+		}
+		app.Status.History = []appsv1.RevisionHistory{
+			{
+				ID: 0,
+				Source: appsv1.ApplicationSource{
+					TargetRevision: "something-old",
+				},
+			},
+		}
+	})
 	testDeployment := kube.MustToUnstructured(&deployment)
-	appServer := newTestAppServerWithEnforcerConfigure(f, t, testApp, testDeployment)
+	appServer := newTestAppServerWithEnforcerConfigure(f, t, testApp, testHelmApp, testDeployment)
 
 	noRoleCtx := context.Background()
 	// nolint:staticcheck
 	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 
 	t.Run("Get", func(t *testing.T) {
+		// nolint:staticcheck
 		_, err := appServer.Get(adminCtx, &application.ApplicationQuery{Name: pointer.String("test")})
 		assert.NoError(t, err)
+		// nolint:staticcheck
 		_, err = appServer.Get(noRoleCtx, &application.ApplicationQuery{Name: pointer.String("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		// nolint:staticcheck
 		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: pointer.String("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 	})
@@ -896,16 +921,6 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err = appServer.GetApplicationSyncWindows(noRoleCtx, &application.ApplicationSyncWindowsQuery{Name: pointer.String("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.GetApplicationSyncWindows(adminCtx, &application.ApplicationSyncWindowsQuery{Name: pointer.String("doest-not-exist")})
-		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-	})
-
-	t.Run("GetManifestsWithFiles", func(t *testing.T) {
-		t.Skip()
-		err := appServer.GetManifestsWithFiles(&TestServerStream{ctx: adminCtx, appName: "test"})
-		assert.NoError(t, err)
-		err = appServer.GetManifestsWithFiles(&TestServerStream{ctx: noRoleCtx, appName: "test"})
-		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		err = appServer.GetManifestsWithFiles(&TestServerStream{ctx: adminCtx, appName: "does-not-exist"})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 	})
 
@@ -1872,93 +1887,6 @@ func TestLogsGetSelectedPod(t *testing.T) {
 	})
 }
 
-// refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done
-func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32, appServer *Server, appName string, ch chan string) {
-	for ctx.Err() == nil {
-		aName, appNs := argo.ParseAppQualifiedName(appName, appServer.ns)
-		a, err := appServer.appLister.Applications(appNs).Get(aName)
-		require.NoError(t, err)
-		a = a.DeepCopy()
-		if a.GetAnnotations() != nil && a.GetAnnotations()[appsv1.AnnotationKeyRefresh] != "" {
-			a.SetAnnotations(map[string]string{})
-			a.SetResourceVersion("999")
-			_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(a.Namespace).Update(
-				context.Background(), a, metav1.UpdateOptions{})
-			require.NoError(t, err)
-			atomic.AddInt32(patched, 1)
-			ch <- ""
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-}
-
-func TestGetAppRefresh_NormalRefresh(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	testApp := newTestApp()
-	testApp.ObjectMeta.ResourceVersion = "1"
-	appServer := newTestAppServer(t, testApp)
-
-	var patched int32
-
-	ch := make(chan string, 1)
-
-	go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
-
-	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
-		Name:    &testApp.Name,
-		Refresh: pointer.StringPtr(string(appsv1.RefreshTypeNormal)),
-	})
-	assert.NoError(t, err)
-
-	select {
-	case <-ch:
-		assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
-	case <-time.After(10 * time.Second):
-		assert.Fail(t, "Out of time ( 10 seconds )")
-	}
-
-}
-
-func TestGetAppRefresh_HardRefresh(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	testApp := newTestApp()
-	testApp.ObjectMeta.ResourceVersion = "1"
-	appServer := newTestAppServer(t, testApp)
-
-	var getAppDetailsQuery *apiclient.RepoServerAppDetailsQuery
-	mockRepoServiceClient := mocks.RepoServerServiceClient{}
-	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
-		getAppDetailsQuery = q
-		return true
-	})).Return(&apiclient.RepoAppDetailsResponse{}, nil)
-	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
-
-	var patched int32
-
-	ch := make(chan string, 1)
-
-	go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
-
-	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
-		Name:    &testApp.Name,
-		Refresh: pointer.StringPtr(string(appsv1.RefreshTypeHard)),
-	})
-	assert.NoError(t, err)
-	require.NotNil(t, getAppDetailsQuery)
-	assert.True(t, getAppDetailsQuery.NoCache)
-	assert.Equal(t, testApp.Spec.Source, getAppDetailsQuery.Source)
-
-	assert.NoError(t, err)
-	select {
-	case <-ch:
-		assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
-	case <-time.After(10 * time.Second):
-		assert.Fail(t, "Out of time ( 10 seconds )")
-	}
-}
-
 func TestInferResourcesStatusHealth(t *testing.T) {
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
 
@@ -1997,4 +1925,127 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 
 	assert.Equal(t, health.HealthStatusDegraded, testApp.Status.Resources[0].Health.Status)
 	assert.Nil(t, testApp.Status.Resources[1].Health)
+}
+
+func TestRunOldStyleResourceAction(t *testing.T) {
+	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+
+	group := "apps"
+	kind := "Deployment"
+	version := "v1"
+	resourceName := "nginx-deploy"
+	namespace := testNamespace
+	action := "pause"
+	uid := "2"
+
+	resources := []appsv1.ResourceStatus{{
+		Group:     group,
+		Kind:      kind,
+		Name:      resourceName,
+		Namespace: testNamespace,
+		Version:   version,
+	}}
+
+	appStateCache := appstate.NewCache(cacheClient, time.Minute)
+
+	nodes := []appsv1.ResourceNode{{
+		ResourceRef: appsv1.ResourceRef{
+			Group:     group,
+			Kind:      kind,
+			Version:   version,
+			Name:      resourceName,
+			Namespace: testNamespace,
+			UID:       uid,
+		},
+	}}
+
+	deployment := k8sappsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "nginx-deploy",
+			Namespace: testNamespace,
+		},
+	}
+
+	t.Run("DefaultPatchOperation", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+		testApp.Status.Resources = resources
+
+		// appServer := newTestAppServer(t, testApp, returnDeployment())
+		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&deployment))
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
+
+		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		require.NoError(t, err)
+
+		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
+			Name:         &testApp.Name,
+			Namespace:    &namespace,
+			Action:       &action,
+			AppNamespace: &testApp.Namespace,
+			ResourceName: &resourceName,
+			Version:      &version,
+			Group:        &group,
+			Kind:         &kind,
+		})
+
+		require.NoError(t, runErr)
+		assert.NotNil(t, appResponse)
+	})
+}
+
+func TestIsApplicationPermitted(t *testing.T) {
+	t.Run("Incorrect project", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		projects := map[string]bool{"test-app": false}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, "test", "default", projects, *testApp)
+		assert.False(t, permitted)
+	})
+
+	t.Run("Version is incorrect", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		minVersion := 100000
+		testApp.ResourceVersion = strconv.Itoa(minVersion - 1)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), minVersion, nil, "test", "default", nil, *testApp)
+		assert.False(t, permitted)
+	})
+
+	t.Run("Application name is incorrect", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		appName := "test"
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, appName, "default", nil, *testApp)
+		assert.False(t, permitted)
+	})
+
+	t.Run("Application namespace is incorrect", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, "demo", nil, *testApp)
+		assert.False(t, permitted)
+	})
+
+	t.Run("Application is not part of enabled namespace", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		appServer.ns = "server-ns"
+		appServer.enabledNamespaces = []string{"demo"}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
+		assert.False(t, permitted)
+	})
+
+	t.Run("Application is part of enabled namespace", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		appServer.ns = "server-ns"
+		appServer.enabledNamespaces = []string{testApp.Namespace}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
+		assert.True(t, permitted)
+	})
 }

@@ -51,7 +51,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/glob"
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/lua"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
@@ -241,7 +240,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 	for _, a := range filteredApps {
 		// Skip any application that is neither in the control plane's namespace
 		// nor in the list of enabled namespaces.
-		if a.Namespace != s.ns && !glob.MatchStringInList(s.enabledNamespaces, a.Namespace, false) {
+		if !s.isNamespaceEnabled(a.Namespace) {
 			continue
 		}
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
@@ -887,6 +886,31 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
+func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a appv1.Application) bool {
+	if len(projects) > 0 && !projects[a.Spec.GetProject()] {
+		return false
+	}
+
+	if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
+		return false
+	}
+	matchedEvent := (appName == "" || (a.Name == appName && a.Namespace == appNs)) && selector.Matches(labels.Set(a.Labels))
+	if !matchedEvent {
+		return false
+	}
+
+	if !s.isNamespaceEnabled(a.Namespace) {
+		return false
+	}
+
+	if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
+		// do not emit apps user does not have accessing
+		return false
+	}
+
+	return true
+}
+
 func (s *Server) Watch(q *application.ApplicationQuery, ws application.ApplicationService_WatchServer) error {
 	appName := q.GetName()
 	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
@@ -913,20 +937,8 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(a appv1.Application, eventType watch.EventType) {
-		if len(projects) > 0 && !projects[a.Spec.GetProject()] {
-			return
-		}
-
-		if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
-			return
-		}
-		matchedEvent := (appName == "" || (a.Name == appName && a.Namespace == appNs)) && selector.Matches(labels.Set(a.Labels))
-		if !matchedEvent {
-			return
-		}
-
-		if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
-			// do not emit apps user does not have accessing
+		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, a)
+		if !permitted {
 			return
 		}
 		s.inferResourcesStatusHealth(&a)
@@ -1001,6 +1013,8 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		}
 	}
 
+	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
+
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, ts string, ignoreResourceCache bool) error {
@@ -1017,6 +1031,10 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			if !matchedEvent {
 				return nil
 			}
+		}
+
+		if !s.isNamespaceEnabled(appNs) {
+			return security.NamespaceNotPermittedError(appNs)
 		}
 
 		if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
