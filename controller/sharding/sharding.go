@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"encoding/json"
 
@@ -26,6 +27,11 @@ import (
 
 // Make it overridable for testing
 var osHostnameFunction = os.Hostname
+
+const (
+	HeartbeatDuration         = 10
+	HeartbeatTimeoutThreshold = 30
+)
 
 type DistributionFunction func(c *v1alpha1.Cluster) int
 type ClusterFilterFunction func(c *v1alpha1.Cluster) bool
@@ -126,20 +132,22 @@ func RoundRobinDistributionFunction(db db.ArgoDB) DistributionFunction {
 }
 
 // InferShard extracts the shard index based on its hostname.
-func InferShard() (int, error) {
+func InferShard(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager) (int, error) {
 	hostname, err := osHostnameFunction()
 	if err != nil {
 		return 0, err
 	}
-	parts := strings.Split(hostname, "-")
-	if len(parts) == 0 {
-		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
+	appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), "argocd-application-controller", metav1.GetOptions{})
+
+	appControllerStatefulset, err := kubeClient.AppsV1().StatefulSets(settingsMgr.GetNamespace()).Get(context.Background(), "argocd-application-controller", metav1.GetOptions{})
+
+	if appControllerDeployment != nil {
+		return InferShardFromConfigMap(kubeClient, settingsMgr, hostname)
+	} else if appControllerStatefulset != nil {
+		return inferShardFromStatefulSet(hostname)
+	} else {
+		return -1, fmt.Errorf("could not find application controller deployment or statefulset")
 	}
-	shard, err := strconv.Atoi(parts[len(parts)-1])
-	if err != nil {
-		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
-	}
-	return int(shard), nil
 }
 
 func getSortedClustersList(db db.ArgoDB) []v1alpha1.Cluster {
@@ -169,7 +177,7 @@ func createClusterIndexByClusterIdMap(db db.ArgoDB) map[string]int {
 	return clusterIndexedByClusterId
 }
 
-func InferShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager) (int, error) {
+func InferShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, hostname string) (int, error) {
 	shardMappingCM, err := settingsMgr.GetConfigMapByName(common.ArgoCDAppControllerShardConfigMapName)
 	if err != nil {
 		return -1, err
@@ -185,16 +193,59 @@ func InferShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *sett
 			return -1, err
 		}
 		_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Create(context.Background(), shardMappingCM, metav1.CreateOptions{})
-
+		if err != nil {
+			return -1, err
+		}
+		return 0, nil
 	} else {
-
 		// Identify the available shard and update the ConfigMap
-		data := shardMappingCM.Data["shardAppControllerMappings"]
+		data := shardMappingCM.Data["shardControllerMapping"]
 		log.Infof("CM Data : %s", data)
-		_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Update(context.Background(), shardMappingCM, metav1.UpdateOptions{})
-	}
 
-	return -1, err
+		var shardMappingData []shardApplicationControllerMapping
+		err := json.Unmarshal([]byte(data), &shardMappingData)
+		if err != nil {
+			log.Errorf("error unmarshalling shard config map data: %s", err)
+		}
+		shard, shardMappingData1 := getShardNumberForController(shardMappingData, hostname)
+
+		data, err = json.Marshal(shardMappingData1)
+		if err != nil {
+			return -1, fmt.Errorf("error generating defualt ConfigMap: %s", err)
+		}
+		shardMappingCM.Data["shardControllerMapping"] = string(data)
+
+		_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Update(context.Background(), shardMappingCM, metav1.UpdateOptions{})
+		if err != nil {
+			return -1, err
+		}
+		return shard, err
+	}
+}
+
+func getShardNumberForController(shardMappingData []shardApplicationControllerMapping, hostname string) (int, []shardApplicationControllerMapping) {
+
+	now := metav1.Now()
+	shard := -1
+	for _, shardMapping := range shardMappingData {
+		if shardMapping.controllerName == &hostname {
+			shard = int(shardMapping.shardNumber)
+			shardMapping.heartbeatTime = &now
+			break
+		}
+	}
+	if shard == -1 {
+		// find a shard with controller with heartbeat past threshold
+		for _, shardMapping := range shardMappingData {
+			if metav1.Now().After(shardMapping.heartbeatTime.Add(time.Duration(HeartbeatTimeoutThreshold) * time.Second)) {
+				shard = int(shardMapping.shardNumber)
+				shardMapping.controllerName = &hostname
+				shardMapping.heartbeatTime = &now
+				break
+			}
+		}
+	}
+	return shard, shardMappingData
 }
 
 func generateDefaultShardMappingCM(namespace string, replicas int32) (*v1.ConfigMap, error) {
@@ -217,7 +268,10 @@ func generateDefaultShardMappingCM(namespace string, replicas int32) (*v1.Config
 	if err != nil {
 		return nil, fmt.Errorf("error getting hostname of the pod %s", err)
 	}
+
+	now := metav1.Now()
 	shardMappingData[0].controllerName = &hostname
+	shardMappingData[0].heartbeatTime = &now
 
 	data, err := json.Marshal(shardMappingData)
 	if err != nil {
@@ -249,4 +303,16 @@ func GetAppControllerDeploymentReplicas(kubeClient *kubernetes.Clientset, settin
 
 	return replicas, nil
 
+}
+
+func inferShardFromStatefulSet(hostname string) (int, error) {
+	parts := strings.Split(hostname, "-")
+	if len(parts) == 0 {
+		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
+	}
+	shard, err := strconv.Atoi(parts[len(parts)-1])
+	if err != nil {
+		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
+	}
+	return int(shard), nil
 }
