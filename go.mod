@@ -9,22 +9,22 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.30.4
-	github.com/antonmedv/expr v1.12.6
+	github.com/antonmedv/expr v1.12.7
 	github.com/argoproj/gitops-engine v0.7.1-0.20230607163028-425d65e07695
 	github.com/argoproj/notifications-engine v0.4.1-0.20230620204159-3446d4ae8520
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
-	github.com/aws/aws-sdk-go v1.44.299
+	github.com/aws/aws-sdk-go v1.44.305
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.6.0
-	github.com/casbin/casbin/v2 v2.71.1
+	github.com/casbin/casbin/v2 v2.72.1
 	github.com/coreos/go-oidc/v3 v3.6.0
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/dustin/go-humanize v1.0.1
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20220301131131-8e7ed04b843e
-	github.com/go-git/go-git/v5 v5.7.0
+	github.com/go-git/go-git/v5 v5.8.0
 	github.com/go-logr/logr v1.2.4
 	github.com/go-openapi/loads v0.21.2
 	github.com/go-openapi/runtime v0.26.0
@@ -70,7 +70,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/whilp/git-urls v1.0.0
-	github.com/xanzy/go-gitlab v0.86.0
+	github.com/xanzy/go-gitlab v0.88.0
 	github.com/yuin/gopher-lua v1.1.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
 	go.opentelemetry.io/otel v1.16.0
@@ -100,11 +100,14 @@ require (
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	oras.land/oras-go/v2 v2.2.1
 	sigs.k8s.io/controller-runtime v0.11.0
-	sigs.k8s.io/structured-merge-diff/v4 v4.2.3
+	sigs.k8s.io/structured-merge-diff/v4 v4.3.0
 	sigs.k8s.io/yaml v1.3.0
 )
 
 require (
+	github.com/tidwall/gjson v1.14.4 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	google.golang.org/genproto v0.0.0-20230530153820-e85fd2cbaebc // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc // indirect
 )
