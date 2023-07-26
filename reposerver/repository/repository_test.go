@@ -413,6 +413,28 @@ func TestInvalidManifestsInDir(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestInvalidMetadata(t *testing.T) {
+	service := newService(".")
+
+	src := argoappv1.ApplicationSource{Path: "./testdata/invalid-metadata", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "invalid-metadata", TrackingMethod: "annotation+label"}
+	_, err := service.GenerateManifest(context.Background(), &q)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "contains non-string key in the map")
+}
+
+func TestNilMetadataAccessors(t *testing.T) {
+	service := newService(".")
+	expected := "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"annotations\":{\"argocd.argoproj.io/tracking-id\":\"nil-metadata-accessors:/ConfigMap:/my-map\"},\"labels\":{\"test\":\"nil-metadata-accessors\"},\"name\":\"my-map\"},\"stringData\":{\"foo\":\"bar\"}}"
+
+	src := argoappv1.ApplicationSource{Path: "./testdata/nil-metadata-accessors", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "nil-metadata-accessors", TrackingMethod: "annotation+label"}
+	res, err := service.GenerateManifest(context.Background(), &q)
+	assert.NoError(t, err)
+	assert.Equal(t, len(res.Manifests), 1)
+	assert.Equal(t, expected, res.Manifests[0])
+}
+
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	service := newService(".")
 
