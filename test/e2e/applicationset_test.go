@@ -1447,7 +1447,6 @@ func githubSCMMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request)
 
 func TestSimpleSCMProviderGenerator(t *testing.T) {
 
-	// create a listener with the desired port.
 	l, err := net.Listen("tcp", "127.0.0.1:8341")
 	if err != nil {
 		t.Error(fmt.Errorf("Unable to start server %w", err))
@@ -1457,14 +1456,10 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 		githubSCMMockHandler(t)(w, r)
 	}))
 
-	// NewUnstartedServer creates a listener. Close that listener and replace
-	// with the one we created.
 	ts.Listener.Close()
 	ts.Listener = l
 
-	// Start the server.
 	ts.Start()
-	// Stop the server on return from the function.
 	defer ts.Close()
 
 	expectedApp := argov1alpha1.Application{
@@ -1539,9 +1534,20 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 
 func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 	// Use mocked API response to avoid rate-limiting.
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	l, err := net.Listen("tcp", "127.0.0.1:8342")
+	if err != nil {
+		t.Error(fmt.Errorf("Unable to start server %w", err))
+	}
+
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubSCMMockHandler(t)(w, r)
 	}))
+
+	ts.Listener.Close()
+	ts.Listener = l
+
+	ts.Start()
+	defer ts.Close()
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
