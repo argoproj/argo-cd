@@ -63,7 +63,8 @@ type ApplicationSetSpec struct {
 	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
 	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,7,opt,name=goTemplateOptions"`
 	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
-	ApplyNestedSelectors bool `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
+	ApplyNestedSelectors bool                             `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
+	IgnoreDifferences    *ApplicationSetIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,9,name=ignoreDifferences"`
 }
 
 type ApplicationPreservedFields struct {
@@ -124,6 +125,20 @@ type ApplicationSetSyncPolicy struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=create-only;create-update;create-delete;sync
 	ApplicationsSync *ApplicationsSyncPolicy `json:"applicationsSync,omitempty" protobuf:"bytes,2,opt,name=applicationsSync,casttype=ApplicationsSyncPolicy"`
+}
+
+type ApplicationSetIgnoreDifferences struct {
+	JSONPointers      []string `json:"jsonPointers,omitempty" protobuf:"bytes,1,name=jsonPointers"`
+	JQPathExpressions []string `json:"jqPathExpressions,omitempty" protobuf:"bytes,2,name=jqExpressions"`
+}
+
+func (a *ApplicationSetIgnoreDifferences) ToApplicationIgnoreDifferences() ResourceIgnoreDifferences {
+	return ResourceIgnoreDifferences{
+		Kind:              ApplicationSchemaGroupVersionKind.Kind,
+		Group:             ApplicationSchemaGroupVersionKind.Group,
+		JSONPointers:      a.JSONPointers,
+		JQPathExpressions: a.JQPathExpressions,
+	}
 }
 
 // ApplicationSetTemplate represents argocd ApplicationSpec

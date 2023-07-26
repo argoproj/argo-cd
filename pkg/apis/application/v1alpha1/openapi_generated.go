@@ -29,6 +29,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetApplicationStatus":     schema_pkg_apis_application_v1alpha1_ApplicationSetApplicationStatus(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetCondition":             schema_pkg_apis_application_v1alpha1_ApplicationSetCondition(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetGenerator":             schema_pkg_apis_application_v1alpha1_ApplicationSetGenerator(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetIgnoreDifferences":     schema_pkg_apis_application_v1alpha1_ApplicationSetIgnoreDifferences(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetList":                  schema_pkg_apis_application_v1alpha1_ApplicationSetList(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetNestedGenerator":       schema_pkg_apis_application_v1alpha1_ApplicationSetNestedGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetRolloutStep":           schema_pkg_apis_application_v1alpha1_ApplicationSetRolloutStep(ref),
@@ -955,6 +956,46 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetGenerator(ref common.Ref
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_ApplicationSetIgnoreDifferences(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"jsonPointers": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"jqPathExpressions": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_ApplicationSetList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1199,12 +1240,17 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetSpec(ref common.Referenc
 							Format:      "",
 						},
 					},
+					"ignoreDifferences": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetIgnoreDifferences"),
+						},
+					},
 				},
 				Required: []string{"generators", "template"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationPreservedFields", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetStrategy", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetSyncPolicy", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationPreservedFields", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetIgnoreDifferences", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetStrategy", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetSyncPolicy", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"},
 	}
 }
 

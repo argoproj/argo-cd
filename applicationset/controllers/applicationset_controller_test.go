@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -5685,6 +5686,143 @@ func TestOwnsHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ownsHandler = getOwnsHandlerPredicates(tt.args.enableProgressiveSyncs)
 			assert.Equalf(t, tt.want, ownsHandler.UpdateFunc(tt.args.e), "UpdateFunc(%v)", tt.args.e)
+		})
+	}
+}
+
+func Test_applyIgnoreDifferences(t *testing.T) {
+	appMeta := metav1.TypeMeta{
+		APIVersion: v1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
+		Kind:       v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+	}
+	testCases := []struct {
+		name              string
+		ignoreDifferences v1alpha1.ApplicationSetIgnoreDifferences
+		foundApp          v1alpha1.Application
+		generatedApp      v1alpha1.Application
+		expectedApp       v1alpha1.Application
+	}{
+		{
+			name: "empty ignoreDifferences",
+			foundApp: v1alpha1.Application{
+				TypeMeta: appMeta,
+				Spec:     v1alpha1.ApplicationSpec{},
+			},
+			generatedApp: v1alpha1.Application{
+				TypeMeta: appMeta,
+				Spec:     v1alpha1.ApplicationSpec{},
+			},
+			expectedApp: v1alpha1.Application{
+				TypeMeta: appMeta,
+				Spec:     v1alpha1.ApplicationSpec{},
+			},
+		},
+		{
+			name: "ignore target revision with jq",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				JQPathExpressions: []string{".spec.source.targetRevision"},
+			},
+			foundApp: v1alpha1.Application{
+				TypeMeta: appMeta,
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						TargetRevision: "foo",
+					},
+				},
+			},
+			generatedApp: v1alpha1.Application{
+				TypeMeta: appMeta,
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						TargetRevision: "bar",
+					},
+				},
+			},
+			expectedApp: v1alpha1.Application{
+				TypeMeta: appMeta,
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						TargetRevision: "foo",
+					},
+				},
+			},
+		},
+		{
+			name: "ignore helm parameter with jq",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				JQPathExpressions: []string{".spec.source.helm.parameters[0].value"},
+			},
+			foundApp: v1alpha1.Application{
+				TypeMeta: appMeta,
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						Helm: &v1alpha1.ApplicationSourceHelm{
+							Parameters: []v1alpha1.HelmParameter{
+								{
+									Name:  "foo",
+									Value: "bar",
+								},
+								{
+									Name:  "another",
+									Value: "value",
+								},
+							},
+						},
+					},
+				},
+			},
+			generatedApp: v1alpha1.Application{
+				TypeMeta: appMeta,
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						Helm: &v1alpha1.ApplicationSourceHelm{
+							Parameters: []v1alpha1.HelmParameter{
+								{
+									Name:  "foo",
+									Value: "baz",
+								},
+								{
+									Name:  "another",
+									Value: "value",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedApp: v1alpha1.Application{
+				TypeMeta: appMeta,
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						Helm: &v1alpha1.ApplicationSourceHelm{
+							Parameters: []v1alpha1.HelmParameter{
+								{
+									Name:  "foo",
+									Value: "bar",
+								},
+								{
+									Name:  "another",
+									Value: "value",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := applyIgnoreDifferences(tc.ignoreDifferences, &tc.foundApp, tc.generatedApp)
+			require.NoError(t, err)
+			jsonFound, err := json.Marshal(tc.foundApp)
+			require.NoError(t, err)
+			jsonExpected, err := json.Marshal(tc.expectedApp)
+			require.NoError(t, err)
+			assert.Equal(t, string(jsonExpected), string(jsonFound))
 		})
 	}
 }

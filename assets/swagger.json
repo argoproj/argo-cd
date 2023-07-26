@@ -6009,6 +6009,23 @@
         }
       }
     },
+    "v1alpha1ApplicationSetIgnoreDifferences": {
+      "type": "object",
+      "properties": {
+        "jqPathExpressions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "jsonPointers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1ApplicationSetList": {
       "type": "object",
       "title": "ApplicationSetList contains a list of ApplicationSet\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:object:root=true",
@@ -6107,6 +6124,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "ignoreDifferences": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetIgnoreDifferences"
         },
         "preservedFields": {
           "$ref": "#/definitions/v1alpha1ApplicationPreservedFields"
