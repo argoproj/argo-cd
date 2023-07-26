@@ -24,8 +24,9 @@ const (
 
 func NewCommand() *cobra.Command {
 	var (
-		configFilePath string
-		otlpAddress    string
+		configFilePath      string
+		otlpAddress         string
+		statsTickerInterval time.Duration
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -69,7 +70,7 @@ func NewCommand() *cobra.Command {
 
 			// register dumper
 			stats.RegisterStackDumper()
-			stats.StartStatsTicker(10 * time.Minute)
+			stats.StartStatsTicker(statsTickerInterval)
 			stats.RegisterHeapDumper("memprofile")
 
 			// run argocd-cmp-server server
@@ -82,5 +83,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&configFilePath, "config-dir-path", common.DefaultPluginConfigFilePath, "Config management plugin configuration file location, Default is '/home/argocd/cmp-server/config/'")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_CMP_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
+	command.Flags().DurationVar(&statsTickerInterval, "stats-ticker-interval", env.ParseDurationFromEnv(common.EnvStatsTickerInterval, 10*time.Minute, 1*time.Minute, 1*time.Hour), "Interval between logging of server statistics")
 	return &command
 }

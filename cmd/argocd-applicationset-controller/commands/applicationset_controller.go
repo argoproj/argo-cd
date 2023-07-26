@@ -65,13 +65,14 @@ func NewCommand() *cobra.Command {
 		repoServerTimeoutSeconds     int
 		maxConcurrentReconciliations int
 		scmRootCAPath                string
+		statsTickerInterval          time.Duration
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = appv1alpha1.AddToScheme(scheme)
 	var command = cobra.Command{
 		Use:   "controller",
-		Short: "Starts Argo CD ApplicationSet controller",
+		Short: "Starts Argo CD ApplicationSet controller ",
 		RunE: func(c *cobra.Command, args []string) error {
 			ctx := c.Context()
 
@@ -218,7 +219,7 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			stats.StartStatsTicker(10 * time.Minute)
+			stats.StartStatsTicker(statsTickerInterval)
 			log.Info("Starting manager")
 			if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 				log.Error(err, "problem running manager")
@@ -249,6 +250,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&maxConcurrentReconciliations, "concurrent-reconciliations", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS", 10, 1, 100), "Max concurrent reconciliations limit for the controller")
 	command.Flags().StringVar(&scmRootCAPath, "scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
+	command.Flags().DurationVar(&statsTickerInterval, "stats-ticker-interval", env.ParseDurationFromEnv(common.EnvStatsTickerInterval, 10*time.Minute, 1*time.Minute, 1*time.Hour), "Interval between logging of server statistics")
 	return &command
 }
 

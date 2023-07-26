@@ -74,6 +74,7 @@ func NewCommand() *cobra.Command {
 		staticAssetsDir          string
 		applicationNamespaces    []string
 		enableProxyExtension     bool
+		statsTickerInterval      time.Duration
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
@@ -193,7 +194,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			stats.RegisterStackDumper()
-			stats.StartStatsTicker(10 * time.Minute)
+			stats.StartStatsTicker(statsTickerInterval)
 			stats.RegisterHeapDumper("memprofile")
 			argocd := server.NewServer(ctx, argoCDOpts)
 			argocd.Init(ctx)
@@ -244,6 +245,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&dexServerStrictTLS, "dex-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to dex server")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
+	command.Flags().DurationVar(&statsTickerInterval, "stats-ticker-interval", env.ParseDurationFromEnv(common.EnvStatsTickerInterval, 10*time.Minute, 1*time.Minute, 1*time.Hour), "Interval between logging of server statistics")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
 		redisClient = client

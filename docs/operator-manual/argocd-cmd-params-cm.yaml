@@ -72,7 +72,8 @@ data:
   server.rootpath: ""
   # Directory path that contains additional static assets
   server.staticassets: "/shared/app"
-
+  # Stats Ticker Interval (default 10m)
+  server.stats.interval: "10m"
   # Set the logging format. One of: text|json (default "text")
   server.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")

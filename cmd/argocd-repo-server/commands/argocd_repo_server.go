@@ -81,6 +81,7 @@ func NewCommand() *cobra.Command {
 		allowOutOfBoundsSymlinks          bool
 		streamedManifestMaxTarSize        string
 		streamedManifestMaxExtractedSize  string
+		statsTickerInterval               time.Duration
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -191,7 +192,7 @@ func NewCommand() *cobra.Command {
 
 			log.Infof("argocd-repo-server is listening on %s", listener.Addr())
 			stats.RegisterStackDumper()
-			stats.StartStatsTicker(10 * time.Minute)
+			stats.StartStatsTicker(statsTickerInterval)
 			stats.RegisterHeapDumper("memprofile")
 			err = grpc.Serve(listener)
 			errors.CheckError(err)
@@ -212,6 +213,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&allowOutOfBoundsSymlinks, "allow-oob-symlinks", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS", false), "Allow out-of-bounds symlinks in repositories (not recommended)")
 	command.Flags().StringVar(&streamedManifestMaxTarSize, "streamed-manifest-max-tar-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE", "100M"), "Maximum size of streamed manifest archives")
 	command.Flags().StringVar(&streamedManifestMaxExtractedSize, "streamed-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of streamed manifest archives when extracted")
+	command.Flags().DurationVar(&statsTickerInterval, "stats-ticker-interval", env.ParseDurationFromEnv(common.EnvStatsTickerInterval, 10*time.Minute, 1*time.Minute, 1*time.Hour), "Interval between logging of server statistics")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client

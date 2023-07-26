@@ -227,6 +227,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: server.enable.proxy.extension
                 optional: true
+        - name: ARGOCD_STATS_TICKER_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.stats.interval
+              optional: true
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
