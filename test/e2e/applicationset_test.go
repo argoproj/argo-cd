@@ -1,7 +1,9 @@
 package e2e
 
 import (
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -1444,10 +1446,26 @@ func githubSCMMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request)
 }
 
 func TestSimpleSCMProviderGenerator(t *testing.T) {
-	// Use mocked API response to avoid rate-limiting.
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	// create a listener with the desired port.
+	l, err := net.Listen("tcp", "127.0.0.1:8341")
+	if err != nil {
+		t.Error(fmt.Errorf("Unable to start server %w", err))
+	}
+
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubSCMMockHandler(t)(w, r)
 	}))
+
+	// NewUnstartedServer creates a listener. Close that listener and replace
+	// with the one we created.
+	ts.Listener.Close()
+	ts.Listener = l
+
+	// Start the server.
+	ts.Start()
+	// Stop the server on return from the function.
+	defer ts.Close()
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
