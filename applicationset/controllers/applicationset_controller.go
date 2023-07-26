@@ -696,11 +696,11 @@ func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.Applica
 	}
 	jsonNormalized, err := json.Marshal(result.Targets[0].Object)
 	if err != nil {
-		return fmt.Errorf("failed to convert normalized application to structured: %w", err)
+		return fmt.Errorf("failed to marshal normalized app to json: %w", err)
 	}
 	err = json.Unmarshal(jsonNormalized, &found)
 	if err != nil {
-		return fmt.Errorf("failed to convert normalized application to structured: %w", err)
+		return fmt.Errorf("failed to unmarshal normalized app json to structured app: %w", err)
 	}
 	// Prohibit jq queries from mutating silly things.
 	found.TypeMeta = generatedApp.TypeMeta
@@ -713,12 +713,12 @@ func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.Applica
 func appToUnstructured(app *argov1alpha1.Application) (map[string]interface{}, error) {
 	jsonApp, err := json.Marshal(app)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert app application to unstructured: %w", err)
+		return nil, fmt.Errorf("failed to marshal app to json: %w", err)
 	}
 	var unstructuredApp map[string]interface{}
 	err = json.Unmarshal(jsonApp, &unstructuredApp)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert app application to unstructured: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal app to %T: %w", unstructuredApp, err)
 	}
 	return unstructuredApp, nil
 }
