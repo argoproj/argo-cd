@@ -1248,40 +1248,44 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 }
 
 func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
-	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		if state.Phase == "" {
-			// expose any bugs where we neglect to set phase
-			panic("no phase was set")
-		}
-		if state.Phase.Completed() {
-			now := metav1.Now()
-			state.FinishedAt = &now
-		}
-		patch := map[string]interface{}{
-			"status": map[string]interface{}{
-				"operationState": state,
-			},
-		}
-		if state.Phase.Completed() {
-			// If operation is completed, clear the operation field to indicate no operation is
-			// in progress.
-			patch["operation"] = nil
-		}
-		if reflect.DeepEqual(app.Status.OperationState, state) {
-			log.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
-			return nil
-		}
-		patchJSON, err := json.Marshal(patch)
-		if err != nil {
-			return fmt.Errorf("error marshaling json: %w", err)
-		}
-		if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
-			patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
-			if err != nil {
-				return fmt.Errorf("error merging operation state patch: %w", err)
-			}
-		}
+	logCtx := log.WithFields(log.Fields{"application": app.Name, "appNamespace": app.Namespace, "project": app.Spec.Project})
 
+	if state.Phase == "" {
+		// expose any bugs where we neglect to set phase
+		panic("no phase was set")
+	}
+	if state.Phase.Completed() {
+		now := metav1.Now()
+		state.FinishedAt = &now
+	}
+	patch := map[string]interface{}{
+		"status": map[string]interface{}{
+			"operationState": state,
+		},
+	}
+	if state.Phase.Completed() {
+		// If operation is completed, clear the operation field to indicate no operation is
+		// in progress.
+		patch["operation"] = nil
+	}
+	if reflect.DeepEqual(app.Status.OperationState, state) {
+		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
+		return
+	}
+	patchJSON, err := json.Marshal(patch)
+	if err != nil {
+		logCtx.Errorf("error marshaling json: %v", err)
+		return
+	}
+	if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
+		patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
+		if err != nil {
+			logCtx.Errorf("error merging operation state patch: %v", err)
+			return
+		}
+	}
+
+	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 		_, err = appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
@@ -1289,32 +1293,36 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			if apierr.IsNotFound(err) {
 				return nil
 			}
+			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
+			// warning.
+			logCtx.Warnf("error patching application with operation state: %v", err)
 			return fmt.Errorf("error patching application with operation state: %w", err)
-		}
-		log.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
-		if state.Phase.Completed() {
-			eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
-			var messages []string
-			if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
-				messages = []string{"Partial sync operation"}
-			} else {
-				messages = []string{"Sync operation"}
-			}
-			if state.SyncResult != nil {
-				messages = append(messages, "to", state.SyncResult.Revision)
-			}
-			if state.Phase.Successful() {
-				eventInfo.Type = v1.EventTypeNormal
-				messages = append(messages, "succeeded")
-			} else {
-				eventInfo.Type = v1.EventTypeWarning
-				messages = append(messages, "failed:", state.Message)
-			}
-			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "), "")
-			ctrl.metricsServer.IncSync(app, state)
 		}
 		return nil
 	})
+
+	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
+	if state.Phase.Completed() {
+		eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
+		var messages []string
+		if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
+			messages = []string{"Partial sync operation"}
+		} else {
+			messages = []string{"Sync operation"}
+		}
+		if state.SyncResult != nil {
+			messages = append(messages, "to", state.SyncResult.Revision)
+		}
+		if state.Phase.Successful() {
+			eventInfo.Type = v1.EventTypeNormal
+			messages = append(messages, "succeeded")
+		} else {
+			eventInfo.Type = v1.EventTypeWarning
+			messages = append(messages, "failed:", state.Message)
+		}
+		ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "), "")
+		ctrl.metricsServer.IncSync(app, state)
+	}
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
