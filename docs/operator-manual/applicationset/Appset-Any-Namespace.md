@@ -66,8 +66,6 @@ data:
 
 > Please note url used in the `api` field of the `ApplicationSet` must match the url declared by the Administrator including the protocol
 
-## Implementation details
-Scm
 ### Overview
 
 In order for an ApplicationSet to be managed and reconciled outside the Argo CD's control plane namespace, two prerequisites must match:
