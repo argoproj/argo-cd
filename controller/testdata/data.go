@@ -9,6 +9,12 @@ var (
 	//go:embed target-deployment.yaml
 	TargetDeploymentYaml string
 
+	//go:embed live-deployment-env-vars.yaml
+	LiveDeploymentEnvVarsYaml string
+
+	//go:embed target-deployment-env-vars.yaml
+	TargetDeploymentEnvVarsYaml string
+
 	//go:embed minimal-image-replicas-deployment.yaml
 	MinimalImageReplicaDeploymentYaml string
 

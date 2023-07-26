@@ -384,6 +384,48 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, 2, len(containers))
 	})
+
+	t.Run("will correctly set array entries if new entries have been added", func(t *testing.T) {
+		// given
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "apps",
+				Kind:              "Deployment",
+				JQPathExpressions: []string{".spec.template.spec.containers[].env[] | select(.name == \"SOME_ENV_VAR\")"},
+			},
+		}
+		f := setup(t, ignores)
+		live := test.YamlToUnstructured(testdata.LiveDeploymentEnvVarsYaml)
+		target := test.YamlToUnstructured(testdata.TargetDeploymentEnvVarsYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		// when
+		targets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(targets))
+		containers, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "template", "spec", "containers")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, 1, len(containers))
+
+		env := containers[0].(map[string]interface{})["env"].([]interface{})
+		assert.Equal(t, 3, len(env))
+
+		first := env[0]
+		second := env[1]
+		third := env[2]
+
+		assert.Equal(t, "SOME_ENV_VAR", first.(map[string]interface{})["name"])
+		assert.Equal(t, "some_value", first.(map[string]interface{})["value"])
+		assert.Equal(t, "SOME_OTHER_ENV_VAR", second.(map[string]interface{})["name"])
+		assert.Equal(t, "some_other_value", second.(map[string]interface{})["value"])
+		assert.Equal(t, "YET_ANOTHER_ENV_VAR", third.(map[string]interface{})["name"])
+		assert.Equal(t, "yet_another_value", third.(map[string]interface{})["value"])
+	})
+
 	t.Run("mutating-webhook-config", func(t *testing.T) {
 		// given
 
