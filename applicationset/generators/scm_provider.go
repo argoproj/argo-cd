@@ -71,7 +71,7 @@ func ScmProviderAllowed(applicationSetInfo *argoprojiov1alpha1.ApplicationSet, u
 	}
 
 	for _, allowedScmProvider := range allowedScmProviders {
-		if strings.HasPrefix(url, allowedScmProvider) {
+		if url == allowedScmProvider {
 			return true
 		}
 	}
