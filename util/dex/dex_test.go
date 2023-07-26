@@ -270,7 +270,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 	})
 
 	t.Run("Redirect config", func(t *testing.T) {
-		types := []string{"oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud"}
+		types := []string{"oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud", "openshift", "gitea", "google", "oauth"}
 		for _, c := range types {
 			assert.True(t, needsRedirectURI(c))
 		}
