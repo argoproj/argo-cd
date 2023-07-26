@@ -218,7 +218,7 @@ spec:
     kind: "*"
     managedFieldsManagers:
     - kube-controller-manager
-    # Name and namespace are optional. They must match exactly, these are not glob patterns.
+    # Name and namespace are optional. If specified, they must match exactly, these are not glob patterns.
     name: my-deployment
     namespace: my-namespace
 
