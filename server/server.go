@@ -513,12 +513,12 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	var httpL net.Listener
 	var httpsL net.Listener
 	if !a.useTLS() {
-		httpL = tcpm.Match(cmux.HTTP1Fast())
+		httpL = tcpm.Match(cmux.HTTP1Fast("PATCH"))
 		grpcL = tcpm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 
 	} else {
 		// We first match on HTTP 1.1 methods.
-		httpL = tcpm.Match(cmux.HTTP1Fast())
+		httpL = tcpm.Match(cmux.HTTP1Fast("PATCH"))
 
 		// If not matched, we assume that its TLS.
 		tlsl := tcpm.Match(cmux.Any())
@@ -533,7 +533,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 
 		// Now, we build another mux recursively to match HTTPS and gRPC.
 		tlsm = cmux.New(tlsl)
-		httpsL = tlsm.Match(cmux.HTTP1Fast())
+		httpsL = tlsm.Match(cmux.HTTP1Fast("PATCH"))
 		grpcL = tlsm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 	}
 
