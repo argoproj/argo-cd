@@ -2089,8 +2089,12 @@ func TestIgnoreApplicationDifferences(t *testing.T) {
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cluster-guestbook",
-			Namespace: fixture.TestNamespace(),
+			Name:       "my-cluster-guestbook",
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-git-generator-private",
+			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
