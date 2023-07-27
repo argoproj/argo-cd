@@ -202,6 +202,7 @@ export interface ApplicationSource {
 export interface ApplicationSourceHelm {
     valueFiles: string[];
     values?: string;
+    valuesObject?: any;
     parameters: HelmParameter[];
     fileParameters: HelmFileParameter[];
 }
