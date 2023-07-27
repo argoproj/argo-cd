@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	netCtx "context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -103,6 +104,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/dex"
 	dexutil "github.com/argoproj/argo-cd/v2/util/dex"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
@@ -207,7 +209,7 @@ type ArgoCDServerOpts struct {
 	MetricsHost           string
 	Namespace             string
 	DexServerAddr         string
-	DexTLSConfig          *dexutil.DexTLSConfig
+	DexTLSConfig          *dex.DexTLSConfig
 	BaseHRef              string
 	RootPath              string
 	KubeClientset         kubernetes.Interface
@@ -511,12 +513,12 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	var httpL net.Listener
 	var httpsL net.Listener
 	if !a.useTLS() {
-		httpL = tcpm.Match(cmux.HTTP1Fast("PATCH"))
+		httpL = tcpm.Match(cmux.HTTP1Fast())
 		grpcL = tcpm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 
 	} else {
 		// We first match on HTTP 1.1 methods.
-		httpL = tcpm.Match(cmux.HTTP1Fast("PATCH"))
+		httpL = tcpm.Match(cmux.HTTP1Fast())
 
 		// If not matched, we assume that its TLS.
 		tlsl := tcpm.Match(cmux.Any())
@@ -531,7 +533,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 
 		// Now, we build another mux recursively to match HTTPS and gRPC.
 		tlsm = cmux.New(tlsl)
-		httpsL = tlsm.Match(cmux.HTTP1Fast("PATCH"))
+		httpsL = tlsm.Match(cmux.HTTP1Fast())
 		grpcL = tlsm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 	}
 
@@ -610,7 +612,7 @@ func (a *ArgoCDServer) watchSettings() {
 
 	prevURL := a.settings.URL
 	prevOIDCConfig := a.settings.OIDCConfig()
-	prevDexCfgBytes, err := dexutil.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
+	prevDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
 	errorsutil.CheckError(err)
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
 	prevGitLabSecret := a.settings.WebhookGitLabSecret
@@ -625,7 +627,7 @@ func (a *ArgoCDServer) watchSettings() {
 	for {
 		newSettings := <-updateCh
 		a.settings = newSettings
-		newDexCfgBytes, err := dexutil.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
+		newDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
 		errorsutil.CheckError(err)
 		if string(newDexCfgBytes) != string(prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
@@ -743,7 +745,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_auth.StreamServerInterceptor(a.Authenticate),
 		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
-		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
 		grpc_util.ErrorCodeK8sStreamServerInterceptor(),
@@ -757,7 +759,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc_prometheus.UnaryServerInterceptor,
 		grpc_auth.UnaryServerInterceptor(a.Authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
-		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
 		grpc_util.ErrorCodeK8sUnaryServerInterceptor(),
