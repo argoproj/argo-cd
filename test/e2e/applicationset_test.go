@@ -1445,20 +1445,26 @@ func githubSCMMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request)
 	}
 }
 
-func TestSimpleSCMProviderGenerator(t *testing.T) {
-
-	l, err := net.Listen("tcp", "127.0.0.1:8341")
+func testServerWithPort(t *testing.T, port int, handler http.Handler) *httptest.Server {
+	// Use mocked API response to avoid rate-limiting.
+	l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		t.Error(fmt.Errorf("Unable to start server %w", err))
 	}
 
-	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		githubSCMMockHandler(t)(w, r)
-	}))
+	ts := httptest.NewUnstartedServer(handler)
 
 	ts.Listener.Close()
 	ts.Listener = l
 
+	return ts
+}
+
+func TestSimpleSCMProviderGenerator(t *testing.T) {
+
+	ts := testServerWithPort(t, 8341, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		githubSCMMockHandler(t)(w, r)
+	}))
 	ts.Start()
 	defer ts.Close()
 
@@ -1533,19 +1539,9 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 }
 
 func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
-	// Use mocked API response to avoid rate-limiting.
-	l, err := net.Listen("tcp", "127.0.0.1:8342")
-	if err != nil {
-		t.Error(fmt.Errorf("Unable to start server %w", err))
-	}
-
-	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testServerWithPort(t, 8342, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubSCMMockHandler(t)(w, r)
 	}))
-
-	ts.Listener.Close()
-	ts.Listener = l
-
 	ts.Start()
 	defer ts.Close()
 
@@ -1870,10 +1866,13 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
 }
 
 func TestSimplePullRequestGenerator(t *testing.T) {
-	// Use mocked API response to avoid rate-limiting.
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	ts := testServerWithPort(t, 8343, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubPullMockHandler(t)(w, r)
 	}))
+
+	ts.Start()
+	defer ts.Close()
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
@@ -1948,10 +1947,12 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 }
 
 func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
-	// Use mocked API response to avoid rate-limiting.
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testServerWithPort(t, 8344, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubPullMockHandler(t)(w, r)
 	}))
+
+	ts.Start()
+	defer ts.Close()
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
