@@ -13,46 +13,57 @@ on:
 
 env:
   GOLANG_VERSION: "1.19"
+  # The name of the tag as supplied by the GitHub event
+  SOURCE_TAG: ${{ github.ref }}
+  # The image namespace where Docker image will be published to
+  IMAGE_NAMESPACE: quay.io/codefresh
+  # Whether to create & push image and release assets
+  DRY_RUN: false
+  # Whether a draft release should be created, instead of public one
+  DRAFT_RELEASE: false
+  # Whether to update homebrew with this release as well
+  # Set RELEASE_HOMEBREW_TOKEN secret in repository for this to work - needs
+  # access to public repositories
+  UPDATE_HOMEBREW: false
+  # Name of the GitHub user for Git config
+  GIT_USERNAME: CI-Codefresh
+  # E-Mail of the GitHub user for Git config
+  GIT_EMAIL: integration@codefresh.io
 
 jobs:
   prepare-release:
-    name: Perform automatic release on trigger ${{ github.ref }}
+    name: Perform release metadata for ${{ github.ref }}
     runs-on: ubuntu-latest
     env:
-      # The name of the tag as supplied by the GitHub event
-      SOURCE_TAG: ${{ github.ref }}
-      # The image namespace where Docker image will be published to
-      IMAGE_NAMESPACE: quay.io/codefresh
-      # Whether to create & push image and release assets
-      DRY_RUN: false
-      # Whether a draft release should be created, instead of public one
-      DRAFT_RELEASE: false
-      # Whether to update homebrew with this release as well
-      # Set RELEASE_HOMEBREW_TOKEN secret in repository for this to work - needs
-      # access to public repositories
-      UPDATE_HOMEBREW: false
-      # Name of the GitHub user for Git config
-      GIT_USERNAME: CI-Codefresh
-      # E-Mail of the GitHub user for Git config
-      GIT_EMAIL: integration@codefresh.io
+      ARTIFACT_NAME: release-notes
+    outputs:
+      TARGET_VERSION: ${{ steps.setup-vars.outputs.TARGET_VERSION }}
+      TARGET_BRANCH: ${{ steps.setup-vars.outputs.TARGET_BRANCH }}
+      PRE_RELEASE: ${{ steps.setup-vars.outputs.PRE_RELEASE }}
+      RELEASE_TAG: ${{ steps.setup-vars.outputs.RELEASE_TAG }}
+      RELEASE_NOTES: ${{ steps.release-notes.outputs.RELEASE_NOTES }}
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check if the published tag is well formed and setup vars
+        id: setup-vars
         run: |
           set -xue
           # Target version must match major.minor.patch and optional -rcX suffix
           # where X must be a number.
           TARGET_VERSION=${SOURCE_TAG#*release-v}
+
           # Codefresh change: add to filter below a check for `-cf.*` postfix
           if ! echo "${TARGET_VERSION}" | egrep '^[0-9]+\.[0-9]+\.[0-9]+((-rc[0-9]+)|(-cap-.*))*$'; then
             echo "::error::Target version '${TARGET_VERSION}' is malformed, refusing to continue." >&2
             exit 1
           fi
+
           # Target branch is the release branch we're going to operate on
           # Its name is 'release-<major>.<minor>'
           TARGET_BRANCH="release-${TARGET_VERSION%\.[0-9]*}"
@@ -63,6 +74,7 @@ jobs:
           if echo "${RELEASE_TAG}" | egrep -- '-rc[0-9]+$'; then
             PRE_RELEASE=true
           fi
+
           # We must not have a release trigger within the same release branch,
           # because that means a release for this branch is already running.
           if git tag -l | grep "release-v${TARGET_VERSION%\.[0-9]*}" | grep -v "release-v${TARGET_VERSION}"; then
@@ -74,12 +86,15 @@ jobs:
             echo "::error::Release tag ${RELEASE_TAG} already exists in repository. Refusing to continue."
             exit 1
           fi
+
           # Make the variables available in follow-up steps
-          echo "TARGET_VERSION=${TARGET_VERSION}" >> $GITHUB_ENV
-          echo "TARGET_BRANCH=${TARGET_BRANCH}" >> $GITHUB_ENV
-          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_ENV
-          echo "PRE_RELEASE=${PRE_RELEASE}" >> $GITHUB_ENV
-      - name: Check if our release tag has a correct annotation
+          echo "TARGET_VERSION=${TARGET_VERSION}" >> $GITHUB_OUTPUT
+          echo "TARGET_BRANCH=${TARGET_BRANCH}" >> $GITHUB_OUTPUT
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+          echo "PRE_RELEASE=${PRE_RELEASE}" >> $GITHUB_OUTPUT
+          
+      - name: Create release notes
+        id: release-notes
         run: |
           set -ue
           # Fetch all tag information as well
@@ -124,13 +139,130 @@ jobs:
           #   echo "::error::Release notes seem invalid, quick start section not found."
           #   exit 1
           # fi
-          # We store path to temporary release notes file for later reading, we
-          # need it when creating release.
-          echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_ENV
+
+          # https://github.com/github/docs/issues/21529#issue-1418590935
+          echo "RELEASE_NOTES<<EOF" >> $GITHUB_OUTPUT
+          cat ${RELEASE_NOTES} >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  binaries:
+    name: Build Binaries for Release
+    runs-on: ubuntu-latest
+    needs:
+      - prepare-release
+    env:
+      ARTIFACT_NAME: binaries
+    outputs:
+      ARTIFACT_NAME: ${{ env.ARTIFACT_NAME }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Setup Golang
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+
+      - name: Build release binaries
+        run: |
+          set -ue
+          mkdir -p dist/
+          make release-cli
+          chmod +x ./dist/argocd-*
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Upload binaries artifact
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ./dist/argocd-*
+        if: ${{ env.DRY_RUN != 'true' }}
+
+  container-image:
+    name: Build and Push Container Images for Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Needed to create an OIDC token for keyless signing
+    needs:
+      - prepare-release
+    env:
+      TARGET_VERSION: ${{ needs.prepare-release.outputs.TARGET_VERSION }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to quay.io
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
+        with:
+          registry: quay.io
+          username: ${{ secrets.RELEASE_QUAY_USERNAME }}
+          password: ${{ secrets.RELEASE_QUAY_TOKEN }}
+
+      - uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7 # v2.2.0
+      - uses: docker/setup-buildx-action@4c0219f9ac95b02789c1075625400b2acbff50b1 # v2.9.1
+
+      - name: Build and push container image
+        id: image
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825 #v4.1.1
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ env.DRY_RUN != 'true' }}
+          tags: ${{ env.IMAGE_NAMESPACE }}/argocd:v${{ env.TARGET_VERSION }}
+          provenance: false
+          sbom: false
+          # Cached layers will only be re-used when building the same image. This can only happen when:
+          #
+          # * The release workflow fails and is then retried.
+          # * The same release tag is deleted and then re-pushed.
+          # 
+          # A global layer cache for the entire repository cannot be used. This is because in the context of runs triggered by tag pushes,
+          # runs for two different tags cannot access the same cache. Hence, we limit the cache scope to the image tag.
+          #
+          # See: https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows#restrictions-for-accessing-a-cache
+          cache-from: type=gha,scope=v${{ env.TARGET_VERSION }}
+          cache-to: type=gha,mode=max,scope=v${{ env.TARGET_VERSION }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6e04d228eb30da1757ee4e1dd75a0ec73a653e06 # v3.1.1
+        with:
+          cosign-release: 'v2.1.1'
+
+      - name: Sign container image
+        run: |
+          cosign sign \
+          -a "repo=${{ github.repository }}" \
+          -a "workflow=${{ github.workflow }}" \
+          -a "sha=${{ github.sha }}" \
+          -y \
+          "${{ env.IMAGE_NAMESPACE }}/argocd@${{ steps.image.outputs.digest }}"
+        if: ${{ env.DRY_RUN != 'true' }}
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: ${{ needs.prepare-release.outputs.TARGET_BRANCH }}
+      TARGET_VERSION: ${{ needs.prepare-release.outputs.TARGET_VERSION }}
+      RELEASE_TAG: ${{ needs.prepare-release.outputs.RELEASE_TAG }}
+      RELEASE_NOTES: ${{ needs.prepare-release.outputs.RELEASE_NOTES }}
+    needs:
+      - prepare-release
+      - binaries
+      - container-image
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Git author information
         run: |
@@ -145,54 +277,12 @@ jobs:
             echo "::error::Checking out release branch '${TARGET_BRANCH}' for target version '${TARGET_VERSION}' (tagged '${RELEASE_TAG}') failed. Does it exist in repo?"
             exit 1
           fi
-      ## Codefresh change
-      # - name: Create VERSION information
-      #   run: |
-      #     set -ue
-      #     echo "Bumping version from $(cat VERSION) to ${TARGET_VERSION}"
-      #     echo "${TARGET_VERSION}" > VERSION
-      #     git commit -m "Bump version to ${TARGET_VERSION}" VERSION
-
-      # - name: Generate new set of manifests
-      #   run: |
-      #     set -ue
-      #     make install-codegen-tools-local
-      #     helm2 init --client-only
-      #     make manifests-local VERSION=${TARGET_VERSION}
-      #     git diff
-      #     git commit manifests/ -m "Bump version to ${TARGET_VERSION}"
 
       - name: Create the release tag
         run: |
           set -ue
           echo "Creating release ${RELEASE_TAG}"
           git tag ${RELEASE_TAG}
-      - name: Build Docker image for release
-        run: |
-          set -ue
-          git clean -fd
-          mkdir -p dist/
-          make image IMAGE_TAG="v${TARGET_VERSION}" DOCKER_PUSH=false
-          make release-cli
-          chmod +x ./dist/argocd-linux-amd64
-          ./dist/argocd-linux-amd64 version --client
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Push docker image to repository
-        env:
-          QUAY_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
-          QUAY_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
-        run: |
-          set -ue
-          docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
-          docker push ${{ env.IMAGE_NAMESPACE }}/argocd:v${TARGET_VERSION}
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Read release notes file
-        id: release-notes
-        uses: juliangruber/read-file-action@v1
-        with:
-          path: ${{ env.RELEASE_NOTES }}
 
       - name: Push changes to release branch
         run: |
@@ -200,72 +290,11 @@ jobs:
           # Codefresh change
           # git push origin ${TARGET_BRANCH}
           git push origin ${RELEASE_TAG}
-      - name: Create GitHub release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        id: create_release
-        with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          release_name: ${{ env.RELEASE_TAG }}
-          draft: ${{ env.DRAFT_RELEASE }}
-          prerelease: ${{ env.PRE_RELEASE }}
-          body: ${{ steps.release-notes.outputs.content }}
 
-      - name: Upload argocd-linux-amd64 binary to release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup Golang
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-linux-amd64
-          asset_name: argocd-linux-amd64
-          asset_content_type: application/octet-stream
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Upload argocd-linux-arm64 binary to release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-linux-arm64
-          asset_name: argocd-linux-arm64
-          asset_content_type: application/octet-stream
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Upload argocd-darwin-amd64 binary to release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-darwin-amd64
-          asset_name: argocd-darwin-amd64
-          asset_content_type: application/octet-stream
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Upload argocd-darwin-arm64 binary to release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-darwin-arm64
-          asset_name: argocd-darwin-arm64
-          asset_content_type: application/octet-stream
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Upload argocd-windows-amd64 binary to release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-windows-amd64.exe
-          asset_name: argocd-windows-amd64.exe
-          asset_content_type: application/octet-stream
-        if: ${{ env.DRY_RUN != 'true' }}
+          go-version: ${{ env.GOLANG_VERSION }}
 
       - name: Generate SBOM (spdx)
         id: spdx-builder
@@ -295,21 +324,29 @@ jobs:
           cd /tmp && tar -zcf sbom.tar.gz *.spdx
         if: ${{ env.DRY_RUN != 'true' }}
 
-      - name: Upload SBOM to release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /tmp/sbom.tar.gz
-          asset_name: sbom.tar.gz
-          asset_content_type: application/octet-stream
-        if: ${{ env.DRY_RUN != 'true' }}
+          name: ${{ needs.binaries.outputs.ARTIFACT_NAME }}
+
+      - name: Release
+        id: create_release
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: ${{ env.RELEASE_TAG }}
+          files: |
+            argocd-*
+            /tmp/sbom.tar.gz
+          tag_name: ${{ env.RELEASE_TAG }}
+          draft: ${{ env.DRAFT_RELEASE }}
+          prerelease: ${{ needs.prepare-release.outputs.PRE_RELEASE }}
+          body: ${{ needs.prepare-release.outputs.RELEASE_NOTES }}
 
       - name: Update homebrew formula
         env:
           HOMEBREW_TOKEN: ${{ secrets.RELEASE_HOMEBREW_TOKEN }}
-        uses: dawidd6/action-homebrew-bump-formula@v3
+        uses: dawidd6/action-homebrew-bump-formula@d3667e5ae14df19579e4414897498e3e88f2f458 # v3.10.0
         with:
           token: ${{env.HOMEBREW_TOKEN}}
           formula: argocd

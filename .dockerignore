@@ -17,6 +17,8 @@ manifests/
 hack/
 docs/
 examples/
+.dockerignore
+.git/
 .github/
 !test/fixture
 !test/container
