@@ -2093,7 +2093,7 @@ func TestIgnoreApplicationDifferences(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-git-generator-private",
+				LabelKeyAppSetInstance: "simple-list-generator",
 			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
