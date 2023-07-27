@@ -235,12 +235,6 @@ message ApplicationSetGenerator {
   optional PluginGenerator plugin = 10;
 }
 
-message ApplicationSetIgnoreDifferences {
-  repeated string jsonPointers = 1;
-
-  repeated string jqPathExpressions = 2;
-}
-
 // ApplicationSetList contains a list of ApplicationSet
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
@@ -277,6 +271,19 @@ message ApplicationSetNestedGenerator {
   optional PluginGenerator plugin = 10;
 }
 
+// ApplicationSetResourceIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live
+// applications when applying changes from generated applications.
+message ApplicationSetResourceIgnoreDifferences {
+  // Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.
+  optional string name = 1;
+
+  // JSONPointers is a list of JSON pointers to fields to ignore differences for.
+  repeated string jsonPointers = 2;
+
+  // JQPathExpressions is a list of JQ path expressions to fields to ignore differences for.
+  repeated string jqPathExpressions = 3;
+}
+
 message ApplicationSetRolloutStep {
   repeated ApplicationMatchExpression matchExpressions = 1;
 
@@ -306,7 +313,7 @@ message ApplicationSetSpec {
   // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
   optional bool applyNestedSelectors = 8;
 
-  optional ApplicationSetIgnoreDifferences ignoreDifferences = 9;
+  repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 9;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet

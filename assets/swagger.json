@@ -6009,23 +6009,6 @@
         }
       }
     },
-    "v1alpha1ApplicationSetIgnoreDifferences": {
-      "type": "object",
-      "properties": {
-        "jqPathExpressions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "jsonPointers": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
     "v1alpha1ApplicationSetList": {
       "type": "object",
       "title": "ApplicationSetList contains a list of ApplicationSet\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:object:root=true",
@@ -6077,6 +6060,30 @@
         }
       }
     },
+    "v1alpha1ApplicationSetResourceIgnoreDifferences": {
+      "description": "ApplicationSetResourceIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live\napplications when applying changes from generated applications.",
+      "type": "object",
+      "properties": {
+        "jqPathExpressions": {
+          "description": "JQPathExpressions is a list of JQ path expressions to fields to ignore differences for.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "jsonPointers": {
+          "description": "JSONPointers is a list of JSON pointers to fields to ignore differences for.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1ApplicationSetRolloutStep": {
       "type": "object",
       "properties": {
@@ -6125,8 +6132,11 @@
             "type": "string"
           }
         },
-        "ignoreDifferences": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetIgnoreDifferences"
+        "ignoreApplicationDifferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSetResourceIgnoreDifferences"
+          }
         },
         "preservedFields": {
           "$ref": "#/definitions/v1alpha1ApplicationPreservedFields"

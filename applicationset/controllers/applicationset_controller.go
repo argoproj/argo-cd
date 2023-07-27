@@ -645,8 +645,8 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			found.ObjectMeta.Finalizers = generatedApp.Finalizers
 			found.ObjectMeta.Labels = generatedApp.Labels
 
-			if found != nil && found.Spec.IgnoreDifferences != nil {
-				err := applyIgnoreDifferences(*applicationSet.Spec.IgnoreDifferences, found, generatedApp)
+			if found != nil && len(found.Spec.IgnoreDifferences) > 0 {
+				err := applyIgnoreDifferences(applicationSet.Spec.IgnoreApplicationDifferences, found, generatedApp)
 				if err != nil {
 					return fmt.Errorf("failed to apply ignore differences: %w", err)
 				}
@@ -669,11 +669,10 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 	return firstError
 }
 
-// applyIgnoreDifferences applies the ignore differences to the found application. It modifies the found application in place.
+// applyIgnoreDifferences applies the ignore differences rules to the found application. It modifies the found application in place.
 func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.ApplicationSetIgnoreDifferences, found *argov1alpha1.Application, generatedApp argov1alpha1.Application) error {
-	ignoreDifferences := []argov1alpha1.ResourceIgnoreDifferences{applicationSetIgnoreDifferences.ToApplicationIgnoreDifferences()}
 	diffConfig, err := argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(ignoreDifferences, nil, false).
+		WithDiffSettings(applicationSetIgnoreDifferences.ToApplicationIgnoreDifferences(), nil, false).
 		WithNoCache().
 		Build()
 	if err != nil {

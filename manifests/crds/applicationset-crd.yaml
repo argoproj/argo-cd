@@ -12983,17 +12983,21 @@ spec:
                 items:
                   type: string
                 type: array
-              ignoreDifferences:
-                properties:
-                  jqPathExpressions:
-                    items:
+              ignoreApplicationDifferences:
+                items:
+                  properties:
+                    jqPathExpressions:
+                      items:
+                        type: string
+                      type: array
+                    jsonPointers:
+                      items:
+                        type: string
+                      type: array
+                    name:
                       type: string
-                    type: array
-                  jsonPointers:
-                    items:
-                      type: string
-                    type: array
-                type: object
+                  type: object
+                type: array
               preservedFields:
                 properties:
                   annotations:

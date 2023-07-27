@@ -5720,7 +5720,7 @@ func Test_applyIgnoreDifferences(t *testing.T) {
 		{
 			name: "ignore target revision with jq",
 			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
-				JQPathExpressions: []string{".spec.source.targetRevision"},
+				{JQPathExpressions: []string{".spec.source.targetRevision"}},
 			},
 			foundApp: v1alpha1.Application{
 				TypeMeta: appMeta,
@@ -5750,7 +5750,7 @@ func Test_applyIgnoreDifferences(t *testing.T) {
 		{
 			name: "ignore helm parameter with jq",
 			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
-				JQPathExpressions: []string{".spec.source.helm.parameters[0].value"},
+				{JQPathExpressions: []string{".spec.source.helm.parameters[0].value"}},
 			},
 			foundApp: v1alpha1.Application{
 				TypeMeta: appMeta,
