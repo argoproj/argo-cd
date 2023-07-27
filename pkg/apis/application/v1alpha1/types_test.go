@@ -646,7 +646,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	err = p.ValidateProject()
 	assert.NoError(t, err)
 
-	//no duplicates allowed
+	// no duplicates allowed
 	p.Spec.Destinations = []ApplicationDestination{validDestination, validDestination}
 	err = p.ValidateProject()
 	assert.Error(t, err)
@@ -3607,6 +3607,80 @@ func TestOptionalMapEquality(t *testing.T) {
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
+		})
+	}
+}
+
+func TestApplication_Equals(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    *Application
+		compare *Application
+		want    bool
+	}{
+		{
+			name: "test compare with nil object",
+			args: &Application{},
+			want: false,
+		},
+		{
+			name: "test label not equal",
+			args: &Application{
+				Spec: newTestApp().Spec,
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"foo": "bar",
+					},
+				},
+			},
+			compare: &Application{
+				Spec: newTestApp().Spec,
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "test spec not equal",
+			args: &Application{
+				Spec: ApplicationSpec{},
+			},
+			compare: &Application{
+				Spec: newTestApp().Spec,
+			},
+			want: false,
+		},
+		{
+			name: "test all equal",
+			args: &Application{
+				Spec: newTestApp().Spec,
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"foo": "bar",
+					},
+					Annotations: map[string]string{
+						"foo": "bar",
+					},
+				},
+			},
+			compare: &Application{
+				Spec: newTestApp().Spec,
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"foo": "bar",
+					},
+					Annotations: map[string]string{
+						"foo": "bar",
+					},
+				},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, tt.args.Equals(tt.compare), "EqualSpec(%v)", tt.compare)
 		})
 	}
 }

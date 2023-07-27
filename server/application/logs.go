@@ -24,7 +24,7 @@ func parseLogsStream(podName string, stream io.ReadCloser, ch chan logEntry) {
 		line, err := bufReader.ReadString('\n')
 		if err == io.EOF {
 			eof = true
-			// stop if we reached end of stream and the next line is empty
+			// stop if we reached an end of stream and the next line is empty
 			if line == "" {
 				break
 			}
@@ -50,8 +50,8 @@ func parseLogsStream(podName string, stream io.ReadCloser, ch chan logEntry) {
 	}
 }
 
-// mergeLogStreams merge two stream of logs and ensures that merged logs are sorted by timestamp.
-// The implementation uses merge sort: method reads next log entry from each stream if one of streams is empty
+// mergeLogStreams merges two streams of logs and ensures that merged logs are sorted by timestamp.
+// The implementation uses merge sort: method reads next log entry from each stream if one of the streams is empty,
 // it waits for no longer than specified duration and then merges available entries.
 func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) chan logEntry {
 	merged := make(chan logEntry)
@@ -123,7 +123,7 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 	go func() {
 		for range ticker.C {
 			sentAtLock.Lock()
-			// waited long enough for logs from each streams, send everything accumulated
+			// waited long enough for logs from each stream, send everything accumulated
 			if sentAt.Add(bufferingDuration).Before(time.Now()) {
 				_ = send(true)
 				sentAt = time.Now()

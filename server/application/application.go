@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -297,31 +296,31 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	if q.GetApplication() == nil {
 		return nil, fmt.Errorf("error creating application: application is nil in request")
 	}
-	a := q.GetApplication()
+	app := q.GetApplication()
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, a.RBACName(s.ns)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, app.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
 
-	s.projectLock.RLock(a.Spec.GetProject())
-	defer s.projectLock.RUnlock(a.Spec.GetProject())
+	s.projectLock.RLock(app.Spec.GetProject())
+	defer s.projectLock.RUnlock(app.Spec.GetProject())
 
 	validate := true
 	if q.Validate != nil {
 		validate = *q.Validate
 	}
-	err := s.validateAndNormalizeApp(ctx, a, validate)
+	err := s.validateAndNormalizeApp(ctx, app, validate)
 	if err != nil {
 		return nil, fmt.Errorf("error while validating and normalizing app: %w", err)
 	}
 
-	appNs := s.appNamespaceOrDefault(a.Namespace)
+	appNs := s.appNamespaceOrDefault(app.Namespace)
 
 	if !s.isNamespaceEnabled(appNs) {
 		return nil, security.NamespaceNotPermittedError(appNs)
 	}
 
-	created, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Create(ctx, a, metav1.CreateOptions{})
+	created, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Create(ctx, app, metav1.CreateOptions{})
 	if err == nil {
 		s.logAppEvent(created, ctx, argo.EventReasonResourceCreated, "created application")
 		s.waitSync(created)
@@ -332,25 +331,20 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	}
 
 	// act idempotent if existing spec matches new spec
-	existing, err := s.appLister.Applications(appNs).Get(a.Name)
+	existing, err := s.appLister.Applications(appNs).Get(app.Name)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to check existing application details (%s): %v", appNs, err)
 	}
-	equalSpecs := reflect.DeepEqual(existing.Spec, a.Spec) &&
-		reflect.DeepEqual(existing.Labels, a.Labels) &&
-		reflect.DeepEqual(existing.Annotations, a.Annotations) &&
-		reflect.DeepEqual(existing.Finalizers, a.Finalizers)
-
-	if equalSpecs {
+	if app.Equals(existing) {
 		return existing, nil
 	}
 	if q.Upsert == nil || !*q.Upsert {
 		return nil, status.Errorf(codes.InvalidArgument, "existing application spec is different, use upsert flag to force update")
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, a.RBACName(s.ns)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, app.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
-	updated, err := s.updateApp(existing, a, ctx, true)
+	updated, err := s.updateApp(existing, app, ctx, true)
 	if err != nil {
 		return nil, fmt.Errorf("error updating application: %w", err)
 	}
@@ -638,6 +632,8 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 
 	project := ""
 	projects := getProjectsFromApplicationQuery(*q)
+
+	// FIXME: actually support zero or one project, why not use string?
 	if len(projects) == 1 {
 		project = projects[0]
 	} else if len(projects) > 1 {
@@ -663,7 +659,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	}
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
 
-	// subscribe early with buffered channel to ensure we don't miss events
+	// subscribe early with a buffered channel to ensure we don't miss events
 	events := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
 	unsubscribe := s.appBroadcaster.Subscribe(events, func(event *appv1.ApplicationWatchEvent) bool {
 		return event.Application.Name == appName && event.Application.Namespace == appNs
@@ -1274,7 +1270,7 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 		return nil, err
 	}
 
-	// make sure to use specified resource version if provided
+	// make sure to use a specified resource version if provided
 	if q.GetVersion() != "" {
 		res.Version = q.GetVersion()
 	}
@@ -1593,8 +1589,8 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 
 		streams = append(streams, logStream)
 		go func() {
-			// if k8s failed to start steaming logs (typically because Pod is not ready yet)
-			// then the error should be shown in the UI so that user know the reason
+			// if k8s failed to start steaming logs (typically because Pod is not ready yet),
+			// then the error should be shown in the UI so that the user knows the reason
 			if err != nil {
 				logStream <- logEntry{line: err.Error()}
 			} else {
@@ -1664,7 +1660,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	}
 }
 
-// from all of the treeNodes, get the pod who meets the criteria or whose parents meets the criteria
+// from all the treeNodes, get the pod who meets the criteria or whose parents meets the criteria
 func getSelectedPods(treeNodes []appv1.ResourceNode, q *application.ApplicationPodLogsQuery) []appv1.ResourceNode {
 	var pods []appv1.ResourceNode
 	isTheOneMap := make(map[string]bool)
@@ -1678,7 +1674,7 @@ func getSelectedPods(treeNodes []appv1.ResourceNode, q *application.ApplicationP
 	return pods
 }
 
-// check is currentNode is matching with group, kind, and name, or if any of its parents matches
+// check is currentNode is matching with a group, kind, and name, or if any of its parents matches
 func isTheSelectedOne(currentNode *appv1.ResourceNode, q *application.ApplicationPodLogsQuery, resourceNodes []appv1.ResourceNode, isTheOneMap map[string]bool) bool {
 	exist, value := isTheOneMap[currentNode.UID]
 	if exist {
@@ -1699,8 +1695,8 @@ func isTheSelectedOne(currentNode *appv1.ResourceNode, q *application.Applicatio
 	}
 
 	for _, parentResource := range currentNode.ParentRefs {
-		//look up parentResource from resourceNodes
-		//then check if the parent isTheSelectedOne
+		// look up parentResource from resourceNodes
+		// then check if the parent isTheSelectedOne
 		for _, resourceNode := range resourceNodes {
 			if resourceNode.Namespace == parentResource.Namespace &&
 				resourceNode.Name == parentResource.Name &&
@@ -1854,7 +1850,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 		return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", a.QualifiedName(), rollbackReq.GetId())
 	}
 	if deploymentInfo.Source.IsZero() {
-		// Since source type was introduced to history starting with v0.12, and is now required for
+		// Since a source type was introduced to history starting with v0.12, and is now required for
 		// rollback, we cannot support rollback to revisions deployed using Argo CD v0.11 or below
 		return nil, status.Errorf(codes.FailedPrecondition, "cannot rollback to revision deployed with Argo CD v0.11 or lower. sync to revision instead.")
 	}

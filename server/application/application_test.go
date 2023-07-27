@@ -208,7 +208,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 	// populate the app informer with the fake objects
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	// TODO(jessesuen): probably should return cancel function so tests can stop background informer
-	//ctx, cancel := context.WithCancel(context.Background())
+	// ctx, cancel := context.WithCancel(context.Background())
 	go appInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
 		panic("Timed out waiting for caches to sync")
@@ -1135,7 +1135,7 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 			label:          "!key2",
 			expectedResult: []string{"App2", "App3"}},
 	}
-	//test valid scenarios
+	// test valid scenarios
 	for _, validTest := range validTests {
 		t.Run(validTest.testName, func(t *testing.T) {
 			appQuery.Selector = &validTest.label
@@ -1161,7 +1161,7 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 			label:       "key1<value1",
 			errorMesage: "error parsing the selector"},
 	}
-	//test invalid scenarios
+	// test invalid scenarios
 	for _, invalidTest := range invalidTests {
 		t.Run(invalidTest.testName, func(t *testing.T) {
 			appQuery.Selector = &invalidTest.label
@@ -2342,4 +2342,53 @@ func TestIsApplicationPermitted(t *testing.T) {
 		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
 		assert.True(t, permitted)
 	})
+}
+
+func Test_mergeStringMaps(t *testing.T) {
+	tests := []struct {
+		name string
+		args []map[string]string
+		want map[string]string
+	}{
+		{
+			name: "test empty maps",
+			args: []map[string]string{},
+			want: map[string]string{},
+		},
+		{
+			name: "test one map",
+			args: []map[string]string{{"a": "b"}},
+			want: map[string]string{"a": "b"},
+		},
+		{
+			name: "test mutil maps",
+			args: []map[string]string{
+				{
+					"key1": "val1",
+					"key2": "val2",
+				},
+				{
+					"key2": "val2",
+					"key3": "val3",
+				},
+				{
+					"key3": "val3",
+				},
+				{
+					"key4": "val4",
+				},
+			},
+			want: map[string]string{
+				"key1": "val1",
+				"key2": "val2",
+				"key3": "val3",
+				"key4": "val4",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, mergeStringMaps(tt.args...), "mergeStringMaps(%v)", tt.args)
+		})
+	}
 }
