@@ -2687,7 +2687,7 @@ func TestGetHelmRepos_OCIDependencies(t *testing.T) {
 	assert.Equal(t, len(helmRepos), 1)
 	assert.Equal(t, helmRepos[0].Username, "test")
 	assert.Equal(t, helmRepos[0].EnableOci, true)
-	assert.Equal(t, helmRepos[0].Repo, "example.com")
+	assert.Equal(t, helmRepos[0].Repo, "example.com/myrepo")
 }
 
 func TestGetHelmRepo_NamedRepos(t *testing.T) {
