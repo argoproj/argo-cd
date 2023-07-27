@@ -79,6 +79,29 @@ spec:
     applicationsSync: create-update
 ```
 
+### Ignore certain changes to Applications
+
+The ApplicationSet spec includes an `ignoreApplicationDifferences` field, which allows you to specify which fields of 
+the ApplicationSet should be ignored when comparing Applications.
+
+The field supports multiple ignore rules. Each ignore rule may specify a list of either `jsonPointers` or 
+`jqPathExpressions` to ignore.
+
+You may optionally also specify a `name` to apply the ignore rule to a specific Application, or omit the `name` to apply
+the ignore rule to all Applications.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+spec:
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/source/targetRevision
+    - name: some-app
+      jqExpressions:
+        - .spec.source.helm.values
+```
+
 ### Prevent an `Application`'s child resources from being deleted, when the parent Application is deleted
 
 By default, when an `Application` resource is deleted by the ApplicationSet controller, all of the child resources of the Application will be deleted as well (such as, all of the Application's `Deployments`, `Services`, etc).
