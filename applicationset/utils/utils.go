@@ -2,9 +2,12 @@ package utils
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"regexp"
 	"sort"
@@ -280,7 +283,10 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTe
 		return tmpl, nil
 	}
 
-	fstTmpl := fasttemplate.New(tmpl, "{{", "}}")
+	fstTmpl, err := fasttemplate.NewTemplate(tmpl, "{{", "}}")
+	if err != nil {
+		return "", fmt.Errorf("invalid template: %w", err)
+	}
 	replacedTmpl := fstTmpl.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
 		trimmedTag := strings.TrimSpace(tag)
 		replacement, ok := replaceMap[trimmedTag].(string)
@@ -405,4 +411,39 @@ func SanitizeName(name string) string {
 	}
 
 	return strings.Trim(name, "-.")
+}
+
+func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
+
+	tlsConfig := &tls.Config{}
+
+	if scmRootCAPath != "" {
+		_, err := os.Stat(scmRootCAPath)
+		if os.IsNotExist(err) {
+			log.Errorf("scmRootCAPath '%s' specified does not exist: %s", scmRootCAPath, err)
+			return tlsConfig
+		}
+		rootCA, err := os.ReadFile(scmRootCAPath)
+		if err != nil {
+			log.Errorf("error reading certificate from file '%s', proceeding without custom rootCA : %s", scmRootCAPath, err)
+			return tlsConfig
+		}
+		certPool := x509.NewCertPool()
+		ok := certPool.AppendCertsFromPEM([]byte(rootCA))
+		if !ok {
+			log.Errorf("failed to append certificates from PEM: proceeding without custom rootCA")
+		} else {
+			tlsConfig.RootCAs = certPool
+		}
+	}
+	return tlsConfig
+}
+
+func GetTlsConfig(scmRootCAPath string, insecure bool) *tls.Config {
+	tlsConfig := getTlsConfigWithCACert(scmRootCAPath)
+
+	if insecure {
+		tlsConfig.InsecureSkipVerify = true
+	}
+	return tlsConfig
 }

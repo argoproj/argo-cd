@@ -21,7 +21,7 @@ Each link in the list has five subfields:
 
 1. `title`: title/tag that will be displayed in the UI corresponding to that link
 2. `url`: the actual URL where the deep link will redirect to, this field can be templated to use data from the
-   corresponding application, project or resource objects (depending on where it is located). This uses [text/template](pkg.go.dev/text/template) pkg for templating
+   corresponding application, project or resource objects (depending on where it is located). This uses [text/template](https://pkg.go.dev/text/template) pkg for templating
 3. `description` (optional): a description for what the deep link is about
 4. `icon.class` (optional): a font-awesome icon class to be used when displaying the links in dropdown menus
 5. `if` (optional): a conditional statement that results in either `true` or `false`, it also has access to the same
@@ -60,7 +60,7 @@ An example `argocd-cm.yaml` file with deep links and their variations :
   # sample application level links
   application.links: |
     # pkg.go.dev/text/template is used for evaluating url templates
-    - url: https://mycompany.splunk.com?search={{.application.spec.destination.namespace}}&env={{.project.metadata.label.env}}
+    - url: https://mycompany.splunk.com?search={{.application.spec.destination.namespace}}&env={{.project.metadata.labels.env}}
       title: Splunk
     # conditionally show link e.g. for specific project
     # github.com/antonmedv/expr is used for evaluation of conditions
@@ -72,7 +72,7 @@ An example `argocd-cm.yaml` file with deep links and their variations :
       if: application.metadata.annotations.splunkhost != ""
   # sample resource level links
   resource.links: |
-    - url: https://mycompany.splunk.com?search={{.resource.metadata.name}}&env={{.project.metadata.label.env}}
+    - url: https://mycompany.splunk.com?search={{.resource.metadata.name}}&env={{.project.metadata.labels.env}}
       title: Splunk
       if: resource.kind == "Pod" || resource.kind == "Deployment"
 ```

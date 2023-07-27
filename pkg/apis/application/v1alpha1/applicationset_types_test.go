@@ -49,6 +49,31 @@ func TestApplicationsSyncPolicy(t *testing.T) {
 	assert.True(t, ApplicationsSyncPolicySync.AllowUpdate())
 }
 
+func TestApplicationSetRBACName(t *testing.T) {
+	testRepo := "https://github.com/org/repo"
+
+	t.Run("Test RBAC name with namespace", func(t *testing.T) {
+		namespace := "guestbook"
+		a := newTestAppSet("test-appset", namespace, testRepo)
+		a.Spec.Template.Spec.Project = "test"
+		assert.Equal(t, "test/guestbook/test-appset", a.RBACName("argocd"))
+	})
+
+	t.Run("Test RBAC name default ns", func(t *testing.T) {
+		namespace := "argocd"
+		a := newTestAppSet("test-appset", namespace, testRepo)
+		a.Spec.Template.Spec.Project = "test"
+		assert.Equal(t, "test/test-appset", a.RBACName("argocd"))
+	})
+
+	t.Run("Test RBAC no ns", func(t *testing.T) {
+		a := newTestAppSet("test-appset", "", testRepo)
+		a.Spec.Template.Spec.Project = "test"
+		assert.Equal(t, "test/test-appset", a.RBACName("argocd"))
+	})
+
+}
+
 func TestApplicationSetSetConditions(t *testing.T) {
 	fiveMinsAgo := &metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
 	tenMinsAgo := &metav1.Time{Time: time.Now().Add(-10 * time.Minute)}

@@ -108,26 +108,26 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 			},
 			expected: []map[string]interface{}{
 				{
-					"organization": "myorg",
-					"repository": "repo1",
-					"url": "git@github.com:myorg/repo1.git",
-					"branch": "main",
+					"organization":     "myorg",
+					"repository":       "repo1",
+					"url":              "git@github.com:myorg/repo1.git",
+					"branch":           "main",
 					"branchNormalized": "main",
-					"sha": "0bc57212c3cbbec69d20b34c507284bd300def5b",
-					"short_sha": "0bc57212",
-					"short_sha_7": "0bc5721",
-					"labels": "prod,staging",
+					"sha":              "0bc57212c3cbbec69d20b34c507284bd300def5b",
+					"short_sha":        "0bc57212",
+					"short_sha_7":      "0bc5721",
+					"labels":           "prod,staging",
 				},
 				{
-					"organization": "myorg",
-					"repository": "repo2",
-					"url": "git@github.com:myorg/repo2.git",
-					"branch": "main",
+					"organization":     "myorg",
+					"repository":       "repo2",
+					"url":              "git@github.com:myorg/repo2.git",
+					"branch":           "main",
 					"branchNormalized": "main",
-					"sha": "59d0",
-					"short_sha": "59d0",
-					"short_sha_7": "59d0",
-					"labels": "",
+					"sha":              "59d0",
+					"short_sha":        "59d0",
+					"short_sha_7":      "59d0",
+					"labels":           "",
 				},
 			},
 		},
@@ -197,6 +197,92 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 
+		})
+	}
+}
+
+func TestAllowedSCMProvider(t *testing.T) {
+	cases := []struct {
+		name           string
+		providerConfig *argoprojiov1alpha1.SCMProviderGenerator
+		expectedError  string
+	}{
+		{
+			name: "Error Github",
+			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
+				Github: &argoprojiov1alpha1.SCMProviderGeneratorGithub{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
+		},
+		{
+			name: "Error Gitlab",
+			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
+				Gitlab: &argoprojiov1alpha1.SCMProviderGeneratorGitlab{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
+		},
+		{
+			name: "Error Gitea",
+			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
+				Gitea: &argoprojiov1alpha1.SCMProviderGeneratorGitea{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
+		},
+		{
+			name: "Error Bitbucket",
+			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
+				BitbucketServer: &argoprojiov1alpha1.SCMProviderGeneratorBitbucketServer{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
+		},
+		{
+			name: "Error AzureDevops",
+			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
+				AzureDevOps: &argoprojiov1alpha1.SCMProviderGeneratorAzureDevOps{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
+		},
+	}
+
+	for _, testCase := range cases {
+		testCaseCopy := testCase
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			scmGenerator := &SCMProviderGenerator{allowedSCMProviders: []string{
+				"github.myorg.com",
+				"gitlab.myorg.com",
+				"gitea.myorg.com",
+				"bitbucket.myorg.com",
+				"azuredevops.myorg.com",
+			}}
+
+			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+						SCMProvider: testCaseCopy.providerConfig,
+					}},
+				},
+			}
+
+			_, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+
+			assert.Error(t, err, "Must return an error")
+			assert.Equal(t, testCaseCopy.expectedError, err.Error())
 		})
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/antonmedv/expr"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -13,6 +14,15 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/pointer"
 )
+
+var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
+
+func init() {
+	// Avoid allowing the user to learn things about the environment.
+	delete(sprigFuncMap, "env")
+	delete(sprigFuncMap, "expandenv")
+	delete(sprigFuncMap, "getHostByName")
+}
 
 const (
 	ResourceDeepLinkKey = "resource"
@@ -71,7 +81,7 @@ func EvaluateDeepLinksResponse(obj map[string]interface{}, name string, links []
 	finalLinks := []*application.LinkInfo{}
 	errors := []string{}
 	for _, link := range links {
-		t, err := template.New("deep-link").Parse(link.URL)
+		t, err := template.New("deep-link").Funcs(sprigFuncMap).Parse(link.URL)
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("failed to parse link template '%v', error=%v", link.URL, err.Error()))
 			continue
