@@ -1,7 +1,9 @@
 package e2e
 
 import (
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,9 +17,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
@@ -1441,11 +1445,28 @@ func githubSCMMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request)
 	}
 }
 
-func TestSimpleSCMProviderGenerator(t *testing.T) {
+func testServerWithPort(t *testing.T, port int, handler http.Handler) *httptest.Server {
 	// Use mocked API response to avoid rate-limiting.
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		t.Error(fmt.Errorf("Unable to start server %w", err))
+	}
+
+	ts := httptest.NewUnstartedServer(handler)
+
+	ts.Listener.Close()
+	ts.Listener = l
+
+	return ts
+}
+
+func TestSimpleSCMProviderGenerator(t *testing.T) {
+
+	ts := testServerWithPort(t, 8341, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubSCMMockHandler(t)(w, r)
 	}))
+	ts.Start()
+	defer ts.Close()
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
@@ -1518,10 +1539,11 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 }
 
 func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
-	// Use mocked API response to avoid rate-limiting.
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testServerWithPort(t, 8342, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubSCMMockHandler(t)(w, r)
 	}))
+	ts.Start()
+	defer ts.Close()
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
@@ -1592,6 +1614,84 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 			},
 		},
 	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp}))
+}
+
+func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
+	expectedApp := argov1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "argo-cd-guestbook",
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "simple-scm-provider-generator",
+			},
+		},
+		Spec: argov1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &argov1alpha1.ApplicationSource{
+				RepoURL:        "git@github.com:argoproj/argo-cd.git",
+				TargetRevision: "master",
+				Path:           "guestbook",
+			},
+			Destination: argov1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook",
+			},
+		},
+	}
+
+	// Because you can't &"".
+	repoMatch := "argo-cd"
+
+	Given(t).
+		// Create an SCMProviderGenerator-based ApplicationSet
+		When().Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+		Name: "scm-provider-generator-scm-provider-not-allowed",
+	},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ .repository }}-guestbook"},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &argov1alpha1.ApplicationSource{
+						RepoURL:        "{{ .url }}",
+						TargetRevision: "{{ .branch }}",
+						Path:           "guestbook",
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					SCMProvider: &v1alpha1.SCMProviderGenerator{
+						Github: &v1alpha1.SCMProviderGeneratorGithub{
+							Organization: "argoproj",
+							API:          "http://myservice.mynamespace.svc.cluster.local",
+						},
+						Filters: []v1alpha1.SCMProviderGeneratorFilter{
+							{
+								RepositoryMatch: &repoMatch,
+							},
+						},
+					},
+				},
+			},
+		},
+	}).Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp})).
+		And(func() {
+			// app should be listed
+			output, err := fixture.RunCli("appset", "get", "scm-provider-generator-scm-provider-not-allowed")
+			assert.NoError(t, err)
+			assert.Contains(t, output, "scm provider not allowed: http://myservice.mynamespace.svc.cluster.local")
+		})
 }
 
 func TestCustomApplicationFinalizers(t *testing.T) {
@@ -1766,10 +1866,13 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
 }
 
 func TestSimplePullRequestGenerator(t *testing.T) {
-	// Use mocked API response to avoid rate-limiting.
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	ts := testServerWithPort(t, 8343, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubPullMockHandler(t)(w, r)
 	}))
+
+	ts.Start()
+	defer ts.Close()
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
@@ -1844,10 +1947,12 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 }
 
 func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
-	// Use mocked API response to avoid rate-limiting.
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := testServerWithPort(t, 8344, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubPullMockHandler(t)(w, r)
 	}))
+
+	ts.Start()
+	defer ts.Close()
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
@@ -1923,6 +2028,90 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 			},
 		},
 	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp}))
+}
+
+func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
+
+	expectedApp := argov1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "guestbook-1",
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				"app":                  "preview",
+				LabelKeyAppSetInstance: "simple-pull-request-generator",
+			},
+		},
+		Spec: argov1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &argov1alpha1.ApplicationSource{
+				RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
+				TargetRevision: "824a5c987fdfb2b0629e9dbf5f31636c69ba4772",
+				Path:           "kustomize-guestbook",
+				Kustomize: &argov1alpha1.ApplicationSourceKustomize{
+					NamePrefix: "guestbook-1",
+				},
+			},
+			Destination: argov1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook-pull-request",
+			},
+		},
+	}
+
+	Given(t).
+		// Create an PullRequestGenerator-based ApplicationSet
+		When().Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+		Name: "pull-request-generator-not-allowed-scm",
+	},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:   "guestbook-{{ .number }}",
+					Labels: map[string]string{"app": "{{index .labels 0}}"}},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &argov1alpha1.ApplicationSource{
+						RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
+						TargetRevision: "{{ .head_sha }}",
+						Path:           "kustomize-guestbook",
+						Kustomize: &argov1alpha1.ApplicationSourceKustomize{
+							NamePrefix: "guestbook-{{ .number }}",
+						},
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook-{{ .branch }}",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					PullRequest: &v1alpha1.PullRequestGenerator{
+						Github: &v1alpha1.PullRequestGeneratorGithub{
+							API:   "http://myservice.mynamespace.svc.cluster.local",
+							Owner: "applicationset-test-org",
+							Repo:  "argocd-example-apps",
+							Labels: []string{
+								"preview",
+							},
+						},
+					},
+				},
+			},
+		},
+	}).Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp})).
+		And(func() {
+			// app should be listed
+			output, err := fixture.RunCli("appset", "get", "pull-request-generator-not-allowed-scm")
+			assert.NoError(t, err)
+			assert.Contains(t, output, "failed to select pull request service provider: scm provider not allowed: http://myservice.mynamespace.svc.cluster.local")
+		})
 }
 
 func TestGitGeneratorPrivateRepo(t *testing.T) {

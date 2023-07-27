@@ -273,3 +273,80 @@ func TestPullRequestGetSecretRef(t *testing.T) {
 		})
 	}
 }
+
+func TestAllowedSCMProviderPullRequest(t *testing.T) {
+	cases := []struct {
+		name           string
+		providerConfig *argoprojiov1alpha1.PullRequestGenerator
+		expectedError  string
+	}{
+		{
+			name: "Error Github",
+			providerConfig: &argoprojiov1alpha1.PullRequestGenerator{
+				Github: &argoprojiov1alpha1.PullRequestGeneratorGithub{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+			expectedError: "failed to select pull request service provider: scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
+		},
+		{
+			name: "Error Gitlab",
+			providerConfig: &argoprojiov1alpha1.PullRequestGenerator{
+				GitLab: &argoprojiov1alpha1.PullRequestGeneratorGitLab{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+			expectedError: "failed to select pull request service provider: scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
+		},
+		{
+			name: "Error Gitea",
+			providerConfig: &argoprojiov1alpha1.PullRequestGenerator{
+				Gitea: &argoprojiov1alpha1.PullRequestGeneratorGitea{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+			expectedError: "failed to select pull request service provider: scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
+		},
+		{
+			name: "Error Bitbucket",
+			providerConfig: &argoprojiov1alpha1.PullRequestGenerator{
+				BitbucketServer: &argoprojiov1alpha1.PullRequestGeneratorBitbucketServer{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+			expectedError: "failed to select pull request service provider: scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
+		},
+	}
+
+	for _, testCase := range cases {
+		testCaseCopy := testCase
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			pullRequestGenerator := NewPullRequestGenerator(nil, SCMAuthProviders{}, "", []string{
+				"github.myorg.com",
+				"gitlab.myorg.com",
+				"gitea.myorg.com",
+				"bitbucket.myorg.com",
+				"azuredevops.myorg.com",
+			})
+
+			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+						PullRequest: testCaseCopy.providerConfig,
+					}},
+				},
+			}
+
+			_, err := pullRequestGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+
+			assert.Error(t, err, "Must return an error")
+			assert.Equal(t, testCaseCopy.expectedError, err.Error())
+		})
+	}
+}

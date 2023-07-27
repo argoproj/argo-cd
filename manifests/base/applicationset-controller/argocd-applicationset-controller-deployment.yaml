@@ -133,6 +133,12 @@ spec:
                   key: applicationsetcontroller.scm.root.ca.path
                   name: argocd-cmd-params-cm
                   optional: true
+            - name: ARGOCD_APPLICATIONSET_ALLOWED_SCM_PROVIDERS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.allowed.scm.providers
+                  optional: true
           volumeMounts:
             - mountPath: /app/config/ssh
               name: ssh-known-hosts
