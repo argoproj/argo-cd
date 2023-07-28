@@ -203,15 +203,16 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		}
 
 		params := map[string]interface{}{
-			"organization":     repo.Organization,
-			"repository":       repo.Repository,
-			"url":              repo.URL,
-			"branch":           repo.Branch,
-			"sha":              repo.SHA,
-			"short_sha":        repo.SHA[:shortSHALength],
-			"short_sha_7":      repo.SHA[:shortSHALength7],
-			"labels":           strings.Join(repo.Labels, ","),
-			"branchNormalized": utils.SanitizeName(repo.Branch),
+			"organization":           repo.Organization,
+			"repository":             repo.Repository,
+			"url":                    repo.URL,
+			"branch":                 repo.Branch,
+			"sha":                    repo.SHA,
+			"short_sha":              repo.SHA[:shortSHALength],
+			"short_sha_7":            repo.SHA[:shortSHALength7],
+			"labels":                 strings.Join(repo.Labels, ","),
+			"branchNormalized":       utils.SanitizeName(repo.Branch),
+			"organizationNormalized": utils.SanitizeName(repo.Organization),
 		}
 
 		err := appendTemplatedValues(appSetGenerator.SCMProvider.Values, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)

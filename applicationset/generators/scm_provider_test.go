@@ -163,6 +163,35 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Value Normalization",
+			repos: []*scm_provider.Repository{
+				{
+					Organization: "myorg/myteam",
+					Repository:   "repo4",
+					URL:          "git@github.com:myorg/repo3.git",
+					Branch:       "my/main",
+					SHA:          "0bc57212c3cbbec69d20b34c507284bd300def5b",
+					Labels:       []string{"prod", "staging"},
+				},
+			},
+			expected: []map[string]interface{}{
+				{
+					"organization":                  "myorg/myteam",
+					"organizationNormalized":        "myorg-myteam",
+					"repository":                    "repo3",
+					"url":                           "git@github.com:myorg/repo3.git",
+					"branch":                        "my/main",
+					"branchNormalized":              "my-main",
+					"sha":                           "0bc57212c3cbbec69d20b34c507284bd300def5b",
+					"short_sha":                     "0bc57212",
+					"short_sha_7":                   "0bc5721",
+					"labels":                        "prod,staging",
+					"values.foo":                    "bar",
+					"values.should_i_force_push_to": "main?",
+				},
+			},
+		},
 	}
 
 	for _, testCase := range cases {

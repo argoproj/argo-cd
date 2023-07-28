@@ -408,6 +408,7 @@ spec:
 * `short_sha_7`: The abbreviated Git commit SHA for the branch (7 chars or the length of the `sha` if it's shorter).
 * `labels`: A comma-separated list of repository labels.
 * `branchNormalized`: The value of `branch` normalized to contain only lowercase alphanumeric characters, '-' or '.'.
+* `organizationNormalized`: The value of `organization` normalized to contain only lowercase alphanumeric characters, '-' or '.'.
 
 ## Pass additional key-value pairs via `values` field
 
@@ -432,7 +433,7 @@ spec:
             secretName: mypassword
             key: password
       values:
-        name: "{{organization}}-{{repository}}"
+        name: "{{organizationNormalized}}-{{repository}}"
 
   template:
     metadata:
