@@ -686,7 +686,7 @@ func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.Applica
 	if err != nil {
 		return fmt.Errorf("failed to convert found application to unstructured: %w", err)
 	}
-	result, err := argodiff.Normalize([]*unstructured.Unstructured{{Object: unstructuredFound}}, []*unstructured.Unstructured{{Object: unstructuredGenerated}}, diffConfig)
+	result, err := argodiff.Normalize([]*unstructured.Unstructured{unstructuredFound}, []*unstructured.Unstructured{unstructuredGenerated}, diffConfig)
 	if err != nil {
 		return fmt.Errorf("failed to normalize application spec: %w", err)
 	}
@@ -709,17 +709,12 @@ func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.Applica
 	return nil
 }
 
-func appToUnstructured(app *argov1alpha1.Application) (map[string]interface{}, error) {
-	jsonApp, err := json.Marshal(app)
+func appToUnstructured(app *argov1alpha1.Application) (*unstructured.Unstructured, error) {
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(app)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal app to json: %w", err)
+		return nil, fmt.Errorf("failed to convert app object to unstructured: %w", err)
 	}
-	var unstructuredApp map[string]interface{}
-	err = json.Unmarshal(jsonApp, &unstructuredApp)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal app to %T: %w", unstructuredApp, err)
-	}
-	return unstructuredApp, nil
+	return &unstructured.Unstructured{Object: u}, nil
 }
 
 // createInCluster will filter from the desiredApplications only the application that needs to be created

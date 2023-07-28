@@ -14,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -167,6 +168,9 @@ func EnsureCleanState(t *testing.T) {
 
 	// create tmp dir
 	FailOnErr(Run("", "mkdir", "-p", TmpDir))
+
+	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
+	fixture.LoginAs("admin")
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
