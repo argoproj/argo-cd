@@ -11,7 +11,10 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 )
 
-func rewrapError(err error, code codes.Code) error {
+func rewrapError(err error, code codes.Code, msg ...string) error {
+	if len(msg) > 0 {
+		return status.Errorf(code, "%s", msg[0])
+	}
 	return status.Errorf(code, err.Error())
 }
 
@@ -83,7 +86,7 @@ func kubeErrToGRPC(err error) error {
 	case apierr.IsForbidden(err):
 		err = rewrapError(err, codes.PermissionDenied)
 	case apierr.IsTimeout(err):
-		err = rewrapError(err, codes.DeadlineExceeded)
+		err = rewrapError(err, codes.DeadlineExceeded, "Command timed out before the specified conditions were met")
 	case apierr.IsServerTimeout(err):
 		err = rewrapError(err, codes.Unavailable)
 	case apierr.IsConflict(err):
