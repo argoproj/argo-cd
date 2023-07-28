@@ -12,7 +12,7 @@ The GitHub notification service changes commit status using [GitHub Apps](https:
 ## Configuration
 
 1. Create a GitHub Apps using https://github.com/settings/apps/new
-2. Change repository permissions to enable write commit statuses
+2. Change repository permissions to enable write commit statuses and/or deployments
 ![2](https://user-images.githubusercontent.com/18019529/108397381-3ca57980-725b-11eb-8d17-5b8992dc009e.png)
 3. Generate a private key, and download it automatically
 ![3](https://user-images.githubusercontent.com/18019529/108397926-d4a36300-725b-11eb-83fe-74795c8c3e03.png)
@@ -69,6 +69,12 @@ template.app-deployed: |
       state: success
       label: "continuous-delivery/{{.app.metadata.name}}"
       targetURL: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
+    deployment:
+      state: success
+      environment: production
+      environmentURL: "https://{{.app.metadata.name}}.example.com"
+      logURL: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
+      requiredContexts: []
 ```
 
 **Notes**:

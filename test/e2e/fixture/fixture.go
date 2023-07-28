@@ -29,6 +29,7 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -92,6 +93,7 @@ type ACL struct {
 const (
 	RepoURLTypeFile                 = "file"
 	RepoURLTypeHTTPS                = "https"
+	RepoURLTypeHTTPSOrg             = "https-org"
 	RepoURLTypeHTTPSClientCert      = "https-cc"
 	RepoURLTypeHTTPSSubmodule       = "https-sub"
 	RepoURLTypeHTTPSSubmoduleParent = "https-par"
@@ -103,6 +105,8 @@ const (
 	RepoURLTypeHelmOCI              = "helm-oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
+	GithubAppID                     = "2978632978"
+	GithubAppInstallationID         = "7893789433789"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
 	HelmOCIRegistryURL              = "localhost:5000/myrepo"
 )
@@ -139,8 +143,7 @@ func GetEnvWithDefault(envName, defaultValue string) string {
 // IsRemote returns true when the tests are being run against a workload that
 // is running in a remote cluster.
 func IsRemote() bool {
-	r := os.Getenv("ARGOCD_E2E_REMOTE")
-	return r == "true"
+	return env.ParseBoolFromEnv("ARGOCD_E2E_REMOTE", false)
 }
 
 // IsLocal returns when the tests are being run against a local workload
@@ -251,6 +254,7 @@ const (
 	EnvRepoURLTypeSSHSubmodule         = "ARGOCD_E2E_REPO_SSH_SUBMODULE"
 	EnvRepoURLTypeSSHSubmoduleParent   = "ARGOCD_E2E_REPO_SSH_SUBMODULE_PARENT"
 	EnvRepoURLTypeHTTPS                = "ARGOCD_E2E_REPO_HTTPS"
+	EnvRepoURLTypeHTTPSOrg             = "ARGOCD_E2E_REPO_HTTPS_ORG"
 	EnvRepoURLTypeHTTPSClientCert      = "ARGOCD_E2E_REPO_HTTPS_CLIENT_CERT"
 	EnvRepoURLTypeHTTPSSubmodule       = "ARGOCD_E2E_REPO_HTTPS_SUBMODULE"
 	EnvRepoURLTypeHTTPSSubmoduleParent = "ARGOCD_E2E_REPO_HTTPS_SUBMODULE_PARENT"
@@ -272,6 +276,9 @@ func RepoURL(urlType RepoURLType) string {
 	// Git server via HTTPS
 	case RepoURLTypeHTTPS:
 		return GetEnvWithDefault(EnvRepoURLTypeHTTPS, "https://localhost:9443/argo-e2e/testdata.git")
+	// Git "organisation" via HTTPS
+	case RepoURLTypeHTTPSOrg:
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPSOrg, "https://localhost:9443/argo-e2e")
 	// Git server via HTTPS - Client Cert protected
 	case RepoURLTypeHTTPSClientCert:
 		return GetEnvWithDefault(EnvRepoURLTypeHTTPSClientCert, "https://localhost:9444/argo-e2e/testdata.git")
@@ -443,17 +450,6 @@ func SetPermissions(permissions []ACL, username string, roleName string) {
 	})
 }
 
-func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(plugin)
-		if err != nil {
-			return err
-		}
-		cm.Data["configManagementPlugins"] = string(yamlBytes)
-		return nil
-	})
-}
-
 func SetResourceFilter(filters settings.ResourcesFilter) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		exclusions, err := yaml.Marshal(filters.ResourceExclusions)
@@ -514,7 +510,30 @@ func SetParamInNotificationsConfigMap(key, value string) {
 	})
 }
 
-func EnsureCleanState(t *testing.T) {
+type TestOption func(option *testOption)
+
+type testOption struct {
+	testdata string
+}
+
+func newTestOption(opts ...TestOption) *testOption {
+	to := &testOption{
+		testdata: "testdata",
+	}
+	for _, opt := range opts {
+		opt(to)
+	}
+	return to
+}
+
+func WithTestData(testdata string) TestOption {
+	return func(option *testOption) {
+		option.testdata = testdata
+	}
+}
+
+func EnsureCleanState(t *testing.T, opts ...TestOption) {
+	opt := newTestOption(opts...)
 	// In large scenarios, we can skip tests that already run
 	SkipIfAlreadyRun(t)
 	// Register this test after it has been run & was successfull
@@ -632,7 +651,7 @@ func EnsureCleanState(t *testing.T) {
 	}
 
 	// set-up tmp repo, must have unique name
-	FailOnErr(Run("", "cp", "-Rf", "testdata", repoDirectory()))
+	FailOnErr(Run("", "cp", "-Rf", opt.testdata, repoDirectory()))
 	FailOnErr(Run(repoDirectory(), "chmod", "777", "."))
 	FailOnErr(Run(repoDirectory(), "git", "init"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
@@ -830,6 +849,18 @@ func CreateSubmoduleRepos(repoType string) {
 	}
 
 	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldEnv))
+}
+
+func RemoveSubmodule() {
+	log.Info("removing submodule")
+
+	FailOnErr(Run(submoduleParentDirectory(), "git", "rm", "submodule/test"))
+	FailOnErr(Run(submoduleParentDirectory(), "touch", "submodule/.gitkeep"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "submodule/.gitkeep"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-m", "remove submodule"))
+	if IsRemote() {
+		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "-f", "origin", "master"))
+	}
 }
 
 // RestartRepoServer performs a restart of the repo server deployment and waits

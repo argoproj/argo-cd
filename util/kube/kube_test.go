@@ -184,6 +184,17 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 	assert.Equal(t, "my-app", s.ObjectMeta.Annotations[common.LabelKeyAppInstance])
 }
 
+func TestSetAppInstanceAnnotationWithInvalidData(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
+	assert.Error(t, err)
+	assert.Equal(t, "failed to get annotations from target object /v1, Kind=Service /my-service: .metadata.annotations accessor error: contains non-string key in the map: <nil> is of the type <nil>, expected string", err.Error())
+}
+
 func TestGetAppInstanceAnnotation(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
@@ -193,7 +204,21 @@ func TestGetAppInstanceAnnotation(t *testing.T) {
 	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
 	assert.Nil(t, err)
 
-	assert.Equal(t, "my-app", GetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance))
+	annotation, err := GetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance)
+	assert.Nil(t, err)
+	assert.Equal(t, "my-app", annotation)
+}
+
+func TestGetAppInstanceAnnotationWithInvalidData(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+
+	_, err = GetAppInstanceAnnotation(&obj, "valid-annotation")
+	assert.Error(t, err)
+	assert.Equal(t, "failed to get annotations from target object /v1, Kind=Service /my-service: .metadata.annotations accessor error: contains non-string key in the map: <nil> is of the type <nil>, expected string", err.Error())
 }
 
 func TestGetAppInstanceLabel(t *testing.T) {
@@ -204,7 +229,20 @@ func TestGetAppInstanceLabel(t *testing.T) {
 	assert.Nil(t, err)
 	err = SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
 	assert.Nil(t, err)
-	assert.Equal(t, "my-app", GetAppInstanceLabel(&obj, common.LabelKeyAppInstance))
+	label, err := GetAppInstanceLabel(&obj, common.LabelKeyAppInstance)
+	assert.Nil(t, err)
+	assert.Equal(t, "my-app", label)
+}
+
+func TestGetAppInstanceLabelWithInvalidData(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	_, err = GetAppInstanceLabel(&obj, "valid-label")
+	assert.Error(t, err)
+	assert.Equal(t, "failed to get labels for /v1, Kind=Service /my-service: .metadata.labels accessor error: contains non-string key in the map: <nil> is of the type <nil>, expected string", err.Error())
 }
 
 func TestRemoveLabel(t *testing.T) {
@@ -215,7 +253,20 @@ func TestRemoveLabel(t *testing.T) {
 	assert.Nil(t, err)
 	obj.SetLabels(map[string]string{"test": "value"})
 
-	RemoveLabel(&obj, "test")
+	err = RemoveLabel(&obj, "test")
+	assert.Nil(t, err)
 
 	assert.Nil(t, obj.GetLabels())
+}
+
+func TestRemoveLabelWithInvalidData(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+
+	err = RemoveLabel(&obj, "valid-label")
+	assert.Error(t, err)
+	assert.Equal(t, "failed to get labels for /v1, Kind=Service /my-service: .metadata.labels accessor error: contains non-string key in the map: <nil> is of the type <nil>, expected string", err.Error())
 }

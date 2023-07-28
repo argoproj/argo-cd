@@ -197,6 +197,18 @@ spec:
                 name: argocd-cmd-params-cm
                 key: server.http.cookie.maxnumber
                 optional: true
+        - name: ARGOCD_SERVER_LISTEN_ADDRESS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.listen.address
+                optional: true
+        - name: ARGOCD_SERVER_METRICS_LISTEN_ADDRESS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.metrics.listen.address
+                optional: true
         - name: ARGOCD_SERVER_OTLP_ADDRESS
           valueFrom:
               configMapKeyRef:
