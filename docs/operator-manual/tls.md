@@ -224,10 +224,7 @@ to not use TLS at all.
 In this case, you will need to:
 
 * Configure `argocd-repo-server` with TLS on the gRPC API disabled by specifying
-  the `--disable-tls` parameter to the pod container's startup arguments.
-  Also, consider restricting listening addresses to the loopback interface by specifying
-  `--listen 127.0.0.1` parameter, so that insecure endpoint is not exposed on
-  the pod's network interfaces, but still available to the side-car container.
+  the `--disable-tls` parameter to the pod container's startup arguments
 * Configure `argocd-server` and `argocd-application-controller` to not use TLS
   for connections to the `argocd-repo-server` by specifying the parameter
   `--repo-server-plaintext` to the pod container's startup arguments

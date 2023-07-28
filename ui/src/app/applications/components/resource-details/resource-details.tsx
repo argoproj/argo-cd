@@ -41,6 +41,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
 
+    const page = parseInt(new URLSearchParams(appContext.history.location.search).get('page'), 10) || 0;
+    const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
+
     const getResourceTabs = (
         node: ResourceNode,
         state: State,
@@ -107,6 +110,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     applicationName={application.metadata.name}
                                     applicationNamespace={application.metadata.namespace}
                                     containerName={AppUtils.getContainerName(podState, activeContainer)}
+                                    page={{number: page, untilTimes}}
+                                    setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
                                     containerGroups={containerGroups}
                                     onClickContainer={onClickContainer}
                                 />
@@ -319,7 +324,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                             <i className='fa fa-ellipsis-v' />
                                         </button>
                                     )}>
-                                    {() => AppUtils.renderResourceActionMenu(selectedNode, application, appContext)}
+                                    {() => AppUtils.renderResourceActionMenu(selectedNode, application, tree, {apis: appContext})}
                                 </DropDown>
                             </div>
                             <Tabs

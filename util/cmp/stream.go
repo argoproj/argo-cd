@@ -12,12 +12,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
-
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/tgzstream"
+	log "github.com/sirupsen/logrus"
 )
 
 // StreamSender defines the contract to send App files over stream
@@ -34,7 +33,7 @@ type StreamReceiver interface {
 // ReceiveRepoStream will receive the repository files and save them
 // in destDir. Will return the stream metadata if no error. Metadata
 // will be nil in case of errors.
-func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir string, preserveFileMode bool) (*pluginclient.ManifestRequestMetadata, error) {
+func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir string) (*pluginclient.ManifestRequestMetadata, error) {
 	header, err := receiver.Recv()
 	if err != nil {
 		return nil, fmt.Errorf("error receiving stream header: %w", err)
@@ -48,7 +47,7 @@ func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir str
 	if err != nil {
 		return nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
-	err = files.Untgz(destDir, tgzFile, math.MaxInt64, preserveFileMode)
+	err = files.Untgz(destDir, tgzFile, math.MaxInt64)
 	if err != nil {
 		return nil, fmt.Errorf("error decompressing tgz file: %w", err)
 	}

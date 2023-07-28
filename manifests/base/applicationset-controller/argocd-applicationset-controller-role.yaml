@@ -3,8 +3,8 @@ kind: Role
 metadata:
   labels:
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd
-    app.kubernetes.io/component: applicationset-controller
+    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/component: controller
   name: argocd-applicationset-controller
 rules:
   - apiGroups:

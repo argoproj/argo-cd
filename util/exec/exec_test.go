@@ -1,6 +1,7 @@
 package exec
 
 import (
+	"os"
 	"os/exec"
 	"regexp"
 	"syscall"
@@ -12,12 +13,13 @@ import (
 )
 
 func Test_timeout(t *testing.T) {
+	defer func() { _ = os.Unsetenv("ARGOCD_EXEC_TIMEOUT") }()
 	t.Run("Default", func(t *testing.T) {
 		initTimeout()
 		assert.Equal(t, 90*time.Second, timeout)
 	})
 	t.Run("Default", func(t *testing.T) {
-		t.Setenv("ARGOCD_EXEC_TIMEOUT", "1s")
+		_ = os.Setenv("ARGOCD_EXEC_TIMEOUT", "1s")
 		initTimeout()
 		assert.Equal(t, 1*time.Second, timeout)
 	})
@@ -33,7 +35,7 @@ func TestHideUsernamePassword(t *testing.T) {
 	_, err := RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), nil)
 	assert.NotEmpty(t, err)
 
-	redactor := func(text string) string {
+	var redactor = func(text string) string {
 		return regexp.MustCompile("(--username|--password) [^ ]*").ReplaceAllString(text, "$1 ******")
 	}
 	_, err = RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), redactor)
