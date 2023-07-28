@@ -1,3 +1,3 @@
 actions = {}
-actions["create-job"] = {}
+actions["create job"] = {}
 return actions
