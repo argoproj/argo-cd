@@ -110,7 +110,7 @@ func Test_kubeErrToGRPC(t *testing.T) {
 			},
 			expectedErrFn: func() error {
 				err := apierr.NewServerTimeout(schema.GroupResource{}, "update", 1)
-				grpcStatus := status.New(codes.Unavailable, err.Error())
+				grpcStatus := status.New(codes.Unavailable, " Command timed out before the specified conditions were met")
 				return grpcStatus.Err()
 			},
 			expectedGRPCStatus: status.New(codes.Unavailable, apierr.NewServerTimeout(schema.GroupResource{}, "update", 1).Error()),
