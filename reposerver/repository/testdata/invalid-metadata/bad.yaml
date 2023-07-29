@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-map-annotation
+  annotations:
+    invalid: true
+stringData:
+  foo: bar
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-map-label
+  labels:
+    invalid: true
+stringData:
+  foo: bar

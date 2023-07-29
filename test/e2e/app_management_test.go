@@ -476,6 +476,24 @@ func TestDeleteAppResource(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusMissing))
 }
 
+// Fix for issue #2677, support PATCH in HTTP service
+func TestPatchHttp(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		PatchAppHttp(`{"metadata": {"labels": { "test": "patch" }, "annotations": { "test": "patch" }}}`).
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, "patch", app.Labels["test"])
+			assert.Equal(t, "patch", app.Annotations["test"])
+		})
+
+}
+
 // demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
 func TestImmutableChange(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
