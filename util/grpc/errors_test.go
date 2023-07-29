@@ -113,7 +113,19 @@ func Test_kubeErrToGRPC(t *testing.T) {
 				grpcStatus := status.New(codes.Unavailable, err.Error())
 				return grpcStatus.Err()
 			},
-			expectedGRPCStatus: status.New(codes.Unavailable, "Command timed out before the specified conditions were met"),
+			expectedGRPCStatus: status.New(codes.Unavailable, apierr.NewServerTimeout(schema.GroupResource{}, "update", 1).Error()),
+		},
+		{
+			name: "will return DeadlineExceeded if apierr.IsTimeout",
+			givenErrFn: func() error {
+				return apierr.NewTimeoutError("context exceeded", 1)
+			},
+			expectedErrFn: func() error {
+				grpcStatus := status.New(codes.DeadlineExceeded, "Command timed out before the specified conditions were met")
+				return grpcStatus.Err()
+			},
+			expectedGRPCStatus: status.New(codes.DeadlineExceeded, "Command timed out before the specified conditions were met"),
+		},
 		},
 		{
 			name: "will return Aborted if apierr.IsConflict",
