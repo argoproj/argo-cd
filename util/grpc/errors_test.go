@@ -126,7 +126,6 @@ func Test_kubeErrToGRPC(t *testing.T) {
 			},
 			expectedGRPCStatus: status.New(codes.DeadlineExceeded, "Command timed out before the specified conditions were met"),
 		},
-		},
 		{
 			name: "will return Aborted if apierr.IsConflict",
 			givenErrFn: func() error {
