@@ -331,6 +331,23 @@ func isActionDisabled(actionsMap interface{}) bool {
 	return false
 }
 
+// iconClass gets the icon class from the actions map, if it exists
+func iconClass(actionsMap interface{}) string {
+	actions, ok := actionsMap.(map[string]interface{})
+	if !ok {
+		return ""
+	}
+	for key, val := range actions {
+		switch vv := val.(type) {
+		case string:
+			if key == "iconClass" {
+				return vv
+			}
+		}
+	}
+	return ""
+}
+
 func emptyResourceActionFromLua(i interface{}) bool {
 	_, ok := i.([]interface{})
 	return ok
