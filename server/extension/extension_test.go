@@ -393,6 +393,9 @@ func TestExtensionsHandler(t *testing.T) {
 		clusterName := "clusterName"
 		clusterURL := "clusterURL"
 		backendSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			for k, v := range r.Header {
+				w.Header().Add(k, strings.Join(v, ","))
+			}
 			fmt.Fprintln(w, backendResponse)
 		}))
 		defer backendSrv.Close()
@@ -417,6 +420,7 @@ func TestExtensionsHandler(t *testing.T) {
 		require.NoError(t, err)
 		actual := strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, backendResponse, actual)
+		assert.Equal(t, clusterURL, resp.Header.Get(extension.HeaderArgoCDTargetCluster))
 	})
 	t.Run("will route requests with 2 backends for the same extension successfully", func(t *testing.T) {
 		// given

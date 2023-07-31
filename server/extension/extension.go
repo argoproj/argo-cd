@@ -44,6 +44,17 @@ const (
 	// Example:
 	//     Argocd-Project-Name: "default"
 	HeaderArgoCDProjectName = "Argocd-Project-Name"
+
+	// HeaderArgoCDTargetCluster defines the target cluster URL
+	// that the application is associated with. This header will
+	// be populated by the extension proxy and passed to the
+	// configured backend service. If this header is passed by
+	// the client, its value will be overriden by the extension
+	// handler.
+	//
+	// Example:
+	//     Argocd-Target-Cluster-URL: "https://kubernetes.default.svc.cluster.local"
+	HeaderArgoCDTargetCluster = "Argocd-Target-Cluster-URL"
 )
 
 // RequestResources defines the authorization scope for
@@ -580,17 +591,19 @@ func (m *Manager) CallExtension(extName string, registry ProxyRegistry) func(htt
 			return
 		}
 
-		sanitizeRequest(r, extName)
+		prepareRequest(r, extName, app)
 		m.log.Debugf("proxing request for extension %q", extName)
 		proxy.ServeHTTP(w, r)
 	}
 }
 
-// sanitizeRequest is reponsible for preparing and cleaning the given
+// prepareRequest is reponsible for preparing and cleaning the given
 // request, removing sensitive information before forwarding it to the
 // proxy extension.
-func sanitizeRequest(r *http.Request, extName string) {
+func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application) {
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
 	r.Header.Del("Cookie")
 	r.Header.Del("Authorization")
+	r.Header.Del(HeaderArgoCDTargetCluster)
+	r.Header.Add(HeaderArgoCDTargetCluster, app.Spec.Destination.Server)
 }
