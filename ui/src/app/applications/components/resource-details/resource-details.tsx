@@ -1,4 +1,4 @@
-import {DataLoader, DropDown, Tab, Tabs} from 'argo-ui';
+import {DataLoader, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
 import {useState} from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
@@ -40,6 +40,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const tab = new URLSearchParams(appContext.history.location.search).get('tab');
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
+
+    const page = parseInt(new URLSearchParams(appContext.history.location.search).get('page'), 10) || 0;
+    const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
 
     const getResourceTabs = (
         node: ResourceNode,
@@ -107,6 +110,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     applicationName={application.metadata.name}
                                     applicationNamespace={application.metadata.namespace}
                                     containerName={AppUtils.getContainerName(podState, activeContainer)}
+                                    page={{number: page, untilTimes}}
+                                    setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
                                     containerGroups={containerGroups}
                                     onClickContainer={onClickContainer}
                                 />
@@ -168,9 +173,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         key='appDetails'
                         input={application}
                         load={app =>
-                            services.repos.appDetails(AppUtils.getAppDefaultSource(app), app.metadata.name, app.spec.project).catch(() => ({
+                            services.repos.appDetails(app.spec.source, app.metadata.name, app.spec.project).catch(() => ({
                                 type: 'Directory' as AppSourceType,
-                                path: AppUtils.getAppDefaultSource(app).path
+                                path: application.spec.source.path
                             }))
                         }>
                         {(details: RepoAppDetails) => (
@@ -281,8 +286,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const execEnabled = settings.execEnabled;
                         const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
                         const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
-                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
-                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links};
+                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed};
                     }}>
                     {data => (
                         <React.Fragment>
@@ -304,23 +308,11 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
                                     style={{marginLeft: 'auto', marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
-                                    <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
+                                    <i className='fa fa-sync-alt' /> SYNC
                                 </button>
-                                <button
-                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)}
-                                    style={{marginRight: '5px'}}
-                                    className='argo-button argo-button--base'>
-                                    <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
+                                <button onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)} className='argo-button argo-button--base'>
+                                    <i className='fa fa-trash' /> DELETE
                                 </button>
-                                <DropDown
-                                    isMenu={true}
-                                    anchor={() => (
-                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                            <i className='fa fa-ellipsis-v' />
-                                        </button>
-                                    )}>
-                                    {() => AppUtils.renderResourceActionMenu(selectedNode, application, appContext)}
-                                </DropDown>
                             </div>
                             <Tabs
                                 navTransparent={true}
@@ -335,15 +327,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                             title: 'SUMMARY',
                                             icon: 'fa fa-file-alt',
                                             key: 'summary',
-                                            content: (
-                                                <ApplicationNodeInfo
-                                                    application={application}
-                                                    live={data.liveState}
-                                                    controlled={data.controlledState}
-                                                    node={selectedNode}
-                                                    links={data.links}
-                                                />
-                                            )
+                                            content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
                                         }
                                     ],
                                     data.execEnabled,

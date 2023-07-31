@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/redis/go-redis/v9"
+	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +19,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/pointer"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -116,13 +115,10 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 		}
 		batch := clustersList.Items[batchStart:batchEnd]
 		_ = kube.RunAllAsync(len(batch), func(i int) error {
-			clusterShard := 0
 			cluster := batch[i]
+			clusterShard := 0
 			if replicas > 0 {
-				distributionFunction := sharding.GetDistributionFunction(argoDB, common.DefaultShardingAlgorithm)
-				distributionFunction(&cluster)
-				cluster.Shard = pointer.Int64Ptr(int64(clusterShard))
-				log.Infof("Cluster with uid: %s will be processed by shard %d", cluster.ID, clusterShard)
+				clusterShard = sharding.GetShardByID(cluster.ID, replicas)
 			}
 
 			if shard != -1 && clusterShard != shard {
@@ -225,11 +221,11 @@ func printStatsSummary(clusters []ClusterWithInfo) {
 func runClusterNamespacesCommand(ctx context.Context, clientConfig clientcmd.ClientConfig, action func(appClient *versioned.Clientset, argoDB db.ArgoDB, clusters map[string][]string) error) error {
 	clientCfg, err := clientConfig.ClientConfig()
 	if err != nil {
-		return fmt.Errorf("error while creating client config: %w", err)
+		return err
 	}
 	namespace, _, err := clientConfig.Namespace()
 	if err != nil {
-		return fmt.Errorf("error while getting namespace from client config: %w", err)
+		return err
 	}
 
 	kubeClient := kubernetes.NewForConfigOrDie(clientCfg)
@@ -239,16 +235,17 @@ func runClusterNamespacesCommand(ctx context.Context, clientConfig clientcmd.Cli
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClient)
 	clustersList, err := argoDB.ListClusters(ctx)
 	if err != nil {
-		return fmt.Errorf("error listing clusters: %w", err)
+		return err
 	}
 	appItems, err := appClient.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("error listing application: %w", err)
+		return err
 	}
 	apps := appItems.Items
 	for i, app := range apps {
-		if err := argo.ValidateDestination(ctx, &app.Spec.Destination, argoDB); err != nil {
-			return fmt.Errorf("error validating application destination: %w", err)
+		err := argo.ValidateDestination(ctx, &app.Spec.Destination, argoDB)
+		if err != nil {
+			return err
 		}
 		apps[i] = app
 	}
@@ -269,7 +266,9 @@ func runClusterNamespacesCommand(ctx context.Context, clientConfig clientcmd.Cli
 					}
 				}
 			} else {
-				nsSet[app.Spec.Destination.Namespace] = true
+				if app.Spec.Destination.Server == cluster.Server {
+					nsSet[app.Spec.Destination.Namespace] = true
+				}
 			}
 		}
 		var namespaces []string
@@ -350,14 +349,15 @@ func NewClusterEnableNamespacedMode() *cobra.Command {
 
 					cluster, err := argoDB.GetCluster(ctx, server)
 					if err != nil {
-						return fmt.Errorf("error getting cluster from server: %w", err)
+						return err
 					}
 					cluster.Namespaces = namespaces
 					cluster.ClusterResources = clusterResources
 					fmt.Printf("Setting cluster %s namespaces to %v...", server, namespaces)
 					if !dryRun {
-						if _, err = argoDB.UpdateCluster(ctx, cluster); err != nil {
-							return fmt.Errorf("error updating cluster: %w", err)
+						_, err = argoDB.UpdateCluster(ctx, cluster)
+						if err != nil {
+							return err
 						}
 						fmt.Println("done")
 					} else {
@@ -405,7 +405,7 @@ func NewClusterDisableNamespacedMode() *cobra.Command {
 
 					cluster, err := argoDB.GetCluster(ctx, server)
 					if err != nil {
-						return fmt.Errorf("error getting cluster from server: %w", err)
+						return err
 					}
 
 					if len(cluster.Namespaces) == 0 {
@@ -415,8 +415,9 @@ func NewClusterDisableNamespacedMode() *cobra.Command {
 					cluster.Namespaces = nil
 					fmt.Printf("Disabling namespaced mode for cluster %s...", server)
 					if !dryRun {
-						if _, err = argoDB.UpdateCluster(ctx, cluster); err != nil {
-							return fmt.Errorf("error updating cluster: %w", err)
+						_, err = argoDB.UpdateCluster(ctx, cluster)
+						if err != nil {
+							return err
 						}
 						fmt.Println("done")
 					} else {
@@ -545,11 +546,6 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 				return
 			}
 
-			if clusterOpts.InCluster && clusterOpts.ClusterEndpoint != "" {
-				log.Fatal("Can only use one of --in-cluster or --cluster-endpoint")
-				return
-			}
-
 			overrides := clientcmd.ConfigOverrides{
 				Context: *clstContext,
 			}
@@ -589,12 +585,8 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			errors.CheckError(err)
 
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, bearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
-			if clusterOpts.InClusterEndpoint() {
+			if clusterOpts.InCluster {
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
-			}
-			if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {
-				// Ignore `kube-public` cluster endpoints, since this command is intended to run without invoking any network connections.
-				log.Warn("kube-public cluster endpoints are not supported. Falling back to the endpoint listed in the kubconfig context.")
 			}
 			if clusterOpts.Shard >= 0 {
 				clst.Shard = &clusterOpts.Shard

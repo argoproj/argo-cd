@@ -2,18 +2,17 @@
 
 Patch application
 
+### Synopsis
+
+Examples:
+	# Update an application's source path using json patch
+	argocd app patch myapplication --patch='[{"op": "replace", "path": "/spec/source/path", "value": "newPath"}]' --type json
+
+	# Update an application's repository target revision using merge patch
+	argocd app patch myapplication --patch '{"spec": { "source": { "targetRevision": "master" } }}' --type merge
+
 ```
 argocd app patch APPNAME [flags]
-```
-
-### Examples
-
-```
-  # Update an application's source path using json patch
-  argocd app patch myapplication --patch='[{"op": "replace", "path": "/spec/source/path", "value": "newPath"}]' --type json
-
-  # Update an application's repository target revision using merge patch
-  argocd app patch myapplication --patch '{"spec": { "source": { "targetRevision": "master" } }}' --type merge
 ```
 
 ### Options

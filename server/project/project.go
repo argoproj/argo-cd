@@ -6,7 +6,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/v2/util/db"
+
 	"github.com/argoproj/pkg/sync"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
@@ -21,15 +22,12 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	listersv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/server/deeplinks"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/db"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/session"
@@ -94,7 +92,7 @@ func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateR
 	}
 	err = validateProject(prj)
 	if err != nil {
-		return nil, fmt.Errorf("error validating project: %w", err)
+		return nil, err
 	}
 
 	s.projectLock.Lock(q.Project)
@@ -157,43 +155,6 @@ func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateR
 
 }
 
-func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksRequest) (*application.LinksResponse, error) {
-	projName := q.GetName()
-
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, projName); err != nil {
-		log.WithFields(map[string]interface{}{
-			"project": projName,
-		}).Warnf("unauthorized access to project, error=%v", err.Error())
-		return nil, fmt.Errorf("unauthorized access to project %v", projName)
-	}
-
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, projName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	// sanitize project jwt tokens
-	proj.Status = v1alpha1.AppProjectStatus{}
-
-	obj, err := kube.ToUnstructured(proj)
-	if err != nil {
-		return nil, fmt.Errorf("error getting application: %w", err)
-	}
-
-	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ProjectDeepLinks)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
-	}
-
-	deeplinksObj := deeplinks.CreateDeepLinksObject(nil, nil, nil, obj)
-	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(deeplinksObj, obj.GetName(), deepLinks)
-	if len(errorList) > 0 {
-		log.Errorf("errorList while evaluating project deep links, %v", strings.Join(errorList, ", "))
-	}
-
-	return finalList, nil
-}
-
 // DeleteToken deletes a token in a project
 func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteRequest) (*project.EmptyResponse, error) {
 	var resp *project.EmptyResponse
@@ -212,7 +173,7 @@ func (s *Server) deleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	}
 	err = validateProject(prj)
 	if err != nil {
-		return nil, fmt.Errorf("error validating project: %w", err)
+		return nil, err
 	}
 
 	s.projectLock.Lock(q.Project)
@@ -253,7 +214,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 	q.Project.NormalizePolicies()
 	err := validateProject(q.Project)
 	if err != nil {
-		return nil, fmt.Errorf("error validating project: %w", err)
+		return nil, err
 	}
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(ctx, q.Project, metav1.CreateOptions{})
 	if apierr.IsAlreadyExists(err) {
@@ -401,7 +362,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	}
 
 	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
-		if oldProj.IsSourcePermitted(a.Spec.GetSource()) {
+		if oldProj.IsSourcePermitted(a.Spec.Source) {
 			srcValidatedApps = append(srcValidatedApps, a)
 		}
 
@@ -419,7 +380,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	invalidDstCount := 0
 
 	for _, a := range srcValidatedApps {
-		if !q.Project.IsSourcePermitted(a.Spec.GetSource()) {
+		if !q.Project.IsSourcePermitted(a.Spec.Source) {
 			invalidSrcCount++
 		}
 	}
@@ -507,7 +468,7 @@ func (s *Server) logEvent(a *v1alpha1.AppProject, ctx context.Context, reason st
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogAppProjEvent(a, eventInfo, message, user)
+	s.auditLogger.LogAppProjEvent(a, eventInfo, message)
 }
 
 func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindowsQuery) (*project.SyncWindowsResponse, error) {
@@ -542,11 +503,11 @@ func (s *Server) NormalizeProjs() error {
 			if proj.NormalizeJWTTokens() {
 				_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(context.Background(), &proj, metav1.UpdateOptions{})
 				if err == nil {
-					log.Infof("Successfully normalized project %s.", proj.Name)
+					log.Info(fmt.Sprintf("Successfully normalized project %s.", proj.Name))
 					break
 				}
 				if !apierr.IsConflict(err) {
-					log.Warnf("Failed normalize project %s", proj.Name)
+					log.Warn(fmt.Sprintf("Failed normalize project %s", proj.Name))
 					break
 				}
 				projGet, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(context.Background(), proj.Name, metav1.GetOptions{})
