@@ -200,3 +200,89 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 		})
 	}
 }
+
+func TestAllowedSCMProvider(t *testing.T) {
+	cases := []struct {
+		name           string
+		providerConfig *argoprojiov1alpha1.SCMProviderGenerator
+		expectedError  string
+	}{
+		{
+			name: "Error Github",
+			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
+				Github: &argoprojiov1alpha1.SCMProviderGeneratorGithub{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
+		},
+		{
+			name: "Error Gitlab",
+			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
+				Gitlab: &argoprojiov1alpha1.SCMProviderGeneratorGitlab{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
+		},
+		{
+			name: "Error Gitea",
+			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
+				Gitea: &argoprojiov1alpha1.SCMProviderGeneratorGitea{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
+		},
+		{
+			name: "Error Bitbucket",
+			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
+				BitbucketServer: &argoprojiov1alpha1.SCMProviderGeneratorBitbucketServer{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
+		},
+		{
+			name: "Error AzureDevops",
+			providerConfig: &argoprojiov1alpha1.SCMProviderGenerator{
+				AzureDevOps: &argoprojiov1alpha1.SCMProviderGeneratorAzureDevOps{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
+		},
+	}
+
+	for _, testCase := range cases {
+		testCaseCopy := testCase
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			scmGenerator := &SCMProviderGenerator{allowedSCMProviders: []string{
+				"github.myorg.com",
+				"gitlab.myorg.com",
+				"gitea.myorg.com",
+				"bitbucket.myorg.com",
+				"azuredevops.myorg.com",
+			}}
+
+			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+						SCMProvider: testCaseCopy.providerConfig,
+					}},
+				},
+			}
+
+			_, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+
+			assert.Error(t, err, "Must return an error")
+			assert.Equal(t, testCaseCopy.expectedError, err.Error())
+		})
+	}
+}
