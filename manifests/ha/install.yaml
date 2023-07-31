@@ -20155,7 +20155,7 @@ spec:
               key: controller.kubectl.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/isequeir/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
