@@ -8036,6 +8036,12 @@
         "disabled": {
           "type": "boolean"
         },
+        "displayName": {
+          "type": "string"
+        },
+        "iconClass": {
+          "type": "string"
+        },
         "name": {
           "type": "string"
         },

@@ -16,7 +16,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/robfig/cron/v3"
@@ -35,6 +34,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v2/util/env"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/collections"
@@ -1942,9 +1943,11 @@ type ResourceActionDefinition struct {
 // TODO: describe this type
 // TODO: describe members of this type
 type ResourceAction struct {
-	Name     string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	Params   []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
-	Disabled bool                  `json:"disabled,omitempty" protobuf:"varint,3,opt,name=disabled"`
+	Name        string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Params      []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
+	Disabled    bool                  `json:"disabled,omitempty" protobuf:"varint,3,opt,name=disabled"`
+	IconClass   string                `json:"iconClass,omitempty" protobuf:"bytes,4,opt,name=iconClass"`
+	DisplayName string                `json:"displayName,omitempty" protobuf:"bytes,5,opt,name=displayName"`
 }
 
 // TODO: describe this type

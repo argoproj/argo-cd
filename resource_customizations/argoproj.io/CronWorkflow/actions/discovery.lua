@@ -1,3 +1,6 @@
 actions = {}
-actions["create-workflow"] = {}
+actions["create-workflow"] = {
+  ["iconClass"] = "fa fa-fw fa-play",
+  ["displayName"] = "Create Workflow"
+}
 return actions
