@@ -108,7 +108,7 @@ func Test_kubeErrToGRPC(t *testing.T) {
 			givenErrFn: func() error {
 				return apierr.NewServerTimeout(schema.GroupResource{}, "update", 1)
 			},
-			expectedErrFn: func() error {	
+			expectedErrFn: func() error {
 				err := apierr.NewServerTimeout(schema.GroupResource{}, "update", 1)
 				grpcStatus := status.New(codes.Unavailable, err.Error())
 				return grpcStatus.Err()
