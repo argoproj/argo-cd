@@ -12,6 +12,7 @@ import (
 	"github.com/gosimple/slug"
 
 	pullrequest "github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -116,6 +117,11 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		}
 		params = append(params, paramMap)
 	}
+
+	if appSetGenerator.PullRequest.ParamPrefix != "" {
+		params = utils.PrefixParams(appSetGenerator.PullRequest.ParamPrefix, params)
+	}
+
 	return params, nil
 }
 

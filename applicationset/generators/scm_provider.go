@@ -221,6 +221,11 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 
 		paramsArray = append(paramsArray, params)
 	}
+
+	if appSetGenerator.SCMProvider.ParamPrefix != "" {
+		paramsArray = utils.PrefixParams(appSetGenerator.SCMProvider.ParamPrefix, paramsArray)
+	}
+
 	return paramsArray, nil
 }
 

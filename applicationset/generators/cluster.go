@@ -158,6 +158,10 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		log.WithField("cluster", cluster.Name).Info("matched cluster secret")
 	}
 
+	if appSetGenerator.Clusters.ParamPrefix != "" {
+		res = utils.PrefixParams(appSetGenerator.Clusters.ParamPrefix, res)
+	}
+
 	return res, nil
 }
 

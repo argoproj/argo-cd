@@ -447,3 +447,12 @@ func GetTlsConfig(scmRootCAPath string, insecure bool) *tls.Config {
 	}
 	return tlsConfig
 }
+
+// PrefixParams prefixes the given params with the given prefix.
+func PrefixParams(prefix string, params []map[string]interface{}) []map[string]interface{} {
+	var prefixedParamSets []map[string]interface{}
+	for i := range params {
+		prefixedParamSets = append(prefixedParamSets, map[string]interface{}{prefix: params[i]})
+	}
+	return prefixedParamSets
+}

@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 
@@ -82,6 +83,10 @@ func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	res, err := g.generateParams(appSetGenerator, applicationSetInfo, list.Output.Parameters, appSetGenerator.Plugin.Input.Parameters, applicationSetInfo.Spec.GoTemplate)
 	if err != nil {
 		return nil, err
+	}
+
+	if appSetGenerator.Plugin.ParamPrefix != "" {
+		res = utils.PrefixParams(appSetGenerator.Plugin.ParamPrefix, res)
 	}
 
 	return res, nil

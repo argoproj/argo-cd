@@ -132,6 +132,11 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 
 		res = append(res, paramsArray...)
 	}
+
+	if appSetGenerator.Git.ParamPrefix != "" {
+		res = utils.PrefixParams(appSetGenerator.Git.ParamPrefix, res)
+	}
+
 	return res, nil
 }
 
