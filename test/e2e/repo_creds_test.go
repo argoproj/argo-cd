@@ -57,7 +57,7 @@ func TestCanAddAppFromInsecurePrivateRepoWithCredCfg(t *testing.T) {
 		And(func() {
 			secretName := fixture.CreateSecret(fixture.GitUsername, fixture.GitPassword)
 			FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
-				"-n", fixture.TestNamespace(),
+				"-n", fixture.ArgoCDNamespace,
 				"-p", fmt.Sprintf(
 					`{"data": {"repository.credentials": "- passwordSecret:\n    key: password\n    name: %s\n  url: %s\n  insecure: true\n  usernameSecret:\n    key: username\n    name: %s\n"}}`,
 					secretName,
@@ -83,7 +83,7 @@ func TestCanAddAppFromPrivateRepoWithCredCfg(t *testing.T) {
 		And(func() {
 			secretName := fixture.CreateSecret(fixture.GitUsername, fixture.GitPassword)
 			FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
-				"-n", fixture.TestNamespace(),
+				"-n", fixture.ArgoCDNamespace,
 				"-p", fmt.Sprintf(
 					`{"data": {"repository.credentials": "- passwordSecret:\n    key: password\n    name: %s\n  url: %s\n  usernameSecret:\n    key: username\n    name: %s\n"}}`,
 					secretName,
@@ -108,7 +108,7 @@ func TestCanAddAppFromClientCertRepoWithCredCfg(t *testing.T) {
 		And(func() {
 			secretName := fixture.CreateSecret(fixture.GitUsername, fixture.GitPassword)
 			FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
-				"-n", fixture.TestNamespace(),
+				"-n", fixture.ArgoCDNamespace,
 				"-p", fmt.Sprintf(
 					`{"data": {"repository.credentials": "- passwordSecret:\n    key: password\n    name: %s\n  url: %s\n  usernameSecret:\n    key: username\n    name: %s\n"}}`,
 					secretName,

@@ -48,7 +48,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                     {isVisible && (
                         <Form
                             defaultValues={{
-                                revision: new URLSearchParams(ctx.history.location.search).get('revision') || source.targetRevision || 'HEAD',
+                                revision: source.targetRevision || 'HEAD',
                                 resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
                                 syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : []
                             }}
@@ -109,7 +109,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                     hide();
                                 } catch (e) {
                                     ctx.notifications.show({
-                                        content: <ErrorNotification title='Unable to sync' e={e} />,
+                                        content: <ErrorNotification title='Unable to deploy revision' e={e} />,
                                         type: NotificationType.Error
                                     });
                                 } finally {

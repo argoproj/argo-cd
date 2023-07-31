@@ -8,7 +8,6 @@
         "target": "es5",
         "jsx": "react",
         "experimentalDecorators": true,
-        "allowSyntheticDefaultImports": true,
         "noUnusedLocals": true,
         "declaration": false,
         "lib": [
