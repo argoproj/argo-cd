@@ -219,6 +219,9 @@ spec:
     kind: "*"
     managedFieldsManagers:
     - kube-controller-manager
+    # Name and namespace are optional. If specified, they must match exactly, these are not glob patterns.
+    name: my-deployment
+    namespace: my-namespace
 
   # RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for
   # informational purposes as well as for rollbacks to previous versions. This should only be changed in exceptional
