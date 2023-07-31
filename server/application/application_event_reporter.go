@@ -724,7 +724,7 @@ func addCommitDetailsToLabels(u *unstructured.Unstructured, revisionMetadata *ap
 	}
 
 	if field, _, _ := unstructured.NestedFieldCopy(u.Object, "metadata", "labels"); field == nil {
-		_ = unstructured.SetNestedField(u.Object, map[string]string{}, "metadata", "labels")
+		_ = unstructured.SetNestedStringMap(u.Object, map[string]string{}, "metadata", "labels")
 	}
 
 	_ = unstructured.SetNestedField(u.Object, revisionMetadata.Date.Format("2006-01-02T15:04:05.000Z"), "metadata", "labels", "app.meta.commit-date")

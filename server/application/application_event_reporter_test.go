@@ -3,6 +3,8 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"github.com/ghodss/yaml"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"testing"
 	"time"
 
@@ -375,4 +377,72 @@ func TestGetResourceEventPayloadWithoutRevision(t *testing.T) {
 	_, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, nil, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel)
 	assert.NoError(t, err)
 
+}
+
+func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
+	obj := make(map[string]interface{})
+	err := yaml.Unmarshal([]byte(jsonStr), &obj)
+	if err != nil {
+		panic(err)
+	}
+	return &unstructured.Unstructured{Object: obj}
+}
+
+func TestAddCommitDetailsToLabels(t *testing.T) {
+	revisionMetadata := v1alpha1.RevisionMetadata{
+		Author:  "demo usert",
+		Date:    metav1.Time{},
+		Message: "some message",
+	}
+
+	t.Run("set labels when lable object missing", func(t *testing.T) {
+		resource := StrToUnstructured(`
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    resourceVersion: "123"
+    uid: "4"
+  spec:
+    selector:
+      app: guestbook
+    type: LoadBalancer
+  status:
+    loadBalancer:
+      ingress:
+      - hostname: localhost`,
+		)
+
+		result := addCommitDetailsToLabels(resource, &revisionMetadata)
+		labels := result.GetLabels()
+		assert.Equal(t, revisionMetadata.Author, labels["app.meta.commit-author"])
+		assert.Equal(t, revisionMetadata.Message, labels["app.meta.commit-message"])
+	})
+
+	t.Run("set labels when labels present", func(t *testing.T) {
+		resource := StrToUnstructured(`
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    labels:
+      link: http://my-grafana.com/pre-generated-link
+  spec:
+    selector:
+      app: guestbook
+    type: LoadBalancer
+  status:
+    loadBalancer:
+      ingress:
+      - hostname: localhost`,
+		)
+
+		result := addCommitDetailsToLabels(resource, &revisionMetadata)
+		labels := result.GetLabels()
+		assert.Equal(t, revisionMetadata.Author, labels["app.meta.commit-author"])
+		assert.Equal(t, revisionMetadata.Message, labels["app.meta.commit-message"])
+		assert.Equal(t, "http://my-grafana.com/pre-generated-link", result.GetLabels()["link"])
+	})
 }
