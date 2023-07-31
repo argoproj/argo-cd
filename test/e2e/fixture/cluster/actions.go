@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -45,10 +44,10 @@ func (a *Actions) Create(args ...string) *Actions {
 		Cluster: &v1alpha1.Cluster{
 			Server:             a.context.server,
 			Name:               a.context.name,
-			Config:             v1alpha1.ClusterConfig{BearerToken: a.context.bearerToken},
+			Config:             v1alpha1.ClusterConfig{},
 			ConnectionState:    v1alpha1.ConnectionState{},
 			ServerVersion:      "",
-			Namespaces:         a.context.namespaces,
+			Namespaces:         nil,
 			RefreshRequestedAt: nil,
 			Info:               v1alpha1.ClusterInfo{},
 			Shard:              nil,
@@ -101,18 +100,6 @@ func (a *Actions) List() *Actions {
 func (a *Actions) Get() *Actions {
 	a.context.t.Helper()
 	a.runCli("cluster", "get", a.context.server)
-	return a
-}
-
-func (a *Actions) GetByName(name string) *Actions {
-	a.context.t.Helper()
-	a.runCli("cluster", "get", name)
-	return a
-}
-
-func (a *Actions) SetNamespaces() *Actions {
-	a.context.t.Helper()
-	a.runCli("cluster", "set", a.context.name, "--namespace", strings.Join(a.context.namespaces, ","))
 	return a
 }
 

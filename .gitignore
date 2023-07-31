@@ -17,8 +17,6 @@ test-results
 node_modules/
 .kube/
 ./test/cmp/*.sock
-.envrc.remote
-.*.swp
 
 # ignore built binaries
 cmd/argocd/argocd

@@ -36,24 +36,8 @@ spec:
 ```
 
 The List generator + Post Selector generates a single set of parameters:
-
 ```yaml
 - cluster: engineering-dev
   url: https://kubernetes.default.svc
   env: staging
-```
-
-It is also possible to use `matchExpressions` for more powerful selectors.
-
-```yaml
-spec:
-  generators:
-    - clusters: {}
-      selector:
-        matchExpressions:
-          - key: server
-            operator: In
-            values:
-              - https://kubernetes.default.svc
-              - https://some-other-cluster
 ```

@@ -1,6 +1,7 @@
 package log
 
 import (
+	"os"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -14,12 +15,12 @@ func TestCreateFormatter(t *testing.T) {
 	})
 	t.Run("log format is text", func(t *testing.T) {
 		t.Run("FORCE_LOG_COLORS == 1", func(t *testing.T) {
-			t.Setenv("FORCE_LOG_COLORS", "1")
+			os.Setenv("FORCE_LOG_COLORS", "1")
 			result := CreateFormatter("text")
 			assert.Equal(t, &logrus.TextFormatter{ForceColors: true}, result)
 		})
 		t.Run("FORCE_LOG_COLORS != 1", func(t *testing.T) {
-			t.Setenv("FORCE_LOG_COLORS", "0")
+			os.Setenv("FORCE_LOG_COLORS", "0")
 			result := CreateFormatter("text")
 			assert.Equal(t, &logrus.TextFormatter{}, result)
 		})

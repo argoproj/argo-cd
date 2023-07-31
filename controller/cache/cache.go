@@ -29,7 +29,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
@@ -46,7 +45,7 @@ const (
 	// EnvClusterCacheWatchResyncDuration is the env variable that holds cluster cache watch re-sync duration
 	EnvClusterCacheWatchResyncDuration = "ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION"
 
-	// EnvClusterSyncRetryTimeoutDuration is the env variable that holds cluster retry duration when sync error happens
+	// EnvClusterRetryTimeoutDuration is the env variable that holds cluster retry duration when sync error happens
 	EnvClusterSyncRetryTimeoutDuration = "ARGOCD_CLUSTER_SYNC_RETRY_TIMEOUT_DURATION"
 
 	// EnvClusterCacheListPageSize is the env variable to control size of the list page size when making K8s queries
@@ -57,7 +56,7 @@ const (
 	// k8s list queries results across all clusters to avoid memory spikes during cache initialization.
 	EnvClusterCacheListSemaphore = "ARGOCD_CLUSTER_CACHE_LIST_SEMAPHORE"
 
-	// EnvClusterCacheAttemptLimit is the env variable to control the retry limit for listing resources during cluster cache sync
+	// EnvClusterCacheRetryLimit is the env variable to control the retry limit for listing resources during cluster cache sync
 	EnvClusterCacheAttemptLimit = "ARGOCD_CLUSTER_CACHE_ATTEMPT_LIMIT"
 
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
@@ -150,8 +149,6 @@ type ResourceInfo struct {
 	PodInfo *PodInfo
 	// NodeInfo is available for nodes only
 	NodeInfo *NodeInfo
-
-	manifestHash string
 }
 
 func NewLiveStateCache(
@@ -181,11 +178,6 @@ type cacheSettings struct {
 	clusterSettings     clustercache.Settings
 	appInstanceLabelKey string
 	trackingMethod      appv1.TrackingMethod
-	// resourceOverrides provides a list of ignored differences to ignore watched resource updates
-	resourceOverrides map[string]appv1.ResourceOverride
-
-	// ignoreResourceUpdates is a flag to enable resource-ignore rules.
-	ignoreResourceUpdatesEnabled bool
 }
 
 type liveStateCache struct {
@@ -208,14 +200,6 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	if err != nil {
 		return nil, err
 	}
-	resourceUpdatesOverrides, err := c.settingsMgr.GetIgnoreResourceUpdatesOverrides()
-	if err != nil {
-		return nil, err
-	}
-	ignoreResourceUpdatesEnabled, err := c.settingsMgr.GetIsIgnoreResourceUpdatesEnabled()
-	if err != nil {
-		return nil, err
-	}
 	resourcesFilter, err := c.settingsMgr.GetResourcesFilter()
 	if err != nil {
 		return nil, err
@@ -228,8 +212,7 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 		ResourceHealthOverride: lua.ResourceHealthOverrides(resourceOverrides),
 		ResourcesFilter:        resourcesFilter,
 	}
-
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr), resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr)}, nil
 }
 
 func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
@@ -238,10 +221,10 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 		gv = schema.GroupVersion{}
 	}
 	parentRefs := make([]appv1.ResourceRef, len(r.OwnerRefs))
-	for i, ownerRef := range r.OwnerRefs {
+	for _, ownerRef := range r.OwnerRefs {
 		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
 		ownerKey := kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)
-		parentRefs[i] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
+		parentRefs[0] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
 	}
 	var resHealth *appv1.HealthStatus
 	resourceInfo := resInfo(r)
@@ -326,27 +309,6 @@ func skipAppRequeuing(key kube.ResourceKey) bool {
 	return ignoredRefreshResources[key.Group+"/"+key.Kind]
 }
 
-func skipResourceUpdate(oldInfo, newInfo *ResourceInfo) bool {
-	if oldInfo == nil || newInfo == nil {
-		return false
-	}
-	isSameHealthStatus := (oldInfo.Health == nil && newInfo.Health == nil) || oldInfo.Health != nil && newInfo.Health != nil && oldInfo.Health.Status == newInfo.Health.Status
-	isSameManifest := oldInfo.manifestHash != "" && newInfo.manifestHash != "" && oldInfo.manifestHash == newInfo.manifestHash
-	return isSameHealthStatus && isSameManifest
-}
-
-// shouldHashManifest validates if the API resource needs to be hashed.
-// If there's an app name from resource tracking, or if this is itself an app, we should generate a hash.
-// Otherwise, the hashing should be skipped to save CPU time.
-func shouldHashManifest(appName string, gvk schema.GroupVersionKind) bool {
-	// Only hash if the resource belongs to an app.
-	// Best      - Only hash for resources that are part of an app or their dependencies
-	// (current) - Only hash for resources that are part of an app + all apps that might be from an ApplicationSet
-	// Orphan    - If orphan is enabled, hash should be made on all resource of that namespace and a config to disable it
-	// Worst     - Hash all resources watched by Argo
-	return appName != "" || (gvk.Group == application.Group && gvk.Kind == application.ApplicationKind)
-}
-
 // isRetryableError is a helper method to see whether an error
 // returned from the dynamic client is potentially retryable.
 func isRetryableError(err error) bool {
@@ -421,16 +383,11 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 	cluster, err := c.db.GetCluster(context.Background(), server)
 	if err != nil {
-		return nil, fmt.Errorf("error getting cluster: %w", err)
+		return nil, err
 	}
 
 	if !c.canHandleCluster(cluster) {
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
-	}
-
-	resourceCustomLabels, err := c.settingsMgr.GetResourceCustomLabels()
-	if err != nil {
-		return nil, fmt.Errorf("error getting custom label: %w", err)
 	}
 
 	clusterCacheConfig := cluster.RESTConfig()
@@ -458,28 +415,17 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetClusterResources(cluster.ClusterResources),
 		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
 			res := &ResourceInfo{}
-			populateNodeInfo(un, res, resourceCustomLabels)
+			populateNodeInfo(un, res)
 			c.lock.RLock()
 			cacheSettings := c.cacheSettings
 			c.lock.RUnlock()
-
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
 			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, cacheSettings.trackingMethod)
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}
-
 			gvk := un.GroupVersionKind()
-
-			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk) {
-				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides)
-				if err != nil {
-					log.Errorf("Failed to generate manifest hash: %v", err)
-				} else {
-					res.manifestHash = hash
-				}
-			}
 
 			// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
 			// want the full resource to be available in our cache (to diff), so we store all CRDs
@@ -499,30 +445,6 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		} else {
 			ref = oldRes.Ref
 		}
-
-		c.lock.RLock()
-		cacheSettings := c.cacheSettings
-		c.lock.RUnlock()
-
-		if cacheSettings.ignoreResourceUpdatesEnabled && oldRes != nil && newRes != nil && skipResourceUpdate(resInfo(oldRes), resInfo(newRes)) {
-			// Additional check for debug level so we don't need to evaluate the
-			// format string in case of non-debug scenarios
-			if log.GetLevel() >= log.DebugLevel {
-				namespace := ref.Namespace
-				if ref.Namespace == "" {
-					namespace = "(cluster-scoped)"
-				}
-				log.WithFields(log.Fields{
-					"server":      cluster.Server,
-					"namespace":   namespace,
-					"name":        ref.Name,
-					"api-version": ref.APIVersion,
-					"kind":        ref.Kind,
-				}).Debug("Ignoring change of object because none of the watched resource fields have changed")
-			}
-			return
-		}
-
 		for _, r := range []*clustercache.Resource{newRes, oldRes} {
 			if r == nil {
 				continue
@@ -549,11 +471,11 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 func (c *liveStateCache) getSyncedCluster(server string) (clustercache.ClusterCache, error) {
 	clusterCache, err := c.getCluster(server)
 	if err != nil {
-		return nil, fmt.Errorf("error getting cluster: %w", err)
+		return nil, err
 	}
 	err = clusterCache.EnsureSynced()
 	if err != nil {
-		return nil, fmt.Errorf("error synchronizing cache state : %w", err)
+		return nil, err
 	}
 	return clusterCache, nil
 }
@@ -688,7 +610,7 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 func (c *liveStateCache) Init() error {
 	cacheSettings, err := c.loadCacheSettings()
 	if err != nil {
-		return fmt.Errorf("error loading cache settings: %w", err)
+		return err
 	}
 	c.cacheSettings = *cacheSettings
 	return nil
@@ -775,14 +697,12 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 }
 
 func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
-	c.lock.RLock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	cluster, ok := c.clusters[clusterServer]
-	c.lock.RUnlock()
 	if ok {
 		cluster.Invalidate()
-		c.lock.Lock()
 		delete(c.clusters, clusterServer)
-		c.lock.Unlock()
 	}
 }
 
