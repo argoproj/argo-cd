@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as models from '../../../shared/models';
 
-import './application-retry-view.scss';
+require('./application-retry-view.scss');
 
 function buildRetryOptionView(label: string, data: string | number) {
     const result = data || 'not installed';
