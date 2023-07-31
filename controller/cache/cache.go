@@ -775,12 +775,14 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 }
 
 func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
 	cluster, ok := c.clusters[clusterServer]
+	c.lock.RUnlock()
 	if ok {
 		cluster.Invalidate()
+		c.lock.Lock()
 		delete(c.clusters, clusterServer)
+		c.lock.Unlock()
 	}
 }
 

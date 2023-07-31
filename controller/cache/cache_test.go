@@ -1,13 +1,16 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/url"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -16,8 +19,10 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/mock"
+	"k8s.io/client-go/kubernetes/fake"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type netError string
@@ -106,6 +111,98 @@ func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
 	})
 
 	assert.Len(t, clustersCache.clusters, 0)
+}
+
+func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
+	testCluster := &appv1.Cluster{
+		Server: "https://mycluster",
+		Config: appv1.ClusterConfig{Username: "bar"},
+	}
+	fakeClient := fake.NewSimpleClientset()
+	settingsMgr := argosettings.NewSettingsManager(context.TODO(), fakeClient, "argocd")
+	externalLockRef := sync.RWMutex{}
+	gitopsEngineClusterCache := &mocks.ClusterCache{}
+	clustersCache := liveStateCache{
+		clusters: map[string]cache.ClusterCache{
+			testCluster.Server: gitopsEngineClusterCache,
+		},
+		clusterFilter: func(cluster *appv1.Cluster) bool {
+			return true
+		},
+		settingsMgr: settingsMgr,
+		// Set the lock here so we can reference it later
+		// nolint We need to overwrite here to have access to the lock
+		lock: externalLockRef,
+	}
+	channel := make(chan string)
+	// Mocked lock held by the gitops-engine cluster cache
+	mockMutex := sync.RWMutex{}
+	// Locks to force trigger condition during test
+	// Condition order:
+	//   EnsuredSynced -> Locks gitops-engine
+	//   handleDeleteEvent -> Locks liveStateCache
+	//   EnsureSynced via sync, newResource, populateResourceInfoHandler -> attempts to Lock liveStateCache
+	//   handleDeleteEvent via cluster.Invalidate -> attempts to Lock gitops-engine
+	handleDeleteWasCalled := sync.Mutex{}
+	engineHoldsLock := sync.Mutex{}
+	handleDeleteWasCalled.Lock()
+	engineHoldsLock.Lock()
+	gitopsEngineClusterCache.On("EnsureSynced").Run(func(args mock.Arguments) {
+		// Held by EnsureSync calling into sync and watchEvents
+		mockMutex.Lock()
+		defer mockMutex.Unlock()
+		// Continue Execution of timer func
+		engineHoldsLock.Unlock()
+		// Wait for handleDeleteEvent to be called triggering the lock
+		// on the liveStateCache
+		handleDeleteWasCalled.Lock()
+		t.Logf("handleDelete was called, EnsureSynced continuing...")
+		handleDeleteWasCalled.Unlock()
+		// Try and obtain the lock on the liveStateCache
+		alreadyFailed := !externalLockRef.TryLock()
+		if alreadyFailed {
+			channel <- "DEADLOCKED -- EnsureSynced could not obtain lock on liveStateCache"
+			return
+		}
+		externalLockRef.Lock()
+		t.Logf("EnsureSynce was able to lock liveStateCache")
+		externalLockRef.Unlock()
+	}).Return(nil).Once()
+	gitopsEngineClusterCache.On("Invalidate").Run(func(args mock.Arguments) {
+		// If deadlock is fixed should be able to acquire lock here
+		alreadyFailed := !mockMutex.TryLock()
+		if alreadyFailed {
+			channel <- "DEADLOCKED -- Invalidate could not obtain lock on gitops-engine"
+			return
+		}
+		mockMutex.Lock()
+		t.Logf("Invalidate was able to lock gitops-engine cache")
+		mockMutex.Unlock()
+	}).Return()
+	go func() {
+		// Start the gitops-engine lock holds
+		go func() {
+			err := gitopsEngineClusterCache.EnsureSynced()
+			if err != nil {
+				assert.Fail(t, err.Error())
+			}
+		}()
+		// Wait for EnsureSynced to grab the lock for gitops-engine
+		engineHoldsLock.Lock()
+		t.Log("EnsureSynced has obtained lock on gitops-engine")
+		engineHoldsLock.Unlock()
+		// Run in background
+		go clustersCache.handleDeleteEvent(testCluster.Server)
+		// Allow execution to continue on clusters cache call to trigger lock
+		handleDeleteWasCalled.Unlock()
+		channel <- "PASSED"
+	}()
+	select {
+	case str := <-channel:
+		assert.Equal(t, "PASSED", str, str)
+	case <-time.After(5 * time.Second):
+		assert.Fail(t, "Ended up in deadlock")
+	}
 }
 
 func TestIsRetryableError(t *testing.T) {
