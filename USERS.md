@@ -24,6 +24,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [AppDirect](https://www.appdirect.com)
 1. [Arctiq Inc.](https://www.arctiq.ca)
 1. [ARZ Allgemeines Rechenzentrum GmbH](https://www.arz.at/)
+2. [Autodesk](https://www.autodesk.com)
 1. [Axual B.V.](https://axual.com)
 1. [Back Market](https://www.backmarket.com)
 1. [Baloise](https://www.baloise.com)
