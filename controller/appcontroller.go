@@ -204,7 +204,7 @@ func NewApplicationController(
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 	var err error
 	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, func(r *http.Request) error {
-		if shard, err := sharding.InferShard(kubeClientset.(*kubernetes.Clientset), settingsMgr); shard == -1 || err != nil {
+		if _, err := sharding.InferShard(kubeClientset.(*kubernetes.Clientset), settingsMgr); err != nil {
 			return err
 		}
 		return nil
