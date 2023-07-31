@@ -37,7 +37,7 @@ Each link in the list has five subfields:
 As mentioned earlier the links and conditions can be templated to use data from the resource, each category of links can access different types of data linked to that resource.
 Overall we have these 4 resources available for templating in the system:
 
-- `application`: this key is used to access the application resource data.
+- `app` or `application`: this key is used to access the application resource data.
 - `resource`: this key is used to access values for the actual k8s resource.
 - `cluster`: this key is used to access the related destination cluster data like name, server, namespaces etc.
 - `project`: this key is used to access the project resource data.
@@ -45,7 +45,7 @@ Overall we have these 4 resources available for templating in the system:
 The above resources are accessible in particular link categories, here's a list of resources available in each category:
 
 - `resource.links`: `resource`, `application`, `cluster` and `project`
-- `application.links`: `application` and `cluster`
+- `application.links`: `app`/`application` and `cluster`
 - `project.links`: `project`
 
 An example `argocd-cm.yaml` file with deep links and their variations :
@@ -60,16 +60,16 @@ An example `argocd-cm.yaml` file with deep links and their variations :
   # sample application level links
   application.links: |
     # pkg.go.dev/text/template is used for evaluating url templates
-    - url: https://mycompany.splunk.com?search={{.application.spec.destination.namespace}}&env={{.project.metadata.labels.env}}
+    - url: https://mycompany.splunk.com?search={{.app.spec.destination.namespace}}&env={{.project.metadata.labels.env}}
       title: Splunk
     # conditionally show link e.g. for specific project
     # github.com/antonmedv/expr is used for evaluation of conditions
-    - url: https://mycompany.splunk.com?search={{.application.spec.destination.namespace}}
+    - url: https://mycompany.splunk.com?search={{.app.spec.destination.namespace}}
       title: Splunk
       if: application.spec.project == "default"
-    - url: https://{{.application.metadata.annotations.splunkhost}}?search={{.application.spec.destination.namespace}}
+    - url: https://{{.app.metadata.annotations.splunkhost}}?search={{.app.spec.destination.namespace}}
       title: Splunk
-      if: application.metadata.annotations.splunkhost != ""
+      if: app.metadata.annotations.splunkhost != ""
   # sample resource level links
   resource.links: |
     - url: https://mycompany.splunk.com?search={{.resource.metadata.name}}&env={{.project.metadata.labels.env}}
