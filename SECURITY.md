@@ -35,7 +35,7 @@ impact on Argo CD before opening an issue at least roughly.
 
 ## Supported Versions
 
-We currently support the last 3 patch versions of Argo CD with security and bug fixes.
+We currently support the last 3 minor versions of Argo CD with security and bug fixes.
 
 We regularly perform patch releases (e.g. `1.8.5` and `1.7.12`) for the
 supported versions, which will contain fixes for security vulnerabilities and
