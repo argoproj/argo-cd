@@ -108,11 +108,12 @@ func Test_kubeErrToGRPC(t *testing.T) {
 			givenErrFn: func() error {
 				return apierr.NewServerTimeout(schema.GroupResource{}, "update", 1)
 			},
-			expectedErrFn: func() error {
-				grpcStatus := status.New(codes.Unavailable, "Command timed out before the specified conditions were met")
+			expectedErrFn: func() error {	
+				err := apierr.NewServerTimeout(schema.GroupResource{}, "update", 1)
+				grpcStatus := status.New(codes.Unavailable, err.Error())
 				return grpcStatus.Err()
 			},
-			expectedGRPCStatus: status.New(codes.Unavailable, "Command timed out before the specified conditions were met"),
+			expectedGRPCStatus: status.New(codes.Unavailable, apierr.NewServerTimeout(schema.GroupResource{}, "update", 1).Error()),
 		},
 		{
 			name: "will return Aborted if apierr.IsConflict",

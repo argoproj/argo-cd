@@ -86,7 +86,7 @@ func kubeErrToGRPC(err error) error {
 	case apierr.IsForbidden(err):
 		err = rewrapError(err, codes.PermissionDenied)
 	case apierr.IsTimeout(err):
-		err = rewrapError(err, codes.DeadlineExceeded, "Command timed out before the specified conditions were met")
+		err = rewrapError(err, codes.DeadlineExceeded)
 	case apierr.IsServerTimeout(err):
 		err = rewrapError(err, codes.Unavailable)
 	case apierr.IsConflict(err):
