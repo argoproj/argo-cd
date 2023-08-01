@@ -1486,7 +1486,7 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 	res := &application.ManagedResourcesResponse{}
 	for i := range items {
 		item := items[i]
-		if isMatchingResource(q, kube.ResourceKey{Name: item.Name, Namespace: item.Namespace, Kind: item.Kind, Group: item.Group}) {
+		if !item.Hook && isMatchingResource(q, kube.ResourceKey{Name: item.Name, Namespace: item.Namespace, Kind: item.Kind, Group: item.Group}) {
 			res.Items = append(res.Items, item)
 		}
 	}
