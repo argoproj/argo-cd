@@ -12,16 +12,17 @@ import (
 	"strings"
 	"time"
 
-	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
-	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -140,10 +141,10 @@ type ServiceConfig struct {
 }
 
 type ClusterConfig struct {
-	// Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API
+	// Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.
 	Server string `json:"server"`
 
-	// Name is an alternate way of specifying the target cluster by its symbolic name
+	// Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.
 	Name string `json:"name"`
 }
 

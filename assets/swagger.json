@@ -5852,16 +5852,16 @@
       "title": "ApplicationDestination holds information about the application's destination",
       "properties": {
         "name": {
-          "type": "string",
-          "title": "Name is an alternate way of specifying the target cluster by its symbolic name"
+          "description": "Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.",
+          "type": "string"
         },
         "namespace": {
           "type": "string",
           "title": "Namespace specifies the target namespace for the application's resources.\nThe namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace"
         },
         "server": {
-          "type": "string",
-          "title": "Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API"
+          "description": "Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.",
+          "type": "string"
         }
       }
     },
