@@ -1,0 +1,31 @@
+.applications-table {
+    .argo-table-list__row {
+        line-height: 26px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+        padding-left: 2em;
+
+        .columns:last-child {
+            .argo-dropdown {
+                position: absolute;
+                right: 0;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+        }
+    }
+
+    .applications-table-source {
+        display: flex;
+        justify-content: space-between;
+
+        .applications-table-source__link {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .applications-table-source__labels {
+            max-width: 40%;
+        }
+    }
+}

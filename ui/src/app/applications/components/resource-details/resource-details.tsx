@@ -199,7 +199,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             }
         ];
 
-        if (application.status.sync.status !== SyncStatuses.Synced) {
+        if ('sync' in application.status && application.status.sync.status !== SyncStatuses.Synced) {
             tabs.push({
                 icon: 'fa fa-file-medical',
                 title: 'DIFF',

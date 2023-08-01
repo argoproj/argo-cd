@@ -2,24 +2,24 @@ import {useData, Checkbox} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {Context} from '../../../shared/context';
-import {AbstractApplication, Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncPolicy, SyncStatusCode, SyncStatuses} from '../../../shared/models';
+import { ApplicationSetConditionStatuses, Application, ApplicationSet, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncPolicy, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
+import {AppSetHealthStatusIcon, ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 
 export interface FilterResult {
-    repos: boolean;
-    sync: boolean;
-    autosync: boolean;
+    // repos: boolean;
+    // sync: boolean;
+    // autosync: boolean;
     health: boolean;
-    namespaces: boolean;
-    clusters: boolean;
+    // namespaces: boolean;
+    // clusters: boolean;
     favourite: boolean;
     labels: boolean;
 }
 
-export interface FilteredApp extends Application {
+export interface FilteredAppSet extends ApplicationSet {
     filterResult: FilterResult;
 }
 
@@ -30,17 +30,17 @@ function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
     return 'Enabled';
 }
 
-export function getFilterResults(applications: AbstractApplication[], pref: AppsListPreferences): FilteredApp[] {
+export function getFilterResults(applications: ApplicationSet[], pref: AppsListPreferences): FilteredAppSet[] {
     return applications.map(app => ({
         ...app,
         filterResult: {
-            repos: pref.reposFilter.length === 0 || pref.reposFilter.includes(getAppDefaultSource(app).repoURL),
-            sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
-            autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
-            health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
-            namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
+            // repos: pref.reposFilter.length === 0 || pref.reposFilter.includes(getAppDefaultSource(app).repoURL),
+            // sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
+            // autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
+            health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.conditions[0].status),
+            // namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
             favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
-            clusters:
+    /*        clusters:
                 pref.clustersFilter.length === 0 ||
                 pref.clustersFilter.some(filterString => {
                     const match = filterString.match('^(.*) [(](http.*)[)]$');
@@ -51,7 +51,7 @@ export function getFilterResults(applications: AbstractApplication[], pref: Apps
                         const inputMatch = filterString.match('^http.*$');
                         return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
                     }
-                }),
+                }),*/
             labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels))
         }
     }));
@@ -66,14 +66,14 @@ const optionsFrom = (options: string[], filter: string[]) => {
 };
 
 interface AppFilterProps {
-    apps: FilteredApp[];
+    apps: FilteredAppSet[];
     pref: AppsListPreferences;
     onChange: (newPrefs: AppsListPreferences) => void;
     children?: React.ReactNode;
     collapsed?: boolean;
 }
 
-const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, init?: string[]) => {
+const getCounts = (apps: FilteredAppSet[], filterType: keyof FilterResult, filter: (app: ApplicationSet) => string, init?: string[]) => {
     const map = new Map<string, number>();
     if (init) {
         init.forEach(key => map.set(key, 0));
@@ -85,7 +85,7 @@ const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: 
     return map;
 };
 
-const getOptions = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, keys: string[], getIcon?: (k: string) => React.ReactNode) => {
+const getOptions = (apps: FilteredAppSet[], filterType: keyof FilterResult, filter: (app: ApplicationSet) => string, keys: string[], getIcon?: (k: string) => React.ReactNode) => {
     const counts = getCounts(apps, filterType, filter, keys);
     return keys.map(k => {
         return {
@@ -96,7 +96,7 @@ const getOptions = (apps: FilteredApp[], filterType: keyof FilterResult, filter:
     });
 };
 
-const SyncFilter = (props: AppFilterProps) => (
+/*const SyncFilter = (props: AppFilterProps) => (
     <Filter
         label='SYNC STATUS'
         selected={props.pref.syncFilter}
@@ -112,6 +112,7 @@ const SyncFilter = (props: AppFilterProps) => (
         )}
     />
 );
+*/
 
 const HealthFilter = (props: AppFilterProps) => (
     <Filter
@@ -121,11 +122,11 @@ const HealthFilter = (props: AppFilterProps) => (
         options={getOptions(
             props.apps,
             'health',
-            app => app.status.health.status,
-            Object.keys(HealthStatuses),
-            s => (
-                <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
-            )
+            app => app.status.conditions[0].status,
+            Object.keys(ApplicationSetConditionStatuses),
+            // s => (
+            //     <AppSetHealthStatusIcon state={{status: s as ApplicationSetConditionStatus, message: ''}} noSpin={true} />
+            // )
         )}
     />
 );
@@ -156,7 +157,7 @@ const LabelsFilter = (props: AppFilterProps) => {
     return <Filter label='LABELS' selected={props.pref.labelsFilter} setSelected={s => props.onChange({...props.pref, labelsFilter: s})} field={true} options={labelOptions} />;
 };
 
-const ProjectFilter = (props: AppFilterProps) => {
+/*const ProjectFilter = (props: AppFilterProps) => {
     const [projects, loading, error] = useData(
         () => services.projects.list('items.metadata.name'),
         null,
@@ -223,7 +224,7 @@ const NamespaceFilter = (props: AppFilterProps) => {
         />
     );
 };
-
+*/
 const FavoriteFilter = (props: AppFilterProps) => {
     const ctx = React.useContext(Context);
     const onChange = (val: boolean) => {
@@ -250,7 +251,7 @@ const FavoriteFilter = (props: AppFilterProps) => {
     );
 };
 
-function getAutoSyncOptions(apps: FilteredApp[]) {
+/*function getAutoSyncOptions(apps: FilteredApp[]) {
     const counts = getCounts(apps, 'autosync', app => getAutoSyncStatus(app.spec.syncPolicy), ['Enabled', 'Disabled']);
     return [
         {
@@ -276,17 +277,19 @@ const AutoSyncFilter = (props: AppFilterProps) => (
     />
 );
 
+*/
+
 export const ApplicationsFilter = (props: AppFilterProps) => {
     return (
         <FiltersGroup content={props.children} collapsed={props.collapsed}>
             <FavoriteFilter {...props} />
-            <SyncFilter {...props} />
+            {/* <SyncFilter {...props} /> */}
             <HealthFilter {...props} />
             <LabelsFilter {...props} />
-            <ProjectFilter {...props} />
-            <ClusterFilter {...props} />
-            <NamespaceFilter {...props} />
-            <AutoSyncFilter {...props} collapsed={true} />
+            {/* <ProjectFilter {...props} /> */}
+            {/* <ClusterFilter {...props} /> */}
+            {/* <NamespaceFilter {...props} /> */}
+            {/* <AutoSyncFilter {...props} collapsed={true} /> */}
         </FiltersGroup>
     );
 };

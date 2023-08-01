@@ -11,7 +11,7 @@ import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
-import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
+import {AbstractAppDetailsPreferences, AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
 
 import {ApplicationConditions} from '../application-conditions/application-conditions';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
@@ -27,6 +27,7 @@ import {Filters, FiltersProps} from './application-resource-filter';
 import {getAppDefaultSource, urlPattern, helpTip} from '../utils';
 import {ChartDetails, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
+import {ApplicationSetsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
@@ -77,7 +78,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         apis: PropTypes.object
     };
 
-    private appChanged = new BehaviorSubject<appModels.Application>(null);
+    private appChanged = new BehaviorSubject<appModels.AbstractApplication>(null);
     private appNamespace: string;
 
     constructor(props: RouteComponentProps<{appnamespace: string; name: string}>) {
@@ -167,6 +168,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
     }
 
     public render() {
+        // var v = services.viewPreferences.getPreferences();
+        console.log("location is " + this.props.match.path);
+        var isApplicationSet = this.props.match.path.substring(0,15) === "/applicationset";
+        console.log(this.props.match.path.substring(0,15) + " isApplicationSet is " + isApplicationSet);
+
         return (
             <ObservableQuery>
                 {q => (
@@ -176,7 +182,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                         input={this.props.match.params.name}
                         load={name =>
                             combineLatest([this.loadAppInfo(name, this.appNamespace), services.viewPreferences.getPreferences(), q]).pipe(
-                                map(items => {
+                                map(items => 
+                                    {
                                     const application = items[0].application;
                                     const pref = items[1].appDetails;
                                     const params = items[2];
@@ -213,7 +220,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 })
                             )
                         }>
-                        {({application, tree, pref}: {application: appModels.Application; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
+                        {({application, tree, pref}: {application: appModels.AbstractApplication; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
                             tree.nodes = tree.nodes || [];
                             const treeFilter = this.getTreeFilter(pref.resourceFilter);
                             const setFilter = (items: string[]) => {
@@ -233,7 +240,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             const source = getAppDefaultSource(application);
                             const resourceNodes = (): any[] => {
                                 const statusByKey = new Map<string, models.ResourceStatus>();
-                                application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
+                                if (!isApplicationSet) {
+                                    const appOrig = application as appModels.Application;
+                                    appOrig.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
+                                }
                                 const resources = new Map<string, any>();
                                 tree.nodes
                                     .map(node => ({...node, orphaned: false}))
@@ -322,17 +332,19 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                     });
                                     this.setState({collapsedNodes: collapsedNodesList});
                                 } else {
-                                    const managedKeys = new Set(application.status.resources.map(AppUtils.nodeKey));
-                                    nodes.forEach(node => {
-                                        if (!((node.parentRefs || []).length === 0 || managedKeys.has(AppUtils.nodeKey(node)))) {
-                                            node.parentRefs.forEach(parent => {
-                                                const parentId = parent.uid;
-                                                if (collapsedNodesList.indexOf(parentId) < 0) {
-                                                    collapsedNodesList.push(parentId);
-                                                }
-                                            });
-                                        }
-                                    });
+                                    if (!isApplicationSet) {
+                                        const managedKeys = new Set(application.status.resources.map(AppUtils.nodeKey));
+                                        nodes.forEach(node => {
+                                            if (!((node.parentRefs || []).length === 0 || managedKeys.has(AppUtils.nodeKey(node)))) {
+                                                node.parentRefs.forEach(parent => {
+                                                    const parentId = parent.uid;
+                                                    if (collapsedNodesList.indexOf(parentId) < 0) {
+                                                        collapsedNodesList.push(parentId);
+                                                    }
+                                                });
+                                            }
+                                        });
+                                    }
                                     collapsedNodesList.push(application.kind + '-' + application.metadata.namespace + '-' + application.metadata.name);
                                     this.setState({collapsedNodes: collapsedNodesList});
                                 }
@@ -351,7 +363,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         topBarTitle={this.getPageTitle(pref.view)}
                                         toolbar={{
                                             breadcrumbs: [
-                                                {title: 'Applications', path: '/applications'},
+                                                !isApplicationSet ? {title: 'Applications', path: '/applications'} : {title: 'Settings', path: '/settings'},
                                                 {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
                                             ],
                                             actionMenu: {items: this.getApplicationActionMenu(application, true)},
@@ -366,6 +378,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: Tree}});
                                                             }}
                                                         />
+                                                        {!isApplicationSet && (
+                                                        <>
                                                         <i
                                                             className={classNames('fa fa-th', {selected: pref.view === Pods})}
                                                             title='Pods'
@@ -381,7 +395,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                 this.appContext.apis.navigation.goto('.', {view: Network});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: Network}});
                                                             }}
-                                                        />
+                                                        /> 
+                                                        </>)}
                                                         <i
                                                             className={classNames('fa fa-th-list', {selected: pref.view === List})}
                                                             title='List'
@@ -721,11 +736,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         );
     }
 
-    private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
+    private getApplicationActionMenu(app: appModels.AbstractApplication, needOverlapLabelOnNarrowScreen: boolean) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
         const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
+        var isApplicationSet = this.props.match.path.substring(0,15) === "/applicationset";
+        if (!isApplicationSet) {
         return [
             {
                 iconClassName: 'fa fa-info-circle',
@@ -795,6 +812,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 }
             }
         ];
+    } else {
+        return [
+            {
+                iconClassName: 'fa fa-info-circle',
+                title: <ActionMenuItem actionLabel='AppSet Details' />,
+                action: () => this.selectNode(fullName)
+            },
+            {
+                iconClassName: 'fa fa-times-circle',
+                title: <ActionMenuItem actionLabel='Delete' />,
+                action: () => this.deleteApplication()
+            },
+        ]
+        }
     }
 
     private filterTreeNode(node: ResourceTreeNode, filterInput: FilterInput): boolean {
@@ -838,49 +869,96 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    private loadAppInfo(name: string, appNamespace: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {
-        return from(services.applications.get(name, appNamespace))
-            .pipe(
-                mergeMap(app => {
-                    const fallbackTree = {
-                        nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
-                        orphanedNodes: [],
-                        hosts: []
-                    } as appModels.ApplicationTree;
-                    return combineLatest(
-                        merge(
-                            from([app]),
-                            this.appChanged.pipe(filter(item => !!item)),
-                            AppUtils.handlePageVisibility(() =>
-                                services.applications
-                                    .watch({name, appNamespace})
-                                    .pipe(
-                                        map(watchEvent => {
-                                            if (watchEvent.type === 'DELETED') {
-                                                this.onAppDeleted();
-                                            }
-                                            return watchEvent.application;
-                                        })
+    private loadAppInfo(name: string, appNamespace: string): Observable<{application: appModels.AbstractApplication; tree: appModels.ApplicationTree}> {
+        var isApplicationSet = this.props.match.path.substring(0,15) === "/applicationset";
+
+        if (!isApplicationSet) {
+            return from(services.applications.get(name, appNamespace))
+                .pipe(
+                    mergeMap(app => {
+                        const fallbackTree = {
+                            nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
+                            orphanedNodes: [],
+                            hosts: []
+                        } as appModels.ApplicationTree;
+                        return combineLatest(
+                            merge(
+                                from([app]),
+                                this.appChanged.pipe(filter(item => !!item)),
+                                AppUtils.handlePageVisibility(() =>
+                                    services.applications
+                                        .watch({name, appNamespace})
+                                        .pipe(
+                                            map(watchEvent => {
+                                                if (watchEvent.type === 'DELETED') {
+                                                    this.onAppDeleted();
+                                                }
+                                                return watchEvent.application;
+                                            })
+                                        )
+                                        .pipe(repeat())
+                                        .pipe(retryWhen(errors => errors.pipe(delay(500))))
+                                )
+                            ),
+                            merge(
+                                from([fallbackTree]),
+                                services.applications.resourceTree(name, appNamespace).catch(() => fallbackTree),
+                                AppUtils.handlePageVisibility(() =>
+                                    services.applications
+                                        .watchResourceTree(name, appNamespace)
+                                        .pipe(repeat())
+                                        .pipe(retryWhen(errors => errors.pipe(delay(500))))
+                                )
+                            )
+                        );
+                    })
+                )
+                .pipe(filter(([application, tree]) => !!application && !!tree))
+                .pipe(map(([application, tree]) => ({application, tree})));
+                } else {
+                    return from(services.applicationSets.get(name, appNamespace))
+                    .pipe(
+                        mergeMap(app => {
+                            const fallbackTree = {
+                                // nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
+                                orphanedNodes: [],
+                                hosts: []
+                            } as appModels.ApplicationTree;
+                            return combineLatest(
+                                merge(
+                                    from([app]),
+                                    this.appChanged.pipe(filter(item => !!item)),
+                                    AppUtils.handlePageVisibility(() =>
+                                        services.applicationSets
+                                            .watch({name, appNamespace})
+                                            .pipe(
+                                                map(watchEvent => {
+                                                    if (watchEvent.type === 'DELETED') {
+                                                        this.onAppDeleted();
+                                                    }
+                                                    return watchEvent.applicationSet;
+                                                })
+                                            )
+                                            .pipe(repeat())
+                                            .pipe(retryWhen(errors => errors.pipe(delay(500))))
                                     )
-                                    .pipe(repeat())
-                                    .pipe(retryWhen(errors => errors.pipe(delay(500))))
-                            )
-                        ),
-                        merge(
-                            from([fallbackTree]),
-                            services.applications.resourceTree(name, appNamespace).catch(() => fallbackTree),
-                            AppUtils.handlePageVisibility(() =>
-                                services.applications
-                                    .watchResourceTree(name, appNamespace)
-                                    .pipe(repeat())
-                                    .pipe(retryWhen(errors => errors.pipe(delay(500))))
-                            )
-                        )
-                    );
-                })
-            )
-            .pipe(filter(([application, tree]) => !!application && !!tree))
-            .pipe(map(([application, tree]) => ({application, tree})));
+                                ),
+                                merge(
+                                    from([fallbackTree]),
+                                    services.applicationSets.resourceTree(name, appNamespace).catch(() => fallbackTree),
+                                    AppUtils.handlePageVisibility(() =>
+                                        services.applicationSets
+                                            .watchResourceTree(name, appNamespace)
+                                            .pipe(repeat())
+                                            .pipe(retryWhen(errors => errors.pipe(delay(500))))
+                                    )
+                                )
+                            );
+                        })
+                    )
+                    .pipe(filter(([application, tree]) => !!application && !!tree))
+                    .pipe(map(([application, tree]) => ({application, tree})));
+                }
     }
 
     private onAppDeleted() {
@@ -897,7 +975,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         this.appChanged.next(updatedApp);
     }
 
-    private groupAppNodesByKey(application: appModels.Application, tree: appModels.ApplicationTree) {
+    private groupAppNodesByKey(application: appModels.AbstractApplication, tree: appModels.ApplicationTree) {
         const nodeByKey = new Map<string, appModels.ResourceDiff | appModels.ResourceNode | appModels.Application>();
         tree.nodes.concat(tree.orphanedNodes || []).forEach(node => nodeByKey.set(AppUtils.nodeKey(node), node));
         nodeByKey.set(AppUtils.nodeKey({group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace}), application);

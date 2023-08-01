@@ -7,14 +7,14 @@ import {FormApi, Text} from 'react-form';
 import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
-import {AppContext, Context, ContextApis} from '../../shared/context';
-import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
+import {AppContext, Context, ContextApis} from '../../../shared/context';
+import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 
-import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
-import * as appModels from '../../shared/models';
-import {services} from '../../shared/services';
+import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../../shared/components';
+import * as appModels from '../../../shared/models';
+import {services} from '../../../shared/services';
 
-require('./utils.scss');
+require('../utils.scss');
 
 export interface NodeId {
     kind: string;
@@ -192,7 +192,7 @@ const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm
     );
 });
 
-export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
+/* export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     const operationState = getAppOperationState(app);
     if (operationState === undefined) {
         return <React.Fragment />;
@@ -220,6 +220,7 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
 
+*/ 
 export const ComparisonStatusIcon = ({
     status,
     resource,
@@ -324,7 +325,7 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
     );
 };
 
-export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.AbstractApplication, appChanged?: BehaviorSubject<appModels.AbstractApplication>) => {
+export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.ApplicationSet, appChanged?: BehaviorSubject<appModels.ApplicationSet>) => {
     const isManaged = !!resource.status;
     const deleteOptions = {
         option: 'foreground'
@@ -379,7 +380,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                 try {
                     await services.applications.deleteResource(application.metadata.name, application.metadata.namespace, resource, !!force, !!orphan);
                     if (appChanged) {
-                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace));
+                        appChanged.next(await services.applicationSets.get(application.metadata.name, application.metadata.namespace));
                     }
                     close();
                 } catch (e) {
@@ -425,10 +426,10 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
 
 function getActionItems(
     resource: ResourceTreeNode,
-    application: appModels.Application,
+    application: appModels.ApplicationSet,
     tree: appModels.ApplicationTree,
     apis: ContextApis,
-    appChanged: BehaviorSubject<appModels.AbstractApplication>,
+    appChanged: BehaviorSubject<appModels.ApplicationSet>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
     const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
@@ -469,7 +470,7 @@ function getActionItems(
         return from([items]);
     }
 
-    const execAction = services.authService
+   /* const execAction = services.authService
         .settings()
         .then(async settings => {
             const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
@@ -485,6 +486,7 @@ function getActionItems(
             return [] as MenuItem[];
         })
         .catch(() => [] as MenuItem[]);
+*/
 
     const resourceActions = getResourceActionsMenuItems(resource, application.metadata, apis);
 
@@ -506,17 +508,17 @@ function getActionItems(
     return combineLatest(
         from([items]), // this resolves immediately
         concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
-        concat([[] as MenuItem[]], execAction), // this resolves at first to [] and then whatever the API returns
+        // concat([[] as MenuItem[]], execAction), // this resolves at first to [] and then whatever the API returns
         concat([[] as MenuItem[]], links) // this resolves at first to [] and then whatever the API returns
     ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
 }
 
 export function renderResourceMenu(
     resource: ResourceTreeNode,
-    application: appModels.Application,
+    application: appModels.ApplicationSet,
     tree: appModels.ApplicationTree,
     apis: ContextApis,
-    appChanged: BehaviorSubject<appModels.AbstractApplication>,
+    appChanged: BehaviorSubject<appModels.ApplicationSet>,
     getApplicationActionMenu: () => any
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
@@ -560,7 +562,7 @@ export function renderResourceMenu(
     );
 }
 
-export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, apis: ContextApis): React.ReactNode {
+export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.ApplicationSet, apis: ContextApis): React.ReactNode {
     const menuItems = getResourceActionsMenuItems(resource, application.metadata, apis);
 
     return (
@@ -589,10 +591,10 @@ export function renderResourceActionMenu(resource: ResourceTreeNode, application
 
 export function renderResourceButtons(
     resource: ResourceTreeNode,
-    application: appModels.Application,
+    application: appModels.ApplicationSet,
     tree: appModels.ApplicationTree,
     apis: ContextApis,
-    appChanged: BehaviorSubject<appModels.AbstractApplication>
+    appChanged: BehaviorSubject<appModels.ApplicationSet>
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
     menuItems = getActionItems(resource, application, tree, apis, appChanged, true);
@@ -626,7 +628,7 @@ export function renderResourceButtons(
     );
 }
 
-export function syncStatusMessage(app: appModels.Application) {
+/* export function syncStatusMessage(app: appModels.Application) {
     const source = getAppDefaultSource(app);
     const rev = app.status.sync.revision || source.targetRevision || 'HEAD';
     let message = source.targetRevision || 'HEAD';
@@ -661,7 +663,7 @@ export function syncStatusMessage(app: appModels.Application) {
             return <span>{message}</span>;
     }
 }
-
+*/
 export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus; noSpin?: boolean}) => {
     let color = COLORS.health.unknown;
     let icon = 'fa-question-circle';
@@ -695,34 +697,44 @@ export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
 
-/** from above */
 export const AppSetHealthStatusIcon = ({state, noSpin}: {state: appModels.ApplicationSetStatus; noSpin?: boolean}) => {
     let color = COLORS.health.unknown;
     let icon = 'fa-question-circle';
 
-    switch (state.conditions && state.conditions[0].status) {
+    switch (state.conditions[0].status) {
         case appModels.ApplicationSetConditionStatuses.True:
             color = COLORS.health.healthy;
             icon = 'fa-heart';
             break;
+      /*  case appModels.HealthStatuses.Suspended:
+            color = COLORS.health.suspended;
+            icon = 'fa-pause-circle';
+            break;
+            */
         case appModels.ApplicationSetConditionStatuses.False:
             color = COLORS.health.degraded;
             icon = 'fa-heart-broken';
             break;
+      /*  case appModels.HealthStatuses.Progressing:
+            color = COLORS.health.progressing;
+            icon = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
+            break;
+            */
         case appModels.ApplicationSetConditionStatuses.Unknown:
             color = COLORS.health.missing;
             icon = 'fa-ghost';
             break;
     }
-    let title: string = state.conditions && state.conditions[0].message;
+    let title: string = state.conditions[0].message;
     
-    if (state.conditions && state.conditions[0].message) {
+    if (state.conditions[0].message) {
         title = `${state.conditions[0].status}: ${state.conditions[0].message}`;
     }
+
     
+    // let title: string = "kuku"
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
-
 
 export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
     let icon = 'fa-question-circle';
@@ -831,7 +843,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
     return null;
 };
 
-export const getAppOperationState = (app: appModels.Application): appModels.OperationState => {
+/*export const getAppOperationState = (app: appModels.Application): appModels.OperationState => {
     if (app.operation) {
         return {
             phase: appModels.OperationPhases.Running,
@@ -850,25 +862,27 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
         return app.status.operationState;
     }
 };
+*/
 
-export function getOperationType(application: appModels.Application) {
-    const operation = application.operation || (application.status && application.status.operationState && application.status.operationState.operation);
-    if (application.metadata.deletionTimestamp && !application.operation) {
+export function getOperationType(application: appModels.ApplicationSet) {
+    // const operation = application.operation || (application.status && application.status.operationState && application.status.operationState.operation);
+    if (application.metadata.deletionTimestamp  /*&& !application.operation */) {
         return 'Delete';
     }
-    if (operation && operation.sync) {
+   /* if (operation && operation.sync) {
         return 'Sync';
     }
+    */
     return 'Unknown';
 }
 
-const getOperationStateTitle = (app: appModels.Application) => {
-    const appOperationState = getAppOperationState(app);
+const getOperationStateTitle = (app: appModels.ApplicationSet) => {
+    // const appOperationState = getAppOperationState(app);
     const operationType = getOperationType(app);
     switch (operationType) {
         case 'Delete':
             return 'Deleting';
-        case 'Sync':
+    /*    case 'Sync':
             switch (appOperationState.phase) {
                 case 'Running':
                     return 'Syncing';
@@ -881,11 +895,12 @@ const getOperationStateTitle = (app: appModels.Application) => {
                 case 'Terminating':
                     return 'Terminated';
             }
+            */
     }
     return 'Unknown';
 };
 
-export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?: boolean}) => {
+/*export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?: boolean}) => {
     const appOperationState = getAppOperationState(app);
     if (appOperationState === undefined) {
         return <React.Fragment />;
@@ -900,6 +915,7 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
         </React.Fragment>
     );
 };
+*/
 
 export function getPodStateReason(pod: appModels.State): {message: string; reason: string; netContainerStatuses: any[]} {
     let reason = pod.status.phase;
@@ -975,12 +991,11 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     return {reason, message, netContainerStatuses};
 }
 
-export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingConditions: string[]; notPassedConditions: string[]} => {
-    // if pod does not have readiness gates then return empty status
+export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingConditions: string[]; failedConditions: string[]} => {
     if (!pod.spec?.readinessGates?.length) {
         return {
             nonExistingConditions: [],
-            notPassedConditions: []
+            failedConditions: []
         };
     }
 
@@ -1019,11 +1034,11 @@ export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingCon
 
     return {
         nonExistingConditions,
-        notPassedConditions: failedConditions
+        failedConditions
     };
 };
 
-export function getConditionCategory(condition: appModels.ApplicationCondition): 'error' | 'warning' | 'info' {
+export function getConditionCategory(condition: appModels.ApplicationSetCondition): 'error' | 'warning' | 'info' {
     if (condition.type.endsWith('Error')) {
         return 'error';
     } else if (condition.type.endsWith('Warning')) {
@@ -1032,30 +1047,12 @@ export function getConditionCategory(condition: appModels.ApplicationCondition):
         return 'info';
     }
 }
-
-export function getAppSetConditionCategory(condition: appModels.ApplicationSetCondition): 'error' | 'warning' | 'info' {
-    if (condition.type.endsWith('Error')) {
-        return 'error';
-    } else if (condition.type.endsWith('Warning')) {
-        return 'warning';
-    } else {
-        return 'info';
-    }
-}
-
 
 export function isAppNode(node: appModels.ResourceNode) {
-    return node.kind === 'Application' && node.group === 'argoproj.io';
+    return node.kind === 'ApplicationSet' && node.group === 'argoproj.io';
 }
 
-export function getAppOverridesCount(app: appModels.AbstractApplication) {
-    var isApplicationSet = true;
-    if  ("resource" in app.status) {
-        isApplicationSet = false;
-    }
-    if (isApplicationSet) {
-        return 0;
-    }
+/*export function getAppOverridesCount(app: appModels.Application) {
     const source = getAppDefaultSource(app);
     if (source.kustomize && source.kustomize.images) {
         return source.kustomize.images.length;
@@ -1065,10 +1062,11 @@ export function getAppOverridesCount(app: appModels.AbstractApplication) {
     }
     return 0;
 }
+*/
 
 // getAppDefaultSource gets the first app source from `sources` or, if that list is missing or empty, the `source`
 // field.
-export function getAppDefaultSource(app?: appModels.AbstractApplication) {
+/*export function getAppDefaultSource(app?: appModels.Application) {
     if (!app) {
         return null;
     }
@@ -1188,6 +1186,8 @@ export const ApplicationSyncWindowStatusIcon = ({project, state}: {project: stri
         </a>
     );
 };
+
+*/
 
 /**
  * Automatically stops and restarts the given observable when page visibility changes.

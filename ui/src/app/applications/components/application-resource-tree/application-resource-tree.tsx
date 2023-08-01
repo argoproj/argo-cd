@@ -47,7 +47,7 @@ export interface ResourceTreeNode extends models.ResourceNode {
 }
 
 export interface ApplicationResourceTreeProps {
-    app: models.Application;
+    app: models.AbstractApplication;
     tree: models.ApplicationTree;
     useNetworkingHierarchy: boolean;
     nodeFilter: (node: ResourceTreeNode) => boolean;
@@ -748,7 +748,10 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
-    const extLinks: string[] = props.app.status.summary.externalURLs;
+    var extLinks: string[] = [];
+    if ('summary' in props.app.status) {
+        extLinks = props.app.status.summary.externalURLs;
+    }
     const childCount = nodesHavingChildren.get(node.uid);
     return (
         <div
@@ -880,6 +883,16 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     graph.setGraph({nodesep: 25, rankdir: 'LR', marginy: 45, marginx: -100, ranksep: 80});
     graph.setDefaultEdgeLabel(() => ({}));
     const overridesCount = getAppOverridesCount(props.app);
+    var status = "";
+    var health = "";
+    var isApplicationSet = true;
+    if ('sync' in props.app.status) {
+        status = props.app.status.sync.status;
+        isApplicationSet = false;
+    }
+    if ('health' in props.app.status) {
+        health = props.app.status.health;
+    }
     const appNode = {
         kind: props.app.kind,
         name: props.app.metadata.name,
@@ -888,8 +901,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         group: 'argoproj.io',
         version: '',
         children: Array(),
-        status: props.app.status.sync.status,
-        health: props.app.status.health,
+        status: status, // props.app.status?.sync.status,
+        health: health, // props.app.status?.health,
         uid: props.app.kind + '-' + props.app.metadata.namespace + '-' + props.app.metadata.name,
         info:
             overridesCount > 0
@@ -903,7 +916,11 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     };
 
     const statusByKey = new Map<string, models.ResourceStatus>();
-    props.app.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
+    var resources : models.ResourceStatus [] = [];
+    if (!isApplicationSet) {
+        resources = props.app.status.resources;
+        resources.forEach(res => statusByKey.set(nodeKey(res), res));
+    }
     const nodeByKey = new Map<string, ResourceTreeNode>();
     props.tree.nodes
         .map(node => ({...node, orphaned: false}))
@@ -1073,7 +1090,12 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
     } else {
         // Tree view
-        const managedKeys = new Set(props.app.status.resources.map(nodeKey));
+        var managedKeys: Set<unknown>;
+        if (!isApplicationSet) {
+            managedKeys = new Set(props.app.status.resources.map(nodeKey));
+        } else {
+            managedKeys = new Set();
+        }
         const orphanedKeys = new Set(props.tree.orphanedNodes?.map(nodeKey));
         const orphans: ResourceTreeNode[] = [];
         let allChildNodes: ResourceTreeNode[] = [];
