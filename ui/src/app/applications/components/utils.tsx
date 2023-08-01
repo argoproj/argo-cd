@@ -1261,7 +1261,9 @@ export function getUsrMsgToDisplay(appName: string, msgKey: string, usrMessages:
         return {appName, msgKey, messages: userMsgs[msgKey], display: false, duration: 1} as appModels.UserMessages;
     }
 }
+
 type UserMsgType = {[key: string]: string};
+
 export const userMsgs: UserMsgType = {
     groupNodes: `Since the number of pods has surpassed the threshold pod count of 15, you will now be switched to the group node view.
                  If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`
