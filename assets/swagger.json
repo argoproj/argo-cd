@@ -5654,19 +5654,8 @@
     },
     "v1Time": {
       "description": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false",
-      "type": "object",
-      "properties": {
-        "nanos": {
-          "description": "Non-negative fractions of a second at nanosecond resolution. Negative\nsecond values with fractions must still have non-negative nanos values\nthat count forward in time. Must be from 0 to 999,999,999\ninclusive. This field may be limited in precision depending on context.",
-          "type": "integer",
-          "format": "int32"
-        },
-        "seconds": {
-          "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive.",
-          "type": "string",
-          "format": "int64"
-        }
-      }
+      "type": "string",
+      "format": "date-time"
     },
     "v1alpha1AWSAuthConfig": {
       "type": "object",
@@ -8223,13 +8212,15 @@
             "$ref": "#/definitions/v1alpha1ResourceRef"
           }
         },
-        "resourceRef": {
-          "$ref": "#/definitions/v1alpha1ResourceRef"
-        },
         "resourceVersion": {
           "type": "string"
         }
-      }
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/v1alpha1ResourceRef"
+        }
+      ]
     },
     "v1alpha1ResourceOverride": {
       "type": "object",
