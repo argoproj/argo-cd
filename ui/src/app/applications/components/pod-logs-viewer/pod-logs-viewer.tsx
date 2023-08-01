@@ -194,7 +194,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                     <Grid
                                         cellRenderer={cellRenderer}
                                         columnCount={1}
-                                        columnWidth={maxWidth}
+                                        columnWidth={Math.max(width, maxWidth)}
                                         height={height}
                                         rowCount={logs.length}
                                         rowHeight={18}

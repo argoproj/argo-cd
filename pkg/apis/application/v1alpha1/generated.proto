@@ -1594,6 +1594,10 @@ message ResourceAction {
   repeated ResourceActionParam params = 2;
 
   optional bool disabled = 3;
+
+  optional string iconClass = 4;
+
+  optional string displayName = 5;
 }
 
 // TODO: describe this type
