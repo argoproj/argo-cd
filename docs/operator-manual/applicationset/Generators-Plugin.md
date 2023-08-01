@@ -138,7 +138,7 @@ You can deploy it either as a sidecar or as a standalone deployment (the latter 
 In the example, the token is stored in a file at this location : `/var/run/argo/token`
 
 ```
-string-password
+strong-password
 ```
 
 ```python
@@ -199,7 +199,7 @@ if __name__ == '__main__':
 Execute getparams with curl :
 
 ```
-curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
+curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer strong-password" -d \
 '{
   "applicationSetName": "fake-appset",
   "input": {
@@ -283,7 +283,7 @@ To illustrate :
 - The generator plugin would then perform 2 requests as follows :
 
 ```shell
-curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
+curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer strong-password" -d \
 '{
   "applicationSetName": "fb-matrix",
   "input": {
@@ -297,7 +297,7 @@ curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer st
 Then,
 
 ```shell
-curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
+curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer strong-password" -d \
 '{
   "applicationSetName": "fb-matrix",
   "input": {
