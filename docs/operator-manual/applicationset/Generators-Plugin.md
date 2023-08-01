@@ -94,8 +94,8 @@ metadata:
 type: Opaque
 data:
   # ...
-  # The secret value must be base64 encoded **once**
-  # this value corresponds to: `printf "strong-password" | base64`
+  # The secret value must be base64 encoded **once**.
+  # this value corresponds to: `printf "strong-password" | base64`.
   plugin.myplugin.token: "c3Ryb25nLXBhc3N3b3Jk"
   # ...
 ```
@@ -124,9 +124,9 @@ type: Opaque
 data:
   # ...
   # Store client secret like below.
-  # Ensure the secret is base64 encoded
-  plugin.myplugin.token: <client-secret-base64-encoded>
-  # ...
+  # The secret value must be base64 encoded **once**.
+  # This value corresponds to: `printf "strong-password" | base64`.
+  plugin.myplugin.token: "c3Ryb25nLXBhc3N3b3Jk"
 ```
 
 ### HTTP server
