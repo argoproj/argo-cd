@@ -661,4 +661,7 @@ func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application) 
 	if app.Spec.Destination.Name != "" {
 		r.Header.Set(HeaderArgoCDTargetClusterName, app.Spec.Destination.Name)
 	}
+	if app.Spec.Destination.Server != "" {
+		r.Header.Set(HeaderArgoCDTargetClusterURL, app.Spec.Destination.Server)
+	}
 }
