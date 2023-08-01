@@ -210,6 +210,14 @@ func TestRegisterHandlers(t *testing.T) {
 				name:       "invalid name",
 				configYaml: getExtensionConfigInvalidName(),
 			},
+			{
+				name:       "no header name",
+				configYaml: getExtensionConfigNoHeaderName(),
+			},
+			{
+				name:       "no header value",
+				configYaml: getExtensionConfigNoHeaderValue(),
+			},
 		}
 
 		// when
@@ -334,9 +342,12 @@ func TestExtensionsHandler(t *testing.T) {
 		f.rbacMock.On("EnforceErr", mock.Anything, rbacpolicy.ResourceExtensions, rbacpolicy.ActionInvoke, mock.Anything).Return(extAccessError)
 	}
 
+	secrets := make(map[string]string)
+	secrets["extension.auth.header"] = "Bearer some-bearer-token"
 	withExtensionConfig := func(configYaml string, f *fixture) {
 		settings := &settings.ArgoCDSettings{
 			ExtensionConfig: configYaml,
+			Secrets:         secrets,
 		}
 		f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
 	}
@@ -421,6 +432,7 @@ func TestExtensionsHandler(t *testing.T) {
 		actual := strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, backendResponse, actual)
 		assert.Equal(t, clusterURL, resp.Header.Get(extension.HeaderArgoCDTargetCluster))
+		assert.Equal(t, "Bearer some-bearer-token", resp.Header.Get("Authorization"))
 	})
 	t.Run("will route requests with 2 backends for the same extension successfully", func(t *testing.T) {
 		// given
@@ -641,6 +653,9 @@ extensions:
   backend:
     services:
     - url: %s
+      headers:
+      - name: Authorization
+        valueSecretRef: '$extension.auth.header'
 `
 	return fmt.Sprintf(cfg, name, url)
 }
@@ -671,6 +686,9 @@ extensions:
   backend:
     services:
     - url: https://httpbin.org
+      headers:
+      - name: some-header
+        valueSecretRef: '$some.secret.ref'
 - name: some-backend
   backend:
     services:
@@ -703,5 +721,29 @@ extensions:
   backend:
     services:
     - cluster: some-cluster
+`
+}
+
+func getExtensionConfigNoHeaderName() string {
+	return `
+extensions:
+- name: some-extension
+  backend:
+    services:
+    - url: https://httpbin.org
+	  headers:
+	  - valueSecretRef: '$some.secret.key'
+`
+}
+
+func getExtensionConfigNoHeaderValue() string {
+	return `
+extensions:
+- name: some-extension
+  backend:
+    services:
+    - url: https://httpbin.org
+	  headers:
+	  - name: some-header-name
 `
 }

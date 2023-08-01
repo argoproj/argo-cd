@@ -148,6 +148,26 @@ type ServiceConfig struct {
 	// destination name to have requests properly forwarded to this
 	// service URL.
 	Cluster *ClusterConfig `json:"cluster,omitempty"`
+
+	// Headers if provided, the headers list will be added on all
+	// outgoing requests for this service config.
+	Headers []Header `json:"headers"`
+}
+
+// Header defines the header to be added in the proxy requests.
+type Header struct {
+	// Name defines the name of the header. It is a mandatory field if
+	// a header is provided.
+	Name string `json:"name"`
+	// ValueSecretRef defines the value of the header. The value can be
+	// provided as verbatim or as a reference to an Argo CD secret key.
+	// In order to provide it as a reference, it is necessary to prefix
+	// it with a dollar sign.
+	// Example:
+	//   valueSecretRef: '$some.argocd.secret.key'
+	// In the example above, the value will be replaced with the one from
+	// the argocd-secret with key 'some.argocd.secret.key'.
+	ValueSecretRef string `json:"valueSecretRef,omitempty"`
 }
 
 type ClusterConfig struct {
@@ -314,11 +334,23 @@ func proxyKey(extName, cName, cServer string) ProxyKey {
 	}
 }
 
-func parseAndValidateConfig(config string) (*ExtensionConfigs, error) {
-	configs := ExtensionConfigs{}
-	err := yaml.Unmarshal([]byte(config), &configs)
+func parseAndValidateConfig(s *settings.ArgoCDSettings) (*ExtensionConfigs, error) {
+	extConfigMap := map[string]interface{}{}
+	err := yaml.Unmarshal([]byte(s.ExtensionConfig), &extConfigMap)
 	if err != nil {
-		return nil, fmt.Errorf("invalid yaml: %s", err)
+		return nil, fmt.Errorf("invalid extension config: %s", err)
+	}
+
+	parsedExtConfig := settings.ReplaceMapSecrets(extConfigMap, s.Secrets)
+	parsedExtConfigBytes, err := yaml.Marshal(parsedExtConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling parsed extension config: %s", err)
+	}
+
+	configs := ExtensionConfigs{}
+	err = yaml.Unmarshal(parsedExtConfigBytes, &configs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid parsed extension config: %s", err)
 	}
 	err = validateConfigs(&configs)
 	if err != nil {
@@ -354,6 +386,16 @@ func validateConfigs(configs *ExtensionConfigs) error {
 					return fmt.Errorf("cluster.name or cluster.server must be defined when cluster is provided in the configuration")
 				}
 			}
+			if len(svc.Headers) > 0 {
+				for _, header := range svc.Headers {
+					if header.Name == "" {
+						return fmt.Errorf("header.name must be defined when providing service headers in the configuration")
+					}
+					if header.ValueSecretRef == "" {
+						return fmt.Errorf("header.valueSecretRef must be defined when providing service headers in the configuration")
+					}
+				}
+			}
 		}
 	}
 	return nil
@@ -361,7 +403,7 @@ func validateConfigs(configs *ExtensionConfigs) error {
 
 // NewProxy will instantiate a new reverse proxy based on the provided
 // targetURL and config.
-func NewProxy(targetURL string, config ProxyConfig) (*httputil.ReverseProxy, error) {
+func NewProxy(targetURL string, headers []Header, config ProxyConfig) (*httputil.ReverseProxy, error) {
 	url, err := url.Parse(targetURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse proxy URL: %s", err)
@@ -373,6 +415,11 @@ func NewProxy(targetURL string, config ProxyConfig) (*httputil.ReverseProxy, err
 			req.URL.Scheme = url.Scheme
 			req.URL.Host = url.Host
 			req.Header.Set("Host", url.Host)
+			req.Header.Del("Authorization")
+			req.Header.Del("Cookie")
+			for _, header := range headers {
+				req.Header.Set(header.Name, header.ValueSecretRef)
+			}
 		},
 	}
 	return proxy, nil
@@ -414,16 +461,16 @@ func applyProxyConfigDefaults(c *ProxyConfig) {
 // router.
 func (m *Manager) RegisterHandlers(r *mux.Router) error {
 	m.log.Info("Registering extension handlers...")
-	config, err := m.settings.Get()
+	settings, err := m.settings.Get()
 	if err != nil {
 		return fmt.Errorf("error getting settings: %s", err)
 	}
 
-	if config.ExtensionConfig == "" {
+	if settings.ExtensionConfig == "" {
 		return fmt.Errorf("No extensions configurations found")
 	}
 
-	extConfigs, err := parseAndValidateConfig(config.ExtensionConfig)
+	extConfigs, err := parseAndValidateConfig(settings)
 	if err != nil {
 		return fmt.Errorf("error parsing extension config: %s", err)
 	}
@@ -478,7 +525,7 @@ func (m *Manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs
 		registry := NewProxyRegistry()
 		singleBackend := len(ext.Backend.Services) == 1
 		for _, service := range ext.Backend.Services {
-			proxy, err := NewProxy(service.URL, ext.Backend.ProxyConfig)
+			proxy, err := NewProxy(service.URL, service.Headers, ext.Backend.ProxyConfig)
 			if err != nil {
 				return fmt.Errorf("error creating proxy: %s", err)
 			}
@@ -602,8 +649,5 @@ func (m *Manager) CallExtension(extName string, registry ProxyRegistry) func(htt
 // proxy extension.
 func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application) {
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
-	r.Header.Del("Cookie")
-	r.Header.Del("Authorization")
-	r.Header.Del(HeaderArgoCDTargetCluster)
-	r.Header.Add(HeaderArgoCDTargetCluster, app.Spec.Destination.Server)
+	r.Header.Set(HeaderArgoCDTargetCluster, app.Spec.Destination.Server)
 }
