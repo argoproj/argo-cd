@@ -245,6 +245,23 @@ rest of the incoming request.
 
 ### Outgoing Requets Headers
 
+Requests sent to backend services will be decorated with additional
+headers. The outgoing request headers are documented below:
+
+#### `Argocd-Target-Cluster-Name`
+
+Will be populated with the value from `app.Spec.Destination.Name` if
+it is not empty string in the application resource.
+
+#### `Argocd-Target-Cluster-URL`
+
+Will be populated with the value from `app.Spec.Destination.Server` if
+it is not empty string is the Application resource.
+
+Note that additional pre-configured headers can be added to outgoing
+request. See [backend service headers](#extensionsbackendservicesheaders-list)
+section for more details.
+
 ### Multi Backend Use-Case
 
 In some cases when Argo CD is configured to sync with multiple remote

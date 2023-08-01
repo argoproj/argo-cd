@@ -657,7 +657,6 @@ func (m *Manager) CallExtension(extName string, registry ProxyRegistry) func(htt
 // proxy extension.
 func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application) {
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
-	r.Header.Set(HeaderArgoCDTargetClusterURL, app.Spec.Destination.Server)
 	if app.Spec.Destination.Name != "" {
 		r.Header.Set(HeaderArgoCDTargetClusterName, app.Spec.Destination.Name)
 	}
