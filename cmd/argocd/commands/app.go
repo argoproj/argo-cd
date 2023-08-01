@@ -1027,7 +1027,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 	items := make([]objKeyLiveTarget, 0)
 	if diffOptions.local != "" {
 		localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace))
+		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
 	} else if diffOptions.revision != "" {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.res.Manifests {
@@ -1036,7 +1036,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 			unstructureds = append(unstructureds, obj)
 		}
 		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace))
+		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
 	} else if diffOptions.serversideRes != nil {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.serversideRes.Manifests {
@@ -1045,7 +1045,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 			unstructureds = append(unstructureds, obj)
 		}
 		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace))
+		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
 	} else {
 		for i := range resources.Items {
 			res := resources.Items[i]
@@ -1105,7 +1105,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 	return foundDiffs
 }
 
-func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[kube.ResourceKey]*unstructured.Unstructured, items []objKeyLiveTarget, argoSettings *settings.Settings, appName string) []objKeyLiveTarget {
+func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[kube.ResourceKey]*unstructured.Unstructured, items []objKeyLiveTarget, argoSettings *settings.Settings, appName, namespace string) []objKeyLiveTarget {
 	resourceTracking := argo.NewResourceTracking()
 	for _, res := range resources.Items {
 		var live = &unstructured.Unstructured{}
@@ -1120,7 +1120,7 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 		}
 		if local, ok := objs[key]; ok || live != nil {
 			if local != nil && !kube.IsCRD(local) {
-				err = resourceTracking.SetAppInstance(local, argoSettings.AppLabelKey, appName, "", argoappv1.TrackingMethod(argoSettings.GetTrackingMethod()))
+				err = resourceTracking.SetAppInstance(local, argoSettings.AppLabelKey, appName, namespace, argoappv1.TrackingMethod(argoSettings.GetTrackingMethod()))
 				errors.CheckError(err)
 			}
 
@@ -1661,8 +1661,15 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 
 				if app.Spec.HasMultipleSources() {
-					log.Fatal("argocd cli does not work on multi-source app")
-					return
+					if revision != "" {
+						log.Fatal("argocd cli does not work on multi-source app with --revision flag")
+						return
+					}
+
+					if local != "" {
+						log.Fatal("argocd cli does not work on multi-source app with --local flag")
+						return
+					}
 				}
 
 				// filters out only those resources that needs to be synced

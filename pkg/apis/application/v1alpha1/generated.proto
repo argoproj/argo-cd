@@ -807,6 +807,9 @@ message ComparedTo {
 
   // Sources is a reference to the application's multiple sources used for comparison
   repeated ApplicationSource sources = 3;
+
+  // IgnoreDifferences is a reference to the application's ignored differences used for comparison
+  repeated ResourceIgnoreDifferences ignoreDifferences = 4;
 }
 
 // ComponentParameter contains information about component parameter value
@@ -1373,6 +1376,9 @@ message PullRequestGeneratorGitLab {
 
   // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
   optional string pullRequestState = 5;
+
+  // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
+  optional bool insecure = 6;
 }
 
 // PullRequestGeneratorGitea defines connection info specific to Gitea.
@@ -1588,6 +1594,10 @@ message ResourceAction {
   repeated ResourceActionParam params = 2;
 
   optional bool disabled = 3;
+
+  optional string iconClass = 4;
+
+  optional string displayName = 5;
 }
 
 // TODO: describe this type
@@ -2019,6 +2029,9 @@ message SCMProviderGeneratorGitlab {
 
   // Scan all branches instead of just the default branch.
   optional bool allBranches = 5;
+
+  // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
+  optional bool insecure = 6;
 }
 
 // Utility struct for a reference to a secret key.

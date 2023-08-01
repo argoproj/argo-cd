@@ -513,12 +513,13 @@ data:
     - description: Application syncing has failed
       send:
       - app-sync-failed
-      when: app.status.operationState.phase in ['Error', 'Failed']
+      when: app.status.operationState != nil and app.status.operationState.phase in ['Error',
+        'Failed']
   trigger.on-sync-running: |
     - description: Application is being synced
       send:
       - app-sync-running
-      when: app.status.operationState.phase in ['Running']
+      when: app.status.operationState != nil and app.status.operationState.phase in ['Running']
   trigger.on-sync-status-unknown: |
     - description: Application status is 'Unknown'
       send:
@@ -528,7 +529,7 @@ data:
     - description: Application syncing has succeeded
       send:
       - app-sync-succeeded
-      when: app.status.operationState.phase in ['Succeeded']
+      when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded']
 kind: ConfigMap
 metadata:
   creationTimestamp: null
