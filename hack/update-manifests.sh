@@ -49,6 +49,3 @@ $KUSTOMIZE build "${SRCROOT}/manifests/ha/namespace-install" >> "${SRCROOT}/mani
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/core-install.yaml"
 $KUSTOMIZE build "${SRCROOT}/manifests/core-install" >> "${SRCROOT}/manifests/core-install.yaml"
-
-echo "${AUTOGENMSG}" > "${SRCROOT}/notifications_catalog/install.yaml"
-go run ./hack/gen-catalog/main.go catalog
