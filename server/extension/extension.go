@@ -45,16 +45,24 @@ const (
 	//     Argocd-Project-Name: "default"
 	HeaderArgoCDProjectName = "Argocd-Project-Name"
 
-	// HeaderArgoCDTargetCluster defines the target cluster URL
-	// that the application is associated with. This header will
-	// be populated by the extension proxy and passed to the
+	// HeaderArgoCDTargetClusterURL defines the target cluster URL
+	// that the Argo CD application is associated with. This header
+	// will be populated by the extension proxy and passed to the
 	// configured backend service. If this header is passed by
 	// the client, its value will be overriden by the extension
 	// handler.
 	//
 	// Example:
 	//     Argocd-Target-Cluster-URL: "https://kubernetes.default.svc.cluster.local"
-	HeaderArgoCDTargetCluster = "Argocd-Target-Cluster-URL"
+	HeaderArgoCDTargetClusterURL = "Argocd-Target-Cluster-URL"
+
+	// HeaderArgoCDTargetClusterName defines the target cluster name
+	// that the Argo CD application is associated with. This header
+	// will be populated by the extension proxy and passed to the
+	// configured backend service. If this header is passed by
+	// the client, its value will be overriden by the extension
+	// handler.
+	HeaderArgoCDTargetClusterName = "Argocd-Target-Cluster-Name"
 )
 
 // RequestResources defines the authorization scope for
@@ -159,15 +167,15 @@ type Header struct {
 	// Name defines the name of the header. It is a mandatory field if
 	// a header is provided.
 	Name string `json:"name"`
-	// ValueSecretRef defines the value of the header. The value can be
+	// Value defines the value of the header. The actual value can be
 	// provided as verbatim or as a reference to an Argo CD secret key.
 	// In order to provide it as a reference, it is necessary to prefix
 	// it with a dollar sign.
 	// Example:
-	//   valueSecretRef: '$some.argocd.secret.key'
+	//   value: '$some.argocd.secret.key'
 	// In the example above, the value will be replaced with the one from
 	// the argocd-secret with key 'some.argocd.secret.key'.
-	ValueSecretRef string `json:"valueSecretRef,omitempty"`
+	Value string `json:"value,omitempty"`
 }
 
 type ClusterConfig struct {
@@ -391,8 +399,8 @@ func validateConfigs(configs *ExtensionConfigs) error {
 					if header.Name == "" {
 						return fmt.Errorf("header.name must be defined when providing service headers in the configuration")
 					}
-					if header.ValueSecretRef == "" {
-						return fmt.Errorf("header.valueSecretRef must be defined when providing service headers in the configuration")
+					if header.Value == "" {
+						return fmt.Errorf("header.value must be defined when providing service headers in the configuration")
 					}
 				}
 			}
@@ -418,7 +426,7 @@ func NewProxy(targetURL string, headers []Header, config ProxyConfig) (*httputil
 			req.Header.Del("Authorization")
 			req.Header.Del("Cookie")
 			for _, header := range headers {
-				req.Header.Set(header.Name, header.ValueSecretRef)
+				req.Header.Set(header.Name, header.Value)
 			}
 		},
 	}
@@ -649,5 +657,8 @@ func (m *Manager) CallExtension(extName string, registry ProxyRegistry) func(htt
 // proxy extension.
 func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application) {
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
-	r.Header.Set(HeaderArgoCDTargetCluster, app.Spec.Destination.Server)
+	r.Header.Set(HeaderArgoCDTargetClusterURL, app.Spec.Destination.Server)
+	if app.Spec.Destination.Name != "" {
+		r.Header.Set(HeaderArgoCDTargetClusterName, app.Spec.Destination.Name)
+	}
 }

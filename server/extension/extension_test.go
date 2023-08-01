@@ -431,7 +431,7 @@ func TestExtensionsHandler(t *testing.T) {
 		require.NoError(t, err)
 		actual := strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, backendResponse, actual)
-		assert.Equal(t, clusterURL, resp.Header.Get(extension.HeaderArgoCDTargetCluster))
+		assert.Equal(t, clusterURL, resp.Header.Get(extension.HeaderArgoCDTargetClusterURL))
 		assert.Equal(t, "Bearer some-bearer-token", resp.Header.Get("Authorization"))
 	})
 	t.Run("will route requests with 2 backends for the same extension successfully", func(t *testing.T) {
@@ -655,7 +655,7 @@ extensions:
     - url: %s
       headers:
       - name: Authorization
-        valueSecretRef: '$extension.auth.header'
+        value: '$extension.auth.header'
 `
 	return fmt.Sprintf(cfg, name, url)
 }
@@ -688,7 +688,7 @@ extensions:
     - url: https://httpbin.org
       headers:
       - name: some-header
-        valueSecretRef: '$some.secret.ref'
+        value: '$some.secret.ref'
 - name: some-backend
   backend:
     services:
@@ -732,7 +732,7 @@ extensions:
     services:
     - url: https://httpbin.org
 	  headers:
-	  - valueSecretRef: '$some.secret.key'
+	  - value: '$some.secret.key'
 `
 }
 

@@ -54,7 +54,7 @@ data:
         - url: http://httpbin.org
           headers:
           - name: some-header
-            valueSecretRef: '$some.argocd.secret.key'
+            value: '$some.argocd.secret.key'
           cluster:
             name: some-cluster
             server: https://some-cluster
@@ -126,7 +126,7 @@ the same name will be overriden by the one in this list.
 Defines the name of the header. It is a mandatory field if a header is
 provided.
 
-#### `extensions.backend.services.headers.valueSecretRef` (*string*)
+#### `extensions.backend.services.headers.value` (*string*)
 (mandatory)
 
 Defines the value of the header. It is a mandatory field if a header is
@@ -136,7 +136,7 @@ necessary to prefix it with a dollar sign.
 
 Example:
 
-    valueSecretRef: '$some.argocd.secret.key'
+    value: '$some.argocd.secret.key'
 
 In the example above, the value will be replaced with the one from
 the argocd-secret with key 'some.argocd.secret.key'.
@@ -299,7 +299,7 @@ extension.config: |
       - url: http://extension-name.com:8080
         headers:
         - name: Authorization
-          valueSecretRef: '$some-extension.authorization.header'
+          value: '$some-extension.authorization.header'
 ```
 
 In the example above, all requests sent to
