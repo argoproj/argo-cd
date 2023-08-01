@@ -2145,7 +2145,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 	// Return a custom message when the context gets cancelled.
 	if ctx.Err() == context.DeadlineExceeded {
-		return nil, finalOperationState, fmt.Errorf("Command timed out before the specified conditions were met")
+		return nil, finalOperationState, fmt.Errorf("command timed out before the specified conditions were met")
 	}
 
 	_ = printFinalStatus(app)
