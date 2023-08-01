@@ -286,36 +286,41 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 func TestGitlabListRepos(t *testing.T) {
 	cases := []struct {
-		name, proto, url                                  string
-		hasError, allBranches, includeSubgroups, insecure bool
-		branches                                          []string
-		filters                                           []v1alpha1.SCMProviderGeneratorFilter
+		name, proto, url                                                         string
+		hasError, allBranches, includeSubgroups, includeSharedProjects, insecure bool
+		branches                                                                 []string
+		filters                                                                  []v1alpha1.SCMProviderGeneratorFilter
 	}{
 		{
-			name:     "blank protocol",
-			url:      "git@gitlab.com:test-argocd-proton/argocd.git",
-			branches: []string{"master"},
+			name:                  "blank protocol",
+			url:                   "git@gitlab.com:test-argocd-proton/argocd.git",
+			branches:              []string{"master"},
+			includeSharedProjects: true,
 		},
 		{
-			name:  "ssh protocol",
-			proto: "ssh",
-			url:   "git@gitlab.com:test-argocd-proton/argocd.git",
+			name:                  "ssh protocol",
+			proto:                 "ssh",
+			url:                   "git@gitlab.com:test-argocd-proton/argocd.git",
+			includeSharedProjects: true,
 		},
 		{
-			name:  "https protocol",
-			proto: "https",
-			url:   "https://gitlab.com/test-argocd-proton/argocd.git",
+			name:                  "https protocol",
+			proto:                 "https",
+			url:                   "https://gitlab.com/test-argocd-proton/argocd.git",
+			includeSharedProjects: true,
 		},
 		{
-			name:     "other protocol",
-			proto:    "other",
-			hasError: true,
+			name:                  "other protocol",
+			proto:                 "other",
+			hasError:              true,
+			includeSharedProjects: true,
 		},
 		{
-			name:        "all branches",
-			allBranches: true,
-			url:         "git@gitlab.com:test-argocd-proton/argocd.git",
-			branches:    []string{"master"},
+			name:                  "all branches",
+			allBranches:           true,
+			url:                   "git@gitlab.com:test-argocd-proton/argocd.git",
+			branches:              []string{"master"},
+			includeSharedProjects: true,
 		},
 	}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -323,7 +328,7 @@ func TestGitlabListRepos(t *testing.T) {
 	}))
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.insecure, "")
+			provider, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.insecure, "")
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				assert.NotNil(t, err)
@@ -352,7 +357,7 @@ func TestGitlabHasPath(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gitlabMockHandler(t)(w, r)
 	}))
-	host, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, false, "")
+	host, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, true, false, "")
 	repo := &Repository{
 		Organization: "test-argocd-proton",
 		Repository:   "argocd",
@@ -398,7 +403,7 @@ func TestGitlabGetBranches(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gitlabMockHandler(t)(w, r)
 	}))
-	host, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, false, "")
+	host, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, true, false, "")
 
 	repo := &Repository{
 		RepositoryId: 27084533,
