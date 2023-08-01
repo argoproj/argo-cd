@@ -175,7 +175,7 @@ type Header struct {
 	//   value: '$some.argocd.secret.key'
 	// In the example above, the value will be replaced with the one from
 	// the argocd-secret with key 'some.argocd.secret.key'.
-	Value string `json:"value,omitempty"`
+	Value string `json:"value"`
 }
 
 type ClusterConfig struct {
