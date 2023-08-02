@@ -52,6 +52,9 @@ data:
         maxIdleConnections: 30
         services:
         - url: http://httpbin.org
+          headers:
+          - name: some-header
+            value: '$some.argocd.secret.key'
           cluster:
             name: some-cluster
             server: https://some-cluster
@@ -111,6 +114,34 @@ Defines a list with backend url by cluster.
 
 Is the address where the extension backend must be available.
 
+#### `extensions.backend.services.headers` (*list*)
+
+If provided, the headers list will be added on all outgoing requests
+for this service config. Existing headers in the incoming request with
+the same name will be overriden by the one in this list. Reserved header
+names will be ignored (see the [headers](#incoming-request-headers) below).
+
+#### `extensions.backend.services.headers.name` (*string*)
+(mandatory)
+
+Defines the name of the header. It is a mandatory field if a header is
+provided.
+
+#### `extensions.backend.services.headers.value` (*string*)
+(mandatory)
+
+Defines the value of the header. It is a mandatory field if a header is
+provided. The value can be provided as verbatim or as a reference to an
+Argo CD secret key. In order to provide it as a reference, it is
+necessary to prefix it with a dollar sign.
+
+Example:
+
+    value: '$some.argocd.secret.key'
+
+In the example above, the value will be replaced with the one from
+the argocd-secret with key 'some.argocd.secret.key'.
+
 #### `extensions.backend.services.cluster` (*object*)
 (optional)
 
@@ -166,14 +197,14 @@ configuration:
                                              └─────────────────┘
 ```
 
-### Headers
+### Incoming Request Headers
 
 Note that Argo CD API Server requires additional HTTP headers to be
 sent in order to enforce if the incoming request is authenticated and
 authorized before being proxied to the backend service. The headers
 are documented below:
 
-#### `Cookie` (*mandatory*)
+#### `Cookie`
 
 Argo CD UI keeps the authentication token stored in a cookie
 (`argocd.token`). This value needs to be sent in the `Cookie` header
@@ -211,6 +242,25 @@ validation is based on pre-configured [Argo CD RBAC rules][3]. The
 same headers are also sent to the backend service. The backend service
 must also validate if the validated headers are compatible with the
 rest of the incoming request.
+
+### Outgoing Requets Headers
+
+Requests sent to backend services will be decorated with additional
+headers. The outgoing request headers are documented below:
+
+#### `Argocd-Target-Cluster-Name`
+
+Will be populated with the value from `app.Spec.Destination.Name` if
+it is not empty string in the application resource.
+
+#### `Argocd-Target-Cluster-URL`
+
+Will be populated with the value from `app.Spec.Destination.Server` if
+it is not empty string is the Application resource.
+
+Note that additional pre-configured headers can be added to outgoing
+request. See [backend service headers](#extensionsbackendservicesheaders-list)
+section for more details.
 
 ### Multi Backend Use-Case
 
@@ -255,6 +305,28 @@ Once the request is authenticated and authorized by the API server, it
 is then sanitized before being sent to the backend service. The
 request sanitization will remove sensitive information from the
 request like the `Cookie` and `Authorization` headers.
+
+A new `Authorization` header can be added to the outgoing request by
+defining it as a header in the `extensions.backend.services.headers`
+configuration. Consider the following example:
+
+```yaml
+extension.config: |
+  extensions:
+  - name: some-extension
+    backend:
+      services:
+      - url: http://extension-name.com:8080
+        headers:
+        - name: Authorization
+          value: '$some-extension.authorization.header'
+```
+
+In the example above, all requests sent to
+`http://extension-name.com:8080` will have an additional
+`Authorization` header. The value of this header will be the one from
+the [argocd-secret](../../operator-manual/argocd-secret-yaml.md) with
+key `some-extension.authorization.header`
 
 [1]: https://github.com/argoproj/argoproj/blob/master/community/feature-status.md
 [2]: https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm.yaml
