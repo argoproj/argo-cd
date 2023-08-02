@@ -463,11 +463,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return fmt.Errorf("error getting API resources: %w", err)
 		}
 
-		proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
-		if err != nil {
-			return fmt.Errorf("error getting app project: %w", err)
-		}
-
 		manifestInfo, err = client.GenerateManifest(ctx, &apiclient.ManifestRequest{
 			Repo:               repo,
 			Revision:           revision,
@@ -483,8 +478,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			HelmOptions:        helmOptions,
 			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			EnabledSourceTypes: enableGenerateManifests,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
 		})
 		if err != nil {
 			return fmt.Errorf("error generating manifests: %w", err)
@@ -560,12 +553,6 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		}
 
 		source := a.Spec.GetSource()
-
-		proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
-		if err != nil {
-			return fmt.Errorf("error getting app project: %w", err)
-		}
-
 		req := &apiclient.ManifestRequest{
 			Repo:               repo,
 			Revision:           source.TargetRevision,
@@ -581,8 +568,6 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			HelmOptions:        helmOptions,
 			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			EnabledSourceTypes: enableGenerateManifests,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
 		}
 
 		repoStreamClient, err := client.GenerateManifestWithFiles(stream.Context())
@@ -1175,7 +1160,6 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	}
 
 	var conditions []appv1.ApplicationCondition
-
 	if validate {
 		conditions := make([]appv1.ApplicationCondition, 0)
 		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
