@@ -480,6 +480,61 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
+		case "/api/v4/projects/27084534/repository/branches?per_page=100":
+			_, err := io.WriteString(w, `[{
+				"name": "master",
+				"commit": {
+					"id": "8898d7999fc99dd0fd578650b58b244fc63f6b53",
+					"short_id": "8898d799",
+					"created_at": "2021-06-04T08:24:44.000+00:00",
+					"parent_ids": null,
+					"title": "Merge branch 'pipeline-1317911429' into 'master'",
+					"message": "Merge branch 'pipeline-1317911429' into 'master'",
+					"author_name": "Martin Vozník",
+					"author_email": "martin@voznik.cz",
+					"authored_date": "2021-06-04T08:24:44.000+00:00",
+					"committer_name": "Martin Vozník",
+					"committer_email": "martin@voznik.cz",
+					"committed_date": "2021-06-04T08:24:44.000+00:00",
+					"trailers": null,
+					"web_url": "https://gitlab.com/test-shared-argocd-proton/shared-argocd/-/commit/8898d7999fc99dd0fd578650b58b244fc63f6b53"
+				},
+				"merged": false,
+				"protected": true,
+				"developers_can_push": false,
+				"developers_can_merge": false,
+				"can_push": false,
+				"default": true,
+				"web_url": "https://gitlab.com/test-shared-argocd-proton/shared-argocd/-/tree/master"
+			}, {
+				"name": "pipeline-2310077506",
+				"commit": {
+					"id": "0f92540e5f396ba960adea4ed0aa905baf3f73d1",
+					"short_id": "0f92540e",
+					"created_at": "2021-06-01T18:39:59.000+00:00",
+					"parent_ids": null,
+					"title": "[testapp-ci] manifests/demo/test-app.yaml: release v1.0.1",
+					"message": "[testapp-ci] manifests/demo/test-app.yaml: release v1.0.1",
+					"author_name": "ci-test-app",
+					"author_email": "mvoznik+cicd@protonmail.com",
+					"authored_date": "2021-06-01T18:39:59.000+00:00",
+					"committer_name": "ci-test-app",
+					"committer_email": "mvoznik+cicd@protonmail.com",
+					"committed_date": "2021-06-01T18:39:59.000+00:00",
+					"trailers": null,
+					"web_url": "https://gitlab.com/test-shared-argocd-proton/shared-argocd/-/commit/0f92540e5f396ba960adea4ed0aa905baf3f73d1"
+				},
+				"merged": false,
+				"protected": false,
+				"developers_can_push": false,
+				"developers_can_merge": false,
+				"can_push": false,
+				"default": false,
+				"web_url": "https://gitlab.com/test-shared-argocd-proton/shared-argocd/-/tree/pipeline-1310077506"
+			}]`)
+			if err != nil {
+				t.Fail()
+			}
 		case "/api/v4/projects/test-argocd-proton%2Fargocd":
 			fmt.Println("auct")
 			_, err := io.WriteString(w, `{
@@ -598,20 +653,30 @@ func TestGitlabListRepos(t *testing.T) {
 				assert.Nil(t, err)
 				// Just check that this one project shows up. Not a great test but better than nothing?
 				repos := []*Repository{}
+				uniqueRepos := map[string]int{}
 				branches := []string{}
 				for _, r := range rawRepos {
 					if r.Repository == "argocd" {
 						repos = append(repos, r)
 						branches = append(branches, r.Branch)
 					}
+					uniqueRepos[r.Repository]++
 				}
 				assert.NotEmpty(t, repos)
 				assert.Equal(t, c.url, repos[0].URL)
 				for _, b := range c.branches {
 					assert.Contains(t, branches, b)
 				}
-				if c.includeSubgroups && c.includeSharedProjects {
-					assert.Equal(t, len(repos), 2)
+				// In case of listing subgroups, validate the number of returned projects
+				t.Log(c.includeSubgroups, c.includeSharedProjects)
+				if c.includeSubgroups {
+					if c.includeSharedProjects {
+						t.Log("in true true")
+						assert.Equal(t, 2, len(uniqueRepos))
+					} else {
+						t.Log("in true false")
+						assert.Equal(t, 1, len(uniqueRepos))
+					}
 				}
 			}
 		})
