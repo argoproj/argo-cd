@@ -79,6 +79,7 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 		IncludeSubGroups: &g.includeSubgroups,
 		WithShared:       &g.includeSharedProjects,
 	}
+
 	repos := []*Repository{}
 	for {
 		gitlabRepos, resp, err := g.client.Groups.ListGroupProjects(g.organization, opt)
