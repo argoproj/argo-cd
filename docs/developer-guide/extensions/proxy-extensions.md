@@ -243,7 +243,7 @@ same headers are also sent to the backend service. The backend service
 must also validate if the validated headers are compatible with the
 rest of the incoming request.
 
-### Outgoing Requets Headers
+### Outgoing Requests Headers
 
 Requests sent to backend services will be decorated with additional
 headers. The outgoing request headers are documented below:
