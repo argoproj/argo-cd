@@ -154,6 +154,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: controller.kubectl.parallelism.limit
                 optional: true
+        - name: ARGOCD_CONTROLLER_HEARTBEAT_TIME
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.heatbeat.time
+
         image: quay.io/isequeir/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller

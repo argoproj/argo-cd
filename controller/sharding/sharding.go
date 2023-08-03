@@ -29,11 +29,12 @@ import (
 // Make it overridable for testing
 var osHostnameFunction = os.Hostname
 
-const (
-	HeartbeatDuration         = 10
+var (
+	HeartbeatDuration         = env.ParseNumFromEnv(common.EnvControllerHeartbeatTime, 10, 10, 60)
 	HeartbeatTimeoutThreshold = 30
-	ShardControllerMappingKey = "shardControllerMapping"
 )
+
+const ShardControllerMappingKey = "shardControllerMapping"
 
 type DistributionFunction func(c *v1alpha1.Cluster) int
 type ClusterFilterFunction func(c *v1alpha1.Cluster) bool

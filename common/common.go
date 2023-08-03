@@ -211,6 +211,8 @@ const (
 	EnvPauseGenerationRequests = "ARGOCD_PAUSE_GEN_REQUESTS"
 	// EnvControllerReplicas is the number of controller replicas
 	EnvControllerReplicas = "ARGOCD_CONTROLLER_REPLICAS"
+	// EnvControllerHeartbeatTime will update the heartbeat for application controller to claim shard
+	EnvControllerHeartbeatTime = "ARGOCD_CONTROLLER_HEARTBEAT_TIME"
 	// EnvControllerShard is the shard number that should be handled by controller
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
 	// EnvControllerShardingAlgorithm is the distribution sharding algorithm to be used: legacy or round-robin
