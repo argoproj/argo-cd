@@ -16,6 +16,7 @@ interface ItemsList<T> {
 }
 
 export interface ApplicationList extends ItemsList<Application> {}
+export interface ApplicationSetList extends ItemsList<ApplicationSet> {}
 
 export interface SyncOperationResource {
     group: string;
@@ -132,14 +133,25 @@ export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
 export const AnnotationDefaultView = 'pref.argocd.argoproj.io/default-view';
 export const AnnotationDefaultPodSort = 'pref.argocd.argoproj.io/default-pod-sort';
 
-export interface Application {
+export interface AbstractApplication {
     apiVersion?: string;
     kind?: string;
     metadata: models.ObjectMeta;
+
+    spec: any;
+    status: any;
+}
+
+export interface Application extends AbstractApplication {
     spec: ApplicationSpec;
     status: ApplicationStatus;
     operation?: Operation;
     isAppOfAppsPattern?: boolean;
+}
+
+export interface ApplicationSet extends AbstractApplication {
+    spec: ApplicationSetSpec;
+    status: ApplicationSetStatus;
 }
 
 export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
@@ -147,6 +159,11 @@ export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
 export interface ApplicationWatchEvent {
     type: WatchType;
     application: Application;
+}
+
+export interface ApplicationSetWatchEvent {
+    type: WatchType;
+    applicationSet: ApplicationSet;
 }
 
 export interface ComponentParameter {
@@ -298,6 +315,60 @@ export interface RevisionHistory {
     deployStartedAt: models.Time;
     deployedAt: models.Time;
 }
+
+export interface ApplicationSetSpec {
+    goTemplate: boolean;
+    // generators: ApplicationSetGenerator[];
+    // template: ApplicationSetTemplate;
+    syncPolicy?: ApplicationSetSyncPolicy;
+    // strategy: ApplicationSetStrategy;
+    preservedFields: ApplicationPreservedFields;
+}
+
+export interface ApplicationSetSyncPolicy{
+    preserveResourcesOnDeletion: boolean;
+}
+
+export interface ApplicationPreservedFields {
+    annotations: string[];
+}
+
+export interface ApplicationSetStatus {
+    conditions?: ApplicationSetCondition[];
+    applicationStatus: ApplicationSetApplicationStatus[];
+}
+
+export interface ApplicationSetCondition {
+    type: ApplicationSetConditionType;
+    message: string;
+    status: ApplicationSetConditionStatus;
+    reason: string;
+}
+
+export interface ApplicationSetApplicationStatus {
+    application: string;
+    message: string;
+    status: string;
+    step: string;
+}
+
+export type ApplicationSetConditionType = 'ErrorOccurred' | 'ParametersGenerated' | 'ResourcesUpToDate' | 'RolloutProgressing';
+
+export const ApplicationSetConditionTypes: {[key: string]: ApplicationSetConditionType} = {
+    ErrorOccurred: 'ErrorOccurred',
+    ParametersGenerated: 'ParametersGenerated',
+    ResourcesUpToDate: 'ResourcesUpToDate',
+    RolloutProgressing: 'RolloutProgressing',
+};
+
+export type ApplicationSetConditionStatus = 'True' | 'False' | 'Unknown';
+
+export const ApplicationSetConditionStatuses: {[key: string]: ApplicationSetConditionStatus} = {
+    True: 'True',
+    False: 'False',
+    Unknown: 'Unknown',
+};
+
 
 export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
 

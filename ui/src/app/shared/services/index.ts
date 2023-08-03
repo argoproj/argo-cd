@@ -1,5 +1,6 @@
 import {AccountsService} from './accounts-service';
 import {ApplicationsService} from './applications-service';
+import {ApplicationSetsService} from './applicationsets-service';
 import {AuthService} from './auth-service';
 import {CertificatesService} from './cert-service';
 import {ClustersService} from './clusters-service';
@@ -12,8 +13,10 @@ import {RepoCredsService} from './repocreds-service';
 import {UserService} from './user-service';
 import {VersionService} from './version-service';
 import {ViewPreferencesService} from './view-preferences-service';
+// import {ViewAppSetPreferencesService} from './view-preferences-service';
 export interface Services {
     applications: ApplicationsService;
+    applicationSets: ApplicationSetsService;
     users: UserService;
     authService: AuthService;
     certs: CertificatesService;
@@ -22,6 +25,7 @@ export interface Services {
     clusters: ClustersService;
     projects: ProjectsService;
     viewPreferences: ViewPreferencesService;
+    // viewAppSetPreferences: ViewAppSetPreferencesService;
     version: VersionService;
     accounts: AccountsService;
     gpgkeys: GnuPGPublicKeyService;
@@ -31,6 +35,7 @@ export interface Services {
 
 export const services: Services = {
     applications: new ApplicationsService(),
+    applicationSets: new ApplicationSetsService(),
     authService: new AuthService(),
     clusters: new ClustersService(),
     users: new UserService(),
@@ -39,6 +44,7 @@ export const services: Services = {
     repocreds: new RepoCredsService(),
     projects: new ProjectsService(),
     viewPreferences: new ViewPreferencesService(),
+    // viewAppSetPreferences: new ViewAppSetPreferencesService(),
     version: new VersionService(),
     accounts: new AccountsService(),
     gpgkeys: new GnuPGPublicKeyService(),

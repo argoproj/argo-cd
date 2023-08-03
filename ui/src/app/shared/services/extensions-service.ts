@@ -1,12 +1,14 @@
 import * as React from 'react';
 import * as minimatch from 'minimatch';
 
-import {Application, ApplicationTree, State} from '../models';
+import {Application, ApplicationSet, ApplicationTree, State} from '../models';
 
 const extensions = {
     resourceExtentions: new Array<ResourceTabExtension>(),
+    appSetResourceExtentions: new Array<AppSetResourceTabExtension>(),
     systemLevelExtensions: new Array<SystemLevelExtension>(),
-    appViewExtensions: new Array<AppViewExtension>()
+    appViewExtensions: new Array<AppViewExtension>(),
+    appSetViewExtensions: new Array<AppSetViewExtension>()
 };
 
 function registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string, opts?: {icon: string}) {
@@ -20,6 +22,11 @@ function registerSystemLevelExtension(component: ExtensionComponent, title: stri
 function registerAppViewExtension(component: ExtensionComponent, title: string, icon: string) {
     extensions.appViewExtensions.push({component, title, icon});
 }
+
+function registerAppSetViewExtension(component: AppSetExtensionComponent, title: string, icon: string) {
+    extensions.appSetViewExtensions.push({component, title, icon});
+}
+
 
 let legacyInitialized = false;
 
@@ -43,6 +50,14 @@ export interface ResourceTabExtension {
     icon?: string;
 }
 
+export interface AppSetResourceTabExtension {
+    title: string;
+    group: string;
+    kind: string;
+    component: AppSetExtensionComponent;
+    icon?: string;
+}
+
 export interface SystemLevelExtension {
     title: string;
     component: SystemExtensionComponent;
@@ -56,12 +71,23 @@ export interface AppViewExtension {
     icon?: string;
 }
 
+export interface AppSetViewExtension {
+    component: AppSetViewExtensionComponent;
+    title: string;
+    icon?: string;
+}
 export type ExtensionComponent = React.ComponentType<ExtensionComponentProps>;
+export type AppSetExtensionComponent = React.ComponentType<AppSetExtensionComponentProps>;
 export type SystemExtensionComponent = React.ComponentType;
 export type AppViewExtensionComponent = React.ComponentType<AppViewComponentProps>;
+export type AppSetViewExtensionComponent = React.ComponentType<AppSetViewComponentProps>;
 
 export interface Extension {
     component: ExtensionComponent;
+}
+
+export interface AppSetExtension {
+    component: AppSetExtensionComponent;
 }
 
 export interface ExtensionComponentProps {
@@ -70,12 +96,62 @@ export interface ExtensionComponentProps {
     application: Application;
 }
 
+export interface AppSetExtensionComponentProps {
+    resource: State;
+    tree: ApplicationTree;
+    application: ApplicationSet;
+}
+
 export interface AppViewComponentProps {
     application: Application;
     tree: ApplicationTree;
 }
 
+export interface AppSetViewComponentProps {
+    application: ApplicationSet;
+    tree: ApplicationTree;
+}
+
 export class ExtensionsService {
+    public getResourceTabs(group: string, kind: string): ResourceTabExtension[] {
+        initLegacyExtensions();
+        const items = extensions.resourceExtentions.filter(extension => minimatch(group, extension.group) && minimatch(kind, extension.kind)).slice();
+        return items.sort((a, b) => a.title.localeCompare(b.title));
+    }
+
+    public getAppSetResourceTabs(group: string, kind: string): AppSetResourceTabExtension[] {
+        initLegacyExtensions();
+        const items = extensions.appSetResourceExtentions.filter(extension => minimatch(group, extension.group) && minimatch(kind, extension.kind)).slice();
+        return items.sort((a, b) => a.title.localeCompare(b.title));
+    }
+
+
+    public getSystemExtensions(): SystemLevelExtension[] {
+        return extensions.systemLevelExtensions.slice();
+    }
+
+    public getAppViewExtensions(): AppViewExtension[] {
+        return extensions.appViewExtensions.slice();
+    }
+
+    public getAppSetViewExtensions(): AppSetViewExtension[] {
+        return extensions.appSetViewExtensions.slice();
+    }
+
+}
+
+((window: any) => {
+    // deprecated: kept for backwards compatibility
+    window.extensions = {resources: {}};
+    window.extensionsAPI = {
+        registerResourceExtension,
+        registerSystemLevelExtension,
+        registerAppViewExtension
+    };
+})(window);
+
+
+export class AppSetExtensionsService {
     public getResourceTabs(group: string, kind: string): ResourceTabExtension[] {
         initLegacyExtensions();
         const items = extensions.resourceExtentions.filter(extension => minimatch(group, extension.group) && minimatch(kind, extension.kind)).slice();

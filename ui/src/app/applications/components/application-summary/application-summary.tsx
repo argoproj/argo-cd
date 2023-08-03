@@ -30,6 +30,7 @@ import {EditAnnotations} from './edit-annotations';
 
 import './application-summary.scss';
 import {DeepLinks} from '../../../shared/components/deep-links';
+import { Input } from 'argo-ui/v2';
 
 function swap(array: any[], a: number, b: number) {
     array = array.slice();
@@ -45,8 +46,16 @@ export interface ApplicationSummaryProps {
 export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const app = JSON.parse(JSON.stringify(props.app)) as models.Application;
     const source = getAppDefaultSource(app);
-    const isHelm = source.hasOwnProperty('chart');
-    const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
+    var isHelm = false;
+    if (source != null) {
+        isHelm = source.hasOwnProperty('chart');
+    }
+    var initialState = 'NAME';
+    var isApplicationSet = true;
+    if ('destination' in app.spec) {
+        isApplicationSet = false;
+        initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
+    }
     const [destFormat, setDestFormat] = React.useState(initialState);
     const [changeSync, setChangeSync] = React.useState(false);
 
@@ -54,7 +63,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const updateApp = notificationSubscriptions.withNotificationSubscriptions(props.updateApp);
 
     const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
-
+    console.log("****** isApplicationSet " + isApplicationSet);
     const attributes = [
         {
             title: 'PROJECT',
@@ -88,6 +97,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             view: false, // eventually the subscription input values will be merged in 'ANNOTATIONS', therefore 'ANNOATIONS' section is responsible to represent subscription values,
             edit: () => <EditNotificationSubscriptions {...notificationSubscriptions} />
         },
+        (!isApplicationSet &&
         {
             title: 'CLUSTER',
             view: <Cluster server={app.spec.destination.server} name={app.spec.destination.name} showUrl={true} />,
@@ -148,16 +158,18 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     }}
                 </DataLoader>
             )
-        },
+        }),
+        (!isApplicationSet &&
         {
             title: 'NAMESPACE',
             view: <ClipboardText text={app.spec.destination.namespace} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
-        },
+        }),
         {
             title: 'CREATED AT',
             view: formatCreationTimestamp(app.metadata.creationTimestamp)
         },
+        (!isApplicationSet &&
         {
             title: 'REPO URL',
             view: <Repo url={source.repoURL} />,
@@ -167,10 +179,12 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 ) : (
                     <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
                 )
-        },
+        }),
+        // (!isApplicationSet && {
         ...(isHelm
             ? [
-                  {
+                (!isApplicationSet &&
+                   {
                       title: 'CHART',
                       view: (
                           <span>
@@ -221,9 +235,11 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                   )}
                               </DataLoader>
                           )
-                  }
+                    }
+                )
               ]
             : [
+                (!isApplicationSet &&
                   {
                       title: 'TARGET REVISION',
                       view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
@@ -233,7 +249,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                           ) : (
                               <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source.repoURL} />
                           )
-                  },
+                  }),
+                  (!isApplicationSet &&
                   {
                       title: 'PATH',
                       view: (
@@ -248,8 +265,10 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               <FormField formApi={formApi} field='spec.source.path' component={Text} />
                           )
                   }
+                )
               ]),
-
+        // }),
+        (!isApplicationSet &&
         {
             title: 'REVISION HISTORY LIMIT',
             view: app.spec.revisionHistoryLimit,
@@ -267,7 +286,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     </div>
                 </div>
             )
-        },
+        }),
+        (!isApplicationSet &&
         {
             title: 'SYNC OPTIONS',
             view: (
@@ -290,7 +310,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
                 </div>
             )
-        },
+        }),
+        (!isApplicationSet &&
         {
             title: 'RETRY OPTIONS',
             view: <ApplicationRetryView initValues={app.spec.syncPolicy ? app.spec.syncPolicy.retry : null} />,
@@ -299,7 +320,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     <ApplicationRetryOptions formApi={formApi} initValues={app.spec.syncPolicy ? app.spec.syncPolicy.retry : null} field='spec.syncPolicy.retry' />
                 </div>
             )
-        },
+        }),
+        (!isApplicationSet &&
         {
             title: 'STATUS',
             view: (
@@ -307,7 +329,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     <ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status} {syncStatusMessage(app)}
                 </span>
             )
-        },
+        }),
+        (!isApplicationSet &&
         {
             title: 'HEALTH',
             view: (
@@ -315,7 +338,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     <HealthStatusIcon state={app.status.health} /> {app.status.health.status}
                 </span>
             )
-        },
+        }),
+        (!isApplicationSet &&
         {
             title: 'LINKS',
             view: (
@@ -323,42 +347,43 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     {(links: models.LinksResponse) => <DeepLinks links={links.items} />}
                 </DataLoader>
             )
-        }
+        })
     ];
 
-    const urls = app.status.summary.externalURLs || [];
-    if (urls.length > 0) {
-        attributes.push({
-            title: 'URLs',
-            view: (
-                <React.Fragment>
-                    {urls
-                        .map(item => item.split('|'))
-                        .map((parts, i) => (
-                            <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
-                                {parts[0]} &nbsp;
-                            </a>
+    if (!isApplicationSet) {
+        const urls = app.status.summary.externalURLs || [];
+        if (urls.length > 0) {
+            attributes.push({
+                title: 'URLs',
+                view: (
+                    <React.Fragment>
+                        {urls
+                            .map(item => item.split('|'))
+                            .map((parts, i) => (
+                                <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
+                                    {parts[0]} &nbsp;
+                                </a>
+                            ))}
+                    </React.Fragment>
+                )
+            });
+        }
+
+        if ((app.status.summary.images || []).length) {
+            attributes.push({
+                title: 'IMAGES',
+                view: (
+                    <div className='application-summary__labels'>
+                        {(app.status.summary.images || []).sort().map(image => (
+                            <span className='application-summary__label' key={image}>
+                                {image}
+                            </span>
                         ))}
-                </React.Fragment>
-            )
-        });
+                    </div>
+                )
+            });
+        }
     }
-
-    if ((app.status.summary.images || []).length) {
-        attributes.push({
-            title: 'IMAGES',
-            view: (
-                <div className='application-summary__labels'>
-                    {(app.status.summary.images || []).sort().map(image => (
-                        <span className='application-summary__label' key={image}>
-                            {image}
-                        </span>
-                    ))}
-                </div>
-            )
-        });
-    }
-
     async function setAutoSync(ctx: ContextApis, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
@@ -479,8 +504,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 save={updateApp}
                 validate={input => ({
                     'spec.project': !input.spec.project && 'Project name is required',
-                    'spec.destination.server': !input.spec.destination.server && input.spec.destination.hasOwnProperty('server') && 'Cluster server is required',
-                    'spec.destination.name': !input.spec.destination.name && input.spec.destination.hasOwnProperty('name') && 'Cluster name is required'
+                    'spec.destination.server': !isApplicationSet && !input.spec.destination.server && input.spec.destination.hasOwnProperty('server') && 'Cluster server is required',
+                    'spec.destination.name': !isApplicationSet &&  !input.spec.destination.name && input.spec.destination.hasOwnProperty('name') && 'Cluster name is required'
                 })}
                 values={app}
                 title={app.metadata.name.toLocaleUpperCase()}
