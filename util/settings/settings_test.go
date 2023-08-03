@@ -696,7 +696,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 		})
 
 		got, err := settingsManager.GetKustomizeSettings()
-		assert.EqualError(t, err, "found duplicate kustomize version: v3.2.1")
+		assert.EqualError(t, err, "failed to add kustomize version from \"kustomize.version.v3.2.1\": found duplicate kustomize version: v3.2.1")
 		assert.Empty(t, got)
 	})
 
