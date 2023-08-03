@@ -195,10 +195,6 @@ By default, the Argo CD notifications and the Argo CD refresh type annotations a
 
 Here is a list of commonly requested resource modification features which are not supported as of the current release. This lack of support is *not* necessarily by design; rather these behaviours are documented here to provide clear, concise descriptions of the current state of the feature.
 
-### Limitation: Control resource modification on a per ApplicationSet basis
-
-There is currently no way to restrict modification/deletion of the Applications that are owned by an *individual* ApplicationSet. The global `--policy` parameters described above only allow targeting of *all* ApplicationSets (eg it is 'all or nothing').
-
 ### Limitation: No support for manual edits to individual Applications
 
 There is currently no way to allow modification of a single child Application of an ApplicationSet, for example, if you wanted to make manual edits to a single Application for debugging/testing purposes.
