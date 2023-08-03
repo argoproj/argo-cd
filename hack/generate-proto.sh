@@ -118,7 +118,10 @@ EOF
       del(.definitions.v1alpha1OptionalArray) |
       .definitions.v1alpha1ApplicationSourcePluginParameter.properties.map = {"description":"Map is the value of a map type parameter.","type":"object","additionalProperties":{"type":"string"}} |
       del(.definitions.v1alpha1OptionalMap)
-    ' "${COMBINED_SWAGGER}" > "${SWAGGER_OUT}"
+    ' "${COMBINED_SWAGGER}" | \
+    jq '.definitions.v1Time.type = "string" | .definitions.v1Time.format = "date-time" | del(.definitions.v1Time.properties)' | \
+    jq '.definitions.v1alpha1ResourceNode.allOf = [{"$ref": "#/definitions/v1alpha1ResourceRef"}] | del(.definitions.v1alpha1ResourceNode.properties.resourceRef) ' \
+    > "${SWAGGER_OUT}"
 
     /bin/rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
 }
