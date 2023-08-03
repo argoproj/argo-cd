@@ -3,6 +3,7 @@ package apiclient
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"time"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -48,7 +49,7 @@ type clientSet struct {
 func (c *clientSet) NewRepoServerClient() (io.Closer, RepoServerServiceClient, error) {
 	conn, err := NewConnection(c.address, c.timeoutSeconds, &c.tlsConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to open a new connection to repo server: %w", err)
 	}
 	return conn, NewRepoServerServiceClient(conn), nil
 }

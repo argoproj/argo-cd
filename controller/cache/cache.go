@@ -620,7 +620,7 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server string, namespace 
 func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	clusterInfo, err := c.getSyncedCluster(a.Spec.Destination.Server)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get cluster info for %q: %w", a.Spec.Destination.Server, err)
 	}
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
 		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
@@ -630,7 +630,7 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []kube.APIResourceInfo, error) {
 	clusterInfo, err := c.getSyncedCluster(serverURL)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("failed to get cluster info for %q: %w", serverURL, err)
 	}
 	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIResources(), nil
 }
