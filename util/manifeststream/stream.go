@@ -9,12 +9,11 @@ import (
 	"io"
 	"os"
 
-	log "github.com/sirupsen/logrus"
-
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/tgzstream"
+	log "github.com/sirupsen/logrus"
 )
 
 // Defines the contract for the application sender, i.e. the CLI
@@ -184,7 +183,7 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 	if err != nil {
 		return nil, nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
-	err = files.Untgz(destDir, tgzFile, maxExtractedSize, false)
+	err = files.Untgz(destDir, tgzFile, maxExtractedSize)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error decompressing tgz file: %w", err)
 	}

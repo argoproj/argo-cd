@@ -1,5 +1,5 @@
 {{- if .Values.cluster.enabled }}
-apiVersion: apps/v1
+apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: {{ template "redis.fullname" . }}-slave
