@@ -3,7 +3,6 @@ package apiclient
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"time"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -17,8 +16,6 @@ import (
 	argogrpc "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
-
-//go:generate go run github.com/vektra/mockery/v2@v2.15.0 --name=RepoServerServiceClient
 
 const (
 	// MaxGRPCMessageSize contains max grpc message size
@@ -49,7 +46,7 @@ type clientSet struct {
 func (c *clientSet) NewRepoServerClient() (io.Closer, RepoServerServiceClient, error) {
 	conn, err := NewConnection(c.address, c.timeoutSeconds, &c.tlsConfig)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to open a new connection to repo server: %w", err)
+		return nil, nil, err
 	}
 	return conn, NewRepoServerServiceClient(conn), nil
 }

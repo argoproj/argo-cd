@@ -10,10 +10,11 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/yaml"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
@@ -452,7 +453,7 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 			}
 		}
 		fmt.Printf("Group '%s' and kind '%s' is added to %s resources\n", group, kind, listDesc)
-		*list = append(*list, metav1.GroupKind{Group: group, Kind: kind})
+		*list = append(*list, v1.GroupKind{Group: group, Kind: kind})
 		return true
 	} else {
 		index := -1

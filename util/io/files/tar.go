@@ -90,12 +90,13 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 			return fmt.Errorf("illegal filepath in archive: %s", target)
 		}
 
+		var mode os.FileMode = 0755
+		if preserveFileMode {
+			mode = os.FileMode(header.Mode)
+		}
+
 		switch header.Typeflag {
 		case tar.TypeDir:
-			var mode os.FileMode = 0755
-			if preserveFileMode {
-				mode = os.FileMode(header.Mode)
-			}
 			err := os.MkdirAll(target, mode)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
@@ -117,11 +118,6 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 				return fmt.Errorf("error creating symlink: %s", err)
 			}
 		case tar.TypeReg:
-			var mode os.FileMode = 0644
-			if preserveFileMode {
-				mode = os.FileMode(header.Mode)
-			}
-
 			err := os.MkdirAll(filepath.Dir(target), 0755)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)

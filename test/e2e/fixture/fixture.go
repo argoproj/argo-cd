@@ -15,6 +15,7 @@ import (
 
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,14 +23,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/util/env"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -58,8 +57,6 @@ const (
 
 	// cmp plugin sock file path
 	PluginSockFilePath = "/app/config/plugin"
-
-	E2ETestPrefix = "e2e-test-"
 )
 
 const (
@@ -145,7 +142,8 @@ func GetEnvWithDefault(envName, defaultValue string) string {
 // IsRemote returns true when the tests are being run against a workload that
 // is running in a remote cluster.
 func IsRemote() bool {
-	return env.ParseBoolFromEnv("ARGOCD_E2E_REMOTE", false)
+	r := os.Getenv("ARGOCD_E2E_REMOTE")
+	return r == "true"
 }
 
 // IsLocal returns when the tests are being run against a local workload
@@ -452,6 +450,17 @@ func SetPermissions(permissions []ACL, username string, roleName string) {
 	})
 }
 
+func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(plugin)
+		if err != nil {
+			return err
+		}
+		cm.Data["configManagementPlugins"] = string(yamlBytes)
+		return nil
+	})
+}
+
 func SetResourceFilter(filters settings.ResourcesFilter) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		exclusions, err := yaml.Marshal(filters.ResourceExclusions)
@@ -668,33 +677,6 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
 	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true"))
 
-	// delete old namespaces used by E2E tests
-	namespaces, err := KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
-	CheckError(err)
-	for _, namespace := range namespaces.Items {
-		if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
-			FailOnErr(Run("", "kubectl", "delete", "ns", namespace.Name))
-		}
-	}
-
-	// delete old ClusterRoles that begin with "e2e-test-" prefix (E2ETestPrefix), which were created by tests
-	clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
-	CheckError(err)
-	for _, clusterRole := range clusterRoles.Items {
-		if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
-			FailOnErr(Run("", "kubectl", "delete", "clusterrole", clusterRole.Name))
-		}
-	}
-
-	// delete old ClusterRoleBindings that begin with "e2e-test-prefix", which were created by E2E tests
-	clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), v1.ListOptions{})
-	CheckError(err)
-	for _, clusterRoleBinding := range clusterRoleBindings.Items {
-		if strings.HasPrefix(clusterRoleBinding.Name, E2ETestPrefix) {
-			FailOnErr(Run("", "kubectl", "delete", "clusterrolebinding", clusterRoleBinding.Name))
-		}
-	}
-
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
 
@@ -878,18 +860,6 @@ func CreateSubmoduleRepos(repoType string) {
 	}
 
 	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldEnv))
-}
-
-func RemoveSubmodule() {
-	log.Info("removing submodule")
-
-	FailOnErr(Run(submoduleParentDirectory(), "git", "rm", "submodule/test"))
-	FailOnErr(Run(submoduleParentDirectory(), "touch", "submodule/.gitkeep"))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "submodule/.gitkeep"))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-m", "remove submodule"))
-	if IsRemote() {
-		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "-f", "origin", "master"))
-	}
 }
 
 // RestartRepoServer performs a restart of the repo server deployment and waits

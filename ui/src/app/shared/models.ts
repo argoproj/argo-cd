@@ -94,12 +94,6 @@ export interface RevisionMetadata {
     signatureInfo?: string;
 }
 
-export interface ChartDetails {
-    description?: string;
-    maintainers?: string[];
-    home?: string;
-}
-
 export interface SyncOperationResult {
     resources: ResourceResult[];
     revision: string;
@@ -202,7 +196,6 @@ export interface ApplicationSource {
 export interface ApplicationSourceHelm {
     valueFiles: string[];
     values?: string;
-    valuesObject?: any;
     parameters: HelmParameter[];
     fileParameters: HelmFileParameter[];
 }
@@ -772,8 +765,6 @@ export interface ResourceAction {
     name: string;
     params: ResourceActionParam[];
     disabled: boolean;
-    iconClass: string;
-    displayName: string;
 }
 
 export interface SyncWindowsState {
