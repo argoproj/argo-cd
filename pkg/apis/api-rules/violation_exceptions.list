@@ -22,7 +22,6 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/ap
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSourceJsonnet,ExtVars
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSourceJsonnet,Libs
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSourceJsonnet,TLAs
-API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSpec,IgnoreDifferences
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSpec,Info
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationStatus,Conditions
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationStatus,Resources
@@ -58,6 +57,7 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/ap
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ProjectRole,JWTTokens
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ProjectRole,Policies
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,PullRequestGenerator,Filters
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,PullRequestGeneratorAzureDevOps,Labels
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,PullRequestGeneratorGitLab,Labels
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,PullRequestGeneratorGithub,Labels
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,RepositoryCertificate,CertData
@@ -100,6 +100,7 @@ API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/applicat
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,JWTToken,IssuedAt
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,KustomizeOptions,BinaryPath
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,KustomizeOptions,BuildOptions
+API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,PullRequestGenerator,AzureDevOps
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,PullRequestGenerator,GitLab
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,RefTarget,Chart
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,RefTarget,Repo
@@ -116,6 +117,7 @@ API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/applicat
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ResourceOverride,Actions
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ResourceOverride,HealthLua
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ResourceOverride,IgnoreDifferences
+API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ResourceOverride,IgnoreResourceUpdates
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ResourceOverride,KnownTypeFields
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ResourceOverride,UseOpenLibs
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,objectMeta,Name

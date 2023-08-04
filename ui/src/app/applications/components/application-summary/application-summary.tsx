@@ -319,7 +319,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         {
             title: 'LINKS',
             view: (
-                <DataLoader load={() => services.applications.getLinks(app.metadata.name)} input={app} key='appLinks'>
+                <DataLoader load={() => services.applications.getLinks(app.metadata.name, app.metadata.namespace)} input={app} key='appLinks'>
                     {(links: models.LinksResponse) => <DeepLinks links={links.items} />}
                 </DataLoader>
             )

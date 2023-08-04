@@ -1,12 +1,14 @@
 package helm
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -176,7 +178,7 @@ func writeToTmp(data []byte) (string, argoio.Closer, error) {
 		if err = file.Close(); err != nil {
 			log.WithFields(log.Fields{
 				common.SecurityField:    common.SecurityMedium,
-				common.SecurityCWEField: 775,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 			}).Errorf("error closing file %q: %v", file.Name(), err)
 		}
 	}()
@@ -233,6 +235,9 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		version,
 		"--destination",
 		destination}
+	if creds.CAPath != "" {
+		args = append(args, "--ca-file", creds.CAPath)
+	}
 	if creds.InsecureSkipVerify && c.insecureSkipVerifySupported {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
@@ -264,7 +269,8 @@ type TemplateOpts struct {
 }
 
 var (
-	re = regexp.MustCompile(`([^\\]),`)
+	re                 = regexp.MustCompile(`([^\\]),`)
+	apiVersionsRemover = regexp.MustCompile(`(--api-versions [^ ]+ )+`)
 )
 
 func cleanSetParameters(val string) string {
@@ -307,7 +313,16 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 		args = append(args, "--include-crds")
 	}
 
-	return c.run(args...)
+	out, err := c.run(args...)
+	if err != nil {
+		msg := err.Error()
+		if strings.Contains(msg, "--api-versions") {
+			log.Debug(msg)
+			msg = apiVersionsRemover.ReplaceAllString(msg, "<api versions removed> ")
+		}
+		return "", errors.New(msg)
+	}
+	return out, nil
 }
 
 func (c *Cmd) Freestyle(args ...string) (string, error) {

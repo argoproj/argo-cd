@@ -27,7 +27,6 @@ import (
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
@@ -62,7 +61,7 @@ type managedResource struct {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) *comparisonResult
+	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) *comparisonResult
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
@@ -107,64 +106,56 @@ type appStateManager struct {
 	persistResourceHealth bool
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, map[*v1alpha1.ApplicationSource]*apiclient.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
 
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to list Helm repositories: %w", err)
 	}
 	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to get permitted Helm repositories for project %q: %w", proj.Name, err)
 	}
 
 	ts.AddCheckpoint("repo_ms")
 	helmRepositoryCredentials, err := m.db.GetAllHelmRepositoryCredentials(context.Background())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to get Helm credentials: %w", err)
 	}
 	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to get permitted Helm credentials for project %q: %w", proj.Name, err)
 	}
 
-	plugins, err := m.settingsMgr.GetConfigManagementPlugins()
-	if err != nil {
-		return nil, nil, err
-	}
 	enabledSourceTypes, err := m.settingsMgr.GetEnabledSourceTypes()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to get enabled source types: %w", err)
 	}
 	ts.AddCheckpoint("plugins_ms")
-	tools := make([]*appv1.ConfigManagementPlugin, len(plugins))
-	for i := range plugins {
-		tools[i] = &plugins[i]
-	}
 
 	kustomizeSettings, err := m.settingsMgr.GetKustomizeSettings()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to get Kustomize settings: %w", err)
 	}
 
 	helmOptions, err := m.settingsMgr.GetHelmSettings()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to get Helm settings: %w", err)
 	}
 
 	ts.AddCheckpoint("build_options_ms")
 	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to get cluster version for cluster %q: %w", app.Spec.Destination.Server, err)
 	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to connect to repo server: %w", err)
 	}
 	defer io.Close(conn)
 
-	manifestInfoMap := make(map[*v1alpha1.ApplicationSource]*apiclient.ManifestResponse)
+	manifestInfos := make([]*apiclient.ManifestResponse, 0)
 	targetObjs := make([]*unstructured.Unstructured, 0)
 
 	// Store the map of all sources having ref field into a map for applications with sources field
@@ -180,11 +171,11 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 		ts.AddCheckpoint("helm_ms")
 		repo, err := m.db.GetRepository(context.Background(), source.RepoURL)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 		}
 		kustomizeOptions, err := kustomizeSettings.GetOptions(source)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to get Kustomize options for source %d of %d: %w", i+1, len(sources), err)
 		}
 
 		ts.AddCheckpoint("version_ms")
@@ -199,7 +190,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			AppName:            app.InstanceName(m.namespace),
 			Namespace:          app.Spec.Destination.Namespace,
 			ApplicationSource:  &source,
-			Plugins:            tools,
 			KustomizeOptions:   kustomizeOptions,
 			KubeVersion:        serverVersion,
 			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
@@ -210,27 +200,19 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			HelmOptions:        helmOptions,
 			HasMultipleSources: app.Spec.HasMultipleSources(),
 			RefSources:         refSources,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
 		})
 		if err != nil {
-			return nil, nil, err
-		}
-
-		// GenerateManifest can return empty ManifestResponse without error if app has multiple sources
-		// and if any of the source does not have path and chart field not specified.
-		// In that scenario, we continue to the next source
-		if app.Spec.HasMultipleSources() && len(manifestInfo.Manifests) == 0 {
-			continue
+			return nil, nil, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
 		}
 
 		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
 
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
 		}
 		targetObjs = append(targetObjs, targetObj...)
-		manifestInfoMap[&source] = manifestInfo
+
+		manifestInfos = append(manifestInfos, manifestInfo)
 	}
 
 	ts.AddCheckpoint("unmarshal_ms")
@@ -240,7 +222,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 	logCtx.Info("getRepoObjs stats")
-	return targetObjs, manifestInfoMap, nil
+	return targetObjs, manifestInfos, nil
 }
 
 func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error) {
@@ -284,8 +266,8 @@ func DeduplicateTargetObjects(
 	for key, targets := range targetByKey {
 		if len(targets) > 1 {
 			now := metav1.Now()
-			conditions = append(conditions, appv1.ApplicationCondition{
-				Type:               appv1.ApplicationConditionRepeatedResourceWarning,
+			conditions = append(conditions, v1alpha1.ApplicationCondition{
+				Type:               v1alpha1.ApplicationConditionRepeatedResourceWarning,
 				Message:            fmt.Sprintf("Resource %s appeared %d times among application resources.", key.String(), len(targets)),
 				LastTransitionTime: &now,
 			})
@@ -316,9 +298,9 @@ func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.R
 
 // verifyGnuPGSignature verifies the result of a GnuPG operation for a given git
 // revision.
-func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestInfo *apiclient.ManifestResponse) []appv1.ApplicationCondition {
+func verifyGnuPGSignature(revision string, project *v1alpha1.AppProject, manifestInfo *apiclient.ManifestResponse) []v1alpha1.ApplicationCondition {
 	now := metav1.Now()
-	conditions := make([]appv1.ApplicationCondition, 0)
+	conditions := make([]v1alpha1.ApplicationCondition, 0)
 	// We need to have some data in the verification result to parse, otherwise there was no signature
 	if manifestInfo.VerifyResult != "" {
 		verifyResult := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
@@ -356,7 +338,7 @@ func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestIn
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) *comparisonResult {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) *comparisonResult {
 	ts := stats.NewTimingStats()
 	appLabelKey, resourceOverrides, resFilter, err := m.getComparisonSettings()
 
@@ -367,20 +349,20 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		if hasMultipleSources {
 			return &comparisonResult{
 				syncStatus: &v1alpha1.SyncStatus{
-					ComparedTo: appv1.ComparedTo{Destination: app.Spec.Destination, Sources: sources},
-					Status:     appv1.SyncStatusCodeUnknown,
+					ComparedTo: v1alpha1.ComparedTo{Destination: app.Spec.Destination, Sources: sources, IgnoreDifferences: app.Spec.IgnoreDifferences},
+					Status:     v1alpha1.SyncStatusCodeUnknown,
 					Revisions:  revisions,
 				},
-				healthStatus: &appv1.HealthStatus{Status: health.HealthStatusUnknown},
+				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown},
 			}
 		} else {
 			return &comparisonResult{
 				syncStatus: &v1alpha1.SyncStatus{
-					ComparedTo: appv1.ComparedTo{Source: sources[0], Destination: app.Spec.Destination},
-					Status:     appv1.SyncStatusCodeUnknown,
+					ComparedTo: v1alpha1.ComparedTo{Source: sources[0], Destination: app.Spec.Destination, IgnoreDifferences: app.Spec.IgnoreDifferences},
+					Status:     v1alpha1.SyncStatusCodeUnknown,
 					Revision:   revisions[0],
 				},
-				healthStatus: &appv1.HealthStatus{Status: health.HealthStatusUnknown},
+				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown},
 			}
 		}
 	}
@@ -401,7 +383,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	var targetObjs []*unstructured.Unstructured
 	now := metav1.Now()
 
-	var manifestInfoMap map[*v1alpha1.ApplicationSource]*apiclient.ManifestResponse
+	var manifestInfos []*apiclient.ManifestResponse
 
 	if len(localManifests) == 0 {
 		// If the length of revisions is not same as the length of sources,
@@ -413,10 +395,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			}
 		}
 
-		targetObjs, manifestInfoMap, err = m.getRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
+		targetObjs, manifestInfos, err = m.getRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+			msg := fmt.Sprintf("Failed to load target state: %s", err.Error())
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			failedToLoadObjs = true
 		}
 	} else {
@@ -431,14 +414,13 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			targetObjs, err = unmarshalManifests(localManifests)
 			if err != nil {
 				targetObjs = make([]*unstructured.Unstructured, 0)
-				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+				msg := fmt.Sprintf("Failed to load local manifests: %s", err.Error())
+				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 				failedToLoadObjs = true
 			}
 		}
 		// empty out manifestInfoMap
-		for as := range manifestInfoMap {
-			delete(manifestInfoMap, as)
-		}
+		manifestInfos = make([]*apiclient.ManifestResponse, 0)
 	}
 	ts.AddCheckpoint("git_ms")
 
@@ -449,7 +431,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider)
 	if err != nil {
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+		msg := fmt.Sprintf("Failed to deduplicate target state: %s", err.Error())
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 	}
 	conditions = append(conditions, dedupConditions...)
 	for i := len(targetObjs) - 1; i >= 0; i-- {
@@ -469,7 +452,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+		msg := fmt.Sprintf("Failed to load live state: %s", err.Error())
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 		failedToLoadObjs = true
 	}
 
@@ -477,12 +461,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
-		permitted, err := project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name, func(project string) ([]*appv1.Cluster, error) {
-			return m.db.GetProjectClusters(context.TODO(), project)
+		permitted, err := project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name, func(project string) ([]*v1alpha1.Cluster, error) {
+			clusters, err := m.db.GetProjectClusters(context.TODO(), project)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get clusters for project %q: %v", project, err)
+			}
+			return clusters, nil
 		})
 
 		if err != nil {
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+			msg := fmt.Sprintf("Failed to check if live resource %q is permitted in project %q: %s", k.String(), app.Spec.Project, err.Error())
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			failedToLoadObjs = true
 			continue
 		}
@@ -518,13 +507,13 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	manifestRevisions := make([]string, 0)
 
-	for _, manifestInfo := range manifestInfoMap {
+	for _, manifestInfo := range manifestInfos {
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 
 	// restore comparison using cached diff result if previous comparison was performed for the same revision
-	revisionChanged := len(manifestInfoMap) != len(sources) || !reflect.DeepEqual(app.Status.Sync.Revisions, manifestRevisions)
-	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, appv1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, Sources: sources})
+	revisionChanged := len(manifestInfos) != len(sources) || !reflect.DeepEqual(app.Status.Sync.Revisions, manifestRevisions)
+	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, Sources: sources, IgnoreDifferences: app.Spec.IgnoreDifferences})
 
 	_, refreshRequested := app.IsRefreshRequested()
 	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout) || specChanged || revisionChanged
@@ -559,7 +548,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+		msg := fmt.Sprintf("Failed to compare desired state to live state: %s", err.Error())
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 	}
 	ts.AddCheckpoint("diff_ms")
 
@@ -624,7 +614,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 
 		if isNamespaced && obj.GetNamespace() == "" {
-			conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: fmt.Sprintf("Namespace for %s %s is missing.", obj.GetName(), gvk.String()), LastTransitionTime: &now})
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: fmt.Sprintf("Namespace for %s %s is missing.", obj.GetName(), gvk.String()), LastTransitionTime: &now})
 		}
 
 		// we can't say anything about the status if we were unable to get the target objects
@@ -664,18 +654,20 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	var syncStatus v1alpha1.SyncStatus
 	if hasMultipleSources {
 		syncStatus = v1alpha1.SyncStatus{
-			ComparedTo: appv1.ComparedTo{
-				Destination: app.Spec.Destination,
-				Sources:     sources,
+			ComparedTo: v1alpha1.ComparedTo{
+				Destination:       app.Spec.Destination,
+				Sources:           sources,
+				IgnoreDifferences: app.Spec.IgnoreDifferences,
 			},
 			Status:    syncCode,
 			Revisions: manifestRevisions,
 		}
 	} else {
 		syncStatus = v1alpha1.SyncStatus{
-			ComparedTo: appv1.ComparedTo{
-				Destination: app.Spec.Destination,
-				Source:      app.Spec.GetSource(),
+			ComparedTo: v1alpha1.ComparedTo{
+				Destination:       app.Spec.Destination,
+				Source:            app.Spec.GetSource(),
+				IgnoreDifferences: app.Spec.IgnoreDifferences,
 			},
 			Status:   syncCode,
 			Revision: revision,
@@ -686,13 +678,13 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
 	if err != nil {
-		conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: fmt.Sprintf("error setting app health: %s", err.Error()), LastTransitionTime: &now})
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: fmt.Sprintf("error setting app health: %s", err.Error()), LastTransitionTime: &now})
 	}
 
 	// Git has already performed the signature verification via its GPG interface, and the result is available
 	// in the manifest info received from the repository server. We now need to form our opinion about the result
 	// and stop processing if we do not agree about the outcome.
-	for _, manifestInfo := range manifestInfoMap {
+	for _, manifestInfo := range manifestInfos {
 		if gpg.IsGPGEnabled() && verifySignature && manifestInfo != nil {
 			conditions = append(conditions, verifyGnuPGSignature(manifestInfo.Revision, project, manifestInfo)...)
 		}
@@ -709,21 +701,21 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 
 	if hasMultipleSources {
-		for _, manifestInfo := range manifestInfoMap {
-			compRes.appSourceTypes = append(compRes.appSourceTypes, appv1.ApplicationSourceType(manifestInfo.SourceType))
+		for _, manifestInfo := range manifestInfos {
+			compRes.appSourceTypes = append(compRes.appSourceTypes, v1alpha1.ApplicationSourceType(manifestInfo.SourceType))
 		}
 	} else {
-		for _, manifestInfo := range manifestInfoMap {
+		for _, manifestInfo := range manifestInfos {
 			compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
 			break
 		}
 	}
 
-	app.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{
-		appv1.ApplicationConditionComparisonError:         true,
-		appv1.ApplicationConditionSharedResourceWarning:   true,
-		appv1.ApplicationConditionRepeatedResourceWarning: true,
-		appv1.ApplicationConditionExcludedResourceWarning: true,
+	app.Status.SetConditions(conditions, map[v1alpha1.ApplicationConditionType]bool{
+		v1alpha1.ApplicationConditionComparisonError:         true,
+		v1alpha1.ApplicationConditionSharedResourceWarning:   true,
+		v1alpha1.ApplicationConditionRepeatedResourceWarning: true,
+		v1alpha1.ApplicationConditionExcludedResourceWarning: true,
 	})
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()
