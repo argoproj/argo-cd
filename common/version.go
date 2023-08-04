@@ -16,7 +16,6 @@ var (
 	gitTag         = ""                     // output from `git describe --exact-match --tags HEAD` (if clean tree state)
 	gitTreeState   = ""                     // determined from `git status --porcelain`. either 'clean' or 'dirty'
 	kubectlVersion = ""                     // determined from go.mod file
-	extraBuildInfo = ""                     // extra build information for vendors to populate during build
 )
 
 // Version contains Argo version information
@@ -30,7 +29,6 @@ type Version struct {
 	Compiler       string
 	Platform       string
 	KubectlVersion string
-	ExtraBuildInfo string
 }
 
 func (v Version) String() string {
@@ -68,7 +66,6 @@ func GetVersion() Version {
 			versionStr += "+unknown"
 		}
 	}
-
 	return Version{
 		Version:        versionStr,
 		BuildDate:      buildDate,
@@ -79,6 +76,5 @@ func GetVersion() Version {
 		Compiler:       runtime.Compiler,
 		Platform:       fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 		KubectlVersion: kubectlVersion,
-		ExtraBuildInfo: extraBuildInfo,
 	}
 }

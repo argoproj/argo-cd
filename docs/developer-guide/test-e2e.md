@@ -33,7 +33,7 @@ Some effort has been made to balance test isolation with speed. Tests are isolat
 * A random 5 character ID.
 * A unique Git repository containing the `testdata` in `/tmp/argocd-e2e/${id}`.
 * A namespace `argocd-e2e-ns-${id}`.
-* A primary name for the app `argocd-e2e-${id}`.
+* An primary name for the app `argocd-e2e-${id}`.
 
 ## Troubleshooting
 

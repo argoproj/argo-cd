@@ -172,11 +172,4 @@ export class ProjectsService {
             .send()
             .then(res => (res.body as models.EventList).items || []);
     }
-
-    public getLinks(projectName: string): Promise<models.LinksResponse> {
-        return requests
-            .get(`/projects/${projectName}/links`)
-            .send()
-            .then(res => res.body as models.LinksResponse);
-    }
 }

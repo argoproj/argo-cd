@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"fmt"
 	"io"
 	"sync"
 
@@ -42,10 +41,7 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 		if notify {
 			state.cond.Broadcast()
 		}
-		if err != nil {
-			return fmt.Errorf("init closer failed: %w", err)
-		}
-		return nil
+		return err
 	})
 
 	for {
@@ -55,7 +51,7 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 			initCloser, err := init()
 			if err != nil {
 				state.cond.L.Unlock()
-				return nil, fmt.Errorf("failed to initialize repository resources: %w", err)
+				return nil, err
 			}
 			state.initCloser = initCloser
 			state.revision = revision

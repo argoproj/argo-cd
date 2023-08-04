@@ -10,10 +10,11 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/yaml"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
@@ -452,7 +453,7 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 			}
 		}
 		fmt.Printf("Group '%s' and kind '%s' is added to %s resources\n", group, kind, listDesc)
-		*list = append(*list, metav1.GroupKind{Group: group, Kind: kind})
+		*list = append(*list, v1.GroupKind{Group: group, Kind: kind})
 		return true
 	} else {
 		index := -1
@@ -862,23 +863,23 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			cli.InteractiveEdit(fmt.Sprintf("%s-*-edit.yaml", projName), projData, func(input []byte) error {
 				input, err = yaml.YAMLToJSON(input)
 				if err != nil {
-					return fmt.Errorf("error converting YAML to JSON: %w", err)
+					return err
 				}
 				updatedSpec := v1alpha1.AppProjectSpec{}
 				err = json.Unmarshal(input, &updatedSpec)
 				if err != nil {
-					return fmt.Errorf("error unmarshaling input into application spec: %w", err)
+					return err
 				}
 				proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 				if err != nil {
-					return fmt.Errorf("could not get project by project name: %w", err)
+					return err
 				}
 				proj.Spec = updatedSpec
 				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 				if err != nil {
-					return fmt.Errorf("failed to update project:\n%w", err)
+					return fmt.Errorf("Failed to update project:\n%v", err)
 				}
-				return nil
+				return err
 			})
 		},
 	}
