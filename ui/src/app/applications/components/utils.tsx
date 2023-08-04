@@ -1253,7 +1253,7 @@ export function formatCreationTimestamp(creationTimestamp: string) {
 
 export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);
 
-export function getUsrMsgToDisplay(appName: string, msgKey: string, usrMessages: appModels.UserMessages[], showMsgIntervals?: string) {
+export function getUsrMsgToDisplay(appName: string, msgKey: string, usrMessages: appModels.UserMessages[]) {
     const usrMsg = usrMessages?.find((msg: appModels.UserMessages) => msg.appName === appName && msg.msgKey === msgKey);
     if (usrMsg !== undefined) {
         return {...usrMsg, display: true};
