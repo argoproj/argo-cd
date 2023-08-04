@@ -425,8 +425,13 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 		}
 
 		ctx := context.Background()
-		err = repo.Tags(ctx, "", func(tagResult []string) error {
-			tags.Tags = append(tags.Tags, tagResult...)
+		err = repo.Tags(ctx, "", func(tagsResult []string) error {
+			for _, tag := range tagsResult {
+				// By convention: Change underscore (_) back to plus (+) to get valid SemVer
+				convertedTag := strings.ReplaceAll(tag, "_", "+")
+				tags.Tags = append(tags.Tags, convertedTag)
+			}
+
 			return nil
 		})
 
