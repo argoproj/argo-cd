@@ -71,7 +71,7 @@ func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	pluginClient, err := g.getPluginFromGenerator(ctx, applicationSetInfo.Name, providerConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving plugin from generator: %w", err)
 	}
 
 	list, err := pluginClient.List(ctx, providerConfig.Input.Parameters)
@@ -81,7 +81,7 @@ func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	res, err := g.generateParams(appSetGenerator, applicationSetInfo, list.Output.Parameters, appSetGenerator.Plugin.Input.Parameters, applicationSetInfo.Spec.GoTemplate)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error generating params: %w", err)
 	}
 
 	return res, nil

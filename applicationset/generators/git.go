@@ -66,7 +66,7 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 		return nil, EmptyAppSetGeneratorError
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error generating params for Git Directories/Files: %w", err)
 	}
 
 	return res, nil
