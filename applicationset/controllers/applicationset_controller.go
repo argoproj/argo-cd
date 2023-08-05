@@ -24,7 +24,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
@@ -567,6 +569,35 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 		return fmt.Errorf("error setting up with manager: %w", err)
 	}
 
+	// source Kind watches Secrets at cluster level if manager is configured to manage ApplicationSet at cluster level
+	// source Channel allows to restrict Secret watch to ArgoCDNamespace
+	reconciliationSourceChannel := make(chan event.GenericEvent)
+
+	k8sClient, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		return err
+	}
+
+	secretRec, err := labels.NewRequirement(generators.ArgoCDSecretTypeLabel, selection.Equals, []string{generators.ArgoCDSecretTypeCluster})
+
+	if err != nil {
+		return err
+	}
+
+	selector := labels.NewSelector()
+	selector = selector.Add(*secretRec)
+	watcher, err := k8sClient.CoreV1().Secrets(r.ArgoCDNamespace).Watch(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
+
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for chanEvent := range watcher.ResultChan() {
+			reconciliationSourceChannel <- event.GenericEvent{Object: chanEvent.Object.(*corev1.Secret)}
+		}
+	}()
+
 	ownsHandler := getOwnsHandlerPredicates(enableProgressiveSyncs)
 
 	return ctrl.NewControllerManagedBy(mgr).WithOptions(controller.Options{
@@ -574,8 +605,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 	}).For(&argov1alpha1.ApplicationSet{}).
 		Owns(&argov1alpha1.Application{}, builder.WithPredicates(ownsHandler)).
 		WithEventFilter(ignoreNotAllowedNamespaces(r.ApplicationSetNamespaces)).
-		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
+		Watches(&source.Channel{Source: reconciliationSourceChannel},
 			&clusterSecretEventHandler{
 				Client: mgr.GetClient(),
 				Log:    log.WithField("type", "createSecretEventHandler"),
