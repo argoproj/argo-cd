@@ -11,12 +11,12 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
 	"testing"
 	"time"
-	"reflect"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -29,12 +29,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
-	argopath "github.com/argoproj/argo-cd/v2/util/app/path"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
+	argopath "github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
@@ -2959,62 +2959,62 @@ func TestGetGitFiles(t *testing.T) {
 
 func Test_copyFilesystemSubtree(t *testing.T) {
 	testCases := []struct {
-		testName string
-		srcRoot string
-		srcPath string
-		dstPath string
+		testName                 string
+		srcRoot                  string
+		srcPath                  string
+		dstPath                  string
 		failOnOutOfBoundsSymlink bool
-		shouldFail bool
-		ooblinks []string
+		shouldFail               bool
+		ooblinks                 []string
 	}{
 		{testName: "OK-failOnOutOfBoundsSymlink",
-			srcRoot: "testdata2/",
-			srcPath: "copyfrom-ok",
-			dstPath: "dst-dir",
+			srcRoot:                  "testdata2/",
+			srcPath:                  "copyfrom-ok",
+			dstPath:                  "dst-dir",
 			failOnOutOfBoundsSymlink: true,
-			shouldFail: false,
+			shouldFail:               false,
 		},
 		{testName: "OK-softfail",
-			srcRoot: "testdata2/",
-			srcPath: "copyfrom-ok",
-			dstPath: "dst-dir",
+			srcRoot:                  "testdata2/",
+			srcPath:                  "copyfrom-ok",
+			dstPath:                  "dst-dir",
 			failOnOutOfBoundsSymlink: false,
-			shouldFail: false,
+			shouldFail:               false,
 		},
 		{testName: "File",
-			srcRoot: "testdata2/",
-			srcPath: "copyfrom-file",
-			dstPath: "dst-file.txt",
+			srcRoot:                  "testdata2/",
+			srcPath:                  "copyfrom-file",
+			dstPath:                  "dst-file.txt",
 			failOnOutOfBoundsSymlink: false,
-			shouldFail: false,
+			shouldFail:               false,
 		},
 		{testName: "OOB-failOnOutOfBoundsSymlink",
-			srcRoot: "testdata2/",
-			srcPath: "copyfrom-oob",
-			dstPath: "dst-dir",
+			srcRoot:                  "testdata2/",
+			srcPath:                  "copyfrom-oob",
+			dstPath:                  "dst-dir",
 			failOnOutOfBoundsSymlink: true,
-			shouldFail: true,
+			shouldFail:               true,
 		},
 		{testName: "OOB-softfail",
-			srcRoot: "testdata2/",
-			srcPath: "copyfrom-oob",
-			dstPath: "dst-dir",
+			srcRoot:                  "testdata2/",
+			srcPath:                  "copyfrom-oob",
+			dstPath:                  "dst-dir",
 			failOnOutOfBoundsSymlink: false,
-			shouldFail: false,
+			shouldFail:               false,
 		},
 		{testName: "OOB-directory",
-			srcRoot: "testdata2/",
-			srcPath: "copyfrom-ok",
-			dstPath: "dst-dir/b/../../../c",
+			srcRoot:                  "testdata2/",
+			srcPath:                  "copyfrom-ok",
+			dstPath:                  "dst-dir/b/../../../c",
 			failOnOutOfBoundsSymlink: false,
-			shouldFail: true,
+			shouldFail:               true,
 		},
 		{testName: "OK-multilevel",
-			srcRoot: "testdata2/",
-			srcPath: "copyfrom-ok",
-			dstPath: "dst-dir/a/b/c",
+			srcRoot:                  "testdata2/",
+			srcPath:                  "copyfrom-ok",
+			dstPath:                  "dst-dir/a/b/c",
 			failOnOutOfBoundsSymlink: false,
-			shouldFail: false,
+			shouldFail:               false,
 		},
 	}
 
@@ -3072,7 +3072,7 @@ func getDirListing(dir string) ([]string, error) {
 			ret = append(ret, fmt.Sprintf("dir:%s", relpath))
 		} else if d.Type().IsRegular() {
 			ret = append(ret, fmt.Sprintf("file:%s", relpath))
-		} else if d.Type()&os.ModeSymlink>0 {
+		} else if d.Type()&os.ModeSymlink > 0 {
 			// first check whether it's oob
 			srcStat, err := os.Lstat(path)
 			if err != nil {

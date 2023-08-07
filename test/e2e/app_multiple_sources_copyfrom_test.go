@@ -16,14 +16,14 @@ func TestMultiSourceFromAppDir(t *testing.T) {
 		RepoURL: RepoURL(RepoURLTypeFile),
 		Path:    "guestbook-envspec",
 		From: []CopyFromSpec{{
-			SourcePath: "$envvalues/copyfrom-envfiles/dev",
-			DestinationPath: "guestbook-envspec/env",
+			SourcePath:               "$envvalues/copyfrom-envfiles/dev",
+			DestinationPath:          "guestbook-envspec/env",
 			FailOnOutOfBoundsSymlink: false,
 		},
 		},
 	}, {
 		RepoURL: RepoURL(RepoURLTypeFile),
-		Ref: "envvalues",
+		Ref:     "envvalues",
 	}}
 	ctx := Given(t)
 	ctx.
@@ -67,14 +67,14 @@ func TestMultiSourceFromAppFile(t *testing.T) {
 		RepoURL: RepoURL(RepoURLTypeFile),
 		Path:    "guestbook-envspec",
 		From: []CopyFromSpec{{
-			SourcePath: "$envvalues/copyfrom-envfiles/dev/cm.yaml",
-			DestinationPath: "guestbook-envspec/env/cm.yaml",
+			SourcePath:               "$envvalues/copyfrom-envfiles/dev/cm.yaml",
+			DestinationPath:          "guestbook-envspec/env/cm.yaml",
 			FailOnOutOfBoundsSymlink: false,
 		},
 		},
 	}, {
 		RepoURL: RepoURL(RepoURLTypeFile),
-		Ref: "envvalues",
+		Ref:     "envvalues",
 	}}
 	ctx := Given(t)
 	ctx.

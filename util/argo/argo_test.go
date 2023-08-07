@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
+	"os"
 	"path/filepath"
 	"testing"
-	"os"
-	"hash/fnv"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
@@ -1438,7 +1438,6 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 		assert.Len(t, conditions, 0)
 	})
 }
-
 
 func TestCopyFile(t *testing.T) {
 

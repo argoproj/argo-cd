@@ -25,9 +25,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
-	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
@@ -699,8 +699,8 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 				refKeys = append(refKeys, refKey)
 			}
 			log.WithFields(log.Fields{
-				"AppName": q.AppName,
-				"NameSpace": q.Namespace,
+				"AppName":     q.AppName,
+				"NameSpace":   q.Namespace,
 				"KubeVersion": q.KubeVersion,
 			}).Debugf("Processing a multi-source repo, available references: %s", strings.Join(refKeys, ", "))
 
@@ -850,12 +850,12 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 				srcRepoRoot := gitClient.Root()
 				dstRepoRoot := repoRoot
 				log.WithFields(log.Fields{
-					"ref": refVar,
-					"srcpath": copySpec.SourcePath,
-					"dstpath": copySpec.DestinationPath,
+					"ref":                      refVar,
+					"srcpath":                  copySpec.SourcePath,
+					"dstpath":                  copySpec.DestinationPath,
 					"failOnOutOfBoundsSymlink": copySpec.FailOnOutOfBoundsSymlink,
-					"srcRepoRoot": srcRepoRoot,
-					"dstRepoRoot": dstRepoRoot,
+					"srcRepoRoot":              srcRepoRoot,
+					"dstRepoRoot":              dstRepoRoot,
 				}).Debug("Starting repo copy")
 
 				// do the copy
@@ -868,7 +868,6 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 			}
 		}
-
 
 		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
 	}
@@ -1383,10 +1382,10 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 
 func copyFilesystemSubtree(srcRoot string, srcPath string, dstRoot string, dstPath string, failOnOutOfBoundsSymlink bool) error {
 	logCtx := log.WithFields(log.Fields{
-		"srcRoot": srcRoot,
-		"srcPath": srcPath,
-		"dstRoot": dstRoot,
-		"dstPath": dstPath,
+		"srcRoot":                  srcRoot,
+		"srcPath":                  srcPath,
+		"dstRoot":                  dstRoot,
+		"dstPath":                  dstPath,
 		"failOnOutOfBoundsSymlink": failOnOutOfBoundsSymlink,
 	})
 	logCtx.Debugf("copyFilesystemSubtree called")
@@ -1413,7 +1412,7 @@ func copyFilesystemSubtree(srcRoot string, srcPath string, dstRoot string, dstPa
 	srcStat, err := os.Lstat(srcFullPath)
 	logCtx = logCtx.WithFields(log.Fields{
 		"srcFullPath": srcFullPath,
-		"srcStat": srcStat,
+		"srcStat":     srcStat,
 	})
 	if err != nil {
 		logCtx.Debugf("copyFilesystemSubtree: lstat failed: %v", err)
@@ -1421,7 +1420,7 @@ func copyFilesystemSubtree(srcRoot string, srcPath string, dstRoot string, dstPa
 	}
 
 	// if the source is a symlink, we bail out, because it will certainly be out of bound
-	if srcStat.Mode() & fs.ModeSymlink > 0 {
+	if srcStat.Mode()&fs.ModeSymlink > 0 {
 		logCtx.Debugf("copyFilesystemSubtree: lstat failed: %v", err)
 		return fmt.Errorf("Copy source is a symlink: %s", srcFullPath)
 	}
@@ -1470,7 +1469,7 @@ func copyFilesystemSubtree(srcRoot string, srcPath string, dstRoot string, dstPa
 	}
 
 	logCtx.WithFields(log.Fields{
-		"dstStat": dstStat,
+		"dstStat":   dstStat,
 		"dstExists": dstExists,
 	}).Debug("copyFilesystemSubtree: checks passed, starting copy logic")
 
@@ -1546,7 +1545,7 @@ func copyFilesystemSubtreeWalker(srcFullPath string, dstFullPath string, failOnO
 	logCtx := log.WithFields(log.Fields{
 		"srcFullPath": srcFullPath,
 		"dstFullPath": dstFullPath,
-		"path": path,
+		"path":        path,
 	})
 
 	logCtx.Debug("CopyFrom processing entry")
@@ -1565,7 +1564,7 @@ func copyFilesystemSubtreeWalker(srcFullPath string, dstFullPath string, failOnO
 	}
 	logCtx = logCtx.WithFields(log.Fields{
 		"targetPath": targetPath,
-		"relpath": relpath,
+		"relpath":    relpath,
 	})
 
 	// if it's a directory, then we have to create it
@@ -1590,7 +1589,7 @@ func copyFilesystemSubtreeWalker(srcFullPath string, dstFullPath string, failOnO
 		}
 		logCtx.Debug("CopyFrom file copied")
 		return nil
-	} else if d.Type() & os.ModeSymlink > 0 {
+	} else if d.Type()&os.ModeSymlink > 0 {
 		// in failOnOutOfBoundsSymlink mode symlinks already have been checked
 		// in !failOnOutOfBoundsSymlink we check the individually, and if they are OOB,
 		// we ignore them

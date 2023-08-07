@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	goio "io"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
-	"os"
-	goio "io"
 
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -1106,7 +1106,7 @@ func CopyFile(srcFile string, dstFile string, perm os.FileMode) error {
 	log.WithFields(log.Fields{
 		"srcFile": srcFile,
 		"dstFile": dstFile,
-		"perm": perm,
+		"perm":    perm,
 	}).Debugf("CopyFile called")
 	src, err := os.OpenFile(srcFile, os.O_RDONLY, 0644)
 	if err != nil {

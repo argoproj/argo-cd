@@ -83,8 +83,8 @@ func CheckSymlinkOutOfBound(absBasePath string, path string, info os.FileInfo) e
 func CheckPathOutOfBound(basePath string, path string, target string) error {
 	log.WithFields(log.Fields{
 		"basePath": basePath,
-		"path": path,
-		"target": target,
+		"path":     path,
+		"target":   target,
 	}).Debugf("CheckPathOutOfBound called")
 	// get the parent directory of the symlink
 	// if path is empty, we're not checking a symlink, we don't need the parent dir
@@ -100,10 +100,10 @@ func CheckPathOutOfBound(basePath string, path string, target string) error {
 		rel, err := filepath.Rel(basePath, newDir)
 		if err != nil {
 			log.WithFields(log.Fields{
-				"basePath": basePath,
+				"basePath":   basePath,
 				"currentDir": currentDir,
-				"part": part,
-				"newDir": newDir,
+				"part":       part,
+				"newDir":     newDir,
 			}).Errorf("CheckPathOutOfBound: failed to get relative path for symlink target: %v", err)
 			return fmt.Errorf("failed to get relative path for symlink target: %v", err)
 		}
@@ -111,7 +111,7 @@ func CheckPathOutOfBound(basePath string, path string, target string) error {
 			// return an error so we don't keep traversing the tree
 			relPath, _ := filepath.Rel(basePath, path)
 			log.WithFields(log.Fields{
-				"rel": rel,
+				"rel":     rel,
 				"relPath": relPath,
 			}).Errorf("CheckPathOutOfBound: out of bound file found")
 			return &OutOfBoundsSymlinkError{File: relPath}
