@@ -202,7 +202,7 @@ func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*
 func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*apiclient.AppList, error) {
 	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error setting up git client and resolving given revision: %w", err)
 	}
 	if apps, err := s.cache.ListApps(q.Repo.Repo, commitSHA); err == nil {
 		log.Infof("cache hit: %s/%s", q.Repo.Repo, q.Revision)
@@ -217,13 +217,13 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error acquiring repository lock: %w", err)
 	}
 
 	defer io.Close(closer)
 	apps, err := discovery.Discover(ctx, gitClient.Root(), gitClient.Root(), q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error discovering applications: %w", err)
 	}
 	err = s.cache.SetApps(q.Repo.Repo, commitSHA, apps)
 	if err != nil {
@@ -1039,7 +1039,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoCreds []*v1alpha1.RepoCreds) ([]helm.HelmRepository, error) {
 	dependencies, err := getHelmDependencyRepos(appPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving helm dependency repos: %w", err)
 	}
 	reposByName := make(map[string]*v1alpha1.Repository)
 	reposByUrl := make(map[string]*v1alpha1.Repository)
@@ -1096,12 +1096,12 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	repos := make([]*v1alpha1.Repository, 0)
 	f, err := os.ReadFile(filepath.Join(appPath, "Chart.yaml"))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading helm chart from %s: %w", filepath.Join(appPath, "Chart.yaml"), err)
 	}
 
 	d := &dependencies{}
 	if err = yaml.Unmarshal(f, d); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error unmarshalling the helm chart while getting helm dependency repos: %w", err)
 	}
 
 	for _, r := range d.Dependencies {
@@ -1160,11 +1160,6 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 		return err
 	}
 	return os.WriteFile(markerFile, []byte("marker"), 0644)
-}
-
-func isSourcePermitted(url string, repos []string) bool {
-	p := v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{SourceRepos: repos}}
-	return p.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: url})
 }
 
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, error) {
@@ -1263,20 +1258,6 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	if err != nil {
 		return nil, err
 	}
-
-	var reposNotPermitted []string
-	// We do a sanity check here to give a nicer error message in case any of the Helm repositories are not permitted by
-	// the AppProject which the application is a part of
-	for _, repo := range helmRepos {
-		if !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
-			reposNotPermitted = append(reposNotPermitted, repo.Repo)
-		}
-	}
-
-	if len(reposNotPermitted) > 0 {
-		return nil, status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
-	}
-
 	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, passCredentials)
 	if err != nil {
 		return nil, err

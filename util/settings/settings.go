@@ -766,7 +766,7 @@ func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error
 func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get argo-cd config map: %w", err)
 	}
 	res := map[string]bool{}
 	for sourceType := range sourceTypeToEnableGenerationKey {
@@ -1009,7 +1009,7 @@ func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, erro
 func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get argo-cd config map: %v", err)
 	}
 	helmOptions := &v1alpha1.HelmOptions{}
 	if value, ok := argoCDCM.Data[helmValuesFileSchemesKey]; ok {
@@ -1045,7 +1045,7 @@ func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 		if strings.HasPrefix(k, kustomizeVersionKeyPrefix) {
 			err = addKustomizeVersion(kustomizeVersionKeyPrefix, k, v, kustomizeVersionsMap)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to add kustomize version from %q: %w", k, err)
 			}
 		}
 
@@ -1053,7 +1053,7 @@ func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 		if strings.HasPrefix(k, kustomizePathPrefixKey) {
 			err = addKustomizeVersion(kustomizePathPrefixKey, k, v, kustomizeVersionsMap)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to add kustomize version from %q: %w", k, err)
 			}
 		}
 
@@ -1113,7 +1113,7 @@ func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
 	// Get the config map outside of the lock
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get argo-cd config map: %w", err)
 	}
 
 	mgr.mutex.Lock()
@@ -1123,7 +1123,7 @@ func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
 	if repositoriesStr != "" {
 		err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to unmarshal repositories from config map key %q: %w", repositoriesKey, err)
 		}
 	}
 	mgr.reposCache = repositories

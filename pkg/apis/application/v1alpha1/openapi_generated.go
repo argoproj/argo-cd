@@ -596,7 +596,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 				Properties: map[string]spec.Schema{
 					"server": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API",
+							Description: "Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -610,7 +610,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 					},
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name is an alternate way of specifying the target cluster by its symbolic name",
+							Description: "Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -5563,6 +5563,18 @@ func schema_pkg_apis_application_v1alpha1_ResourceAction(ref common.ReferenceCal
 					"disabled": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"iconClass": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"displayName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
 							Format: "",
 						},
 					},
