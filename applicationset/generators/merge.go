@@ -234,7 +234,7 @@ func getMergeGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*arg
 	}
 	merge, err := argoprojiov1alpha1.ToNestedMergeGenerator(r.Merge)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error converting to nested merge generator: %w", err)
 	}
 	return merge.ToMergeGenerator(), nil
 }
