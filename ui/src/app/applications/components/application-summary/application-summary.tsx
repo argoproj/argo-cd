@@ -39,7 +39,7 @@ function swap(array: any[], a: number, b: number) {
 
 function processPath(path: string) {
     if (path !== null && path !== undefined) {
-        if (path == '.') {
+        if (path === '.') {
             return '(root)';
         }
         return path;
