@@ -2974,8 +2974,9 @@ func TestGenerateManifestManagedByLabel(t *testing.T) {
 		res, err := GenerateManifests(context.Background(), "./testdata/managed-by", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(res.Manifests))
-		assert.Contains(t, res.Manifests[0], "\"app.kubernetes.io/managed-by\"")
-		assert.NotContains(t, res.Manifests[0], "\"app.kubernetes.io/managed-by\":\"argocd\"")
+		assert.Equal(t,
+			"{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"labels\":{\"app.kubernetes.io/managed-by\":\"another-maintainer\"},\"name\":\"app\"}}",
+			res.Manifests[0])
 	})
 
 	t.Run("managed-by missing", func(t *testing.T) {
@@ -2987,6 +2988,8 @@ func TestGenerateManifestManagedByLabel(t *testing.T) {
 		res, err := GenerateManifests(context.Background(), "./testdata/managed-by-missing", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(res.Manifests))
-		assert.Contains(t, res.Manifests[0], "\"app.kubernetes.io/managed-by\":\"argocd\"")
+		assert.Equal(t,
+			"{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"labels\":{\"app.kubernetes.io/managed-by\":\"argocd\"},\"name\":\"app\"}}",
+			res.Manifests[0])
 	})
 }
