@@ -692,7 +692,7 @@ func (r *ApplicationSetReconciler) getCurrentApplications(_ context.Context, app
 	err := r.Client.List(context.Background(), &current, client.MatchingFields{".metadata.controller": applicationSet.Name})
 
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving applications: %s", err.Error())
+		return nil, fmt.Errorf("error retrieving applications: %w", err)
 	}
 
 	return current.Items, nil
