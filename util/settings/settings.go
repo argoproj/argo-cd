@@ -820,7 +820,7 @@ func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1al
 func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("error retrieving config map: %w", err)
 	}
 
 	if argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey] == "" {
@@ -834,7 +834,7 @@ func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving config map: %w", err)
 	}
 	resourceOverrides := map[string]v1alpha1.ResourceOverride{}
 	if value, ok := argoCDCM.Data[resourceCustomizationsKey]; ok && value != "" {
@@ -1088,14 +1088,14 @@ func addKustomizeVersion(prefix, name, path string, kvMap map[string]KustomizeVe
 func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving config map: %w", err)
 	}
 	helmRepositories := make([]HelmRepoCredentials, 0)
 	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
 	if helmRepositoriesStr != "" {
 		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &helmRepositories)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error unmarshalling helm repositories: %w", err)
 		}
 	}
 	return helmRepositories, nil
@@ -1173,7 +1173,7 @@ func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials,
 	// Get the config map outside of the lock
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving config map: %w", err)
 	}
 
 	mgr.mutex.Lock()
@@ -1194,7 +1194,7 @@ func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials,
 func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving config map: %w", err)
 	}
 	return &GoogleAnalytics{
 		TrackingID:     argoCDCM.Data[gaTrackingID],
@@ -1205,7 +1205,7 @@ func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
 func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving config map: %w", err)
 	}
 	chatText, ok := argoCDCM.Data[helpChatText]
 	if !ok {
@@ -1957,7 +1957,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		// set JWT signature
 		signature, err := util.MakeSignature(32)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error setting JWT signature: %w", err)
 		}
 		cdSettings.ServerSignature = signature
 		log.Info("Initialized server signature")

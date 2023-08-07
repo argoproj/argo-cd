@@ -50,7 +50,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error failed to get params for first generator in matrix generator: %w", err)
 	}
 	for _, a := range g0 {
 		g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a)
@@ -94,7 +94,7 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 	}
 	mergeGen, err := getMergeGenerator(appSetBaseGenerator)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving merge generator: %w", err)
 	}
 	if mergeGen != nil && !appSet.Spec.ApplyNestedSelectors {
 		foundSelector := dropDisabledNestedSelectors(mergeGen.Generators)
