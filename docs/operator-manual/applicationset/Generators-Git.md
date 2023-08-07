@@ -157,7 +157,7 @@ Or, a shorter way (using [path.Match](https://golang.org/pkg/path/#Match) syntax
 
 ```yaml
 - path: /d/*
-- path: /d/[f|g]
+- path: /d/[fg]
   exclude: true
 ```
 
