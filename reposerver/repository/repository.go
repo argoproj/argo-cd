@@ -1397,6 +1397,8 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 					return nil, fmt.Errorf("failed to set app instance tracking info on manifest: %w", err)
 				}
 			}
+			addManagedByLabel(target)
+
 			manifestStr, err := json.Marshal(target.Object)
 			if err != nil {
 				return nil, err
@@ -1419,6 +1421,17 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: q.Repo.Repo},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.ApplicationSource.Path},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
+	}
+}
+
+func addManagedByLabel(target *unstructured.Unstructured) {
+	labels := target.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string, 1)
+	}
+	if labels["app.kubernetes.io/managed-by"] == "" {
+		labels["app.kubernetes.io/managed-by"] = "argocd"
+		target.SetLabels(labels)
 	}
 }
 
