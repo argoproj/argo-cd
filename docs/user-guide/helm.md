@@ -54,7 +54,7 @@ source:
 
 Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.valuesObject` key.
 
-```
+```yaml
 source:
   helm:
     valuesObject:
@@ -75,7 +75,7 @@ source:
 
 Alternatively, values can be passed in as a string using the `source.helm.values` key.
 
-```
+```yaml
 source:
   helm:
     values: |
@@ -254,7 +254,7 @@ One way to use this plugin is to prepare your own ArgoCD image where it is inclu
 
 Example `Dockerfile`:
 
-```
+```dockerfile
 FROM argoproj/argocd:v1.5.7
 
 USER root
@@ -284,7 +284,7 @@ Some users find this pattern preferable to maintaining their own version of the 
 
 Below is an example of how to add Helm plugins when installing ArgoCD with the [official ArgoCD helm chart](https://github.com/argoproj/argo-helm/tree/master/charts/argo-cd):
 
-```
+```yaml
 repoServer:
   volumes:
     - name: gcp-credentials
