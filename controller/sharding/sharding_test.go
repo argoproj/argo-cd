@@ -9,10 +9,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"k8s.io/client-go/kubernetes"
 )
 
 func TestGetShardByID_NotEmptyID(t *testing.T) {
@@ -293,25 +291,19 @@ func TestInferShard(t *testing.T) {
 	// Override the os.Hostname function to return a specific hostname for testing
 	defer func() { osHostnameFunction = os.Hostname }()
 
-	kubeClientSet := &kubernetes.Clientset{}
-	settingsMgr := &settings.SettingsManager{}
-	osHostnameFunction = func() (string, error) { return "example-shard-3", nil }
 	expectedShard := 3
-	actualShard, _ := InferShard(kubeClientSet, settingsMgr)
+	actualShard, _ := inferShardFromStatefulSet("example-shard-3")
 	assert.Equal(t, expectedShard, actualShard)
 
-	osHostnameError := errors.New("cannot resolve hostname")
-	osHostnameFunction = func() (string, error) { return "exampleshard", osHostnameError }
-	_, err := InferShard(kubeClientSet, settingsMgr)
+	osHostnameError := errors.New("hostname should ends with shard number separated by '-' but got: exampleshard")
+	_, err := inferShardFromStatefulSet("exampleshard")
 	assert.NotNil(t, err)
 	assert.Equal(t, err, osHostnameError)
 
-	osHostnameFunction = func() (string, error) { return "exampleshard", nil }
-	_, err = InferShard(kubeClientSet, settingsMgr)
+	_, err = inferShardFromStatefulSet("exampleshard")
 	assert.NotNil(t, err)
 
-	osHostnameFunction = func() (string, error) { return "example-shard", nil }
-	_, err = InferShard(kubeClientSet, settingsMgr)
+	_, err = inferShardFromStatefulSet("example-shard")
 	assert.NotNil(t, err)
 }
 

@@ -34,7 +34,7 @@ import (
 
 const (
 	// CLIName is the name of the CLI
-	cliName = "argocd-application-controller"
+	cliName = common.ApplicationController
 	// Default time in seconds for application resync period
 	defaultAppResyncPeriod = 180
 	// Default time in seconds for application hard resync period

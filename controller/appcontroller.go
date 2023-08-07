@@ -160,7 +160,7 @@ func NewApplicationController(
 		statusHardRefreshTimeout:      appHardResyncPeriod,
 		refreshRequestedApps:          make(map[string]CompareWith),
 		refreshRequestedAppsMutex:     &sync.Mutex{},
-		auditLogger:                   argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
+		auditLogger:                   argo.NewAuditLogger(namespace, kubeClientset, common.ApplicationController),
 		settingsMgr:                   settingsMgr,
 		selfHealTimeout:               selfHealTimeout,
 		clusterFilter:                 clusterFilter,

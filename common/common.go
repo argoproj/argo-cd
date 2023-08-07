@@ -12,6 +12,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Component names
+const (
+	ApplicationController = "argocd-application-controller"
+)
+
 // Default service addresses and URLS of Argo CD internal services
 const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server

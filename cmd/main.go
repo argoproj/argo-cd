@@ -16,6 +16,7 @@ import (
 	reposerver "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"
 	apiserver "github.com/argoproj/argo-cd/v2/cmd/argocd-server/commands"
 	cli "github.com/argoproj/argo-cd/v2/cmd/argocd/commands"
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 const (
@@ -34,7 +35,7 @@ func main() {
 		command = cli.NewCommand()
 	case "argocd-server":
 		command = apiserver.NewCommand()
-	case "argocd-application-controller":
+	case common.ApplicationController:
 		command = appcontroller.NewCommand()
 	case "argocd-repo-server":
 		command = reposerver.NewCommand()
