@@ -469,6 +469,11 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 clean-debug:
 	-find ${CURRENT_DIR} -name debug.test -exec rm -f {} +
 
+.PHONY: clean-test
+clean-test:
+	rm -rf ${CURRENT_DIR}/test-results
+	rm -rf ${CURRENT_DIR}/coverage.out
+
 .PHONY: clean
 clean: clean-debug
 	-rm -rf ${CURRENT_DIR}/dist
