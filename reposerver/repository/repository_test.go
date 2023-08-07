@@ -2962,3 +2962,30 @@ func Test_getRepoSanitizerRegex(t *testing.T) {
 	msg = r.ReplaceAllString("error message containing /tmp/_argocd-repo/SENSITIVE/with/trailing/path and other stuff", "<path to cached source>")
 	assert.Equal(t, "error message containing <path to cached source>/with/trailing/path and other stuff", msg)
 }
+
+func TestGenerateManifestManagedByLabel(t *testing.T) {
+	t.Run("managed-by set", func(t *testing.T) {
+		q := apiclient.ManifestRequest{
+			Repo:              &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{},
+		}
+
+		res, err := GenerateManifests(context.Background(), "./testdata/managed-by", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(res.Manifests))
+		assert.Contains(t, res.Manifests[0], "\"app.kubernetes.io/managed-by\"")
+		assert.NotContains(t, res.Manifests[0], "\"app.kubernetes.io/managed-by\":\"argocd\"")
+	})
+
+	t.Run("managed-by missing", func(t *testing.T) {
+		q := apiclient.ManifestRequest{
+			Repo:              &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{},
+		}
+
+		res, err := GenerateManifests(context.Background(), "./testdata/managed-by-missing", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(res.Manifests))
+		assert.Contains(t, res.Manifests[0], "\"app.kubernetes.io/managed-by\":\"argocd\"")
+	})
+}
