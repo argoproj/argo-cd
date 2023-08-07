@@ -109,4 +109,4 @@ The current cadence of our meetings is weekly, every Thursday at 4:15pm UTC (8:1
 
 If you want to discuss something, we kindly ask you to put your item on the
 [agenda](https://docs.google.com/document/d/1xkoFkVviB70YBzSEa4bDnu-rUZ1sIFtwKKG1Uw8XsY8)
-for one of the upcoming meetings so that we can plan in the time for discussing it.
+for one of the upcoming meetings so that we can plan in the time for discussing about it.
