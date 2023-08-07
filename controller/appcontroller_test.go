@@ -3,9 +3,11 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
@@ -926,6 +928,41 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 	assert.True(t, patched)
 }
 
+type logHook struct {
+	entries []logrus.Entry
+}
+
+func (h *logHook) Levels() []logrus.Level {
+	return []logrus.Level{logrus.WarnLevel}
+}
+
+func (h *logHook) Fire(entry *logrus.Entry) error {
+	h.entries = append(h.entries, *entry)
+	return nil
+}
+
+func TestSetOperationStateLogRetries(t *testing.T) {
+	hook := logHook{}
+	logrus.AddHook(&hook)
+	t.Cleanup(func() {
+		logrus.StandardLogger().ReplaceHooks(logrus.LevelHooks{})
+	})
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	patched := false
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if !patched {
+			patched = true
+			return true, nil, errors.New("fake error")
+		}
+		return true, nil, nil
+	})
+	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
+	assert.True(t, patched)
+	assert.Contains(t, hook.entries[0].Message, "fake error")
+}
+
 func TestNeedRefreshAppStatus(t *testing.T) {
 	testCases := []struct {
 		name string
@@ -943,7 +980,6 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
 			app := tc.app
 			now := metav1.Now()
 			app.Status.ReconciledAt = &now
@@ -951,7 +987,8 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 			app.Status.Sync = v1alpha1.SyncStatus{
 				Status: v1alpha1.SyncStatusCodeSynced,
 				ComparedTo: v1alpha1.ComparedTo{
-					Destination: app.Spec.Destination,
+					Destination:       app.Spec.Destination,
+					IgnoreDifferences: app.Spec.IgnoreDifferences,
 				},
 			}
 
@@ -961,36 +998,58 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 				app.Status.Sync.ComparedTo.Source = app.Spec.GetSource()
 			}
 
-			// no need to refresh just reconciled application
-			needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
-			assert.False(t, needRefresh)
+			ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
 
-			// refresh app using the 'deepest' requested comparison level
-			ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
-			ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
+			t.Run("no need to refresh just reconciled application", func(t *testing.T) {
+				needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.False(t, needRefresh)
+			})
 
-			needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
-			assert.True(t, needRefresh)
-			assert.Equal(t, v1alpha1.RefreshTypeNormal, refreshType)
-			assert.Equal(t, CompareWithRecent, compareWith)
+			t.Run("requested refresh is respected", func(t *testing.T) {
+				needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.False(t, needRefresh)
 
-			// refresh application which status is not reconciled using latest commit
-			app.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeUnknown}
+				// use a one-off controller so other tests don't have a manual refresh request
+				ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
 
-			needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
-			assert.True(t, needRefresh)
-			assert.Equal(t, v1alpha1.RefreshTypeNormal, refreshType)
-			assert.Equal(t, CompareWithLatestForceResolve, compareWith)
-
-			t.Run("refresh app using the 'latest' level if comparison expired", func(t *testing.T) {
-				app := app.DeepCopy()
+				// refresh app using the 'deepest' requested comparison level
 				ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
-				reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
-				app.Status.ReconciledAt = &reconciledAt
-				needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Minute, 2*time.Hour)
+				ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
+
+				needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.True(t, needRefresh)
+				assert.Equal(t, v1alpha1.RefreshTypeNormal, refreshType)
+				assert.Equal(t, CompareWithRecent, compareWith)
+			})
+
+			t.Run("refresh application which status is not reconciled using latest commit", func(t *testing.T) {
+				app := app.DeepCopy()
+				needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.False(t, needRefresh)
+				app.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeUnknown}
+
+				needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 				assert.True(t, needRefresh)
 				assert.Equal(t, v1alpha1.RefreshTypeNormal, refreshType)
 				assert.Equal(t, CompareWithLatestForceResolve, compareWith)
+			})
+
+			t.Run("refresh app using the 'latest' level if comparison expired", func(t *testing.T) {
+				app := app.DeepCopy()
+
+				// use a one-off controller so other tests don't have a manual refresh request
+				ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+
+				needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.False(t, needRefresh)
+
+				ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
+				reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
+				app.Status.ReconciledAt = &reconciledAt
+				needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Minute, 2*time.Hour)
+				assert.True(t, needRefresh)
+				assert.Equal(t, v1alpha1.RefreshTypeNormal, refreshType)
+				assert.Equal(t, CompareWithLatest, compareWith)
 			})
 
 			t.Run("refresh app using the 'latest' level if comparison expired for hard refresh", func(t *testing.T) {
@@ -998,7 +1057,8 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 				app.Status.Sync = v1alpha1.SyncStatus{
 					Status: v1alpha1.SyncStatusCodeSynced,
 					ComparedTo: v1alpha1.ComparedTo{
-						Destination: app.Spec.Destination,
+						Destination:       app.Spec.Destination,
+						IgnoreDifferences: app.Spec.IgnoreDifferences,
 					},
 				}
 				if app.Spec.HasMultipleSources() {
@@ -1006,10 +1066,16 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 				} else {
 					app.Status.Sync.ComparedTo.Source = app.Spec.GetSource()
 				}
+
+				// use a one-off controller so other tests don't have a manual refresh request
+				ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+
+				needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.False(t, needRefresh)
 				ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 				reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
 				app.Status.ReconciledAt = &reconciledAt
-				needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 2*time.Hour, 1*time.Minute)
+				needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 2*time.Hour, 1*time.Minute)
 				assert.True(t, needRefresh)
 				assert.Equal(t, v1alpha1.RefreshTypeHard, refreshType)
 				assert.Equal(t, CompareWithLatest, compareWith)
@@ -1017,12 +1083,14 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 
 			t.Run("execute hard refresh if app has refresh annotation", func(t *testing.T) {
 				app := app.DeepCopy()
+				needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.False(t, needRefresh)
 				reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
 				app.Status.ReconciledAt = &reconciledAt
 				app.Annotations = map[string]string{
 					v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeHard),
 				}
-				needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 				assert.True(t, needRefresh)
 				assert.Equal(t, v1alpha1.RefreshTypeHard, refreshType)
 				assert.Equal(t, CompareWithLatestForceResolve, compareWith)
@@ -1030,7 +1098,8 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 
 			t.Run("ensure that CompareWithLatest level is used if application source has changed", func(t *testing.T) {
 				app := app.DeepCopy()
-				ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
+				needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.False(t, needRefresh)
 				// sample app source change
 				if app.Spec.HasMultipleSources() {
 					app.Spec.Sources[0].Helm = &v1alpha1.ApplicationSourceHelm{
@@ -1048,10 +1117,31 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 					}
 				}
 
-				needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 				assert.True(t, needRefresh)
 				assert.Equal(t, v1alpha1.RefreshTypeNormal, refreshType)
 				assert.Equal(t, CompareWithLatestForceResolve, compareWith)
+			})
+
+			t.Run("ensure that CompareWithLatest level is used if ignored differences change", func(t *testing.T) {
+				app := app.DeepCopy()
+				needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.False(t, needRefresh)
+
+				app.Spec.IgnoreDifferences = []v1alpha1.ResourceIgnoreDifferences{
+					{
+						Group: "apps",
+						Kind:  "Deployment",
+						JSONPointers: []string{
+							"/spec/template/spec/containers/0/image",
+						},
+					},
+				}
+
+				needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.True(t, needRefresh)
+				assert.Equal(t, v1alpha1.RefreshTypeNormal, refreshType)
+				assert.Equal(t, CompareWithLatest, compareWith)
 			})
 		})
 	}
@@ -1163,7 +1253,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	app := newFakeApp()
 	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Second))
 	app.Status = v1alpha1.ApplicationStatus{ReconciledAt: &reconciledAt}
-	app.Status.Sync = v1alpha1.SyncStatus{ComparedTo: v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination}}
+	app.Status.Sync = v1alpha1.SyncStatus{ComparedTo: v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, IgnoreDifferences: app.Spec.IgnoreDifferences}}
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
