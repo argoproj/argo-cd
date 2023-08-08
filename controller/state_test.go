@@ -676,16 +676,6 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	assert.Equal(t, app.Status.History.LastRevisionHistory().DeployStartedAt, &metav1NowTime)
 }
 
-// helper function to read contents of a file to string
-// panics on error
-func mustReadFile(path string) string {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		panic(err.Error())
-	}
-	return string(b)
-}
-
 var signedProj = argoappv1.AppProject{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "default",
