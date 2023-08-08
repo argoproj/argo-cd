@@ -370,7 +370,7 @@ func TestRunCommandEmptyCommand(t *testing.T) {
 }
 
 // TestRunCommandContextTimeoutWithGracefulTermination makes sure that the process is given enough time to cleanup before sending SIGKILL.
-func TestRunCommandContextTimeoutWithGracefulTermination(t *testing.T) {
+func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 900*time.Millisecond)
 	defer cancel()
 
@@ -378,7 +378,7 @@ func TestRunCommandContextTimeoutWithGracefulTermination(t *testing.T) {
 	// This command sleeps for 4 seconds which is currently less than the 5 second delay between SIGTERM and SIGKILL signal and then exits successfully.
 	command := Command{
 		Command: []string{"sh", "-c"},
-		Args:    []string{"sleep 4 && echo 'cleanup completed'"},
+		Args:    []string{`(trap 'echo "cleanup completed"; exit' SIGTERM; sleep 4)`},
 	}
 
 	before := time.Now()
