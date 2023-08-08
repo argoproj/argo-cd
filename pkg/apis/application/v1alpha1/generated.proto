@@ -2032,6 +2032,9 @@ message SCMProviderGeneratorGitlab {
 
   // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
   optional bool insecure = 6;
+
+  // When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to "true"
+  optional bool includeSharedProjects = 7;
 }
 
 // Utility struct for a reference to a secret key.
