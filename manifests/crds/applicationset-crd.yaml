@@ -4863,6 +4863,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      insecure:
+                                        type: boolean
                                       labels:
                                         items:
                                           type: string
@@ -5551,7 +5553,11 @@ spec:
                                         type: string
                                       group:
                                         type: string
+                                      includeSharedProjects:
+                                        type: boolean
                                       includeSubgroups:
+                                        type: boolean
+                                      insecure:
                                         type: boolean
                                       tokenRef:
                                         properties:
@@ -9338,6 +9344,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      insecure:
+                                        type: boolean
                                       labels:
                                         items:
                                           type: string
@@ -10026,7 +10034,11 @@ spec:
                                         type: string
                                       group:
                                         type: string
+                                      includeSharedProjects:
+                                        type: boolean
                                       includeSubgroups:
+                                        type: boolean
+                                      insecure:
                                         type: boolean
                                       tokenRef:
                                         properties:
@@ -11742,6 +11754,8 @@ spec:
                           properties:
                             api:
                               type: string
+                            insecure:
+                              type: boolean
                             labels:
                               items:
                                 type: string
@@ -12430,7 +12444,11 @@ spec:
                               type: string
                             group:
                               type: string
+                            includeSharedProjects:
+                              type: boolean
                             includeSubgroups:
+                              type: boolean
+                            insecure:
                               type: boolean
                             tokenRef:
                               properties:

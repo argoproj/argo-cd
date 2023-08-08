@@ -86,6 +86,7 @@ type ApplicationSetReconciler struct {
 	ArgoCDNamespace          string
 	ApplicationSetNamespaces []string
 	EnableProgressiveSyncs   bool
+	SCMRootCAPath            string
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -447,7 +448,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 
 		conditions, err := argoutil.ValidatePermissions(ctx, &app.Spec, proj, r.ArgoDB)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error validating permissions: %s", err)
 		}
 		if len(conditions) > 0 {
 			errorsByIndex[i] = fmt.Errorf("application spec is invalid: %s", argoutil.FormatAppConditions(conditions))
@@ -596,6 +597,9 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 		appLog := log.WithFields(log.Fields{"app": generatedApp.Name, "appSet": applicationSet.Name})
 		generatedApp.Namespace = applicationSet.Namespace
 
+		// Normalize to avoid fighting with the application controller.
+		generatedApp.Spec = *argoutil.NormalizeApplicationSpec(&generatedApp.Spec)
+
 		found := &argov1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      generatedApp.Name,
@@ -688,7 +692,7 @@ func (r *ApplicationSetReconciler) getCurrentApplications(_ context.Context, app
 	err := r.Client.List(context.Background(), &current, client.MatchingFields{".metadata.controller": applicationSet.Name})
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving applications: %w", err)
 	}
 
 	return current.Items, nil

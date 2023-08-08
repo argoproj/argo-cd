@@ -419,7 +419,6 @@ func validateRepo(ctx context.Context,
 		helmOptions,
 		app.Name,
 		app.Spec.Destination,
-		proj,
 		sources,
 		repoClient,
 		cluster.ServerVersion,
@@ -585,7 +584,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if !permitted {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application destination {%s %s} is not permitted in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
+				Message: fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
 			})
 		}
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
@@ -704,7 +703,6 @@ func verifyGenerateManifests(
 	helmOptions *argoappv1.HelmOptions,
 	name string,
 	dest argoappv1.ApplicationDestination,
-	proj *argoappv1.AppProject,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
 	kubeVersion string,
@@ -771,8 +769,6 @@ func verifyGenerateManifests(
 			NoRevisionCache:    true,
 			HasMultipleSources: hasMultipleSources,
 			RefSources:         refSources,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
 		}
 		req.Repo.CopyCredentialsFromRepo(repoRes)
 		req.Repo.CopySettingsFrom(repoRes)
@@ -856,7 +852,8 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		for _, source := range spec.Sources {
 			NormalizeSource(&source)
 		}
-	} else {
+	} else if spec.Source != nil {
+		// In practice, spec.Source should never be nil.
 		NormalizeSource(spec.Source)
 	}
 	return spec

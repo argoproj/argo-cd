@@ -352,7 +352,7 @@ lint-local:
 	golangci-lint --version
 	# NOTE: If you get a "Killed" OOM message, try reducing the value of GOGC
 	# See https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
-	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 3000s
+	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --enable gofmt --fix --verbose --timeout 3000s --max-issues-per-linter 0 --max-same-issues 0
 
 .PHONY: lint-ui
 lint-ui: test-tools-image
@@ -460,6 +460,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	BIN_MODE=$(ARGOCD_BIN_MODE) \
 	ARGOCD_APPLICATION_NAMESPACES=argocd-e2e-external \
 	ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES=argocd-e2e-external \
+	ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS=http://127.0.0.1:8341,http://127.0.0.1:8342,http://127.0.0.1:8343,http://127.0.0.1:8344 \
 	ARGOCD_E2E_TEST=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 

@@ -26,10 +26,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -372,6 +373,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 						Namespace:       "namespace",
 						ResourceVersion: "1",
 					},
+					Spec: v1alpha1.ApplicationSpec{Project: "default"},
 				},
 			},
 		},
@@ -899,6 +901,60 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 				},
 			},
+		}, {
+			name: "Ensure that the app spec is normalized before applying",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "project",
+							Source: &v1alpha1.ApplicationSource{
+								Directory: &v1alpha1.ApplicationSourceDirectory{
+									Jsonnet: v1alpha1.ApplicationSourceJsonnet{},
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Source: &v1alpha1.ApplicationSource{
+							Directory: &v1alpha1.ApplicationSourceDirectory{
+								Jsonnet: v1alpha1.ApplicationSourceJsonnet{},
+							},
+						},
+					},
+				},
+			},
+			expected: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Source:  &v1alpha1.ApplicationSource{
+							// Directory and jsonnet block are removed
+						},
+					},
+				},
+			},
 		},
 	} {
 
@@ -1230,13 +1286,15 @@ func TestCreateApplications(t *testing.T) {
 	err = v1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
-	for _, c := range []struct {
+	testCases := []struct {
+		name       string
 		appSet     v1alpha1.ApplicationSet
 		existsApps []v1alpha1.Application
 		apps       []v1alpha1.Application
 		expected   []v1alpha1.Application
 	}{
 		{
+			name: "no existing apps",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -1262,10 +1320,14 @@ func TestCreateApplications(t *testing.T) {
 						Namespace:       "namespace",
 						ResourceVersion: "1",
 					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+					},
 				},
 			},
 		},
 		{
+			name: "existing apps",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -1323,6 +1385,7 @@ func TestCreateApplications(t *testing.T) {
 			},
 		},
 		{
+			name: "existing apps with different project",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -1379,39 +1442,42 @@ func TestCreateApplications(t *testing.T) {
 				},
 			},
 		},
-	} {
-		initObjs := []crtclient.Object{&c.appSet}
-		for _, a := range c.existsApps {
-			err = controllerutil.SetControllerReference(&c.appSet, &a, scheme)
-			assert.Nil(t, err)
-			initObjs = append(initObjs, &a)
-		}
-
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
-
-		r := ApplicationSetReconciler{
-			Client:   client,
-			Scheme:   scheme,
-			Recorder: record.NewFakeRecorder(len(initObjs) + len(c.expected)),
-		}
-
-		err = r.createInCluster(context.TODO(), c.appSet, c.apps)
-		assert.Nil(t, err)
-
-		for _, obj := range c.expected {
-			got := &v1alpha1.Application{}
-			_ = client.Get(context.Background(), crtclient.ObjectKey{
-				Namespace: obj.Namespace,
-				Name:      obj.Name,
-			}, got)
-
-			err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
-			assert.Nil(t, err)
-
-			assert.Equal(t, obj, *got)
-		}
 	}
 
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			initObjs := []crtclient.Object{&c.appSet}
+			for _, a := range c.existsApps {
+				err = controllerutil.SetControllerReference(&c.appSet, &a, scheme)
+				assert.Nil(t, err)
+				initObjs = append(initObjs, &a)
+			}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+
+			r := ApplicationSetReconciler{
+				Client:   client,
+				Scheme:   scheme,
+				Recorder: record.NewFakeRecorder(len(initObjs) + len(c.expected)),
+			}
+
+			err = r.createInCluster(context.TODO(), c.appSet, c.apps)
+			assert.Nil(t, err)
+
+			for _, obj := range c.expected {
+				got := &v1alpha1.Application{}
+				_ = client.Get(context.Background(), crtclient.ObjectKey{
+					Namespace: obj.Namespace,
+					Name:      obj.Name,
+				}, got)
+
+				err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
+				assert.Nil(t, err)
+
+				assert.Equal(t, obj, *got)
+			}
+		})
+	}
 }
 
 func TestDeleteInCluster(t *testing.T) {

@@ -476,6 +476,24 @@ func TestDeleteAppResource(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusMissing))
 }
 
+// Fix for issue #2677, support PATCH in HTTP service
+func TestPatchHttp(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		PatchAppHttp(`{"metadata": {"labels": { "test": "patch" }, "annotations": { "test": "patch" }}}`).
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, "patch", app.Labels["test"])
+			assert.Equal(t, "patch", app.Annotations["test"])
+		})
+
+}
+
 // demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
 func TestImmutableChange(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
@@ -1472,7 +1490,7 @@ func TestPermissions(t *testing.T) {
 		Create()
 
 	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'argo-project'", RepoURL(RepoURLTypeFile))
-	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'argo-project'", KubernetesInternalAPIServerAddr, DeploymentNamespace())
+	destinationError := fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project 'argo-project'", KubernetesInternalAPIServerAddr, DeploymentNamespace())
 
 	appCtx.
 		Path("guestbook-logs").
@@ -1628,7 +1646,7 @@ func TestPermissionDeniedWithNegatedNamespace(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		Then().
-		Expect(Error("", "is not permitted in project"))
+		Expect(Error("", "do not match any of the allowed destinations in project"))
 }
 
 func TestPermissionDeniedWithNegatedServer(t *testing.T) {
@@ -1655,7 +1673,7 @@ func TestPermissionDeniedWithNegatedServer(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		Then().
-		Expect(Error("", "is not permitted in project"))
+		Expect(Error("", "do not match any of the allowed destinations in project"))
 }
 
 // make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false

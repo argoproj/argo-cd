@@ -595,7 +595,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 				Properties: map[string]spec.Schema{
 					"server": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API",
+							Description: "Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -609,7 +609,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 					},
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name is an alternate way of specifying the target cluster by its symbolic name",
+							Description: "Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2861,12 +2861,26 @@ func schema_pkg_apis_application_v1alpha1_ComparedTo(ref common.ReferenceCallbac
 							},
 						},
 					},
+					"ignoreDifferences": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IgnoreDifferences is a reference to the application's ignored differences used for comparison",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"destination"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences"},
 	}
 }
 
@@ -4849,6 +4863,13 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref common.
 							Format:      "",
 						},
 					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"project"},
 			},
@@ -5490,6 +5511,18 @@ func schema_pkg_apis_application_v1alpha1_ResourceAction(ref common.ReferenceCal
 					"disabled": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"iconClass": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"displayName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
 							Format: "",
 						},
 					},
@@ -6905,6 +6938,20 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref common.
 					"allBranches": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Scan all branches instead of just the default branch.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"includeSharedProjects": {
+						SchemaProps: spec.SchemaProps{
+							Description: "When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to \"true\"",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

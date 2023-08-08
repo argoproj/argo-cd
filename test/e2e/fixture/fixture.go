@@ -58,6 +58,8 @@ const (
 
 	// cmp plugin sock file path
 	PluginSockFilePath = "/app/config/plugin"
+
+	E2ETestPrefix = "e2e-test-"
 )
 
 const (
@@ -665,6 +667,33 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	// create namespace
 	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
 	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true"))
+
+	// delete old namespaces used by E2E tests
+	namespaces, err := KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
+	CheckError(err)
+	for _, namespace := range namespaces.Items {
+		if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
+			FailOnErr(Run("", "kubectl", "delete", "ns", namespace.Name))
+		}
+	}
+
+	// delete old ClusterRoles that begin with "e2e-test-" prefix (E2ETestPrefix), which were created by tests
+	clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
+	CheckError(err)
+	for _, clusterRole := range clusterRoles.Items {
+		if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
+			FailOnErr(Run("", "kubectl", "delete", "clusterrole", clusterRole.Name))
+		}
+	}
+
+	// delete old ClusterRoleBindings that begin with "e2e-test-prefix", which were created by E2E tests
+	clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), v1.ListOptions{})
+	CheckError(err)
+	for _, clusterRoleBinding := range clusterRoleBindings.Items {
+		if strings.HasPrefix(clusterRoleBinding.Name, E2ETestPrefix) {
+			FailOnErr(Run("", "kubectl", "delete", "clusterrolebinding", clusterRoleBinding.Name))
+		}
+	}
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }

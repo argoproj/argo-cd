@@ -5,7 +5,6 @@ import (
 	"math"
 	"net"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -198,9 +197,6 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 			return nil
 		},
-	}
-	if cmdutil.LogFormat == "" {
-		cmdutil.LogFormat = os.Getenv("ARGOCD_REPO_SERVER_LOGLEVEL")
 	}
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
