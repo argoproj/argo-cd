@@ -378,7 +378,7 @@ func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 	// This command sleeps for 4 seconds which is currently less than the 5 second delay between SIGTERM and SIGKILL signal and then exits successfully.
 	command := Command{
 		Command: []string{"sh", "-c"},
-		Args:    []string{`(trap 'echo "cleanup completed"; exit' SIGTERM; sleep 4)`},
+		Args:    []string{`(trap 'echo "cleanup completed"; exit' TERM; sleep 4)`},
 	}
 
 	before := time.Now()
@@ -387,7 +387,6 @@ func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 
 	assert.Error(t, err) // The command should time out, causing an error.
 	assert.Less(t, after.Sub(before), 1*time.Second)
-
 	// The command should still have completed the cleanup after termination.
 	assert.Contains(t, output, "cleanup completed")
 }

@@ -102,7 +102,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		_ = sysCallTerm(-cmd.Process.Pid)
 
 		// modify cleanup timeout to allow process to cleanup
-		cleanupTimeout := 5 * time.Second 
+		cleanupTimeout := 5 * time.Second
 		time.Sleep(cleanupTimeout)
 
 		_ = sysCallKill(-cmd.Process.Pid)
