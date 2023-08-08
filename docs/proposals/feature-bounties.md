@@ -4,7 +4,7 @@ authors:
   - "@crenshaw-dev"
   - "@todaywasawesome"
 sponsors:
-  - TBD
+  - "@jannfis"
 reviewers:
   - TBD
 approvers:
