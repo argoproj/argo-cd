@@ -34,31 +34,58 @@ func NewCache(client CacheClient) *Cache {
 	return &Cache{client}
 }
 
-func buildRedisClient(redisAddress, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, redisClusterMode bool) redis.UniversalClient {
-	var client redis.UniversalClient
-	if redisClusterMode {
-		opts := &redis.ClusterOptions{
-			Addrs:      strings.Split(redisAddress, ","),
-			Password:   password,
-			MaxRetries: maxRetries,
-			TLSConfig:  tlsConfig,
-			Username:   username,
-		}
-		client = redis.NewClusterClient(opts)
-	} else {
-		opts := &redis.Options{
-			Addr:       redisAddress,
-			Password:   password,
-			DB:         redisDB,
-			MaxRetries: maxRetries,
-			TLSConfig:  tlsConfig,
-			Username:   username,
-		}
-		client = redis.NewClient(opts)
+func buildRedisClusterClient(redisAddress, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config) *redis.ClusterClient {
+	opts := &redis.ClusterOptions{
+		Addrs:      strings.Split(redisAddress, ","),
+		Password:   password,
+		MaxRetries: maxRetries,
+		TLSConfig:  tlsConfig,
+		Username:   username,
 	}
 
+	client := redis.NewClusterClient(opts)
+
 	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
-		client = buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig, redisClusterMode)
+		*client = *buildRedisClusterClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
+	})))
+
+	return client
+}
+
+func buildRedisClient(redisAddress, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config) *redis.Client {
+	opts := &redis.Options{
+		Addr:       redisAddress,
+		Password:   password,
+		DB:         redisDB,
+		MaxRetries: maxRetries,
+		TLSConfig:  tlsConfig,
+		Username:   username,
+	}
+
+	client := redis.NewClient(opts)
+
+	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
+		*client = *buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
+	})))
+
+	return client
+}
+
+func buildFailoverRedisClusterClient(sentinelMaster, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, sentinelAddresses []string) *redis.ClusterClient {
+	opts := &redis.FailoverOptions{
+		MasterName:    sentinelMaster,
+		SentinelAddrs: sentinelAddresses,
+		DB:            redisDB,
+		Password:      password,
+		MaxRetries:    maxRetries,
+		TLSConfig:     tlsConfig,
+		Username:      username,
+	}
+
+	client := redis.NewFailoverClusterClient(opts)
+
+	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
+		*client = *buildFailoverRedisClusterClient(sentinelMaster, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
 	})))
 
 	return client
@@ -115,9 +142,6 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client redis.UniversalC
 		if redisClusterMode && redisDB != 0 {
 			return nil, fmt.Errorf("cannot set redisDB in cluster mode")
 		}
-		if redisClusterMode && len(sentinelAddresses) > 0 {
-			return nil, fmt.Errorf("cannot use both redis sentinel and cluster mode")
-		}
 
 		var tlsConfig *tls.Config = nil
 		if redisUseTLS {
@@ -152,18 +176,23 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client redis.UniversalC
 		if err != nil {
 			return nil, err
 		}
+		var client redis.UniversalClient
 		if len(sentinelAddresses) > 0 {
-			client := buildFailoverRedisClient(sentinelMaster, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
-			for i := range opts {
-				opts[i](client)
+			if redisClusterMode {
+				client = buildFailoverRedisClusterClient(sentinelMaster, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
+			} else {
+				client = buildFailoverRedisClient(sentinelMaster, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
 			}
-			return NewCache(NewRedisCache(client, defaultCacheExpiration, compression)), nil
+		} else {
+			if redisAddress == "" {
+				redisAddress = common.DefaultRedisAddr
+			}
+			if redisClusterMode {
+				client = buildRedisClusterClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
+			} else {
+				client = buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
+			}
 		}
-		if redisAddress == "" {
-			redisAddress = common.DefaultRedisAddr
-		}
-
-		client := buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig, redisClusterMode)
 		for i := range opts {
 			opts[i](client)
 		}
