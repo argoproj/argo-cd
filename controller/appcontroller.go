@@ -1992,7 +1992,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					log.WithField("application", newApp.QualifiedName()).Info("Enabled automated sync")
 					compareWith = CompareWithLatest.Pointer()
 				}
-				if ctrl.resetDirtyApplication(newApp) {
+				if !ctrl.resetDirtyApplication(newApp) {
 					log.WithField("application", newApp.QualifiedName()).Infof("Cannot reset dirty application because version %s is already dirty", newApp.GetResourceVersion())
 				}
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, nil)
