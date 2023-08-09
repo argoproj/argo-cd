@@ -185,6 +185,7 @@ metadata:
   uid: "123"
   name: my-app
   namespace: ` + test.FakeArgoCDNamespace + `
+  resourceVersion: "111111111"
 spec:
   destination:
     namespace: ` + test.FakeDestNamespace + `
@@ -226,6 +227,7 @@ metadata:
   uid: "123"
   name: my-app
   namespace: ` + test.FakeArgoCDNamespace + `
+  resourceVersion: "222222222"
 spec:
   destination:
     namespace: ` + test.FakeDestNamespace + `
@@ -961,6 +963,73 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
 	assert.Contains(t, hook.entries[0].Message, "fake error")
+}
+
+func TestDirtyApplication(t *testing.T) {
+
+	t.Run("application not dirty if it does not contain any version", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+
+		dirty := ctrl.isDirtyApplication(app)
+
+		assert.False(t, dirty)
+	})
+	t.Run("application not dirty if it contains another version", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+		ctrl.setDirtyApplication(app)
+		app.ResourceVersion = "new-version"
+
+		dirty := ctrl.isDirtyApplication(app)
+
+		assert.False(t, dirty)
+	})
+	t.Run("application is dirty if it contains same resource version", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+		ctrl.setDirtyApplication(app)
+
+		dirty := ctrl.isDirtyApplication(app)
+
+		assert.True(t, dirty)
+	})
+	t.Run("reset clear previous versions", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+		ctrl.setDirtyApplication(app)
+		dirtyVersion := app.ResourceVersion
+		app.ResourceVersion = "new-version"
+
+		wasReset := ctrl.resetDirtyApplication(app)
+		app.ResourceVersion = dirtyVersion
+
+		assert.True(t, wasReset)
+		assert.False(t, ctrl.isDirtyApplication(app))
+	})
+	t.Run("reset does not affect other applications", func(t *testing.T) {
+		app := newFakeApp()
+		app2 := newFakeApp()
+		app2.Name = "app2"
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+		ctrl.setDirtyApplication(app)
+		ctrl.setDirtyApplication(app2)
+		app.ResourceVersion = "new-version"
+
+		wasReset := ctrl.resetDirtyApplication(app)
+
+		assert.True(t, wasReset)
+		assert.True(t, ctrl.isDirtyApplication(app2))
+	})
+	t.Run("cannot reset versions if dirty", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+		ctrl.setDirtyApplication(app)
+
+		wasReset := ctrl.resetDirtyApplication(app)
+
+		assert.False(t, wasReset)
+	})
 }
 
 func TestNeedRefreshAppStatus(t *testing.T) {
