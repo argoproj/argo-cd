@@ -458,20 +458,78 @@ func intersectMap(templateMap, valueMap, liveMap map[string]interface{}) map[str
 			if innerVSlice, ok := valueMap[k].([]interface{}); ok {
 				if innerLSlice, ok := liveMap[k].([]interface{}); ok {
 					items := []interface{}{}
+					mergeKeyFieldName := "name"
+
 					for idx, innerTSliceValue := range innerTSlice {
 						if tSliceValueMap, ok := innerTSliceValue.(map[string]interface{}); ok {
 							if idx < len(innerVSlice) {
 								if vSliceValueMap, ok := innerVSlice[idx].(map[string]interface{}); ok {
 									if lSliceValueMap, ok := innerLSlice[idx].(map[string]interface{}); ok {
+										mergedMap := map[string]interface{}{}
+										if _, ok := tSliceValueMap[mergeKeyFieldName].(string); ok {
+											if _, ok := vSliceValueMap[mergeKeyFieldName].(string); ok {
+												for tKey, tItem := range tSliceValueMap {
+													if vItem, ok := vSliceValueMap[tKey].(map[string]interface{}); ok {
+														if lItem, ok := lSliceValueMap[tKey].(map[string]interface{}); ok {
+															item := intersectMap(tItem.(map[string]interface{}), vItem, lItem)
+															mergedMap[tKey] = item
+														}
+													} else if vItem, ok := vSliceValueMap[tKey].([]interface{}); ok {
+														mergeKeys := []string{}
+														innerItems := []interface{}{}
+														mergeKeyItems := map[string]interface{}{}
+
+														for _, tItemEl := range tItem.([]interface{}) {
+															if tItemElMap, ok := tItemEl.(map[string]interface{}); ok {
+																if tItemElName, ok := tItemElMap[mergeKeyFieldName].(string); ok {
+																	if _, ok := mergeKeyItems[tItemElName]; !ok {
+																		mergeKeys = append(mergeKeys, tItemElName)
+																	}
+																	mergeKeyItems[tItemElName] = tItemElMap
+																} else {
+																	mergedMap[tKey] = tItemElMap
+																}
+															} else {
+																mergedMap[tKey] = tItemElMap
+															}
+														}
+
+														for _, vItemEl := range vItem {
+															if vItemElMap, ok := vItemEl.(map[string]interface{}); ok {
+																if vItemElName, ok := vItemElMap[mergeKeyFieldName].(string); ok {
+																	if _, ok := mergeKeyItems[vItemElName]; ok {
+																		mergeKeyItems[vItemElName] = vItemElMap
+																	}
+																}
+															}
+														}
+
+														if len(mergeKeys) > 0 {
+															for _, key := range mergeKeys {
+																innerItems = append(innerItems, mergeKeyItems[key])
+															}
+															mergedMap[tKey] = innerItems
+														}
+													} else if vItem, ok := vSliceValueMap[tKey]; ok {
+														mergedMap[tKey] = vItem
+													} else {
+														mergedMap[tKey] = tItem
+													}
+												}
+											}
+
+											items = append(items, mergedMap)
+										}
+									} else {
 										item := intersectMap(tSliceValueMap, vSliceValueMap, lSliceValueMap)
 										items = append(items, item)
 									}
-								} else {
-									items = append(items, tSliceValueMap)
 								}
 							} else {
 								items = append(items, tSliceValueMap)
 							}
+						} else {
+							items = append(items, tSliceValueMap)
 						}
 					}
 					if len(items) > 0 {

@@ -418,12 +418,15 @@ func TestNormalizeTargetResources(t *testing.T) {
 		second := env[1]
 		third := env[2]
 
-		assert.Equal(t, "SOME_ENV_VAR", first.(map[string]interface{})["name"])
-		assert.Equal(t, "some_value", first.(map[string]interface{})["value"])
-		assert.Equal(t, "SOME_OTHER_ENV_VAR", second.(map[string]interface{})["name"])
-		assert.Equal(t, "some_other_value", second.(map[string]interface{})["value"])
-		assert.Equal(t, "YET_ANOTHER_ENV_VAR", third.(map[string]interface{})["name"])
-		assert.Equal(t, "yet_another_value", third.(map[string]interface{})["value"])
+		// Currently the defined order at this time is the insertion order of the target manifest.
+		assert.Equal(t, "SOME_OTHER_ENV_VAR", first.(map[string]interface{})["name"])
+		assert.Equal(t, "some_other_value", first.(map[string]interface{})["value"])
+
+		assert.Equal(t, "YET_ANOTHER_ENV_VAR", second.(map[string]interface{})["name"])
+		assert.Equal(t, "yet_another_value", second.(map[string]interface{})["value"])
+
+		assert.Equal(t, "SOME_ENV_VAR", third.(map[string]interface{})["name"])
+		assert.Equal(t, "some_value", third.(map[string]interface{})["value"])
 	})
 
 	t.Run("mutating-webhook-config", func(t *testing.T) {
