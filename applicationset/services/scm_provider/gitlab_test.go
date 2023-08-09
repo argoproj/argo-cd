@@ -15,7 +15,6 @@ import (
 
 func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		t.Log(r.RequestURI)
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
 		case "/api/v4":
@@ -1136,7 +1135,7 @@ func TestGitlabListRepos(t *testing.T) {
 				if c.includeSubgroups || c.includeSharedProjects {
 					assert.Equal(t, 2, len(uniqueRepos))
 				}
-				// In cas we filter on the topic, ensure we got only one repo returned
+				// In case we filter on the topic, ensure we got only one repo returned
 				if c.topic != "" {
 					assert.Equal(t, 1, len(uniqueRepos))
 				}

@@ -2036,7 +2036,7 @@ message SCMProviderGeneratorGitlab {
   // When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to "true"
   optional bool includeSharedProjects = 7;
 
-  // Filter repos list based on Gitlab Topic (tag).
+  // Filter repos list based on Gitlab Topic.
   optional string topic = 8;
 }
 
