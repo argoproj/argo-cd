@@ -4,9 +4,14 @@
 .application-resources-diff {
     &__checkboxes {
         text-align: right;
+        @include themify($themes) {
+            background-color: themed('background-2');      
+        }
         label {
+            @include themify($themes) {
+                color: themed('text-2');             
+            }
             padding-right: 2em;
-            color: $argo-color-gray-8;
         }
     }
     &__diff {
@@ -26,6 +31,12 @@
     }
 }
 
-.custom-diff-hunk {           
+.custom-diff-hunk {
+    @include themify($themes) {
+        color: themed('light-argo-gray-6');             
+    }
+}
+
+.diff-gutter-delete, .diff-code-delete, .diff-gutter-insert, .diff-code-insert {
     color: $argo-color-gray-6;
 }
