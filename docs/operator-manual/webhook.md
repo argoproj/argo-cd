@@ -12,19 +12,28 @@ a Git webhook for GitHub, but the same process should be applicable to other pro
     the same. A hook event for a push to branch `x` will trigger a refresh for an app pointing at the same repo with
     `targetRevision: refs/tags/x`.
 
-### 1. Create The WebHook In The Git Provider
+## 1. Create The WebHook In The Git Provider
 
 In your Git provider, navigate to the settings page where webhooks can be configured. The payload
 URL configured in the Git provider should use the `/api/webhook` endpoint of your Argo CD instance
 (e.g. `https://argocd.example.com/api/webhook`). If you wish to use a shared secret, input an
 arbitrary value in the secret. This value will be used when configuring the webhook in the next step.
 
+## Github
+
 ![Add Webhook](../assets/webhook-config.png "Add Webhook")
 
 !!! note
     When creating the webhook in GitHub, the "Content type" needs to be set to "application/json". The default value "application/x-www-form-urlencoded" is not supported by the library used to handle the hooks
 
-### 2. Configure Argo CD With The WebHook Secret (Optional)
+## Azure DevOps
+
+![Add Webhook](../assets/azure-devops-webhook-config.png "Add Webhook")
+
+Azure DevOps optionally supports securing the webhook using basic authentication. To use it, specify the username and password in the webhook configuration and configure the same username/password in `argocd-secret` Kubernetes secret in
+`webhook.azuredevops.username` and `webhook.azuredevops.password` keys.
+
+## 2. Configure Argo CD With The WebHook Secret (Optional)
 
 Configuring a webhook shared secret is optional, since Argo CD will still refresh applications
 related to the Git repository, even with unauthenticated webhook events. This is safe to do since
