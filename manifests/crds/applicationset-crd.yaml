@@ -13027,6 +13027,15 @@ spec:
                   type:
                     type: string
                 type: object
+              strategyRef:
+                properties:
+                  kind:
+                    type: string
+                  name:
+                    type: string
+                type: object
+                required:
+                - name
               syncPolicy:
                 properties:
                   applicationsSync:
