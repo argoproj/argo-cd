@@ -1420,4 +1420,16 @@ func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov
 	return false
 }
 
+func getApplicationSetStrategy(appset *argov1alpha1.ApplicationSet) (argov1alpha1.ApplicationSetStrategy, error) {
+	if appset.Spec.Strategy == nil {
+		return ApplicationSetStrategy{}, fmt.Errorf("applicationset %s/%s does not have a strategy defined", appset.Namespace, appset.Name)
+	}
+
+	if appset.Spec.Strategy.Rolling != nil {
+		return *appset.Spec.Strategy, nil
+	}
+
+	return ApplicationSetStrategy{}, fmt.Errorf("applicationset %s/%s does not have a valid strategy defined", appset.Namespace, appset.Name)
+}
+
 var _ handler.EventHandler = &clusterSecretEventHandler{}
