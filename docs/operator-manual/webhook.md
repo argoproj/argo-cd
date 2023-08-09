@@ -4,7 +4,7 @@
 
 Argo CD polls Git repositories every three minutes to detect changes to the manifests. To eliminate
 this delay from polling, the API server can be configured to receive webhook events. Argo CD supports
-Git webhook notifications from GitHub, GitLab, Bitbucket, Bitbucket Server and Gogs. The following explains how to configure
+Git webhook notifications from GitHub, GitLab, Bitbucket, Bitbucket Server, Azure DevOps and Gogs. The following explains how to configure
 a Git webhook for GitHub, but the same process should be applicable to other providers.
 
 !!! note
@@ -36,12 +36,14 @@ In the `argocd-secret` kubernetes secret, configure one of the following keys wi
 provider's webhook secret configured in step 1.
 
 | Provider        | K8s Secret Key                   |
-|-----------------| ---------------------------------|
+|-----------------|----------------------------------|
 | GitHub          | `webhook.github.secret`          |
 | GitLab          | `webhook.gitlab.secret`          |
 | BitBucket       | `webhook.bitbucket.uuid`         |
 | BitBucketServer | `webhook.bitbucketserver.secret` |
 | Gogs            | `webhook.gogs.secret`            |
+| Azure DevOps    | `webhook.azuredevops.username`   |
+|                 | `webhook.azuredevops.password`   |
 
 Edit the Argo CD kubernetes secret:
 
@@ -79,6 +81,10 @@ stringData:
 
   # gogs server webhook secret
   webhook.gogs.secret: shhhh! it's a gogs server secret
+
+  # azuredevops username and password
+  webhook.azuredevops.username: admin
+  webhook.azuredevops.password: secret-password
 ```
 
 After saving, the changes should take effect automatically.
