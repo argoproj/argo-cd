@@ -411,6 +411,9 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, 1, len(containers))
 
+		ports := containers[0].(map[string]interface{})["ports"].([]interface{})
+		assert.Equal(t, 1, len(ports))
+
 		env := containers[0].(map[string]interface{})["env"].([]interface{})
 		assert.Equal(t, 3, len(env))
 

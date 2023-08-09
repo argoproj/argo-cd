@@ -486,11 +486,7 @@ func intersectMap(templateMap, valueMap, liveMap map[string]interface{}) map[str
 																		mergeKeys = append(mergeKeys, tItemElName)
 																	}
 																	mergeKeyItems[tItemElName] = tItemElMap
-																} else {
-																	mergedMap[tKey] = tItemElMap
 																}
-															} else {
-																mergedMap[tKey] = tItemElMap
 															}
 														}
 
@@ -509,6 +505,10 @@ func intersectMap(templateMap, valueMap, liveMap map[string]interface{}) map[str
 																innerItems = append(innerItems, mergeKeyItems[key])
 															}
 															mergedMap[tKey] = innerItems
+														} else {
+															// TODO: What should happen if there are no merge keys
+															// and there are array entries within both tItem and vItem?
+															mergedMap[tKey] = tItem
 														}
 													} else if vItem, ok := vSliceValueMap[tKey]; ok {
 														mergedMap[tKey] = vItem
