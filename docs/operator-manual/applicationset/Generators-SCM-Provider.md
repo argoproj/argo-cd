@@ -318,7 +318,7 @@ Depending on whether `role` is provided in `awsCodeCommit` property, AWS IAM per
 #### Discover AWS CodeCommit Repositories in the same AWS Account as ApplicationSet Controller
 
 Without specifying `role`, ApplicationSet controller will use its own AWS identity to scan AWS CodeCommit repos.
-This is suitable when you have a simple setup that all AWS CodeCommit repos reside in the same AWS account as your ArgoCD.
+This is suitable when you have a simple setup that all AWS CodeCommit repos reside in the same AWS account as your Argo CD.
 
 As the ApplicationSet controller AWS identity is used directly for repo discovery, it must be granted below AWS permissions.
 
