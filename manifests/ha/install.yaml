@@ -10044,6 +10044,8 @@ spec:
                                         type: string
                                       group:
                                         type: string
+                                      includeSharedProjects:
+                                        type: boolean
                                       includeSubgroups:
                                         type: boolean
                                       insecure:
@@ -14523,6 +14525,8 @@ spec:
                                         type: string
                                       group:
                                         type: string
+                                      includeSharedProjects:
+                                        type: boolean
                                       includeSubgroups:
                                         type: boolean
                                       insecure:
@@ -16931,6 +16935,8 @@ spec:
                               type: string
                             group:
                               type: string
+                            includeSharedProjects:
+                              type: boolean
                             includeSubgroups:
                               type: boolean
                             insecure:
@@ -20117,7 +20123,7 @@ spec:
               key: applicationsetcontroller.scm.root.ca.path
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATIONSET_ALLOWED_SCM_PROVIDERS
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.allowed.scm.providers

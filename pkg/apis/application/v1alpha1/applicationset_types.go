@@ -441,6 +441,12 @@ type SCMProviderGeneratorGitlab struct {
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,5,opt,name=allBranches"`
 	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
+	// When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to "true"
+	IncludeSharedProjects *bool `json:"includeSharedProjects,omitempty" protobuf:"varint,7,opt,name=includeSharedProjects"`
+}
+
+func (s *SCMProviderGeneratorGitlab) WillIncludeSharedProjects() bool {
+	return s.IncludeSharedProjects == nil || *s.IncludeSharedProjects
 }
 
 // SCMProviderGeneratorBitbucket defines connection info specific to Bitbucket Cloud (API version 2).
