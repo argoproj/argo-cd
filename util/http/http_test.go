@@ -19,6 +19,14 @@ func TestCookieMaxLength(t *testing.T) {
 	assert.Equal(t, 0, len(cookies))
 }
 
+func TestCookieWithAttributes(t *testing.T) {
+	flags := []string{"SameSite=lax", "httpOnly"}
+
+	cookies, err := MakeCookieMetadata("foo", "bar", flags...)
+	assert.NoError(t, err)
+	assert.Equal(t, "foo=bar; SameSite=lax; httpOnly", cookies[0])
+}
+
 func TestSplitCookie(t *testing.T) {
 	cookieValue := strings.Repeat("_", (maxCookieLength-6)*4)
 	cookies, err := MakeCookieMetadata("foo", cookieValue)
