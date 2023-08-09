@@ -117,6 +117,11 @@ func (h *WebhookHandler) HandleEvent(payload interface{}) {
 }
 
 func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST requests are supported", http.StatusMethodNotAllowed)
+		return
+	}
+
 	var payload interface{}
 	var err error
 
@@ -133,15 +138,12 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Infof("Webhook processing failed: %s", err)
-		status := http.StatusBadRequest
-		if r.Method != http.MethodPost {
-			status = http.StatusMethodNotAllowed
-		}
-		http.Error(w, fmt.Sprintf("Webhook processing failed: %s", html.EscapeString(err.Error())), status)
+		http.Error(w, fmt.Sprintf("Webhook processing failed: %s", html.EscapeString(err.Error())), http.StatusBadRequest)
 		return
 	}
 
 	h.HandleEvent(payload)
+	w.WriteHeader(http.StatusOK)
 }
 
 func parseRevision(ref string) string {

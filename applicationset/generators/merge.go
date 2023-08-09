@@ -84,10 +84,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 					}
 					baseParamSetsByMergeKey[mergeKeyValue] = baseParamSet
 				} else {
-					overriddenParamSet, err := utils.CombineStringMapsAllowDuplicates(baseParamSet, overrideParamSet)
-					if err != nil {
-						return nil, err
-					}
+					overriddenParamSet := utils.CombineStringMapsAllowDuplicates(baseParamSet, overrideParamSet)
 					baseParamSetsByMergeKey[mergeKeyValue] = utils.ConvertToMapStringInterface(overriddenParamSet)
 				}
 			}

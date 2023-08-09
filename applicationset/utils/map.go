@@ -8,7 +8,7 @@ func ConvertToMapStringString(mapStringInterface map[string]interface{}) map[str
 	mapStringString := make(map[string]string, len(mapStringInterface))
 
 	for key, value := range mapStringInterface {
-		strKey := fmt.Sprintf("%v", key)
+		strKey := fmt.Sprintf("%s", key)
 		strValue := fmt.Sprintf("%v", value)
 
 		mapStringString[strKey] = strValue
@@ -26,12 +26,10 @@ func ConvertToMapStringInterface(mapStringString map[string]string) map[string]i
 }
 
 func CombineStringMaps(aSI map[string]interface{}, bSI map[string]interface{}) (map[string]string, error) {
-
 	a := ConvertToMapStringString(aSI)
 	b := ConvertToMapStringString(bSI)
 
 	res := map[string]string{}
-
 	for k, v := range a {
 		res[k] = v
 	}
@@ -48,8 +46,7 @@ func CombineStringMaps(aSI map[string]interface{}, bSI map[string]interface{}) (
 }
 
 // CombineStringMapsAllowDuplicates merges two maps. Where there are duplicates, take the latter map's value.
-func CombineStringMapsAllowDuplicates(aSI map[string]interface{}, bSI map[string]interface{}) (map[string]string, error) {
-
+func CombineStringMapsAllowDuplicates(aSI map[string]interface{}, bSI map[string]interface{}) map[string]string {
 	a := ConvertToMapStringString(aSI)
 	b := ConvertToMapStringString(bSI)
 
@@ -63,5 +60,5 @@ func CombineStringMapsAllowDuplicates(aSI map[string]interface{}, bSI map[string
 		res[k] = v
 	}
 
-	return res, nil
+	return res
 }
