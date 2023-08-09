@@ -29,9 +29,10 @@ require (
 	github.com/go-logr/logr v1.2.4
 	github.com/go-openapi/loads v0.21.2
 	github.com/go-openapi/runtime v0.26.0
+	github.com/go-playground/webhooks/v6 v6.2.1-0.20230808162451-10570b0a59e8
 	github.com/go-redis/cache/v9 v9.0.0
 	github.com/gobwas/glob v0.2.3
-	github.com/gogits/go-gogs-client v0.0.0-20190616193657-5a05380e4bc2
+	github.com/gogits/go-gogs-client v0.0.0-20200905025246-8bb8a50cb355
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/golang/protobuf v1.5.3
@@ -85,7 +86,6 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20230530153820-e85fd2cbaebc
 	google.golang.org/grpc v1.56.2
 	google.golang.org/protobuf v1.31.0
-	gopkg.in/go-playground/webhooks.v5 v5.17.0
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.24.2
