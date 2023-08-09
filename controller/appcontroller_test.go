@@ -3,9 +3,11 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
@@ -926,6 +928,41 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 	assert.True(t, patched)
 }
 
+type logHook struct {
+	entries []logrus.Entry
+}
+
+func (h *logHook) Levels() []logrus.Level {
+	return []logrus.Level{logrus.WarnLevel}
+}
+
+func (h *logHook) Fire(entry *logrus.Entry) error {
+	h.entries = append(h.entries, *entry)
+	return nil
+}
+
+func TestSetOperationStateLogRetries(t *testing.T) {
+	hook := logHook{}
+	logrus.AddHook(&hook)
+	t.Cleanup(func() {
+		logrus.StandardLogger().ReplaceHooks(logrus.LevelHooks{})
+	})
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	patched := false
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if !patched {
+			patched = true
+			return true, nil, errors.New("fake error")
+		}
+		return true, nil, nil
+	})
+	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
+	assert.True(t, patched)
+	assert.Contains(t, hook.entries[0].Message, "fake error")
+}
+
 func TestNeedRefreshAppStatus(t *testing.T) {
 	testCases := []struct {
 		name string
@@ -950,7 +987,8 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 			app.Status.Sync = v1alpha1.SyncStatus{
 				Status: v1alpha1.SyncStatusCodeSynced,
 				ComparedTo: v1alpha1.ComparedTo{
-					Destination: app.Spec.Destination,
+					Destination:       app.Spec.Destination,
+					IgnoreDifferences: app.Spec.IgnoreDifferences,
 				},
 			}
 
@@ -1019,7 +1057,8 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 				app.Status.Sync = v1alpha1.SyncStatus{
 					Status: v1alpha1.SyncStatusCodeSynced,
 					ComparedTo: v1alpha1.ComparedTo{
-						Destination: app.Spec.Destination,
+						Destination:       app.Spec.Destination,
+						IgnoreDifferences: app.Spec.IgnoreDifferences,
 					},
 				}
 				if app.Spec.HasMultipleSources() {
@@ -1214,7 +1253,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	app := newFakeApp()
 	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Second))
 	app.Status = v1alpha1.ApplicationStatus{ReconciledAt: &reconciledAt}
-	app.Status.Sync = v1alpha1.SyncStatus{ComparedTo: v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination}}
+	app.Status.Sync = v1alpha1.SyncStatus{ComparedTo: v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, IgnoreDifferences: app.Spec.IgnoreDifferences}}
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
