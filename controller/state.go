@@ -477,6 +477,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 
 		if !permitted {
+			logCtx.Debugf("Filtering out resource %q", k.String())
 			delete(liveObjByKey, k)
 		}
 	}
@@ -522,6 +523,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
 		WithTracking(appLabelKey, string(trackingMethod))
 
+	logCtx.Tracef("Diff builder with cache? %v", !noCache)
 	if noCache {
 		diffConfigBuilder.WithNoCache()
 	} else {
@@ -551,6 +553,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		msg := fmt.Sprintf("Failed to compare desired state to live state: %s", err.Error())
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 	}
+	logCtx.Tracef("Diff results modified? %v", diffResults.Modified)
 	ts.AddCheckpoint("diff_ms")
 
 	syncCode := v1alpha1.SyncStatusCodeSynced
@@ -680,6 +683,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: fmt.Sprintf("error setting app health: %s", err.Error()), LastTransitionTime: &now})
 	}
+	logCtx.Tracef("Health status: %v", *healthStatus)
 
 	// Git has already performed the signature verification via its GPG interface, and the result is available
 	// in the manifest info received from the repository server. We now need to form our opinion about the result
