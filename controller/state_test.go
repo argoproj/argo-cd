@@ -2,7 +2,6 @@ package controller
 
 import (
 	"encoding/json"
-	"os"
 	"testing"
 	"time"
 
