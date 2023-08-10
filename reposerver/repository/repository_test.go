@@ -294,7 +294,7 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.Equal(t, &apiclient.ManifestResponse{
-		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"labels\":{\"app.kubernetes.io/managed-by\":\"argocd\"},\"name\":\"my-map\"}}"},
+		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
 		Namespace:  "",
 		Server:     "",
 		Revision:   "1.1.0",
@@ -323,7 +323,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.Equal(t, &apiclient.ManifestResponse{
-		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"labels\":{\"app.kubernetes.io/managed-by\":\"argocd\"},\"name\":\"my-map\"}}"},
+		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
 		Namespace:  "",
 		Server:     "",
 		Revision:   "1.1.0",
@@ -413,7 +413,7 @@ func TestInvalidMetadata(t *testing.T) {
 
 func TestNilMetadataAccessors(t *testing.T) {
 	service := newService(".")
-	expected := "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"annotations\":{\"argocd.argoproj.io/tracking-id\":\"nil-metadata-accessors:/ConfigMap:/my-map\"},\"labels\":{\"app.kubernetes.io/managed-by\":\"argocd\",\"test\":\"nil-metadata-accessors\"},\"name\":\"my-map\"},\"stringData\":{\"foo\":\"bar\"}}"
+	expected := "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"annotations\":{\"argocd.argoproj.io/tracking-id\":\"nil-metadata-accessors:/ConfigMap:/my-map\"},\"labels\":{\"test\":\"nil-metadata-accessors\"},\"name\":\"my-map\"},\"stringData\":{\"foo\":\"bar\"}}"
 
 	src := argoappv1.ApplicationSource{Path: "./testdata/nil-metadata-accessors", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "nil-metadata-accessors", TrackingMethod: "annotation+label"}
@@ -958,7 +958,7 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.Equal(t, &apiclient.ManifestResponse{
-		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"labels\":{\"app.kubernetes.io/managed-by\":\"argocd\"},\"name\":\"my-map\"}}"},
+		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
 		Namespace:  "",
 		Server:     "",
 		Revision:   "1.1.0",
@@ -2965,27 +2965,55 @@ func Test_getRepoSanitizerRegex(t *testing.T) {
 }
 
 func TestGenerateManifestManagedByLabel(t *testing.T) {
-	t.Run("managed-by set", func(t *testing.T) {
+	t.Run("managed-by set no overwrite", func(t *testing.T) {
 		q := apiclient.ManifestRequest{
 			Repo:              &argoappv1.Repository{},
 			ApplicationSource: &argoappv1.ApplicationSource{},
 		}
 
-		res, err := GenerateManifests(context.Background(), "./testdata/managed-by", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+		res, err := GenerateManifests(context.Background(), "./testdata/managed-by", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, WithManagedByArgo(false))
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(res.Manifests))
 		assert.Equal(t,
-			"{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"labels\":{\"app.kubernetes.io/managed-by\":\"another-maintainer\"},\"name\":\"app\"}}",
+			"{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"labels\":{\"app.kubernetes.io/managed-by\":\"another-tool\"},\"name\":\"app\"}}",
 			res.Manifests[0])
 	})
 
-	t.Run("managed-by missing", func(t *testing.T) {
+	t.Run("managed-by missing no overwrite", func(t *testing.T) {
 		q := apiclient.ManifestRequest{
 			Repo:              &argoappv1.Repository{},
 			ApplicationSource: &argoappv1.ApplicationSource{},
 		}
 
-		res, err := GenerateManifests(context.Background(), "./testdata/managed-by-missing", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+		res, err := GenerateManifests(context.Background(), "./testdata/managed-by-missing", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, WithManagedByArgo(false))
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(res.Manifests))
+		assert.Equal(t,
+			"{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"name\":\"app\"}}",
+			res.Manifests[0])
+	})
+
+	t.Run("managed-by set with overwrite", func(t *testing.T) {
+		q := apiclient.ManifestRequest{
+			Repo:              &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{},
+		}
+
+		res, err := GenerateManifests(context.Background(), "./testdata/managed-by", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, WithManagedByArgo(true))
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(res.Manifests))
+		assert.Equal(t,
+			"{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"labels\":{\"app.kubernetes.io/managed-by\":\"argocd\"},\"name\":\"app\"}}",
+			res.Manifests[0])
+	})
+
+	t.Run("managed-by missing with overwrite", func(t *testing.T) {
+		q := apiclient.ManifestRequest{
+			Repo:              &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{},
+		}
+
+		res, err := GenerateManifests(context.Background(), "./testdata/managed-by-missing", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, WithManagedByArgo(true))
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(res.Manifests))
 		assert.Equal(t,

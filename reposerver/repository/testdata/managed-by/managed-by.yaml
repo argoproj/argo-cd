@@ -3,4 +3,4 @@ apiVersion: v1
 metadata:
   name: app
   labels:
-    app.kubernetes.io/managed-by: another-maintainer
+    app.kubernetes.io/managed-by: another-tool
