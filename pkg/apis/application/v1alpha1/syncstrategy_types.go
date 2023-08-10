@@ -5,35 +5,35 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// SyncStrategy is a set of Application resources
+// ApplicationSetSyncStrategy is a set of Application resources
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=syncstrategies
 // +kubebuilder:subresource:status
-type SyncStrategy struct {
+type ApplicationSetSyncStrategy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
-	Spec              SyncStrategySpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+	Spec              ApplicationSetSyncStrategySpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 }
 
-type SyncStrategyRef struct {
+type ApplicationSetSyncStrategyRef struct {
 	Kind string `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
 	Name string `json:"name,omitempty" protobuf:"bytes,2,name=name"`
 }
 
-// SyncStrategyStrategy configures how generated Applications are updated in sequence.
-type SyncStrategySpec struct {
-	Type        string                       `json:"type,omitempty" protobuf:"bytes,1,opt,name=type"`
-	RollingSync *SyncStrategyRolloutStrategy `json:"rollingSync,omitempty" protobuf:"bytes,2,opt,name=rollingSync"`
-	// RollingUpdate *SyncStrategyRolloutStrategy `json:"rollingUpdate,omitempty" protobuf:"bytes,3,opt,name=rollingUpdate"`
+// ApplicationSetSyncStrategyStrategy configures how generated Applications are updated in sequence.
+type ApplicationSetSyncStrategySpec struct {
+	Type        string                                     `json:"type,omitempty" protobuf:"bytes,1,opt,name=type"`
+	RollingSync *ApplicationSetSyncStrategyRolloutStrategy `json:"rollingSync,omitempty" protobuf:"bytes,2,opt,name=rollingSync"`
+	// RollingUpdate *ApplicationSetSyncStrategyRolloutStrategy `json:"rollingUpdate,omitempty" protobuf:"bytes,3,opt,name=rollingUpdate"`
 }
 
-type SyncStrategyRolloutStrategy struct {
-	Steps []SyncStrategyRolloutStep `json:"steps,omitempty" protobuf:"bytes,1,opt,name=steps"`
+type ApplicationSetSyncStrategyRolloutStrategy struct {
+	Steps []ApplicationSetSyncStrategyRolloutStep `json:"steps,omitempty" protobuf:"bytes,1,opt,name=steps"`
 }
 
-type SyncStrategyRolloutStep struct {
+type ApplicationSetSyncStrategyRolloutStep struct {
 	MatchExpressions []ApplicationMatchExpression `json:"matchExpressions,omitempty" protobuf:"bytes,1,opt,name=matchExpressions"`
 	MaxUpdate        *intstr.IntOrString          `json:"maxUpdate,omitempty" protobuf:"bytes,2,opt,name=maxUpdate"`
 }

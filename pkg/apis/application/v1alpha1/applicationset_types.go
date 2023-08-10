@@ -54,14 +54,14 @@ func (a *ApplicationSet) RBACName(defaultNS string) string {
 
 // ApplicationSetSpec represents a class of application set state.
 type ApplicationSetSpec struct {
-	GoTemplate        bool                        `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
-	Generators        []ApplicationSetGenerator   `json:"generators" protobuf:"bytes,2,name=generators"`
-	Template          ApplicationSetTemplate      `json:"template" protobuf:"bytes,3,name=template"`
-	SyncPolicy        *ApplicationSetSyncPolicy   `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
-	Strategy          *SyncStrategy               `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
-	StrategyRef       *SyncStrategyRef            `json:"strategyRef,omitempty" protobuf:"bytes,6,opt,name=strategyRef"`
-	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,7,opt,name=preservedFields"`
-	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,8,opt,name=goTemplateOptions"`
+	GoTemplate        bool                           `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
+	Generators        []ApplicationSetGenerator      `json:"generators" protobuf:"bytes,2,name=generators"`
+	Template          ApplicationSetTemplate         `json:"template" protobuf:"bytes,3,name=template"`
+	SyncPolicy        *ApplicationSetSyncPolicy      `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
+	Strategy          *ApplicationSetSyncStrategy    `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
+	StrategyRef       *ApplicationSetSyncStrategyRef `json:"strategyRef,omitempty" protobuf:"bytes,6,opt,name=strategyRef"`
+	PreservedFields   *ApplicationPreservedFields    `json:"preservedFields,omitempty" protobuf:"bytes,7,opt,name=preservedFields"`
+	GoTemplateOptions []string                       `json:"goTemplateOptions,omitempty" protobuf:"bytes,8,opt,name=goTemplateOptions"`
 	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
 	ApplyNestedSelectors bool `json:"applyNestedSelectors,omitempty" protobuf:"bytes,9,name=applyNestedSelectors"`
 }
