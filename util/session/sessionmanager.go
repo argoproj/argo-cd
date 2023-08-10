@@ -259,7 +259,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	}
 
 	if id == "" || mgr.storage.IsTokenRevoked(id) {
-		return nil, "", errors.New("token is revoked, please re-login")
+		return nil, "", errors.New("token has been revoked, please re-login")
 	} else if capability == settings.AccountCapabilityApiKey && account.TokenIndex(id) == -1 {
 		return nil, "", fmt.Errorf("account %s does not have token with id %s", subject, id)
 	}
@@ -273,12 +273,14 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		tokenExpDuration := exp.Sub(issuedAt)
 		remainingDuration := time.Until(exp)
 
-		if remainingDuration < autoRegenerateTokenDuration && capability == settings.AccountCapabilityLogin {
+		if remainingDuration > 0 && remainingDuration < autoRegenerateTokenDuration && capability == settings.AccountCapabilityLogin {
 			if uniqueId, err := uuid.NewRandom(); err == nil {
 				if val, err := mgr.Create(fmt.Sprintf("%s:%s", subject, settings.AccountCapabilityLogin), int64(tokenExpDuration.Seconds()), uniqueId.String()); err == nil {
 					newToken = val
 				}
 			}
+		} else {
+			return nil, "", errors.New("token has expired, please re-login")
 		}
 	}
 	return token.Claims, newToken, nil
@@ -519,6 +521,10 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		return mgr.Parse(tokenString)
 	default:
 		// IDP signed token
+		if mgr.storage.IsTokenRevoked(claims.ID) {
+			return nil, "", fmt.Errorf("token has been revoked, please re-login")
+		}
+
 		prov, err := mgr.provider()
 		if err != nil {
 			return nil, "", err
