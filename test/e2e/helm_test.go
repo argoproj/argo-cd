@@ -401,7 +401,7 @@ func TestHelmWithMultipleDependencies(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
-func TestHelmWithMultipleDependenciesPermissionDenied(t *testing.T) {
+func TestHelmDependenciesPermissionDenied(t *testing.T) {
 	SkipOnEnv(t, "HELM")
 
 	projName := "argo-helm-project-denied"
