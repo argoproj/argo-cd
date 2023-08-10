@@ -7,3 +7,5 @@ type AppProjectExpansion interface{}
 type ApplicationExpansion interface{}
 
 type ApplicationSetExpansion interface{}
+
+type ApplicationSetSyncStrategyExpansion interface{}

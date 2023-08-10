@@ -5,6 +5,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// ApplicationSetSyncStrategyList is list of AppProject resources
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type ApplicationSetSyncStrategyList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []ApplicationSetSyncStrategy `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
 // ApplicationSetSyncStrategy is a set of Application resources
 // +genclient
 // +genclient:noStatus

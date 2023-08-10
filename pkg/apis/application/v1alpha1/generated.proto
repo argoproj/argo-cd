@@ -281,9 +281,9 @@ message ApplicationSetSpec {
 
   optional ApplicationSetSyncPolicy syncPolicy = 4;
 
-  optional SyncStrategy strategy = 5;
+  optional ApplicationSetSyncStrategy strategy = 5;
 
-  optional SyncStrategyRef strategyRef = 6;
+  optional ApplicationSetSyncStrategyRef strategyRef = 6;
 
   optional ApplicationPreservedFields preservedFields = 7;
 
@@ -312,6 +312,49 @@ message ApplicationSetSyncPolicy {
   // +kubebuilder:validation:Optional
   // +kubebuilder:validation:Enum=create-only;create-update;create-delete;sync
   optional string applicationsSync = 2;
+}
+
+// ApplicationSetSyncStrategy is a set of Application resources
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=syncstrategies
+// +kubebuilder:subresource:status
+message ApplicationSetSyncStrategy {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional ApplicationSetSyncStrategySpec spec = 2;
+}
+
+// ApplicationSetSyncStrategyList is list of AppProject resources
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+message ApplicationSetSyncStrategyList {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated ApplicationSetSyncStrategy items = 2;
+}
+
+message ApplicationSetSyncStrategyRef {
+  optional string kind = 1;
+
+  optional string name = 2;
+}
+
+message ApplicationSetSyncStrategyRolloutStep {
+  repeated ApplicationMatchExpression matchExpressions = 1;
+
+  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString maxUpdate = 2;
+}
+
+message ApplicationSetSyncStrategyRolloutStrategy {
+  repeated ApplicationSetSyncStrategyRolloutStep steps = 1;
+}
+
+// ApplicationSetSyncStrategyStrategy configures how generated Applications are updated in sequence.
+message ApplicationSetSyncStrategySpec {
+  optional string type = 1;
+
+  optional ApplicationSetSyncStrategyRolloutStrategy rollingSync = 2;
 }
 
 // ApplicationSetTemplate represents argocd ApplicationSpec
@@ -2146,16 +2189,13 @@ message SyncStatus {
   repeated string revisions = 4;
 }
 
-// SyncStrategy is a set of Application resources
-// +genclient
-// +genclient:noStatus
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:path=syncstrategies
-// +kubebuilder:subresource:status
+// SyncStrategy controls the manner in which a sync is performed
 message SyncStrategy {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  // Apply will perform a `kubectl apply` to perform the sync.
+  optional SyncStrategyApply apply = 1;
 
-  optional SyncStrategySpec spec = 2;
+  // Hook will submit any referenced resources to perform the sync. This is the default strategy
+  optional SyncStrategyHook hook = 2;
 }
 
 // SyncStrategyApply uses `kubectl apply` to perform the apply
@@ -2172,29 +2212,6 @@ message SyncStrategyHook {
   // Embed SyncStrategyApply type to inherit any `apply` options
   // +optional
   optional SyncStrategyApply syncStrategyApply = 1;
-}
-
-message SyncStrategyRef {
-  optional string kind = 1;
-
-  optional string name = 2;
-}
-
-message SyncStrategyRolloutStep {
-  repeated ApplicationMatchExpression matchExpressions = 1;
-
-  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString maxUpdate = 2;
-}
-
-message SyncStrategyRolloutStrategy {
-  repeated SyncStrategyRolloutStep steps = 1;
-}
-
-// SyncStrategyStrategy configures how generated Applications are updated in sequence.
-message SyncStrategySpec {
-  optional string type = 1;
-
-  optional SyncStrategyRolloutStrategy rollingSync = 2;
 }
 
 // SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps

@@ -39,6 +39,7 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 	deleteFile("config/argoproj.io_applications.yaml")
 	deleteFile("config/argoproj.io_appprojects.yaml")
 	deleteFile("config/argoproj.io_applicationsets.yaml")
+	deleteFile("config/argoproj.io_syncstrategies.yaml")
 	deleteFile("config")
 
 	objs, err := kube.SplitYAML(crdYamlBytes)
