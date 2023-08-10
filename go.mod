@@ -121,6 +121,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc // indirect
 	gopkg.in/retry.v1 v1.0.3 // indirect
 	k8s.io/klog v1.0.0 // indirect
+	nhooyr.io/websocket v1.8.7 // indirect
 )
 
 require (
@@ -267,7 +268,6 @@ require (
 	k8s.io/gengo v0.0.0-20211129171323-c02415ce4185 // indirect
 	k8s.io/kube-aggregator v0.24.2 // indirect
 	k8s.io/kubernetes v1.24.2 // indirect
-	nhooyr.io/websocket v1.8.6 // indirect
 	sigs.k8s.io/json v0.0.0-20220525155127-227cbc7cc124 // indirect
 	sigs.k8s.io/kustomize/api v0.11.5 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.7 // indirect
