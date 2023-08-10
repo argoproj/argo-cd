@@ -448,7 +448,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 
 		conditions, err := argoutil.ValidatePermissions(ctx, &app.Spec, proj, r.ArgoDB)
 		if err != nil {
-			return nil, fmt.Errorf("error validating permissions: %s", err)
+			return nil, err
 		}
 		if len(conditions) > 0 {
 			errorsByIndex[i] = fmt.Errorf("application spec is invalid: %s", argoutil.FormatAppConditions(conditions))
@@ -692,7 +692,7 @@ func (r *ApplicationSetReconciler) getCurrentApplications(_ context.Context, app
 	err := r.Client.List(context.Background(), &current, client.MatchingFields{".metadata.controller": applicationSet.Name})
 
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving applications: %w", err)
+		return nil, err
 	}
 
 	return current.Items, nil

@@ -23,7 +23,7 @@ func IsValidResourceName(name string) bool {
 func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) error {
 	labels, _, err := nestedNullableStringMap(target.Object, "metadata", "labels")
 	if err != nil {
-		return fmt.Errorf("failed to get labels from target object %s %s/%s: %w", target.GroupVersionKind().String(), target.GetNamespace(), target.GetName(), err)
+		return err
 	}
 	if labels == nil {
 		labels = make(map[string]string)
@@ -129,7 +129,7 @@ func GetAppInstanceAnnotation(un *unstructured.Unstructured, key string) (string
 func GetAppInstanceLabel(un *unstructured.Unstructured, key string) (string, error) {
 	labels, _, err := nestedNullableStringMap(un.Object, "metadata", "labels")
 	if err != nil {
-		return "", fmt.Errorf("failed to get labels for %s %s/%s: %w", un.GroupVersionKind().String(), un.GetNamespace(), un.GetName(), err)
+		return "", err
 	}
 	if labels != nil {
 		return labels[key], nil
@@ -141,7 +141,7 @@ func GetAppInstanceLabel(un *unstructured.Unstructured, key string) (string, err
 func RemoveLabel(un *unstructured.Unstructured, key string) error {
 	labels, _, err := nestedNullableStringMap(un.Object, "metadata", "labels")
 	if err != nil {
-		return fmt.Errorf("failed to get labels for %s %s/%s: %w", un.GroupVersionKind().String(), un.GetNamespace(), un.GetName(), err)
+		return err
 	}
 	if labels == nil {
 		return nil

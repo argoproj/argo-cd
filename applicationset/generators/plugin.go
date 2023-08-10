@@ -81,7 +81,7 @@ func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	res, err := g.generateParams(appSetGenerator, applicationSetInfo, list.Output.Parameters, appSetGenerator.Plugin.Input.Parameters, applicationSetInfo.Spec.GoTemplate)
 	if err != nil {
-		return nil, fmt.Errorf("error generating params: %w", err)
+		return nil, err
 	}
 
 	return res, nil

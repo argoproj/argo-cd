@@ -595,7 +595,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 				Properties: map[string]spec.Schema{
 					"server": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.",
+							Description: "Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -609,7 +609,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 					},
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.",
+							Description: "Name is an alternate way of specifying the target cluster by its symbolic name",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -6945,13 +6945,6 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref common.
 					"insecure": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"includeSharedProjects": {
-						SchemaProps: spec.SchemaProps{
-							Description: "When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to \"true\"",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

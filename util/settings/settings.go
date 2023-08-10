@@ -71,10 +71,6 @@ type ArgoCDSettings struct {
 	WebhookBitbucketServerSecret string `json:"webhookBitbucketServerSecret,omitempty"`
 	// WebhookGogsSecret holds the shared secret for authenticating Gogs webhook events
 	WebhookGogsSecret string `json:"webhookGogsSecret,omitempty"`
-	// WebhookAzureDevOpsUsername holds the username for authenticating Azure DevOps webhook events
-	WebhookAzureDevOpsUsername string `json:"webhookAzureDevOpsUsername,omitempty"`
-	// WebhookAzureDevOpsPassword holds the password for authenticating Azure DevOps webhook events
-	WebhookAzureDevOpsPassword string `json:"webhookAzureDevOpsPassword,omitempty"`
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
 	// KustomizeBuildOptions is a string of kustomize build parameters
@@ -415,10 +411,6 @@ const (
 	settingsWebhookBitbucketServerSecretKey = "webhook.bitbucketserver.secret"
 	// settingsWebhookGogsSecret is the key for Gogs webhook secret
 	settingsWebhookGogsSecretKey = "webhook.gogs.secret"
-	// settingsWebhookAzureDevOpsUsernameKey is the key for Azure DevOps webhook username
-	settingsWebhookAzureDevOpsUsernameKey = "webhook.azuredevops.username"
-	// settingsWebhookAzureDevOpsPasswordKey is the key for Azure DevOps webhook password
-	settingsWebhookAzureDevOpsPasswordKey = "webhook.azuredevops.password"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
@@ -828,7 +820,7 @@ func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1al
 func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return false, fmt.Errorf("error retrieving config map: %w", err)
+		return false, err
 	}
 
 	if argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey] == "" {
@@ -842,7 +834,7 @@ func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map: %w", err)
+		return nil, err
 	}
 	resourceOverrides := map[string]v1alpha1.ResourceOverride{}
 	if value, ok := argoCDCM.Data[resourceCustomizationsKey]; ok && value != "" {
@@ -1096,14 +1088,14 @@ func addKustomizeVersion(prefix, name, path string, kvMap map[string]KustomizeVe
 func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map: %w", err)
+		return nil, err
 	}
 	helmRepositories := make([]HelmRepoCredentials, 0)
 	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
 	if helmRepositoriesStr != "" {
 		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &helmRepositories)
 		if err != nil {
-			return nil, fmt.Errorf("error unmarshalling helm repositories: %w", err)
+			return nil, err
 		}
 	}
 	return helmRepositories, nil
@@ -1181,7 +1173,7 @@ func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials,
 	// Get the config map outside of the lock
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map: %w", err)
+		return nil, err
 	}
 
 	mgr.mutex.Lock()
@@ -1202,7 +1194,7 @@ func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials,
 func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map: %w", err)
+		return nil, err
 	}
 	return &GoogleAnalytics{
 		TrackingID:     argoCDCM.Data[gaTrackingID],
@@ -1213,7 +1205,7 @@ func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
 func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map: %w", err)
+		return nil, err
 	}
 	chatText, ok := argoCDCM.Data[helpChatText]
 	if !ok {
@@ -1465,12 +1457,6 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	if gogsWebhookSecret := argoCDSecret.Data[settingsWebhookGogsSecretKey]; len(gogsWebhookSecret) > 0 {
 		settings.WebhookGogsSecret = string(gogsWebhookSecret)
 	}
-	if azureDevOpsUsername := argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey]; len(azureDevOpsUsername) > 0 {
-		settings.WebhookAzureDevOpsUsername = string(azureDevOpsUsername)
-	}
-	if azureDevOpsPassword := argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey]; len(azureDevOpsPassword) > 0 {
-		settings.WebhookAzureDevOpsPassword = string(azureDevOpsPassword)
-	}
 
 	// The TLS certificate may be externally managed. We try to load it from an
 	// external secret first. If the external secret doesn't exist, we either
@@ -1589,12 +1575,6 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		if settings.WebhookGogsSecret != "" {
 			argoCDSecret.Data[settingsWebhookGogsSecretKey] = []byte(settings.WebhookGogsSecret)
-		}
-		if settings.WebhookAzureDevOpsUsername != "" {
-			argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey] = []byte(settings.WebhookAzureDevOpsUsername)
-		}
-		if settings.WebhookAzureDevOpsPassword != "" {
-			argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey] = []byte(settings.WebhookAzureDevOpsPassword)
 		}
 		// we only write the certificate to the secret if it's not externally
 		// managed.
@@ -1977,7 +1957,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		// set JWT signature
 		signature, err := util.MakeSignature(32)
 		if err != nil {
-			return nil, fmt.Errorf("error setting JWT signature: %w", err)
+			return nil, err
 		}
 		cdSettings.ServerSignature = signature
 		log.Info("Initialized server signature")

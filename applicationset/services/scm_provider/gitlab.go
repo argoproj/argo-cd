@@ -13,16 +13,15 @@ import (
 )
 
 type GitlabProvider struct {
-	client                *gitlab.Client
-	organization          string
-	allBranches           bool
-	includeSubgroups      bool
-	includeSharedProjects bool
+	client           *gitlab.Client
+	organization     string
+	allBranches      bool
+	includeSubgroups bool
 }
 
 var _ SCMProviderService = &GitlabProvider{}
 
-func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, insecure bool, scmRootCAPath string) (*GitlabProvider, error) {
+func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups, insecure bool, scmRootCAPath string) (*GitlabProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITLAB_TOKEN")
@@ -48,8 +47,7 @@ func NewGitlabProvider(ctx context.Context, organization string, token string, u
 			return nil, err
 		}
 	}
-
-	return &GitlabProvider{client: client, organization: organization, allBranches: allBranches, includeSubgroups: includeSubgroups, includeSharedProjects: includeSharedProjects}, nil
+	return &GitlabProvider{client: client, organization: organization, allBranches: allBranches, includeSubgroups: includeSubgroups}, nil
 }
 
 func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
@@ -77,9 +75,7 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 	opt := &gitlab.ListGroupProjectsOptions{
 		ListOptions:      gitlab.ListOptions{PerPage: 100},
 		IncludeSubGroups: &g.includeSubgroups,
-		WithShared:       &g.includeSharedProjects,
 	}
-
 	repos := []*Repository{}
 	for {
 		gitlabRepos, resp, err := g.client.Groups.ListGroupProjects(g.organization, opt)

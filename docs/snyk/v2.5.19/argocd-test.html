@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">August 6th 2023, 12:24:35 am (UTC+00:00)</p>
+                <p class="timestamp">June 25th 2023, 12:27:11 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -476,12 +476,12 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Regular Expression Denial of Service (ReDoS)</h2>
             <div class="card__section">
         
-                <div class="label label--high">
-                    <span class="label__text">high severity</span>
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
                 </div>
         
                 <hr/>
@@ -609,12 +609,10 @@
         </tbody></table>
         <p>By the time the string includes 14 C&#39;s, the engine has to take over 65,000 steps just to see if the string is valid. These extreme situations can cause them to work very slowly (exponentially related to input size, as shown above), allowing an attacker to exploit this and can cause the service to excessively consume CPU, resulting in a Denial of Service.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>semver</code> to version 5.7.2, 6.3.1, 7.5.2 or higher.</p>
+        <p>Upgrade <code>semver</code> to version 7.5.2 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="https://github.com/npm/node-semver/commit/2f8fd41487acf380194579ecb6f8b1bbfe116be0">GitHub Commit</a></li>
         <li><a href="https://github.com/npm/node-semver/commit/717534ee353682f3bcf33e60a8af4292626d4441">GitHub Commit</a></li>
-        <li><a href="https://github.com/npm/node-semver/commit/928e56d21150da0413a3333a3148b20e741a920c">GitHub Commit</a></li>
         <li><a href="https://github.com/npm/node-semver/pull/564">GitHub PR</a></li>
         <li><a href="https://github.com/npm/node-semver/blob/main/classes/range.js#L97-L104">Vulnerable Code</a></li>
         <li><a href="https://github.com/npm/node-semver/blob/main/internal/re.js#L138">Vulnerable Code</a></li>
