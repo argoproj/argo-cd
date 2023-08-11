@@ -123,7 +123,7 @@ func tlsVersionsToStr(versions []uint16) []string {
 func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) (ConfigCustomizer, error) {
 	minVersion, err := getTLSVersionByString(minVersionStr)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving TLS version by string %s", err)
+		return nil, fmt.Errorf("error retrieving TLS version by min version %q: %q", minVersionStr, err)
 	}
 	maxVersion, err := getTLSVersionByString(maxVersionStr)
 	if err != nil {
