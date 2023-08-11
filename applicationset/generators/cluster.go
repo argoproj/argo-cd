@@ -78,7 +78,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	// ListCluster from Argo CD's util/db package will include the local cluster in the list of clusters
 	clustersFromArgoCD, err := utils.ListClusters(g.ctx, g.clientset, g.namespace)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error listing clusters: %w", err)
 	}
 
 	if clustersFromArgoCD == nil {
