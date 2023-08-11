@@ -11,11 +11,13 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/go-playground/webhooks/v6/bitbucket"
+	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
+	"github.com/go-playground/webhooks/v6/github"
+	"github.com/go-playground/webhooks/v6/gitlab"
 	gogsclient "github.com/gogits/go-gogs-client"
-	"gopkg.in/go-playground/webhooks.v5/bitbucket"
-	bitbucketserver "gopkg.in/go-playground/webhooks.v5/bitbucket-server"
-	"gopkg.in/go-playground/webhooks.v5/github"
-	"gopkg.in/go-playground/webhooks.v5/gitlab"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
 
@@ -88,6 +90,22 @@ func TestGitHubCommitEvent(t *testing.T) {
 	hook.Reset()
 }
 
+func TestAzureDevOpsCommitEvent(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler(nil, []string{})
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
+	req.Header.Set("X-Vss-Activityid", "abc")
+	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
+	assert.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, w.Code, http.StatusOK)
+	expectedLogResult := "Received push event repo: https://dev.azure.com/alexander0053/alex-test/_git/alex-test, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	hook.Reset()
+}
+
 // TestGitHubCommitEvent_MultiSource_Refresh makes sure that a webhook will refresh a multi-source app when at least
 // one source matches.
 func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
@@ -149,10 +167,10 @@ func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
 func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	hook := test.NewGlobal()
 
-	patchedApps := make([]string, 0, 3)
+	patchedApps := make([]types.NamespacedName, 0, 3)
 	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patchAction := action.(kubetesting.PatchAction)
-		patchedApps = append(patchedApps, patchAction.GetName())
+		patchedApps = append(patchedApps, types.NamespacedName{Name: patchAction.GetName(), Namespace: patchAction.GetNamespace()})
 		return true, nil, nil
 	}
 
@@ -231,10 +249,10 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	assert.Contains(t, logMessages, "Requested app 'app-to-refresh-in-globbed-namespace' refresh")
 	assert.NotContains(t, logMessages, "Requested app 'app-to-ignore' refresh")
 
-	assert.Contains(t, patchedApps, "app-to-refresh-in-default-namespace")
-	assert.Contains(t, patchedApps, "app-to-refresh-in-exact-match-namespace")
-	assert.Contains(t, patchedApps, "app-to-refresh-in-globbed-namespace")
-	assert.NotContains(t, patchedApps, "app-to-ignore")
+	assert.Contains(t, patchedApps, types.NamespacedName{Name: "app-to-refresh-in-default-namespace", Namespace: "argocd"})
+	assert.Contains(t, patchedApps, types.NamespacedName{Name: "app-to-refresh-in-exact-match-namespace", Namespace: "end-to-end-tests"})
+	assert.Contains(t, patchedApps, types.NamespacedName{Name: "app-to-refresh-in-globbed-namespace", Namespace: "app-team-two"})
+	assert.NotContains(t, patchedApps, types.NamespacedName{Name: "app-to-ignore", Namespace: "kube-system"})
 	assert.Len(t, patchedApps, 3)
 
 	hook.Reset()

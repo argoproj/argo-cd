@@ -60,7 +60,7 @@ func LegacyDistributionFunction() DistributionFunction {
 			h := fnv.New32a()
 			_, _ = h.Write([]byte(id))
 			shard := int32(h.Sum32() % uint32(replicas))
-			log.Infof("Cluster with id=%s will be processed by shard %d", id, shard)
+			log.Debugf("Cluster with id=%s will be processed by shard %d", id, shard)
 			return int(shard)
 		}
 	}
@@ -86,7 +86,7 @@ func RoundRobinDistributionFunction(clusters clusterAccessor) DistributionFuncti
 					return -1
 				}
 				shard := int(clusterIndex % replicas)
-				log.Infof("Cluster with id=%s will be processed by shard %d", c.ID, shard)
+				log.Debugf("Cluster with id=%s will be processed by shard %d", c.ID, shard)
 				return shard
 			}
 		}
