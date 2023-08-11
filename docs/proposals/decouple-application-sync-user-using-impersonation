@@ -42,7 +42,7 @@ This proposal would allow ArgoCD administrators to manage the cluster permission
 ### Assumptions
 
 - Namespaces are pre-populated with one or more ServiceAccounts that define the permissions for each application team (or application).
-- Users prefer to control access to k8s resources through kubernetes RBAC constructs instead of Argo specific constructs.
+- Many users prefer to control access to k8s resources through kubernetes RBAC constructs instead of Argo specific constructs.
 - Each tenant is generally given access to a specific namespace along with a service account, role or cluster role and role binding to control access to that namespace.
 
 
