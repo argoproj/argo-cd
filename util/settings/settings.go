@@ -1036,7 +1036,7 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map %w", err)
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	kustomizeVersionsMap := map[string]KustomizeVersion{}
 	buildOptions := map[string]string{}
