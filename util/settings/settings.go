@@ -759,7 +759,7 @@ func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
 func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving deep links %w", err)
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	deepLinks := make([]DeepLink, 0)
 	if value, ok := argoCDCM.Data[deeplinkType]; ok {
