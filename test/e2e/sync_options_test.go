@@ -80,6 +80,23 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
+func TestSyncWithApplyOutOfSyncOnly(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		ApplyOutOfSyncOnly().
+		When().
+		CreateFromFile(func(app *Application) {
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		// app should remain synced when app has skipped annotation even if git change detected
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "guestbook", Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui created", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning}))
+}
+
 func TestSyncWithSkipHook(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
