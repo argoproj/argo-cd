@@ -38,10 +38,10 @@ func NewMergeGenerator(supportedGenerators map[string]Generator) Generator {
 // in slices ordered according to the order of the given generators.
 func (m *MergeGenerator) getParamSetsForAllGenerators(generators []argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([][]map[string]interface{}, error) {
 	var paramSets [][]map[string]interface{}
-	for _, generator := range generators {
+	for i, generator := range generators {
 		generatorParamSets, err := m.getParams(generator, appSet)
 		if err != nil {
-			return nil, fmt.Errorf("error getting params from generator: %w", err)
+			return nil, fmt.Errorf("error getting params from generator %d of %d: %w", i+1, len(generators), err)
 		}
 		// concatenate param lists produced by each generator
 		paramSets = append(paramSets, generatorParamSets)

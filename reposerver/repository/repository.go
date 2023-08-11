@@ -1110,7 +1110,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		if !appHelm.ValuesIsEmpty() {
 			rand, err := uuid.NewRandom()
 			if err != nil {
-				return nil, fmt.Errorf("error generating random unique id: %w", err)
+				return nil, fmt.Errorf("error generating random filename for Helm values file: %w", err)
 			}
 			p := path.Join(os.TempDir(), rand.String())
 			defer func() {
@@ -1218,7 +1218,7 @@ func getResolvedValueFiles(
 			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
 			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
 			if err != nil {
-				return nil, fmt.Errorf("error getting value file: %w", err)
+				return nil, fmt.Errorf("error resolving value file path: %w", err)
 			}
 		} else {
 			// This will resolve val to an absolute path (or an URL)
@@ -1505,7 +1505,7 @@ func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, a
 	}
 	appType, err := discovery.AppType(ctx, appPath, repoPath, enableGenerateManifests, tarExcludedGlobs)
 	if err != nil {
-		return "", fmt.Errorf("error getting application type string: %v", err)
+		return "", fmt.Errorf("error getting app source type: %v", err)
 	}
 	return v1alpha1.ApplicationSourceType(appType), nil
 }
