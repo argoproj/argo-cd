@@ -1242,7 +1242,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	}
 	argoCDSecret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map secret name %w", err)
+		return nil, fmt.Errorf("error retrieving argocd-secret: %w", err)
 	}
 	selector, err := labels.Parse(partOfArgoCDSelector)
 	if err != nil {
