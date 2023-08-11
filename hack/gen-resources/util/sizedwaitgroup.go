@@ -24,7 +24,7 @@
 // Based upon sync.WaitGroup, SizedWaitGroup allows to start multiple
 // routines and to wait for their end using the simple API.
 
-// Package util SizedWaitGroup adds the feature of limiting the maximum number of
+// SizedWaitGroup adds the feature of limiting the maximum number of
 // concurrently started routines. It could for example be used to start
 // multiples routines querying a database but without sending too much
 // queries in order to not overload the given database.

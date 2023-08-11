@@ -3,14 +3,12 @@ package cache
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
-	"github.com/cespare/xxhash/v2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -18,7 +16,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/resource"
 )
 
@@ -388,28 +385,4 @@ func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		Capacity:   node.Status.Capacity,
 		SystemInfo: node.Status.NodeInfo,
 	}
-}
-
-func generateManifestHash(un *unstructured.Unstructured, ignores []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) (string, error) {
-	normalizer, err := normalizers.NewIgnoreNormalizer(ignores, overrides)
-	if err != nil {
-		return "", fmt.Errorf("error creating normalizer: %w", err)
-	}
-
-	resource := un.DeepCopy()
-	err = normalizer.Normalize(resource)
-	if err != nil {
-		return "", fmt.Errorf("error normalizing resource: %w", err)
-	}
-
-	data, err := resource.MarshalJSON()
-	if err != nil {
-		return "", fmt.Errorf("error marshaling resource: %w", err)
-	}
-	hash := hash(data)
-	return hash, nil
-}
-
-func hash(data []byte) string {
-	return strconv.FormatUint(xxhash.Sum64(data), 16)
 }

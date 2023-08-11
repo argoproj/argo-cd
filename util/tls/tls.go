@@ -309,7 +309,7 @@ func generatePEM(opts CertOptions) ([]byte, []byte, error) {
 func GenerateX509KeyPair(opts CertOptions) (*tls.Certificate, error) {
 	certpem, keypem, err := generatePEM(opts)
 	if err != nil {
-		return nil, fmt.Errorf("error generating X509 key pair: %w", err)
+		return nil, err
 	}
 	cert, err := tls.X509KeyPair(certpem, keypem)
 	if err != nil {
@@ -420,7 +420,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 			IsCA:         false,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("error generating X509 key pair: %w", err)
+			return nil, err
 		}
 		cert = c
 	} else {
