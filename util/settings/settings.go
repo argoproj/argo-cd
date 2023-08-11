@@ -688,7 +688,7 @@ func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*apiv1.Con
 func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving Argo CD config map %w", err)
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	rf := &ResourcesFilter{}
 	if value, ok := argoCDCM.Data[resourceInclusionsKey]; ok {
