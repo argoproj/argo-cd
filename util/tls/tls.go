@@ -127,7 +127,7 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 	}
 	maxVersion, err := getTLSVersionByString(maxVersionStr)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving TLS version by string %s", err)
+		return nil, fmt.Errorf("error retrieving TLS version by max version %q: %q", maxVersionStr, err)
 	}
 	if minVersion > maxVersion {
 		return nil, fmt.Errorf("Minimum TLS version %s must not be higher than maximum TLS version %s", minVersionStr, maxVersionStr)
