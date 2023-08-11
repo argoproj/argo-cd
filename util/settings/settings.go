@@ -2107,7 +2107,7 @@ func ReplaceStringSecret(val string, secretValues map[string]string) string {
 func (mgr *SettingsManager) GetGlobalProjectsSettings() ([]GlobalProjectSettings, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map %w", err)
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	globalProjectSettings := make([]GlobalProjectSettings, 0)
 	if value, ok := argoCDCM.Data[globalProjectsKey]; ok {
