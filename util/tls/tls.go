@@ -153,7 +153,7 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 	if tlsCiphersStr != "" {
 		cipherSuites, err = getTLSCipherSuitesByString(tlsCiphersStr)
 		if err != nil {
-			return nil, fmt.Errorf("error retrieving TLS cipher suites by string %w", err)
+			return nil, fmt.Errorf("error retrieving TLS cipher suites: %w", err)
 		}
 	} else {
 		cipherSuites = make([]uint16, 0)
