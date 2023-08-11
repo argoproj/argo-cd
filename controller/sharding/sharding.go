@@ -78,6 +78,8 @@ func GetDistributionFunction(db db.ArgoDB, clusters clusterAccessor, shardingAlg
 	log.Infof("Using filter function:  %s", shardingAlgorithm)
 	distributionFunction := LegacyDistributionFunction(db)
 	switch shardingAlgorithm {
+	case common.NoShardingAlgorithm:
+		distributionFunction = NoShardingDistributionFunction(0)
 	case common.RoundRobinShardingAlgorithm:
 		distributionFunction = RoundRobinDistributionFunction(db, clusters)
 	case common.LegacyShardingAlgorithm:
@@ -97,10 +99,17 @@ func LegacyDistributionFunction(db db.ArgoDB) DistributionFunction {
 	replicas := db.GetApplicationControllerReplicas()
 	return func(c *v1alpha1.Cluster) int {
 		if replicas == 0 {
+			log.Debugf("Replicas count is : %d, returning -1", replicas)
 			return -1
 		}
 		if c == nil {
+			log.Debug("In-cluster: returning 0")
 			return 0
+		}
+		// if Shard is manually set and the assigned value is lower than the number of replicas,
+		// then its value is returned otherwise it is the default calculated value
+		if c.Shard != nil && int(*c.Shard) < replicas {
+			return int(*c.Shard)
 		}
 		id := c.ID
 		log.Debugf("Calculating cluster shard for cluster id: %s", id)
@@ -124,12 +133,16 @@ func LegacyDistributionFunction(db db.ArgoDB) DistributionFunction {
 // in the cluster list
 
 func RoundRobinDistributionFunction(db db.ArgoDB, clusters clusterAccessor) DistributionFunction {
-	//replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	replicas := db.GetApplicationControllerReplicas()
 	return func(c *v1alpha1.Cluster) int {
 		if replicas > 0 {
 			if c == nil { // in-cluster does not necessarly have a secret assigned. So we are receiving a nil cluster here.
 				return 0
+			}
+			// if Shard is manually set and the assigned value is lower than the number of replicas,
+			// then its value is returned otherwise it is the default calculated value
+			if c.Shard != nil && int(*c.Shard) < replicas {
+				return int(*c.Shard)
 			} else {
 				clusterIndexdByClusterIdMap := createClusterIndexByClusterIdMap(clusters)
 				clusterIndex, ok := clusterIndexdByClusterIdMap[c.ID]
@@ -160,11 +173,13 @@ func InferShard() (int, error) {
 	}
 	parts := strings.Split(hostname, "-")
 	if len(parts) == 0 {
-		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
+		log.Warnf("hostname should end with shard number separated by '-' but got: %s", hostname)
+		return 0, nil
 	}
 	shard, err := strconv.Atoi(parts[len(parts)-1])
 	if err != nil {
-		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
+		log.Warnf("hostname should end with shard number separated by '-' but got: %s", hostname)
+		return 0, nil
 	}
 	return int(shard), nil
 }

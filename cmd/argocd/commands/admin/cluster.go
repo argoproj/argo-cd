@@ -86,7 +86,7 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 	if err != nil {
 		return nil, err
 	}
-	clusterSharding := sharding.NewClusterSharding(shard, replicas, shardingAlgorithm)
+	clusterSharding := sharding.NewClusterSharding(argoDB, shard, replicas, shardingAlgorithm)
 	clusterSharding.Init(clustersList)
 	clusterShards := clusterSharding.GetDistribution()
 

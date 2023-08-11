@@ -237,8 +237,8 @@ func NewCommand() *cobra.Command {
 }
 
 func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) sharding.ClusterSharding {
-	var replicas int
-	shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
+	var replicasCount int
+	shardNumber := env.ParseNumFromEnv(common.EnvControllerShard, 0, -math.MaxInt32, math.MaxInt32)
 
 	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 	appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
@@ -249,13 +249,13 @@ func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.
 	}
 
 	if enableDynamicClusterDistribution && appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
-		replicas = int(*appControllerDeployment.Spec.Replicas)
+		replicasCount = int(*appControllerDeployment.Spec.Replicas)
 	} else {
-		replicas = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	}
 
 	db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
-	if replicas > 1 {
+	if replicasCount > 1 {
 		// check for shard mapping using configmap if application-controller is a deployment
 		// else use existing logic to infer shard from pod name if application-controller is a statefulset
 		if enableDynamicClusterDistribution && appControllerDeployment != nil {
@@ -264,7 +264,7 @@ func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.
 			// retry 3 times if we find a conflict while updating shard mapping configMap.
 			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
 			for i := 0; i <= common.AppControllerHeartbeatUpdateRetryCount; i++ {
-				shard, err = sharding.GetOrUpdateShardFromConfigMap(kubeClient, settingsMgr, replicas, shard)
+				shardNumber, err = sharding.GetOrUpdateShardFromConfigMap(kubeClient, settingsMgr, replicasCount, shardNumber)
 				if !kubeerrors.IsConflict(err) {
 					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %s", err)
 					break
@@ -273,14 +273,18 @@ func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.
 			}
 			errors.CheckError(err)
 		} else {
-			if shard < 0 {
+			if shardNumber < 0 {
 				var err error
-				shard, err = sharding.InferShard()
+				shardNumber, err = sharding.InferShard()
 				errors.CheckError(err)
+			}
+			if shardNumber > replicasCount {
+				log.Warnf("Calculated shard number %d is greated than the number of replicas count. Defaulting to 0", shardNumber)
+				shardNumber = 0
 			}
 		}
 	} else {
 		log.Info("Processing all cluster shards")
 	}
-	return sharding.NewClusterSharding(db, shard, replicas, shardingAlgorithm)
+	return sharding.NewClusterSharding(db, shardNumber, replicasCount, shardingAlgorithm)
 }

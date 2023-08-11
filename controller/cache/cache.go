@@ -728,16 +728,19 @@ func (c *liveStateCache) canHandleCluster(cluster *appv1.Cluster) bool {
 
 func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 	c.clusterSharding.Add(cluster)
-
 	if !c.canHandleCluster(cluster) {
 		log.Infof("Ignoring cluster %s", cluster.Server)
 		return
 	}
-
 	c.lock.Lock()
 	_, ok := c.clusters[cluster.Server]
 	c.lock.Unlock()
 	if !ok {
+		log.Debugf("Checking if cache %v / cluster %v has appInformer %v", c, cluster, c.appInformer)
+		if c.appInformer == nil {
+			log.Warn("Cannot get a cluster appInformer. Cache may not be started this time")
+			return
+		}
 		if c.isClusterHasApps(c.appInformer.GetStore().List(), cluster) {
 			go func() {
 				// warm up cache for cluster with apps
@@ -749,7 +752,6 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 
 func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
 	c.clusterSharding.Update(newCluster)
-
 	c.lock.Lock()
 	cluster, ok := c.clusters[newCluster.Server]
 	c.lock.Unlock()
@@ -793,7 +795,6 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
 	c.lock.RLock()
 	c.clusterSharding.Delete(clusterServer)
-	defer c.lock.Unlock()
 	cluster, ok := c.clusters[clusterServer]
 	c.lock.RUnlock()
 	if ok {
@@ -802,7 +803,6 @@ func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
 		delete(c.clusters, clusterServer)
 		c.lock.Unlock()
 	}
-
 }
 
 func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {

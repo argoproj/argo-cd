@@ -75,7 +75,6 @@ func TestGetClusterFilterDefault(t *testing.T) {
 	assert.Equal(t, 1, distributionFunction(&cluster2))
 	assert.Equal(t, 0, distributionFunction(&cluster3))
 	assert.Equal(t, 1, distributionFunction(&cluster4))
-
 }
 
 func TestGetClusterFilterLegacy(t *testing.T) {
@@ -135,6 +134,7 @@ func TestRoundRobinGetClusterFilterWithFixedShard(t *testing.T) {
 	//shardIndex := 1 // ensuring that a shard with index 1 will process all the clusters with an "even" id (2,4,6,...)
 	t.Setenv(common.EnvControllerReplicas, "4")
 	clusterAccessor, db, cluster1, cluster2, cluster3, cluster4, _ := createTestClusters()
+	db.On("GetApplicationControllerReplicas").Return(4)
 
 	filter := GetDistributionFunction(db, clusterAccessor, common.RoundRobinShardingAlgorithm)
 	assert.Equal(t, filter(nil), 0)
@@ -227,12 +227,11 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunctionWhenClusterIsAdde
 	cluster5 := createCluster("cluster5", "5")
 	cluster6 := createCluster("cluster6", "6")
 
-	clusters := []v1alpha1.Cluster{cluster1, cluster2, cluster3, cluster4, cluster5, cluster6}
+	clusters := []v1alpha1.Cluster{cluster1, cluster2, cluster3, cluster4, cluster5}
 	clusterAccessor := getClusterAccessor(clusters)
 
 	clusterList := &v1alpha1.ClusterList{Items: []v1alpha1.Cluster{cluster1, cluster2, cluster3, cluster4, cluster5}}
 	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
-
 	// Test with replicas set to 2
 	db.On("GetApplicationControllerReplicas").Return(2)
 	distributionFunction := RoundRobinDistributionFunction(&db, clusterAccessor)
@@ -246,10 +245,12 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunctionWhenClusterIsAdde
 
 	// Now, the database knows cluster6. Shard should be assigned a proper shard
 	clusterList.Items = append(clusterList.Items, cluster6)
+	distributionFunction = RoundRobinDistributionFunction(&db, getClusterAccessor(clusterList.Items))
 	assert.Equal(t, 1, distributionFunction(&cluster6))
 
 	// Now, we remove the last added cluster, it should be unassigned as well
 	clusterList.Items = clusterList.Items[:len(clusterList.Items)-1]
+	distributionFunction = RoundRobinDistributionFunction(&db, getClusterAccessor(clusterList.Items))
 	assert.Equal(t, -1, distributionFunction(&cluster6))
 }
 
@@ -289,11 +290,11 @@ func TestInferShard(t *testing.T) {
 
 	osHostnameFunction = func() (string, error) { return "exampleshard", nil }
 	_, err = InferShard()
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
 
 	osHostnameFunction = func() (string, error) { return "example-shard", nil }
 	_, err = InferShard()
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
 }
 
 func createTestClusters() (clusterAccessor, *dbmocks.ArgoDB, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster) {
