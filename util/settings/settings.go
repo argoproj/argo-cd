@@ -564,7 +564,7 @@ func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
 func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving secrets informer %w", err)
+		return nil, fmt.Errorf("error ensuring that the secrets manager is synced: %w", err)
 	}
 	return mgr.secretsInformer, nil
 }
