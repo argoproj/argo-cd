@@ -1238,7 +1238,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	}
 	argoCDCM, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map name %w", err)
+		return nil, fmt.Errorf("error retrieving Argo CD config map: %w", err)
 	}
 	argoCDSecret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
 	if err != nil {
