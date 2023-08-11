@@ -89,7 +89,6 @@ func TestSyncWithApplyOutOfSyncOnly(t *testing.T) {
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		// app should remain synced when app has skipped annotation even if git change detected
 		When().
 		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
 		Sync().
