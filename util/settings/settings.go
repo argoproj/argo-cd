@@ -564,7 +564,7 @@ func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
 func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error ensuring that the secrets manager is synced: %w", err)
 	}
 	return mgr.secretsInformer, nil
 }
@@ -688,14 +688,14 @@ func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*apiv1.Con
 func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	rf := &ResourcesFilter{}
 	if value, ok := argoCDCM.Data[resourceInclusionsKey]; ok {
 		includedResources := make([]FilteredResource, 0)
 		err := yaml.Unmarshal([]byte(value), &includedResources)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error unmarshalling included resources %w", err)
 		}
 		rf.ResourceInclusions = includedResources
 	}
@@ -704,7 +704,7 @@ func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 		excludedResources := make([]FilteredResource, 0)
 		err := yaml.Unmarshal([]byte(value), &excludedResources)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error unmarshalling excluded resources %w", err)
 		}
 		rf.ResourceExclusions = excludedResources
 	}
@@ -759,13 +759,13 @@ func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
 func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	deepLinks := make([]DeepLink, 0)
 	if value, ok := argoCDCM.Data[deeplinkType]; ok {
 		err := yaml.Unmarshal([]byte(value), &deepLinks)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error unmarshalling deep links %w", err)
 		}
 	}
 	return deepLinks, nil
@@ -1036,7 +1036,7 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	kustomizeVersionsMap := map[string]KustomizeVersion{}
 	buildOptions := map[string]string{}
@@ -1238,15 +1238,15 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	}
 	argoCDCM, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	argoCDSecret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving argocd-secret: %w", err)
 	}
 	selector, err := labels.Parse(partOfArgoCDSelector)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing Argo CD selector %w", err)
 	}
 	secrets, err := mgr.secrets.Secrets(mgr.namespace).List(selector)
 	if err != nil {
@@ -2107,14 +2107,14 @@ func ReplaceStringSecret(val string, secretValues map[string]string) string {
 func (mgr *SettingsManager) GetGlobalProjectsSettings() ([]GlobalProjectSettings, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	globalProjectSettings := make([]GlobalProjectSettings, 0)
 	if value, ok := argoCDCM.Data[globalProjectsKey]; ok {
 		if value != "" {
 			err := yaml.Unmarshal([]byte(value), &globalProjectSettings)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error unmarshalling global project settings: %w", err)
 			}
 		}
 	}
