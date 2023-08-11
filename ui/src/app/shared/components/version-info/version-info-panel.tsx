@@ -105,7 +105,7 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
     }
 
     private async onCopy(version: VersionMessage): Promise<void> {
-        const stringifiedVersion = JSON.stringify(version, undefined, 4);
+        const stringifiedVersion = JSON.stringify(version, undefined, 4) + '\n';
         try {
             await navigator.clipboard.writeText(stringifiedVersion);
             this.setState({copyState: 'success'});

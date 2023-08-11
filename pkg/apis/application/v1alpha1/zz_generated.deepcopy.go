@@ -3799,6 +3799,11 @@ func (in *SCMProviderGeneratorGitlab) DeepCopyInto(out *SCMProviderGeneratorGitl
 		*out = new(SecretRef)
 		**out = **in
 	}
+	if in.IncludeSharedProjects != nil {
+		in, out := &in.IncludeSharedProjects, &out.IncludeSharedProjects
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
