@@ -1238,7 +1238,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	}
 	argoCDCM, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving Argo CD config map: %w", err)
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	argoCDSecret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
 	if err != nil {
@@ -2114,7 +2114,7 @@ func (mgr *SettingsManager) GetGlobalProjectsSettings() ([]GlobalProjectSettings
 		if value != "" {
 			err := yaml.Unmarshal([]byte(value), &globalProjectSettings)
 			if err != nil {
-				return nil, fmt.Errorf("error unmarshalling global project settings %w", err)
+				return nil, fmt.Errorf("error unmarshalling global project settings: %w", err)
 			}
 		}
 	}
