@@ -137,7 +137,19 @@ func (d *clusterSharding) updateDistribution() {
 }
 
 func hasShardingUpdates(old, new *v1alpha1.Cluster) bool {
-	return *old.Shard != *new.Shard
+	if old == new {
+		return false
+	}
+	if old == nil || new == nil {
+		return true
+	}
+	if old.Shard == nil && new.Shard == nil {
+		return false
+	}
+	if old.Shard == new.Shard {
+		return false
+	}
+	return old.Shard == nil || new.Shard == nil || *old.Shard != *new.Shard
 }
 
 func (d *clusterSharding) getClusterAccessor() clusterAccessor {

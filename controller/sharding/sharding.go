@@ -1,7 +1,6 @@
 package sharding
 
 import (
-	"fmt"
 	"hash/fnv"
 	"math"
 	"os"
@@ -108,11 +107,13 @@ func InferShard() (int, error) {
 	}
 	parts := strings.Split(hostname, "-")
 	if len(parts) == 0 {
-		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
+		log.Warnf("hostname should ends with shard number separated by '-' but got: %s. Default to 0", hostname)
+		return 0, nil
 	}
 	shard, err := strconv.Atoi(parts[len(parts)-1])
 	if err != nil {
-		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
+		log.Warnf("hostname should ends with shard number separated by '-' but got: %s. Default to 0", hostname)
+		return 0, nil
 	}
 	return int(shard), nil
 }
