@@ -1,7 +1,7 @@
 # Zitadel
 Please also consult the [Zitadel Documentation](https://zitadel.com/docs).
 ## Integrating Zitadel and ArgoCD
-These instructions will take you through the entire process of getting your ArgoCD application authenticating with Zitadel. You will create an application within Zitadel and configure ArgoCD to use Zitadel for authentication using roles set in Zitadel to determine privileges in ArgoCD.
+These instructions will take you through the entire process of getting your ArgoCD application authenticating and authorizing with Zitadel. You will create an application within Zitadel and configure ArgoCD to use Zitadel for authentication using roles set in Zitadel to determine privileges in ArgoCD.
 
 The following steps are required to integrate ArgoCD with Zitadel:
 1. Create a new project and a new application in Zitadel
