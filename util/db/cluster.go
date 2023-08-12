@@ -195,7 +195,7 @@ func (db *db) WatchClusters(ctx context.Context,
 	return err
 }
 
-func (db *db) getClusterSecret(clusterId v1alpha1.ClusterIdentifier) (*apiv1.Secret, error) {
+func (db *db) getClusterSecret(clusterId *appv1.ClusterIdentifier) (*apiv1.Secret, error) {
 	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
 	if err != nil {
 		return nil, err
@@ -210,7 +210,7 @@ func (db *db) getClusterSecret(clusterId v1alpha1.ClusterIdentifier) (*apiv1.Sec
 }
 
 // GetCluster returns a cluster from a query
-func (db *db) GetCluster(_ context.Context, clusterId v1alpha1.ClusterIdentifier) (*appv1.Cluster, error) {
+func (db *db) GetCluster(_ context.Context, clusterId *appv1.ClusterIdentifier) (*appv1.Cluster, error) {
 	informer, err := db.settingsMgr.GetSecretsInformer()
 	if err != nil {
 		return nil, err

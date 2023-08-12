@@ -40,7 +40,7 @@ const (
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
 )
 
-func (m *appStateManager) getOpenAPISchema(clusterId v1alpha1.ClusterIdentifier) (openapi.Resources, error) {
+func (m *appStateManager) getOpenAPISchema(clusterId *appv1.ClusterIdentifier) (openapi.Resources, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(clusterId)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (m *appStateManager) getOpenAPISchema(clusterId v1alpha1.ClusterIdentifier)
 	return cluster.GetOpenAPISchema(), nil
 }
 
-func (m *appStateManager) getGVKParser(clusterId v1alpha1.ClusterIdentifier) (*managedfields.GvkParser, error) {
+func (m *appStateManager) getGVKParser(clusterId *appv1.ClusterIdentifier) (*managedfields.GvkParser, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(clusterId)
 	if err != nil {
 		return nil, err
