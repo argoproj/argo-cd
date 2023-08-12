@@ -20,7 +20,7 @@ The following values will be used in this example:
 - ArgoCD Administrator Role: `argocd_administrators`
 - ArgoCD User Role: `argocd_users`
 
-You may choose different values in your setup, these are used to keep the guide consistent.
+You may choose different values in your setup; these are used to keep the guide consistent.
 
 ## Setting up your project and application in Zitadel
 First we will create a new project within Zitadel. Go to **Projects** and select **Create New Project**.  
@@ -36,7 +36,7 @@ Check the following options:
 
 ### Roles
 
-Go to **Roles** and click **New**. Create the following two roles. Use the specified values below for both of the fields **Key** and **Group**.
+Go to **Roles** and click **New**. Create the following two roles. Use the specified values below for both fields **Key** and **Group**.
 - `argocd_administrators`
 - `argocd_users`
 
@@ -65,11 +65,11 @@ Select **CODE** and continue.
 
 ![Zitadel Application Setup Step 2](../../assets/zitadel-application-2.png "Zitadel Application Setup Step 2")
 
-Next we will set up the redirect and post-logout URIs. Set the following values:
+Next, we will set up the redirect and post-logout URIs. Set the following values:
 - Redirect URI: `https://argocd.example.com/auth/callback`
 - Post Logout URI: `https://argocd.example.com`
 
-The post logout uri is optional. In the example setup users will be taken back to the ArgoCD login page after logging out.
+The post logout URI is optional. In the example setup users will be taken back to the ArgoCD login page after logging out.
 
 ![Zitadel Application Setup Step 3](../../assets/zitadel-application-3.png "Zitadel Application Setup Step 3")
 
@@ -205,6 +205,6 @@ Go to your ArgoCD instance. You should now see the **LOG IN WITH ZITADEL** butto
 
 ![Zitadel ArgoCD Login](../../assets/zitadel-argocd-login.png "Zitadel ArgoCD Login")
 
-After loggin in with your Zitadel user go to **User Info**. If everythin is set up correctly you should now see the group `argocd_administrators` as shown below.
+After logging in with your Zitadel user go to **User Info**. If everything is set up correctly you should now see the group `argocd_administrators` as shown below.
 
 ![Zitadel ArgoCD User Info](../../assets/zitadel-argocd-user-info.png "Zitadel ArgoCD User Info")
