@@ -160,7 +160,14 @@ func TestGetTagsFromUrl(t *testing.T) {
 			w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
 			responseTags.Tags = []string{"first"}
 		} else {
-			responseTags.Tags = []string{"second"}
+			responseTags.Tags = []string{
+				"second",
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0_build",
+				"2.8.0-prerelease_build",
+				"2.8.0-prerelease.1_build.1234",
+			}
 		}
 		w.WriteHeader(http.StatusOK)
 		err := json.NewEncoder(w).Encode(responseTags)
@@ -173,6 +180,13 @@ func TestGetTagsFromUrl(t *testing.T) {
 
 	tags, err := client.GetTags("mychart", true)
 	assert.NoError(t, err)
-	assert.Equal(t, tags.Tags[0], "first")
-	assert.Equal(t, tags.Tags[1], "second")
+	assert.ElementsMatch(t, tags.Tags, []string{
+		"first",
+		"second",
+		"2.8.0",
+		"2.8.0-prerelease",
+		"2.8.0+build",
+		"2.8.0-prerelease+build",
+		"2.8.0-prerelease.1+build.1234",
+	})
 }

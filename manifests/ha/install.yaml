@@ -787,7 +787,8 @@ spec:
                 properties:
                   name:
                     description: Name is an alternate way of specifying the target
-                      cluster by its symbolic name
+                      cluster by its symbolic name. This must be set if Server is
+                      not set.
                     type: string
                   namespace:
                     description: Namespace specifies the target namespace for the
@@ -795,8 +796,9 @@ spec:
                       namespace-scoped resources that have not set a value for .metadata.namespace
                     type: string
                   server:
-                    description: Server specifies the URL of the target cluster and
-                      must be set to the Kubernetes control plane API
+                    description: Server specifies the URL of the target cluster's
+                      Kubernetes control plane API. This must be set if Name is not
+                      set.
                     type: string
                 type: object
               ignoreDifferences:
@@ -3794,7 +3796,8 @@ spec:
                         properties:
                           name:
                             description: Name is an alternate way of specifying the
-                              target cluster by its symbolic name
+                              target cluster by its symbolic name. This must be set
+                              if Server is not set.
                             type: string
                           namespace:
                             description: Namespace specifies the target namespace
@@ -3803,8 +3806,9 @@ spec:
                               not set a value for .metadata.namespace
                             type: string
                           server:
-                            description: Server specifies the URL of the target cluster
-                              and must be set to the Kubernetes control plane API
+                            description: Server specifies the URL of the target cluster's
+                              Kubernetes control plane API. This must be set if Name
+                              is not set.
                             type: string
                         type: object
                       ignoreDifferences:
@@ -10040,6 +10044,8 @@ spec:
                                         type: string
                                       group:
                                         type: string
+                                      includeSharedProjects:
+                                        type: boolean
                                       includeSubgroups:
                                         type: boolean
                                       insecure:
@@ -14519,6 +14525,8 @@ spec:
                                         type: string
                                       group:
                                         type: string
+                                      includeSharedProjects:
+                                        type: boolean
                                       includeSubgroups:
                                         type: boolean
                                       insecure:
@@ -16927,6 +16935,8 @@ spec:
                               type: string
                             group:
                               type: string
+                            includeSharedProjects:
+                              type: boolean
                             includeSubgroups:
                               type: boolean
                             insecure:
@@ -18155,7 +18165,8 @@ spec:
                   properties:
                     name:
                       description: Name is an alternate way of specifying the target
-                        cluster by its symbolic name
+                        cluster by its symbolic name. This must be set if Server is
+                        not set.
                       type: string
                     namespace:
                       description: Namespace specifies the target namespace for the
@@ -18163,8 +18174,9 @@ spec:
                         namespace-scoped resources that have not set a value for .metadata.namespace
                       type: string
                     server:
-                      description: Server specifies the URL of the target cluster
-                        and must be set to the Kubernetes control plane API
+                      description: Server specifies the URL of the target cluster's
+                        Kubernetes control plane API. This must be set if Name is
+                        not set.
                       type: string
                   type: object
                 type: array
@@ -19757,7 +19769,8 @@ metadata:
   name: argocd-dex-server
 spec:
   ports:
-  - name: http
+  - appProtocol: TCP
+    name: http
     port: 5556
     protocol: TCP
     targetPort: 5556
@@ -20109,6 +20122,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.scm.root.ca.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.allowed.scm.providers
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
