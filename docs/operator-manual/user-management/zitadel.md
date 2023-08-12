@@ -26,13 +26,13 @@ You may choose different values in your setup, these are used to keep the guide 
 First we will create a new project within Zitadel. Go to **Projects** and select **Create New Project**.  
 You should now see the following screen.  
 
-![image](https://github.com/argoproj/argo-cd/assets/5135902/6d4c877b-875a-4a70-9076-9305bae353be)
+![Zitadel Project](../../assets/zitadel-project.png "Zitadel Project")
 
 Check the following options:
 - Assert Roles on Authentication
 - Check authorization on Authentication
 
-![image](https://github.com/argoproj/argo-cd/assets/5135902/29511997-6434-4627-8094-f91da9675072)
+![Zitadel Project Settings](../../assets/zitadel-project-settings.png "Zitadel Project Settings")
 
 ### Roles
 
@@ -42,7 +42,7 @@ Go to **Roles** and click **New**. Create the following two roles. Use the speci
 
 Your roles should now look like this:
 
-![image](https://github.com/argoproj/argo-cd/assets/5135902/54a11922-437b-4b0a-b998-5200842f2318)
+![Zitadel Project Roles](../../assets/zitadel-project-roles.png "Zitadel Project Roles")
 
 ### Authorizations
 
@@ -51,7 +51,7 @@ Click **New**, enter the name of your user and click **Continue**. Select the ro
 
 Your authorizations should now look like this:
 
-![image](https://github.com/argoproj/argo-cd/assets/5135902/f3aa7f2c-29c4-4942-8e05-d736b843c043)
+![Zitadel Project Authorizations](../../assets/zitadel-project-authorizations.png "Zitadel Project Authorizations")
 
 ### Creating an application
 
@@ -59,11 +59,11 @@ Go to **General** and create a new application. Name the application `argocd-app
 
 As type of the application, select **WEB** and click continue.
 
-![image](https://github.com/argoproj/argo-cd/assets/5135902/36155051-47ce-4b81-8d67-0d659e0b88e9)
+![Zitadel Application Setup Step 1](../../assets/zitadel-application-1.png "Zitadel Application Setup Step 1")
 
 Select **CODE** and continue.
 
-![image](https://github.com/argoproj/argo-cd/assets/5135902/5247118b-f5c4-429b-97ff-3755ba65513f)
+![Zitadel Application Setup Step 2](../../assets/zitadel-application-2.png "Zitadel Application Setup Step 2")
 
 Next we will set up the redirect and post-logout URIs. Set the following values:
 - Redirect URI: `https://argocd.example.com/auth/callback`
@@ -71,18 +71,18 @@ Next we will set up the redirect and post-logout URIs. Set the following values:
 
 The post logout uri is optional. In the example setup users will be taken back to the ArgoCD login page after logging out.
 
-![image](https://github.com/argoproj/argo-cd/assets/5135902/b8ee4905-967f-42ba-a205-4ff0c4c78771)
+![Zitadel Application Setup Step 3](../../assets/zitadel-application-3.png "Zitadel Application Setup Step 3")
 
 Verify your configuration on the next screen and click **Create** to create the application.
 
-![image](https://github.com/argoproj/argo-cd/assets/5135902/30bc48c9-f2ba-4714-a3d4-6ab9210816a1)
+![Zitadel Application Setup Step 4](../../assets/zitadel-application-4.png "Zitadel Application Setup Step 4")
 
 After clicking **Create** you will be shown the `ClientId` and the `ClientSecret` for your application. Make sure to copy the ClientSecret as you will not be able to retrieve it after closing this window.  
 For our example the following values are used:
 - ClientId: `227060711795262483@argocd-project`
 - ClientSecret: `UGvTjXVFAQ8EkMv2x4GbPcrEwrJGWZ0sR2KbwHRNfYxeLsDurCiVEpa5bkgW0pl0`
 
-![image](https://github.com/argoproj/argo-cd/assets/5135902/30c0aa59-ae42-4f4a-ba23-3be61eaff169)
+![Zitadel Application Secrets](../../assets/zitadel-application-secrets.png "Zitadel Application Secrets")
 
 Once you have saved the ClientSecret in a safe place, click **Close** to complete creating the application.
 
@@ -90,7 +90,7 @@ Go to **Token Settings** and enable the following options:
 - User roles inside ID Token
 - User Info inside ID Token
 
-![image](https://github.com/argoproj/argo-cd/assets/5135902/dbd2add9-bc23-4fd8-a6a9-8784959bde0f)
+![Zitadel Application Settings](../../assets/zitadel-application-settings.png "Zitadel Application Settings")
 
 ## Setting up an action in Zitadel
 
@@ -138,7 +138,7 @@ Add your action to both triggers **Pre Userinfo creation** and **Pre access toke
 
 Your Actions page should now look like the following screenshot:
 
-![image](https://github.com/argoproj/argo-cd/assets/5135902/9a234146-d655-402e-b435-33d7aa5499ab)
+![Zitadel Actions](../../assets/zitadel-actions.png "Zitadel Actions")
 
 
 ## Configuring the ArgoCD configmaps
@@ -147,7 +147,7 @@ Next, we will configure two ArgoCD configmaps:
 - [argocd-cm.yaml](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-cm.yaml)
 - [argocd-rbac-cm.yaml](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-rbac-cm.yaml)
 
-Configure your configmaps as follows:
+Configure your configmaps as follows while making sure to replace the relevant values such as `url`, `issuer`, `clientID`, `clientSecret` and `logoutURL` with ones matching your setup.
 
 ### argocd-cm.yaml
 ```yaml
@@ -165,8 +165,8 @@ data:
   oidc.config: |
     name: Zitadel
     issuer: https://auth.example.com
-    clientID: <clientid>
-    clientSecret: <clientsecret>
+    clientID: 227060711795262483@argocd-project
+    clientSecret: UGvTjXVFAQ8EkMv2x4GbPcrEwrJGWZ0sR2KbwHRNfYxeLsDurCiVEpa5bkgW0pl0
     requestedScopes:
       - openid
       - profile
@@ -203,8 +203,8 @@ Deploy your ArgoCD configmaps. ArgoCD and Zitadel should now be setup correctly 
 
 Go to your ArgoCD instance. You should now see the **LOG IN WITH ZITADEL** button above the usual username/password login.
 
-![image](https://github.com/argoproj/argo-cd/assets/5135902/aed9c240-a8e6-4ca2-8609-8a713d78a911)
+![Zitadel ArgoCD Login](../../assets/zitadel-argocd-login.png "Zitadel ArgoCD Login")
 
 After loggin in with your Zitadel user go to **User Info**. If everythin is set up correctly you should now see the group `argocd_administrators` as shown below.
 
-![image](https://github.com/argoproj/argo-cd/assets/5135902/589a015a-0628-4a60-8086-0a7e5f8202c4)
+![Zitadel ArgoCD User Info](../../assets/zitadel-argocd-user-info.png "Zitadel ArgoCD User Info")
