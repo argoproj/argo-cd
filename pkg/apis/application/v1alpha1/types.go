@@ -872,6 +872,10 @@ type ApplicationDestination struct {
 	isServerInferred bool `json:"-"`
 }
 
+func (ad *ApplicationDestination) GetClusterIdentifier() *ClusterIdentifier {
+	return &ClusterIdentifier{Name: ad.Name, Server: ad.Server}
+}
+
 type ResourceHealthLocation string
 
 var (
@@ -1734,6 +1738,10 @@ func (c *Cluster) Equals(other *Cluster) bool {
 	return reflect.DeepEqual(c.Config, other.Config)
 }
 
+func (c *Cluster) GetIdentifier() *ClusterIdentifier {
+	return &ClusterIdentifier{Name: c.Name, Server: c.Server}
+}
+
 // ClusterInfo contains information about the cluster
 type ClusterInfo struct {
 	// ConnectionState contains information about the connection to the cluster
@@ -1764,6 +1772,19 @@ type ClusterCacheInfo struct {
 	APIsCount int64 `json:"apisCount,omitempty" protobuf:"bytes,2,opt,name=apisCount"`
 	// LastCacheSyncTime holds time of most recent cache synchronization
 	LastCacheSyncTime *metav1.Time `json:"lastCacheSyncTime,omitempty" protobuf:"bytes,3,opt,name=lastCacheSyncTime"`
+}
+
+type ClusterIdentifier struct {
+	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
+	Name   string `json:"name,omitempty" protobuf:"bytes,2,opt,name=name"`
+}
+
+func (ci *ClusterIdentifier) Equals(other *ClusterIdentifier) bool {
+	return ci.Server == other.Server && ci.Name == other.Name
+}
+
+func (ci *ClusterIdentifier) GetKey() string {
+	return fmt.Sprintf("%s/%s", ci.Server, ci.Name)
 }
 
 // ClusterList is a collection of Clusters.

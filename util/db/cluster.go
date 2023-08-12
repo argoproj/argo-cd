@@ -19,6 +19,8 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -137,7 +139,7 @@ func (db *db) WatchClusters(ctx context.Context,
 	handleAddEvent func(cluster *appv1.Cluster),
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
 	handleDeleteEvent func(clusterServer string)) error {
-	localCls, err := db.GetCluster(ctx, appv1.KubernetesInternalAPIServerAddr)
+	localCls, err := db.GetCluster(ctx, appsv1.ClusterIdentifier{Name: "in-cluster", Server: appv1.KubernetesInternalAPIServerAddr})
 	if err != nil {
 		return err
 	}
@@ -193,38 +195,38 @@ func (db *db) WatchClusters(ctx context.Context,
 	return err
 }
 
-func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
+func (db *db) getClusterSecret(clusterId v1alpha1.ClusterIdentifier) (*apiv1.Secret, error) {
 	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
 	if err != nil {
 		return nil, err
 	}
-	srv := strings.TrimRight(server, "/")
+	srv := strings.TrimRight(clusterId.GetKey(), "/")
 	for _, clusterSecret := range clusterSecrets {
 		if strings.TrimRight(string(clusterSecret.Data["server"]), "/") == srv {
 			return clusterSecret, nil
 		}
 	}
-	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+	return nil, status.Errorf(codes.NotFound, "cluster %q not found", clusterId.GetKey())
 }
 
 // GetCluster returns a cluster from a query
-func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, error) {
+func (db *db) GetCluster(_ context.Context, clusterId v1alpha1.ClusterIdentifier) (*appv1.Cluster, error) {
 	informer, err := db.settingsMgr.GetSecretsInformer()
 	if err != nil {
 		return nil, err
 	}
-	res, err := informer.GetIndexer().ByIndex(settings.ByClusterURLIndexer, server)
+	res, err := informer.GetIndexer().ByIndex(settings.ByClusterURLIndexer, clusterId.GetKey())
 	if err != nil {
 		return nil, err
 	}
 	if len(res) > 0 {
 		return SecretToCluster(res[0].(*apiv1.Secret))
 	}
-	if server == appv1.KubernetesInternalAPIServerAddr {
+	/*if server == appv1.KubernetesInternalAPIServerAddr {
 		return db.getLocalCluster(), nil
-	}
+	}*/
 
-	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+	return nil, status.Errorf(codes.NotFound, "cluster %q not found", clusterId.GetKey())
 }
 
 // GetProjectClusters return project scoped clusters by given project name
@@ -278,7 +280,7 @@ func (db *db) GetClusterServersByName(ctx context.Context, name string) ([]strin
 
 // UpdateCluster updates a cluster
 func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
-	clusterSecret, err := db.getClusterSecret(c.Server)
+	clusterSecret, err := db.getClusterSecret(c.GetIdentifier())
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			return db.CreateCluster(ctx, c)
@@ -302,8 +304,8 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 }
 
 // DeleteCluster deletes a cluster by name
-func (db *db) DeleteCluster(ctx context.Context, server string) error {
-	secret, err := db.getClusterSecret(server)
+func (db *db) DeleteCluster(ctx context.Context, clusterId appsv1.ClusterIdentifier) error {
+	secret, err := db.getClusterSecret(clusterId)
 	if err != nil {
 		return err
 	}

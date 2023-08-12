@@ -434,7 +434,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	orphanedNodesMap := make(map[kube.ResourceKey]appv1.ResourceNode)
 	warnOrphaned := true
 	if proj.Spec.OrphanedResources != nil {
-		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(a.Spec.Destination.Server, a.Spec.Destination.Namespace)
+		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(a.Spec.Destination.GetClusterIdentifier(), a.Spec.Destination.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get namespace top-level resources: %w", err)
 		}
@@ -465,7 +465,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 				},
 			})
 		} else {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) bool {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.GetClusterIdentifier(), kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) bool {
 				permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
 					clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
 					if err != nil {
@@ -487,7 +487,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	orphanedNodes := make([]appv1.ResourceNode, 0)
 	for k := range orphanedNodesMap {
 		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k, proj) {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) bool {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.GetClusterIdentifier(), k, func(child appv1.ResourceNode, appName string) bool {
 				belongToAnotherApp := false
 				if appName != "" {
 					appKey := ctrl.toAppKey(appName)
@@ -550,7 +550,7 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 	allNodesInfo := map[string]statecache.NodeInfo{}
 	allPodsByNode := map[string][]statecache.PodInfo{}
 	appPodsByNode := map[string][]statecache.PodInfo{}
-	err := ctrl.stateCache.IterateResources(a.Spec.Destination.Server, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
+	err := ctrl.stateCache.IterateResources(a.Spec.Destination.GetClusterIdentifier(), func(res *clustercache.Resource, info *statecache.ResourceInfo) {
 		key := res.ResourceKey()
 
 		switch {
@@ -661,7 +661,7 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 				return nil, fmt.Errorf("error getting tracking method: %s", err)
 			}
 
-			clusterCache, err := ctrl.stateCache.GetClusterCache(app.Spec.Destination.Server)
+			clusterCache, err := ctrl.stateCache.GetClusterCache(app.Spec.Destination.GetClusterIdentifier())
 			if err != nil {
 				return nil, fmt.Errorf("error getting cluster cache: %s", err)
 			}
@@ -1009,7 +1009,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 	// Attempt to validate the destination via its URL
 	if validDestination {
-		if cluster, err = ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server); err != nil {
+		if cluster, err = ctrl.db.GetCluster(context.Background(), app.Spec.Destination.GetClusterIdentifier()); err != nil {
 			log.Warnf("Unable to locate cluster URL for Application being deleted: %v", err)
 			validDestination = false
 		}
@@ -1830,7 +1830,7 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 	}
 
 	if ctrl.clusterFilter != nil {
-		cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+		cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.GetClusterIdentifier())
 		if err != nil {
 			return ctrl.clusterFilter(nil)
 		}

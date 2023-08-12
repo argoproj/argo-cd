@@ -6076,7 +6076,7 @@
           "$ref": "#/definitions/v1alpha1ApplicationPreservedFields"
         },
         "strategy": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetSyncStrategy"
+          "$ref": "#/definitions/v1alpha1ApplicationSetSyncStrategySpec"
         },
         "strategyRef": {
           "$ref": "#/definitions/v1alpha1ApplicationSetSyncStrategyRef"
@@ -6119,18 +6119,6 @@
         "preserveResourcesOnDeletion": {
           "description": "PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.",
           "type": "boolean"
-        }
-      }
-    },
-    "v1alpha1ApplicationSetSyncStrategy": {
-      "type": "object",
-      "title": "ApplicationSetSyncStrategy is a set of Application resources\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=syncstrategies\n+kubebuilder:subresource:status",
-      "properties": {
-        "metadata": {
-          "$ref": "#/definitions/v1ObjectMeta"
-        },
-        "spec": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetSyncStrategySpec"
         }
       }
     },

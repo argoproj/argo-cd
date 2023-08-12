@@ -40,16 +40,16 @@ const (
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
 )
 
-func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, error) {
-	cluster, err := m.liveStateCache.GetClusterCache(server)
+func (m *appStateManager) getOpenAPISchema(clusterId v1alpha1.ClusterIdentifier) (openapi.Resources, error) {
+	cluster, err := m.liveStateCache.GetClusterCache(clusterId)
 	if err != nil {
 		return nil, err
 	}
 	return cluster.GetOpenAPISchema(), nil
 }
 
-func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser, error) {
-	cluster, err := m.liveStateCache.GetClusterCache(server)
+func (m *appStateManager) getGVKParser(clusterId v1alpha1.ClusterIdentifier) (*managedfields.GvkParser, error) {
+	cluster, err := m.liveStateCache.GetClusterCache(clusterId)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	clst, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	clst, err := m.db.GetCluster(context.Background(), app.Spec.Destination.GetClusterIdentifier())
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
@@ -221,7 +221,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		prunePropagationPolicy = v1.DeletePropagationOrphan
 	}
 
-	openAPISchema, err := m.getOpenAPISchema(clst.Server)
+	openAPISchema, err := m.getOpenAPISchema(clst.GetIdentifier())
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
@@ -331,7 +331,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	for _, res := range resState {
 		augmentedMsg, err := argo.AugmentSyncMsg(res, func() ([]kube.APIResourceInfo, error) {
 			if apiVersion == nil {
-				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(app.Spec.Destination.GetClusterIdentifier())
 				if err != nil {
 					return nil, fmt.Errorf("failed to get version info from the target cluster %q", app.Spec.Destination.Server)
 				}

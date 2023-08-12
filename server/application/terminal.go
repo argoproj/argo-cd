@@ -58,7 +58,7 @@ func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a 
 	if err := argo.ValidateDestination(ctx, &a.Spec.Destination, s.db); err != nil {
 		return nil, err
 	}
-	clst, err := s.db.GetCluster(ctx, a.Spec.Destination.Server)
+	clst, err := s.db.GetCluster(ctx, a.Spec.Destination.GetClusterIdentifier())
 	if err != nil {
 		return nil, err
 	}

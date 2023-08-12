@@ -281,7 +281,7 @@ message ApplicationSetSpec {
 
   optional ApplicationSetSyncPolicy syncPolicy = 4;
 
-  optional ApplicationSetSyncStrategy strategy = 5;
+  optional ApplicationSetSyncStrategySpec strategy = 5;
 
   optional ApplicationSetSyncStrategyRef strategyRef = 6;
 
@@ -791,6 +791,12 @@ message ClusterGenerator {
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 3;
+}
+
+message ClusterIdentifier {
+  optional string server = 1;
+
+  optional string name = 2;
 }
 
 // ClusterInfo contains information about the cluster

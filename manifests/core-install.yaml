@@ -17489,46 +17489,34 @@ spec:
                 type: object
               strategy:
                 properties:
-                  apiVersion:
-                    type: string
-                  kind:
-                    type: string
-                  metadata:
-                    type: object
-                  spec:
+                  rollingSync:
                     properties:
-                      rollingSync:
-                        properties:
-                          steps:
-                            items:
-                              properties:
-                                matchExpressions:
-                                  items:
-                                    properties:
-                                      key:
-                                        type: string
-                                      operator:
-                                        type: string
-                                      values:
-                                        items:
-                                          type: string
-                                        type: array
-                                    type: object
-                                  type: array
-                                maxUpdate:
-                                  anyOf:
-                                  - type: integer
-                                  - type: string
-                                  x-kubernetes-int-or-string: true
-                              type: object
-                            type: array
-                        type: object
-                      type:
-                        type: string
+                      steps:
+                        items:
+                          properties:
+                            matchExpressions:
+                              items:
+                                properties:
+                                  key:
+                                    type: string
+                                  operator:
+                                    type: string
+                                  values:
+                                    items:
+                                      type: string
+                                    type: array
+                                type: object
+                              type: array
+                            maxUpdate:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              x-kubernetes-int-or-string: true
+                          type: object
+                        type: array
                     type: object
-                required:
-                - metadata
-                - spec
+                  type:
+                    type: string
                 type: object
               strategyRef:
                 properties:
