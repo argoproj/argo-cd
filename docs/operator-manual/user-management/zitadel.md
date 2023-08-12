@@ -7,7 +7,7 @@ The following steps are required to integrate ArgoCD with Zitadel:
 1. Create a new project and a new application in Zitadel
 2. Configure the application in Zitadel
 3. Set up roles in Zitadel
-4. Set up a action in Zitadel
+4. Set up an action in Zitadel
 5. Configure ArgoCD configmaps
 6. Test the setup
 
