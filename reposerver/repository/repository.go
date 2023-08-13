@@ -399,9 +399,16 @@ func (s *Service) runRepoOperation(
 			}
 		}
 
-		commitSHA, err := gitClient.CommitSHA()
-		if err != nil {
-			return err
+		
+		var commitSHA string
+		if !hasMultipleSources {
+			commit, err := gitClient.CommitSHA()
+			if err != nil {
+				return err
+			}
+			commitSHA = commit
+		} else {
+			commitSHA = revision
 		}
 
 		// double-check locking
