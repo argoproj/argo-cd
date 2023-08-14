@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"regexp"
 	"testing"
@@ -2811,4 +2812,33 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
 
+}
+
+func TestAppManagedByArgo(t *testing.T) {
+	err := os.Setenv("ARGOCD_REPO_SERVER_MANAGED_BY_ARGO", "true")
+	assert.NoError(t, err)
+	fixture.RestartRepoServer()
+
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			manifests, err := RunCli("app", "manifests", app.Name, "--source", "live")
+			assert.NoError(t, err)
+			resources, err := kube.SplitYAML([]byte(manifests))
+			assert.NoError(t, err)
+
+			for i := range resources {
+				value, exists := resources[i].GetLabels()["app.kubernetes.io/managed-by"]
+				assert.True(t, exists)
+				assert.Equal(t, "argo-cd", value)
+			}
+
+			err = os.Setenv("ARGOCD_REPO_SERVER_MANAGED_BY_ARGO", "")
+			assert.NoError(t, err)
+		})
 }
