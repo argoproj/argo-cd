@@ -30,6 +30,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/trace"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -138,6 +140,7 @@ func NewCommand() *cobra.Command {
 			}))
 			kubectl := kubeutil.NewKubectl()
 			clusterFilter := getClusterFilter(kubeClient, settingsMgr, shardingAlgorithm)
+			errors.CheckError(err)
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -208,20 +211,50 @@ func NewCommand() *cobra.Command {
 }
 
 func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string) sharding.ClusterFilterFunction {
-	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+
+	var replicas int
 	shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
+
+	appControllerDeployment, _ := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), common.ApplicationController, metav1.GetOptions{})
+
+	appControllerStatefulset, _ := kubeClient.AppsV1().StatefulSets(settingsMgr.GetNamespace()).Get(context.Background(), common.ApplicationController, metav1.GetOptions{})
+
+	if appControllerDeployment != nil {
+		replicas = int(*appControllerDeployment.Spec.Replicas)
+	} else if appControllerStatefulset != nil {
+		replicas = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+	}
+
 	var clusterFilter func(cluster *v1alpha1.Cluster) bool
 	if replicas > 1 {
-		if shard < 0 {
+		// check for shard mapping using configmap if application-controller is a deployment
+		// else use existing logic to infer shard from pod name if application-controller is a statefulset
+		if appControllerDeployment != nil {
+			retryCount := 3
+
 			var err error
-			shard, err = sharding.InferShard(kubeClient, settingsMgr)
+			// retry 3 times if we find a conflict while updating shard mapping configMap.
+			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
+			for i := 0; i <= retryCount; i++ {
+				shard, err = sharding.GetShardFromConfigMap(kubeClient, settingsMgr, replicas, shard)
+				if !kubeerrors.IsConflict(err) {
+					break
+				}
+				log.Warnf("conflict when getting shard from shard mapping configMap. Retrying (%d/3)", i)
+			}
 			errors.CheckError(err)
+		} else if appControllerStatefulset != nil {
+			if shard < 0 {
+				var err error
+				shard, err = sharding.InferShard()
+				errors.CheckError(err)
+			}
 		}
 		log.Infof("Processing clusters from shard %d", shard)
 		db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
 		log.Infof("Using filter function:  %s", shardingAlgorithm)
 		distributionFunction := sharding.GetDistributionFunction(db, shardingAlgorithm)
-		clusterFilter = sharding.GetClusterFilter(distributionFunction, shard)
+		clusterFilter = sharding.GetClusterFilter(db, distributionFunction, shard)
 	} else {
 		log.Info("Processing all cluster shards")
 	}

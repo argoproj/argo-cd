@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
-	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -15,9 +14,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -29,6 +26,9 @@ import (
 
 // Make it overridable for testing
 var osHostnameFunction = os.Hostname
+
+// Make it overridable for testing
+var heartbeatCurrentTime = metav1.Now
 
 var (
 	HeartbeatDuration = env.ParseNumFromEnv(common.EnvControllerHeartbeatTime, 10, 10, 60)
@@ -43,7 +43,7 @@ type ClusterFilterFunction func(c *v1alpha1.Cluster) bool
 // shardApplicationControllerMapping stores the mapping of Shard Number to Application Controller in ConfigMap.
 // It also stores the heartbeat of last synced time of the application controller.
 type shardApplicationControllerMapping struct {
-	ShardNumber    int32
+	ShardNumber    int
 	ControllerName string
 	HeartbeatTime  metav1.Time
 }
@@ -52,8 +52,8 @@ type shardApplicationControllerMapping struct {
 // and returns wheter or not the cluster should be processed by a given shard. It calls the distributionFunction
 // to determine which shard will process the cluster, and if the given shard is equal to the calculated shard
 // the function will return true.
-func GetClusterFilter(distributionFunction DistributionFunction, shard int) ClusterFilterFunction {
-	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+func GetClusterFilter(db db.ArgoDB, distributionFunction DistributionFunction, shard int) ClusterFilterFunction {
+	replicas := db.GetApplicationControllerReplicas()
 	return func(c *v1alpha1.Cluster) bool {
 		clusterShard := 0
 		if c != nil && c.Shard != nil {
@@ -74,12 +74,12 @@ func GetClusterFilter(distributionFunction DistributionFunction, shard int) Clus
 // the current datas.
 func GetDistributionFunction(db db.ArgoDB, shardingAlgorithm string) DistributionFunction {
 	log.Infof("Using filter function:  %s", shardingAlgorithm)
-	distributionFunction := LegacyDistributionFunction()
+	distributionFunction := LegacyDistributionFunction(db)
 	switch shardingAlgorithm {
 	case common.RoundRobinShardingAlgorithm:
 		distributionFunction = RoundRobinDistributionFunction(db)
 	case common.LegacyShardingAlgorithm:
-		distributionFunction = LegacyDistributionFunction()
+		distributionFunction = LegacyDistributionFunction(db)
 	default:
 		log.Warnf("distribution type %s is not supported, defaulting to %s", shardingAlgorithm, common.DefaultShardingAlgorithm)
 	}
@@ -91,8 +91,8 @@ func GetDistributionFunction(db db.ArgoDB, shardingAlgorithm string) Distributio
 // is lightweight and can be distributed easily, however, it does not ensure an homogenous distribution as
 // some shards may get assigned more clusters than others. It is the legacy function distribution that is
 // kept for compatibility reasons
-func LegacyDistributionFunction() DistributionFunction {
-	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+func LegacyDistributionFunction(db db.ArgoDB) DistributionFunction {
+	replicas := db.GetApplicationControllerReplicas()
 	return func(c *v1alpha1.Cluster) int {
 		if replicas == 0 {
 			return -1
@@ -121,7 +121,7 @@ func LegacyDistributionFunction() DistributionFunction {
 // clusters +/-1 , but with the drawback of a reshuffling of clusters accross shards in case of some changes
 // in the cluster list
 func RoundRobinDistributionFunction(db db.ArgoDB) DistributionFunction {
-	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+	replicas := db.GetApplicationControllerReplicas()
 	return func(c *v1alpha1.Cluster) int {
 		if replicas > 0 {
 			if c == nil { // in-cluster does not necessarly have a secret assigned. So we are receiving a nil cluster here.
@@ -144,36 +144,20 @@ func RoundRobinDistributionFunction(db db.ArgoDB) DistributionFunction {
 }
 
 // InferShard extracts the shard index based on its hostname.
-func InferShard(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager) (int, error) {
+func InferShard() (int, error) {
 	hostname, err := osHostnameFunction()
 	if err != nil {
 		return -1, err
 	}
-	appControllerDeployment, _ := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), common.ApplicationController, metav1.GetOptions{})
-
-	appControllerStatefulset, _ := kubeClient.AppsV1().StatefulSets(settingsMgr.GetNamespace()).Get(context.Background(), common.ApplicationController, metav1.GetOptions{})
-
-	// check for shard mapping using configmap if application-controller is a deployment
-	// else use existing logic to infer shard from pod name if application-controller is a statefulset
-	if appControllerDeployment != nil {
-		retryCount := 3
-		shard := -1
-
-		// retry 3 times if we find a conflict while updating shard mapping configMap.
-		// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
-		for i := 0; i <= retryCount; i++ {
-			shard, err := getShardFromConfigMap(kubeClient, settingsMgr, appControllerDeployment, hostname)
-			if !errors.IsConflict(err) {
-				return shard, err
-			}
-			log.Warnf("conflict when getting shard from shard mapping configMap. Retrying (%d/3)", i)
-		}
-		return shard, err
-	} else if appControllerStatefulset != nil {
-		return inferShardFromStatefulSet(hostname)
-	} else {
-		return -1, fmt.Errorf("could not find application controller deployment or statefulset")
+	parts := strings.Split(hostname, "-")
+	if len(parts) == 0 {
+		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
 	}
+	shard, err := strconv.Atoi(parts[len(parts)-1])
+	if err != nil {
+		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
+	}
+	return int(shard), nil
 }
 
 func getSortedClustersList(db db.ArgoDB) []v1alpha1.Cluster {
@@ -204,13 +188,15 @@ func createClusterIndexByClusterIdMap(db db.ArgoDB) map[string]int {
 }
 
 /*
+ * GetShardFromConfigMap finds the shard number from the shard mapping configmap. If the shard mapping configmap does not exist,
+ * the function creates the shard mapping configmap. If the shard number is set as an environment variable for the application controller pod,
+ * we use the shard number to update the mapping.
  */
-func getShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, appControllerDeployment *appv1.Deployment, hostname string) (int, error) {
+func GetShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, replicas, shard int) (int, error) {
 
-	// Fetch replicas from application-controller deployment
-	replicas, err := getAppControllerDeploymentReplicas(appControllerDeployment)
+	hostname, err := osHostnameFunction()
 	if err != nil {
-		return -1, fmt.Errorf("error getting replicas from application controller deployment: %s", err)
+		return -1, err
 	}
 
 	// fetch the shard mapping configMap
@@ -219,7 +205,11 @@ func getShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settin
 	if err != nil {
 		log.Infof("shard mapping configmap %s not found. Creating default shard mapping configmap.", common.ArgoCDAppControllerShardConfigMapName)
 
-		shardMappingCM, err = generateDefaultShardMappingCM(settingsMgr.GetNamespace(), hostname, *replicas)
+		// if the shard is not set as an environment variable, set the default value of shard to 0 for generating default CM
+		if shard == -1 {
+			shard = 0
+		}
+		shardMappingCM, err = generateDefaultShardMappingCM(settingsMgr.GetNamespace(), hostname, replicas, shard)
 		if err != nil {
 			return -1, fmt.Errorf("error generating default shard mapping configmap %s", err)
 		}
@@ -227,7 +217,7 @@ func getShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settin
 			return -1, fmt.Errorf("error creating shard mapping configmap %s", err)
 		}
 		// return 0 as the controller is assigned to shard 0 while generating default shard mapping ConfigMap
-		return 0, nil
+		return shard, nil
 	} else {
 		// Identify the available shard and update the ConfigMap
 		data := shardMappingCM.Data[ShardControllerMappingKey]
@@ -237,7 +227,7 @@ func getShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settin
 			return -1, fmt.Errorf("error unmarshalling shard config map data: %s", err)
 		}
 
-		shard, shardMappingData := getShardNumberForController(shardMappingData, hostname, replicas)
+		shard, shardMappingData := getOrUpdateShardNumberForController(shardMappingData, hostname, replicas, shard)
 		updatedShardMappingData, err := json.Marshal(shardMappingData)
 		if err != nil {
 			return -1, fmt.Errorf("error marshalling data of shard mapping ConfigMap: %s", err)
@@ -252,42 +242,54 @@ func getShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settin
 	}
 }
 
-// getShardNumberForController takes list of shardApplicationControllerMapping and performs computation to find the matching or empty shard number
-func getShardNumberForController(shardMappingData []shardApplicationControllerMapping, hostname string, replicas *int32) (int, []shardApplicationControllerMapping) {
+// getOrUpdateShardNumberForController takes list of shardApplicationControllerMapping and performs computation to find the matching or empty shard number
+func getOrUpdateShardNumberForController(shardMappingData []shardApplicationControllerMapping, hostname string, replicas, shard int) (int, []shardApplicationControllerMapping) {
 
-	now := metav1.Now()
-	shard := -1
-
-	// if current length of shardMappingData inconfigMap is less than the number of replicas,
+	// if current length of shardMappingData in shard mapping configMap is less than the number of replicas,
 	// create additional empty entries for missing shard numbers in shardMappingDataconfigMap
-	if len(shardMappingData) > (int)(*replicas) {
+	if len(shardMappingData) < replicas {
 		// generate extra default mappings
-		for currentShard := len(shardMappingData); currentShard < (int)(*replicas); currentShard++ {
+		for currentShard := len(shardMappingData); currentShard < replicas; currentShard++ {
 			shardMappingData = append(shardMappingData, shardApplicationControllerMapping{
-				ShardNumber: int32(currentShard),
+				ShardNumber: currentShard,
 			})
 		}
 	}
 
-	// find the matching shard with assigned controllerName
-	for i := range shardMappingData {
-		shardMapping := shardMappingData[i]
-		if shardMapping.ControllerName == hostname {
-			log.Debugf("Shard matched. Updating heartbeat!!")
-			shard = int(shardMapping.ShardNumber)
-			shardMapping.HeartbeatTime = now
-			break
+	// if current length of shardMappingData in shard mapping configMap is more than the number of replicas,
+	// we replace the config map with default config map and let controllers self assign the new shard to itself
+	if len(shardMappingData) > replicas {
+		shardMappingData = getDefaultShardMappingData(replicas)
+	}
+
+	if shard != -1 && shard < replicas {
+		log.Debugf("update heartbeat for shard %d", shard)
+		shardMappingData[shard].ControllerName = hostname
+		shardMappingData[shard].HeartbeatTime = heartbeatCurrentTime()
+	} else {
+		// find the matching shard with assigned controllerName
+		for i := range shardMappingData {
+			shardMapping := shardMappingData[i]
+			if shardMapping.ControllerName == hostname {
+				log.Debugf("Shard matched. Updating heartbeat!!")
+				shard = int(shardMapping.ShardNumber)
+				shardMapping.HeartbeatTime = heartbeatCurrentTime()
+				break
+			}
 		}
 	}
+
+	// at this point, we have still not found a shard with matching hostname.
+	// So, find a shard with either no controller assigned or assigned controller
+	// with heartbeat past threshold
 	if shard == -1 {
-		// find a shard with either no controller assigned or assigned controller with heartbeat past threshold
 		for i := range shardMappingData {
 			shardMapping := shardMappingData[i]
 			if (shardMapping.ControllerName == "") || (metav1.Now().After(shardMapping.HeartbeatTime.Add(time.Duration(HeartbeatTimeout) * time.Second))) {
 				shard = int(shardMapping.ShardNumber)
 				log.Debugf("Empty shard found %d", shard)
 				shardMapping.ControllerName = hostname
-				shardMapping.HeartbeatTime = now
+				shardMapping.HeartbeatTime = heartbeatCurrentTime()
 				shardMappingData[i] = shardMapping
 				break
 			}
@@ -298,7 +300,7 @@ func getShardNumberForController(shardMappingData []shardApplicationControllerMa
 }
 
 // generateDefaultShardMappingCM creates a default shard mapping configMap. Assigns current controller to shard 0.
-func generateDefaultShardMappingCM(namespace, hostname string, replicas int32) (*v1.ConfigMap, error) {
+func generateDefaultShardMappingCM(namespace, hostname string, replicas, shard int) (*v1.ConfigMap, error) {
 
 	shardingCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -308,21 +310,19 @@ func generateDefaultShardMappingCM(namespace, hostname string, replicas int32) (
 		Data: map[string]string{},
 	}
 
-	shardMappingData := make([]shardApplicationControllerMapping, 0)
+	shardMappingData := getDefaultShardMappingData(replicas)
 
-	for i := int32(0); i < replicas; i++ {
-		mapping := shardApplicationControllerMapping{
-			ShardNumber: i,
-		}
-		shardMappingData = append(shardMappingData, mapping)
-	}
 	hostname, err := osHostnameFunction()
 	if err != nil {
 		return nil, fmt.Errorf("error getting hostname of the pod %s", err)
 	}
 
-	shardMappingData[0].ControllerName = hostname
-	shardMappingData[0].HeartbeatTime = metav1.Now()
+	// if shard is not assigned to a controller, we use shard 0
+	if shard == -1 && shard > replicas {
+		shard = 0
+	}
+	shardMappingData[shard].ControllerName = hostname
+	shardMappingData[shard].HeartbeatTime = heartbeatCurrentTime()
 
 	data, err := json.Marshal(shardMappingData)
 	if err != nil {
@@ -333,26 +333,14 @@ func generateDefaultShardMappingCM(namespace, hostname string, replicas int32) (
 	return shardingCM, nil
 }
 
-func getAppControllerDeploymentReplicas(appControllerDeployment *appv1.Deployment) (*int32, error) {
+func getDefaultShardMappingData(replicas int) []shardApplicationControllerMapping {
+	shardMappingData := make([]shardApplicationControllerMapping, 0)
 
-	replicas := appControllerDeployment.Spec.Replicas
-
-	if replicas == nil || *replicas < int32(1) {
-		log.Errorf("Application Controller replicas can not be less than 1")
-		return nil, fmt.Errorf("Application Controller replicas can not be less than 1")
+	for i := 0; i < replicas; i++ {
+		mapping := shardApplicationControllerMapping{
+			ShardNumber: i,
+		}
+		shardMappingData = append(shardMappingData, mapping)
 	}
-
-	return replicas, nil
-}
-
-func inferShardFromStatefulSet(hostname string) (int, error) {
-	parts := strings.Split(hostname, "-")
-	if len(parts) == 0 {
-		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
-	}
-	shard, err := strconv.Atoi(parts[len(parts)-1])
-	if err != nil {
-		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
-	}
-	return int(shard), nil
+	return shardMappingData
 }
