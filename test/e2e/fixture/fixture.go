@@ -336,6 +336,11 @@ func updateRBACConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	updateGenericConfigMap(common.ArgoCDRBACConfigMapName, updater)
 }
 
+// Convenience wrapper for updating argocd-cmd-params-cm
+func updateParamsConfigMap(updater func(cm *corev1.ConfigMap) error) {
+	updateGenericConfigMap(common.ArgoCDParamsConfigMapName, updater)
+}
+
 // Updates a given config map in argocd-e2e namespace
 func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) {
 	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, v1.GetOptions{})
@@ -346,6 +351,18 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 	errors.CheckError(updater(cm))
 	_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, v1.UpdateOptions{})
 	errors.CheckError(err)
+}
+
+func SetManagedByArgo(valBool bool) {
+	updateParamsConfigMap(func(cm *corev1.ConfigMap) error {
+		val := "false"
+		if valBool {
+			val = "true"
+		}
+
+		cm.Data["reposerver.managed.by.argo"] = val
+		return nil
+	})
 }
 
 func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) {

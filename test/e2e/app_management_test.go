@@ -2174,7 +2174,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		CreateApp("--sync-option", "CreateNamespace=true").
 		Then().
 		And(func(app *Application) {
-			//Make sure the namespace we are about to update to does not exist
+			// Make sure the namespace we are about to update to does not exist
 			_, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "not found")
@@ -2193,7 +2193,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		Then().
 		Expect(Success("")).
 		And(func(app *Application) {
-			//Verify delete app does not delete the namespace auto created
+			// Verify delete app does not delete the namespace auto created
 			output, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
 			assert.NoError(t, err)
 			assert.Contains(t, output, updatedNamespace)
@@ -2814,7 +2814,7 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 }
 
 func TestAppManagedByArgo(t *testing.T) {
-	t.Setenv("ARGOCD_REPO_SERVER_MANAGED_BY_ARGO", "true")
+	fixture.SetManagedByArgo(true)
 	fixture.RestartRepoServer()
 
 	Given(t).
@@ -2835,5 +2835,8 @@ func TestAppManagedByArgo(t *testing.T) {
 				assert.True(t, exists)
 				assert.Equal(t, "argo-cd", value)
 			}
+
+			fixture.SetManagedByArgo(false)
+			fixture.RestartRepoServer()
 		})
 }

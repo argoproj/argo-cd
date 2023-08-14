@@ -29,6 +29,7 @@ const (
 	ArgoCDNotificationsConfigMapName = "argocd-notifications-cm"
 	ArgoCDNotificationsSecretName    = "argocd-notifications-secret"
 	ArgoCDRBACConfigMapName          = "argocd-rbac-cm"
+	ArgoCDParamsConfigMapName        = "argocd-cmd-params-cm"
 	// ArgoCDKnownHostsConfigMapName contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
 	// ArgoCDTLSCertsConfigMapName contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
