@@ -1048,9 +1048,9 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 	manifestGenerateLock.Lock(appPath)
 	defer manifestGenerateLock.Unlock(appPath)
 
-	// the `helm dependency build` is potentially time consuming 1~2 seconds
-	// marker file is used to check if command already run to avoid running it again unnecessary
-	// file is removed when repository re-initialized (e.g. when another commit is processed)
+	// the `helm dependency build` is potentially a time-consuming 1~2 seconds,
+	// a marker file is used to check if command already run to avoid running it again unnecessarily
+	// the file is removed when repository is re-initialized (e.g. when another commit is processed)
 	markerFile := path.Join(appPath, helmDepUpMarkerFile)
 	_, err := os.Stat(markerFile)
 	if err == nil {
@@ -1064,6 +1064,11 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 		return fmt.Errorf("error building helm chart dependencies: %w", err)
 	}
 	return os.WriteFile(markerFile, []byte("marker"), 0644)
+}
+
+func isSourcePermitted(url string, repos []string) bool {
+	p := v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{SourceRepos: repos}}
+	return p.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: url})
 }
 
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, error) {
@@ -1162,6 +1167,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	if err != nil {
 		return nil, fmt.Errorf("error getting helm repos: %w", err)
 	}
+
 	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, passCredentials)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing helm app object: %w", err)
@@ -1186,6 +1192,24 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 
 		if err != nil {
+			var reposNotPermitted []string
+			// We do a sanity check here to give a nicer error message in case any of the Helm repositories are not permitted by
+			// the AppProject which the application is a part of
+			for _, repo := range helmRepos {
+				msg := err.Error()
+
+				chartCannotBeReached := strings.Contains(msg, "is not a valid chart repository or cannot be reached")
+				couldNotDownloadChart := strings.Contains(msg, "could not download")
+
+				if (chartCannotBeReached || couldNotDownloadChart) && !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
+					reposNotPermitted = append(reposNotPermitted, repo.Repo)
+				}
+			}
+
+			if len(reposNotPermitted) > 0 {
+				return nil, status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
+			}
+
 			return nil, err
 		}
 
