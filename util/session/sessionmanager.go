@@ -522,7 +522,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 	default:
 		// IDP signed token
 		if mgr.storage.IsTokenRevoked(claims.ID) {
-			return nil, "", fmt.Errorf("token has been revoked, please re-login")
+			return nil, "", errors.New("token has been revoked, please re-login")
 		}
 
 		prov, err := mgr.provider()
