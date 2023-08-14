@@ -3,7 +3,7 @@
 package versioned
 
 import (
-	"fmt"
+	fmt "fmt"
 	"net/http"
 
 	argoprojv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"

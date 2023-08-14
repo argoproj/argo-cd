@@ -5833,6 +5833,8 @@ spec:
                                         type: string
                                       group:
                                         type: string
+                                      includeSharedProjects:
+                                        type: boolean
                                       includeSubgroups:
                                         type: boolean
                                       insecure:
@@ -10536,6 +10538,8 @@ spec:
                                         type: string
                                       group:
                                         type: string
+                                      includeSharedProjects:
+                                        type: boolean
                                       includeSubgroups:
                                         type: boolean
                                       insecure:
@@ -13056,6 +13060,8 @@ spec:
                               type: string
                             group:
                               type: string
+                            includeSharedProjects:
+                              type: boolean
                             includeSubgroups:
                               type: boolean
                             insecure:
