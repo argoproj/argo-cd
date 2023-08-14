@@ -19174,6 +19174,12 @@ spec:
               key: reposerver.enable.git.submodule
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_MANAGED_BY_ARGO
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.managed.by.argo
+              name: argocd-cmd-params-cm
+              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME
