@@ -36,6 +36,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
 ### Options
 
 ```
+      --apply-out-of-sync-only                Sync only out-of-sync resources
       --assumeYes                             Assume yes as answer for all user queries or prompts
       --async                                 Do not wait for application to sync before continuing
       --dry-run                               Preview apply without affecting cluster
