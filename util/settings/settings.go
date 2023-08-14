@@ -85,6 +85,8 @@ type ArgoCDSettings struct {
 	UserSessionDuration time.Duration `json:"userSessionDuration,omitempty"`
 	// UiCssURL local or remote path to user-defined CSS to customize ArgoCD UI
 	UiCssURL string `json:"uiCssURL,omitempty"`
+	// UiTitle to customize ArgoCD UI page title
+	UiTitle string `json:"uiTitle,omitempty"`
 	// Content of UI Banner
 	UiBannerContent string `json:"uiBannerContent,omitempty"`
 	// URL for UI Banner
@@ -447,6 +449,8 @@ const (
 	resourceCompareOptionsKey = "resource.compareoptions"
 	// settingUiCssURLKey designates the key for user-defined CSS URL for UI customization
 	settingUiCssURLKey = "ui.cssurl"
+	// settingUiTitleKey designates the key for user-defined Title UI customization
+	settingUiTitleKey = "ui.title"
 	// settingUiBannerContentKey designates the key for content of user-defined info banner for UI
 	settingUiBannerContentKey = "ui.bannercontent"
 	// settingUiBannerURLKey designates the key for the link for user-defined info banner for UI
@@ -1387,6 +1391,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.StatusBadgeRootUrl = argoCDCM.Data[statusBadgeRootUrlKey]
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
 	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
+	settings.UiTitle = argoCDCM.Data[settingUiTitleKey]
 	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
 	settings.UiBannerPermanent = argoCDCM.Data[settingUiBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUiBannerPositionKey]
@@ -1555,6 +1560,9 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		if settings.UiCssURL != "" {
 			argoCDCM.Data[settingUiCssURLKey] = settings.UiCssURL
+		}
+		if settings.UiTitle != "" {
+			argoCDCM.Data[settingUiTitleKey] = settings.UiTitle
 		}
 		if settings.UiBannerContent != "" {
 			argoCDCM.Data[settingUiBannerContentKey] = settings.UiBannerContent

@@ -24,6 +24,22 @@ data:
   ui.cssurl: "https://www.myhost.com/my-styles.css"
 ```
 
+## Setting Page Title
+
+Simply requires the addition of the title config to the argocd-cm configMap:
+
+### argocd-cm
+```yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  ...
+  name: argocd-cm
+data:
+  ui.title: "Not CD"
+```
+
 ## Adding Styles Via Volume Mounts
 
 The second method requires mounting the CSS file directly onto the argocd-server container and then

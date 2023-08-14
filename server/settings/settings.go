@@ -109,6 +109,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		UserLoginsDisabled:        userLoginsDisabled,
 		KustomizeVersions:         kustomizeVersions,
 		UiCssURL:                  argoCDSettings.UiCssURL,
+		UiTitle:                   argoCDSettings.UiTitle,
 		PasswordPattern:           argoCDSettings.PasswordPattern,
 		TrackingMethod:            trackingMethod,
 		ExecEnabled:               argoCDSettings.ExecEnabled,

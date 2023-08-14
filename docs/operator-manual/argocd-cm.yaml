@@ -308,6 +308,9 @@ data:
   # Uncomment to make the banner appear at the bottom of the page. Any value other than "bottom" will make the banner appear at the top.
   # ui.bannerposition: "bottom"
 
+  # An optional user-defined page title pre-fix
+  ui.title: "Not CD"
+
   # Application reconciliation timeout is the max amount of time required to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.
   # > Note: argocd-repo-server deployment must be manually restarted after changing the setting.

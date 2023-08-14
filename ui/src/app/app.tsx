@@ -175,7 +175,7 @@ export class App extends React.Component<
             const component = () => (
                 <>
                     <Helmet>
-                        <title>{extension.title} - Argo CD</title>
+                        <title>{extension.title} - {authSettings.uiTitle}</title>
                     </Helmet>
                     <Page title={extension.title}>
                         <extension.component />
