@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -349,6 +350,85 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
 		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
+
+}
+
+func TestRenderHelmValuesObject(t *testing.T) {
+
+	expectedApp := argov1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "my-cluster-guestbook",
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				LabelKeyAppSetInstance: "test-values-object",
+			},
+		},
+		Spec: argov1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &argov1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				TargetRevision: "HEAD",
+				Path:           "helm-guestbook",
+				Helm: &argov1alpha1.ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						// This will always be converted as yaml
+						Raw: []byte(`{"some":{"string":"Hello world"}}`),
+					},
+				},
+			},
+			Destination: argov1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook",
+			},
+		},
+	}
+
+	Given(t).
+		// Create a ListGenerator-based ApplicationSet
+		When().Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+		Name: "test-values-object",
+	},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &argov1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "helm-guestbook",
+						Helm: &argov1alpha1.ApplicationSourceHelm{
+							ValuesObject: &runtime.RawExtension{
+								Raw: []byte(`{"some":{"string":"{{.test}}"}}`),
+							},
+						},
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "{{.url}}",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc", "test": "Hello world"}`),
+						}},
+					},
+				},
+			},
+		},
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
+		// Delete the ApplicationSet, and verify it deletes the Applications
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp}))
 
 }
 
