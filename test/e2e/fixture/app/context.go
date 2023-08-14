@@ -38,6 +38,7 @@ type Context struct {
 	project                string
 	revision               string
 	force                  bool
+	applyOutOfSyncOnly     bool
 	directoryRecurse       bool
 	replace                bool
 	helmPassCredentials    bool
@@ -338,6 +339,11 @@ func (c *Context) Project(project string) *Context {
 
 func (c *Context) Force() *Context {
 	c.force = true
+	return c
+}
+
+func (c *Context) ApplyOutOfSyncOnly() *Context {
+	c.applyOutOfSyncOnly = true
 	return c
 }
 
