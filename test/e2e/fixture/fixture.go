@@ -912,18 +912,16 @@ func RemoveSubmodule() {
 // RestartRepoServer performs a restart of the repo server deployment and waits
 // until the rollout has completed.
 func RestartRepoServer() {
-	if IsRemote() {
-		log.Infof("Waiting for repo server to restart")
-		prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
-		workload := "argocd-repo-server"
-		if prefix != "" {
-			workload = prefix + "-repo-server"
-		}
-		FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload))
-		FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload))
-		// wait longer to avoid error on s390x
-		time.Sleep(10 * time.Second)
+	log.Infof("Waiting for repo server to restart")
+	prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
+	workload := "argocd-repo-server"
+	if prefix != "" {
+		workload = prefix + "-repo-server"
 	}
+	FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload))
+	FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload))
+	// wait longer to avoid error on s390x
+	time.Sleep(10 * time.Second)
 }
 
 // RestartAPIServer performs a restart of the API server deployemt and waits
