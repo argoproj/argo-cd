@@ -318,7 +318,7 @@ func generateDefaultShardMappingCM(namespace, hostname string, replicas, shard i
 	}
 
 	// if shard is not assigned to a controller, we use shard 0
-	if shard == -1 && shard > replicas {
+	if shard == -1 || shard > replicas {
 		shard = 0
 	}
 	shardMappingData[shard].ControllerName = hostname

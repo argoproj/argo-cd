@@ -18946,7 +18946,7 @@ spec:
               key: controller.heatbeat.time
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/isequeir/argocd:latest
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
