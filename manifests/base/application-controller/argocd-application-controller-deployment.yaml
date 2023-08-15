@@ -170,7 +170,7 @@ spec:
             path: /healthz
             port: 8082
           initialDelaySeconds: 5
-          periodSeconds: 20
+          periodSeconds: 10
         securityContext:
           runAsNonRoot: true
           readOnlyRootFilesystem: true

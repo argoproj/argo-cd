@@ -51,7 +51,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
-	"github.com/argoproj/argo-cd/v2/util/env"
 
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
@@ -204,16 +203,16 @@ func NewApplicationController(
 	})
 
 	readinessHealthCheck := func(r *http.Request) error {
-		appControllerDeployment, _ := kubeClientset.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), common.ApplicationController, metav1.GetOptions{})
-		if appControllerDeployment != nil {
-			if appControllerDeployment.Spec.Replicas != nil && int(*appControllerDeployment.Spec.Replicas) <= 0 {
-				return fmt.Errorf("application controller deployment replicas is not set or is less than 0, replicas: %d", appControllerDeployment.Spec.Replicas)
-			}
-			shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
-			if _, err := sharding.GetShardFromConfigMap(kubeClientset.(*kubernetes.Clientset), settingsMgr, int(*appControllerDeployment.Spec.Replicas), shard); err != nil {
-				return err
-			}
-		}
+		// appControllerDeployment, _ := kubeClientset.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), common.ApplicationController, metav1.GetOptions{})
+		// if appControllerDeployment != nil {
+		// 	if appControllerDeployment.Spec.Replicas != nil && int(*appControllerDeployment.Spec.Replicas) <= 0 {
+		// 		return fmt.Errorf("application controller deployment replicas is not set or is less than 0, replicas: %d", appControllerDeployment.Spec.Replicas)
+		// 	}
+		// 	shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
+		// 	if _, err := sharding.GetShardFromConfigMap(kubeClientset.(*kubernetes.Clientset), settingsMgr, int(*appControllerDeployment.Spec.Replicas), shard); err != nil {
+		// 		return err
+		// 	}
+		// }
 		return nil
 	}
 
