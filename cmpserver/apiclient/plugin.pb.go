@@ -1375,7 +1375,7 @@ func (m *AppStreamRequest) Unmarshal(dAtA []byte) error {
 			}
 			v := &ManifestRequestMetadata{}
 			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return fmt.Errorf("failed to unmarshal: %w", err)
+				return err
 			}
 			m.Request = &AppStreamRequest_Metadata{v}
 			iNdEx = postIndex
@@ -1410,7 +1410,7 @@ func (m *AppStreamRequest) Unmarshal(dAtA []byte) error {
 			}
 			v := &File{}
 			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return fmt.Errorf("error while unmarshaling: %w", err)
+				return err
 			}
 			m.Request = &AppStreamRequest_File{v}
 			iNdEx = postIndex
@@ -1418,7 +1418,7 @@ func (m *AppStreamRequest) Unmarshal(dAtA []byte) error {
 			iNdEx = preIndex
 			skippy, err := skipPlugin(dAtA[iNdEx:])
 			if err != nil {
-				return fmt.Errorf("error while skipping: %w", err)
+				return err
 			}
 			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthPlugin
@@ -1611,14 +1611,14 @@ func (m *ManifestRequestMetadata) Unmarshal(dAtA []byte) error {
 			}
 			m.Env = append(m.Env, &EnvEntry{})
 			if err := m.Env[len(m.Env)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return fmt.Errorf("error unmarshaling Env: %w", err)
+				return err
 			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipPlugin(dAtA[iNdEx:])
 			if err != nil {
-				return fmt.Errorf("skipping plugin: %w", err)
+				return err
 			}
 			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthPlugin
@@ -1733,7 +1733,7 @@ func (m *EnvEntry) Unmarshal(dAtA []byte) error {
 			iNdEx = preIndex
 			skippy, err := skipPlugin(dAtA[iNdEx:])
 			if err != nil {
-				return fmt.Errorf("error while skipping: %w", err)
+				return err
 			}
 			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthPlugin
@@ -1848,7 +1848,7 @@ func (m *ManifestResponse) Unmarshal(dAtA []byte) error {
 			iNdEx = preIndex
 			skippy, err := skipPlugin(dAtA[iNdEx:])
 			if err != nil {
-				return fmt.Errorf("error while skipping: %w", err)
+				return err
 			}
 			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthPlugin
@@ -1939,7 +1939,7 @@ func (m *RepositoryResponse) Unmarshal(dAtA []byte) error {
 			iNdEx = preIndex
 			skippy, err := skipPlugin(dAtA[iNdEx:])
 			if err != nil {
-				return fmt.Errorf("error while skipping: %w", err)
+				return err
 			}
 			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthPlugin
@@ -2017,14 +2017,14 @@ func (m *ParametersAnnouncementResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.ParameterAnnouncements = append(m.ParameterAnnouncements, &apiclient.ParameterAnnouncement{})
 			if err := m.ParameterAnnouncements[len(m.ParameterAnnouncements)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return fmt.Errorf("error while unmarshaling ParameterAnnouncement: %w", err)
+				return err
 			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipPlugin(dAtA[iNdEx:])
 			if err != nil {
-				return fmt.Errorf("error skipping plugin: %w", err)
+				return err
 			}
 			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthPlugin
@@ -2109,7 +2109,7 @@ func (m *File) Unmarshal(dAtA []byte) error {
 			iNdEx = preIndex
 			skippy, err := skipPlugin(dAtA[iNdEx:])
 			if err != nil {
-				return fmt.Errorf("error skipping plugin: %w", err)
+				return err
 			}
 			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthPlugin
