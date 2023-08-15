@@ -66,7 +66,7 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 		return nil, EmptyAppSetGeneratorError
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error generating params from git: %w", err)
 	}
 
 	return res, nil
@@ -77,7 +77,7 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 	// Directories, not files
 	allPaths, err := g.repos.GetDirectories(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting directories from repo: %w", err)
 	}
 
 	log.WithFields(log.Fields{
@@ -92,7 +92,7 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 
 	res, err := g.generateParamsFromApps(requestedApps, appSetGenerator, useGoTemplate, goTemplateOptions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate params from apps: %w", err)
+		return nil, fmt.Errorf("error generating params from apps: %w", err)
 	}
 
 	return res, nil
@@ -177,7 +177,7 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 		} else {
 			flat, err := flatten.Flatten(objectFound, "", flatten.DotStyle)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error flattening object: %w", err)
 			}
 			for k, v := range flat {
 				params[k] = fmt.Sprintf("%v", v)

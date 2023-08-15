@@ -8,6 +8,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var _ Generator = (*MatrixGenerator)(nil)
@@ -48,7 +50,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error failed to get params for first generator in matrix generator: %w", err)
 	}
 	for _, a := range g0 {
 		g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a)
@@ -84,9 +86,21 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 	if err != nil {
 		return nil, err
 	}
+	if matrixGen != nil && !appSet.Spec.ApplyNestedSelectors {
+		foundSelector := dropDisabledNestedSelectors(matrixGen.Generators)
+		if foundSelector {
+			log.Warnf("AppSet '%v' defines selector on nested matrix generator's generator without enabling them via 'spec.applyNestedSelectors', ignoring nested selectors", appSet.Name)
+		}
+	}
 	mergeGen, err := getMergeGenerator(appSetBaseGenerator)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving merge generator: %w", err)
+	}
+	if mergeGen != nil && !appSet.Spec.ApplyNestedSelectors {
+		foundSelector := dropDisabledNestedSelectors(mergeGen.Generators)
+		if foundSelector {
+			log.Warnf("AppSet '%v' defines selector on nested merge generator's generator without enabling them via 'spec.applyNestedSelectors', ignoring nested selectors", appSet.Name)
+		}
 	}
 
 	t, err := Transform(

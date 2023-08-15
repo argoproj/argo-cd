@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -201,7 +202,7 @@ func TestHelmValuesLiteralFileLocal(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			assert.Equal(t, string(data), app.Spec.GetSource().Helm.Values)
+			assert.Equal(t, strings.TrimSuffix(string(data), "\n"), app.Spec.GetSource().Helm.ValuesString())
 		}).
 		When().
 		AppUnSet("--values-literal").
@@ -243,7 +244,7 @@ func TestHelmValuesLiteralFileRemote(t *testing.T) {
 		AppSet("--values-literal-file", "http://"+address).
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, "a: b", app.Spec.GetSource().Helm.Values)
+			assert.Equal(t, "a: b", app.Spec.GetSource().Helm.ValuesString())
 		}).
 		When().
 		AppUnSet("--values-literal").
@@ -400,7 +401,7 @@ func TestHelmWithMultipleDependencies(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
-func TestHelmWithMultipleDependenciesPermissionDenied(t *testing.T) {
+func TestHelmDependenciesPermissionDenied(t *testing.T) {
 	SkipOnEnv(t, "HELM")
 
 	projName := "argo-helm-project-denied"
@@ -425,10 +426,10 @@ func TestHelmWithMultipleDependenciesPermissionDenied(t *testing.T) {
 		Then().
 		Expect(Error("", expectedErr))
 
-	expectedErr = fmt.Sprintf("helm repos https://localhost:9444/argo-e2e/testdata.git/helm-repo/local, https://localhost:9444/argo-e2e/testdata.git/helm-repo/local2 are not permitted in project '%s'", projName)
+	expectedErr = fmt.Sprintf("helm repos https://localhost:9443/argo-e2e/testdata.git/helm-repo/local, https://localhost:9443/argo-e2e/testdata.git/helm-repo/local2 are not permitted in project '%s'", projName)
 	GivenWithSameState(t).
 		Project(projName).
-		Path("helm-with-multiple-dependencies").
+		Path("helm-with-multiple-dependencies-permission-denied").
 		CustomCACertAdded().
 		HelmHTTPSCredentialsUserPassAdded().
 		HelmPassCredentials().

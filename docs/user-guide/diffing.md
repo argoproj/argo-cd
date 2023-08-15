@@ -60,8 +60,8 @@ To ignore fields owned by specific managers defined in your live resources:
 ```yaml
 spec:
   ignoreDifferences:
-  - group: *
-    kind: *
+  - group: "*"
+    kind: "*"
     managedFieldsManagers:
     - kube-controller-manager
 ```

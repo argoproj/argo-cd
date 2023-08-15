@@ -17,10 +17,16 @@ func TestPrintApplicationSetNames(t *testing.T) {
 				Name: "test",
 			},
 		}
-		printApplicationSetNames([]v1alpha1.ApplicationSet{*appSet, *appSet})
+		appSet2 := &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "team-one",
+				Name:      "test",
+			},
+		}
+		printApplicationSetNames([]v1alpha1.ApplicationSet{*appSet, *appSet2})
 		return nil
 	})
-	expectation := "test\ntest\n"
+	expectation := "test\nteam-one/test\n"
 	if output != expectation {
 		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
 	}
@@ -34,12 +40,12 @@ func TestPrintApplicationSetTable(t *testing.T) {
 			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Generators: []v1alpha1.ApplicationSetGenerator{
-					v1alpha1.ApplicationSetGenerator{
+					{
 						Git: &v1alpha1.GitGenerator{
 							RepoURL:  "https://github.com/argoproj/argo-cd.git",
 							Revision: "head",
 							Directories: []v1alpha1.GitDirectoryGeneratorItem{
-								v1alpha1.GitDirectoryGeneratorItem{
+								{
 									Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
 								},
 							},
@@ -54,7 +60,42 @@ func TestPrintApplicationSetTable(t *testing.T) {
 			},
 			Status: v1alpha1.ApplicationSetStatus{
 				Conditions: []v1alpha1.ApplicationSetCondition{
-					v1alpha1.ApplicationSetCondition{
+					{
+						Status: v1alpha1.ApplicationSetConditionStatusTrue,
+						Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					},
+				},
+			},
+		}
+
+		app2 := &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "app-name",
+				Namespace: "team-two",
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL:  "https://github.com/argoproj/argo-cd.git",
+							Revision: "head",
+							Directories: []v1alpha1.GitDirectoryGeneratorItem{
+								{
+									Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
+								},
+							},
+						},
+					},
+				},
+				Template: v1alpha1.ApplicationSetTemplate{
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+					},
+				},
+			},
+			Status: v1alpha1.ApplicationSetStatus{
+				Conditions: []v1alpha1.ApplicationSetCondition{
+					{
 						Status: v1alpha1.ApplicationSetConditionStatusTrue,
 						Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
 					},
@@ -62,11 +103,11 @@ func TestPrintApplicationSetTable(t *testing.T) {
 			},
 		}
 		output := "table"
-		printApplicationSetTable([]v1alpha1.ApplicationSet{*app, *app}, &output)
+		printApplicationSetTable([]v1alpha1.ApplicationSet{*app, *app2}, &output)
 		return nil
 	})
 	assert.NoError(t, err)
-	expectation := "NAME      NAMESPACE  PROJECT  SYNCPOLICY  CONDITIONS\napp-name             default  nil         [{ResourcesUpToDate  <nil> True }]\napp-name             default  nil         [{ResourcesUpToDate  <nil> True }]\n"
+	expectation := "NAME               PROJECT  SYNCPOLICY  CONDITIONS\napp-name           default  nil         [{ResourcesUpToDate  <nil> True }]\nteam-two/app-name  default  nil         [{ResourcesUpToDate  <nil> True }]\n"
 	assert.Equal(t, expectation, output)
 }
 
@@ -77,12 +118,12 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 		},
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
-				v1alpha1.ApplicationSetGenerator{
+				{
 					Git: &v1alpha1.GitGenerator{
 						RepoURL:  "https://github.com/argoproj/argo-cd.git",
 						Revision: "head",
 						Directories: []v1alpha1.GitDirectoryGeneratorItem{
-							v1alpha1.GitDirectoryGeneratorItem{
+							{
 								Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
 							},
 						},
@@ -97,7 +138,7 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 		},
 		Status: v1alpha1.ApplicationSetStatus{
 			Conditions: []v1alpha1.ApplicationSetCondition{
-				v1alpha1.ApplicationSetCondition{
+				{
 					Status: v1alpha1.ApplicationSetConditionStatusTrue,
 					Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
 				},
