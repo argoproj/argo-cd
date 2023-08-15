@@ -100,7 +100,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -115,7 +115,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -130,7 +130,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		_, _, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		_, _, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.ErrorContains(t, err, "syntax error")
@@ -145,7 +145,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -162,7 +162,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -179,7 +179,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		_, _, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		_, _, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.ErrorContains(t, err, "error finding glob match for pattern")
@@ -196,7 +196,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -215,7 +215,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 		// then
 		assert.NoError(t, err)
 		assert.False(t, match)
@@ -233,7 +233,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -253,7 +253,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -272,7 +272,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.Error(t, err)
@@ -285,7 +285,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
+		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		assert.NoError(t, err)
@@ -367,6 +367,28 @@ func TestRunCommandContextTimeout(t *testing.T) {
 func TestRunCommandEmptyCommand(t *testing.T) {
 	_, err := runCommand(context.Background(), Command{}, "", nil)
 	assert.ErrorContains(t, err, "Command is empty")
+}
+
+// TestRunCommandContextTimeoutWithGracefulTermination makes sure that the process is given enough time to cleanup before sending SIGKILL.
+func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 900*time.Millisecond)
+	defer cancel()
+
+	// Use a subshell so there's a child command.
+	// This command sleeps for 4 seconds which is currently less than the 5 second delay between SIGTERM and SIGKILL signal and then exits successfully.
+	command := Command{
+		Command: []string{"sh", "-c"},
+		Args:    []string{`(trap 'echo "cleanup completed"; exit' TERM; sleep 4)`},
+	}
+
+	before := time.Now()
+	output, err := runCommand(ctx, command, "", []string{})
+	after := time.Now()
+
+	assert.Error(t, err) // The command should time out, causing an error.
+	assert.Less(t, after.Sub(before), 1*time.Second)
+	// The command should still have completed the cleanup after termination.
+	assert.Contains(t, output, "cleanup completed")
 }
 
 func Test_getParametersAnnouncement_empty_command(t *testing.T) {

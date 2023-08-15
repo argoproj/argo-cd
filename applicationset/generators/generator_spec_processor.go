@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/jeremywohl/flatten"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -124,7 +125,7 @@ func GetRelevantGenerators(requestedGenerator *argoprojiov1alpha1.ApplicationSet
 func flattenParameters(in map[string]interface{}) (map[string]string, error) {
 	flat, err := flatten.Flatten(in, "", flatten.DotStyle)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error flatenning parameters: %w", err)
 	}
 
 	out := make(map[string]string, len(flat))
@@ -156,4 +157,17 @@ func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetG
 	}
 
 	return *interpolatedGenerator, nil
+}
+
+// Fixes https://github.com/argoproj/argo-cd/issues/11982 while ensuring backwards compatibility.
+// This is only a short-term solution and should be removed in a future major version.
+func dropDisabledNestedSelectors(generators []argoprojiov1alpha1.ApplicationSetNestedGenerator) bool {
+	var foundSelector bool
+	for i := range generators {
+		if generators[i].Selector != nil {
+			foundSelector = true
+			generators[i].Selector = nil
+		}
+	}
+	return foundSelector
 }

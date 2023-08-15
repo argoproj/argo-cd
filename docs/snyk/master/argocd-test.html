@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="1 known vulnerabilities found in 2 vulnerable dependency paths.">
+  <meta name="description" content="0 known vulnerabilities found in 0 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">May 27th 2023, 11:21:58 pm (UTC+00:00)</p>
+                <p class="timestamp">August 13th 2023, 12:13:27 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -466,104 +466,16 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>1</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>2 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>1812</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>0</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>0 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>1860</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
 
     <div class="layout-container" style="padding-top: 35px;">
-      <div class="cards--vuln filter--patch filter--ignore">
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Uncaught Exception</h2>
-            <div class="card__section">
-        
-                <div class="label label--high">
-                    <span class="label__text">high severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: npm
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            yaml
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    argo-cd-ui@1.0.0, monaco-kubernetes@0.2.2 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        monaco-kubernetes@0.2.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        @monokle/validation@0.15.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        yaml@2.1.1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        monaco-kubernetes@0.2.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        yaml@2.2.1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Uncaught Exception due to improper validation of the input passed to the functions <code>parseDocument</code> and <code>parseAllDocuments</code>.
-        Exploiting this vulnerability is possible when these functions are fed an invalid input with more than 80 carriage return characters (<code>\r</code>).</p>
-        <h2 id="poc">PoC</h2>
-        <pre><code class="language-js">const yaml = require(&quot;yaml&quot;);
-        const string = &quot;[&quot; + &quot;\r&quot;.repeat(80);
-        yaml.parseDocument(string);
-        </code></pre>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>yaml</code> to version 2.2.2, 2.3.0-5 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/eemeli/yaml/commit/984f5781ffd807e58cad3b5c8da1f940dab75fba">GitHub Commit</a></li>
-        <li><a href="https://github.com/eemeli/yaml/commit/a67a019afe9c8f785fdfd6255b6b69d97a8bd385">GitHub Commit</a></li>
-        <li><a href="https://github.com/eemeli/yaml/releases/tag/v2.2.2">GitHub Release</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-JS-YAML-5458867">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-      </div><!-- cards -->
+      No known vulnerabilities detected.
     </div>
   </main><!-- .layout-stacked__content -->
 </body>

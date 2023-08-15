@@ -41,14 +41,17 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argov1alpha "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
+
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -229,10 +232,12 @@ func (ctrl *ApplicationController) InvalidateProjectsCache(names ...string) {
 			ctrl.projByNameCache.Delete(name)
 		}
 	} else {
-		ctrl.projByNameCache.Range(func(key, _ interface{}) bool {
-			ctrl.projByNameCache.Delete(key)
-			return true
-		})
+		if ctrl != nil {
+			ctrl.projByNameCache.Range(func(key, _ interface{}) bool {
+				ctrl.projByNameCache.Delete(key)
+				return true
+			})
+		}
 	}
 }
 
@@ -354,17 +359,20 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 			level = CompareWithRecent
 		}
 
-		// Additional check for debug level so we don't need to evaluate the
-		// format string in case of non-debug scenarios
-		if log.GetLevel() >= log.DebugLevel {
-			var resKey string
-			if ref.Namespace != "" {
-				resKey = ref.Namespace + "/" + ref.Name
-			} else {
-				resKey = "(cluster-scoped)/" + ref.Name
-			}
-			log.Debugf("Refreshing app %s for change in cluster of object %s of type %s/%s", appKey, resKey, ref.APIVersion, ref.Kind)
+		namespace := ref.Namespace
+		if ref.Namespace == "" {
+			namespace = "(cluster-scoped)"
 		}
+		log.WithFields(log.Fields{
+			"application":  appKey,
+			"level":        level,
+			"namespace":    namespace,
+			"name":         ref.Name,
+			"api-version":  ref.APIVersion,
+			"kind":         ref.Kind,
+			"server":       app.Spec.Destination.Server,
+			"cluster-name": app.Spec.Destination.Name,
+		}).Debug("Requesting app refresh caused by object update")
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
 	}
@@ -1240,40 +1248,44 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 }
 
 func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
-	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		if state.Phase == "" {
-			// expose any bugs where we neglect to set phase
-			panic("no phase was set")
-		}
-		if state.Phase.Completed() {
-			now := metav1.Now()
-			state.FinishedAt = &now
-		}
-		patch := map[string]interface{}{
-			"status": map[string]interface{}{
-				"operationState": state,
-			},
-		}
-		if state.Phase.Completed() {
-			// If operation is completed, clear the operation field to indicate no operation is
-			// in progress.
-			patch["operation"] = nil
-		}
-		if reflect.DeepEqual(app.Status.OperationState, state) {
-			log.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
-			return nil
-		}
-		patchJSON, err := json.Marshal(patch)
-		if err != nil {
-			return fmt.Errorf("error marshaling json: %w", err)
-		}
-		if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
-			patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
-			if err != nil {
-				return fmt.Errorf("error merging operation state patch: %w", err)
-			}
-		}
+	logCtx := log.WithFields(log.Fields{"application": app.Name, "appNamespace": app.Namespace, "project": app.Spec.Project})
 
+	if state.Phase == "" {
+		// expose any bugs where we neglect to set phase
+		panic("no phase was set")
+	}
+	if state.Phase.Completed() {
+		now := metav1.Now()
+		state.FinishedAt = &now
+	}
+	patch := map[string]interface{}{
+		"status": map[string]interface{}{
+			"operationState": state,
+		},
+	}
+	if state.Phase.Completed() {
+		// If operation is completed, clear the operation field to indicate no operation is
+		// in progress.
+		patch["operation"] = nil
+	}
+	if reflect.DeepEqual(app.Status.OperationState, state) {
+		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
+		return
+	}
+	patchJSON, err := json.Marshal(patch)
+	if err != nil {
+		logCtx.Errorf("error marshaling json: %v", err)
+		return
+	}
+	if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
+		patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
+		if err != nil {
+			logCtx.Errorf("error merging operation state patch: %v", err)
+			return
+		}
+	}
+
+	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 		_, err = appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
@@ -1281,32 +1293,36 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			if apierr.IsNotFound(err) {
 				return nil
 			}
+			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
+			// warning.
+			logCtx.Warnf("error patching application with operation state: %v", err)
 			return fmt.Errorf("error patching application with operation state: %w", err)
-		}
-		log.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
-		if state.Phase.Completed() {
-			eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
-			var messages []string
-			if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
-				messages = []string{"Partial sync operation"}
-			} else {
-				messages = []string{"Sync operation"}
-			}
-			if state.SyncResult != nil {
-				messages = append(messages, "to", state.SyncResult.Revision)
-			}
-			if state.Phase.Successful() {
-				eventInfo.Type = v1.EventTypeNormal
-				messages = append(messages, "succeeded")
-			} else {
-				eventInfo.Type = v1.EventTypeWarning
-				messages = append(messages, "failed:", state.Message)
-			}
-			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "), "")
-			ctrl.metricsServer.IncSync(app, state)
 		}
 		return nil
 	})
+
+	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
+	if state.Phase.Completed() {
+		eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
+		var messages []string
+		if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
+			messages = []string{"Partial sync operation"}
+		} else {
+			messages = []string{"Sync operation"}
+		}
+		if state.SyncResult != nil {
+			messages = append(messages, "to", state.SyncResult.Revision)
+		}
+		if state.Phase.Successful() {
+			eventInfo.Type = v1.EventTypeNormal
+			messages = append(messages, "succeeded")
+		} else {
+			eventInfo.Type = v1.EventTypeWarning
+			messages = append(messages, "failed:", state.Message)
+		}
+		ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "), "")
+		ctrl.metricsServer.IncSync(app, state)
+	}
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
@@ -1527,6 +1543,8 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 			reason = "spec.destination differs"
 		} else if app.HasChangedManagedNamespaceMetadata() {
 			reason = "spec.syncPolicy.managedNamespaceMetadata differs"
+		} else if !app.Spec.IgnoreDifferences.Equals(app.Status.Sync.ComparedTo.IgnoreDifferences) {
+			reason = "spec.ignoreDifferences differs"
 		} else if requested, level := ctrl.isRefreshRequested(app.QualifiedName()); requested {
 			compareWith = level
 			reason = "controller refresh requested"
@@ -2010,3 +2028,5 @@ func (ctrl *ApplicationController) toAppKey(appName string) string {
 func (ctrl *ApplicationController) toAppQualifiedName(appName, appNamespace string) string {
 	return fmt.Sprintf("%s/%s", appNamespace, appName)
 }
+
+type ClusterFilterFunction func(c *argov1alpha.Cluster, distributionFunction sharding.DistributionFunction) bool

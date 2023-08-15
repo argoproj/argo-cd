@@ -18,12 +18,12 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-//NewHandler creates handler serving to do api/badge endpoint
+// NewHandler creates handler serving to do api/badge endpoint
 func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, namespace string) http.Handler {
 	return &Handler{appClientset: appClientset, namespace: namespace, settingsMgr: settingsMrg}
 }
 
-//Handler used to get application in order to access health/sync
+// Handler used to get application in order to access health/sync
 type Handler struct {
 	namespace    string
 	appClientset versioned.Interface
@@ -62,8 +62,8 @@ func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) strin
 	return result + str[lastIndex:]
 }
 
-//ServeHTTP returns badge with health and sync status for application
-//(or an error badge if wrong query or application name is given)
+// ServeHTTP returns badge with health and sync status for application
+// (or an error badge if wrong query or application name is given)
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	health := healthutil.HealthStatusUnknown
 	status := appv1.SyncStatusCodeUnknown

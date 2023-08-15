@@ -332,3 +332,14 @@ For example, the below example would be invalid (cluster-generator must come aft
                   revision: HEAD
                   files:
                     - path: "examples/git-generator-files-discovery/cluster-config/engineering/{{name}}**/config.json" # {{name}} is produced by cluster generator
+
+1. When using a Matrix generator nested inside another Matrix or Merge generator, [Post Selectors](../../user-guide/application-set.md#post-selector-all-generators) for this nested generator's generators will only be applied when enabled via `spec.applyNestedSelectors`.
+
+        - matrix:
+            generators:
+              - matrix:
+                  generators:
+                    - list
+                        elements:
+                          - # (...)
+                      selector: { } # Only applied when applyNestedSelectors is true

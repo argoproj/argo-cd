@@ -269,9 +269,9 @@ func TestGetGiteaPRLabelNames(t *testing.T) {
 		{
 			Name: "PR has labels",
 			PullLabels: []*gitea.Label{
-				&gitea.Label{Name: "label1"},
-				&gitea.Label{Name: "label2"},
-				&gitea.Label{Name: "label3"},
+				{Name: "label1"},
+				{Name: "label2"},
+				{Name: "label3"},
 			},
 			ExpectedResult: []string{"label1", "label2", "label3"},
 		},

@@ -12,7 +12,7 @@
 # add-kustomize-checksums.sh to help download checksums.
 ###############################################################################
 helm3_version=3.12.1
-kubectl_version=1.25.10-4
+kubectl_version=1.27.1
 kubectx_version=0.6.3
-kustomize5_version=5.0.3
+kustomize5_version=5.1.0
 protoc_version=3.17.3

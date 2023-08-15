@@ -5,10 +5,10 @@ infinity = 2^1024-1
 local function executor_range_api()
   min_executor_instances = 0
   max_executor_instances = infinity
-  if obj.spec.dynamicAllocation.maxExecutors then 
+  if obj.spec.dynamicAllocation.maxExecutors then
     max_executor_instances = obj.spec.dynamicAllocation.maxExecutors
   end
-  if obj.spec.dynamicAllocation.minExecutors then 
+  if obj.spec.dynamicAllocation.minExecutors then
     min_executor_instances = obj.spec.dynamicAllocation.minExecutors
   end
   return min_executor_instances, max_executor_instances
@@ -17,7 +17,7 @@ end
 local function maybe_executor_range_spark_conf()
   min_executor_instances = 0
   max_executor_instances = infinity
-  if obj.spec.sparkConf["spark.streaming.dynamicAllocation.enabled"] ~= nil and 
+  if obj.spec.sparkConf["spark.streaming.dynamicAllocation.enabled"] ~= nil and
      obj.spec.sparkConf["spark.streaming.dynamicAllocation.enabled"] == "true" then
     if(obj.spec.sparkConf["spark.streaming.dynamicAllocation.maxExecutors"] ~= nil) then
       max_executor_instances = tonumber(obj.spec.sparkConf["spark.streaming.dynamicAllocation.maxExecutors"])
@@ -26,7 +26,7 @@ local function maybe_executor_range_spark_conf()
       min_executor_instances = tonumber(obj.spec.sparkConf["spark.streaming.dynamicAllocation.minExecutors"])
     end
     return min_executor_instances, max_executor_instances
-  elseif obj.spec.sparkConf["spark.dynamicAllocation.enabled"] ~= nil and 
+  elseif obj.spec.sparkConf["spark.dynamicAllocation.enabled"] ~= nil and
      obj.spec.sparkConf["spark.dynamicAllocation.enabled"] == "true" then
     if(obj.spec.sparkConf["spark.dynamicAllocation.maxExecutors"] ~= nil) then
       max_executor_instances = tonumber(obj.spec.sparkConf["spark.dynamicAllocation.maxExecutors"])
@@ -45,8 +45,16 @@ local function maybe_executor_range()
     return executor_range_api()
   elseif obj.spec["sparkConf"] ~= nil then
     return maybe_executor_range_spark_conf()
-  else 
+  else
     return nil
+  end
+end
+
+local function dynamic_executors_without_spec_config()
+  if obj.spec.dynamicAllocation == nil and obj.spec.executor.instances == nil then
+    return true
+  else
+    return false
   end
 end
 
@@ -60,23 +68,26 @@ if obj.status ~= nil then
     if obj.status.applicationState.state == "RUNNING" then
       if obj.status.executorState ~= nil then
         count=0
-        executor_instances = obj.spec.executor.instances
         for i, executorState in pairs(obj.status.executorState) do
           if executorState == "RUNNING" then
             count=count+1
           end
         end
-        if executor_instances == count then
+        if obj.spec.executor.instances ~= nil and obj.spec.executor.instances == count then
           health_status.status = "Healthy"
           health_status.message = "SparkApplication is Running"
           return health_status
         elseif maybe_executor_range() then
           min_executor_instances, max_executor_instances = maybe_executor_range()
-          if count >= min_executor_instances and count <= max_executor_instances then 
+          if count >= min_executor_instances and count <= max_executor_instances then
             health_status.status = "Healthy"
             health_status.message = "SparkApplication is Running"
             return health_status
           end
+        elseif dynamic_executors_without_spec_config() and count >= 1 then
+          health_status.status = "Healthy"
+          health_status.message = "SparkApplication is Running"
+          return health_status
         end
       end
     end
