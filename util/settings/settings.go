@@ -705,7 +705,7 @@ func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*apiv1.Con
 	if err != nil {
 		return nil, err
 	}
-	return configMap, nil
+	return configMap, err
 }
 
 func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
