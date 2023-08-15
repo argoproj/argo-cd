@@ -2,11 +2,13 @@ package commands
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
@@ -31,6 +33,28 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 				log.Fatalf("Nothing to logout from")
 			}
 
+			token := localCfg.GetToken(context)
+			if token == "" {
+				log.Fatalf("Error in getting token from context")
+			}
+
+			prefix := "http"
+			if !globalClientOpts.Insecure {
+				prefix += "s"
+			}
+
+			logoutURL := fmt.Sprintf("%s://%s%s", prefix, context, common.LogoutEndpoint)
+			req, err := http.NewRequest("POST", logoutURL, nil)
+			cookie := &http.Cookie{
+				Name:  common.AuthCookieName,
+				Value: token,
+			}
+			req.AddCookie(cookie)
+
+			client := &http.Client{}
+			_, err = client.Do(req)
+			errors.CheckError(err)
+
 			ok := localCfg.RemoveToken(context)
 			if !ok {
 				log.Fatalf("Context %s does not exist", context)
@@ -40,6 +64,7 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 			if err != nil {
 				log.Fatalf("Error in logging out: %s", err)
 			}
+
 			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
 			errors.CheckError(err)
 
