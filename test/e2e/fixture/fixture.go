@@ -919,13 +919,13 @@ func RestartRepoServer() {
 		workload = prefix + "-repo-server"
 	}
 
-	args := []string{"rollout", "restart", "deployment", workload}
-	if IsLocal() {
-		args = append(args, "-n", TestNamespace())
+	if IsRemote() {
+		FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload))
+	} else {
+		FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload, "-n", TestNamespace()))
+		FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload, "-n", TestNamespace()))
 	}
-
-	FailOnErr(Run("", "kubectl", args...))
-	FailOnErr(Run("", "kubectl", args...))
 	// wait longer to avoid error on s390x
 	time.Sleep(10 * time.Second)
 }
