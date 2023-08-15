@@ -173,7 +173,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		addr := fmt.Sprintf("%s:0", *address)
 		ln, err := net.Listen("tcp", addr)
 		if err != nil {
-			return fmt.Errorf("failed to listen: %w", err)
+			return fmt.Errorf("failed to listen on %q: %w", addr, err)
 		}
 		port = &ln.Addr().(*net.TCPAddr).Port
 		io.Close(ln)

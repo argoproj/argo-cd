@@ -88,7 +88,7 @@ func NewCommand() *cobra.Command {
 			if namespace == "" {
 				namespace, _, err = clientConfig.Namespace()
 				if err != nil {
-					return fmt.Errorf("failed to determine namespace: %w", err)
+					return fmt.Errorf("failed to determine controller's host namespace: %w", err)
 				}
 			}
 			level, err := log.ParseLevel(logLevel)
@@ -118,14 +118,14 @@ func NewCommand() *cobra.Command {
 					fmt.Sprintf("%s/reposerver/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
 				)
 				if err != nil {
-					return fmt.Errorf("error: %w", err)
+					return fmt.Errorf("failed to load repo-server certificate pool: %w", err)
 				}
 				tlsConfig.Certificates = pool
 			}
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, 5, tlsConfig)
 			argocdService, err := service.NewArgoCDService(k8sClient, namespace, repoClientset)
 			if err != nil {
-				return fmt.Errorf("an error occurred: %w", err)
+				return fmt.Errorf("failed to initialize Argo CD service: %w", err)
 			}
 			defer argocdService.Close()
 
