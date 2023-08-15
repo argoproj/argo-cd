@@ -37,7 +37,7 @@ metadata:
   ...
   name: argocd-cm
 data:
-  ui.title: "Not CD"
+  ui.title: "My Argo CD"
 ```
 
 ## Adding Styles Via Volume Mounts

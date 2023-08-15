@@ -309,7 +309,7 @@ data:
   # ui.bannerposition: "bottom"
 
   # An optional user-defined page title pre-fix
-  ui.title: "Not CD"
+  ui.title: "Argo CD"
 
   # Application reconciliation timeout is the max amount of time required to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.
