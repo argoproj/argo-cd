@@ -10,11 +10,11 @@ import (
 // `requestedPath` must be absolute paths. They may contain any number of `./` or `/../` dir changes.
 func EnforceToCurrentRoot(currentRoot, requestedPath string) (string, error) {
 	currentRoot = filepath.Clean(currentRoot)
-	requestedDir, requestedFile := parsePath(requestedPath)
+	requestedDir, requestedFile := filepath.Split(filepath.Clean(requestedPath))
 	if !isRequestedDirUnderCurrentRoot(currentRoot, requestedDir) {
 		return "", fmt.Errorf("requested path %s should be on or under current directory %s", requestedPath, currentRoot)
 	}
-	return requestedDir + string(filepath.Separator) + requestedFile, nil
+	return filepath.Join(requestedDir, requestedFile), nil
 }
 
 func isRequestedDirUnderCurrentRoot(currentRoot, requestedPath string) bool {
@@ -30,12 +30,4 @@ func isRequestedDirUnderCurrentRoot(currentRoot, requestedPath string) bool {
 		currentRoot = currentRoot + "/"
 	}
 	return strings.HasPrefix(requestedPath, currentRoot)
-}
-
-func parsePath(path string) (string, string) {
-	directory := filepath.Dir(path)
-	if directory == path {
-		return directory, ""
-	}
-	return directory, filepath.Base(path)
 }
