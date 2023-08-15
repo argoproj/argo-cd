@@ -918,8 +918,14 @@ func RestartRepoServer() {
 	if prefix != "" {
 		workload = prefix + "-repo-server"
 	}
-	FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload))
-	FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload))
+
+	args := []string{"rollout", "restart", "deployment", workload}
+	if IsLocal() {
+		args = append(args, "-n", TestNamespace())
+	}
+
+	FailOnErr(Run("", "kubectl", args...))
+	FailOnErr(Run("", "kubectl", args...))
 	// wait longer to avoid error on s390x
 	time.Sleep(10 * time.Second)
 }
