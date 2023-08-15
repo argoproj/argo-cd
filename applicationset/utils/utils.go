@@ -74,7 +74,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		}
 		// Unwrap the newly created pointer
 		if err := r.deeplyReplace(copy.Elem(), originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
-			return fmt.Errorf("error during deep replacement: %v", err)
+			return fmt.Errorf("error during deep replacement: %w", err)
 		}
 
 	// If it is an interface (which is very similar to a pointer), do basically the
@@ -88,7 +88,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		// points to, so we have to call Elem() to unwrap it
 		copyValue := reflect.New(originalValue.Type()).Elem()
 		if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
-			return fmt.Errorf("error during deep replacement: %v", err)
+			return fmt.Errorf("error during deep replacement: %w", err)
 		}
 		copy.Set(copyValue)
 
@@ -119,7 +119,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 				}
 				copy.Field(i).Set(reflect.ValueOf(data))
 			} else if err := r.deeplyReplace(copy.Field(i), original.Field(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
-				return fmt.Errorf("error during deep replacement of field #%d: %v", i, err)
+				return fmt.Errorf("error during deep replacement of field #%d: %w", i, err)
 			}
 		}
 
@@ -133,7 +133,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 
 		for i := 0; i < original.Len(); i += 1 {
 			if err := r.deeplyReplace(copy.Index(i), original.Index(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
-				return fmt.Errorf("error during deep replacement of element at index %d: %v", i, err)
+				return fmt.Errorf("error during deep replacement of element at index %d: %w", i, err)
 			}
 		}
 
@@ -153,14 +153,14 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			copyValue := reflect.New(originalValue.Type()).Elem()
 
 			if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
-				return fmt.Errorf("error during deep replacement: %v", err)
+				return fmt.Errorf("error during deep replacement: %w", err)
 			}
 
 			// Keys can be templated as well as values (e.g. to template something into an annotation).
 			if key.Kind() == reflect.String {
 				templatedKey, err := r.Replace(key.String(), replaceMap, useGoTemplate, goTemplateOptions)
 				if err != nil {
-					return fmt.Errorf("error replacing key with template: %v", err)
+					return fmt.Errorf("error replacing key with template: %w", err)
 				}
 				key = reflect.ValueOf(templatedKey)
 			}
@@ -174,7 +174,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		strToTemplate := original.String()
 		templated, err := r.Replace(strToTemplate, replaceMap, useGoTemplate, goTemplateOptions)
 		if err != nil {
-			return fmt.Errorf("error replacing template string: %v", err)
+			return fmt.Errorf("error replacing template string: %w", err)
 		}
 		if copy.CanSet() {
 			copy.SetString(templated)
