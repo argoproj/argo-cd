@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -76,14 +77,14 @@ func Test_PrintResource(t *testing.T) {
 
 	str, err := captureOutput(func() error {
 		err := PrintResource(testResource, "yaml")
-		return err
+		return fmt.Errorf("error while printing resource: %w", err)
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, str, expectYamlSingle)
 
 	str, err = captureOutput(func() error {
 		err := PrintResource(testResource, "json")
-		return err
+		return fmt.Errorf("error printing resource: %w", err)
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, str, expectJsonSingle)
@@ -111,28 +112,28 @@ func Test_PrintResourceList(t *testing.T) {
 
 	str, err := captureOutput(func() error {
 		err := PrintResourceList(testResource, "yaml", false)
-		return err
+		return fmt.Errorf("error while printing resource list: %w", err)
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, str, expectYamlList)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource, "json", false)
-		return err
+		return fmt.Errorf("error while printing resource list: %w", err)
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, str, expectJsonList)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource2, "yaml", true)
-		return err
+		return fmt.Errorf("error while printing resource list: %w", err)
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, str, expectYamlSingle)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource2, "json", true)
-		return err
+		return fmt.Errorf("error while printing resource list: %w", err)
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, str, expectJsonSingle)
