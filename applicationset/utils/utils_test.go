@@ -555,6 +555,36 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			templateOptions: []string{"missingkey=error"},
 			errorMessage:    `failed to execute go template --> {{.doesnotexist}} <--: template: :1:6: executing "" at <.doesnotexist>: map has no entry for key "doesnotexist"`,
 		},
+		{
+			name:        "toYaml",
+			fieldVal:    `{{ toYaml . | indent 2 }}`,
+			expectedVal: "  foo:\n    bar:\n      bool: true\n      number: 2\n      str: Hello world",
+			params: map[string]interface{}{
+				"foo": map[string]interface{}{
+					"bar": map[string]interface{}{
+						"bool":   true,
+						"number": 2,
+						"str":    "Hello world",
+					},
+				},
+			},
+		},
+		{
+			name:        "fromYaml",
+			fieldVal:    `{{ get (fromYaml .value) "hello" }}`,
+			expectedVal: "world",
+			params: map[string]interface{}{
+				"value": "hello: world",
+			},
+		},
+		{
+			name:        "fromYamlArray",
+			fieldVal:    `{{ fromYamlArray .value | last }}`,
+			expectedVal: "bonjour tout le monde",
+			params: map[string]interface{}{
+				"value": "- hello world\n- bonjour tout le monde",
+			},
+		},
 	}
 
 	for _, test := range tests {
