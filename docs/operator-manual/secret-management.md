@@ -10,7 +10,7 @@ Here are some ways people are doing GitOps secrets:
 * [Bitnami Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)
 * [External Secrets Operator](https://github.com/external-secrets/external-secrets)
 * [Hashicorp Vault](https://www.vaultproject.io)
-* [Banzai Cloud Bank-Vaults](https://github.com/banzaicloud/bank-vaults)
+* [Bank-Vaults]((https://bank-vaults.dev/))
 * [Helm Secrets](https://github.com/jkroepke/helm-secrets)
 * [Kustomize secret generator plugins](https://github.com/kubernetes-sigs/kustomize/blob/fd7a353df6cece4629b8e8ad56b71e30636f38fc/examples/kvSourceGoPlugin.md#secret-values-from-anywhere)
 * [aws-secret-operator](https://github.com/mumoshu/aws-secret-operator)
