@@ -1,9 +1,10 @@
 package db
 
 import (
+	"context"
+	"fmt"
 	"strings"
 
-	"context"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -35,7 +36,7 @@ func (l *legacyRepositoryBackend) CreateRepository(ctx context.Context, r *appsv
 func (l *legacyRepositoryBackend) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
 	repository, err := l.tryGetRepository(repoURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get repository: %w", err)
 	}
 	return repository, nil
 }
@@ -129,7 +130,7 @@ func (l *legacyRepositoryBackend) DeleteRepository(ctx context.Context, repoURL 
 func (l *legacyRepositoryBackend) RepositoryExists(ctx context.Context, repoURL string) (bool, error) {
 	repos, err := l.db.settingsMgr.GetRepositories()
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("unable to get repositories: %w", err)
 	}
 
 	index := l.getRepositoryIndex(repos, repoURL)

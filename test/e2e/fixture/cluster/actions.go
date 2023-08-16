@@ -43,13 +43,15 @@ func (a *Actions) Create(args ...string) *Actions {
 
 	_, err := clusterClient.Create(context.Background(), &clusterpkg.ClusterCreateRequest{
 		Cluster: &v1alpha1.Cluster{
-			Server: a.context.server,
-			Name:   a.context.name,
-			Config: v1alpha1.ClusterConfig{},
-			Info: v1alpha1.ClusterInfo{
+			Server:             a.context.server,
+			Name:               a.context.name,
+			Config:             v1alpha1.ClusterConfig{BearerToken: a.context.bearerToken},
+			ConnectionState:    v1alpha1.ConnectionState{},
+			ServerVersion:      "",
+			Namespaces:         a.context.namespaces,
+      Info: v1alpha1.ClusterInfo{
 				ConnectionState: v1alpha1.ConnectionState{},
 				ServerVersion:   ""},
-			Namespaces:         nil,
 			RefreshRequestedAt: nil,
 			Shard:              nil,
 			ClusterResources:   false,
