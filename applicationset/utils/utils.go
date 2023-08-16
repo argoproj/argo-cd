@@ -74,7 +74,8 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		}
 		// Unwrap the newly created pointer
 		if err := r.deeplyReplace(copy.Elem(), originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
-			return fmt.Errorf("error during deep replacement: %w", err)
+			// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
+			return err
 		}
 
 	// If it is an interface (which is very similar to a pointer), do basically the
