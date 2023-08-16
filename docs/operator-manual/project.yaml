@@ -86,3 +86,8 @@ spec:
     clusters:
       - in-cluster
       - cluster1
+
+  # By default, apps may sync to any cluster specified under the `destinations` field, even if they are not
+  # scoped to this project. Set the folling field to `true` to restrict apps in this cluster to only clusters
+  # scoped to this project.
+  permitOnlyProjectScopedClusters: false
