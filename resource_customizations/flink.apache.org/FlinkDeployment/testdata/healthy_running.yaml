@@ -8,4 +8,4 @@ status:
   jobStatus:
     state: RUNNING
   reconciliationStatus:
-    success: true
+    state: DEPLOYED
