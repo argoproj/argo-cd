@@ -127,15 +127,15 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 	apiClient, err := apiclient.NewClient(clientOpts)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create API client: %w", err)
 	}
 	closer, versionClient, err := apiClient.NewVersionClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create version client: %w", err)
 	}
 	defer io.Close(closer)
 	_, err = versionClient.Version(ctx, &empty.Empty{})
-	return err
+	return fmt.Errorf("failed to get version: %w", err)
 }
 
 // StartLocalServer allows executing command in a headless mode: on the fly starts Argo CD API server and
@@ -147,12 +147,12 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 	if !startInProcessAPI {
 		localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("error reading local config: %w", err)
 		}
 		if localCfg != nil {
 			configCtx, err := localCfg.ResolveContext(clientOpts.Context)
 			if err != nil {
-				return err
+				return fmt.Errorf("error resolving context: %w", err)
 			}
 			startInProcessAPI = configCtx.Server.Core
 		}
@@ -173,7 +173,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		addr := fmt.Sprintf("%s:0", *address)
 		ln, err := net.Listen("tcp", addr)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to listen on %q: %w", addr, err)
 		}
 		port = &ln.Addr().(*net.TCPAddr).Port
 		io.Close(ln)
@@ -181,25 +181,25 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 
 	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating client config: %w", err)
 	}
 	appClientset, err := appclientset.NewForConfig(restConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating app clientset: %w", err)
 	}
 	kubeClientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating kubernetes clientset: %w", err)
 	}
 
 	namespace, _, err := clientConfig.Namespace()
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting namespace: %w", err)
 	}
 
 	mr, err := miniredis.Run()
 	if err != nil {
-		return err
+		return fmt.Errorf("error running miniredis: %w", err)
 	}
 	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
@@ -220,7 +220,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 
 	lns, err := srv.Listen()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to listen: %w", err)
 	}
 	go srv.Run(ctx, lns)
 	clientOpts.ServerAddr = fmt.Sprintf("%s:%d", *address, *port)
@@ -236,7 +236,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		}
 		time.Sleep(time.Second)
 	}
-	return err
+	return fmt.Errorf("all retries failed: %w", err)
 }
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
