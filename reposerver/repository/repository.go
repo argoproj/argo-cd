@@ -399,7 +399,6 @@ func (s *Service) runRepoOperation(
 			}
 		}
 
-		
 		var commitSHA string
 		if !hasMultipleSources {
 			commit, err := gitClient.CommitSHA()
