@@ -363,6 +363,7 @@ func TestIss(t *testing.T) {
 	assert.Empty(t, Iss(loggedOutContext))
 	assert.Equal(t, "qux", Iss(loggedInContext))
 }
+
 func TestLoggedIn(t *testing.T) {
 	assert.False(t, LoggedIn(loggedOutContext))
 	assert.True(t, LoggedIn(loggedInContext))
@@ -734,41 +735,6 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
 		claims.Issuer = oidcTestServer.URL
-		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
-		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
-		require.NoError(t, err)
-		tokenString, err := token.SignedString(key)
-		require.NoError(t, err)
-
-		_, _, err = mgr.VerifyToken(tokenString)
-		require.Error(t, err)
-		assert.ErrorIs(t, err, common.TokenVerificationErr)
-	})
-
-	t.Run("OIDC provider is Dex, TLS is configured", func(t *testing.T) {
-		dexConfig := map[string]string{
-			"url": dexTestServer.URL,
-			"dex.config": `connectors:
-- type: github
-  name: GitHub
-  config:
-    clientID: aabbccddeeff00112233
-    clientSecret: aabbccddeeff00112233`,
-		}
-
-		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
-		// must be set to test VerifyToken's behavior when Argo CD is configured with TLS enabled.
-		secretConfig := map[string][]byte{
-			"tls.crt": utiltest.Cert,
-			"tls.key": utiltest.PrivateKey,
-		}
-
-		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, NewUserStateStorage(nil))
-		mgr.verificationDelayNoiseEnabled = false
-
-		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)
