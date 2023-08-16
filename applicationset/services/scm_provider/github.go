@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 
 	"github.com/google/go-github/v35/github"
@@ -124,7 +123,7 @@ func (g *GithubProvider) listBranches(ctx context.Context, repo *Repository) ([]
 		if err != nil {
 			var githubErrorResponse *github.ErrorResponse
 			if errors.As(err, &githubErrorResponse) {
-				if githubErrorResponse.Response.StatusCode == http.StatusNotFound {
+				if githubErrorResponse.Response.StatusCode == 404 {
 					// Default branch doesn't exist, so the repo is empty.
 					return []github.Branch{}, nil
 				}

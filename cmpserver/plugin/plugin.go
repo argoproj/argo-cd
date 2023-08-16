@@ -120,12 +120,6 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		logCtx.Error(err.Error())
 		return strings.TrimSuffix(output, "\n"), err
 	}
-	if len(output) == 0 {
-		log.WithFields(log.Fields{
-			"stderr":  stderr.String(),
-			"command": command,
-		}).Warn("Plugin command returned zero output")
-	}
 
 	return strings.TrimSuffix(output, "\n"), nil
 }
@@ -222,7 +216,7 @@ func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 	}
 	defer cleanup()
 
-	metadata, err := cmp.ReceiveRepoStream(ctx, stream, workDir, s.initConstants.PluginConfig.Spec.PreserveFileMode)
+	metadata, err := cmp.ReceiveRepoStream(ctx, stream, workDir)
 	if err != nil {
 		return fmt.Errorf("generate manifest error receiving stream: %w", err)
 	}
@@ -306,7 +300,7 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	}
 	defer cleanup()
 
-	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir, s.initConstants.PluginConfig.Spec.PreserveFileMode)
+	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
 	if err != nil {
 		return fmt.Errorf("match repository error receiving stream: %w", err)
 	}
@@ -392,7 +386,7 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	}
 	defer cleanup()
 
-	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir, s.initConstants.PluginConfig.Spec.PreserveFileMode)
+	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
 	if err != nil {
 		return fmt.Errorf("parameters announcement error receiving stream: %w", err)
 	}

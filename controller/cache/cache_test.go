@@ -9,15 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
-	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -250,176 +248,5 @@ func TestIsRetryableError(t *testing.T) {
 	})
 	t.Run("ConnectionReset", func(t *testing.T) {
 		assert.True(t, isRetryableError(connectionReset))
-	})
-}
-
-func Test_asResourceNode_owner_refs(t *testing.T) {
-	resNode := asResourceNode(&cache.Resource{
-		ResourceVersion: "",
-		Ref: v1.ObjectReference{
-			APIVersion: "v1",
-		},
-		OwnerRefs: []metav1.OwnerReference{
-			{
-				APIVersion: "v1",
-				Kind:       "ConfigMap",
-				Name:       "cm-1",
-			},
-			{
-				APIVersion: "v1",
-				Kind:       "ConfigMap",
-				Name:       "cm-2",
-			},
-		},
-		CreationTimestamp: nil,
-		Info:              nil,
-		Resource:          nil,
-	})
-	expected := appv1.ResourceNode{
-		ResourceRef: appv1.ResourceRef{
-			Version: "v1",
-		},
-		ParentRefs: []appv1.ResourceRef{
-			{
-				Group: "",
-				Kind:  "ConfigMap",
-				Name:  "cm-1",
-			},
-			{
-				Group: "",
-				Kind:  "ConfigMap",
-				Name:  "cm-2",
-			},
-		},
-		Info:            nil,
-		NetworkingInfo:  nil,
-		ResourceVersion: "",
-		Images:          nil,
-		Health:          nil,
-		CreatedAt:       nil,
-	}
-	assert.Equal(t, expected, resNode)
-}
-
-func TestSkipResourceUpdate(t *testing.T) {
-	var (
-		hash1_x string = "x"
-		hash2_y string = "y"
-		hash3_x string = "x"
-	)
-	info := &ResourceInfo{
-		manifestHash: hash1_x,
-		Health: &health.HealthStatus{
-			Status:  health.HealthStatusHealthy,
-			Message: "default",
-		},
-	}
-	t.Run("Nil", func(t *testing.T) {
-		assert.False(t, skipResourceUpdate(nil, nil))
-	})
-	t.Run("From Nil", func(t *testing.T) {
-		assert.False(t, skipResourceUpdate(nil, info))
-	})
-	t.Run("To Nil", func(t *testing.T) {
-		assert.False(t, skipResourceUpdate(info, nil))
-	})
-	t.Run("No hash", func(t *testing.T) {
-		assert.False(t, skipResourceUpdate(&ResourceInfo{}, &ResourceInfo{}))
-	})
-	t.Run("Same hash", func(t *testing.T) {
-		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
-		}, &ResourceInfo{
-			manifestHash: hash1_x,
-		}))
-	})
-	t.Run("Same hash value", func(t *testing.T) {
-		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
-		}, &ResourceInfo{
-			manifestHash: hash3_x,
-		}))
-	})
-	t.Run("Different hash value", func(t *testing.T) {
-		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
-		}, &ResourceInfo{
-			manifestHash: hash2_y,
-		}))
-	})
-	t.Run("Same hash, empty health", func(t *testing.T) {
-		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
-			Health:       &health.HealthStatus{},
-		}, &ResourceInfo{
-			manifestHash: hash3_x,
-			Health:       &health.HealthStatus{},
-		}))
-	})
-	t.Run("Same hash, old health", func(t *testing.T) {
-		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
-			Health: &health.HealthStatus{
-				Status: health.HealthStatusHealthy},
-		}, &ResourceInfo{
-			manifestHash: hash3_x,
-			Health:       nil,
-		}))
-	})
-	t.Run("Same hash, new health", func(t *testing.T) {
-		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
-			Health:       &health.HealthStatus{},
-		}, &ResourceInfo{
-			manifestHash: hash3_x,
-			Health: &health.HealthStatus{
-				Status: health.HealthStatusHealthy,
-			},
-		}))
-	})
-	t.Run("Same hash, same health", func(t *testing.T) {
-		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
-			Health: &health.HealthStatus{
-				Status:  health.HealthStatusHealthy,
-				Message: "same",
-			},
-		}, &ResourceInfo{
-			manifestHash: hash3_x,
-			Health: &health.HealthStatus{
-				Status:  health.HealthStatusHealthy,
-				Message: "same",
-			},
-		}))
-	})
-	t.Run("Same hash, different health status", func(t *testing.T) {
-		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
-			Health: &health.HealthStatus{
-				Status:  health.HealthStatusHealthy,
-				Message: "same",
-			},
-		}, &ResourceInfo{
-			manifestHash: hash3_x,
-			Health: &health.HealthStatus{
-				Status:  health.HealthStatusDegraded,
-				Message: "same",
-			},
-		}))
-	})
-	t.Run("Same hash, different health message", func(t *testing.T) {
-		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
-			Health: &health.HealthStatus{
-				Status:  health.HealthStatusHealthy,
-				Message: "same",
-			},
-		}, &ResourceInfo{
-			manifestHash: hash3_x,
-			Health: &health.HealthStatus{
-				Status:  health.HealthStatusHealthy,
-				Message: "different",
-			},
-		}))
 	})
 }

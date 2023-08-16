@@ -23,7 +23,3 @@ tests:
     status: Healthy
     message: "SparkApplication is Running"
   inputPath: testdata/healthy_dynamic_alloc_operator_api.yaml
-- healthStatus:
-    status: Healthy
-    message: "SparkApplication is Running"
-  inputPath: testdata/healthy_dynamic_alloc_without_spec_config.yaml
