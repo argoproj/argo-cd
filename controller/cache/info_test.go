@@ -694,3 +694,62 @@ func TestCustomLabel(t *testing.T) {
 	assert.Equal(t, "other-label", info.Info[1].Name)
 	assert.Equal(t, "value2", info.Info[1].Value)
 }
+
+func TestManifestHash(t *testing.T) {
+	manifest := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: helm-guestbook-pod
+    namespace: default
+    ownerReferences:
+    - apiVersion: extensions/v1beta1
+      kind: ReplicaSet
+      name: helm-guestbook-rs
+    resourceVersion: "123"
+    labels:
+      app: guestbook
+  spec:
+    nodeName: minikube
+    containers:
+    - image: bar
+      resources:
+        requests:
+          memory: 128Mi
+`)
+
+	ignores := []v1alpha1.ResourceIgnoreDifferences{
+		{
+			Group:        "*",
+			Kind:         "*",
+			JSONPointers: []string{"/metadata/resourceVersion"},
+		},
+	}
+
+	data, _ := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: helm-guestbook-pod
+    namespace: default
+    ownerReferences:
+    - apiVersion: extensions/v1beta1
+      kind: ReplicaSet
+      name: helm-guestbook-rs
+    labels:
+      app: guestbook
+  spec:
+    nodeName: minikube
+    containers:
+    - image: bar
+      resources:
+        requests:
+          memory: 128Mi
+`).MarshalJSON()
+
+	expected := hash(data)
+
+	hash, err := generateManifestHash(manifest, ignores, nil)
+	assert.Equal(t, expected, hash)
+	assert.Nil(t, err)
+}

@@ -43,8 +43,9 @@ nav:
   - operator-manual/tls.md
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
-  - operator-manual/high_availability.md
   - operator-manual/disaster_recovery.md
+  - operator-manual/high_availability.md
+  - operator-manual/reconcile.md
   - operator-manual/webhook.md
   - operator-manual/health.md
   - operator-manual/resource_actions.md
@@ -112,6 +113,7 @@ nav:
     - Progressive Syncs: operator-manual/applicationset/Progressive-Syncs.md
     - Git File Generator Globbing: operator-manual/applicationset/Generators-Git-File-Globbing.md
     - ApplicationSet Specification Reference: operator-manual/applicationset/applicationset-specification.md
+    - ApplicationSet in any namespace: operator-manual/applicationset/Appset-Any-Namespace.md
   - Server Configuration Parameters:
     - operator-manual/server-commands/argocd-server.md
     - operator-manual/server-commands/argocd-application-controller.md
@@ -165,6 +167,7 @@ nav:
   - user-guide/selective_sync.md
   - user-guide/sync-waves.md
   - user-guide/sync_windows.md
+  - user-guide/sync-kubectl.md
   - user-guide/skip_reconcile.md
   - Generating Applications with ApplicationSet: user-guide/application-set.md
   - user-guide/ci_automation.md

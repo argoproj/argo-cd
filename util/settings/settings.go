@@ -71,6 +71,10 @@ type ArgoCDSettings struct {
 	WebhookBitbucketServerSecret string `json:"webhookBitbucketServerSecret,omitempty"`
 	// WebhookGogsSecret holds the shared secret for authenticating Gogs webhook events
 	WebhookGogsSecret string `json:"webhookGogsSecret,omitempty"`
+	// WebhookAzureDevOpsUsername holds the username for authenticating Azure DevOps webhook events
+	WebhookAzureDevOpsUsername string `json:"webhookAzureDevOpsUsername,omitempty"`
+	// WebhookAzureDevOpsPassword holds the password for authenticating Azure DevOps webhook events
+	WebhookAzureDevOpsPassword string `json:"webhookAzureDevOpsPassword,omitempty"`
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
 	// KustomizeBuildOptions is a string of kustomize build parameters
@@ -411,6 +415,10 @@ const (
 	settingsWebhookBitbucketServerSecretKey = "webhook.bitbucketserver.secret"
 	// settingsWebhookGogsSecret is the key for Gogs webhook secret
 	settingsWebhookGogsSecretKey = "webhook.gogs.secret"
+	// settingsWebhookAzureDevOpsUsernameKey is the key for Azure DevOps webhook username
+	settingsWebhookAzureDevOpsUsernameKey = "webhook.azuredevops.username"
+	// settingsWebhookAzureDevOpsPasswordKey is the key for Azure DevOps webhook password
+	settingsWebhookAzureDevOpsPasswordKey = "webhook.azuredevops.password"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
@@ -421,6 +429,8 @@ const (
 	resourceExclusionsKey = "resource.exclusions"
 	// resourceInclusions is the key to the list of explicitly watched resources
 	resourceInclusionsKey = "resource.inclusions"
+	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
+	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
 	resourceCustomLabelsKey = "resource.customLabels"
 	// kustomizeBuildOptionsKey is a string of kustomize build parameters
@@ -528,6 +538,9 @@ type ArgoCDDiffOptions struct {
 
 	// If set to true then differences caused by status are ignored.
 	IgnoreResourceStatusField IgnoreStatus `json:"ignoreResourceStatusField,omitempty"`
+
+	// If set to true then ignoreDifferences are applied to ignore application refresh on resource updates.
+	IgnoreDifferencesOnResourceUpdates bool `json:"ignoreDifferencesOnResourceUpdates,omitempty"`
 }
 
 func (e *incompleteSettingsError) Error() string {
@@ -551,7 +564,7 @@ func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
 func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error ensuring that the secrets manager is synced: %w", err)
 	}
 	return mgr.secretsInformer, nil
 }
@@ -675,14 +688,14 @@ func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*apiv1.Con
 func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	rf := &ResourcesFilter{}
 	if value, ok := argoCDCM.Data[resourceInclusionsKey]; ok {
 		includedResources := make([]FilteredResource, 0)
 		err := yaml.Unmarshal([]byte(value), &includedResources)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error unmarshalling included resources %w", err)
 		}
 		rf.ResourceInclusions = includedResources
 	}
@@ -691,7 +704,7 @@ func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 		excludedResources := make([]FilteredResource, 0)
 		err := yaml.Unmarshal([]byte(value), &excludedResources)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error unmarshalling excluded resources %w", err)
 		}
 		rf.ResourceExclusions = excludedResources
 	}
@@ -746,13 +759,13 @@ func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
 func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	deepLinks := make([]DeepLink, 0)
 	if value, ok := argoCDCM.Data[deeplinkType]; ok {
 		err := yaml.Unmarshal([]byte(value), &deepLinks)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error unmarshalling deep links %w", err)
 		}
 	}
 	return deepLinks, nil
@@ -761,7 +774,7 @@ func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error
 func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get argo-cd config map: %w", err)
 	}
 	res := map[string]bool{}
 	for sourceType := range sourceTypeToEnableGenerationKey {
@@ -777,11 +790,59 @@ func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
 	return res, nil
 }
 
+func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error) {
+	compareOptions, err := mgr.GetResourceCompareOptions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get compare options: %w", err)
+	}
+
+	resourceOverrides, err := mgr.GetResourceOverrides()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get resource overrides: %w", err)
+	}
+
+	for k, v := range resourceOverrides {
+		resourceUpdates := v.IgnoreResourceUpdates
+		if compareOptions.IgnoreDifferencesOnResourceUpdates {
+			resourceUpdates.JQPathExpressions = append(resourceUpdates.JQPathExpressions, v.IgnoreDifferences.JQPathExpressions...)
+			resourceUpdates.JSONPointers = append(resourceUpdates.JSONPointers, v.IgnoreDifferences.JSONPointers...)
+			resourceUpdates.ManagedFieldsManagers = append(resourceUpdates.ManagedFieldsManagers, v.IgnoreDifferences.ManagedFieldsManagers...)
+		}
+		// Set the IgnoreDifferences because these are the overrides used by Normalizers
+		v.IgnoreDifferences = resourceUpdates
+		v.IgnoreResourceUpdates = v1alpha1.OverrideIgnoreDiff{}
+		resourceOverrides[k] = v
+	}
+
+	if compareOptions.IgnoreDifferencesOnResourceUpdates {
+		log.Info("Using diffing customizations to ignore resource updates")
+	}
+
+	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/resourceVersion")
+	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/generation")
+	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/managedFields")
+
+	return resourceOverrides, nil
+}
+
+func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, fmt.Errorf("error retrieving config map: %w", err)
+	}
+
+	if argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey] == "" {
+		return false, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey])
+}
+
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
 func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving config map: %w", err)
 	}
 	resourceOverrides := map[string]v1alpha1.ResourceOverride{}
 	if value, ok := argoCDCM.Data[resourceCustomizationsKey]; ok && value != "" {
@@ -893,6 +954,13 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 				return err
 			}
 			overrideVal.IgnoreDifferences = overrideIgnoreDiff
+		case "ignoreResourceUpdates":
+			overrideIgnoreUpdate := v1alpha1.OverrideIgnoreDiff{}
+			err := yaml.Unmarshal([]byte(v), &overrideIgnoreUpdate)
+			if err != nil {
+				return err
+			}
+			overrideVal.IgnoreResourceUpdates = overrideIgnoreUpdate
 		case "knownTypeFields":
 			var knownTypeFields []v1alpha1.KnownTypeField
 			err := yaml.Unmarshal([]byte(v), &knownTypeFields)
@@ -922,7 +990,7 @@ func convertToOverrideKey(groupKind string) (string, error) {
 }
 
 func GetDefaultDiffOptions() ArgoCDDiffOptions {
-	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false}
+	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false, IgnoreDifferencesOnResourceUpdates: false}
 }
 
 // GetResourceCompareOptions loads the resource compare options settings from the ConfigMap
@@ -949,7 +1017,7 @@ func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, erro
 func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get argo-cd config map: %v", err)
 	}
 	helmOptions := &v1alpha1.HelmOptions{}
 	if value, ok := argoCDCM.Data[helmValuesFileSchemesKey]; ok {
@@ -968,7 +1036,7 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	kustomizeVersionsMap := map[string]KustomizeVersion{}
 	buildOptions := map[string]string{}
@@ -985,7 +1053,7 @@ func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 		if strings.HasPrefix(k, kustomizeVersionKeyPrefix) {
 			err = addKustomizeVersion(kustomizeVersionKeyPrefix, k, v, kustomizeVersionsMap)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to add kustomize version from %q: %w", k, err)
 			}
 		}
 
@@ -993,7 +1061,7 @@ func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 		if strings.HasPrefix(k, kustomizePathPrefixKey) {
 			err = addKustomizeVersion(kustomizePathPrefixKey, k, v, kustomizeVersionsMap)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to add kustomize version from %q: %w", k, err)
 			}
 		}
 
@@ -1028,14 +1096,14 @@ func addKustomizeVersion(prefix, name, path string, kvMap map[string]KustomizeVe
 func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving config map: %w", err)
 	}
 	helmRepositories := make([]HelmRepoCredentials, 0)
 	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
 	if helmRepositoriesStr != "" {
 		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &helmRepositories)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error unmarshalling helm repositories: %w", err)
 		}
 	}
 	return helmRepositories, nil
@@ -1053,7 +1121,7 @@ func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
 	// Get the config map outside of the lock
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get argo-cd config map: %w", err)
 	}
 
 	mgr.mutex.Lock()
@@ -1063,7 +1131,7 @@ func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
 	if repositoriesStr != "" {
 		err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to unmarshal repositories from config map key %q: %w", repositoriesKey, err)
 		}
 	}
 	mgr.reposCache = repositories
@@ -1113,7 +1181,7 @@ func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials,
 	// Get the config map outside of the lock
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving config map: %w", err)
 	}
 
 	mgr.mutex.Lock()
@@ -1134,7 +1202,7 @@ func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials,
 func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving config map: %w", err)
 	}
 	return &GoogleAnalytics{
 		TrackingID:     argoCDCM.Data[gaTrackingID],
@@ -1145,7 +1213,7 @@ func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
 func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving config map: %w", err)
 	}
 	chatText, ok := argoCDCM.Data[helpChatText]
 	if !ok {
@@ -1170,15 +1238,15 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	}
 	argoCDCM, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	argoCDSecret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving argocd-secret: %w", err)
 	}
 	selector, err := labels.Parse(partOfArgoCDSelector)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing Argo CD selector %w", err)
 	}
 	secrets, err := mgr.secrets.Secrets(mgr.namespace).List(selector)
 	if err != nil {
@@ -1397,6 +1465,12 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	if gogsWebhookSecret := argoCDSecret.Data[settingsWebhookGogsSecretKey]; len(gogsWebhookSecret) > 0 {
 		settings.WebhookGogsSecret = string(gogsWebhookSecret)
 	}
+	if azureDevOpsUsername := argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey]; len(azureDevOpsUsername) > 0 {
+		settings.WebhookAzureDevOpsUsername = string(azureDevOpsUsername)
+	}
+	if azureDevOpsPassword := argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey]; len(azureDevOpsPassword) > 0 {
+		settings.WebhookAzureDevOpsPassword = string(azureDevOpsPassword)
+	}
 
 	// The TLS certificate may be externally managed. We try to load it from an
 	// external secret first. If the external secret doesn't exist, we either
@@ -1444,7 +1518,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 // return values are nil, no external secret has been configured.
 func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, error) {
 	var cert tls.Certificate
-	secret, err := mgr.clientset.CoreV1().Secrets(mgr.namespace).Get(mgr.ctx, externalServerTLSSecretName, metav1.GetOptions{})
+	secret, err := mgr.secrets.Secrets(mgr.namespace).Get(externalServerTLSSecretName)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return nil, nil
@@ -1515,6 +1589,12 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		if settings.WebhookGogsSecret != "" {
 			argoCDSecret.Data[settingsWebhookGogsSecretKey] = []byte(settings.WebhookGogsSecret)
+		}
+		if settings.WebhookAzureDevOpsUsername != "" {
+			argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey] = []byte(settings.WebhookAzureDevOpsUsername)
+		}
+		if settings.WebhookAzureDevOpsPassword != "" {
+			argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey] = []byte(settings.WebhookAzureDevOpsPassword)
 		}
 		// we only write the certificate to the secret if it's not externally
 		// managed.
@@ -1897,7 +1977,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		// set JWT signature
 		signature, err := util.MakeSignature(32)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error setting JWT signature: %w", err)
 		}
 		cdSettings.ServerSignature = signature
 		log.Info("Initialized server signature")
@@ -2027,14 +2107,14 @@ func ReplaceStringSecret(val string, secretValues map[string]string) string {
 func (mgr *SettingsManager) GetGlobalProjectsSettings() ([]GlobalProjectSettings, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	globalProjectSettings := make([]GlobalProjectSettings, 0)
 	if value, ok := argoCDCM.Data[globalProjectsKey]; ok {
 		if value != "" {
 			err := yaml.Unmarshal([]byte(value), &globalProjectSettings)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error unmarshalling global project settings: %w", err)
 			}
 		}
 	}

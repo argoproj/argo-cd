@@ -94,8 +94,8 @@ metadata:
 type: Opaque
 data:
   # ...
-  # The secret value must be base64 encoded **once**
-  # this value corresponds to: `printf "strong-password" | base64`
+  # The secret value must be base64 encoded **once**.
+  # this value corresponds to: `printf "strong-password" | base64`.
   plugin.myplugin.token: "c3Ryb25nLXBhc3N3b3Jk"
   # ...
 ```
@@ -124,9 +124,9 @@ type: Opaque
 data:
   # ...
   # Store client secret like below.
-  # Ensure the secret is base64 encoded
-  plugin.myplugin.token: <client-secret-base64-encoded>
-  # ...
+  # The secret value must be base64 encoded **once**.
+  # This value corresponds to: `printf "strong-password" | base64`.
+  plugin.myplugin.token: "c3Ryb25nLXBhc3N3b3Jk"
 ```
 
 ### HTTP server
@@ -138,7 +138,7 @@ You can deploy it either as a sidecar or as a standalone deployment (the latter 
 In the example, the token is stored in a file at this location : `/var/run/argo/token`
 
 ```
-string-password
+strong-password
 ```
 
 ```python
@@ -199,7 +199,7 @@ if __name__ == '__main__':
 Execute getparams with curl :
 
 ```
-curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
+curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer strong-password" -d \
 '{
   "applicationSetName": "fake-appset",
   "input": {
@@ -221,7 +221,7 @@ Some things to note here:
 
 ## With matrix and pull request example
 
-In the following example, the plugin implementation is returning a set of image digests for the given branch. The returned list contains only one item correspondng to the latest builded image for the branch.
+In the following example, the plugin implementation is returning a set of image digests for the given branch. The returned list contains only one item corresponding to the latest built image for the branch.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -283,7 +283,7 @@ To illustrate :
 - The generator plugin would then perform 2 requests as follows :
 
 ```shell
-curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
+curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer strong-password" -d \
 '{
   "applicationSetName": "fb-matrix",
   "input": {
@@ -297,7 +297,7 @@ curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer st
 Then,
 
 ```shell
-curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
+curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer strong-password" -d \
 '{
   "applicationSetName": "fb-matrix",
   "input": {

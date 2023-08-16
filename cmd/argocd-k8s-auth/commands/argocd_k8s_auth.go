@@ -20,6 +20,7 @@ func NewCommand() *cobra.Command {
 
 	command.AddCommand(newAWSCommand())
 	command.AddCommand(newGCPCommand())
+	command.AddCommand(newAzureCommand())
 	command.AddCommand(newTokenFileCommand())
 
 	return command
