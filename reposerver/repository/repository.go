@@ -400,14 +400,14 @@ func (s *Service) runRepoOperation(
 		}
 
 		var commitSHA string
-		if !hasMultipleSources {
+		if hasMultipleSources {
+			commitSHA = revision
+		} else {
 			commit, err := gitClient.CommitSHA()
 			if err != nil {
 				return err
 			}
 			commitSHA = commit
-		} else {
-			commitSHA = revision
 		}
 
 		// double-check locking
