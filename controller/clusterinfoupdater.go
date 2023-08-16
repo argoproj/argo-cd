@@ -51,7 +51,7 @@ func (c *clusterInfoUpdater) Run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			ticker.Stop()
-			break
+			return
 		case <-ticker.C:
 			c.updateClusters()
 		}
