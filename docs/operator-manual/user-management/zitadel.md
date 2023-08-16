@@ -23,7 +23,7 @@ The following values will be used in this example:
 You may choose different values in your setup; these are used to keep the guide consistent.
 
 ## Setting up your project and application in Zitadel
-First we will create a new project within Zitadel. Go to **Projects** and select **Create New Project**.  
+First, we will create a new project within Zitadel. Go to **Projects** and select **Create New Project**.  
 You should now see the following screen.  
 
 ![Zitadel Project](../../assets/zitadel-project.png "Zitadel Project")
@@ -57,7 +57,7 @@ Your authorizations should now look like this:
 
 Go to **General** and create a new application. Name the application `argocd-application`.
 
-As type of the application, select **WEB** and click continue.
+For type of the application, select **WEB** and click continue.
 
 ![Zitadel Application Setup Step 1](../../assets/zitadel-application-1.png "Zitadel Application Setup Step 1")
 
@@ -78,7 +78,7 @@ Verify your configuration on the next screen and click **Create** to create the 
 ![Zitadel Application Setup Step 4](../../assets/zitadel-application-4.png "Zitadel Application Setup Step 4")
 
 After clicking **Create** you will be shown the `ClientId` and the `ClientSecret` for your application. Make sure to copy the ClientSecret as you will not be able to retrieve it after closing this window.  
-For our example the following values are used:
+For our example, the following values are used:
 - ClientId: `227060711795262483@argocd-project`
 - ClientSecret: `UGvTjXVFAQ8EkMv2x4GbPcrEwrJGWZ0sR2KbwHRNfYxeLsDurCiVEpa5bkgW0pl0`
 
@@ -94,7 +94,7 @@ Go to **Token Settings** and enable the following options:
 
 ## Setting up an action in Zitadel
 
-To include the role of the user in the token issued by Zitadel, we will need to setup a Zitadel Action. The authorization in ArgoCD will be determined by the role contained within the auth token.  
+To include the role of the user in the token issued by Zitadel, we will need to set up a Zitadel Action. The authorization in ArgoCD will be determined by the role contained within the auth token.  
 Go to **Actions**, click **New** and choose `groupsClaim` as the name of your action.
 
 Paste the following code into the action:
@@ -197,7 +197,7 @@ The roles specified under `policy.csv` must match the roles configured in Zitade
 The Zitadel role `argocd_administrators` will be assigned the ArgoCD role `admin` granting admin access to ArgoCD.  
 The Zitadel role `argocd_users` will be assigned the ArgoCD role `readonly` granting read-only access to ArgoCD.
 
-Deploy your ArgoCD configmaps. ArgoCD and Zitadel should now be setup correctly to allow users to log in to ArgoCD using Zitadel.
+Deploy your ArgoCD configmaps. ArgoCD and Zitadel should now be set up correctly to allow users to log in to ArgoCD using Zitadel.
 
 ## Testing the setup
 
