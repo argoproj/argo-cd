@@ -158,7 +158,14 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 	targetObjs := make([]*unstructured.Unstructured, 0)
 
 	// Store the map of all sources having ref field into a map for applications with sources field
-	refSources, err := argo.GetRefSources(context.Background(), app.Spec, m.db)
+	// If it's for a rollback process, the refSources[*].targetRevision fields are the desired
+	// revisions for the rollback
+	refSources, err := argo.GetRefSources(context.Background(), argo.GetRefSourcesOptions{
+		Spec:       app.Spec,
+		Db:         m.db,
+		Revisions:  revisions,
+		IsRollback: rollback,
+	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get ref sources: %v", err)
 	}
@@ -201,7 +208,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			RefSources:         refSources,
 			ProjectName:        proj.Name,
 			ProjectSourceRepos: proj.Spec.SourceRepos,
-			IsRollback:         rollback,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)

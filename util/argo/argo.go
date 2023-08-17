@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -408,7 +407,10 @@ func validateRepo(ctx context.Context,
 		}
 	}
 
-	refSources, err := GetRefSources(ctx, app.Spec, db)
+	refSources, err := GetRefSources(ctx, GetRefSourcesOptions{
+		Spec: app.Spec,
+		Db:   db,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error getting ref sources: %w", err)
 	}
@@ -431,46 +433,6 @@ func validateRepo(ctx context.Context,
 		refSources)...)
 
 	return conditions, nil
-}
-
-// GetRefSources creates a map of ref keys (from the sources' 'ref' fields) to information about the referenced source.
-// This function also validates the references use allowed characters and does not define the same ref key more than
-// once (which would lead to ambiguous references).
-func GetRefSources(ctx context.Context, spec argoappv1.ApplicationSpec, db db.ArgoDB) (argoappv1.RefTargetRevisionMapping, error) {
-	refSources := make(argoappv1.RefTargetRevisionMapping)
-	if spec.HasMultipleSources() {
-		// Validate first to avoid unnecessary DB calls.
-		refKeys := make(map[string]bool)
-		for _, source := range spec.Sources {
-			if source.Ref != "" {
-				isValidRefKey := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString
-				if !isValidRefKey(source.Ref) {
-					return nil, fmt.Errorf("sources.ref %s cannot contain any special characters except '_' and '-'", source.Ref)
-				}
-				refKey := "$" + source.Ref
-				if _, ok := refKeys[refKey]; ok {
-					return nil, fmt.Errorf("invalid sources: multiple sources had the same `ref` key")
-				}
-				refKeys[refKey] = true
-			}
-		}
-		// Get Repositories for all sources before generating Manifests
-		for _, source := range spec.Sources {
-			if source.Ref != "" {
-				repo, err := db.GetRepository(ctx, source.RepoURL)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get repository %s: %v", source.RepoURL, err)
-				}
-				refKey := "$" + source.Ref
-				refSources[refKey] = &argoappv1.RefTarget{
-					Repo:           *repo,
-					TargetRevision: source.TargetRevision,
-					Chart:          source.Chart,
-				}
-			}
-		}
-	}
-	return refSources, nil
 }
 
 // ValidateDestination sets the 'Server' value of the ApplicationDestination, if it is not set.
