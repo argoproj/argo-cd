@@ -193,14 +193,14 @@ func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
 	for k, v := range resMap1 {
 		firstUn, err := toUnstructured(v)
 		if err != nil {
-			return err
+			return fmt.Errorf("error converting first resource to unstructured: %w", err)
 		}
 		var secondUn *unstructured.Unstructured
 		second, ok := resMap2[k]
 		if ok {
 			secondUn, err = toUnstructured(second)
 			if err != nil {
-				return err
+				return fmt.Errorf("error converting second resource to unstructured: %w", err)
 			}
 			delete(resMap2, k)
 		}
