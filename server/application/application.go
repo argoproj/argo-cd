@@ -1418,13 +1418,20 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 
 	var source *v1alpha1.ApplicationSource
 	if a.Spec.HasMultipleSources() {
-		// the source count can change during the time, we cannot just trust in .status.sync
-		// because if a source has been added/removed, the revisions there won't match
-		// as this is only used for the UI and not internally, we can use the historical data
-		// using the specific revisionId
-		for _, h := range a.Status.History {
-			if h.ID == int64(*q.VersionId) {
-				source = &h.Sources[*q.SourceIndex]
+		// If the historical data is empty (because the app hasn't been sysnced yet)
+		// we can use the source, if not (the app has been synced at least once)
+		// we have to use the history because sources can be added/removed
+		if len(a.Status.History) == 0 {
+			source = &a.Spec.Sources[*q.SourceIndex]
+		} else {
+			// the source count can change during the time, we cannot just trust in .status.sync
+			// because if a source has been added/removed, the revisions there won't match
+			// as this is only used for the UI and not internally, we can use the historical data
+			// using the specific revisionId
+			for _, h := range a.Status.History {
+				if h.ID == int64(*q.VersionId) {
+					source = &h.Sources[*q.SourceIndex]
+				}
 			}
 		}
 		if source == nil {

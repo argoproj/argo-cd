@@ -1045,7 +1045,7 @@ export function getAppDefaultSyncRevision(app?: appModels.Application) {
 // getAppCurrentVersion gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
 // field.
 export function getAppCurrentVersion(app?: appModels.Application) {
-    if (!app || !app.status || !app.status.sync) {
+    if (!app || !app.status || !app.status.history) {
         return 0;
     }
     return app.status.history[app.status.history.length - 1].id;
