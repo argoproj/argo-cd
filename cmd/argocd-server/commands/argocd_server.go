@@ -35,14 +35,9 @@ const (
 )
 
 var (
-	failureRetryCount              = 0
-	failureRetryPeriodMilliSeconds = 100
+	failureRetryCount              = env.ParseNumFromEnv(failureRetryCountEnv, 0, 0, 10)
+	failureRetryPeriodMilliSeconds = env.ParseNumFromEnv(failureRetryPeriodMilliSecondsEnv, 100, 0, 1000)
 )
-
-func init() {
-	failureRetryCount = env.ParseNumFromEnv(failureRetryCountEnv, failureRetryCount, 0, 10)
-	failureRetryPeriodMilliSeconds = env.ParseNumFromEnv(failureRetryPeriodMilliSecondsEnv, failureRetryPeriodMilliSeconds, 0, 1000)
-}
 
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
