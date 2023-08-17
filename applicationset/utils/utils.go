@@ -91,6 +91,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		}
 		// Unwrap the newly created pointer
 		if err := r.deeplyReplace(copy.Elem(), originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+			// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 			return err
 		}
 
@@ -111,6 +112,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 
 			copyValue := reflectValue.Elem()
 			if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
 			}
 			copy.Set(copyValue)
@@ -147,6 +149,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 				}
 				copy.Field(i).Set(reflect.ValueOf(data))
 			} else if err := r.deeplyReplace(copy.Field(i), original.Field(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
 			}
 		}
@@ -161,6 +164,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 
 		for i := 0; i < original.Len(); i += 1 {
 			if err := r.deeplyReplace(copy.Index(i), original.Index(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
 			}
 		}
@@ -181,6 +185,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			copyValue := reflect.New(originalValue.Type()).Elem()
 
 			if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
 			}
 
@@ -188,6 +193,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			if key.Kind() == reflect.String {
 				templatedKey, err := r.Replace(key.String(), replaceMap, useGoTemplate, goTemplateOptions)
 				if err != nil {
+					// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 					return err
 				}
 				key = reflect.ValueOf(templatedKey)
@@ -202,6 +208,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		strToTemplate := original.String()
 		templated, err := r.Replace(strToTemplate, replaceMap, useGoTemplate, goTemplateOptions)
 		if err != nil {
+			// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 			return err
 		}
 		if copy.CanSet() {
