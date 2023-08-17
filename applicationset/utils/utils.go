@@ -17,6 +17,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/valyala/fasttemplate"
+	"sigs.k8s.io/yaml"
 
 	log "github.com/sirupsen/logrus"
 
@@ -49,6 +50,22 @@ func copyValueIntoUnexported(destination, value reflect.Value) {
 func copyUnexported(copy, original reflect.Value) {
 	var unexported = reflect.NewAt(original.Type(), unsafe.Pointer(original.UnsafeAddr())).Elem()
 	copyValueIntoUnexported(copy, unexported)
+}
+
+func IsJSONStr(str string) bool {
+	str = strings.TrimSpace(str)
+	return len(str) > 0 && str[0] == '{'
+}
+
+func ConvertYAMLToJSON(str string) (string, error) {
+	if !IsJSONStr(str) {
+		jsonStr, err := yaml.YAMLToJSON([]byte(str))
+		if err != nil {
+			return str, err
+		}
+		return string(jsonStr), nil
+	}
+	return str, nil
 }
 
 // This function is in charge of searching all String fields of the object recursively and apply templating
@@ -87,11 +104,19 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		originalValue := original.Elem()
 		// Create a new object. Now new gives us a pointer, but we want the value it
 		// points to, so we have to call Elem() to unwrap it
-		copyValue := reflect.New(originalValue.Type()).Elem()
-		if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
-			return fmt.Errorf("error during deep replacement: %w", err)
+
+		if originalValue.IsValid() {
+			reflectType := originalValue.Type()
+
+			reflectValue := reflect.New(reflectType)
+
+			copyValue := reflectValue.Elem()
+			if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
+				return err
+			}
+			copy.Set(copyValue)
 		}
-		copy.Set(copyValue)
 
 	// If it is a struct we translate each field
 	case reflect.Struct:
@@ -100,10 +125,14 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			// specific case time
 			if currentType == "time.Time" {
 				copy.Field(i).Set(original.Field(i))
-			} else if currentType == "Raw.k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1" {
+			} else if currentType == "Raw.k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1" || currentType == "Raw.k8s.io/apimachinery/pkg/runtime" {
 				var unmarshaled interface{}
 				originalBytes := original.Field(i).Bytes()
-				err := json.Unmarshal(originalBytes, &unmarshaled)
+				convertedToJson, err := ConvertYAMLToJSON(string(originalBytes))
+				if err != nil {
+					return fmt.Errorf("error while converting template to json %q: %w", convertedToJson, err)
+				}
+				err = json.Unmarshal([]byte(convertedToJson), &unmarshaled)
 				if err != nil {
 					return fmt.Errorf("failed to unmarshal JSON field: %w", err)
 				}
@@ -120,7 +149,8 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 				}
 				copy.Field(i).Set(reflect.ValueOf(data))
 			} else if err := r.deeplyReplace(copy.Field(i), original.Field(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
-				return fmt.Errorf("error during deep replacement of field #%d: %w", i, err)
+				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
+				return err
 			}
 		}
 
@@ -134,7 +164,8 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 
 		for i := 0; i < original.Len(); i += 1 {
 			if err := r.deeplyReplace(copy.Index(i), original.Index(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
-				return fmt.Errorf("error during deep replacement of element at index %d: %w", i, err)
+				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
+				return err
 			}
 		}
 
@@ -154,14 +185,16 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			copyValue := reflect.New(originalValue.Type()).Elem()
 
 			if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
-				return fmt.Errorf("error during deep replacement: %w", err)
+				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
+				return err
 			}
 
 			// Keys can be templated as well as values (e.g. to template something into an annotation).
 			if key.Kind() == reflect.String {
 				templatedKey, err := r.Replace(key.String(), replaceMap, useGoTemplate, goTemplateOptions)
 				if err != nil {
-					return fmt.Errorf("error replacing key with template: %w", err)
+					// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
+					return err
 				}
 				key = reflect.ValueOf(templatedKey)
 			}
@@ -175,7 +208,8 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		strToTemplate := original.String()
 		templated, err := r.Replace(strToTemplate, replaceMap, useGoTemplate, goTemplateOptions)
 		if err != nil {
-			return fmt.Errorf("error replacing template string: %w", err)
+			// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
+			return err
 		}
 		if copy.CanSet() {
 			copy.SetString(templated)
