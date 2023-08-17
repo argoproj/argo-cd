@@ -1,0 +1,49 @@
+{
+    "actor": {
+      "nickname": "john_doe",
+      "display_name": "John Doe",
+      "account_id": "5a7b32f7c1d2e3f4",
+      "links": {
+        "self": {
+          "href": "https://bitbucket.org/john_doe/"
+        }
+      }
+    },
+    "repository": {
+      "full_name": "john_doe/my-repo",
+      "name": "my-repo",
+      "links": {
+        "self": {
+          "href": "https://bitbucket.org/john_doe/my-repo"
+        }
+      }
+    },
+    "push": {
+      "changes": [
+        {
+          "new": {
+            "name": "master",
+            "target": {
+              "hash": "a1b2c3d4e5f6",
+              "author": {
+                "raw": "John Doe <john@example.com>",
+                "user": {
+                  "username": "john_doe",
+                  "display_name": "John Doe",
+                  "account_id": "5a7b32f7c1d2e3f4",
+                  "links": {
+                    "self": {
+                      "href": "https://bitbucket.org/john_doe/"
+                    }
+                  }
+                }
+              },
+              "message": "Added new feature",
+              "date": "2023-08-15T10:30:00+00:00"
+            }
+          }
+        }
+      ]
+    }
+  }
+  
