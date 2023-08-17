@@ -10,7 +10,7 @@ on:
 permissions: {}
 
 env:
-  GOLANG_VERSION: '1.20' # Note: go-version must also be set in job argocd-image.with.go-version
+  GOLANG_VERSION: '1.21' # Note: go-version must also be set in job argocd-image.with.go-version
 
 jobs:
   argocd-image:
@@ -23,7 +23,7 @@ jobs:
     with:
       quay_image_name: quay.io/argoproj/argocd:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: 1.20
+      go-version: 1.21
       platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
       push: true
     secrets:
@@ -88,7 +88,7 @@ jobs:
           echo "GIT_TREE_STATE=$(if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)" >> $GITHUB_ENV
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@336e29918d653399e599bfca99fadc1d7ffbc9f7 # v4.3.0
+        uses: goreleaser/goreleaser-action@3fa32b8bb5620a2c1afe798654bbad59f9da4906 # v4.4.0
         id: run-goreleaser
         with:
           version: latest

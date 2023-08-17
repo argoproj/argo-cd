@@ -251,7 +251,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			repoApps:      []string{},
 			repoError:     fmt.Errorf("error"),
 			expected:      []map[string]interface{}{},
-			expectedError: fmt.Errorf("error"),
+			expectedError: fmt.Errorf("error generating params from git: error getting directories from repo: error"),
 		},
 	}
 
@@ -547,7 +547,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoApps:      []string{},
 			repoError:     fmt.Errorf("error"),
 			expected:      []map[string]interface{}{},
-			expectedError: fmt.Errorf("error"),
+			expectedError: fmt.Errorf("error generating params from git: error getting directories from repo: error"),
 		},
 	}
 
@@ -742,7 +742,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 			repoFileContents: map[string][]byte{},
 			repoPathsError:   fmt.Errorf("paths error"),
 			expected:         []map[string]interface{}{},
-			expectedError:    fmt.Errorf("paths error"),
+			expectedError:    fmt.Errorf("error generating params from git: paths error"),
 		},
 		{
 			name:  "test invalid JSON file returns error",
@@ -752,7 +752,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 			},
 			repoPathsError: nil,
 			expected:       []map[string]interface{}{},
-			expectedError:  fmt.Errorf("unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
+			expectedError:  fmt.Errorf("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",
@@ -1048,7 +1048,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 			repoFileContents: map[string][]byte{},
 			repoPathsError:   fmt.Errorf("paths error"),
 			expected:         []map[string]interface{}{},
-			expectedError:    fmt.Errorf("paths error"),
+			expectedError:    fmt.Errorf("error generating params from git: paths error"),
 		},
 		{
 			name:  "test invalid JSON file returns error",
@@ -1058,7 +1058,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 			},
 			repoPathsError: nil,
 			expected:       []map[string]interface{}{},
-			expectedError:  fmt.Errorf("unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
+			expectedError:  fmt.Errorf("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",
