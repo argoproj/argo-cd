@@ -14,5 +14,5 @@
 helm3_version=3.12.4
 kubectl_version=1.27.4
 kubectx_version=0.6.3
-kustomize5_version=5.1.0
+kustomize5_version=5.1.1
 protoc_version=3.17.3
