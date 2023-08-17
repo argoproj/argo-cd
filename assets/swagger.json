@@ -1618,6 +1618,13 @@
           {
             "type": "integer",
             "format": "int32",
+            "description": "source index (for multi source apps).",
+            "name": "sourceIndex",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
             "description": "versionId from historical data (for multi source apps).",
             "name": "versionId",
             "in": "query"
@@ -1670,6 +1677,13 @@
           {
             "type": "string",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "source index (for multi source apps).",
+            "name": "sourceIndex",
             "in": "query"
           },
           {

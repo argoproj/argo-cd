@@ -1483,7 +1483,7 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 	}
 
 	if source.Chart == "" {
-		return nil, fmt.Errorf("no chart found for application: %v", appName)
+		return nil, fmt.Errorf("no chart found for application: %v", q.GetName())
 	}
 	repo, err := s.db.GetRepository(ctx, source.RepoURL)
 	if err != nil {
