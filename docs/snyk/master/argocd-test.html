@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="1 known vulnerabilities found in 1 vulnerable dependency paths.">
+  <meta name="description" content="0 known vulnerabilities found in 0 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">August 6th 2023, 12:14:07 am (UTC+00:00)</p>
+                <p class="timestamp">August 13th 2023, 12:13:27 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -466,99 +466,16 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>1</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>1 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>1859</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>0</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>0 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>1860</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
 
     <div class="layout-container" style="padding-top: 35px;">
-      <div class="cards--vuln filter--patch filter--ignore">
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Denial of Service (DoS)</h2>
-            <div class="card__section">
-        
-                <div class="label label--high">
-                    <span class="label__text">high severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            nhooyr.io/websocket
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/improbable-eng/grpc-web/go/grpcweb@0.15.0 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/improbable-eng/grpc-web/go/grpcweb@0.15.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        nhooyr.io/websocket@1.8.6
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://github.com/nhooyr/websocket">nhooyr.io/websocket</a> is a minimal and idiomatic WebSocket library for Go.</p>
-        <p>Affected versions of this package are vulnerable to Denial of Service (DoS). A double channel close panic is possible if a peer sent back multiple pongs for every ping.
-        If the second pong arrived before the ping <code>goroutine</code> deleted its channel from the map, the channel would be closed twice and a panic would
-        occur.</p>
-        <h2 id="details">Details</h2>
-        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
-        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
-        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
-        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
-        <p>Two common types of DoS vulnerabilities:</p>
-        <ul>
-        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
-        </li>
-        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
-        </li>
-        </ul>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>nhooyr.io/websocket</code> to version 1.8.7 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/nhooyr/websocket/commit/3604edcb857415cb2c1213d63328cdcd738f2328">GitHub Commit</a></li>
-        <li><a href="https://github.com/nhooyr/websocket/pull/291">GitHub PR</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-NHOOYRIOWEBSOCKET-1244972">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-      </div><!-- cards -->
+      No known vulnerabilities detected.
     </div>
   </main><!-- .layout-stacked__content -->
 </body>

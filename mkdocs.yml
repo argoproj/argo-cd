@@ -167,6 +167,7 @@ nav:
   - user-guide/selective_sync.md
   - user-guide/sync-waves.md
   - user-guide/sync_windows.md
+  - user-guide/sync-kubectl.md
   - user-guide/skip_reconcile.md
   - Generating Applications with ApplicationSet: user-guide/application-set.md
   - user-guide/ci_automation.md
