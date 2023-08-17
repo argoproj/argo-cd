@@ -1048,9 +1048,9 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 	manifestGenerateLock.Lock(appPath)
 	defer manifestGenerateLock.Unlock(appPath)
 
-	// the `helm dependency build` is potentially time consuming 1~2 seconds
-	// marker file is used to check if command already run to avoid running it again unnecessary
-	// file is removed when repository re-initialized (e.g. when another commit is processed)
+	// the `helm dependency build` is potentially a time-consuming 1~2 seconds,
+	// a marker file is used to check if command already run to avoid running it again unnecessarily
+	// the file is removed when repository is re-initialized (e.g. when another commit is processed)
 	markerFile := path.Join(appPath, helmDepUpMarkerFile)
 	_, err := os.Stat(markerFile)
 	if err == nil {
@@ -1061,9 +1061,14 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 
 	err = h.DependencyBuild()
 	if err != nil {
-		return err
+		return fmt.Errorf("error building helm chart dependencies: %w", err)
 	}
 	return os.WriteFile(markerFile, []byte("marker"), 0644)
+}
+
+func isSourcePermitted(url string, repos []string) bool {
+	p := v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{SourceRepos: repos}}
+	return p.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: url})
 }
 
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, error) {
@@ -1102,7 +1107,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error resolving helm value files: %w", err)
 		}
 
 		templateOpts.Values = resolvedValueFiles
@@ -1110,7 +1115,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		if !appHelm.ValuesIsEmpty() {
 			rand, err := uuid.NewRandom()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error generating random filename for Helm values file: %w", err)
 			}
 			p := path.Join(os.TempDir(), rand.String())
 			defer func() {
@@ -1121,7 +1126,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			}()
 			err = os.WriteFile(p, appHelm.ValuesYAML(), 0644)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error writing helm values file: %w", err)
 			}
 			templateOpts.Values = append(templateOpts.Values, pathutil.ResolvedFilePath(p))
 		}
@@ -1136,7 +1141,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		for _, p := range appHelm.FileParameters {
 			resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(p.Path), q.GetValuesFileSchemes())
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error resolving helm value file path: %w", err)
 			}
 			templateOpts.SetFile[p.Name] = resolvedPath
 		}
@@ -1160,17 +1165,18 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 	helmRepos, err := getHelmRepos(appPath, q.Repos, q.HelmRepoCreds)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting helm repos: %w", err)
 	}
+
 	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, passCredentials)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error initializing helm app object: %w", err)
 	}
 
 	defer h.Dispose()
 	err = h.Init()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error initializing helm app: %w", err)
 	}
 
 	out, err := h.Template(templateOpts)
@@ -1186,6 +1192,24 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 
 		if err != nil {
+			var reposNotPermitted []string
+			// We do a sanity check here to give a nicer error message in case any of the Helm repositories are not permitted by
+			// the AppProject which the application is a part of
+			for _, repo := range helmRepos {
+				msg := err.Error()
+
+				chartCannotBeReached := strings.Contains(msg, "is not a valid chart repository or cannot be reached")
+				couldNotDownloadChart := strings.Contains(msg, "could not download")
+
+				if (chartCannotBeReached || couldNotDownloadChart) && !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
+					reposNotPermitted = append(reposNotPermitted, repo.Repo)
+				}
+			}
+
+			if len(reposNotPermitted) > 0 {
+				return nil, status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
+			}
+
 			return nil, err
 		}
 
@@ -1218,13 +1242,13 @@ func getResolvedValueFiles(
 			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
 			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error resolving value file path: %w", err)
 			}
 		} else {
 			// This will resolve val to an absolute path (or an URL)
 			resolvedPath, isRemote, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error resolving value file path: %w", err)
 			}
 		}
 
@@ -1261,7 +1285,7 @@ func getResolvedRefValueFile(
 	// Resolve the path relative to the referenced repo and block any attempt at traversal.
 	resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(repoPath, repoPath, env.Envsubst(substitutedPath), allowedValueFilesSchemas)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error resolving value file path: %w", err)
 	}
 	return resolvedPath, nil
 }
@@ -1325,7 +1349,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, repoRoot, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting app source type: %w", err)
 	}
 	repoURL := ""
 	if q.Repo != nil {
@@ -1505,7 +1529,7 @@ func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, a
 	}
 	appType, err := discovery.AppType(ctx, appPath, repoPath, enableGenerateManifests, tarExcludedGlobs)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error getting app source type: %v", err)
 	}
 	return v1alpha1.ApplicationSourceType(appType), nil
 }
@@ -2047,7 +2071,7 @@ func loadFileIntoIfExists(path pathutil.ResolvedFilePath, destination *string) e
 	if err == nil && !info.IsDir() {
 		bytes, err := os.ReadFile(stringPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("error reading file from %s: %w", stringPath, err)
 		}
 		*destination = string(bytes)
 	}
@@ -2060,7 +2084,7 @@ func findHelmValueFilesInPath(path string) ([]string, error) {
 
 	files, err := os.ReadDir(path)
 	if err != nil {
-		return result, err
+		return result, fmt.Errorf("error reading helm values file from %s: %w", path, err)
 	}
 
 	for _, f := range files {
@@ -2189,7 +2213,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
 	}
 
 	defer io.Close(closer)
