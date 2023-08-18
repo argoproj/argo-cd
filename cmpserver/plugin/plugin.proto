@@ -4,6 +4,7 @@ option go_package = "github.com/argoproj/argo-cd/v2/cmpserver/apiclient";
 package plugin;
 
 import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
+import "google/protobuf/empty.proto";
 
 // AppStreamRequest is the request object used to send the application's
 // files over a stream.
@@ -57,6 +58,10 @@ message File {
     bytes chunk = 1;
 }
 
+message CmpSettingsResponse {
+    bool provideGitCreds = 1;
+}
+
 // ConfigManagementPlugin Service
 service ConfigManagementPluginService {
     // GenerateManifests receive a stream containing a tgz archive with all required files necessary
@@ -70,5 +75,9 @@ service ConfigManagementPluginService {
 
     // GetParametersAnnouncement gets a list of parameter announcements for the given app
     rpc GetParametersAnnouncement(stream AppStreamRequest) returns (ParametersAnnouncementResponse) {
+    }
+
+    // GetCmpSettings provides configuration information for the plugin
+    rpc GetCmpSettings(google.protobuf.Empty) returns (CmpSettingsResponse) {
     }
 }
