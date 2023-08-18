@@ -61,6 +61,7 @@ message File {
 // CheckPluginConfigurationResponse contains a list of plugin configuration flags.
 message CheckPluginConfigurationResponse {
     bool isDiscoveryConfigured = 1;
+    bool provideGitCreds = 2;
 }
 
 // ConfigManagementPlugin Service
