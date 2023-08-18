@@ -559,7 +559,7 @@ func appControllerIndexer(rawObj client.Object) []string {
 	if owner == nil {
 		return nil
 	}
-	// ...make sure it's a application set...
+	// ...make sure it's an application set...
 	if owner.APIVersion != argov1alpha1.SchemeGroupVersion.String() || owner.Kind != "ApplicationSet" {
 		return nil
 	}
