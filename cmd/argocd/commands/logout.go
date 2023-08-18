@@ -45,6 +45,7 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 
 			logoutURL := fmt.Sprintf("%s://%s%s", prefix, context, common.LogoutEndpoint)
 			req, err := http.NewRequest("POST", logoutURL, nil)
+			errors.CheckError(err)
 			cookie := &http.Cookie{
 				Name:  common.AuthCookieName,
 				Value: token,

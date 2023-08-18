@@ -89,7 +89,7 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
 
-	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds() * 2), "123")
+	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds()*2), "123")
 	if err != nil {
 		t.Errorf("Could not create token: %v", err)
 	}
@@ -139,10 +139,10 @@ func TestSessionManager_AdminToken_Revoked(t *testing.T) {
 
 	mgr := newSessionManager(settingsMgr, getProjLister(), storage)
 
-	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds() * 2), "123")
+	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds()*2), "123")
 	require.NoError(t, err)
 
-	err = storage.RevokeToken(context.Background(), "123", autoRegenerateTokenDuration * 2)
+	err = storage.RevokeToken(context.Background(), "123", autoRegenerateTokenDuration*2)
 	require.NoError(t, err)
 
 	_, _, err = mgr.Parse(token)
@@ -190,7 +190,7 @@ func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", false), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
-	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds() * 2), "abc")
+	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds()*2), "abc")
 	if err != nil {
 		t.Errorf("Could not create token: %v", err)
 	}
@@ -204,7 +204,7 @@ func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true, settings.AccountCapabilityLogin), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
-	token, err := mgr.Create("admin", int64(autoRegenerateTokenDuration.Seconds() * 2), "abc")
+	token, err := mgr.Create("admin", int64(autoRegenerateTokenDuration.Seconds()*2), "abc")
 	if err != nil {
 		t.Errorf("Could not create token: %v", err)
 	}
@@ -1181,7 +1181,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		defer closer()
 
 		storage := NewUserStateStorage(redisClient)
-		err := storage.RevokeToken(context.Background(), tokenID, autoRegenerateTokenDuration * 2)
+		err := storage.RevokeToken(context.Background(), tokenID, autoRegenerateTokenDuration*2)
 		require.NoError(t, err)
 
 		config := map[string]string{
@@ -1225,7 +1225,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		defer closer()
 
 		storage := NewUserStateStorage(redisClient)
-		err := storage.RevokeToken(context.Background(), tokenID, autoRegenerateTokenDuration * 2)
+		err := storage.RevokeToken(context.Background(), tokenID, autoRegenerateTokenDuration*2)
 		require.NoError(t, err)
 
 		config := map[string]string{
