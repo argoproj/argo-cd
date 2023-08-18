@@ -2175,17 +2175,17 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	}
 	defer io.Close(conn)
 
-	generateManifestStream, err := cmpClient.GetParametersAnnouncement(ctx, grpc_retry.Disable())
+	parametersAnnouncementStream, err := cmpClient.GetParametersAnnouncement(ctx, grpc_retry.Disable())
 	if err != nil {
-		return fmt.Errorf("error getting generateManifestStream: %w", err)
+		return fmt.Errorf("error getting parametersAnnouncementStream: %w", err)
 	}
 
-	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, tarExcludedGlobs)
+	err = cmp.SendRepoStream(parametersAnnouncementStream.Context(), appPath, repoPath, parametersAnnouncementStream, env, tarExcludedGlobs)
 	if err != nil {
 		return fmt.Errorf("error sending file to cmp-server: %s", err)
 	}
 
-	announcement, err := generateManifestStream.CloseAndRecv()
+	announcement, err := parametersAnnouncementStream.CloseAndRecv()
 	if err != nil {
 		return fmt.Errorf("failed to get parameter anouncement: %w", err)
 	}
