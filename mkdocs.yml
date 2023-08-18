@@ -177,6 +177,7 @@ nav:
   - user-guide/external-url.md
   - user-guide/extra_info.md
   - Notification subscriptions: user-guide/subscriptions.md
+  - user-guide/annotations-and-labels.md
   - Command Reference: user-guide/commands/argocd.md
   - Application Specification Reference: user-guide/application-specification.md
 - Developer Guide:
