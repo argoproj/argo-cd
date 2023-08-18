@@ -87,7 +87,12 @@ func (s *applicationEventReporter) getDesiredManifests(ctx context.Context, a *a
 		Revision: &a.Status.Sync.Revision,
 	})
 	if err != nil {
-		if !strings.Contains(err.Error(), "Manifest generation error") {
+		notManifestGenerationError := !strings.Contains(err.Error(), "Manifest generation error")
+		// when application deleted rbac also throws erorr with PermissionDenied
+		// we can ignore the error, as we check rbac access before reporting events
+		notPermissionDeniedError := !strings.Contains(err.Error(), "PermissionDenied")
+
+		if notManifestGenerationError && notPermissionDeniedError {
 			return nil, fmt.Errorf("failed to get application desired state manifests: %w", err), false
 		}
 		// if it's manifest generation error we need to still report the actual state
