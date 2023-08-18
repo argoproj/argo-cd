@@ -1,7 +1,8 @@
 #!/bin/bash
-# set -eux -o pipefail
 
-# . $(dirname $0)/../tool-versions.sh
+set -eux -o pipefail
+
+. $(dirname $0)/../tool-versions.sh
 
 mkdir -p /tmp/kubectl && cd /tmp/kubectl
 curl -LO https://github.com/voidspooks/kubernetes/releases/download/v${kubectl_version}/kubectl
