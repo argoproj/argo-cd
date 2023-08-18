@@ -97,12 +97,15 @@ func newCommand() *cobra.Command {
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			factory := informers.NewSharedInformerFactoryWithOptions(kubeClient, 1*time.Minute, informers.WithNamespace(ns))
 			informer := factory.Core().V1().ConfigMaps().Informer()
-			informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+			_, err = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 				AddFunc: handledConfigMap,
 				UpdateFunc: func(oldObj, newObj interface{}) {
 					handledConfigMap(newObj)
 				},
 			})
+			if err != nil {
+				log.Error(err)
+			}
 			informer.Run(context.Background().Done())
 		},
 	}

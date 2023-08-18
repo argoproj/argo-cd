@@ -115,7 +115,7 @@ func GetOrphanedResourcesSettings(flagSet *pflag.FlagSet, opts ProjectOpts) *v1a
 	if opts.orphanedResourcesEnabled || warnChanged {
 		settings := v1alpha1.OrphanedResourcesMonitorSettings{}
 		if warnChanged {
-			settings.Warn = pointer.BoolPtr(opts.orphanedResourcesWarn)
+			settings.Warn = pointer.Bool(opts.orphanedResourcesWarn)
 		}
 		return &settings
 	}
