@@ -275,11 +275,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 
 	newToken := ""
 	remainingDuration := time.Until(exp)
-	if remainingDuration <= 0 {
-		return nil, "", errors.New("token has expired, please re-login")
-	}
-
-	if remainingDuration < autoRegenerateTokenDuration && capability == settings.AccountCapabilityLogin {
+	if remainingDuration > 0 && remainingDuration < autoRegenerateTokenDuration && capability == settings.AccountCapabilityLogin {
 		uniqueId, err := uuid.NewRandom()
 		if err != nil {
 			return nil, "", fmt.Errorf("could not create UUID for new JWT token: %s", err)
