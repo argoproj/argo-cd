@@ -769,7 +769,6 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata/guestbook")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
-			assert.Contains(t, diffOutput, "")
 		}).
 		Given().
 		When().
