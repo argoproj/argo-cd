@@ -2140,7 +2140,7 @@ spec:
         - name: ARGOCD_REPO_SERVER_MANAGED_BY_ARGO
           valueFrom:
             configMapKeyRef:
-              key: reposerver.managed.by.argo
+              key: reposerver.managed-by.argo
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME
