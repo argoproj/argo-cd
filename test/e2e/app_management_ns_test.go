@@ -755,7 +755,7 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 		Given().
 		ResourceOverrides(map[string]ResourceOverride{
 			"apps/Deployment": {
-				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers/0/image", "/metadata/labels/app.kubernetes.io~managed-by"}},
+				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers/0/image", "/metadata/labels"}},
 			},
 			"Service": {
 				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/metadata/labels"}},
