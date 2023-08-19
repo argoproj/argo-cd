@@ -753,9 +753,14 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
 		}).
 		Given().
-		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {
-			IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers/0/image"}},
-		}}).
+		ResourceOverrides(map[string]ResourceOverride{
+			"apps/Deployment": {
+				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers/0/image", "/metadata/labels/app.kubernetes.io~managed-by"}},
+			},
+			"Service": {
+				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/metadata/labels"}},
+			},
+		}).
 		When().
 		Refresh(RefreshTypeNormal).
 		Then().
@@ -764,6 +769,7 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata/guestbook")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
+			assert.Contains(t, diffOutput, "")
 		}).
 		Given().
 		When().
@@ -1863,7 +1869,7 @@ func TestNamespacedNamespaceAutoCreation(t *testing.T) {
 		Then().
 		Expect(Success("")).
 		And(func(app *Application) {
-			//Verify delete app does not delete the namespace auto created
+			// Verify delete app does not delete the namespace auto created
 			output, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
 			assert.NoError(t, err)
 			assert.Contains(t, output, updatedNamespace)
