@@ -336,11 +336,6 @@ func updateRBACConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	updateGenericConfigMap(common.ArgoCDRBACConfigMapName, updater)
 }
 
-// Convenience wrapper for updating argocd-cmd-params-cm
-func updateParamsConfigMap(updater func(cm *corev1.ConfigMap) error) {
-	updateGenericConfigMap(common.ArgoCDParamsConfigMapName, updater)
-}
-
 // Updates a given config map in argocd-e2e namespace
 func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) {
 	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, v1.GetOptions{})
@@ -351,18 +346,6 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 	errors.CheckError(updater(cm))
 	_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, v1.UpdateOptions{})
 	errors.CheckError(err)
-}
-
-func SetManagedByArgo(valBool bool) {
-	updateParamsConfigMap(func(cm *corev1.ConfigMap) error {
-		val := "false"
-		if valBool {
-			val = "true"
-		}
-
-		cm.Data["reposerver.managed.by.argo"] = val
-		return nil
-	})
 }
 
 func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) {
@@ -912,19 +895,15 @@ func RemoveSubmodule() {
 // RestartRepoServer performs a restart of the repo server deployment and waits
 // until the rollout has completed.
 func RestartRepoServer() {
-	log.Infof("Waiting for repo server to restart")
-	prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
-	workload := "argocd-repo-server"
-	if prefix != "" {
-		workload = prefix + "-repo-server"
-	}
-
 	if IsRemote() {
+		log.Infof("Waiting for repo server to restart")
+		prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
+		workload := "argocd-repo-server"
+		if prefix != "" {
+			workload = prefix + "-repo-server"
+		}
 		FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload))
 		FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload))
-	} else {
-		FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload, "-n", TestNamespace()))
-		FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload, "-n", TestNamespace()))
 	}
 	// wait longer to avoid error on s390x
 	time.Sleep(10 * time.Second)

@@ -2814,9 +2814,6 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 }
 
 func TestAppManagedByArgo(t *testing.T) {
-	fixture.SetManagedByArgo(true)
-	fixture.RestartRepoServer()
-
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -2833,10 +2830,7 @@ func TestAppManagedByArgo(t *testing.T) {
 			for i := range resources {
 				value, exists := resources[i].GetLabels()["app.kubernetes.io/managed-by"]
 				assert.True(t, exists)
-				assert.Equal(t, "argo-cd", value)
+				assert.Equal(t, "argocd", value)
 			}
-
-			fixture.SetManagedByArgo(false)
-			fixture.RestartRepoServer()
 		})
 }
