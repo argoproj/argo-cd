@@ -443,6 +443,8 @@ type SCMProviderGeneratorGitlab struct {
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
 	// When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to "true"
 	IncludeSharedProjects *bool `json:"includeSharedProjects,omitempty" protobuf:"varint,7,opt,name=includeSharedProjects"`
+	// Filter repos list based on Gitlab Topic.
+	Topic string `json:"topic,omitempty" protobuf:"bytes,8,opt,name=topic"`
 }
 
 func (s *SCMProviderGeneratorGitlab) WillIncludeSharedProjects() bool {
