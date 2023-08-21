@@ -15,7 +15,7 @@ import (
 
 func Test_generateParamsFromGitFile(t *testing.T) {
 	values := map[string]string{}
-	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
+	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("0123456789abcdef", "path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
 `), values, false, nil, "")
@@ -24,6 +24,7 @@ foo:
 	}
 	assert.Equal(t, []map[string]interface{}{
 		{
+			"commitSHA":               "0123456789abcdef",
 			"foo.bar":                 "baz",
 			"path":                    "path/dir",
 			"path.basename":           "dir",
@@ -38,7 +39,7 @@ foo:
 
 func Test_generatePrefixedParamsFromGitFile(t *testing.T) {
 	values := map[string]string{}
-	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
+	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("0123456789abcdef", "path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
 `), values, false, nil, "myRepo")
@@ -48,6 +49,7 @@ foo:
 	assert.Equal(t, []map[string]interface{}{
 		{
 			"foo.bar":                        "baz",
+			"myRepo.commitSHA":               "0123456789abcdef",
 			"myRepo.path":                    "path/dir",
 			"myRepo.path.basename":           "dir",
 			"myRepo.path.filename":           "file_name.yaml",
@@ -61,7 +63,7 @@ foo:
 
 func Test_generateParamsFromGitFileGoTemplate(t *testing.T) {
 	values := map[string]string{}
-	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
+	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("0123456789abcdef", "path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
 `), values, true, nil, "")
@@ -70,6 +72,7 @@ foo:
 	}
 	assert.Equal(t, []map[string]interface{}{
 		{
+			"commitSHA": "0123456789abcdef",
 			"foo": map[string]interface{}{
 				"bar": "baz",
 			},
@@ -90,7 +93,7 @@ foo:
 
 func Test_generatePrefixedParamsFromGitFileGoTemplate(t *testing.T) {
 	values := map[string]string{}
-	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
+	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("0123456789abcdef", "path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
 `), values, true, nil, "myRepo")
@@ -103,6 +106,7 @@ foo:
 				"bar": "baz",
 			},
 			"myRepo": map[string]interface{}{
+				"commitSHA": "0123456789abcdef",
 				"path": map[string]interface{}{
 					"path":               "path/dir",
 					"basename":           "dir",
@@ -130,6 +134,8 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		values          map[string]string
 		expected        []map[string]interface{}
 		expectedError   error
+		commitSHA       string
+		commitError     error
 	}{
 		{
 			name:        "happy flow - created apps",
@@ -140,11 +146,13 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				"app_3",
 				"p1/app4",
 			},
-			repoError: nil,
+			repoError:   nil,
+			commitSHA:   "0123456789abcdef",
+			commitError: nil,
 			expected: []map[string]interface{}{
-				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1"},
-				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "path[0]": "app2"},
-				{"path": "app_3", "path.basename": "app_3", "path.basenameNormalized": "app-3", "path[0]": "app_3"},
+				{"commitSHA": "0123456789abcdef", "path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1"},
+				{"commitSHA": "0123456789abcdef", "path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "path[0]": "app2"},
+				{"commitSHA": "0123456789abcdef", "path": "app_3", "path.basename": "app_3", "path.basenameNormalized": "app-3", "path[0]": "app_3"},
 			},
 			expectedError: nil,
 		},
@@ -158,11 +166,13 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				"app_3",
 				"p1/app4",
 			},
-			repoError: nil,
+			repoError:   nil,
+			commitSHA:   "0123456789abcdef",
+			commitError: nil,
 			expected: []map[string]interface{}{
-				{"myRepo.path": "app1", "myRepo.path.basename": "app1", "myRepo.path.basenameNormalized": "app1", "myRepo.path[0]": "app1"},
-				{"myRepo.path": "app2", "myRepo.path.basename": "app2", "myRepo.path.basenameNormalized": "app2", "myRepo.path[0]": "app2"},
-				{"myRepo.path": "app_3", "myRepo.path.basename": "app_3", "myRepo.path.basenameNormalized": "app-3", "myRepo.path[0]": "app_3"},
+				{"myRepo.commitSHA": "0123456789abcdef", "myRepo.path": "app1", "myRepo.path.basename": "app1", "myRepo.path.basenameNormalized": "app1", "myRepo.path[0]": "app1"},
+				{"myRepo.commitSHA": "0123456789abcdef", "myRepo.path": "app2", "myRepo.path.basename": "app2", "myRepo.path.basenameNormalized": "app2", "myRepo.path[0]": "app2"},
+				{"myRepo.commitSHA": "0123456789abcdef", "myRepo.path": "app_3", "myRepo.path.basename": "app_3", "myRepo.path.basenameNormalized": "app-3", "myRepo.path[0]": "app_3"},
 			},
 			expectedError: nil,
 		},
@@ -175,10 +185,12 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				"p1/p2/app3",
 				"p1/p2/p3/app4",
 			},
-			repoError: nil,
+			repoError:   nil,
+			commitSHA:   "0123456789abcdef",
+			commitError: nil,
 			expected: []map[string]interface{}{
-				{"path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path[2]": "app3", "path.basenameNormalized": "app3"},
+				{"commitSHA": "0123456789abcdef", "path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
+				{"commitSHA": "0123456789abcdef", "path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path[2]": "app3", "path.basenameNormalized": "app3"},
 			},
 			expectedError: nil,
 		},
@@ -192,11 +204,13 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				"p1/app3",
 				"p2/app3",
 			},
-			repoError: nil,
+			repoError:   nil,
+			commitSHA:   "0123456789abcdef",
+			commitError: nil,
 			expected: []map[string]interface{}{
-				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
-				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3"},
+				{"commitSHA": "0123456789abcdef", "path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
+				{"commitSHA": "0123456789abcdef", "path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2"},
+				{"commitSHA": "0123456789abcdef", "path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3"},
 			},
 			expectedError: nil,
 		},
@@ -210,11 +224,13 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				"p1/app3",
 				"p2/app3",
 			},
-			repoError: nil,
+			repoError:   nil,
+			commitSHA:   "0123456789abcdef",
+			commitError: nil,
 			expected: []map[string]interface{}{
-				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
-				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3"},
+				{"commitSHA": "0123456789abcdef", "path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
+				{"commitSHA": "0123456789abcdef", "path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2"},
+				{"commitSHA": "0123456789abcdef", "path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3"},
 			},
 			expectedError: nil,
 		},
@@ -225,15 +241,17 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				"app1",
 				"p1/app2",
 			},
-			repoError: nil,
+			repoError:   nil,
+			commitSHA:   "0123456789abcdef",
+			commitError: nil,
 			values: map[string]string{
 				"foo":   "bar",
 				"aaa":   "{{ path[0] }}",
 				"no-op": "{{ this-does-not-exist }}",
 			},
 			expected: []map[string]interface{}{
-				{"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "app1", "path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
-				{"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "p1", "path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
+				{"commitSHA": "0123456789abcdef", "values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "app1", "path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
+				{"commitSHA": "0123456789abcdef", "values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "p1", "path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
 			},
 			expectedError: nil,
 		},
@@ -242,6 +260,8 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			directories:   []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			repoApps:      []string{},
 			repoError:     nil,
+			commitSHA:     "0123456789abcdef",
+			commitError:   nil,
 			expected:      []map[string]interface{}{},
 			expectedError: nil,
 		},
@@ -250,6 +270,8 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			directories:   []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			repoApps:      []string{},
 			repoError:     fmt.Errorf("error"),
+			commitSHA:     "0123456789abcdef",
+			commitError:   nil,
 			expected:      []map[string]interface{}{},
 			expectedError: fmt.Errorf("error generating params from git: error getting directories from repo: error"),
 		},
@@ -261,11 +283,13 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock := &mocks.Repos{}
 
 			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
-			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
+			argoCDServiceMock.On("CommitSHA", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.commitSHA, testCaseCopy.commitError)
+
+			var gitGenerator = NewGitGenerator(argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -307,6 +331,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		repoError       error
 		expected        []map[string]interface{}
 		expectedError   error
+		commitSHA       string
+		commitError     error
 	}{
 		{
 			name:        "happy flow - created apps",
@@ -317,9 +343,12 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				"app_3",
 				"p1/app4",
 			},
-			repoError: nil,
+			repoError:   nil,
+			commitSHA:   "0123456789abcdef",
+			commitError: nil,
 			expected: []map[string]interface{}{
 				{
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "app1",
 						"basename":           "app1",
@@ -330,6 +359,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "app2",
 						"basename":           "app2",
@@ -340,6 +370,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "app_3",
 						"basename":           "app_3",
@@ -362,10 +393,13 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				"app_3",
 				"p1/app4",
 			},
-			repoError: nil,
+			repoError:   nil,
+			commitSHA:   "0123456789abcdef",
+			commitError: nil,
 			expected: []map[string]interface{}{
 				{
 					"myRepo": map[string]interface{}{
+						"commitSHA": "0123456789abcdef",
 						"path": map[string]interface{}{
 							"path":               "app1",
 							"basename":           "app1",
@@ -378,6 +412,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				},
 				{
 					"myRepo": map[string]interface{}{
+						"commitSHA": "0123456789abcdef",
 						"path": map[string]interface{}{
 							"path":               "app2",
 							"basename":           "app2",
@@ -390,6 +425,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				},
 				{
 					"myRepo": map[string]interface{}{
+						"commitSHA": "0123456789abcdef",
 						"path": map[string]interface{}{
 							"path":               "app_3",
 							"basename":           "app_3",
@@ -412,9 +448,12 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				"p1/p2/app3",
 				"p1/p2/p3/app4",
 			},
-			repoError: nil,
+			repoError:   nil,
+			commitSHA:   "0123456789abcdef",
+			commitError: nil,
 			expected: []map[string]interface{}{
 				{
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "p1/app2",
 						"basename":           "app2",
@@ -426,6 +465,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "p1/p2/app3",
 						"basename":           "app3",
@@ -450,9 +490,12 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				"p1/app3",
 				"p2/app3",
 			},
-			repoError: nil,
+			repoError:   nil,
+			commitSHA:   "0123456789abcdef",
+			commitError: nil,
 			expected: []map[string]interface{}{
 				{
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "app1",
 						"basename":           "app1",
@@ -463,6 +506,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "app2",
 						"basename":           "app2",
@@ -473,6 +517,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "p2/app3",
 						"basename":           "app3",
@@ -496,10 +541,12 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				"p1/app3",
 				"p2/app3",
 			},
-			repoError: nil,
+			repoError:   nil,
+			commitSHA:   "0123456789abcdef",
+			commitError: nil,
 			expected: []map[string]interface{}{
-
 				{
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "app1",
 						"basename":           "app1",
@@ -510,6 +557,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "app2",
 						"basename":           "app2",
@@ -520,6 +568,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "p2/app3",
 						"basename":           "app3",
@@ -538,6 +587,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			directories:   []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			repoApps:      []string{},
 			repoError:     nil,
+			commitSHA:     "0123456789abcdef",
+			commitError:   nil,
 			expected:      []map[string]interface{}{},
 			expectedError: nil,
 		},
@@ -546,6 +597,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			directories:   []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			repoApps:      []string{},
 			repoError:     fmt.Errorf("error"),
+			commitSHA:     "0123456789abcdef",
+			commitError:   nil,
 			expected:      []map[string]interface{}{},
 			expectedError: fmt.Errorf("error generating params from git: error getting directories from repo: error"),
 		},
@@ -557,11 +610,13 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock := &mocks.Repos{}
 
 			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
-			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
+			argoCDServiceMock.On("CommitSHA", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.commitSHA, testCaseCopy.commitError)
+
+			var gitGenerator = NewGitGenerator(argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -605,6 +660,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 		// if repoPathsError is non-nil, the call to GetPaths(...) will return this error value
 		repoPathsError error
 		values         map[string]string
+		commitSHA      string
+		commitError    error
 		expected       []map[string]interface{}
 		expectedError  error
 	}{
@@ -636,8 +693,11 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 }`),
 			},
 			repoPathsError: nil,
+			commitSHA:      "0123456789abcdef",
+			commitError:    nil,
 			expected: []map[string]interface{}{
 				{
+					"commitSHA":               "0123456789abcdef",
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
@@ -654,6 +714,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path.filenameNormalized": "config.json",
 				},
 				{
+					"commitSHA":               "0123456789abcdef",
 					"cluster.owner":           "foo.bar@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
@@ -696,12 +757,15 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 }`),
 			},
 			repoPathsError: nil,
+			commitSHA:      "0123456789abcdef",
+			commitError:    nil,
 			values: map[string]string{
 				"aaa":   "{{ cluster.owner }}",
 				"no-op": "{{ this-does-not-exist }}",
 			},
 			expected: []map[string]interface{}{
 				{
+					"commitSHA":               "0123456789abcdef",
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
@@ -720,6 +784,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"values.no-op":            "{{ this-does-not-exist }}",
 				},
 				{
+					"commitSHA":               "0123456789abcdef",
 					"cluster.owner":           "foo.bar@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
@@ -741,6 +806,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 			files:            []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{},
 			repoPathsError:   fmt.Errorf("paths error"),
+			commitSHA:        "0123456789abcdef",
+			commitError:      nil,
 			expected:         []map[string]interface{}{},
 			expectedError:    fmt.Errorf("error generating params from git: paths error"),
 		},
@@ -751,6 +818,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 				"cluster-config/production/config.json": []byte(`invalid json file`),
 			},
 			repoPathsError: nil,
+			commitSHA:      "0123456789abcdef",
+			commitError:    nil,
 			expected:       []map[string]interface{}{},
 			expectedError:  fmt.Errorf("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
 		},
@@ -780,12 +849,15 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 ]`),
 			},
 			repoPathsError: nil,
+			commitSHA:      "0123456789abcdef",
+			commitError:    nil,
 			expected: []map[string]interface{}{
 				{
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
 					"cluster.inner.one":       "two",
+					"commitSHA":               "0123456789abcdef",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -798,6 +870,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
+					"commitSHA":               "0123456789abcdef",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -832,11 +905,14 @@ cluster:
 `),
 			},
 			repoPathsError: nil,
+			commitSHA:      "0123456789abcdef",
+			commitError:    nil,
 			expected: []map[string]interface{}{
 				{
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
+					"commitSHA":               "0123456789abcdef",
 					"key1":                    "val1",
 					"key2.key2_1":             "val2_1",
 					"key2.key2_2.key2_2_1":    "val2_2_1",
@@ -852,6 +928,7 @@ cluster:
 					"cluster.owner":           "foo.bar@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
+					"commitSHA":               "0123456789abcdef",
 					"path":                    "cluster-config/staging",
 					"path.basename":           "staging",
 					"path[0]":                 "cluster-config",
@@ -880,12 +957,15 @@ cluster:
     address: https://kubernetes.default.svc`),
 			},
 			repoPathsError: nil,
+			commitSHA:      "0123456789abcdef",
+			commitError:    nil,
 			expected: []map[string]interface{}{
 				{
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
 					"cluster.inner.one":       "two",
+					"commitSHA":               "0123456789abcdef",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -898,6 +978,7 @@ cluster:
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
+					"commitSHA":               "0123456789abcdef",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -917,11 +998,12 @@ cluster:
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock := &mocks.Repos{}
 			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
+			argoCDServiceMock.On("CommitSHA", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.commitSHA, testCaseCopy.commitError)
 
-			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
+			var gitGenerator = NewGitGenerator(argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -963,6 +1045,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 		repoFileContents map[string][]byte
 		// if repoPathsError is non-nil, the call to GetPaths(...) will return this error value
 		repoPathsError error
+		commitSHA      string
+		commitError    error
 		expected       []map[string]interface{}
 		expectedError  error
 	}{
@@ -994,6 +1078,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 }`),
 			},
 			repoPathsError: nil,
+			commitSHA:      "0123456789abcdef",
+			commitError:    nil,
 			expected: []map[string]interface{}{
 				{
 					"cluster": map[string]interface{}{
@@ -1001,7 +1087,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 						"name":    "production",
 						"address": "https://kubernetes.default.svc",
 					},
-					"key1": "val1",
+					"commitSHA": "0123456789abcdef",
+					"key1":      "val1",
 					"key2": map[string]interface{}{
 						"key2_1": "val2_1",
 						"key2_2": map[string]interface{}{
@@ -1027,6 +1114,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 						"name":    "staging",
 						"address": "https://kubernetes.default.svc",
 					},
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "cluster-config/staging",
 						"basename":           "staging",
@@ -1047,6 +1135,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 			files:            []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{},
 			repoPathsError:   fmt.Errorf("paths error"),
+			commitSHA:        "0123456789abcdef",
+			commitError:      nil,
 			expected:         []map[string]interface{}{},
 			expectedError:    fmt.Errorf("error generating params from git: paths error"),
 		},
@@ -1057,6 +1147,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 				"cluster-config/production/config.json": []byte(`invalid json file`),
 			},
 			repoPathsError: nil,
+			commitSHA:      "0123456789abcdef",
+			commitError:    nil,
 			expected:       []map[string]interface{}{},
 			expectedError:  fmt.Errorf("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
 		},
@@ -1086,6 +1178,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 ]`),
 			},
 			repoPathsError: nil,
+			commitSHA:      "0123456789abcdef",
+			commitError:    nil,
 			expected: []map[string]interface{}{
 				{
 					"cluster": map[string]interface{}{
@@ -1096,6 +1190,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 							"one": "two",
 						},
 					},
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -1114,6 +1209,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 						"name":    "staging",
 						"address": "https://kubernetes.default.svc",
 					},
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -1152,6 +1248,8 @@ cluster:
 `),
 			},
 			repoPathsError: nil,
+			commitSHA:      "0123456789abcdef",
+			commitError:    nil,
 			expected: []map[string]interface{}{
 				{
 					"cluster": map[string]interface{}{
@@ -1159,7 +1257,8 @@ cluster:
 						"name":    "production",
 						"address": "https://kubernetes.default.svc",
 					},
-					"key1": "val1",
+					"commitSHA": "0123456789abcdef",
+					"key1":      "val1",
 					"key2": map[string]interface{}{
 						"key2_1": "val2_1",
 						"key2_2": map[string]interface{}{
@@ -1184,6 +1283,7 @@ cluster:
 						"name":    "staging",
 						"address": "https://kubernetes.default.svc",
 					},
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "cluster-config/staging",
 						"basename":           "staging",
@@ -1216,6 +1316,8 @@ cluster:
     address: https://kubernetes.default.svc`),
 			},
 			repoPathsError: nil,
+			commitSHA:      "0123456789abcdef",
+			commitError:    nil,
 			expected: []map[string]interface{}{
 				{
 					"cluster": map[string]interface{}{
@@ -1226,6 +1328,7 @@ cluster:
 							"one": "two",
 						},
 					},
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -1244,6 +1347,7 @@ cluster:
 						"name":    "staging",
 						"address": "https://kubernetes.default.svc",
 					},
+					"commitSHA": "0123456789abcdef",
 					"path": map[string]interface{}{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -1267,11 +1371,12 @@ cluster:
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock := &mocks.Repos{}
 			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
+			argoCDServiceMock.On("CommitSHA", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.commitSHA, testCaseCopy.commitError)
 
-			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
+			var gitGenerator = NewGitGenerator(argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",

@@ -32,6 +32,9 @@ type Repos interface {
 
 	// GetDirectories returns a list of directories (not files) within the target repo
 	GetDirectories(ctx context.Context, repoURL string, revision string) ([]string, error)
+
+	// CommitSHA returns commit SHA of revision
+	CommitSHA(ctx context.Context, repoURL string, revision string) (string, error)
 }
 
 func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) (Repos, error) {
@@ -41,6 +44,26 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 		repoServerClientSet:    repoClientset,
 		newFileGlobbingEnabled: newFileGlobbingEnabled,
 	}, nil
+}
+
+func (a *argoCDService) CommitSHA(ctx context.Context, repoURL string, revision string) (string, error) {
+	repo, err := a.repositoriesDB.GetRepository(ctx, repoURL)
+	if err != nil {
+		return "", fmt.Errorf("Error in GetRepository: %w", err)
+	}
+
+	gitRepoClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(a.storecreds), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
+
+	if err != nil {
+		return "", fmt.Errorf("Error creating git client for repo %s", repoURL)
+	}
+
+	commitSHA, err := gitRepoClient.LsRemote(revision)
+	if err != nil {
+		return "", fmt.Errorf("Error during fetching commitSHA: %w", err)
+	}
+
+	return commitSHA, nil
 }
 
 func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision string, pattern string) (map[string][]byte, error) {

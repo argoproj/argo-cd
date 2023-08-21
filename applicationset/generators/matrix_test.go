@@ -1057,6 +1057,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	repoServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
 		"some/path.json": []byte("test: content"),
 	}, nil)
+	repoServiceMock.Mock.On("CommitSHA", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("1234567890", nil)
 	gitGenerator := NewGitGenerator(repoServiceMock)
 
 	matrixGenerator := NewMatrixGenerator(map[string]Generator{
@@ -1085,6 +1086,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	}, &argoprojiov1alpha1.ApplicationSet{})
 	require.NoError(t, err)
 	assert.Equal(t, []map[string]interface{}{{
+		"commitSHA":               "1234567890",
 		"path":                    "some",
 		"path.basename":           "some",
 		"path.basenameNormalized": "some",
