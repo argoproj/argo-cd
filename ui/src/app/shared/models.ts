@@ -959,7 +959,6 @@ export interface LinksResponse {
 export interface UserMessages {
     appName: string;
     msgKey: string;
-    messages?: string;
     display: boolean;
     condition?: HealthStatusCode;
     duration?: number;

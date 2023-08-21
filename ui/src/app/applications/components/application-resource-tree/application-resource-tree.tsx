@@ -23,7 +23,7 @@ import {
     NodeId,
     nodeKey,
     PodHealthIcon,
-    getUsrMsgToDisplay
+    getUsrMsgKeyToDisplay
 } from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
@@ -61,7 +61,7 @@ export interface ApplicationResourceTreeProps {
     showOrphanedResources: boolean;
     showCompactNodes: boolean;
     userMsgs: models.UserMessages[];
-    updateUserMsgs: (userMsgs: models.UserMessages) => void;
+    updateUsrHelpTipMsgs: (userMsgs: models.UserMessages) => void;
     setShowCompactNodes: (showCompactNodes: boolean) => void;
     zoom: number;
     podGroupCount: number;
@@ -938,16 +938,16 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             props.setTreeFilterGraph(filteredGraph);
         }
     }, [props.filters]);
-    const {podGroupCount, userMsgs, updateUserMsgs, setShowCompactNodes} = props;
+    const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props;
     const podCount = nodes.filter(node => node.kind === 'Pod').length;
 
     React.useEffect(() => {
         if (podCount > podGroupCount) {
-            const userMsg = getUsrMsgToDisplay(appNode.name, 'groupNodes', userMsgs);
-            updateUserMsgs(userMsg);
-            setShowCompactNodes(true);
-        } else {
-            setShowCompactNodes(false);
+            const userMsg = getUsrMsgKeyToDisplay(appNode.name, 'groupNodes', userMsgs);
+            updateUsrHelpTipMsgs(userMsg);
+            if (!userMsg.display) {
+                setShowCompactNodes(true);
+            }
         }
     }, [podCount]);
 

@@ -148,7 +148,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
     }
 
     private toggleCompactView(appName: string, pref: AppDetailsPreferences) {
-        pref.displayUserMsgs = pref.displayUserMsgs.map(usrMsg => (usrMsg.appName === appName && usrMsg.msgKey === 'groupNodes' ? {...usrMsg, display: true} : usrMsg));
+        pref.userHelpTipMsgs = pref.userHelpTipMsgs.map(usrMsg => (usrMsg.appName === appName && usrMsg.msgKey === 'groupNodes' ? {...usrMsg, display: true} : usrMsg));
         services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: !pref.groupNodes}});
     }
 
@@ -232,7 +232,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
                             const source = getAppDefaultSource(application);
-                            const showToolTip = pref?.displayUserMsgs.find(usrMsg => usrMsg.appName === application.metadata.name);
+                            const showToolTip = pref?.userHelpTipMsgs.find(usrMsg => usrMsg.appName === application.metadata.name);
                             const resourceNodes = (): any[] => {
                                 const statusByKey = new Map<string, models.ResourceStatus>();
                                 application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
@@ -298,12 +298,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             const setShowCompactNodes = (showCompactView: boolean) => {
                                 services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: showCompactView}});
                             };
-                            const updateToolTipState = (appToolTip: models.UserMessages) => {
-                                const existingIndex = pref.displayUserMsgs.findIndex(msg => msg.appName === appToolTip.appName && msg.msgKey === appToolTip.msgKey);
+                            const updateHelpTipState = (usrHelpTip: models.UserMessages) => {
+                                const existingIndex = pref.userHelpTipMsgs.findIndex(msg => msg.appName === usrHelpTip.appName && msg.msgKey === usrHelpTip.msgKey);
                                 if (existingIndex !== -1) {
-                                    pref.displayUserMsgs[existingIndex] = appToolTip;
+                                    pref.userHelpTipMsgs[existingIndex] = usrHelpTip;
                                 } else {
-                                    (pref.displayUserMsgs || []).push(appToolTip);
+                                    (pref.userHelpTipMsgs || []).push(usrHelpTip);
                                 }
                             };
                             const toggleNameDirection = () => {
@@ -457,7 +457,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         </a>
                                                         {(pref.view === 'tree' || pref.view === 'network') && (
                                                             <Tooltip
-                                                                content={showToolTip?.messages || ''}
+                                                                content={AppUtils.userMsgsList[showToolTip?.msgKey] || ''}
                                                                 visible={pref.groupNodes && showToolTip && !showToolTip?.display}
                                                                 duration={showToolTip?.duration}>
                                                                 <a
@@ -497,7 +497,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             )
                                                         }
                                                         showCompactNodes={pref.groupNodes}
-                                                        userMsgs={pref.displayUserMsgs}
+                                                        userMsgs={pref.userHelpTipMsgs}
                                                         tree={tree}
                                                         app={application}
                                                         showOrphanedResources={pref.orphanedResources}
@@ -510,7 +510,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         nameDirection={this.state.truncateNameOnRight}
                                                         filters={pref.resourceFilter}
                                                         setTreeFilterGraph={setFilterGraph}
-                                                        updateUserMsgs={updateToolTipState}
+                                                        updateUsrHelpTipMsgs={updateHelpTipState}
                                                         setShowCompactNodes={setShowCompactNodes}
                                                         setNodeExpansion={(node, isExpanded) => this.setNodeExpansion(node, isExpanded)}
                                                         getNodeExpansion={node => this.getNodeExpansion(node)}

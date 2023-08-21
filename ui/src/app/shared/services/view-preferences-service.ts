@@ -29,7 +29,7 @@ export interface AppDetailsPreferences {
     groupNodes?: boolean;
     zoom: number;
     podGroupCount: number;
-    displayUserMsgs: UserMessages[];
+    userHelpTipMsgs: UserMessages[];
 }
 
 export interface PodViewPreferences {
@@ -125,7 +125,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         wrapLines: false,
         zoom: 1.0,
         podGroupCount: 15.0,
-        displayUserMsgs: []
+        userHelpTipMsgs: []
     },
     appList: {
         view: 'tiles' as AppsListViewType,
