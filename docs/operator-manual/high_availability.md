@@ -64,6 +64,8 @@ controller replicas. To enable sharding increase the number of replicas in `argo
 and repeat the number of replicas in the `ARGOCD_CONTROLLER_REPLICAS` environment variable. The strategic merge patch below
 demonstrates changes required to configure two controller replicas.
 
+* By default, the controller will update the cluster information every 10 seconds. If there is a problem with your cluster network environment that is causing the update time to take a long time, you can try modifying the environment variable `ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT` to increase the timeout (the unit is seconds).
+
 ```yaml
 apiVersion: apps/v1
 kind: StatefulSet
