@@ -8,21 +8,28 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/resource"
+	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.6.1"
 )
 
 // InitTracer initializes the trace provider and the otel grpc exporter.
 func InitTracer(ctx context.Context, serviceName, otlpAddress string) (func(), error) {
-	res, err := resource.New(ctx,
-		resource.WithAttributes(
+	// Make sure we initialize a resource that uses the provided service name
+	res, err := sdkresource.New(ctx,
+		sdkresource.WithAttributes(
 			semconv.ServiceNameKey.String(serviceName),
 		),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
+
+	// Create default resource and merge our configuration on top
+	resource, _ := sdkresource.Merge(
+		sdkresource.Default(),
+		res,
+	)
 
 	// Set up a trace exporter
 	exporter, err := otlptracegrpc.New(ctx,
@@ -38,7 +45,7 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string) (func(), e
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 	provider := sdktrace.NewTracerProvider(
 		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-		sdktrace.WithResource(res),
+		sdktrace.WithResource(resource),
 		sdktrace.WithSpanProcessor(bsp),
 	)
 
