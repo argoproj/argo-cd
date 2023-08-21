@@ -1443,7 +1443,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	compareResult := ctrl.appStateManager.CompareAppState(app, project, revisions, sources,
 		refreshType == appv1.RefreshTypeHard,
-		comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources)
+		comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources, comparisonLevel == CompareWithRecent)
 
 	for k, v := range compareResult.timings {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
