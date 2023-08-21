@@ -421,6 +421,7 @@ func validateRepo(ctx context.Context,
 		helmOptions,
 		app.Name,
 		app.Spec.Destination,
+		proj,
 		sources,
 		repoClient,
 		cluster.ServerVersion,
@@ -705,6 +706,7 @@ func verifyGenerateManifests(
 	helmOptions *argoappv1.HelmOptions,
 	name string,
 	dest argoappv1.ApplicationDestination,
+	proj *argoappv1.AppProject,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
 	kubeVersion string,
@@ -771,6 +773,8 @@ func verifyGenerateManifests(
 			NoRevisionCache:    true,
 			HasMultipleSources: hasMultipleSources,
 			RefSources:         refSources,
+			ProjectName:        proj.Name,
+			ProjectSourceRepos: proj.Spec.SourceRepos,
 		}
 		req.Repo.CopyCredentialsFromRepo(repoRes)
 		req.Repo.CopySettingsFrom(repoRes)

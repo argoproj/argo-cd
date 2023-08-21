@@ -5849,6 +5849,8 @@ spec:
                                         - key
                                         - secretName
                                         type: object
+                                      topic:
+                                        type: string
                                     required:
                                     - group
                                     type: object
@@ -10554,6 +10556,8 @@ spec:
                                         - key
                                         - secretName
                                         type: object
+                                      topic:
+                                        type: string
                                     required:
                                     - group
                                     type: object
@@ -13076,6 +13080,8 @@ spec:
                               - key
                               - secretName
                               type: object
+                            topic:
+                              type: string
                           required:
                           - group
                           type: object
