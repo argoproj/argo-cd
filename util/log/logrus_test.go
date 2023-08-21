@@ -1,10 +1,13 @@
 package log
 
 import (
+    "fmt"
+    "os"
 	"testing"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 func TestCreateFormatter(t *testing.T) {
@@ -23,6 +26,16 @@ func TestCreateFormatter(t *testing.T) {
 			result := CreateFormatter("text")
 			assert.Equal(t, &logrus.TextFormatter{}, result)
 		})
+		t.Run(fmt.Sprintf("%s == 1", common.EnvLogFormatEnableFullTimestamp), func(t *testing.T) {
+            os.Setenv(common.EnvLogFormatEnableFullTimestamp, "1")
+            result := CreateFormatter("text")
+            assert.Equal(t, &logrus.TextFormatter{FullTimestamp: true}, result)
+        })
+        t.Run(fmt.Sprintf("%s != 1", common.EnvLogFormatEnableFullTimestamp), func(t *testing.T) {
+            os.Setenv(common.EnvLogFormatEnableFullTimestamp, "0")
+            result := CreateFormatter("text")
+            assert.Equal(t, &logrus.TextFormatter{}, result)
+        })
 	})
 	t.Run("log format is not json or text", func(t *testing.T) {
 		result := CreateFormatter("xml")
