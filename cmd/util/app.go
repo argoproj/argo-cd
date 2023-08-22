@@ -427,7 +427,10 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
 	}
 	if len(opts.values) > 0 {
-		src.Helm.Values = opts.values
+		err := src.Helm.SetValuesString(opts.values)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	if opts.releaseName != "" {
 		src.Helm.ReleaseName = opts.releaseName
@@ -597,7 +600,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 		}
 		appName = args[0]
 	}
-	appName, appNs := argo.ParseAppQualifiedName(appName, "")
+	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	app = &argoappv1.Application{
 		TypeMeta: v1.TypeMeta{
 			Kind:       application.ApplicationKind,
@@ -685,7 +688,7 @@ func setAnnotations(app *argoappv1.Application, annotations []string) {
 	}
 }
 
-// liveObjects deserializes the list of live states into unstructured objects
+// LiveObjects deserializes the list of live states into unstructured objects
 func LiveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructured, error) {
 	objs := make([]*unstructured.Unstructured, len(resources))
 	for i, resState := range resources {

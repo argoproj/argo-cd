@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # policy.csv is an file containing user-defined RBAC policies and role definitions (optional).
+  # Policy rules are in the form:
+  #   p, subject, resource, action, object, effect
+  # Role definitions and bindings are in the form:
+  #   g, subject, inherited-subject
+  # See https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/rbac.md for additional information.
+  policy.csv: |
+    # Grant all members of the group 'my-org:team-alpha; the ability to sync apps in 'my-project'
+    p, my-org:team-alpha, applications, sync, my-project/*, allow
+    # Grant all members of 'my-org:team-beta' admins
+    g, my-org:team-beta, role:admin
+
+  # it is possible to provide additional entries in this configmap to compose the final policy csv.
+  # In this case the key must follow the pattern 'policy.<any string>.csv'. Argo CD will concatenate
+  # all additional policies it finds with this pattern below the main one ('policy.csv'). This is useful
+  # to allow composing policies in config management tools like Kustomize, Helm, etc.
+  policy.overlay.csv: |
+    p, role:tester, applications, *, */*, allow
+    p, role:tester, projects, *, *, allow
+    g, my-org:team-qa, role:tester
+
+  # policy.default is the name of the default role which Argo CD will falls back to, when
+  # authorizing API requests (optional). If omitted or empty, users may be still be able to login,
+  # but will see no apps, projects, etc...
+  policy.default: role:readonly
+
+  # scopes controls which OIDC scopes to examine during rbac enforcement (in addition to `sub` scope).
+  # If omitted, defaults to: '[groups]'. The scope value can be a string, or a list of strings.
+  scopes: '[cognito:groups, email]'
+
+  # matchMode configures the matchers function for casbin.
+  # There are two options for this, 'glob' for glob matcher or 'regex' for regex matcher. If omitted or mis-configured,
+  # will be set to 'glob' as default.
+  policy.matchMode: 'glob'
+

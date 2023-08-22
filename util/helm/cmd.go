@@ -176,7 +176,7 @@ func writeToTmp(data []byte) (string, argoio.Closer, error) {
 		if err = file.Close(); err != nil {
 			log.WithFields(log.Fields{
 				common.SecurityField:    common.SecurityMedium,
-				common.SecurityCWEField: 775,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 			}).Errorf("error closing file %q: %v", file.Name(), err)
 		}
 	}()
@@ -233,6 +233,9 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		version,
 		"--destination",
 		destination}
+	if creds.CAPath != "" {
+		args = append(args, "--ca-file", creds.CAPath)
+	}
 	if creds.InsecureSkipVerify && c.insecureSkipVerifySupported {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
@@ -245,6 +248,10 @@ func (c *Cmd) dependencyBuild() (string, error) {
 
 func (c *Cmd) inspectValues(values string) (string, error) {
 	return c.run(c.showCommand, "values", values)
+}
+
+func (c *Cmd) InspectChart() (string, error) {
+	return c.run(c.showCommand, "chart", ".")
 }
 
 type TemplateOpts struct {

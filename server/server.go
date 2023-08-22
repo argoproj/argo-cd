@@ -27,6 +27,8 @@ import (
 
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 
@@ -161,7 +163,7 @@ func init() {
 	if replicasCount > 0 {
 		maxConcurrentLoginRequestsCount = maxConcurrentLoginRequestsCount / replicasCount
 	}
-	enableGRPCTimeHistogram = os.Getenv(common.EnvEnableGRPCTimeHistogramEnv) == "true"
+	enableGRPCTimeHistogram = env.ParseBoolFromEnv(common.EnvEnableGRPCTimeHistogramEnv, false)
 }
 
 // ArgoCDServer is the API server for Argo CD
@@ -202,7 +204,9 @@ type ArgoCDServerOpts struct {
 	Insecure              bool
 	StaticAssetsDir       string
 	ListenPort            int
+	ListenHost            string
 	MetricsPort           int
+	MetricsHost           string
 	Namespace             string
 	DexServerAddr         string
 	DexTLSConfig          *dex.DexTLSConfig
@@ -216,7 +220,6 @@ type ArgoCDServerOpts struct {
 	TLSConfigCustomizer   tlsutil.ConfigCustomizer
 	XFrameOptions         string
 	ContentSecurityPolicy string
-	ListenHost            string
 	ApplicationNamespaces []string
 	EnableProxyExtension  bool
 }
@@ -290,7 +293,9 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 
 	apiFactory := api.NewFactory(settings_notif.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm"), opts.Namespace, secretInformer, configMapInformer)
 
-	return &ArgoCDServer{
+	dbInstance := db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset)
+
+	a := &ArgoCDServer{
 		ArgoCDServerOpts:  opts,
 		log:               log.NewEntry(log.StandardLogger()),
 		settings:          settings,
@@ -306,11 +311,19 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		policyEnforcer:    policyEnf,
 		userStateStorage:  userStateStorage,
 		staticAssets:      http.FS(staticFS),
-		db:                db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset),
+		db:                dbInstance,
 		apiFactory:        apiFactory,
 		secretInformer:    secretInformer,
 		configMapInformer: configMapInformer,
 	}
+
+	err = a.logInClusterWarnings()
+	if err != nil {
+		// Just log. It's not critical.
+		log.Warnf("Failed to log in-cluster warnings: %v", err)
+	}
+
+	return a
 }
 
 const (
@@ -353,6 +366,47 @@ func (l *Listeners) Close() error {
 			return err
 		}
 		l.GatewayConn = nil
+	}
+	return nil
+}
+
+// logInClusterWarnings checks the in-cluster configuration and prints out any warnings.
+func (a *ArgoCDServer) logInClusterWarnings() error {
+	labelSelector := labels.NewSelector()
+	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
+	if err != nil {
+		return fmt.Errorf("failed to construct cluster-type label selector: %w", err)
+	}
+	labelSelector = labelSelector.Add(*req)
+	secretsLister, err := a.settingsMgr.GetSecretsLister()
+	if err != nil {
+		return fmt.Errorf("failed to get secrets lister: %w", err)
+	}
+	clusterSecrets, err := secretsLister.Secrets(a.ArgoCDServerOpts.Namespace).List(labelSelector)
+	if err != nil {
+		return fmt.Errorf("failed to list cluster secrets: %w", err)
+	}
+	var inClusterSecrets []string
+	for _, clusterSecret := range clusterSecrets {
+		cluster, err := db.SecretToCluster(clusterSecret)
+		if err != nil {
+			return fmt.Errorf("could not unmarshal cluster secret %q: %w", clusterSecret.Name, err)
+		}
+		if cluster.Server == v1alpha1.KubernetesInternalAPIServerAddr {
+			inClusterSecrets = append(inClusterSecrets, clusterSecret.Name)
+		}
+	}
+	if len(inClusterSecrets) > 0 {
+		// Don't make this call unless we actually have in-cluster secrets, to save time.
+		dbSettings, err := a.settingsMgr.GetSettings()
+		if err != nil {
+			return fmt.Errorf("could not get DB settings: %w", err)
+		}
+		if !dbSettings.InClusterEnabled {
+			for _, clusterName := range inClusterSecrets {
+				log.Warnf("cluster %q uses in-cluster server address but it's disabled in Argo CD settings", clusterName)
+			}
+		}
 	}
 	return nil
 }
@@ -447,7 +501,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		httpsS.Handler = &bug21955Workaround{handler: httpsS.Handler}
 	}
 
-	metricsServ := metrics.NewMetricsServer(a.ListenHost, a.MetricsPort)
+	metricsServ := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
 	if a.RedisClient != nil {
 		cacheutil.CollectMetrics(a.RedisClient, metricsServ)
 	}
@@ -459,12 +513,12 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	var httpL net.Listener
 	var httpsL net.Listener
 	if !a.useTLS() {
-		httpL = tcpm.Match(cmux.HTTP1Fast())
+		httpL = tcpm.Match(cmux.HTTP1Fast("PATCH"))
 		grpcL = tcpm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 
 	} else {
 		// We first match on HTTP 1.1 methods.
-		httpL = tcpm.Match(cmux.HTTP1Fast())
+		httpL = tcpm.Match(cmux.HTTP1Fast("PATCH"))
 
 		// If not matched, we assume that its TLS.
 		tlsl := tcpm.Match(cmux.Any())
@@ -479,7 +533,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 
 		// Now, we build another mux recursively to match HTTPS and gRPC.
 		tlsm = cmux.New(tlsl)
-		httpsL = tlsm.Match(cmux.HTTP1Fast())
+		httpsL = tlsm.Match(cmux.HTTP1Fast("PATCH"))
 		grpcL = tlsm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 	}
 
@@ -907,7 +961,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/api/", handler)
 
-	terminal := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells).
+	terminal := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells, *a.sessionMgr).
 		WithFeatureFlagMiddleware(a.settingsMgr.GetSettings)
 	th := util_session.WithAuthMiddleware(a.DisableAuth, a.sessionMgr, terminal)
 	mux.Handle("/terminal", th)
@@ -920,6 +974,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		// will be added in mux.
 		registerExtensions(mux, a)
 	}
+
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandler, ctx, gwmux, conn)

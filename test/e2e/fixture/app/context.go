@@ -50,8 +50,8 @@ type ContextArgs struct {
 	AppNamespace string
 }
 
-func Given(t *testing.T) *Context {
-	fixture.EnsureCleanState(t)
+func Given(t *testing.T, opts ...fixture.TestOption) *Context {
+	fixture.EnsureCleanState(t, opts...)
 	return GivenWithSameState(t)
 }
 
@@ -297,13 +297,6 @@ func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverri
 
 func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
 	fixture.SetResourceFilter(filter)
-	return c
-}
-
-// this both configures the plugin, but forces use of it
-func (c *Context) ConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin) *Context {
-	fixture.SetConfigManagementPlugins(plugin)
-	c.configManagementPlugin = plugin.Name
 	return c
 }
 

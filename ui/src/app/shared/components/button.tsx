@@ -11,7 +11,8 @@ export const Button = ({
     icon,
     className,
     style,
-    disabled
+    disabled,
+    beat
 }: {
     onClick?: MouseEventHandler;
     children?: ReactNode;
@@ -21,13 +22,14 @@ export const Button = ({
     className?: string;
     style?: CSSProperties;
     disabled?: boolean;
+    beat?: boolean;
 }) => (
     <Tooltip content={title}>
         <button
             className={'argo-button ' + (!outline ? 'argo-button--base' : 'argo-button--base-o') + ' ' + (disabled ? 'disabled' : '') + ' ' + (className || '')}
             style={style}
             onClick={onClick}>
-            {icon && <i className={'fa fa-' + icon} />} {children}
+            {icon && <i className={'fa fa-' + icon + ' ' + (beat ? 'fa-beat' : '')} />} {children}
         </button>
     </Tooltip>
 );

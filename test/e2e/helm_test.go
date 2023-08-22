@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -200,7 +201,7 @@ func TestHelmValuesLiteralFileLocal(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			assert.Equal(t, string(data), app.Spec.GetSource().Helm.Values)
+			assert.Equal(t, strings.TrimSuffix(string(data), "\n"), app.Spec.GetSource().Helm.ValuesString())
 		}).
 		When().
 		AppUnSet("--values-literal").
@@ -242,7 +243,7 @@ func TestHelmValuesLiteralFileRemote(t *testing.T) {
 		AppSet("--values-literal-file", "http://"+address).
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, "a: b", app.Spec.GetSource().Helm.Values)
+			assert.Equal(t, "a: b", app.Spec.GetSource().Helm.ValuesString())
 		}).
 		When().
 		AppUnSet("--values-literal").

@@ -5,6 +5,7 @@ metadata:
   name: guestbook
 spec:
   goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - list:
       elements:

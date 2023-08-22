@@ -1,12 +1,14 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	client "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -61,6 +63,24 @@ func (a *Actions) AddFile(fileName, fileContents string) *Actions {
 func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
 	a.context.t.Helper()
 	fixture.AddSignedFile(a.context.path+"/"+fileName, fileContents)
+	return a
+}
+
+func (a *Actions) AddSignedTag(name string) *Actions {
+	a.context.t.Helper()
+	fixture.AddSignedTag(name)
+	return a
+}
+
+func (a *Actions) AddTag(name string) *Actions {
+	a.context.t.Helper()
+	fixture.AddTag(name)
+	return a
+}
+
+func (a *Actions) RemoveSubmodule() *Actions {
+	a.context.t.Helper()
+	fixture.RemoveSubmodule()
 	return a
 }
 
@@ -274,6 +294,28 @@ func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Ac
 func (a *Actions) PatchApp(patch string) *Actions {
 	a.context.t.Helper()
 	a.runCli("app", "patch", a.context.AppQualifiedName(), "--patch", patch)
+	return a
+}
+
+func (a *Actions) PatchAppHttp(patch string) *Actions {
+	a.context.t.Helper()
+	var application Application
+	var patchType = "merge"
+	var appName = a.context.AppQualifiedName()
+	var appNamespace = a.context.AppNamespace()
+	patchRequest := &client.ApplicationPatchRequest{
+		Name:         &appName,
+		PatchType:    &patchType,
+		Patch:        &patch,
+		AppNamespace: &appNamespace,
+	}
+	jsonBytes, err := json.MarshalIndent(patchRequest, "", "  ")
+	errors.CheckError(err)
+	err = fixture.DoHttpJsonRequest("PATCH",
+		fmt.Sprintf("/api/v1/applications/%v", appName),
+		&application,
+		jsonBytes...)
+	errors.CheckError(err)
 	return a
 }
 

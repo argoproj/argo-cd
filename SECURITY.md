@@ -35,9 +35,7 @@ impact on Argo CD before opening an issue at least roughly.
 
 ## Supported Versions
 
-We currently support the most recent release (`N`, e.g. `1.8`) and the release
-previous to the most recent one (`N-1`, e.g. `1.7`). With the release of
-`N+1`, `N-1` drops out of support and `N` becomes `N-1`.
+We currently support the last 3 minor versions of Argo CD with security and bug fixes.
 
 We regularly perform patch releases (e.g. `1.8.5` and `1.7.12`) for the
 supported versions, which will contain fixes for security vulnerabilities and
@@ -65,9 +63,10 @@ We will publish security advisories using the
 feature to keep our community well-informed, and will credit you for your
 findings (unless you prefer to stay anonymous, of course).
 
-Please report vulnerabilities by e-mail to the following address:
+There are two ways to report a vulnerability to the Argo CD team:
 
-* cncf-argo-security@lists.cncf.io
+* By opening a draft GitHub security advisory: https://github.com/argoproj/argo-cd/security/advisories/new
+* By e-mail to the following address: cncf-argo-security@lists.cncf.io
 
 ## Internet Bug Bounty collaboration
 

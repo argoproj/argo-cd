@@ -13,11 +13,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
-	testutils "github.com/argoproj/argo-cd/v2/applicationset/utils/test"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -1052,8 +1053,8 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 		},
 	}
 
-	repoServiceMock := testutils.ArgoCDServiceMock{Mock: &mock.Mock{}}
-	repoServiceMock.Mock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
+	repoServiceMock := &mocks.Repos{}
+	repoServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
 		"some/path.json": []byte("test: content"),
 	}, nil)
 	gitGenerator := NewGitGenerator(repoServiceMock)
