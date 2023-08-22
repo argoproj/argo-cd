@@ -1942,28 +1942,29 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 	return appendURLPath(a.URL, common.CallbackEndpoint)
 }
 
-func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) {
+func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
 	if a == nil {
 		return "", errors.New("nil argocd settings")
 	}
 
-	u, err := url.Parse(a.URL)
-	if err != nil {
-		return "", err
-	}
-	if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
-		return appendURLPath(a.URL, common.CallbackEndpoint)
-	}
-	for _, altURL := range a.URLs {
-		u, err := url.Parse(altURL)
+	for _, candidateURL := range append([]string{a.URL}, a.URLs...) {
+		u, err := url.Parse(candidateURL)
 		if err != nil {
 			return "", err
 		}
 		if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
-			return appendURLPath(altURL, common.CallbackEndpoint)
+			return candidateURL, nil
 		}
 	}
-	return appendURLPath(a.URL, common.CallbackEndpoint)
+	return a.URL, nil
+}
+
+func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) {
+	base, err := a.ArgoURLForRequest(r)
+	if err != nil {
+		return "", err
+	}
+	return appendURLPath(base, common.CallbackEndpoint)
 }
 
 func (a *ArgoCDSettings) DexRedirectURL() (string, error) {
