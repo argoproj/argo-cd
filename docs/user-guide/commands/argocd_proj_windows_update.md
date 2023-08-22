@@ -42,7 +42,7 @@ argocd proj windows update PROJECT ID [flags]
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
-      --redis-ha-haproxy-name string    Name of the Redis HA Proxy; set this or ARGOCD_REDIS_HAPROXY_NAME when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
+      --redis-haproxy-name string       Name of the Redis HA Proxy; set this or ARGOCD_REDIS_HAPROXY_NAME when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or ARGOCD_REDIS_NAME when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or ARGOCD_REPO_SERVER_NAME when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")
       --server string                   Argo CD server address

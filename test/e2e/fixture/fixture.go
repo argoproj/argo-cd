@@ -180,7 +180,7 @@ func init() {
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
 	argoCDServerName = GetEnvWithDefault(EnvArgoCDServerName, common.DefaultServerName)
-	argoCDRedisHAProxyName = GetEnvWithDefault(EnvArgoCDRedisHAProxyName, common.DefaultRedisHaHaproxyName)
+	argoCDRedisHAProxyName = GetEnvWithDefault(EnvArgoCDRedisHAProxyName, common.DefaultRedisHaProxyName)
 	argoCDRedisName = GetEnvWithDefault(EnvArgoCDRedisName, common.DefaultRedisName)
 	argoCDRepoServerName = GetEnvWithDefault(EnvArgoCDRepoServerName, common.DefaultRepoServerName)
 	argoCDAppControllerName = GetEnvWithDefault(EnvArgoCDAppControllerName, common.DefaultApplicationControllerName)

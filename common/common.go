@@ -138,7 +138,7 @@ const (
 	// LabelKeyAppInstance is the label key to use to uniquely identify the instance of an application
 	// The Argo CD application name is used as the instance name
 	LabelKeyAppInstance = "app.kubernetes.io/instance"
-	// LabelKeyAppName is the name of the Kubernetes application
+	// LabelKeyAppName is the label key to use to uniquely identify the name of the Kubernetes application
 	LabelKeyAppName = "app.kubernetes.io/name"
 	// LabelKeyLegacyApplicationName is the legacy label (v0.10 and below) and is superseded by 'app.kubernetes.io/instance'
 	LabelKeyLegacyApplicationName = "applications.argoproj.io/app-name"
@@ -243,8 +243,8 @@ const (
 	EnvAppControllerName = "ARGOCD_APPLICATION_CONTROLLER_NAME"
 	// EnvRedisName is the pod selector labels of the Argo CD redis component.
 	EnvRedisName = "ARGOCD_REDIS_NAME"
-	// EnvRedisHaHaproxyName is the pod selector labels of the Argo CD Redis HA proxy component.
-	EnvRedisHaHaproxyName = "ARGOCD_REDIS_HAPROXY_NAME"
+	// EnvRedisHaProxyName is the pod selector labels of the Argo CD Redis HA proxy component.
+	EnvRedisHaProxyName = "ARGOCD_REDIS_HAPROXY_NAME"
 )
 
 // Config Management Plugin related constants
@@ -280,13 +280,14 @@ const (
 	DefaultGitRetryFactor                    = int64(2)
 )
 
-// Constants represent the pod selector labels of the ArgoCD component names
+// Constants represent the pod selector labels of the Argo CD component names. These values are determined by the
+// installation manifests.
 const (
 	DefaultServerName                = "argocd-server"
 	DefaultRepoServerName            = "argocd-repo-server"
 	DefaultApplicationControllerName = "argocd-application-controller"
 	DefaultRedisName                 = "argocd-redis"
-	DefaultRedisHaHaproxyName        = "argocd-redis-ha-haproxy"
+	DefaultRedisHaProxyName          = "argocd-redis-ha-haproxy"
 )
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value

@@ -39,14 +39,14 @@ import (
 )
 
 type forwardCacheClient struct {
-	namespace          string
-	context            string
-	init               sync.Once
-	client             cache.CacheClient
-	compression        cache.RedisCompressionType
-	err                error
-	redisHaHaProxyName string
-	redisName          string
+	namespace        string
+	context          string
+	init             sync.Once
+	client           cache.CacheClient
+	compression      cache.RedisCompressionType
+	err              error
+	redisHaProxyName string
+	redisName        string
 }
 
 func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error) error {
@@ -54,10 +54,10 @@ func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error)
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
 		}
-		redisHaHaproxyPodLabelSelector := common.LabelKeyAppName + "=" + c.redisHaHaProxyName
+		redisHaProxyPodLabelSelector := common.LabelKeyAppName + "=" + c.redisHaProxyName
 		redisPodLabelSelector := common.LabelKeyAppName + "=" + c.redisName
 		redisPort, err := kubeutil.PortForward(6379, c.namespace, &overrides,
-			redisHaHaproxyPodLabelSelector, redisPodLabelSelector)
+			redisHaProxyPodLabelSelector, redisPodLabelSelector)
 		if err != nil {
 			c.err = err
 			return
@@ -208,7 +208,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 	if err != nil {
 		return fmt.Errorf("error running miniredis: %w", err)
 	}
-	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName}), time.Hour)
+	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 		EnableGZip:           false,
 		Namespace:            namespace,
