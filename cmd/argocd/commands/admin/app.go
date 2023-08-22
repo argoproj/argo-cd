@@ -406,7 +406,7 @@ func reconcileApplications(
 		sources = append(sources, app.Spec.GetSource())
 		revisions = append(revisions, app.Spec.GetSource().TargetRevision)
 
-		res := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false, false)
+		res := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false)
 		items = append(items, appReconcileResult{
 			Name:       app.Name,
 			Conditions: app.Status.Conditions,
