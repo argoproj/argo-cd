@@ -77,9 +77,8 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
         } else {
             // Do reconnect due to refresh token event
             onConnectionClose();
-            setupConnection()
+            setupConnection();
         }
-
     };
 
     const onConnectionOpen = () => {
