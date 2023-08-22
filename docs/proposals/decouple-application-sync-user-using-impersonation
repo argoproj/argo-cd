@@ -29,7 +29,7 @@ The goal of this proposal is to perform the Application sync as a different user
 Yes, other restrictions implemented by `AppProject` should be continued.
 - Can an Application refer to a service account with elevated privileges like say  `cluster-admin`, `admin`, and service accounts used for running the ArgoCD controllers itself ?
 - This is addressed by the new option where we don't allow service account name to be specified as part of the `Application.spec` and instead control only via `AppProject` access to which is limited only to the Admin user.
-
+- Among the destinations configured in the `AppProject`, if there are multiple matches for a given destination, which destination option should be used ?
 
 ## Summary
 
@@ -47,7 +47,7 @@ This proposal would allow ArgoCD administrators to manage the cluster permission
 
 
 ### Goals
-- Applications may only impersonate ServiceAccounts that live in the same namespace as the application itself. Application teams can then choose the appropriate ServiceAccount to be used for syncing each application themselves, without being able to elevate their privileges.
+- Applications may only impersonate ServiceAccounts that live in the same namespace as the application itself. ServiceAccount to be used for syncing each application is determined by the target destination configured in the `AppProject` associated with the `Application`.
 - If impersonation feature is enabled, and no service account name is provided in the Application CR, then it should use a default service account setting specified in the AppProject and if not specified use the namespace's default service account.
 - Access restrictions implemented through properties in AppProject (if done) must have the existing behavior. From a security standpoint, any restrictions that were available before switching to a service account based approach should continue to exist even when the impersonation feature is enabled.
 
@@ -95,7 +95,7 @@ Add a list of detailed use cases this enhancement intends to take care of.
 #### Use case 1:
 
 As a user, I would like to use kubernetes security constructs to restrict user access for application sync
-So that, I can provided granular permissions based on the principal of least privelage required for syncing an application.
+So that, I can provided granular permissions based on the principal of least privilege required for syncing an application.
 
 #### Use case 2:
 
@@ -136,12 +136,33 @@ Fix GitOps Engine code to honor Impersonate configuration set in the Application
 #### Example 1: Service account for application sync specified at the AppProject level for all namespaces
 In this specific scenario, service account name `generic-deployer` will get used for the application sync as the namespace `guestbook` matches the regex `*`.
 
+- Install ArgoCD in the `argocd` namespace.
+```
+kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
+```
+- Enable the impersonation feature in ArgoCD.
+```
+kubectl set env statefulset/argocd-application-controller ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true
+```
+- Create a namespace called `guestbook` and a service account called `guestbook-deployer`.
+```
+kubectl create namespace guestbook
+kubectl create serviceaccount guestbook-deployer
+```
+- Create Role and RoleBindings and configure RBAC access for creating `Service` and `Deployment` objects in namespace `guestbook` for service account `guestbook-deployer`.
+
+```
+kubectl create role guestbook-deployer-role --verb get,list,update,delete --resource pods,deployment,service
+kubectl create rolebinding guestbook-deployer-rb --serviceaccount guestbook-deployer --role guestbook-deployer-role
+```
+
+- Create the application as below in the `guestbook` namespace
 ```
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: guestbook
-  namespace: argocd
+  namespace: guestbook
 spec:
   project: my-project
   source:
@@ -171,6 +192,26 @@ spec:
 ```
 
 #### Example 2: Service account for application sync specified at the AppProject level for specific namespaces
+
+- Install ArgoCD in the `argocd` namespace.
+```
+kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
+```
+- Enable the impersonation feature in ArgoCD.
+```
+kubectl set env statefulset/argocd-application-controller ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true
+```
+- Create a namespace called `guestbook` and a service account called `guestbook-deployer`.
+```
+kubectl create namespace guestbook
+kubectl create serviceaccount guestbook-deployer
+```
+- Create Role and RoleBindings and configure RBAC access for creating `Service` and `Deployment` objects in namespace `guestbook` for service account `guestbook-deployer`.
+
+```
+kubectl create role guestbook-deployer-role --verb get,list,update,delete --resource pods,deployment,service
+kubectl create rolebinding guestbook-deployer-rb --serviceaccount guestbook-deployer --role guestbook-deployer-role
+```
 
 In this specific scenario, service account name `guestbook-deployer` will get used as it matches to the specific namespace `guestbook`.
 ```
@@ -219,7 +260,7 @@ spec:
 
 #### Privilege Escalation
 
-There could be an issue of privilege escalation, if we allow users to impersonate without restrictions. This is mitigated by only allowing admin users to 
+There could be an issue of privilege escalation, if we allow users to impersonate without restrictions. This is mitigated by only allowing admin users to configure service account used for the sync operation at the `AppProject` level.
 
 
 
@@ -236,7 +277,7 @@ Consider the following in developing an upgrade/downgrade strategy for this enha
   make on upgrade in order to make use of the enhancement?
 
 - This feature would be implemented on an `opt-in` based on a feature flag and disabled by default.
-- Changes would be required in both `application.argoproj.io/v1alpha1`  and `appprojects.argoproj.io/v1alpha1`. The new fields would be introduced as optional fields and would be enabled only if the feature is enabled explicitly by a feature flag. If new properties are used in the CR, but the feature flag is not enabled, then a warning message would be displayed during reconcilation of such CRs.
+- Changes would be required in the API to add `ServiceAccountName` in `ApplicationDestination` struct. The new field would be introduced as an optional field and would be enabled only if the feature is enabled explicitly by a feature flag. If new property is used in the CR, but the feature flag is not enabled, then a warning message would be displayed during reconciliation of such CRs.
 
 
 ## Drawbacks
