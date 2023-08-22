@@ -3,9 +3,11 @@ package commands
 import (
 	"context"
 	"encoding/json"
+	goerrors "errors"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"reflect"
 	"sort"
 	"strconv"
@@ -1099,7 +1101,12 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 			if !foundDiffs {
 				foundDiffs = true
 			}
-			_ = cli.PrintDiff(item.key.Name, live, target)
+			err = cli.PrintDiff(item.key.Name, live, target)
+			// ignore exitError since diff utilities usually return exit status 1 when diff is present
+			var execError *exec.Error
+			if err != nil && goerrors.As(err, &execError) {
+				errors.CheckError(err)
+			}
 		}
 	}
 	return foundDiffs
