@@ -171,7 +171,7 @@ func (s *secretsRepositoryBackend) RepositoryExists(ctx context.Context, repoURL
 			return false, nil
 		}
 
-		return false, err
+		return false, fmt.Errorf("failed to get repository secret for %q: %v", repoURL, err)
 	}
 
 	return secret != nil, nil
@@ -457,7 +457,7 @@ func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 func (s *secretsRepositoryBackend) getRepositorySecret(repoURL string) (*corev1.Secret, error) {
 	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepository)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list repository secrets: %w", err)
 	}
 
 	for _, secret := range secrets {

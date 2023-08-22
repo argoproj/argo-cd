@@ -35,33 +35,16 @@ import (
 
 const (
 	// CLIName is the name of the CLI
-	cliName         = "argocd-repo-server"
-	gnuPGSourcePath = "/app/config/gpg/source"
-
-	defaultPauseGenerationAfterFailedGenerationAttempts = 3
-	defaultPauseGenerationOnFailureForMinutes           = 60
-	defaultPauseGenerationOnFailureForRequests          = 0
+	cliName = "argocd-repo-server"
 )
 
-func getGnuPGSourcePath() string {
-	return env.StringFromEnv(common.EnvGPGDataPath, gnuPGSourcePath)
-}
-
-func getPauseGenerationAfterFailedGenerationAttempts() int {
-	return env.ParseNumFromEnv(common.EnvPauseGenerationAfterFailedAttempts, defaultPauseGenerationAfterFailedGenerationAttempts, 0, math.MaxInt32)
-}
-
-func getPauseGenerationOnFailureForMinutes() int {
-	return env.ParseNumFromEnv(common.EnvPauseGenerationMinutes, defaultPauseGenerationOnFailureForMinutes, 0, math.MaxInt32)
-}
-
-func getPauseGenerationOnFailureForRequests() int {
-	return env.ParseNumFromEnv(common.EnvPauseGenerationRequests, defaultPauseGenerationOnFailureForRequests, 0, math.MaxInt32)
-}
-
-func getSubmoduleEnabled() bool {
-	return env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
-}
+var (
+	gnuPGSourcePath                              = env.StringFromEnv(common.EnvGPGDataPath, "/app/config/gpg/source")
+	pauseGenerationAfterFailedGenerationAttempts = env.ParseNumFromEnv(common.EnvPauseGenerationAfterFailedAttempts, 3, 0, math.MaxInt32)
+	pauseGenerationOnFailureForMinutes           = env.ParseNumFromEnv(common.EnvPauseGenerationMinutes, 60, 0, math.MaxInt32)
+	pauseGenerationOnFailureForRequests          = env.ParseNumFromEnv(common.EnvPauseGenerationRequests, 0, 0, math.MaxInt32)
+	gitSubmoduleEnabled                          = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
+)
 
 func NewCommand() *cobra.Command {
 	var (
@@ -124,10 +107,10 @@ func NewCommand() *cobra.Command {
 			cacheutil.CollectMetrics(redisClient, metricsServer)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
 				ParallelismLimit: parallelismLimit,
-				PauseGenerationAfterFailedGenerationAttempts: getPauseGenerationAfterFailedGenerationAttempts(),
-				PauseGenerationOnFailureForMinutes:           getPauseGenerationOnFailureForMinutes(),
-				PauseGenerationOnFailureForRequests:          getPauseGenerationOnFailureForRequests(),
-				SubmoduleEnabled:                             getSubmoduleEnabled(),
+				PauseGenerationAfterFailedGenerationAttempts: pauseGenerationAfterFailedGenerationAttempts,
+				PauseGenerationOnFailureForMinutes:           pauseGenerationOnFailureForMinutes,
+				PauseGenerationOnFailureForRequests:          pauseGenerationOnFailureForRequests,
+				SubmoduleEnabled:                             gitSubmoduleEnabled,
 				MaxCombinedDirectoryManifestsSize:            maxCombinedDirectoryManifestsQuantity,
 				CMPTarExcludedGlobs:                          cmpTarExcludedGlobs,
 				AllowOutOfBoundsSymlinks:                     allowOutOfBoundsSymlinks,
@@ -181,12 +164,12 @@ func NewCommand() *cobra.Command {
 				err = gpg.InitializeGnuPG()
 				errors.CheckError(err)
 
-				log.Infof("Populating GnuPG keyring with keys from %s", getGnuPGSourcePath())
-				added, removed, err := gpg.SyncKeyRingFromDirectory(getGnuPGSourcePath())
+				log.Infof("Populating GnuPG keyring with keys from %s", gnuPGSourcePath)
+				added, removed, err := gpg.SyncKeyRingFromDirectory(gnuPGSourcePath)
 				errors.CheckError(err)
 				log.Infof("Loaded %d (and removed %d) keys from keyring", len(added), len(removed))
 
-				go func() { errors.CheckError(reposerver.StartGPGWatcher(getGnuPGSourcePath())) }()
+				go func() { errors.CheckError(reposerver.StartGPGWatcher(gnuPGSourcePath)) }()
 			}
 
 			log.Infof("argocd-repo-server is listening on %s", listener.Addr())
