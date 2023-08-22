@@ -20,7 +20,7 @@ creation-date: 2023-08-22
 last-updated: 2023-08-22
 ---
 
-# Self Service Notification
+# Self Service Notification for ArgoCD
 
 ## Summary
 This proposal is to enable application teams to have their own configurations of ArgoCD notifications aka self-service notification.
@@ -41,12 +41,12 @@ We need to enable application team to configure their own notification configura
 Deploy app-specific notification configuration resources in the same namespace where ArgoCD application is in.
 ArgoCD applications are in any namespaces.
 
-Enhance notification controller to support app in any namespace model so that it sends notifications for apps in any namespaces and gets notification configurations from the namespace where the app is in.
+Enhance notification controller to support app in any namespace so that it sends notifications for apps in any namespaces.
 Notification controller knows the set of namespaces to monitor by using `--application-namespaces` startup parameter. 
 It can also be conveniently set up and kept in sync by specifying the application.namespaces settings in the argocd-cmd-params-cm ConfigMap.
 
-Notification controller creates notification engine controller using function `NewControllerWithNamespaceSupport`. This sets flag `namespaceSupport = true`. 
-When this flag is on, notification apiFactory creates apis from both the default configuration and also configuration in the application's namespace.
+Enhance notification controller to create notification-engine controller using function `NewControllerWithNamespaceSupport`. This sets flag `namespaceSupport = true`. 
+When this flag is on, notification-engine controller calls apiFactory to creates apis from both the default configuration and also configuration in the application's namespace.
 
 ![img.png](images/self-service-notifications.png)
 
