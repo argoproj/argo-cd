@@ -126,6 +126,11 @@ type ClientOptions struct {
 	Headers              []string
 	HttpRetryMax         int
 	KubeOverrides        *clientcmd.ConfigOverrides
+	AppControllerName    string
+	ServerName           string
+	RedisHaProxyName     string
+	RedisName            string
+	RepoServerName       string
 }
 
 type client struct {
@@ -207,7 +212,8 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		if opts.KubeOverrides == nil {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
 		}
-		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, "app.kubernetes.io/name=argocd-server")
+		serverPodLabelSelector := common.LabelKeyAppName + "=" + opts.ServerName
+		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, serverPodLabelSelector)
 		if err != nil {
 			return nil, err
 		}
