@@ -1440,6 +1440,8 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	if len(shortRevision) > 7 {
 		shortRevision = shortRevision[:7]
 	}
+	appDest := v1alpha1.ApplicationDestination{Name: q.AppName, Namespace: q.Namespace}
+
 	return &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
@@ -1448,6 +1450,8 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: q.Repo.Repo},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.ApplicationSource.Path},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_CLUSTER_NAME", Value: appDest.Name},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_CLUSTER_SERVER", Value: appDest.Server},
 	}
 }
 

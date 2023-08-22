@@ -1531,6 +1531,8 @@ func Test_newEnv(t *testing.T) {
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: "https://github.com/my-org/my-repo"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_CLUSTER_NAME", Value: "my-cluster-name"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_CLUSTER_SERVER", Value: "https://kubernetes.default.svc"},
 	}, newEnv(&apiclient.ManifestRequest{
 		AppName:   "my-app-name",
 		Namespace: "my-namespace",
