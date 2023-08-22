@@ -235,15 +235,15 @@ const (
 	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
 	// EnvGPGDataPath overrides the location where GPG keyring for signature verification is stored
 	EnvGPGDataPath = "ARGOCD_GPG_DATA_PATH"
-	// EnvServerName is the pod selector labels of the Argo CD server component.
+	// EnvServerName is the name of the Argo CD server component, as specified by the value under the LabelKeyAppName label key.
 	EnvServerName = "ARGOCD_SERVER_NAME"
-	// EnvRepoServerName is the pod selector labels of the Argo CD repo server component.
+	// EnvRepoServerName is the name of the Argo CD repo server component, as specified by the value under the LabelKeyAppName label key.
 	EnvRepoServerName = "ARGOCD_REPO_SERVER_NAME"
-	// EnvAppControllerName is the pod selector labels of the Argo CD application controller component.
+	// EnvAppControllerName is the name of the Argo CD application controller component, as specified by the value under the LabelKeyAppName label key.
 	EnvAppControllerName = "ARGOCD_APPLICATION_CONTROLLER_NAME"
-	// EnvRedisName is the pod selector labels of the Argo CD redis component.
+	// EnvRedisName is the name of the Argo CD redis component, as specified by the value under the LabelKeyAppName label key.
 	EnvRedisName = "ARGOCD_REDIS_NAME"
-	// EnvRedisHaProxyName is the pod selector labels of the Argo CD Redis HA proxy component.
+	// EnvRedisHaProxyName is the name of the Argo CD Redis HA proxy component, as specified by the value under the LabelKeyAppName label key.
 	EnvRedisHaProxyName = "ARGOCD_REDIS_HAPROXY_NAME"
 )
 
