@@ -151,7 +151,8 @@ func StripCRLFCharacter(input string) string {
 // GetApplicationControllerReplicas gets the replicas of application controller
 func (db *db) GetApplicationControllerReplicas() int {
 	// get the replicas from application controller deployment, if the application controller deployment does not exist, check for environment variable
-	appControllerDeployment, _ := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(context.Background(), common.ApplicationController, metav1.GetOptions{})
+	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+	appControllerDeployment, _ := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 	if appControllerDeployment != nil {
 		return int(*appControllerDeployment.Spec.Replicas)
 	}

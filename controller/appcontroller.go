@@ -204,7 +204,8 @@ func NewApplicationController(
 	})
 
 	readinessHealthCheck := func(r *http.Request) error {
-		appControllerDeployment, _ := kubeClientset.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), common.ApplicationController, metav1.GetOptions{})
+		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+		appControllerDeployment, _ := kubeClientset.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 		if appControllerDeployment != nil {
 			if appControllerDeployment.Spec.Replicas != nil && int(*appControllerDeployment.Spec.Replicas) <= 0 {
 				return fmt.Errorf("application controller deployment replicas is not set or is less than 0, replicas: %d", appControllerDeployment.Spec.Replicas)
