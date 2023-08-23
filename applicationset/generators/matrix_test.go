@@ -272,6 +272,28 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 			},
 		},
 		{
+			name: "parameter override: first list elements take precedence",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &argoprojiov1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"booleanFalse": false, "booleanTrue": true, "stringFalse": "false", "stringTrue": "true"}`)},
+						},
+					},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"booleanFalse": true, "booleanTrue": false, "stringFalse": "true", "stringTrue": "false"}`)},
+						},
+					},
+				},
+			},
+			expected: []map[string]interface{}{
+				{"booleanFalse": false, "booleanTrue": true, "stringFalse": "false", "stringTrue": "true"},
+			},
+		},
+		{
 			name: "returns error if there is less than two base generators",
 			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
 				{
