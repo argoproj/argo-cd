@@ -52,6 +52,9 @@ This controller uses both the self-service configuration and the admin defined d
 
 ![img.png](images/self-service-notifications.png)
 
+In ArgoCD UI, when subscribing to notifications, user will be presented with a dropdown list of default-configuration and self-service-configuration if exists.
+Based on the selection of configurations, list of services and triggers will be shown for each respective configuration.
+
 ### Use cases
 
 Add a list of detailed use cases this enhancement intends to take care of.
