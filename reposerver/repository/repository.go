@@ -6,12 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	goio "io"
 	"io/fs"
 	"net/url"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -1940,16 +1938,6 @@ func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 	})
 
 	return vm, nil
-}
-
-func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
-	if len(command.Command) == 0 {
-		return "", fmt.Errorf("Command is empty")
-	}
-	cmd := exec.Command(command.Command[0], append(command.Command[1:], command.Args...)...)
-	cmd.Env = env
-	cmd.Dir = path
-	return executil.Run(cmd)
 }
 
 func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
