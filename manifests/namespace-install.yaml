@@ -479,7 +479,8 @@ metadata:
   name: argocd-dex-server
 spec:
   ports:
-  - name: http
+  - appProtocol: TCP
+    name: http
     port: 5556
     protocol: TCP
     targetPort: 5556
@@ -730,7 +731,7 @@ spec:
               key: applicationsetcontroller.scm.root.ca.path
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATIONSET_ALLOWED_SCM_PROVIDERS
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.allowed.scm.providers

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"crypto/x509"
+	"encoding/json"
 	"os"
 	"path"
 	"testing"
@@ -195,6 +196,113 @@ func TestRenderTemplateParams(t *testing.T) {
 			}
 		})
 	}
+
+}
+
+func TestRenderHelmValuesObjectJson(t *testing.T) {
+
+	params := map[string]interface{}{
+		"test": "Hello world",
+	}
+
+	application := &argoappsv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+			CreationTimestamp: metav1.NewTime(time.Now()),
+			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+			Name:              "application-one",
+			Namespace:         "default",
+		},
+		Spec: argoappsv1.ApplicationSpec{
+			Source: &argoappsv1.ApplicationSource{
+				Path:           "",
+				RepoURL:        "",
+				TargetRevision: "",
+				Chart:          "",
+				Helm: &argoappsv1.ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Raw: []byte(`{
+								"some": {
+									"string": "{{.test}}"
+								}
+							  }`),
+					},
+				},
+			},
+			Destination: argoappsv1.ApplicationDestination{
+				Server:    "",
+				Namespace: "",
+				Name:      "",
+			},
+			Project: "",
+		},
+	}
+
+	// Render the cloned application, into a new application
+	render := Render{}
+	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, newApplication)
+
+	var unmarshaled interface{}
+	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
+
+	assert.NoError(t, err)
+	assert.Equal(t, unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"], "Hello world")
+
+}
+
+func TestRenderHelmValuesObjectYaml(t *testing.T) {
+
+	params := map[string]interface{}{
+		"test": "Hello world",
+	}
+
+	application := &argoappsv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+			CreationTimestamp: metav1.NewTime(time.Now()),
+			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+			Name:              "application-one",
+			Namespace:         "default",
+		},
+		Spec: argoappsv1.ApplicationSpec{
+			Source: &argoappsv1.ApplicationSource{
+				Path:           "",
+				RepoURL:        "",
+				TargetRevision: "",
+				Chart:          "",
+				Helm: &argoappsv1.ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Raw: []byte(`some:
+  string: "{{.test}}"`),
+					},
+				},
+			},
+			Destination: argoappsv1.ApplicationDestination{
+				Server:    "",
+				Namespace: "",
+				Name:      "",
+			},
+			Project: "",
+		},
+	}
+
+	// Render the cloned application, into a new application
+	render := Render{}
+	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, newApplication)
+
+	var unmarshaled interface{}
+	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
+
+	assert.NoError(t, err)
+	assert.Equal(t, unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"], "Hello world")
 
 }
 
