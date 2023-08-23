@@ -1952,68 +1952,6 @@ func runCommand(command v1alpha1.Command, path string, env []string) (string, er
 	return executil.Run(cmd)
 }
 
-func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alpha1.ConfigManagementPlugin {
-	for _, plugin := range plugins {
-		if plugin.Name == name {
-			return plugin
-		}
-	}
-	return nil
-}
-
-func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, plugin *v1alpha1.ConfigManagementPlugin) ([]manifest, error) {
-	// Plugins can request to lock the complete repository when they need to
-	// use git client operations.
-	if plugin.LockRepo {
-		manifestGenerateLock.Lock(repoRoot)
-		defer manifestGenerateLock.Unlock(repoRoot)
-	} else {
-		concurrencyAllowed := isConcurrencyAllowed(appPath)
-		if !concurrencyAllowed {
-			manifestGenerateLock.Lock(appPath)
-			defer manifestGenerateLock.Unlock(appPath)
-		}
-	}
-
-	env, err := getPluginEnvs(envVars, q, creds)
-	if err != nil {
-		return nil, err
-	}
-
-	if plugin.Init != nil {
-		_, err := runCommand(*plugin.Init, appPath, env)
-		if err != nil {
-			return nil, err
-		}
-	}
-	out, err := runCommand(plugin.Generate, appPath, env)
-	if err != nil {
-		return nil, err
-	}
-
-	manifestObjs, err := kube.SplitYAML([]byte(out))
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert CMP manifests to unstructured objects: %s", err.Error())
-	}
-
-	jsonObjs, err := expandUnstructuredObjs(manifestObjs)
-	if err != nil {
-		return nil, err
-	}
-
-	manifests := []manifest{}
-	for _, obj := range jsonObjs {
-		manifests = append(manifests, manifest{
-			rawManifest: []byte(""),
-			obj:         obj,
-			path:        "unknown",
-			line:        1,
-		})
-	}
-
-	return manifests, nil
-}
-
 func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
 	envVars := env.Environ()
 	envVars = append(envVars, "KUBE_VERSION="+text.SemVer(q.KubeVersion))
