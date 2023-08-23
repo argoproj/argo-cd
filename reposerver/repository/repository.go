@@ -1053,15 +1053,6 @@ func sanitizeRepoName(repoName string) string {
 	return strings.ReplaceAll(repoName, "/", "-")
 }
 
-func repoExists(repo string, repos []*v1alpha1.Repository) bool {
-	for _, r := range repos {
-		if strings.TrimPrefix(repo, ociPrefix) == strings.TrimPrefix(r.Repo, ociPrefix) {
-			return true
-		}
-	}
-	return false
-}
-
 func isConcurrencyAllowed(appPath string) bool {
 	if _, err := os.Stat(path.Join(appPath, allowConcurrencyFile)); err == nil {
 		return true
@@ -1095,32 +1086,6 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 		return err
 	}
 	return os.WriteFile(markerFile, []byte("marker"), 0644)
-}
-
-func populateRequestRepos(appPath string, q *apiclient.ManifestRequest) error {
-	repos, err := getHelmDependencyRepos(appPath)
-	if err != nil {
-		return err
-	}
-
-	for _, r := range repos {
-		if !repoExists(r.Repo, q.Repos) {
-			repositoryCredential := getRepoCredential(q.HelmRepoCreds, r.Repo)
-			if repositoryCredential != nil {
-				if repositoryCredential.EnableOCI {
-					r.Repo = strings.TrimPrefix(r.Repo, ociPrefix)
-				}
-				r.EnableOCI = repositoryCredential.EnableOCI
-				r.Password = repositoryCredential.Password
-				r.Username = repositoryCredential.Username
-				r.SSHPrivateKey = repositoryCredential.SSHPrivateKey
-				r.TLSClientCertData = repositoryCredential.TLSClientCertData
-				r.TLSClientCertKey = repositoryCredential.TLSClientCertKey
-			}
-			q.Repos = append(q.Repos, r)
-		}
-	}
-	return nil
 }
 
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]manifest, error) {
@@ -1402,28 +1367,15 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		manifests, err = kustomizeBuild(repoURL, repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), q.ApplicationSource.Kustomize, q.KustomizeOptions, env, q.Namespace)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		var plugin *v1alpha1.ConfigManagementPlugin
-		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
-			plugin = findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
+		// if the named plugin was not found in argocd-cm try sidecar plugin
+		pluginName := ""
+		if q.ApplicationSource.Plugin != nil {
+			pluginName = q.ApplicationSource.Plugin.Name
 		}
-		if plugin != nil {
-			// argocd-cm deprecated plugin is being used
-			manifests, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), plugin)
-			log.WithFields(map[string]interface{}{
-				"application": q.AppName,
-				"plugin":      q.ApplicationSource.Plugin.Name,
-			}).Warnf(common.ConfigMapPluginDeprecationWarning)
-		} else {
-			// if the named plugin was not found in argocd-cm try sidecar plugin
-			pluginName := ""
-			if q.ApplicationSource.Plugin != nil {
-				pluginName = q.ApplicationSource.Plugin.Name
-			}
-			// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
-			manifests, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
-			if err != nil {
-				err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
-			}
+		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
+		manifests, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
+		if err != nil {
+			err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
 		}
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
