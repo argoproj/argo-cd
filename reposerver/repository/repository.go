@@ -405,7 +405,7 @@ func (s *Service) runRepoOperation(
 		} else {
 			commit, err := gitClient.CommitSHA()
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get commit SHA: %w", err)
 			}
 			commitSHA = commit
 		}
