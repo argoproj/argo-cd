@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
+	"gopkg.in/yaml.v2"
 	"math"
 	"reflect"
 	"sort"
@@ -20,7 +21,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -1030,6 +1030,206 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 			return nil
 		}
 	}
+}
+
+func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing_StartEventSourceServer) error {
+	var (
+		logCtx   log.FieldLogger = log.StandardLogger()
+		selector labels.Selector
+		err      error
+	)
+	q := application.ApplicationQuery{}
+	if err := yaml.Unmarshal(es.Config, &q); err != nil {
+		logCtx.WithError(err).Error("failed to unmarshal event-source config")
+		return fmt.Errorf("failed to unmarshal event-source config: %w", err)
+	}
+
+	if q.Name != nil {
+		logCtx = logCtx.WithField("application", *q.Name)
+	}
+
+	claims := stream.Context().Value("claims")
+
+	if q.Selector != nil {
+		selector, err = labels.Parse(*q.Selector)
+		if err != nil {
+			return err
+		}
+	}
+
+	minVersion := 0
+	if q.ResourceVersion != nil {
+		if minVersion, err = strconv.Atoi(*q.ResourceVersion); err != nil {
+			minVersion = 0
+		}
+	}
+
+	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
+
+	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
+	// caller has RBAC privileges permissions to view it
+	sendIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, ts string, ignoreResourceCache bool) error {
+		if eventType == watch.Bookmark {
+			return nil // ignore this event
+		}
+
+		if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
+			return nil
+		}
+
+		if selector != nil {
+			matchedEvent := (q.GetName() == "" || a.Name == q.GetName()) && selector.Matches(labels.Set(a.Labels))
+			if !matchedEvent {
+				return nil
+			}
+		}
+
+		if !s.isNamespaceEnabled(appNs) {
+			return security.NamespaceNotPermittedError(appNs)
+		}
+
+		if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
+			// do not emit apps user does not have accessing
+			return nil
+		}
+
+		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+		if err != nil {
+			return err
+		}
+		trackingMethod := argoutil.GetTrackingMethod(s.settingsMgr)
+
+		err = s.applicationEventReporter.streamApplicationEvents(ctx, &a, es, stream, ts, ignoreResourceCache, appInstanceLabelKey, trackingMethod)
+		if err != nil {
+			return err
+		}
+
+		if err := s.cache.SetLastApplicationEvent(&a, applicationEventCacheExpiration); err != nil {
+			logCtx.WithError(err).Error("failed to cache last sent application event")
+			return err
+		}
+		return nil
+	}
+
+	eventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
+	unsubscribe := s.appBroadcaster.Subscribe(eventsChannel)
+	ticker := time.NewTicker(5 * time.Second)
+	defer unsubscribe()
+	defer ticker.Stop()
+	for {
+		select {
+		case event := <-eventsChannel:
+			shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
+			if !shouldProcess {
+				continue
+			}
+			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
+			ctx, cancel := context.WithTimeout(stream.Context(), 2*time.Minute)
+			err := sendIfPermitted(ctx, event.Application, event.Type, ts, ignoreResourceCache)
+			if err != nil {
+				logCtx.WithError(err).Error("failed to stream application events")
+				if strings.Contains(err.Error(), "context deadline exceeded") {
+					logCtx.Info("Closing event-source connection")
+					cancel()
+					return err
+				}
+			}
+			cancel()
+		case <-ticker.C:
+			var err error
+			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
+			payload := events.EventPayload{Timestamp: ts}
+			payloadBytes, err := json.Marshal(&payload)
+			if err != nil {
+				log.Errorf("failed to marshal payload for heartbeat: %s", err.Error())
+				break
+			}
+
+			ev := &events.Event{Payload: payloadBytes, Name: es.Name}
+			if err = stream.Send(ev); err != nil {
+				log.Errorf("failed to send heartbeat: %s", err.Error())
+				break
+			}
+		case <-stream.Context().Done():
+			return nil
+		}
+	}
+}
+
+func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.ApplicationValidationRequest) (*application.ApplicationValidateResponse, error) {
+	app := requset.Application
+	proj, err := argo.GetAppProject(app, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	if err != nil {
+		entity := projectEntity
+		if apierr.IsNotFound(err) {
+			errMsg := fmt.Sprintf("application references project %s which does not exist", app.Spec.Project)
+			return &application.ApplicationValidateResponse{
+				Error:  &errMsg,
+				Entity: &entity,
+			}, nil
+		}
+		errMsg := err.Error()
+		return &application.ApplicationValidateResponse{
+			Error:  &errMsg,
+			Entity: &entity,
+		}, nil
+	}
+
+	if err := validateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+		entity := destinationEntity
+		errMsg := fmt.Sprintf("application destination spec for %s is invalid: %s", app.ObjectMeta.Name, err.Error())
+		return &application.ApplicationValidateResponse{
+			Error:  &errMsg,
+			Entity: &entity,
+		}, nil
+	}
+	var conditions []appv1.ApplicationCondition
+	conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
+	if err != nil {
+		entity := sourceEntity
+		errMsg := err.Error()
+		return &application.ApplicationValidateResponse{
+			Error:  &errMsg,
+			Entity: &entity,
+		}, nil
+	}
+	if len(conditions) > 0 {
+		entity := sourceEntity
+		errMsg := fmt.Sprintf("application spec for %s is invalid: %s", app.ObjectMeta.Name, argo.FormatAppConditions(conditions))
+		return &application.ApplicationValidateResponse{
+			Error:  &errMsg,
+			Entity: &entity,
+		}, nil
+	}
+	return &application.ApplicationValidateResponse{
+		Error:  nil,
+		Entity: nil,
+	}, nil
+}
+
+// validates destination name (argo.ValidateDestination) and server with extra logic
+func validateDestination(ctx context.Context, dest *appv1.ApplicationDestination, db db.ArgoDB) error {
+	err := argo.ValidateDestination(ctx, dest, db)
+
+	if err != nil {
+		return err
+	}
+
+	if dest.Server != "" {
+		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
+		_, err := db.GetCluster(ctx, dest.Server)
+		if err != nil {
+			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
+				return fmt.Errorf("cluster '%s' has not been configured", dest.Server)
+			} else {
+				return err
+			}
+		}
+	} else if dest.Server == "" {
+		return fmt.Errorf("destination server missing from app spec")
+	}
+
+	return nil
 }
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, validate bool) error {

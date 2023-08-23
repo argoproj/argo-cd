@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	goio "io"
 	"io/fs"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -30,6 +32,7 @@ import (
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/ghodss/yaml"
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/google/go-jsonnet"
 	"github.com/google/uuid"
@@ -41,7 +44,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/yaml"
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -703,6 +705,12 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	repoRefs := make(map[string]repoRef)
 
 	var manifestGenResult *apiclient.ManifestResponse
+
+	gitClient, err := s.newClient(q.Repo)
+	if err != nil {
+		log.Errorf("failed to build git client, application: %s: %s", q.AppName, err.Error())
+	}
+
 	opContext, err := opContextSrc()
 	if err == nil {
 		// Much of the multi-source handling logic is duplicated in resolveReferencedSources. If making changes here,
@@ -793,7 +801,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, gitClient, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1043,6 +1051,15 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 
 func sanitizeRepoName(repoName string) string {
 	return strings.ReplaceAll(repoName, "/", "-")
+}
+
+func repoExists(repo string, repos []*v1alpha1.Repository) bool {
+	for _, r := range repos {
+		if strings.TrimPrefix(repo, ociPrefix) == strings.TrimPrefix(r.Repo, ociPrefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func isConcurrencyAllowed(appPath string) bool {
@@ -2006,7 +2023,7 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 		}
 	}
 
-	env, err := getPluginEnvs(envVars, q, creds, false)
+	env, err := getPluginEnvs(envVars, q, creds)
 	if err != nil {
 		return nil, err
 	}
@@ -2045,7 +2062,7 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 	return manifests, nil
 }
 
-func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, remote bool) ([]string, error) {
+func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
 	envVars := env.Environ()
 	envVars = append(envVars, "KUBE_VERSION="+text.SemVer(q.KubeVersion))
 	envVars = append(envVars, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
