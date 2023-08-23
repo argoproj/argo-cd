@@ -365,6 +365,28 @@ func TestGetBranchesMissingDefault(t *testing.T) {
 	assert.Empty(t, repos)
 }
 
+func TestGetBranchesEmptyRepo(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Empty(t, r.Header.Get("Authorization"))
+		switch r.RequestURI {
+		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+			return
+		}
+	}))
+	defer ts.Close()
+	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", false)
+	assert.NoError(t, err)
+	repos, err := provider.GetBranches(context.Background(), &Repository{
+		Organization: "PROJECT",
+		Repository:   "REPO",
+		URL:          "ssh://git@mycompany.bitbucket.org/PROJECT/REPO.git",
+		Labels:       []string{},
+		RepositoryId: 1,
+	})
+	assert.Empty(t, repos)
+	assert.NoError(t, err)
+}
+
 func TestGetBranchesErrorDefaultBranch(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
