@@ -127,3 +127,6 @@ type: Opaque
 ## Drawbacks
 
 ## Alternatives
+
+
+![img.png](images/self-service-notifications2.png)
