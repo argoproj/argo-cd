@@ -71,7 +71,7 @@ I want to receive Pager Duty notification when my application is syncing, but ou
 My application resource is as below. It is deployed in namespace `some-namespace`. 
 PagerDuty service that I want to alert on is called `my-service`
 
-My own self-service notification configuration are in `argocd-notifications-cm` and `argocd-notifications-secret`.
+My own self-service notification configurations are in `argocd-notifications-cm` and `argocd-notifications-secret`.
 These two resources are also deployed in namespace `some-namespace`, the same namespace as my application above,
 therefore this self-service notification configuration is also used for this application in addition to the default configuration.
 
@@ -152,5 +152,6 @@ Alternatives to this gitops-first design could include:
 1) Allowing self-serve notifications config via the API, segmented by project (i.e. not gitops)
 2) Associating notifications config with an AppProject instead of an Applications namespace (could still be gitops, depending on the association mechanism)
 3) Associating notifications config with an Application directly (maybe via a ConfigMapRef field or an annotation?) instead of an Applications namespace (could probably also be gitopsed, but is a bit more complicated)
-   This choice is important, because it sets a precedent for how we expect self-service, gitops-first multi-tenancy to scale in Argo. Basically: how do we let users configure _stuff_ about their applications via gitops without requiring massive administrative overhead. The model we establish could later expand to configuring resource customizations, sync windows, etc.
+   
+This choice is important, because it sets a precedent for how we expect self-service, gitops-first multi-tenancy to scale in Argo. Basically: how do we let users configure _stuff_ about their applications via gitops without requiring massive administrative overhead. The model we establish could later expand to configuring resource customizations, sync windows, etc.
 
