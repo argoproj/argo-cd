@@ -994,7 +994,10 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			proj := getProject(c, clientOpts, ctx, app.Spec.Project)
-			foundDiffs := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption)
+			foundDiffs, err := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption)
+			if err != nil {
+				errors.CheckError(err)
+			}
 			if foundDiffs && exitCode {
 				os.Exit(1)
 			}
@@ -1022,7 +1025,7 @@ type DifferenceOption struct {
 }
 
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
-func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption) bool {
+func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption) (bool, error) {
 	var foundDiffs bool
 	liveObjs, err := cmdutil.LiveObjects(resources.Items)
 	errors.CheckError(err)
@@ -1063,6 +1066,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 		}
 	}
 
+	var printErr error
 	for _, item := range items {
 		if item.target != nil && hook.IsHook(item.target) || item.live != nil && hook.IsHook(item.live) {
 			continue
@@ -1101,15 +1105,21 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 			if !foundDiffs {
 				foundDiffs = true
 			}
-			err = cli.PrintDiff(item.key.Name, live, target)
-			// ignore exitError since diff utilities usually return exit status 1 when diff is present
-			var execError *exec.Error
-			if err != nil && goerrors.As(err, &execError) {
-				errors.CheckError(err)
-			}
+			printErr = checkForExecError(cli.PrintDiff(item.key.Name, live, target))
 		}
 	}
-	return foundDiffs
+
+	return foundDiffs, printErr
+}
+
+// checkForExecError function checks for command run errors.
+// It returns an error if the command couldn't be run, but ignores the command's own execution errors (e.g. non-zero exit codes).
+func checkForExecError(err error) error {
+	var execError *exec.Error
+	if err != nil && goerrors.As(err, &execError) {
+		return err
+	}
+	return nil
 }
 
 func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[kube.ResourceKey]*unstructured.Unstructured, items []objKeyLiveTarget, argoSettings *settings.Settings, appName, namespace string) []objKeyLiveTarget {
@@ -1780,7 +1790,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
 
 					proj := getProject(c, clientOpts, ctx, app.Spec.Project)
-					foundDiffs = findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption)
+					foundDiffs, err = findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption)
+					if err != nil {
+						log.Warnf("Error generating diff: %v", err)
+					}
 					if foundDiffs {
 						if !diffChangesConfirm {
 							yesno := cli.AskToProceed(fmt.Sprintf("Please review changes to application %s shown above. Do you want to continue the sync process? (y/n): ", appQualifiedName))
