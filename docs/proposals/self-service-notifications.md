@@ -45,7 +45,6 @@ ArgoCD applications are in any namespace using apps in any namespace feature.
 
 Enhance ArgoCD notification controller to support app in any namespace.
 Notification controller will know the namespaces to monitor by using `--application-namespaces` startup parameter. 
-It can also be conveniently set up and kept in sync by specifying the application.namespaces settings in the argocd-cmd-params-cm ConfigMap.
 
 Enhance ArgoCD notification controller to use notification-engine's function `NewControllerWithNamespaceSupport()`. 
 This function uses the application's `metadata.namespace` field to find the location of the configmap and secret. 
@@ -66,24 +65,30 @@ I want to receive Pager Duty notification when my application is syncing, but ou
 
 
 #### Use case 1 Detailed example
+My application resource is as below. It is deployed in namespace `some-namespace`. 
+PagerDuty service that I want to alert on is called `my-service`
+
+My own self-service notification configuration are in `argocd-notifications-cm` and `argocd-notifications-secret`.
+These two resources are also deployed in namespace `some-namespace`, the same namespace as my application above,
+therefore this self-service notification configuration is also used for this application in addition to the default configuration.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   annotations:
-    notifications.argoproj.io/subscribe.on-sync-running.pagerdutyv2: hello-2_xxxx
-    notifications.argoproj.io/subscribe.on-sync-running.slack: may-test
+    notifications.argoproj.io/subscribe.on-sync-running.pagerdutyv2: my-service
+    notifications.argoproj.io/subscribe.on-sync-running.slack: <the_slack_channel_name>
   name: guest-book
-  namespace: app-may-test
+  namespace: some-namespace
 spec:
   destination:
-    namespace: app-may-test
+    namespace: <detination_namespace>
     server: https://xxxx
   project: default
   source:
     path: guestbook
-    repoURL: https://github.com/mayzhang2000/argocd-example-apps.git
+    repoURL: https://github.com/xxxx.git
     targetRevision: HEAD
 ```
 
@@ -92,7 +97,7 @@ apiVersion: v1
 data:
   service.pagerdutyv2: |
     serviceKeys:
-      hello-2_xxxxx: $pagerdutyv2-key-hello-2_xxxx
+      my-service: $pagerduty-key-my-service
   template.app-sync-running: |
     pagerdutyv2:
       summary: "App {{.app.metadata.name}} sync running "
@@ -105,22 +110,18 @@ data:
       when: app.status.operationState.phase in ['Running']
 kind: ConfigMap
 metadata:
-  labels:
-    app.kubernetes.io/instance: mayeast
   name: argocd-notifications-cm
-  namespace: app-may-test
+  namespace: some-namespace
 ```
 
 ```yaml
 apiVersion: v1
 data:
-  pagerdutyv2-key-hello-2_4759196499290493255: ++++++++
+  pagerduty-key-my-service: ++++++++
 kind: Secret
 metadata:
-  labels:
-    app.kubernetes.io/instance: mayeast
   name: argocd-notifications-secret
-  namespace: app-may-test
+  namespace: some-namespace
 type: Opaque
 ```
 
