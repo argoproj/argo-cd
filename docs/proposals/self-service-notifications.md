@@ -132,6 +132,8 @@ ArgoCD admin has configured basic templates, as end user, I want to receive more
 ArgoCD admin has configured basic triggers, as end user, I want to receive a notification based on a trigger that pertains to my team.
 
 ### Security Considerations
+The security model for this feature is gitops-first. The Argo CD admin is expected to use apps-in-any-namespace and permit the user to deploy Applications, ConfigMaps, and Secrets to their team's Application namespace.
+This extends the existing multitenancy-by-namespace design from just Applications to an additional item of configuration: notification templates/tokens.
 
 ### Risks and Mitigations
 
@@ -142,4 +144,10 @@ This proposal aligns itself with apps in any namespace pattern.
 ## Drawbacks
 
 ## Alternatives
+Multitenancy-by-namespace is a design decision which particularly suits gitops. Argo CD also supports multitenancy governed by AppProjects. But that multitenancy model must be completely managed by the Argo CD admin, and users may not self-serve Argo CD config via GitOps.
+Alternatives to this gitops-first design could include:
+1) Allowing self-serve notifications config via the API, segmented by project (i.e. not gitops)
+2) Associating notifications config with an AppProject instead of an Applications namespace (could still be gitops, depending on the association mechanism)
+3) Associating notifications config with an Application directly (maybe via a ConfigMapRef field or an annotation?) instead of an Applications namespace (could probably also be gitopsed, but is a bit more complicated)
+   This choice is important, because it sets a precedent for how we expect self-service, gitops-first multi-tenancy to scale in Argo. Basically: how do we let users configure _stuff_ about their applications via gitops without requiring massive administrative overhead. The model we establish could later expand to configuring resource customizations, sync windows, etc.
 
