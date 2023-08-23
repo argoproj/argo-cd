@@ -81,7 +81,7 @@ func TestPersistManagedNamespaceMetadataState(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",

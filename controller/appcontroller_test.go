@@ -781,7 +781,7 @@ func TestNormalizeApplication(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -1257,7 +1257,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -1315,7 +1315,7 @@ func TestProjectErrorToCondition(t *testing.T) {
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -1473,7 +1473,7 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 	data := &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -1506,7 +1506,7 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	data := &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -1533,7 +1533,7 @@ func TestGetAppHosts(t *testing.T) {
 	data := &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
