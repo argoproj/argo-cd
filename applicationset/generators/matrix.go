@@ -60,7 +60,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 		for _, prevParam := range res {
 			params, err := m.getParams(gen, appSet, prevParam)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get params for generators[%d] in the matrix generator: %w", i, err)
+				return nil, fmt.Errorf("failed to get params for generator %d in the matrix generator: %w", i, err)
 			}
 			for _, currParam := range params {
 				if appSet.Spec.GoTemplate {
@@ -69,7 +69,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 						return nil, fmt.Errorf("failed to merge a previous params map with temp map in the matrix generator: %w", err)
 					}
 					if err := mergo.Merge(&tmp, currParam); err != nil {
-						return nil, fmt.Errorf("failed to merge a previous params map with params from generators[%d] in the matrix generator: %w", i, err)
+						return nil, fmt.Errorf("failed to merge a previous params map with params from generator %d in the matrix generator: %w", i, err)
 					}
 					list = append(list, tmp)
 				} else {
