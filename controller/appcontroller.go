@@ -1697,9 +1697,10 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		}
 		delete(newAnnotations, appv1.AnnotationKeyRefresh)
 	}
-	patch, modified, err := diff.CreateTwoWayMergePatch(
+
+	patch, modified, err := argodiff.jsonMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus}, appv1.Application{})
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
 	if err != nil {
 		logCtx.Errorf("Error constructing app status patch: %v", err)
 		return

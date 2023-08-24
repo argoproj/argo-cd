@@ -1,8 +1,10 @@
 package diff
 
 import (
+	"encoding/json"
 	"fmt"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/go-logr/logr"
 
 	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
@@ -385,4 +387,19 @@ func safeDeepCopy(obj *unstructured.Unstructured) *unstructured.Unstructured {
 		return nil
 	}
 	return obj.DeepCopy()
+}
+
+// jsonMergePatch is a wrapper func to calculate the diff between two objects
+// instead of bytes.
+func jsonMergePatch(orig, new interface{}) ([]byte, bool, error) {
+	origBytes, err := json.Marshal(orig)
+	if err != nil {
+		return nil, false, err
+	}
+	newBytes, err := json.Marshal(new)
+	if err != nil {
+		return nil, false, err
+	}
+	patch, err := jsonpatch.CreateMergePatch(origBytes, newBytes)
+	return patch, string(patch) != "{}", err
 }
