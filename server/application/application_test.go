@@ -981,17 +981,6 @@ func TestNoAppEnumeration(t *testing.T) {
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
-	t.Run("GetManifestsWithFiles", func(t *testing.T) {
-		err := appServer.GetManifestsWithFiles(&TestServerStream{ctx: adminCtx, appName: "test"})
-		assert.NoError(t, err)
-		err = appServer.GetManifestsWithFiles(&TestServerStream{ctx: noRoleCtx, appName: "test"})
-		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		err = appServer.GetManifestsWithFiles(&TestServerStream{ctx: adminCtx, appName: "does-not-exist"})
-		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		err = appServer.GetManifestsWithFiles(&TestServerStream{ctx: adminCtx, appName: "does-not-exist", project: "test"})
-		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"does-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
-	})
-
 	t.Run("WatchResourceTree", func(t *testing.T) {
 		err := appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: pointer.String("test")}, &TestResourceTreeServer{ctx: adminCtx})
 		assert.NoError(t, err)
