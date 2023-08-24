@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -448,6 +449,12 @@ func (a *Actions) And(block func()) *Actions {
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
 	return &Consequences{a.context, a, 15}
+}
+
+func (a *Actions) Sleep(t time.Duration) *Actions {
+	log.Infof("sleeping for %v", t)
+	time.Sleep(t)
+	return a
 }
 
 func (a *Actions) runCli(args ...string) {

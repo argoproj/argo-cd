@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	cdcommon "github.com/argoproj/argo-cd/v2/common"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -78,6 +80,132 @@ func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOpe
 	return ops, cleanup, nil
 }
 
+// areDependenciesReady will figure out whether all of this app's dependencies
+// are in a ready state and thus whether the sync can proceed. Will return true if
+// sync is allowed to proceed, or false if not. In the latter case, the state's
+// phase and message will be set to a proper reason.
+func (m *appStateManager) areDependenciesReady(app *v1alpha1.Application, state *v1alpha1.OperationState, syncOp v1alpha1.SyncOperation) bool {
+	state.BlockedOnEmpty = false
+	state.Message = ""
+
+	logCtx := log.WithField("application", app.QualifiedName())
+
+	dependsOn := app.Spec.DependsOn
+	if dependsOn == nil {
+		logCtx.Debugf("Application has no dependencies defined")
+		return true
+	}
+
+	// Force lets us override any constraints that would be opposed
+	if syncOp.SyncStrategy != nil && syncOp.SyncStrategy.Force() {
+		return true
+	}
+
+	start := time.Now()
+
+	// Before the sync actually starts, we need to see whether we depend on
+	// any other application, and if yes, check if we are ready to sync.
+	deps, err := m.ResolveApplicationDependencies(app)
+	if err != nil {
+		state.Phase = common.OperationFailed
+		state.Message = fmt.Sprintf("Could not resolve application dependencies: %v", err)
+		return false
+	}
+
+	logCtx.Debugf("Resolved %d dependencies", len(deps))
+
+	// Respect any timeout setting early on
+	if dependsOn.Timeout != nil {
+		if start.After(state.StartedAt.Time.Add(*dependsOn.Timeout)) {
+			state.Phase = common.OperationFailed
+			state.Message = "Timeout waiting for dependencies to become synced and healthy"
+			return false
+		}
+	}
+
+	// If BlockOnEmpty is true and we haven't found any dependencies, we
+	// need to wait until they are created before we proceed.
+	if app.IsBlockOnEmptyDependencies() && len(deps) == 0 && len(dependsOn.Selectors) > 0 {
+		state.Phase = common.OperationRunning
+		state.Message = "Waiting for any app to be created to match dependency selector"
+		state.BlockedOnEmpty = true
+		return false
+	}
+
+	// If a wait period was specified and we are in autosync, we will wait the
+	// specified time before letting the sync proceed.
+	if app.IsAutomated() && dependsOn.SyncDelay != nil {
+		if start.Before(state.StartedAt.Time.Add(*dependsOn.SyncDelay)) {
+			state.Phase = common.OperationRunning
+			state.Message = "Delaying sync start to allow dependencies to be created"
+			return false
+		}
+	}
+
+	notReadyDeps := []string{}
+	for _, dep := range deps {
+		depApp, err := m.appLister.Applications(app.Namespace).Get(dep)
+		if err != nil {
+			state.Phase = common.OperationFailed
+			state.Message = fmt.Sprintf("Error retrieving application dependency: %v", err)
+			return false
+		}
+		if depApp.Status.Sync.Status != v1alpha1.SyncStatusCodeSynced || depApp.Status.Health.Status != health.HealthStatusHealthy {
+			logCtx.Debugf("adding %s to list of dependencies", depApp.QualifiedName())
+			notReadyDeps = append(notReadyDeps, depApp.QualifiedName())
+		}
+	}
+
+	// We need to remember the last refreshed property for each dependency,
+	// because we're going to reset the dependency list in the app's operation
+	// state.
+	waitingFor := make(map[string]*v1.Time)
+	for _, dep := range state.WaitingFor {
+		waitingFor[dep.QualifiedName()] = dep.RefreshedAt
+	}
+
+	state.WaitingFor = nil
+
+	// If there are dependencies that are not ready, we can't sync yet.
+	//
+	// However, a force sync lets us override waiting for any dependency
+	// and perform the sync despite dependencies not being ready.
+	//
+	// We store all non-ready dependencies in the application's status
+	// field.
+	if len(notReadyDeps) > 0 {
+		if !syncOp.SyncStrategy.Force() {
+			for _, dep := range notReadyDeps {
+				appName := strings.Split(dep, "/")
+				// This should not happen, but if it happens, log it out as
+				// a warning so people will be aware.
+				if len(appName) != 2 {
+					logCtx.Warnf("unexpected sync dependency: %v - should be in format namespace/name", dep)
+					continue
+				}
+				logCtx.Debugf("Adding unsatisfied dependency to operation state: %s", dep)
+
+				wf, ok := waitingFor[dep]
+				var refreshedAt *v1.Time = nil
+				if ok {
+					refreshedAt = wf
+				}
+				state.WaitingFor = append(state.WaitingFor, v1alpha1.SyncDependency{
+					ApplicationName:      appName[1],
+					ApplicationNamespace: appName[0],
+					RefreshedAt:          refreshedAt,
+				})
+			}
+			state.Phase = common.OperationRunning
+			state.Message = fmt.Sprintf("Waiting for dependencies to become synced and healthy: %s", strings.Join(notReadyDeps, ", "))
+			return false
+		}
+	}
+
+	// Ready to sync this app
+	return true
+}
+
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
@@ -97,6 +225,21 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 	syncOp = *state.Operation.Sync
+
+	// If we are waiting for any dependency, it means that we started the sync
+	// previously but did not proceed for any reason (maybe the controller was
+	// restarted, or the dependencies were not ready). We already ensured that
+	// the sync is valid and could proceed, so there's no need to check again
+	// if the sync is valid before checking for readiness of dependencies.
+	dependenciesChecked := false
+	if app.IsWaiting() {
+		log.WithField("application", app.QualifiedName()).Debugf("Operation already in progress, checking for dependencies early on")
+		if !m.areDependenciesReady(app, state, syncOp) {
+			return
+		} else {
+			dependenciesChecked = true
+		}
+	}
 
 	// validates if it should fail the sync if it finds shared resources
 	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
@@ -346,6 +489,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	if state.Phase == common.OperationTerminating {
 		syncCtx.Terminate()
 	} else {
+		if !dependenciesChecked {
+			if !m.areDependenciesReady(app, state, syncOp) {
+				return
+			}
+		}
 		syncCtx.Sync()
 	}
 	var resState []common.ResourceSyncResult

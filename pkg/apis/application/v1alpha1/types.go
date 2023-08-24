@@ -25,6 +25,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -38,6 +39,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	utilhttp "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/security"
@@ -83,12 +85,70 @@ type ApplicationSpec struct {
 
 	// Sources is a reference to the location of the application's manifests or chart
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
+
+	// DependsOn specifies what this application depends on
+	DependsOn *ApplicationDependency `json:"dependsOn,omitempty" protobuf:"bytes,9,opt,name=dependsOn"`
 }
 
 type IgnoreDifferences []ResourceIgnoreDifferences
 
 func (id IgnoreDifferences) Equals(other IgnoreDifferences) bool {
 	return reflect.DeepEqual(id, other)
+}
+
+// ApplicationDependency defines
+type ApplicationDependency struct {
+	// Selectors defines conditions for matching application's dependencies
+	Selectors []ApplicationSelector `json:"selectors" protobuf:"bytes,1,name=selectors"`
+	// BlockOnEmpty defines whether to block sync when the list of applications determined by the selector is empty
+	BlockOnEmpty *bool `json:"blockOnEmpty,omitempty" protobuf:"bytes,2,opt,name=blockOnEmpty"`
+	// SyncDelay specifies the duration in seconds to wait before starting to sync when dependencies are defined
+	SyncDelay *time.Duration `json:"syncDelay,omitempty" protobuf:"bytes,3,opt,name=syncDelay"`
+	// Timeout defines the maximum duration in seconds to wait on dependencies before the sync fails
+	Timeout *time.Duration `json:"timeout,omitempty" protobuf:"bytes,4,opt,name=timeout"`
+	// RefreshDependencies defines whether all dependencies should be refreshed before starting a sync
+	RefreshDependencies *bool `json:"refreshDependencies,omitempty" protobuf:"bytes,5,opt,name=refreshDependencies"`
+}
+
+// IsBlockOnEmptyDependencies returns true if the
+func (a *Application) IsBlockOnEmptyDependencies() bool {
+	if a.Spec.DependsOn != nil && a.Spec.DependsOn.BlockOnEmpty != nil {
+		return *a.Spec.DependsOn.BlockOnEmpty
+	} else {
+		return false
+	}
+}
+
+// ApplicationSelector specifies which applications this Application depends on
+type ApplicationSelector struct {
+	// LabelSelector selects applications by their labels
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty" protobuf:"bytes,1,name=labelSelector"`
+	// NamePattern selects applications by matching their names
+	NamePattern []string `json:"namePattern,omitempty" protobuf:"bytes,2,name=namePattern"`
+}
+
+// MatchesSelector returns whether an Application matches the conditions in the given selector
+func (app *Application) MatchesSelector(s *ApplicationSelector) bool {
+	logCtx := log.WithField("application", app.QualifiedName())
+
+	if s.LabelSelector != nil {
+		sel, err := metav1.LabelSelectorAsSelector(s.LabelSelector)
+		if err != nil {
+			logCtx.Warnf("invalid label selector: %v", err)
+			return false
+		}
+		if !sel.Matches(labels.Set(app.ObjectMeta.Labels)) {
+			return false
+		}
+	}
+
+	if len(s.NamePattern) > 0 {
+		if !glob.MatchStringInList(s.NamePattern, app.GetName(), false) {
+			return false
+		}
+	}
+
+	return true
 }
 
 type TrackingMethod string
@@ -1114,6 +1174,10 @@ type OperationState struct {
 	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
 	// RetryCount contains time of operation retries
 	RetryCount int64 `json:"retryCount,omitempty" protobuf:"bytes,8,opt,name=retryCount"`
+	// WaitingFor specifies a list of applications that this operation is waiting for
+	WaitingFor []SyncDependency `json:"waitingFor,omitempty" protobuf:"bytes,9,opt,name=waitingFor"`
+	// BlockedOnEmpty is true when the application is waiting for any dependency to be created
+	BlockedOnEmpty bool `json:"blockedOnEmpty,omitempty" protobuf:"bytes,10,opt,name=blockedOnEmpty"`
 }
 
 type Info struct {
@@ -1494,6 +1558,16 @@ type ComparedTo struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,3,opt,name=sources"`
 	// IgnoreDifferences is a reference to the application's ignored differences used for comparison
 	IgnoreDifferences IgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,4,opt,name=ignoreDifferences"`
+}
+
+type SyncDependency struct {
+	ApplicationName      string       `json:"applicationName" protobuf:"bytes,1,name=applicationName"`
+	ApplicationNamespace string       `json:"applicationNamespace" protobuf:"bytes,2,name=applicationNamespace"`
+	RefreshedAt          *metav1.Time `json:"refreshedAt,omitempty" protobuf:"bytes,3,opt,name=refreshedAt"`
+}
+
+func (sd SyncDependency) QualifiedName() string {
+	return sd.ApplicationNamespace + "/" + sd.ApplicationName
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application
@@ -3135,4 +3209,16 @@ func (a *Application) QualifiedName() string {
 // in a backwards-compatible way.
 func (a *Application) RBACName(defaultNS string) string {
 	return security.RBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
+}
+
+// IsWaiting returns whether the application is waiting for dependencies to be
+// synced and/or created.
+func (a *Application) IsWaiting() bool {
+	return a.Status.OperationState != nil &&
+		a.Status.OperationState.Phase == synccommon.OperationRunning &&
+		(len(a.Status.OperationState.WaitingFor) > 0 || a.Status.OperationState.BlockedOnEmpty)
+}
+
+func (a *Application) IsAutomated() bool {
+	return a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil
 }

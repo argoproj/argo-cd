@@ -131,6 +131,24 @@ message ApplicationCondition {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
+// ApplicationDependency defines
+message ApplicationDependency {
+  // Selectors defines conditions for matching application's dependencies
+  repeated ApplicationSelector selectors = 1;
+
+  // BlockOnEmpty defines whether to block sync when the list of applications determined by the selector is empty
+  optional bool blockOnEmpty = 2;
+
+  // SyncDelay specifies the duration in seconds to wait before starting to sync when dependencies are defined
+  optional int64 syncDelay = 3;
+
+  // Timeout defines the maximum duration in seconds to wait on dependencies before the sync fails
+  optional int64 timeout = 4;
+
+  // RefreshDependencies defines whether all dependencies should be refreshed before starting a sync
+  optional bool refreshDependencies = 5;
+}
+
 // ApplicationDestination holds information about the application's destination
 message ApplicationDestination {
   // Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.
@@ -164,6 +182,15 @@ message ApplicationPreservedFields {
   repeated string annotations = 1;
 
   repeated string labels = 2;
+}
+
+// ApplicationSelector specifies which applications this Application depends on
+message ApplicationSelector {
+  // LabelSelector selects applications by their labels
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector labelSelector = 1;
+
+  // NamePattern selects applications by matching their names
+  repeated string namePattern = 2;
 }
 
 // ApplicationSet is a set of Application resources
@@ -587,6 +614,9 @@ message ApplicationSpec {
 
   // Sources is a reference to the location of the application's manifests or chart
   repeated ApplicationSource sources = 8;
+
+  // DependsOn specifies what this application depends on
+  optional ApplicationDependency dependsOn = 9;
 }
 
 // ApplicationStatus contains status information for the application
@@ -1246,6 +1276,12 @@ message OperationState {
 
   // RetryCount contains time of operation retries
   optional int64 retryCount = 8;
+
+  // WaitingFor specifies a list of applications that this operation is waiting for
+  repeated SyncDependency waitingFor = 9;
+
+  // BlockedOnEmpty is true when the application is waiting for any dependency to be created
+  optional bool blockedOnEmpty = 10;
 }
 
 message OptionalArray {
@@ -2119,6 +2155,14 @@ message SecretRef {
 message SignatureKey {
   // The ID of the key in hexadecimal notation
   optional string keyID = 1;
+}
+
+message SyncDependency {
+  optional string applicationName = 1;
+
+  optional string applicationNamespace = 2;
+
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time refreshedAt = 3;
 }
 
 // SyncOperation contains details about a sync operation.

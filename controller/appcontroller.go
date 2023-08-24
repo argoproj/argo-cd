@@ -75,6 +75,9 @@ const (
 	orphanedIndex = "orphaned"
 )
 
+// refreshAfterForDependencies defines the interval for refresh while waiting for dependency application
+var refreshAfterForDependencies time.Duration = 2 * time.Second
+
 type CompareWith int
 
 const (
@@ -277,7 +280,7 @@ func NewApplicationController(
 		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, appLister, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -1244,6 +1247,42 @@ func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condi
 	}
 }
 
+func (ctrl *ApplicationController) refreshDependencies(app *appv1.Application, state *appv1.OperationState) {
+	logCtx := log.WithField("application", app.QualifiedName())
+	for i, dep := range state.WaitingFor {
+
+		a, err := ctrl.appLister.Applications(dep.ApplicationNamespace).Get(dep.ApplicationName)
+		if err != nil {
+			logCtx.Errorf("Could not retrieve dependency %s: %v", dep.ApplicationName, err)
+			continue
+		}
+
+		if app.Spec.GetProject() != a.Spec.GetProject() {
+			logCtx.Infof("Not refreshing dependency app %s because AppProject does not match: is %s, must be %s", a.QualifiedName(), a.Spec.GetProject(), app.Spec.GetProject())
+			continue
+		}
+
+		// Either an operation has been requested or is already in progress.
+		// We do not request a new one.
+		if a.Operation != nil || (a.Status.OperationState != nil && a.Status.OperationState.Phase == synccommon.OperationRunning) {
+			logCtx.Debugf("Dependency %s: Operation already in progress, not going to trigger another one", dep.QualifiedName())
+			continue
+		}
+
+		if dep.RefreshedAt.IsZero() {
+			logCtx.Infof("Requesting refresh for app %s to check dependencies", dep.QualifiedName())
+			ctrl.requestAppRefresh(dep.QualifiedName(), CompareWithLatest.Pointer(), nil)
+			dep.RefreshedAt = &metav1.Time{Time: time.Now()}
+		} else {
+			logCtx.Debugf("Already requested a refresh for dependency %s", dep.QualifiedName())
+		}
+
+		state.WaitingFor[i] = dep
+	}
+
+	ctrl.setOperationState(app, state)
+}
+
 func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Application) {
 	logCtx := log.WithField("application", app.QualifiedName())
 	var state *appv1.OperationState
@@ -1300,6 +1339,9 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		state.Message = err.Error()
 	} else {
 		ctrl.appStateManager.SyncAppState(app, state)
+		if state != nil && len(state.WaitingFor) > 0 {
+			ctrl.refreshDependencies(app, state)
+		}
 	}
 
 	// Check whether application is allowed to use project
@@ -1326,6 +1368,24 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				// after this, we will get requeued to the workqueue, but next time the
 				// SyncAppState will operate in a Terminating phase, allowing the worker to perform
 				// cleanup (e.g. delete jobs, workflows, etc...)
+			}
+
+			// If the operation is in progress, and we are blocked on waiting
+			// for dependencies, immediately refresh the application so that
+			// we enter a refresh cycle.
+			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == synccommon.OperationRunning {
+				refresh := false
+				if freshApp.Status.OperationState.BlockedOnEmpty {
+					logCtx.Infof("Requesting app refresh for blocked app")
+					refresh = true
+				} else if len(freshApp.Status.OperationState.WaitingFor) > 0 {
+					logCtx.Infof("Requesting app refresh because waiting on dependencies")
+					refresh = true
+				}
+				if refresh {
+					ctrl.appRefreshQueue.AddAfter(fmt.Sprintf("%s/%d", freshApp.QualifiedName(), ComparisonWithNothing), refreshAfterForDependencies)
+					ctrl.appOperationQueue.AddAfter(freshApp.QualifiedName(), refreshAfterForDependencies)
+				}
 			}
 		}
 	} else if state.Phase == synccommon.OperationFailed || state.Phase == synccommon.OperationError {
@@ -1389,11 +1449,20 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		logCtx.Errorf("error marshaling json: %v", err)
 		return
 	}
-	if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
-		patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
-		if err != nil {
-			logCtx.Errorf("error merging operation state patch: %v", err)
-			return
+	if app.Status.OperationState != nil {
+		if app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
+			patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
+			if err != nil {
+				logCtx.Errorf("error merging operation state patch: %v", err)
+				return
+			}
+		}
+		if len(app.Status.OperationState.WaitingFor) > 0 && len(state.WaitingFor) == 0 {
+			patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"waitingFor": null}}}`))
+			if err != nil {
+				logCtx.Errorf("error merging operation state patch: %v", err)
+				return
+			}
 		}
 	}
 
@@ -1660,6 +1729,53 @@ func currentSourceEqualsSyncedSource(app *appv1.Application) bool {
 	return app.Spec.Source.Equals(&app.Status.Sync.ComparedTo.Source)
 }
 
+// shouldRefreshForDependency returns whether an app should be refreshed for a
+// change in the state of one of its dependencies.
+func (ctrl *ApplicationController) shouldRefreshForDependency(app *appv1.Application) bool {
+	logCtx := log.WithField("application", app.QualifiedName())
+
+	// No need to refresh when we're not waiting for dependencies to sync
+	if app.Spec.DependsOn == nil || !app.IsWaiting() {
+		logCtx.Debugf("not waiting for dependencies, skipping refresh")
+		return false
+	}
+
+	// If we're waiting for any dependency to be created, we need refresh to
+	// see whether they're created by now.
+	if app.Status.OperationState.BlockedOnEmpty {
+		return true
+	}
+
+	needRefresh := false
+	numWaiting := len(app.Status.OperationState.WaitingFor)
+	numRemoved := 0
+	for _, syncDep := range app.Status.OperationState.WaitingFor {
+		depApp, err := ctrl.appLister.Applications(syncDep.ApplicationNamespace).Get(syncDep.ApplicationName)
+		if err != nil {
+			// The application could have been deleted meanwhile, it's not any
+			// of the dependencies anymore.
+			if apierr.IsNotFound(err) {
+				logCtx.Infof("Dependency application %s has been removed", syncDep.QualifiedName())
+				numRemoved += 1
+				continue
+			} else {
+				logCtx.Warnf("Error getting sync dependency %s: %v", syncDep.QualifiedName(), err)
+				return false
+			}
+		}
+
+		if depApp.Status.Health.Status == health.HealthStatusHealthy && depApp.Status.Sync.Status == appv1.SyncStatusCodeSynced {
+			logCtx.Debugf("Sync dependency %s has become healthy and synced", syncDep.QualifiedName())
+			needRefresh = true
+		}
+	}
+
+	// We need to refresh when either one of our dependencies changed state to
+	// healthy, or when all dependencies we were waiting for have been
+	// removed meanwhile.
+	return needRefresh || (numWaiting > 0 && numRemoved == numWaiting)
+}
+
 // needRefreshAppStatus answers if application status needs to be refreshed.
 // Returns true if application never been compared, has changed or comparison result has expired.
 // Additionally, it returns whether full refresh was requested or not.
@@ -1707,6 +1823,9 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		} else if requested, level := ctrl.isRefreshRequested(app.QualifiedName()); requested {
 			compareWith = level
 			reason = "controller refresh requested"
+		} else if ctrl.shouldRefreshForDependency(app) {
+			compareWith = ComparisonWithNothing
+			reason = "refreshing for change in dependencies' status"
 		}
 	}
 

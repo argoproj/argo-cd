@@ -3620,3 +3620,82 @@ func TestOptionalMapEquality(t *testing.T) {
 		})
 	}
 }
+
+func TestAppMatchesSelector(t *testing.T) {
+	newApp := func(labels map[string]string, name, project string) *Application {
+		return &Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: "argocd",
+				Labels:    labels,
+			},
+			Spec: ApplicationSpec{
+				Project: project,
+			},
+		}
+	}
+
+	t.Run("Matches empty", func(t *testing.T) {
+		app := newApp(map[string]string{"foo": "bar"}, "app", "default")
+		sel := &ApplicationSelector{}
+		assert.True(t, app.MatchesSelector(sel))
+	})
+
+	t.Run("Matches label selector", func(t *testing.T) {
+		app := newApp(map[string]string{"foo": "bar"}, "app", "default")
+		sel := &ApplicationSelector{
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"foo": "bar"},
+			},
+		}
+		assert.True(t, app.MatchesSelector(sel))
+	})
+
+	t.Run("Matches name", func(t *testing.T) {
+		app := newApp(map[string]string{"foo": "bar"}, "app", "default")
+		sel := &ApplicationSelector{
+			NamePattern: []string{"app"},
+		}
+		assert.True(t, app.MatchesSelector(sel))
+	})
+
+	t.Run("Does not match label selector", func(t *testing.T) {
+		app := newApp(map[string]string{"foo": "bar"}, "app", "default")
+		sel := &ApplicationSelector{
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"foo": "baz"},
+			},
+		}
+		assert.False(t, app.MatchesSelector(sel))
+	})
+
+	t.Run("Does not match name", func(t *testing.T) {
+		app := newApp(map[string]string{"foo": "bar"}, "app", "default")
+		sel := &ApplicationSelector{
+			NamePattern: []string{"other"},
+		}
+		assert.False(t, app.MatchesSelector(sel))
+	})
+
+	t.Run("Only label selector does not match", func(t *testing.T) {
+		app := newApp(map[string]string{"foo": "bar"}, "app", "default")
+		sel := &ApplicationSelector{
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"foo": "baz"},
+			},
+			NamePattern: []string{"app"},
+		}
+		assert.False(t, app.MatchesSelector(sel))
+	})
+
+	t.Run("Only name does not match", func(t *testing.T) {
+		app := newApp(map[string]string{"foo": "bar"}, "app", "default")
+		sel := &ApplicationSelector{
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"foo": "bar"},
+			},
+			NamePattern: []string{"other"},
+		}
+		assert.False(t, app.MatchesSelector(sel))
+	})
+}

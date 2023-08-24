@@ -21,10 +21,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppProjectStatus":                        schema_pkg_apis_application_v1alpha1_AppProjectStatus(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Application":                             schema_pkg_apis_application_v1alpha1_Application(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationCondition":                    schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDependency":                   schema_pkg_apis_application_v1alpha1_ApplicationDependency(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination":                  schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationList":                         schema_pkg_apis_application_v1alpha1_ApplicationList(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationMatchExpression":              schema_pkg_apis_application_v1alpha1_ApplicationMatchExpression(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationPreservedFields":              schema_pkg_apis_application_v1alpha1_ApplicationPreservedFields(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSelector":                     schema_pkg_apis_application_v1alpha1_ApplicationSelector(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSet":                          schema_pkg_apis_application_v1alpha1_ApplicationSet(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetApplicationStatus":         schema_pkg_apis_application_v1alpha1_ApplicationSetApplicationStatus(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetCondition":                 schema_pkg_apis_application_v1alpha1_ApplicationSetCondition(ref),
@@ -153,6 +155,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitlab":              schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef":                               schema_pkg_apis_application_v1alpha1_SecretRef(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey":                            schema_pkg_apis_application_v1alpha1_SignatureKey(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncDependency":                          schema_pkg_apis_application_v1alpha1_SyncDependency(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperation":                           schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResource":                   schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResult":                     schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
@@ -598,6 +601,64 @@ func schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref common.Refere
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_ApplicationDependency(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationDependency defines",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"selectors": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Selectors defines conditions for matching application's dependencies",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSelector"),
+									},
+								},
+							},
+						},
+					},
+					"blockOnEmpty": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BlockOnEmpty defines whether to block sync when the list of applications determined by the selector is empty",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"syncDelay": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SyncDelay specifies the duration in seconds to wait before starting to sync when dependencies are defined",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"timeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Timeout defines the maximum duration in seconds to wait on dependencies before the sync fails",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"refreshDependencies": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RefreshDependencies defines whether all dependencies should be refreshed before starting a sync",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"selectors"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSelector"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -756,6 +817,42 @@ func schema_pkg_apis_application_v1alpha1_ApplicationPreservedFields(ref common.
 				},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationSelector(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationSelector specifies which applications this Application depends on",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"labelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LabelSelector selects applications by their labels",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+					"namePattern": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NamePattern selects applications by matching their names",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
@@ -2155,12 +2252,18 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							},
 						},
 					},
+					"dependsOn": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DependsOn specifies what this application depends on",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDependency"),
+						},
+					},
 				},
 				Required: []string{"destination", "project"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Info", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncPolicy"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDependency", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Info", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncPolicy"},
 	}
 }
 
@@ -4480,12 +4583,33 @@ func schema_pkg_apis_application_v1alpha1_OperationState(ref common.ReferenceCal
 							Format:      "int64",
 						},
 					},
+					"waitingFor": {
+						SchemaProps: spec.SchemaProps{
+							Description: "WaitingFor specifies a list of applications that this operation is waiting for",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncDependency"),
+									},
+								},
+							},
+						},
+					},
+					"blockedOnEmpty": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BlockedOnEmpty is true when the application is waiting for any dependency to be created",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"operation", "phase", "startedAt"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Operation", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResult", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Operation", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncDependency", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResult", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -7329,6 +7453,40 @@ func schema_pkg_apis_application_v1alpha1_SignatureKey(ref common.ReferenceCallb
 				Required: []string{"keyID"},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SyncDependency(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"applicationName": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"applicationNamespace": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"refreshedAt": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+				},
+				Required: []string{"applicationName", "applicationNamespace"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

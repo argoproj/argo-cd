@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
+	"github.com/argoproj/gitops-engine/pkg/health"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
@@ -1909,4 +1910,135 @@ func TestAddControllerNamespace(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, test.FakeArgoCDNamespace, updatedApp.Status.ControllerNamespace)
 	})
+}
+
+func Test_shouldRefreshForDependencies(t *testing.T) {
+	t.Run("No refresh, because neither dependencies defined nor waiting", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app},
+		})
+		assert.False(t, ctrl.shouldRefreshForDependency(app))
+	})
+	t.Run("No refresh, because not waiting for any dependency", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.DependsOn = &v1alpha1.ApplicationDependency{
+			Selectors: []v1alpha1.ApplicationSelector{
+				{NamePattern: []string{"*"}},
+			},
+		}
+		app.Status.OperationState = &v1alpha1.OperationState{
+			Phase:      synccommon.OperationRunning,
+			WaitingFor: []v1alpha1.SyncDependency{},
+		}
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app},
+		})
+		assert.False(t, ctrl.shouldRefreshForDependency(app))
+	})
+
+	t.Run("No refresh, because operation is not running", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.DependsOn = &v1alpha1.ApplicationDependency{
+			Selectors: []v1alpha1.ApplicationSelector{
+				{NamePattern: []string{"*"}},
+			},
+		}
+		app.Status.OperationState = &v1alpha1.OperationState{
+			Phase:          synccommon.OperationFailed,
+			BlockedOnEmpty: true,
+			WaitingFor:     []v1alpha1.SyncDependency{},
+		}
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app},
+		})
+		assert.False(t, ctrl.shouldRefreshForDependency(app))
+	})
+
+	t.Run("Refresh because blocking progress for dependencies", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.DependsOn = &v1alpha1.ApplicationDependency{
+			Selectors: []v1alpha1.ApplicationSelector{
+				{NamePattern: []string{"*"}},
+			},
+		}
+		app.Status.OperationState = &v1alpha1.OperationState{
+			Phase:          synccommon.OperationRunning,
+			BlockedOnEmpty: true,
+		}
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app},
+		})
+		assert.True(t, ctrl.shouldRefreshForDependency(app))
+	})
+
+	t.Run("No refresh because a dependency we are waiting for is not ready", func(t *testing.T) {
+		app := newFakeApp()
+		dep := newFakeApp()
+		dep.Name = "dep"
+		dep.Status.Health.Status = health.HealthStatusProgressing
+		dep.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced}
+		app.Spec.DependsOn = &v1alpha1.ApplicationDependency{
+			Selectors: []v1alpha1.ApplicationSelector{
+				{NamePattern: []string{"*"}},
+			},
+		}
+		app.Status.OperationState = &v1alpha1.OperationState{
+			Phase: synccommon.OperationRunning,
+			WaitingFor: []v1alpha1.SyncDependency{
+				{ApplicationName: "dep", ApplicationNamespace: app.Namespace},
+			},
+		}
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, dep},
+		})
+		assert.False(t, ctrl.shouldRefreshForDependency(app))
+	})
+
+	t.Run("Refresh because a dependency we are waiting for became ready", func(t *testing.T) {
+		app := newFakeApp()
+		dep := newFakeApp()
+		dep.Name = "dep"
+		dep.Status.Health.Status = health.HealthStatusHealthy
+		dep.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced}
+		app.Spec.DependsOn = &v1alpha1.ApplicationDependency{
+			Selectors: []v1alpha1.ApplicationSelector{
+				{NamePattern: []string{"*"}},
+			},
+		}
+		app.Status.OperationState = &v1alpha1.OperationState{
+			Phase: synccommon.OperationRunning,
+			WaitingFor: []v1alpha1.SyncDependency{
+				{ApplicationName: "dep", ApplicationNamespace: app.Namespace},
+			},
+		}
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, dep},
+		})
+		assert.True(t, ctrl.shouldRefreshForDependency(app))
+	})
+
+	t.Run("Refresh because a dependency we are waiting for got deleted", func(t *testing.T) {
+		app := newFakeApp()
+		dep := newFakeApp()
+		dep.Name = "dep"
+		dep.Status.Health.Status = health.HealthStatusHealthy
+		dep.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced}
+		app.Spec.DependsOn = &v1alpha1.ApplicationDependency{
+			Selectors: []v1alpha1.ApplicationSelector{
+				{NamePattern: []string{"*"}},
+			},
+		}
+		app.Status.OperationState = &v1alpha1.OperationState{
+			Phase: synccommon.OperationRunning,
+			WaitingFor: []v1alpha1.SyncDependency{
+				{ApplicationName: "dep", ApplicationNamespace: app.Namespace},
+			},
+		}
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app},
+		})
+		assert.True(t, ctrl.shouldRefreshForDependency(app))
+	})
+
 }

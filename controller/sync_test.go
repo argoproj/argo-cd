@@ -3,7 +3,9 @@ package controller
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -12,6 +14,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/v2/controller/testdata"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -385,4 +388,174 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, 2, len(containers))
 	})
+}
+
+func Test_areDependenciesReady(t *testing.T) {
+	parent := newFakeApp()
+	parent.Name = "parent-app"
+	parent.Spec.DependsOn = &v1alpha1.ApplicationDependency{
+		Selectors: []v1alpha1.ApplicationSelector{
+			{
+				LabelSelector: &v1.LabelSelector{
+					MatchLabels: map[string]string{
+						"foo": "bar",
+					},
+				},
+			},
+		},
+	}
+
+	dep1 := newFakeApp()
+	dep1.Name = "dep1"
+	dep1.Labels = map[string]string{"foo": "bar"}
+
+	state := &v1alpha1.OperationState{
+		Phase: common.OperationRunning,
+	}
+
+	syncOp := v1alpha1.SyncOperation{SyncStrategy: &v1alpha1.SyncStrategy{}}
+	t.Run("Ready to sync", func(t *testing.T) {
+		p := parent.DeepCopy()
+		d := dep1.DeepCopy()
+		d.Status.Health = v1alpha1.HealthStatus{Status: health.HealthStatusHealthy}
+		d.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced}
+		s := state.DeepCopy()
+		data := fakeData{
+			apps: []runtime.Object{p, d},
+		}
+		ctrl := newFakeController(&data)
+		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
+		assert.True(t, ready)
+		assert.Equal(t, common.OperationRunning, s.Phase)
+		assert.Empty(t, s.Message)
+		assert.Empty(t, s.WaitingFor)
+	})
+
+	t.Run("Not ready to sync because dependency is out of sync", func(t *testing.T) {
+		p := parent.DeepCopy()
+		d := dep1.DeepCopy()
+		s := state.DeepCopy()
+		data := fakeData{
+			apps: []runtime.Object{p, d},
+		}
+		ctrl := newFakeController(&data)
+		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
+		assert.False(t, ready)
+		assert.Equal(t, common.OperationRunning, s.Phase)
+		assert.Contains(t, s.Message, "Waiting for dependencies")
+		assert.Contains(t, s.Message, "dep1")
+		require.Len(t, s.WaitingFor, 1)
+		assert.Equal(t, "dep1", s.WaitingFor[0].ApplicationName)
+		assert.Equal(t, p.GetNamespace(), s.WaitingFor[0].ApplicationNamespace)
+		assert.Nil(t, s.WaitingFor[0].RefreshedAt)
+	})
+
+	t.Run("Preserve refresh time for dependencies", func(t *testing.T) {
+		p := parent.DeepCopy()
+		d := dep1.DeepCopy()
+		s := state.DeepCopy()
+		data := fakeData{
+			apps: []runtime.Object{p, d},
+		}
+		ctrl := newFakeController(&data)
+		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
+		assert.False(t, ready)
+		require.Len(t, s.WaitingFor, 1)
+		s.WaitingFor[0].RefreshedAt = &v1.Time{Time: time.Now()}
+		ready = ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
+		assert.False(t, ready)
+		require.Len(t, s.WaitingFor, 1)
+		require.NotNil(t, s.WaitingFor[0].RefreshedAt)
+	})
+
+	t.Run("Not ready to sync because blocking for dependency creation", func(t *testing.T) {
+		p := parent.DeepCopy()
+		p.Spec.DependsOn.BlockOnEmpty = pointer.Bool(true)
+		s := state.DeepCopy()
+		data := fakeData{
+			apps: []runtime.Object{p},
+		}
+		ctrl := newFakeController(&data)
+		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
+		assert.False(t, ready)
+		assert.Equal(t, common.OperationRunning, s.Phase)
+		assert.Contains(t, s.Message, "Waiting for any app to be created")
+	})
+
+	t.Run("Sync fails due to timeout", func(t *testing.T) {
+		p := parent.DeepCopy()
+		p.Spec.DependsOn.Timeout = pointer.Duration(10 * time.Second)
+		s := state.DeepCopy()
+		started := time.Now().Add(-20 * time.Second)
+		s.StartedAt = v1.Time{Time: started}
+		data := fakeData{
+			apps: []runtime.Object{p},
+		}
+		ctrl := newFakeController(&data)
+		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
+		assert.False(t, ready)
+		assert.Equal(t, common.OperationFailed, s.Phase)
+		assert.Contains(t, s.Message, "Timeout waiting")
+	})
+
+	t.Run("Sync proceeds because timeout not reached", func(t *testing.T) {
+		p := parent.DeepCopy()
+		p.Spec.DependsOn.Timeout = pointer.Duration(10 * time.Second)
+		s := state.DeepCopy()
+		started := time.Now()
+		s.StartedAt = v1.Time{Time: started}
+		data := fakeData{
+			apps: []runtime.Object{p},
+		}
+		ctrl := newFakeController(&data)
+		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
+		assert.True(t, ready)
+		assert.Equal(t, common.OperationRunning, s.Phase)
+		assert.Empty(t, s.Message)
+	})
+
+	t.Run("Automatic sync start is delayed", func(t *testing.T) {
+		// The fake app has auto-sync enabled by default
+		p := parent.DeepCopy()
+		p.Spec.DependsOn.SyncDelay = pointer.Duration(10 * time.Second)
+		s := state.DeepCopy()
+		started := time.Now()
+		s.StartedAt = v1.Time{Time: started}
+		data := fakeData{
+			apps: []runtime.Object{p},
+		}
+		ctrl := newFakeController(&data)
+
+		// Initially, we have a delay
+		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
+		assert.False(t, ready)
+		assert.Equal(t, common.OperationRunning, s.Phase)
+		assert.Contains(t, s.Message, "Delaying sync start")
+
+		// Second run without delay
+		s.StartedAt = v1.Time{Time: started.Add(-20 * time.Second)}
+		ready = ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
+		assert.True(t, ready)
+		assert.Equal(t, common.OperationRunning, s.Phase)
+		assert.Empty(t, s.Message)
+	})
+
+	t.Run("Sync delay does not affect manual sync", func(t *testing.T) {
+		p := parent.DeepCopy()
+		p.Spec.DependsOn.SyncDelay = pointer.Duration(10 * time.Second)
+		p.Spec.SyncPolicy = nil
+		s := state.DeepCopy()
+		started := time.Now()
+		s.StartedAt = v1.Time{Time: started}
+		data := fakeData{
+			apps: []runtime.Object{p},
+		}
+		ctrl := newFakeController(&data)
+
+		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
+		assert.True(t, ready)
+		assert.Equal(t, common.OperationRunning, s.Phase)
+		assert.Empty(t, s.Message)
+	})
+
 }

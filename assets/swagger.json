@@ -5839,6 +5839,37 @@
         }
       }
     },
+    "v1alpha1ApplicationDependency": {
+      "type": "object",
+      "title": "ApplicationDependency defines",
+      "properties": {
+        "blockOnEmpty": {
+          "type": "boolean",
+          "title": "BlockOnEmpty defines whether to block sync when the list of applications determined by the selector is empty"
+        },
+        "refreshDependencies": {
+          "type": "boolean",
+          "title": "RefreshDependencies defines whether all dependencies should be refreshed before starting a sync"
+        },
+        "selectors": {
+          "type": "array",
+          "title": "Selectors defines conditions for matching application's dependencies",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSelector"
+          }
+        },
+        "syncDelay": {
+          "type": "integer",
+          "format": "int64",
+          "title": "SyncDelay specifies the duration in seconds to wait before starting to sync when dependencies are defined"
+        },
+        "timeout": {
+          "type": "integer",
+          "format": "int64",
+          "title": "Timeout defines the maximum duration in seconds to wait on dependencies before the sync fails"
+        }
+      }
+    },
     "v1alpha1ApplicationDestination": {
       "type": "object",
       "title": "ApplicationDestination holds information about the application's destination",
@@ -5900,6 +5931,22 @@
         },
         "labels": {
           "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1ApplicationSelector": {
+      "type": "object",
+      "title": "ApplicationSelector specifies which applications this Application depends on",
+      "properties": {
+        "labelSelector": {
+          "$ref": "#/definitions/v1LabelSelector"
+        },
+        "namePattern": {
+          "type": "array",
+          "title": "NamePattern selects applications by matching their names",
           "items": {
             "type": "string"
           }
@@ -6512,6 +6559,9 @@
       "description": "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.",
       "type": "object",
       "properties": {
+        "dependsOn": {
+          "$ref": "#/definitions/v1alpha1ApplicationDependency"
+        },
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
         },
@@ -7518,6 +7568,10 @@
       "type": "object",
       "title": "OperationState contains information about state of a running operation",
       "properties": {
+        "blockedOnEmpty": {
+          "type": "boolean",
+          "title": "BlockedOnEmpty is true when the application is waiting for any dependency to be created"
+        },
         "finishedAt": {
           "$ref": "#/definitions/v1Time"
         },
@@ -7542,6 +7596,13 @@
         },
         "syncResult": {
           "$ref": "#/definitions/v1alpha1SyncOperationResult"
+        },
+        "waitingFor": {
+          "type": "array",
+          "title": "WaitingFor specifies a list of applications that this operation is waiting for",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SyncDependency"
+          }
         }
       }
     },
@@ -8844,6 +8905,20 @@
         "keyID": {
           "type": "string",
           "title": "The ID of the key in hexadecimal notation"
+        }
+      }
+    },
+    "v1alpha1SyncDependency": {
+      "type": "object",
+      "properties": {
+        "applicationName": {
+          "type": "string"
+        },
+        "applicationNamespace": {
+          "type": "string"
+        },
+        "refreshedAt": {
+          "$ref": "#/definitions/v1Time"
         }
       }
     },
