@@ -266,6 +266,15 @@ jobs:
           body: ${{ steps.release-notes.outputs.content }}
         if: ${{ env.DRY_RUN == 'true' }}
 
+      # Based on this suggestion: https://github.com/actions/runner-images/issues/2840#issuecomment-1284059930
+      - name: Free Up Disk Space
+        id: free-up-disk-space
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          df -h
+
       - name: Generate SBOM (spdx)
         id: spdx-builder
         env:
