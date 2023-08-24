@@ -272,7 +272,6 @@ jobs:
         run: |
           df -h
           sudo rm -rf /usr/share/dotnet
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
           df -h
 
       - name: Generate SBOM (spdx)
