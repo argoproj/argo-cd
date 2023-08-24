@@ -51,7 +51,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	res, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error failed to get params for first generator in matrix generator: %w", err)
 	}
 
 	for i := 1; i < numGens; i++ {
@@ -65,11 +65,11 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 			for _, currParam := range params {
 				if appSet.Spec.GoTemplate {
 					tmp := map[string]interface{}{}
-					if err := mergo.Merge(&tmp, prevParam); err != nil {
-						return nil, fmt.Errorf("failed to merge a previous params map with temp map in the matrix generator: %w", err)
+					if err := mergo.Merge(&tmp, currParam, mergo.WithOverride); err != nil {
+						return nil, fmt.Errorf("failed to merge params map from generator %d with temp map in the matrix generator: %w", i, err)
 					}
-					if err := mergo.Merge(&tmp, currParam); err != nil {
-						return nil, fmt.Errorf("failed to merge a previous params map with params from generator %d in the matrix generator: %w", i, err)
+					if err := mergo.Merge(&tmp, prevParam, mergo.WithOverride); err != nil {
+						return nil, fmt.Errorf("failed to merge params from generator %d with a previous params map in the matrix generator: %w", i, err)
 					}
 					list = append(list, tmp)
 				} else {
@@ -101,7 +101,7 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 	}
 	mergeGen, err := getMergeGenerator(appSetBaseGenerator)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving merge generator: %w", err)
 	}
 	if mergeGen != nil && !appSet.Spec.ApplyNestedSelectors {
 		foundSelector := dropDisabledNestedSelectors(mergeGen.Generators)

@@ -5,11 +5,12 @@ import (
 
 	"github.com/go-logr/logr"
 
+	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -239,12 +240,12 @@ func StateDiff(live, config *unstructured.Unstructured, diffConfig DiffConfig) (
 func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*diff.DiffResultList, error) {
 	normResults, err := preDiffNormalize(lives, configs, diffConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to perform pre-diff normalization: %w", err)
 	}
 
 	diffNormalizer, err := newDiffNormalizer(diffConfig.Ignores(), diffConfig.Overrides())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create diff normalizer: %w", err)
 	}
 
 	diffOpts := []diff.Option{
@@ -261,9 +262,17 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 
 	useCache, cachedDiff := diffConfig.DiffFromCache(diffConfig.AppName())
 	if useCache && cachedDiff != nil {
-		return diffArrayCached(normResults.Targets, normResults.Lives, cachedDiff, diffOpts...)
+		cached, err := diffArrayCached(normResults.Targets, normResults.Lives, cachedDiff, diffOpts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate diff from cache: %w", err)
+		}
+		return cached, nil
 	}
-	return diff.DiffArray(normResults.Targets, normResults.Lives, diffOpts...)
+	array, err := diff.DiffArray(normResults.Targets, normResults.Lives, diffOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate diff: %w", err)
+	}
+	return array, nil
 }
 
 func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*v1alpha1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
