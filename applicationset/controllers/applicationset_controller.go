@@ -295,7 +295,6 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	requeueAfter := r.getMinRequeueAfter(&applicationSetInfo)
-	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile")
 
 	if len(validateErrors) == 0 {
 		if err := r.setApplicationSetStatusCondition(ctx,
@@ -309,7 +308,12 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		); err != nil {
 			return ctrl.Result{}, err
 		}
+	} else if requeueAfter == time.Duration(0) {
+		// Ensure that the request is requeued if there are validation errors.
+		requeueAfter = ReconcileRequeueOnValidationError
 	}
+
+	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile")
 
 	return ctrl.Result{
 		RequeueAfter: requeueAfter,
