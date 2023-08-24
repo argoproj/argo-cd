@@ -283,6 +283,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [ungleich.ch](https://ungleich.ch/)
 1. [Unifonic Inc](https://www.unifonic.com/)
 1. [Universidad Mesoamericana](https://www.umes.edu.gt/)
+1. [Upsider Inc.](https://up-sider.com/lp/)
 1. [Urbantz](https://urbantz.com/)
 1. [Vectra](https://www.vectra.ai)
 1. [Veepee](https://www.veepee.com)
