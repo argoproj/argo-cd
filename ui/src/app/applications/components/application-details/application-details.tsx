@@ -457,8 +457,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         </a>
                                                         {(pref.view === 'tree' || pref.view === 'network') && (
                                                             <Tooltip
-                                                                content={AppUtils.userMsgsList[showToolTip?.msgKey] || ''}
-                                                                visible={pref.groupNodes && showToolTip != undefined && !showToolTip?.display}
+                                                                content={AppUtils.userMsgsList[showToolTip?.msgKey] || 'Group Nodes'}
+                                                                visible={pref.groupNodes && showToolTip !== undefined && !showToolTip?.display}
                                                                 duration={showToolTip?.duration}>
                                                                 <a
                                                                     className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
