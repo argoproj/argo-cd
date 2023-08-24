@@ -17,23 +17,22 @@ last-updated: 2023-07-12
 
 # Decouple Application Sync using Impersonation
 
-Application syncs in Argo CD have the same privileges as the Argo CD control plane. As a consequence, the Argo CD control plane privileges needs to match the tenant that needs the highest privileges. As an example, if an Argo CD instance has 10 Applications and only one of them needs admin privileges, the Argo CD control plane then must have admin privileges in order to successfully sync for that one Application. Argo CD provides a multi-tenancy model to limit what each Application can do even though the control plane has high privileges however that creates a large attack surface since if Argo CD is compromised, attackers would have cluster-admin access to the cluster.
+Application syncs in Argo CD have the same privileges as the Argo CD control plane. As a consequence, the Argo CD control plane privileges needs to match the tenant that needs the highest privileges. As an example, if an Argo CD instance has 10 Applications and only one of them requires admin privileges, then the Argo CD control plane must have admin privileges in order to be able to sync that one Application. Argo CD provides a multi-tenancy model to limit what each Application can do, even though the control plane has high privileges however that creates a large attack surface since if Argo CD is compromised, attackers would have cluster-admin access to the cluster.
 
 The goal of this proposal is to perform the Application sync as a different user using impersonation and use the service account provided in the cluster config purely for control plane tasks.
-
 
 
 ## Open Questions [optional]
 
 - Should the restrictions imposed as part of the `AppProjects` be honored if the impersonation feature is enabled ?
-Yes, other restrictions implemented by `AppProject` should be continued.
+Yes, other restrictions implemented by `AppProject` related to whitelisting/blacklisting resources should continue to be honoured.
 - Can an Application refer to a service account with elevated privileges like say  `cluster-admin`, `admin`, and service accounts used for running the ArgoCD controllers itself ?
-- This is addressed by the new option where we don't allow service account name to be specified as part of the `Application.spec` and instead control only via `AppProject` access to which is limited only to the Admin user.
+Yes, this is possible as long as the ArgoCD admin user explicitly allows it through the `AppProject` configuration.
 - Among the destinations configured in the `AppProject`, if there are multiple matches for a given destination, which destination option should be used ?
 
 ## Summary
 
-In a multi team/multi tenant environment, an application team is typically granted access to a namespace to self-manage their Applications in a declarative way. Current implementation of ArgoCD requires the ArgoCD Administrator to create an AppProject with access settings configured to replicate the RBAC resources that are configured for each team. This approach requires duplication of effort and also requires syncing the access between both to maintain the security posture. It would be desirable for users to use the existing RBAC rules without having to revert to Argo CD API to create and manage these Applications. One namespace per team, or even one namespace per application is what we are looking to address as part of this proposal.
+In a multi team/multi tenant environment, an application team is typically granted access to a namespace to self-manage their Applications in a declarative way. Current implementation of ArgoCD requires the ArgoCD Administrator to create an `AppProject` with access settings configured to replicate the RBAC resources that are configured for each team. This approach requires duplication of effort and also requires syncing the access between both to maintain the security posture. It would be desirable for users to use the existing RBAC rules without having to revert to Argo CD API to create and manage these Applications. One namespace per team, or even one namespace per application is what we are looking to address as part of this proposal.
 
 ## Motivation
 
@@ -41,20 +40,20 @@ This proposal would allow ArgoCD administrators to manage the cluster permission
 
 ### Assumptions
 
-- Namespaces are pre-populated with one or more ServiceAccounts that define the permissions for each AppProject.
+- Namespaces are pre-populated with one or more `ServiceAccounts` that define the permissions for each `AppProject`.
 - Many users prefer to control access to k8s resources through kubernetes RBAC constructs instead of Argo specific constructs.
 - Each tenant is generally given access to a specific namespace along with a service account, role or cluster role and role binding to control access to that namespace.
 
 
 ### Goals
 - Applications may only impersonate ServiceAccounts that live in the same namespace as the application itself. ServiceAccount to be used for syncing each application is determined by the target destination configured in the `AppProject` associated with the `Application`.
-- If impersonation feature is enabled, and no service account name is provided in the Application CR, then it should use a default service account setting specified in the AppProject and if not specified use the namespace's default service account.
+- If impersonation feature is enabled, and no service account name is provided in the Application CR, then it should use a default service account of the `Application` namespace.
 - Access restrictions implemented through properties in AppProject (if done) must have the existing behavior. From a security standpoint, any restrictions that were available before switching to a service account based approach should continue to exist even when the impersonation feature is enabled.
 
 ### Non-Goals
 
-What is out of scope for this proposal? Listing non-goals helps to focus discussion and make
-progress.
+What is out of scope for this proposal? Listing non-goals helps to focus discussion and make progress.
+None
 
 ## Proposal
 
