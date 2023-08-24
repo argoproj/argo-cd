@@ -5,14 +5,16 @@ authors:
 sponsors:
   - Red Hat   # List all interested parties here.
 reviewers:
-  - "@alexmt"
+  - "@blakepettersson"
+  - "@crenshaw-dev"
   - "@jannfis"
 approvers:
   - "@alexmt"
+  - "@crenshaw-dev"
   - "@jannfis"
 
 creation-date: 2023-06-23
-last-updated: 2023-07-12
+last-updated: 2023-08-24
 ---
 
 # Decouple Application Sync using Impersonation
@@ -58,6 +60,7 @@ None
 ## Proposal
 
 Enable ArgoCD Admin to specify a `serviceAccountName` in `AppProjects` CR on a per `destination` basis.
+When applications gets synced, based on its destination, the `serviceAccountName` configured in the `AppProject` will be chosen and used for impersonation when executing the kubectl apply/create commands. There could either be a regex based match of the destination or an exact match of the destination. Exact match takes the highest precedence. If there are multiple possible options, then an error would be thrown during the sync operation.
 
 ```
 apiVersion: argoproj.io/v1alpha1
@@ -114,7 +117,7 @@ Fix GitOps Engine code to honor Impersonate configuration set in the Application
 
 #### Component: ArgoCD Application Controller
 
-- Provide a configuration in argocd-cm  which can be modified to enable the Impersonation feature. Set applicationcontroller.enable.impersonation: true in the Argo CD ConfigMap.
+- Provide a configuration in argocd-cm  which can be modified to enable the Impersonation feature. Set `applicationcontroller.enable.impersonation: true` in the Argo CD ConfigMap.
 - Provide an option to override the Impersonation feature using environment variables.
 - Pass `--enable-impersonation` to the Application controller args.
 - Set `ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true` in the Application controller environment variables.
@@ -281,79 +284,35 @@ Consider the following in developing an upgrade/downgrade strategy for this enha
 
 ## Drawbacks
 
-The idea is to find the best form of an argument why this enhancement should _not_ be implemented.
+- When using this feature, there is an overhead in creating namespaces, service accounts and the required RBAC policies and mapping the service accounts with the corresponding `AppProject` configuration.
 
 ## Alternatives
 
-### Option 1 
-Allow service account name to be specified in the `Application` level as well and control the allowed service account names in the corresponding `AppProject` CR.
-
-```
-apiVersion: argoproj.io/v1alpha1 
-kind: Application 
-spec: 
-  serviceAccountName: guestbook-deployer
-```
-
-```
-apiVersion: argoproj.io/v1alpha1 
-kind: AppProject 
-spec:
-  defaultServiceAccountName: guestbook-deployer
-  allowedServiceAccountNames: 
-    - guestbook-deployer
-    - default-deployer
-```
-
-
-### Option 2
-Instead of introducing a new field  ServiceAccountName in the Application CR, we can extend the existing key-value pair based `SyncOptions` for allowing customers to provide the  impersonating service account. The `defaultServiceAccountName` should still be supported in `AppProject.spec` to support users to use a common `ServiceAccount` across all applications associated to the AppProject.
-
-```
-apiVersion: argoproj.io/v1alpha1 
-kind: Application 
-spec: 
-  syncPolicy: 
-    syncOptions: 
-      - ServiceAccountName=guestbook-deployer
-```
-
-Instead of introducing a new field  ServiceAccountName in the Application CR, we can extend the existing key-value pair based `SyncOptions` for allowing customers to provide the  impersonating service account. The `defaultServiceAccountName` should still be supported in `AppProject.spec` to support users to use a common `ServiceAccount` across all applications associated to the AppProject.
-
-```
-apiVersion: argoproj.io/v1alpha1 
-kind: Application 
-spec: 
-  syncPolicy: 
-    syncOptions: 
-      - ServiceAccountName=guestbook-deployer
-```
-
-### Option 2
-Allow all options available in the `ImpersonationConfig` available to the user for both `Application` and `AppProject` CRs.
+### Option 1
+Allow all options available in the `ImpersonationConfig` available to the user through the `AppProject` CRs.
 
 ```
 apiVersion: argoproj.io/v1alpha1
-kind: Application
+kind: AppProject
 metadata:
-  name: guestbook
+  name: my-project
   namespace: argocd
 spec:
-  project: default
-  source:
-    repoURL: https://github.com/argoproj/argocd-example-apps.git
-    targetRevision: HEAD
-    path: guestbook
-  destination:
+  description: Example Project
+  # Allow manifests to deploy from any Git repos
+  sourceRepos:
+  - '*'
+  destinations:
+  - namespace: *
     server: https://kubernetes.default.svc
     namespace: guestbook
-  impersonate:
-    user: system:serviceaccount:dev_ns:admin
-    uid: 1234
-    groups:
-      - admin
-      - view
-      - edit
+    impersonate:
+      user: system:serviceaccount:dev_ns:admin
+      uid: 1234
+      groups:
+        - admin
+        - view
+        - edit
 ```
 
 ### Related issue
