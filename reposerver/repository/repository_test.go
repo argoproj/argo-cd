@@ -1526,6 +1526,7 @@ func Test_newEnv(t *testing.T) {
 	assert.Equal(t, &argoappv1.Env{
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "my-app-name"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: "my-namespace"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_PROJECT_NAME", Value: "my-project"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: "my-revision"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: "my-revi"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: "https://github.com/my-org/my-repo"},
@@ -1534,6 +1535,7 @@ func Test_newEnv(t *testing.T) {
 	}, newEnv(&apiclient.ManifestRequest{
 		AppName:   "my-app-name",
 		Namespace: "my-namespace",
+		ProjectName: "my-project",
 		Repo:      &argoappv1.Repository{Repo: "https://github.com/my-org/my-repo"},
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path:           "my-path",
