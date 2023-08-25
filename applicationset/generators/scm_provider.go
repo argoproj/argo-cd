@@ -51,7 +51,7 @@ func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders, s
 
 // Testing generator
 func NewTestSCMProviderGenerator(overrideProvider scm_provider.SCMProviderService) Generator {
-	return &SCMProviderGenerator{overrideProvider: overrideProvider}
+	return &SCMProviderGenerator{overrideProvider: overrideProvider, enableSCMProviders: true}
 }
 
 func (g *SCMProviderGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
