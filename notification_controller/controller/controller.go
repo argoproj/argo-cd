@@ -62,7 +62,7 @@ func NewController(
 ) *notificationController {
 	appClient := client.Resource(applications)
 	appInformer := newInformer(appClient, namespace, applicationNamespaces, appLabelSelector)
-	appProjInformer := newInformer(newAppProjClient(client), namespace, applicationNamespaces, "")
+	appProjInformer := newInformer(newAppProjClient(client), namespace, []string{namespace}, "")
 	secretInformer := k8s.NewSecretInformer(k8sClient, namespace, secretName)
 	configMapInformer := k8s.NewConfigMapInformer(k8sClient, namespace, configMapName)
 	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, secretName, configMapName), namespace, secretInformer, configMapInformer)
