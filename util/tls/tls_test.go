@@ -405,7 +405,7 @@ func getCert(pemCerts []byte) (*x509.Certificate, error) {
 	certBytes := block.Bytes
 	cert, err := x509.ParseCertificate(certBytes)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing certificate: %w", err)
+		return nil, err
 	}
 	return cert, nil
 }
@@ -413,7 +413,7 @@ func getCert(pemCerts []byte) (*x509.Certificate, error) {
 func getCertFromFile(path string) (*x509.Certificate, error) {
 	certBytes, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("error reading file: %w", err)
+		return nil, err
 	}
 	return getCert(certBytes)
 }

@@ -1,7 +1,6 @@
 - op: add
   path: /spec/template/spec/initContainers/0/securityContext
   value:
-    readOnlyRootFilesystem: true
     allowPrivilegeEscalation: false
     capabilities:
       drop:
@@ -11,7 +10,6 @@
 - op: add
   path: /spec/template/spec/containers/0/securityContext
   value:
-    readOnlyRootFilesystem: true
     allowPrivilegeEscalation: false
     capabilities:
       drop:

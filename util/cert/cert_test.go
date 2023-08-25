@@ -441,29 +441,31 @@ func Test_EscapeBracketPattern(t *testing.T) {
 
 func TestGetTLSCertificateDataPath(t *testing.T) {
 	t.Run("Get default path", func(t *testing.T) {
-		t.Setenv(common.EnvVarTLSDataPath, "")
+		os.Setenv(common.EnvVarTLSDataPath, "")
 		path := GetTLSCertificateDataPath()
 		assert.Equal(t, common.DefaultPathTLSConfig, path)
 	})
 
 	t.Run("Get custom path", func(t *testing.T) {
-		t.Setenv(common.EnvVarTLSDataPath, "/some/where")
+		os.Setenv(common.EnvVarTLSDataPath, "/some/where")
 		path := GetTLSCertificateDataPath()
 		assert.Equal(t, "/some/where", path)
+		os.Setenv(common.EnvVarTLSDataPath, "")
 	})
 }
 
 func TestGetSSHKnownHostsDataPath(t *testing.T) {
 	t.Run("Get default path", func(t *testing.T) {
-		t.Setenv(common.EnvVarSSHDataPath, "")
+		os.Setenv(common.EnvVarSSHDataPath, "")
 		p := GetSSHKnownHostsDataPath()
 		assert.Equal(t, path.Join(common.DefaultPathSSHConfig, "ssh_known_hosts"), p)
 	})
 
 	t.Run("Get custom path", func(t *testing.T) {
-		t.Setenv(common.EnvVarSSHDataPath, "/some/where")
+		os.Setenv(common.EnvVarSSHDataPath, "/some/where")
 		path := GetSSHKnownHostsDataPath()
 		assert.Equal(t, "/some/where/ssh_known_hosts", path)
+		os.Setenv(common.EnvVarSSHDataPath, "")
 	})
 }
 
@@ -478,7 +480,7 @@ func TestGetCertificateForConnect(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		os.Setenv(common.EnvVarTLSDataPath, temppath)
 		certs, err := GetCertificateForConnect("127.0.0.1")
 		assert.NoError(t, err)
 		assert.Len(t, certs, 1)
@@ -486,7 +488,7 @@ func TestGetCertificateForConnect(t *testing.T) {
 
 	t.Run("No cert found", func(t *testing.T) {
 		temppath := t.TempDir()
-		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		os.Setenv(common.EnvVarTLSDataPath, temppath)
 		certs, err := GetCertificateForConnect("127.0.0.1")
 		assert.NoError(t, err)
 		assert.Len(t, certs, 0)
@@ -498,7 +500,7 @@ func TestGetCertificateForConnect(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		os.Setenv(common.EnvVarTLSDataPath, temppath)
 		certs, err := GetCertificateForConnect("127.0.0.1")
 		assert.Error(t, err)
 		assert.Len(t, certs, 0)
@@ -518,7 +520,7 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		os.Setenv(common.EnvVarTLSDataPath, temppath)
 		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
 		assert.NoError(t, err)
 		assert.Equal(t, certpath, path.Join(temppath, "127.0.0.1"))
@@ -526,7 +528,7 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 
 	t.Run("No cert found", func(t *testing.T) {
 		temppath := t.TempDir()
-		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		os.Setenv(common.EnvVarTLSDataPath, temppath)
 		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
 		assert.NoError(t, err)
 		assert.Empty(t, certpath)
@@ -538,7 +540,7 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		os.Setenv(common.EnvVarTLSDataPath, temppath)
 		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
 		assert.NoError(t, err)
 		assert.Empty(t, certpath)

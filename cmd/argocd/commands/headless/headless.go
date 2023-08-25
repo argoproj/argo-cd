@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
-	"github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -39,14 +38,12 @@ import (
 )
 
 type forwardCacheClient struct {
-	namespace        string
-	context          string
-	init             sync.Once
-	client           cache.CacheClient
-	compression      cache.RedisCompressionType
-	err              error
-	redisHaProxyName string
-	redisName        string
+	namespace   string
+	context     string
+	init        sync.Once
+	client      cache.CacheClient
+	compression cache.RedisCompressionType
+	err         error
 }
 
 func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error) error {
@@ -54,10 +51,8 @@ func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error)
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
 		}
-		redisHaProxyPodLabelSelector := common.LabelKeyAppName + "=" + c.redisHaProxyName
-		redisPodLabelSelector := common.LabelKeyAppName + "=" + c.redisName
 		redisPort, err := kubeutil.PortForward(6379, c.namespace, &overrides,
-			redisHaProxyPodLabelSelector, redisPodLabelSelector)
+			"app.kubernetes.io/name=argocd-redis-ha-haproxy", "app.kubernetes.io/name=argocd-redis")
 		if err != nil {
 			c.err = err
 			return
@@ -103,12 +98,11 @@ func (c *forwardCacheClient) NotifyUpdated(key string) error {
 }
 
 type forwardRepoClientset struct {
-	namespace      string
-	context        string
-	init           sync.Once
-	repoClientset  repoapiclient.Clientset
-	err            error
-	repoServerName string
+	namespace     string
+	context       string
+	init          sync.Once
+	repoClientset repoapiclient.Clientset
+	err           error
 }
 
 func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.RepoServerServiceClient, error) {
@@ -116,8 +110,7 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
 		}
-		repoServerPodLabelSelector := common.LabelKeyAppName + "=" + c.repoServerName
-		repoServerPort, err := kubeutil.PortForward(8081, c.namespace, &overrides, repoServerPodLabelSelector)
+		repoServerPort, err := kubeutil.PortForward(8081, c.namespace, &overrides, "app.kubernetes.io/name=argocd-repo-server")
 		if err != nil {
 			c.err = err
 			return
@@ -134,15 +127,15 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 	apiClient, err := apiclient.NewClient(clientOpts)
 	if err != nil {
-		return fmt.Errorf("failed to create API client: %w", err)
+		return err
 	}
 	closer, versionClient, err := apiClient.NewVersionClient()
 	if err != nil {
-		return fmt.Errorf("failed to create version client: %w", err)
+		return err
 	}
 	defer io.Close(closer)
 	_, err = versionClient.Version(ctx, &empty.Empty{})
-	return fmt.Errorf("failed to get version: %w", err)
+	return err
 }
 
 // StartLocalServer allows executing command in a headless mode: on the fly starts Argo CD API server and
@@ -154,12 +147,12 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 	if !startInProcessAPI {
 		localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 		if err != nil {
-			return fmt.Errorf("error reading local config: %w", err)
+			return err
 		}
 		if localCfg != nil {
 			configCtx, err := localCfg.ResolveContext(clientOpts.Context)
 			if err != nil {
-				return fmt.Errorf("error resolving context: %w", err)
+				return err
 			}
 			startInProcessAPI = configCtx.Server.Core
 		}
@@ -180,7 +173,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		addr := fmt.Sprintf("%s:0", *address)
 		ln, err := net.Listen("tcp", addr)
 		if err != nil {
-			return fmt.Errorf("failed to listen on %q: %w", addr, err)
+			return err
 		}
 		port = &ln.Addr().(*net.TCPAddr).Port
 		io.Close(ln)
@@ -188,27 +181,27 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 
 	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {
-		return fmt.Errorf("error creating client config: %w", err)
+		return err
 	}
 	appClientset, err := appclientset.NewForConfig(restConfig)
 	if err != nil {
-		return fmt.Errorf("error creating app clientset: %w", err)
+		return err
 	}
 	kubeClientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		return fmt.Errorf("error creating kubernetes clientset: %w", err)
+		return err
 	}
 
 	namespace, _, err := clientConfig.Namespace()
 	if err != nil {
-		return fmt.Errorf("error getting namespace: %w", err)
+		return err
 	}
 
 	mr, err := miniredis.Run()
 	if err != nil {
-		return fmt.Errorf("error running miniredis: %w", err)
+		return err
 	}
-	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName}), time.Hour)
+	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 		EnableGZip:           false,
 		Namespace:            namespace,
@@ -220,14 +213,14 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		KubeClientset:        kubeClientset,
 		Insecure:             true,
 		ListenHost:           *address,
-		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName},
+		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr},
 		EnableProxyExtension: false,
 	})
 	srv.Init(ctx)
 
 	lns, err := srv.Listen()
 	if err != nil {
-		return fmt.Errorf("failed to listen: %w", err)
+		return err
 	}
 	go srv.Run(ctx, lns)
 	clientOpts.ServerAddr = fmt.Sprintf("%s:%d", *address, *port)
@@ -243,7 +236,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		}
 		time.Sleep(time.Second)
 	}
-	return fmt.Errorf("all retries failed: %w", err)
+	return err
 }
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
