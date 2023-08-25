@@ -28,7 +28,7 @@ or if the repositories have a lot of files. To avoid this problem mount a persis
 * `argocd-repo-server` uses `git ls-remote` to resolve ambiguous revisions such as `HEAD`, a branch or a tag name. This operation happens frequently
 and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` environment variable to retry failed requests.
 
-* `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With Kustomize remote bases, or Helm patch releases, the manifests can change even though the repo has not changed. By reducing the cache time, you can get the changes without waiting for 24h. Use `--repo-cache-expiration duration`, and we'd suggest in low volume environments you try '1h'. Bear in mind that this will negate the benefits of caching if set too low. 
+* `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With Kustomize remote bases, or in case a Helm chart gets changed without bumping its version number, the expected manifests can change even though the repo has not changed. By reducing the cache time, you can get the changes without waiting for 24h. Use `--repo-cache-expiration duration`, and we'd suggest in low volume environments you try '1h'. Bear in mind that this will negate the benefits of caching if set too low.
 
 * `argocd-repo-server` executes config management tools such as `helm` or `kustomize` and enforces a 90 second timeout. This timeout can be changed by using the `ARGOCD_EXEC_TIMEOUT` env variable. The value should be in the Go time duration string format, for example, `2m30s`.
 
@@ -64,6 +64,8 @@ controller replicas. To enable sharding increase the number of replicas in `argo
 and repeat the number of replicas in the `ARGOCD_CONTROLLER_REPLICAS` environment variable. The strategic merge patch below
 demonstrates changes required to configure two controller replicas.
 
+* By default, the controller will update the cluster information every 10 seconds. If there is a problem with your cluster network environment that is causing the update time to take a long time, you can try modifying the environment variable `ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT` to increase the timeout (the unit is seconds).
+
 ```yaml
 apiVersion: apps/v1
 kind: StatefulSet
@@ -78,6 +80,34 @@ spec:
         env:
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "2"
+```
+
+* The shard distribution algorithm of the `argocd-application-controller` can be set by using the `--sharding-method` parameter. Supported sharding methods are : [legacy (default), round-robin]. `legacy` mode uses an `uid` based distribution (non-uniform). `round-robin` uses an equal distribution across all shards. The `--sharding-method` parameter can also be overriden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifiying the same possible values.
+
+!!! warning "Alpha Feature"
+    The `round-robin` shard distribution algorithm  is an experimental feature. Reshuffling is known to occur in certain scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur and may temporarily have negative performance impacts.
+
+* A cluster can be manually assigned and forced to a `shard` by patching the `shard` field in the cluster secret to contain the shard number, e.g.
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  shard: 1
+  name: mycluster.com
+  server: https://mycluster.com
+  config: |
+    {
+      "bearerToken": "<authentication token>",
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }
+    }
 ```
 
 * `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` - environment variable that enables collecting RPC performance metrics. Enable it if you need to troubleshoot performance issues. Note: This metric is expensive to both query and store!

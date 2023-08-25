@@ -15,7 +15,7 @@ As an experimental feature, progressive syncs must be explicitly enabled, in one
 
 1. Pass `--enable-progressive-syncs` to the ApplicationSet controller args.
 1. Set `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS=true` in the ApplicationSet controller environment variables.
-1. Set `applicationsetcontroller.enable.progressive.syncs: true` in the Argo CD ConfigMap.
+1. Set `applicationsetcontroller.enable.progressive.syncs: true` in the Argo CD `argocd-cmd-params-cm` ConfigMap.
 
 ## Strategies
 
@@ -94,6 +94,7 @@ spec:
                 - env-prod
           maxUpdate: 10%    # maxUpdate supports both integer and percentage string values (rounds down, but floored at 1 Application for >0%)
   goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   template:
     metadata:
       name: '{{.cluster}}-guestbook'

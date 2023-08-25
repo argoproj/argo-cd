@@ -29,6 +29,7 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -57,28 +58,40 @@ const (
 
 	// cmp plugin sock file path
 	PluginSockFilePath = "/app/config/plugin"
+
+	E2ETestPrefix = "e2e-test-"
 )
 
 const (
-	EnvAdminUsername = "ARGOCD_E2E_ADMIN_USERNAME"
-	EnvAdminPassword = "ARGOCD_E2E_ADMIN_PASSWORD"
+	EnvAdminUsername           = "ARGOCD_E2E_ADMIN_USERNAME"
+	EnvAdminPassword           = "ARGOCD_E2E_ADMIN_PASSWORD"
+	EnvArgoCDServerName        = "ARGOCD_E2E_SERVER_NAME"
+	EnvArgoCDRedisHAProxyName  = "ARGOCD_E2E_REDIS_HAPROXY_NAME"
+	EnvArgoCDRedisName         = "ARGOCD_E2E_REDIS_NAME"
+	EnvArgoCDRepoServerName    = "ARGOCD_E2E_REPO_SERVER_NAME"
+	EnvArgoCDAppControllerName = "ARGOCD_E2E_APPLICATION_CONTROLLER_NAME"
 )
 
 var (
-	id                  string
-	deploymentNamespace string
-	name                string
-	KubeClientset       kubernetes.Interface
-	KubeConfig          *rest.Config
-	DynamicClientset    dynamic.Interface
-	AppClientset        appclientset.Interface
-	ArgoCDClientset     apiclient.Client
-	adminUsername       string
-	AdminPassword       string
-	apiServerAddress    string
-	token               string
-	plainText           bool
-	testsRun            map[string]bool
+	id                      string
+	deploymentNamespace     string
+	name                    string
+	KubeClientset           kubernetes.Interface
+	KubeConfig              *rest.Config
+	DynamicClientset        dynamic.Interface
+	AppClientset            appclientset.Interface
+	ArgoCDClientset         apiclient.Client
+	adminUsername           string
+	AdminPassword           string
+	apiServerAddress        string
+	token                   string
+	plainText               bool
+	testsRun                map[string]bool
+	argoCDServerName        string
+	argoCDRedisHAProxyName  string
+	argoCDRedisName         string
+	argoCDRepoServerName    string
+	argoCDAppControllerName string
 )
 
 type RepoURLType string
@@ -92,6 +105,7 @@ type ACL struct {
 const (
 	RepoURLTypeFile                 = "file"
 	RepoURLTypeHTTPS                = "https"
+	RepoURLTypeHTTPSOrg             = "https-org"
 	RepoURLTypeHTTPSClientCert      = "https-cc"
 	RepoURLTypeHTTPSSubmodule       = "https-sub"
 	RepoURLTypeHTTPSSubmoduleParent = "https-par"
@@ -103,6 +117,8 @@ const (
 	RepoURLTypeHelmOCI              = "helm-oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
+	GithubAppID                     = "2978632978"
+	GithubAppInstallationID         = "7893789433789"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
 	HelmOCIRegistryURL              = "localhost:5000/myrepo"
 )
@@ -139,8 +155,7 @@ func GetEnvWithDefault(envName, defaultValue string) string {
 // IsRemote returns true when the tests are being run against a workload that
 // is running in a remote cluster.
 func IsRemote() bool {
-	r := os.Getenv("ARGOCD_E2E_REMOTE")
-	return r == "true"
+	return env.ParseBoolFromEnv("ARGOCD_E2E_REMOTE", false)
 }
 
 // IsLocal returns when the tests are being run against a local workload
@@ -164,11 +179,26 @@ func init() {
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
+	argoCDServerName = GetEnvWithDefault(EnvArgoCDServerName, common.DefaultServerName)
+	argoCDRedisHAProxyName = GetEnvWithDefault(EnvArgoCDRedisHAProxyName, common.DefaultRedisHaProxyName)
+	argoCDRedisName = GetEnvWithDefault(EnvArgoCDRedisName, common.DefaultRedisName)
+	argoCDRepoServerName = GetEnvWithDefault(EnvArgoCDRepoServerName, common.DefaultRepoServerName)
+	argoCDAppControllerName = GetEnvWithDefault(EnvArgoCDAppControllerName, common.DefaultApplicationControllerName)
+
 	dialTime := 30 * time.Second
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
 	CheckError(err)
 
-	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
+	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
+		Insecure:          true,
+		ServerAddr:        apiServerAddress,
+		PlainText:         !tlsTestResult.TLS,
+		ServerName:        argoCDServerName,
+		RedisHaProxyName:  argoCDRedisHAProxyName,
+		RedisName:         argoCDRedisName,
+		RepoServerName:    argoCDRepoServerName,
+		AppControllerName: argoCDAppControllerName,
+	})
 	CheckError(err)
 
 	plainText = !tlsTestResult.TLS
@@ -214,10 +244,15 @@ func loginAs(username, password string) {
 	token = sessionResponse.Token
 
 	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
-		Insecure:   true,
-		ServerAddr: apiServerAddress,
-		AuthToken:  token,
-		PlainText:  plainText,
+		Insecure:          true,
+		ServerAddr:        apiServerAddress,
+		AuthToken:         token,
+		PlainText:         plainText,
+		ServerName:        argoCDServerName,
+		RedisHaProxyName:  argoCDRedisHAProxyName,
+		RedisName:         argoCDRedisName,
+		RepoServerName:    argoCDRepoServerName,
+		AppControllerName: argoCDAppControllerName,
 	})
 	CheckError(err)
 }
@@ -251,6 +286,7 @@ const (
 	EnvRepoURLTypeSSHSubmodule         = "ARGOCD_E2E_REPO_SSH_SUBMODULE"
 	EnvRepoURLTypeSSHSubmoduleParent   = "ARGOCD_E2E_REPO_SSH_SUBMODULE_PARENT"
 	EnvRepoURLTypeHTTPS                = "ARGOCD_E2E_REPO_HTTPS"
+	EnvRepoURLTypeHTTPSOrg             = "ARGOCD_E2E_REPO_HTTPS_ORG"
 	EnvRepoURLTypeHTTPSClientCert      = "ARGOCD_E2E_REPO_HTTPS_CLIENT_CERT"
 	EnvRepoURLTypeHTTPSSubmodule       = "ARGOCD_E2E_REPO_HTTPS_SUBMODULE"
 	EnvRepoURLTypeHTTPSSubmoduleParent = "ARGOCD_E2E_REPO_HTTPS_SUBMODULE_PARENT"
@@ -272,6 +308,9 @@ func RepoURL(urlType RepoURLType) string {
 	// Git server via HTTPS
 	case RepoURLTypeHTTPS:
 		return GetEnvWithDefault(EnvRepoURLTypeHTTPS, "https://localhost:9443/argo-e2e/testdata.git")
+	// Git "organisation" via HTTPS
+	case RepoURLTypeHTTPSOrg:
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPSOrg, "https://localhost:9443/argo-e2e")
 	// Git server via HTTPS - Client Cert protected
 	case RepoURLTypeHTTPSClientCert:
 		return GetEnvWithDefault(EnvRepoURLTypeHTTPSClientCert, "https://localhost:9444/argo-e2e/testdata.git")
@@ -439,17 +478,6 @@ func SetPermissions(permissions []ACL, username string, roleName string) {
 		aclstr += fmt.Sprintf("g, %s, role:%s", username, roleName)
 		cm.Data["policy.csv"] = aclstr
 
-		return nil
-	})
-}
-
-func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(plugin)
-		if err != nil {
-			return err
-		}
-		cm.Data["configManagementPlugins"] = string(yamlBytes)
 		return nil
 	})
 }
@@ -670,6 +698,33 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
 	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true"))
 
+	// delete old namespaces used by E2E tests
+	namespaces, err := KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
+	CheckError(err)
+	for _, namespace := range namespaces.Items {
+		if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
+			FailOnErr(Run("", "kubectl", "delete", "ns", namespace.Name))
+		}
+	}
+
+	// delete old ClusterRoles that begin with "e2e-test-" prefix (E2ETestPrefix), which were created by tests
+	clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
+	CheckError(err)
+	for _, clusterRole := range clusterRoles.Items {
+		if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
+			FailOnErr(Run("", "kubectl", "delete", "clusterrole", clusterRole.Name))
+		}
+	}
+
+	// delete old ClusterRoleBindings that begin with "e2e-test-prefix", which were created by E2E tests
+	clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), v1.ListOptions{})
+	CheckError(err)
+	for _, clusterRoleBinding := range clusterRoleBindings.Items {
+		if strings.HasPrefix(clusterRoleBinding.Name, E2ETestPrefix) {
+			FailOnErr(Run("", "kubectl", "delete", "clusterrolebinding", clusterRoleBinding.Name))
+		}
+	}
+
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
 
@@ -853,6 +908,18 @@ func CreateSubmoduleRepos(repoType string) {
 	}
 
 	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldEnv))
+}
+
+func RemoveSubmodule() {
+	log.Info("removing submodule")
+
+	FailOnErr(Run(submoduleParentDirectory(), "git", "rm", "submodule/test"))
+	FailOnErr(Run(submoduleParentDirectory(), "touch", "submodule/.gitkeep"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "submodule/.gitkeep"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-m", "remove submodule"))
+	if IsRemote() {
+		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "-f", "origin", "master"))
+	}
 }
 
 // RestartRepoServer performs a restart of the repo server deployment and waits
