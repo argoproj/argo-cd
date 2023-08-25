@@ -145,6 +145,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [KompiTech GmbH](https://www.kompitech.com/)
 1. [KubeSphere](https://github.com/kubesphere)
 1. [Kurly](https://www.kurly.com/)
+1. [Kvist](https://kvistsolutions.com)
 1. [LexisNexis](https://www.lexisnexis.com/)
 1. [Lian Chu Securities](https://lczq.com)
 1. [Liatrio](https://www.liatrio.com)
