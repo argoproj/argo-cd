@@ -68,7 +68,7 @@ data:
 
 !!! warning
     The allow-list only applies to SCM providers for which the user may configure a custom `api`. Hard-coded provider
-    URLs are assumed to be allowed.
+    URLs (like github.com) are assumed to be allowed.
 
 If you do not intend to allow users to use the SCM or PR generators, you can disable them entirely by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOW_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allow.scm.providers` to `false`.
 
