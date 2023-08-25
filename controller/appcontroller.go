@@ -1621,7 +1621,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		delete(newAnnotations, appv1.AnnotationKeyRefresh)
 	}
 
-	patch, modified, err := argodiff.jsonMergePatch(
+	patch, modified, err := jsonCreateMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
 	if err != nil {
@@ -2031,3 +2031,18 @@ func (ctrl *ApplicationController) toAppQualifiedName(appName, appNamespace stri
 }
 
 type ClusterFilterFunction func(c *argov1alpha.Cluster, distributionFunction sharding.DistributionFunction) bool
+
+// jsonCreateMergePatch is a wrapper func to calculate the diff between two objects
+// instead of bytes.
+func jsonCreateMergePatch(orig, new interface{}) ([]byte, bool, error) {
+	origBytes, err := json.Marshal(orig)
+	if err != nil {
+		return nil, false, err
+	}
+	newBytes, err := json.Marshal(new)
+	if err != nil {
+		return nil, false, err
+	}
+	patch, err := jsonpatch.CreateMergePatch(origBytes, newBytes)
+	return patch, string(patch) != "{}", err
+}
