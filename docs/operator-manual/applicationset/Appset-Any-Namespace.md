@@ -67,8 +67,8 @@ data:
     Please note url used in the `api` field of the `ApplicationSet` must match the url declared by the Administrator including the protocol
 
 !!! warning
-    The allow-list only applies to SCM providers for which the user may configure a custom `api`. Hard-coded provider
-    URLs (like github.com) are assumed to be allowed.
+    The allow-list only applies to SCM providers for which the user may configure a custom `api`. Where an SCM or PR
+    generator does not accept a custom API URL, the provider is implicitly allowed.
 
 If you do not intend to allow users to use the SCM or PR generators, you can disable them entirely by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOW_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allow.scm.providers` to `false`.
 
