@@ -126,18 +126,15 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 	if !g.enableSCMProviders {
 		return nil, ErrSCMProvidersDisabled
 	}
+	if err := ScmProviderAllowed(applicationSetInfo, generatorConfig, g.allowedSCMProviders); err != nil {
+		return nil, fmt.Errorf("scm provider not allowed: %w", err)
+	}
 
 	if generatorConfig.Github != nil {
-		if err := ScmProviderAllowed(applicationSetInfo, generatorConfig.Github.API, g.allowedSCMProviders); err != nil {
-			return nil, fmt.Errorf("scm provider not allowed: %w", err)
-		}
 		return g.github(ctx, generatorConfig.Github, applicationSetInfo)
 	}
 	if generatorConfig.GitLab != nil {
 		providerConfig := generatorConfig.GitLab
-		if err := ScmProviderAllowed(applicationSetInfo, providerConfig.API, g.allowedSCMProviders); err != nil {
-			return nil, fmt.Errorf("scm provider not allowed: %w", err)
-		}
 		token, err := g.getSecretRef(ctx, providerConfig.TokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %v", err)
@@ -146,9 +143,6 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 	}
 	if generatorConfig.Gitea != nil {
 		providerConfig := generatorConfig.Gitea
-		if err := ScmProviderAllowed(applicationSetInfo, providerConfig.API, g.allowedSCMProviders); err != nil {
-			return nil, fmt.Errorf("scm provider not allowed: %w", err)
-		}
 		token, err := g.getSecretRef(ctx, providerConfig.TokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %v", err)
@@ -157,9 +151,6 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 	}
 	if generatorConfig.BitbucketServer != nil {
 		providerConfig := generatorConfig.BitbucketServer
-		if err := ScmProviderAllowed(applicationSetInfo, providerConfig.API, g.allowedSCMProviders); err != nil {
-			return nil, fmt.Errorf("scm provider not allowed: %w", err)
-		}
 		if providerConfig.BasicAuth != nil {
 			password, err := g.getSecretRef(ctx, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace)
 			if err != nil {
