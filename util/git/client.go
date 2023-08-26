@@ -185,8 +185,8 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
 	var customHTTPClient = &http.Client{
-		// 15 second timeout
-		Timeout: 15 * time.Second,
+		// 60 second timeout
+		Timeout: 60 * time.Second,
 		// don't follow redirect
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
