@@ -8,6 +8,8 @@ The Git generator contains two subtypes: the Git directory generator, and Git fi
     For ApplicationSets with a templated `project` field, [the source of truth _must_ be controlled by admins](./Security.md#templated-project-field)
     - in the case of git generators, PRs must require admin approval.
 
+    The directory and file generators cannot be combined. As such, there is currently no way to exclude paths using the file generator.
+
 ## Git Generator: Directories
 
 The Git directory generator, one of two subtypes of the Git generator, generates parameters using the directory structure of a specified Git repository.
@@ -122,7 +124,7 @@ This example excludes the `exclude-helm-guestbook` directory from the list of di
 
     If a directory matches at least one `exclude` pattern, it will be excluded. Or, said another way, *exclude rules take precedence over include rules.*
 
-    As a corollary, which directories are included/excluded is not affected by the order of `path`s in the `directories` field list (because, as above, exclude rules always take precedence over include rules). 
+    As a corollary, which directories are included/excluded is not affected by the order of `path`s in the `directories` field list (because, as above, exclude rules always take precedence over include rules).
 
 For example, with these directories:
 
@@ -330,8 +332,8 @@ In addition to the flattened key/value pairs from the configuration file, the fo
 - `{{path.filename}}`: The matched filename. e.g., `config.json` in the above example.
 - `{{path.filenameNormalized}}`: The matched filename with unsupported characters replaced with `-`.
 
-**Note**: The right-most *directory* name always becomes `{{path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{path.basename}}` will be `four`. 
-The filename can always be accessed using `{{path.filename}}`. 
+**Note**: The right-most *directory* name always becomes `{{path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{path.basename}}` will be `four`.
+The filename can always be accessed using `{{path.filename}}`.
 
 **Note**: If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `myRepo.path` instead of `path`. Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
 
