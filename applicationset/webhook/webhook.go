@@ -562,7 +562,7 @@ func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) err
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		err := c.Get(context.Background(), types.NamespacedName{Name: appSet.Name, Namespace: appSet.Namespace}, appSet)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting ApplicationSet: %w", err)
 		}
 		if appSet.Annotations == nil {
 			appSet.Annotations = map[string]string{}

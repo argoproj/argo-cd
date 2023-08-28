@@ -40,10 +40,7 @@ import (
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-// TODO: load this using Cobra.
-func getSubmoduleEnabled() bool {
-	return env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
-}
+var gitSubmoduleEnabled = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
 
 func NewCommand() *cobra.Command {
 	var (
@@ -156,7 +153,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
-			argoCDService, err := services.NewArgoCDService(argoCDDB, getSubmoduleEnabled(), repoClientset, enableNewGitFileGlobbing)
+			argoCDService, err := services.NewArgoCDService(argoCDDB, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 			errors.CheckError(err)
 
 			terminalGenerators := map[string]generators.Generator{
