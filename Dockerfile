@@ -182,7 +182,7 @@ RUN addgroup -g $ARGOCD_USER_ID argocd && \
     apk update && \
     apk upgrade && \
     apk upgrade musl && \
-    apk add git git-lfs nss_wrapper openssl openssh-keysign tini gpg gpg-agent
+    apk add git git-lfs nss_wrapper openssl openssh-keysign tini gpg gpg-agent gcompat
 
 COPY --from=argocd --chown=root:root /usr/local/bin/argocd /usr/local/bin/
 COPY --from=argocd --chown=root:root /usr/local/bin/helm* /usr/local/bin/
