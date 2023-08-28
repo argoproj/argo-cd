@@ -413,7 +413,7 @@ spec:
 * `sha`: The Git commit SHA for the branch.
 * `short_sha`: The abbreviated Git commit SHA for the branch (8 chars or the length of the `sha` if it's shorter).
 * `short_sha_7`: The abbreviated Git commit SHA for the branch (7 chars or the length of the `sha` if it's shorter).
-* `labels`: A comma-separated list of repository labels.
+* `labels`: A comma-separated list of repository labels in case of Gitea, repository topics in case of Gitlab and Github. Not supported by Bitbucket Cloud, Bitbucket Server, or Azure DevOps.
 * `branchNormalized`: The value of `branch` normalized to contain only lowercase alphanumeric characters, '-' or '.'.
 
 ## Pass additional key-value pairs via `values` field
