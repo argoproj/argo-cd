@@ -158,7 +158,7 @@ FROM argocd-final AS argocd
 
 FROM amazon/aws-cli:2.11.19 AS awscli
 
-FROM registry1.dso.mil/ironbank/opensource/alpinelinux/alpine:3.18.0
+FROM registry1.dso.mil/ironbank/opensource/alpinelinux/alpine:3.18.3
 
 ARG HELM_SECRETS_VERSION="4.4.2"
 
@@ -181,6 +181,7 @@ RUN addgroup -g $ARGOCD_USER_ID argocd && \
     chmod g=u ${HOME} && \
     apk update && \
     apk upgrade && \
+    apk upgrade musl && \
     apk add git git-lfs nss_wrapper openssl openssh-keysign tini gpg gpg-agent
 
 COPY --from=argocd --chown=root:root /usr/local/bin/argocd /usr/local/bin/
