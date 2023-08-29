@@ -61,11 +61,11 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 			if appSet.Spec.GoTemplate {
 				tmp := map[string]interface{}{}
-				if err := mergo.Merge(&tmp, a); err != nil {
-					return nil, fmt.Errorf("failed to merge params from the first generator in the matrix generator with temp map: %w", err)
+				if err := mergo.Merge(&tmp, b, mergo.WithOverride); err != nil {
+					return nil, fmt.Errorf("failed to merge params from the second generator in the matrix generator with temp map: %w", err)
 				}
-				if err := mergo.Merge(&tmp, b); err != nil {
-					return nil, fmt.Errorf("failed to merge params from the first generator in the matrix generator with the second: %w", err)
+				if err := mergo.Merge(&tmp, a, mergo.WithOverride); err != nil {
+					return nil, fmt.Errorf("failed to merge params from the second generator in the matrix generator with the first: %w", err)
 				}
 				res = append(res, tmp)
 			} else {
