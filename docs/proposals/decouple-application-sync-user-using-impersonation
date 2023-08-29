@@ -23,6 +23,15 @@ Application syncs in Argo CD have the same privileges as the Argo CD control pla
 
 The goal of this proposal is to perform the Application sync as a different user using impersonation and use the service account provided in the cluster config purely for control plane tasks.
 
+### What is Impersonation
+Impersonation is a feature in kubernetes and enabled in the `kubectl` CLI client, using which, a user can act as another user through impersonation headers. For example, an admin could use this feature to debug an authorization policy by temporarily impersonating another user and seeing if a request was denied.
+
+Impersonation requests first authenticate as the requesting user, then switch to the impersonated user info.
+
+```
+kubectl --as <user-to-impersonate> ...
+kubectl --as <user-to-impersonate> --as-group <group-to-impersonate> ...
+```
 
 ## Open Questions [optional]
 
@@ -31,7 +40,8 @@ Yes, other restrictions implemented by `AppProject` related to whitelisting/blac
 - Can an Application refer to a service account with elevated privileges like say  `cluster-admin`, `admin`, and service accounts used for running the ArgoCD controllers itself ?
 Yes, this is possible as long as the ArgoCD admin user explicitly allows it through the `AppProject` configuration.
 - Among the destinations configured in the `AppProject`, if there are multiple matches for a given destination, which destination option should be used ?
-
+- Can the kubernetes audit trail events capture the impersonation.
+Yes, kubernetes audit trail events capture both the actual user and the impersonating user details and hence its possible to track who executed the commands and as which user permissions using the audit trails.
 ## Summary
 
 In a multi team/multi tenant environment, an application team is typically granted access to a namespace to self-manage their Applications in a declarative way. Current implementation of ArgoCD requires the ArgoCD Administrator to create an `AppProject` with access settings configured to replicate the RBAC resources that are configured for each team. This approach requires duplication of effort and also requires syncing the access between both to maintain the security posture. It would be desirable for users to use the existing RBAC rules without having to revert to Argo CD API to create and manage these Applications. One namespace per team, or even one namespace per application is what we are looking to address as part of this proposal.
@@ -45,6 +55,7 @@ This proposal would allow ArgoCD administrators to manage the cluster permission
 - Namespaces are pre-populated with one or more `ServiceAccounts` that define the permissions for each `AppProject`.
 - Many users prefer to control access to k8s resources through kubernetes RBAC constructs instead of Argo specific constructs.
 - Each tenant is generally given access to a specific namespace along with a service account, role or cluster role and role binding to control access to that namespace.
+- An `AppProject` can either be mapped to a single tenant or multiple related tenants and the respective destinations that needs to be managed via the `AppProject`, needs to be configured.
 
 
 ### Goals
@@ -60,7 +71,7 @@ None
 ## Proposal
 
 Enable ArgoCD Admin to specify a `serviceAccountName` in `AppProjects` CR on a per `destination` basis.
-When applications gets synced, based on its destination, the `serviceAccountName` configured in the `AppProject` will be chosen and used for impersonation when executing the kubectl apply/create commands. There could either be a regex based match of the destination or an exact match of the destination. Exact match takes the highest precedence. If there are multiple possible options, then an error would be thrown during the sync operation.
+When applications gets synced, based on its destination, the `serviceAccountName` configured in the `AppProject` will be chosen and used for impersonation when executing the kubectl apply/create commands. There could either be a regex based match of the destination or an exact match of the destination. If there are multiple possible options, then an error would be thrown during the sync operation.
 
 ```
 apiVersion: argoproj.io/v1alpha1
@@ -85,9 +96,6 @@ spec:
   - namespace: guestbook-stage
     server: https://kubernetes.default.svc
     serviceAccountName: guestbook-stage-deployer
-  - namespace: *
-    server: https://kubernetes.default.svc
-    serviceAccountName: generic-deployer
 ```
 
 ### Use cases
@@ -245,9 +253,6 @@ spec:
   sourceRepos:
   - '*'
   destinations:
-  - namespace: *
-    server: https://kubernetes.default.svc
-    serviceAccountName: generic-deployer
   - namespace: guestbook
     server: https://kubernetes.default.svc
     serviceAccountName: guestbook-deployer
@@ -318,3 +323,8 @@ spec:
 ### Related issue
 
 https://github.com/argoproj/argo-cd/issues/7689
+
+
+### Related links
+
+https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation
