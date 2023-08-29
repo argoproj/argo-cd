@@ -39,6 +39,7 @@ argocd-application-controller [flags]
   -n, --namespace string                      If present, the namespace scope for this CLI request
       --operation-processors int              Number of application operation processors (default 10)
       --otlp-address string                   OpenTelemetry collector address to send traces to
+      --otlp-attrs strings                    List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
       --password string                       Password for basic authentication to the API server
       --persist-resource-health               Enables storing the managed resources health in the Application CRD (default true)
       --proxy-url string                      If provided, this URL will be used to connect via proxy
