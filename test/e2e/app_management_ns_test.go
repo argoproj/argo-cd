@@ -755,10 +755,10 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 		Given().
 		ResourceOverrides(map[string]ResourceOverride{
 			"apps/Deployment": {
-				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers/0/image", "/metadata/labels/app.kubernetes.io/managed-by"}},
+				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers/0/image", "/metadata/labels/app.kubernetes.io~1managed-by"}},
 			},
 			"Service": {
-				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/metadata/labels/app.kubernetes.io/managed-by"}},
+				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/metadata/labels/app.kubernetes.io~1managed-by"}},
 			},
 		}).
 		When().
@@ -899,7 +899,7 @@ func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCod
 		Given().
 		ResourceOverrides(map[string]ResourceOverride{
 			"ConfigMap": {
-				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/metadata/labels/app.kubernetes.io/managed-by"}},
+				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/metadata/labels/app.kubernetes.io~1managed-by"}},
 			},
 		}).
 		When().
