@@ -6956,6 +6956,13 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref common.
 							Format:      "",
 						},
 					},
+					"topic": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Filter repos list based on Gitlab Topic.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"group"},
 			},
