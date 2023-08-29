@@ -13,6 +13,35 @@ import (
 	"gopkg.in/square/go-jose.v2"
 )
 
+var TestConfigFilePath = "../test/local.config"
+var WriteConfigFilePath = "../test/write.config"
+
+var TestConfig = `contexts:
+- name: argocd1.example.com:443
+  server: argocd1.example.com:443
+  user: argocd1.example.com:443
+- name: argocd2.example.com:443
+  server: argocd2.example.com:443
+  user: argocd2.example.com:443
+- name: localhost:8080
+  server: localhost:8080
+  user: localhost:8080
+current-context: localhost:8080
+servers:
+- server: argocd1.example.com:443
+- server: argocd2.example.com:443
+- plain-text: true
+  server: localhost:8080
+users:
+- auth-token: vErrYS3c3tReFRe$hToken
+  name: argocd1.example.com:443
+  refresh-token: vErrYS3c3tReFRe$hToken
+- auth-token: vErrYS3c3tReFRe$hToken
+  name: argocd2.example.com:443
+  refresh-token: vErrYS3c3tReFRe$hToken
+- auth-token: vErrYS3c3tReFRe$hToken
+  name: localhost:8080`
+
 // Cert is a certificate for tests. It was generated like this:
 //
 //	opts := tls.CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
