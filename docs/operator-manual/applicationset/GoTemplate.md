@@ -103,6 +103,7 @@ generators' templating:
 - `{{ path.filename }}` becomes `{{ .path.filename }}`
 - `{{ path.filenameNormalized }}` becomes `{{ .path.filenameNormalized }}`
 - `{{ path[n] }}` becomes `{{ index .path.segments n }}`
+- `{{ values }}` if being used in the file generator becomes `{{ .values }}`
 
 Here is an example:
 
