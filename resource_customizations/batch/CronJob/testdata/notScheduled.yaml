@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: CronJob
+name: notScheduledCronJob
+namespace: default
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: notScheduledCronJob
+            image: busybox
+            command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          restartPolicy: OnFailure
+status:
+  lastScheduleTime: null
