@@ -26,8 +26,9 @@ func Test_ReconnectCallbackHookCalled(t *testing.T) {
 	faultyDNSRedisClient.AddHook(hook)
 
 	faultyDNSClient := NewRedisCache(faultyDNSRedisClient, 60*time.Second, RedisCompressionNone)
-	faultyDNSClient.Set(&Item{Key: "baz", Object: "foo"})
+	err = faultyDNSClient.Set(&Item{Key: "baz", Object: "foo"})
 	assert.Equal(t, called, true)
+	assert.Error(t, err)
 }
 
 func Test_ReconnectCallbackHookNotCalled(t *testing.T) {
@@ -46,6 +47,7 @@ func Test_ReconnectCallbackHookNotCalled(t *testing.T) {
 	redisClient.AddHook(hook)
 	client := NewRedisCache(redisClient, 60*time.Second, RedisCompressionNone)
 
-	client.Set(&Item{Key: "foo", Object: "bar"})
+	err = client.Set(&Item{Key: "foo", Object: "bar"})
 	assert.Equal(t, called, false)
+	assert.NoError(t, err)
 }

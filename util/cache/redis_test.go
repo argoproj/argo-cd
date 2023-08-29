@@ -135,24 +135,30 @@ func TestRedisMetrics(t *testing.T) {
 	var res string
 
 	//client successful request
-	client.Set(&Item{Key: "foo", Object: "bar"})
-	client.Get("foo", &res)
+	err = client.Set(&Item{Key: "foo", Object: "bar"})
+	assert.NoError(t, err)
+	err = client.Get("foo", &res)
+	assert.NoError(t, err)
 
 	c, err := ms.redisRequestCounter.GetMetricWithLabelValues("mock", "false")
-	c.Write(metric)
+	assert.NoError(t, err)
+	err = c.Write(metric)
 	assert.NoError(t, err)
 	assert.Equal(t, metric.Counter.GetValue(), float64(2))
 
 	//faulty client failed request
-	faultyClient.Get("foo", &res)
+	err = faultyClient.Get("foo", &res)
+	assert.Error(t, err)
 	c, err = ms.redisRequestCounter.GetMetricWithLabelValues("mock", "true")
-	c.Write(metric)
+	assert.NoError(t, err)
+	err = c.Write(metric)
 	assert.NoError(t, err)
 	assert.Equal(t, metric.Counter.GetValue(), float64(1))
 
 	//both clients histogram count
 	o, err := ms.redisRequestHistogram.GetMetricWithLabelValues("mock")
-	o.(prometheus.Metric).Write(metric)
+	assert.NoError(t, err)
+	err = o.(prometheus.Metric).Write(metric)
 	assert.NoError(t, err)
 	assert.Equal(t, int(metric.Histogram.GetSampleCount()), 3)
 }
