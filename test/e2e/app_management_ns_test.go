@@ -755,10 +755,10 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 		Given().
 		ResourceOverrides(map[string]ResourceOverride{
 			"apps/Deployment": {
-				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers/0/image", "/metadata/labels"}},
+				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers/0/image", "/metadata/labels/app.kubernetes.io/managed-by"}},
 			},
 			"Service": {
-				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/metadata/labels"}},
+				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/metadata/labels/app.kubernetes.io/managed-by"}},
 			},
 		}).
 		When().
@@ -895,13 +895,23 @@ func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCod
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Given().
+		ResourceOverrides(map[string]ResourceOverride{
+			"ConfigMap": {
+				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/metadata/labels/app.kubernetes.io/managed-by"}},
+			},
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 	for i := range message {
 		expect = expect.Expect(Success(message[i]))
 	}
 	expect.
 		Expect(HealthIs(statusCode)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
