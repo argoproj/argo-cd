@@ -47,6 +47,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/git"
@@ -814,19 +815,6 @@ func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Applica
 	return a, nil
 }
 
-func mergeStringMaps(items ...map[string]string) map[string]string {
-	res := make(map[string]string)
-	for _, m := range items {
-		if m == nil {
-			continue
-		}
-		for k, v := range m {
-			res[k] = v
-		}
-	}
-	return res
-}
-
 var informerSyncTimeout = 2 * time.Second
 
 // waitSync is a helper to wait until the application informer cache is synced after create/update.
@@ -864,8 +852,8 @@ func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ct
 	for i := 0; i < 10; i++ {
 		app.Spec = newApp.Spec
 		if merge {
-			app.Labels = mergeStringMaps(app.Labels, newApp.Labels)
-			app.Annotations = mergeStringMaps(app.Annotations, newApp.Annotations)
+			app.Labels = collections.MergeStringMaps(app.Labels, newApp.Labels)
+			app.Annotations = collections.MergeStringMaps(app.Annotations, newApp.Annotations)
 		} else {
 			app.Labels = newApp.Labels
 			app.Annotations = newApp.Annotations
@@ -1700,8 +1688,8 @@ func isTheSelectedOne(currentNode *appv1.ResourceNode, q *application.Applicatio
 	}
 
 	for _, parentResource := range currentNode.ParentRefs {
-		//look up parentResource from resourceNodes
-		//then check if the parent isTheSelectedOne
+		// look up parentResource from resourceNodes
+		// then check if the parent isTheSelectedOne
 		for _, resourceNode := range resourceNodes {
 			if resourceNode.Namespace == parentResource.Namespace &&
 				resourceNode.Name == parentResource.Name &&
