@@ -5,12 +5,12 @@ import {ToggleButton} from '../../../shared/components/toggle-button';
 // WrapLinesButton is a component that wraps log lines.
 export const WrapLinesButton = ({prefs}: {prefs: ViewPreferences}) => (
     <ToggleButton
-        title='WrapLines'
+        title='Wrap Lines'
         onToggle={() => {
             const wrap = prefs.appDetails.wrapLines;
             services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, wrapLines: !wrap}});
         }}
         toggled={prefs.appDetails.wrapLines}
-        icon='burrito'
+        icon='paragraph'
     />
 );

@@ -160,6 +160,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             <span>
                                 <FollowToggleButton follow={follow} setFollow={setFollow} />
                                 {follow && <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} />}
+                                <WrapLinesButton prefs={prefs} />
                                 <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogs} showPreviousLogs={previous} />
                                 <Spacer />
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
@@ -177,7 +178,6 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={setViewPodNames} />
                                 <TimestampsToggleButton setViewTimestamps={setViewTimestamps} viewTimestamps={viewTimestamps} timestamp={timestamp} />
                                 <DarkModeToggleButton prefs={prefs} />
-                                <WrapLinesButton prefs={prefs} />
                             </span>
                             <Spacer />
                             <span>
