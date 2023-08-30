@@ -1,4 +1,4 @@
-import {DataLoader} from 'argo-ui';
+import {DataLoader, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {useEffect, useState} from 'react';
@@ -159,6 +159,16 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             <span>
                                 <FollowToggleButton follow={follow} setFollow={setFollow} />
                                 {follow && <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} />}
+                                <Tooltip content='Wrap Lines'>
+                                    <button
+                                        className={`argo-button argo-button--base${prefs.appDetails.wrapLines ? '' : '-o'}`}
+                                        onClick={() => {
+                                            const wrap = prefs.appDetails.wrapLines;
+                                            services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, wrapLines: !wrap}});
+                                        }}>
+                                        <i className='fa fa-paragraph' />
+                                    </button>
+                                </Tooltip>
                                 <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogs} showPreviousLogs={previous} />
                                 <Spacer />
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
@@ -189,7 +199,10 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             onWheel={e => {
                                 if (e.deltaY < 0) setScrollToBottom(false);
                             }}>
-                            <AutoSizer>
+                            <AutoSizer
+                                style={{
+                                    whiteSpace: prefs.appDetails.wrapLines ? 'normal' : 'pre'
+                                }}>
                                 {({width, height}: {width: number; height: number}) => (
                                     <Grid
                                         cellRenderer={cellRenderer}
