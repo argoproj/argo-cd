@@ -526,10 +526,6 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		return mgr.Parse(tokenString)
 	default:
 		// IDP signed token
-		if mgr.storage.IsTokenRevoked(claims.ID) {
-			return nil, "", errors.New("token has been revoked, please re-login")
-		}
-
 		prov, err := mgr.provider()
 		if err != nil {
 			return nil, "", err
@@ -558,6 +554,16 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 				return claims, "", common.TokenVerificationErr
 			}
 			return nil, "", common.TokenVerificationErr
+		}
+
+		id := claims.ID
+		// Workaround for Dex token, because does not have jti.
+		if id == "" {
+			id = idToken.AccessTokenHash
+		}
+
+		if mgr.storage.IsTokenRevoked(id) {
+			return nil, "", errors.New("token has been revoked, please re-login")
 		}
 
 		var claims jwt.MapClaims
