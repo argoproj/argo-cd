@@ -1399,9 +1399,10 @@ func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application
 		return err
 	}
 
-	return s.cache.OnAppResourcesTreeChanged(ws.Context(), q.GetApplicationName(), func() error {
+	cacheKey := argo.AppInstanceName(q.GetApplicationName(), q.GetAppNamespace(), s.ns)
+	return s.cache.OnAppResourcesTreeChanged(ws.Context(), cacheKey, func() error {
 		var tree appv1.ApplicationTree
-		err := s.cache.GetAppResourcesTree(q.GetApplicationName(), &tree)
+		err := s.cache.GetAppResourcesTree(cacheKey, &tree)
 		if err != nil {
 			return fmt.Errorf("error getting app resource tree: %w", err)
 		}
