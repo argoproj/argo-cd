@@ -159,6 +159,20 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
   "claims_supported": ["sub", "aud", "exp"]
 }`, url))
 			require.NoError(t, err)
+		case "/api/dex/keys":
+			pubKey, err := jwt.ParseRSAPublicKeyFromPEM(Cert)
+			require.NoError(t, err)
+			jwks := jose.JSONWebKeySet{
+				Keys: []jose.JSONWebKey{
+					{
+						Key: pubKey,
+					},
+				},
+			}
+			out, err := json.Marshal(jwks)
+			require.NoError(t, err)
+			_, err = io.WriteString(w, string(out))
+			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -166,7 +180,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 }
 
 func GetDexTestServer(t *testing.T) *httptest.Server {
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

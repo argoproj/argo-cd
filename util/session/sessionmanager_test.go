@@ -734,7 +734,7 @@ rootCA: |
 		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
-		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"argo-cd-cli"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
 		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
@@ -743,8 +743,7 @@ rootCA: |
 		require.NoError(t, err)
 
 		_, _, err = mgr.VerifyToken(tokenString)
-		require.Error(t, err)
-		assert.ErrorIs(t, err, common.TokenVerificationErr)
+		require.NoError(t, err)
 	})
 
 	t.Run("OIDC provider is external, TLS is configured", func(t *testing.T) {
@@ -1192,6 +1191,7 @@ issuer: %s
 clientID: xxx
 clientSecret: yyy
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
+			"oidc.tls.insecure.skip.verify": "true", // This isn't what we're testing.
 		}
 
 		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
@@ -1205,7 +1205,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, storage)
 		mgr.verificationDelayNoiseEnabled = false
 
-		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"xxx"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
 		claims.Issuer = oidcTestServer.URL
 		claims.ID = tokenID
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
@@ -1249,7 +1249,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, storage)
 		mgr.verificationDelayNoiseEnabled = false
 
-		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"argo-cd-cli"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
 		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
 		claims.ID = tokenID
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
