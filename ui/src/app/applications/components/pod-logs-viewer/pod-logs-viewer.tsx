@@ -1,4 +1,4 @@
-import {DataLoader, Tooltip} from 'argo-ui';
+import {DataLoader} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {useEffect, useState} from 'react';
@@ -27,6 +27,7 @@ import {PodNamesToggleButton} from './pod-names-toggle-button';
 import Ansi from 'ansi-to-react';
 import {AutoScrollButton} from './auto-scroll-button';
 import {GridCellProps} from 'react-virtualized/dist/es/Grid';
+import {WrapLinesButton} from './wrap-lines-button';
 
 export interface PodLogsProps {
     namespace: string;
@@ -159,16 +160,6 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             <span>
                                 <FollowToggleButton follow={follow} setFollow={setFollow} />
                                 {follow && <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} />}
-                                <Tooltip content='Wrap Lines'>
-                                    <button
-                                        className={`argo-button argo-button--base${prefs.appDetails.wrapLines ? '' : '-o'}`}
-                                        onClick={() => {
-                                            const wrap = prefs.appDetails.wrapLines;
-                                            services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, wrapLines: !wrap}});
-                                        }}>
-                                        <i className='fa fa-paragraph' />
-                                    </button>
-                                </Tooltip>
                                 <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogs} showPreviousLogs={previous} />
                                 <Spacer />
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
@@ -186,6 +177,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={setViewPodNames} />
                                 <TimestampsToggleButton setViewTimestamps={setViewTimestamps} viewTimestamps={viewTimestamps} timestamp={timestamp} />
                                 <DarkModeToggleButton prefs={prefs} />
+                                <WrapLinesButton prefs={prefs} />
                             </span>
                             <Spacer />
                             <span>
