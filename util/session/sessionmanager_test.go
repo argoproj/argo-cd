@@ -29,6 +29,7 @@ import (
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/dex"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/password"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -731,7 +732,7 @@ rootCA: |
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"argo-cd-cli"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -1246,7 +1247,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, storage)
+		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, storage)
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"argo-cd-cli"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
