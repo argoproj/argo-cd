@@ -64,6 +64,19 @@ the Argo CD UI. The functionality is similar to `kubectl exec`.
 
 See [Web-based Terminal](web_based_terminal.md) for more info.
 
+The exec feature is disabled entirely by default. To enable it, set the `exec.enabled` key to "true" on the argocd-cm
+ConfigMap. You will also need to add the following to the argocd-api-server Role (if you're using Argo CD in namespaced
+mode) or ClusterRole (if you're using Argo CD in cluster mode).
+
+```yaml
+- apiGroups:
+    - ""
+  resources:
+    - pods/exec
+  verbs:
+    - create
+```
+
 #### The `applicationsets` resource
 
 [ApplicationSets](applicationset/index.md) provide a declarative way to automatically create/update/delete Applications.
@@ -315,4 +328,30 @@ Or against the group defined:
 ```shell
 $ argocd admin settings rbac can db-admins get applications 'staging-db-admins/*' --policy-file policy.csv
 Yes
+```
+
+### Adding additional RBAC configmaps
+You now have the ability to create additional ConfigMaps to augment the policy specified in `argocd-rbac-cm`.
+
+Simply create a ConfigMap in the `argocd` namespace with the label `argocd.argoproj.io/cm-type=additional-rbac` and specify the `policy.csv` key.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm-extra
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/cm-type: rbac
+data:
+  policy.csv: |
+    p, role:org-admin, applications, *, */*, allow
+    p, role:org-admin, clusters, get, *, allow
+    p, role:org-admin, repositories, get, *, allow
+    p, role:org-admin, repositories, create, *, allow
+    p, role:org-admin, repositories, update, *, allow
+    p, role:org-admin, repositories, delete, *, allow
+    p, role:org-admin, logs, get, *, allow
+    p, role:org-admin, exec, create, */*, allow
+    g, your-github-org:your-team, role:org-admin
 ```

@@ -3,6 +3,7 @@ package rbac
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/common"
 	"strings"
 	"testing"
 	"time"
@@ -205,7 +206,7 @@ p, alice, repositories, *, foo/*, allow
 p, bob, repositories, *, foo/https://github.com/argoproj/argo-cd.git, allow
 p, cathy, repositories, *, foo/*, allow
 `
-	_ = enf.SetUserPolicy(policy)
+	_ = enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, policy)
 
 	assert.True(t, enf.Enforce("alice", "repositories", "delete", "foo/https://github.com/argoproj/argo-cd.git"))
 	assert.True(t, enf.Enforce("alice", "repositories", "delete", "foo/https://github.com/golang/go.git"))
@@ -222,7 +223,7 @@ func TestEnableDisableEnforce(t *testing.T) {
 p, alice, *, get, foo/obj, allow
 p, mike, *, get, foo/obj, deny
 `
-	_ = enf.SetUserPolicy(policy)
+	_ = enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, policy)
 	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
 		return false
 	})
@@ -247,15 +248,15 @@ func TestUpdatePolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 
-	_ = enf.SetUserPolicy("p, alice, *, get, foo/obj, allow")
+	_ = enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, "p, alice, *, get, foo/obj, allow")
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
 	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
 
-	_ = enf.SetUserPolicy("p, bob, *, get, foo/obj, allow")
+	_ = enf.SetUserPolicy(common.ArgoCDConfigMapName, "p, bob, *, get, foo/obj, allow")
 	assert.False(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
 	assert.True(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
 
-	_ = enf.SetUserPolicy("")
+	_ = enf.SetUserPolicy(common.ArgoCDConfigMapName, "")
 	assert.False(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
 	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
 
@@ -410,7 +411,7 @@ func TestDefaultGlobMatchMode(t *testing.T) {
 	policy := `
 p, alice, clusters, get, "https://github.com/*/*.git", allow
 `
-	_ = enf.SetUserPolicy(policy)
+	_ = enf.SetUserPolicy(common.ArgoCDConfigMapName, policy)
 
 	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
 	assert.False(t, enf.Enforce("alice", "repositories", "get", "https://github.com/argoproj/argo-cd.git"))
@@ -427,7 +428,7 @@ func TestGlobMatchMode(t *testing.T) {
 	policy := `
 p, alice, clusters, get, "https://github.com/*/*.git", allow
 `
-	_ = enf.SetUserPolicy(policy)
+	_ = enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, policy)
 
 	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
 	assert.False(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argo-cd.git"))
@@ -444,7 +445,7 @@ func TestRegexMatchMode(t *testing.T) {
 	policy := `
 p, alice, clusters, get, "https://github.com/argo[a-z]{4}/argo-[a-z]+.git", allow
 `
-	_ = enf.SetUserPolicy(policy)
+	_ = enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, policy)
 
 	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
 	assert.False(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/1argo-cd.git"))
@@ -463,6 +464,24 @@ func TestGlobMatchFunc(t *testing.T) {
 
 	ok, _ = globMatchFunc("arg/123", "arg/*")
 	assert.True(t, ok.(bool))
+}
+
+func TestMultiplePolicies(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	policy1 := "p, alice, *, get, foo/obj, allow"
+	policy2 := "p, mike, *, get, foo/obj, allow"
+
+	_ = enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, policy1)
+	_ = enf.SetUserPolicy("extra", policy2)
+	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+		return false
+	})
+
+	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("alice", "applications/resources", "delete", "foo/obj"))
+	assert.True(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
 }
 
 func TestLoadPolicyLine(t *testing.T) {
