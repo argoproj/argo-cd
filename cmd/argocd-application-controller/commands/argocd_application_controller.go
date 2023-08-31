@@ -218,7 +218,7 @@ func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.Se
 	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 	appControllerDeployment, _ := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 
-	if appControllerDeployment != nil {
+	if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
 		replicas = int(*appControllerDeployment.Spec.Replicas)
 	} else {
 		replicas = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
