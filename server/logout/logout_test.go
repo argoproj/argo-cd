@@ -32,9 +32,11 @@ var (
 	baseLogoutURLwithRedirectURL         = "http://localhost:4000/logout?post_logout_redirect_uri={{logoutRedirectURL}}"
 	baseLogoutURLwithTokenAndRedirectURL = "http://localhost:4000/logout?id_token_hint={{token}}&post_logout_redirect_uri={{logoutRedirectURL}}"
 	invalidToken                         = "sample-token"
+	dexToken                             = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Ijc5YTFlNTgzOWM2ZTRjMTZlOTIwYzM1YTU0MmMwNmZhIn0.eyJzdWIiOiIwMHVqNnM1NDVyNU5peVNLcjVkNSIsIm5hbWUiOiJqZCByIiwiZW1haWwiOiJqYWlkZWVwMTdydWx6QGdtYWlsLmNvbSIsInZlciI6MSwiaXNzIjoiaHR0cHM6Ly9kZXYtNTY5NTA5OC5va3RhLmNvbSIsImF1ZCI6IjBvYWowM2FmSEtqN3laWXJwNWQ1IiwiaWF0IjoxNjA1NTcyMzU5LCJleHAiOjE2MDU1NzU5NTksImFtciI6WyJwd2QiXSwiaWRwIjoiMDBvaWdoZmZ2SlFMNjNaOGg1ZDUiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJqYWlkZWVwMTdydWx6QGdtYWlsLmNvbSIsImF1dGhfdGltZSI6MTYwNTU3MjM1NywiYXRfaGFzaCI6ImplUTBGaXZqT2c0YjZNSldEMjE5bGcifQ.Xt_5G-4dNZef1egOYmvruszudlAvUXVQzqrI4YwkWJeZ0zZDk4lyhPUVuxVGjB3pCCUCUMloTL6xC7IVFNj53Eb7WNH_hxsFqemJ80HZYbUpo2G9fMjkPmFTaeFVMC4p3qxIaBAT9_uJbTRSyRGYLV-95KDpU-GNDFXlbFq-2bVvhppiYmKszyHbREZkB87Pi7K3Bk0NxAlDOJ7O5lhwjpwuOJ1WGCJptUetePm5MnpVT2ZCyjvntlzwHlIhMSKNlFZuFS_JMca5Ww0fQSBUlarQU9MMyZKBw-QuD5sJw3xjwQpxOG-T9mJz7F8VA5znLi_LJNutHVgcpt3T_TW_0NbgqsHe8Lw"
 	oidcToken                            = "eyJraWQiOiJYQi1MM3ZFdHhYWXJLcmRSQnVEV0NwdnZsSnk3SEJVb2d5N253M1U1Z1ZZIiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiIwMHVqNnM1NDVyNU5peVNLcjVkNSIsIm5hbWUiOiJqZCByIiwiZW1haWwiOiJqYWlkZWVwMTdydWx6QGdtYWlsLmNvbSIsInZlciI6MSwiaXNzIjoiaHR0cHM6Ly9kZXYtNTY5NTA5OC5va3RhLmNvbSIsImF1ZCI6IjBvYWowM2FmSEtqN3laWXJwNWQ1IiwiaWF0IjoxNjA1NTcyMzU5LCJleHAiOjE2MDU1NzU5NTksImp0aSI6IklELl9ORDJxVG5iREFtc3hIZUt2U2ZHeVBqTXRicXFEQXdkdlRQTDZCTnpfR3ciLCJhbXIiOlsicHdkIl0sImlkcCI6IjAwb2lnaGZmdkpRTDYzWjhoNWQ1IiwicHJlZmVycmVkX3VzZXJuYW1lIjoiamFpZGVlcDE3cnVsekBnbWFpbC5jb20iLCJhdXRoX3RpbWUiOjE2MDU1NzIzNTcsImF0X2hhc2giOiJqZVEwRml2ak9nNGI2TUpXRDIxOWxnIn0.GHkqwXgW-lrAhJdypW7SVjW0YdNLFQiRL8iwgT6DHJxP9Nb0OtkH2NKcBYAA5N6bTPLRQUHgYwWcgm5zSXmvqa7ciIgPF3tiQI8UmJA9VFRRDR-x9ExX15nskCbXfiQ67MriLslUrQUyzSCfUrSjXKwnDxbKGQncrtmRsh5asfCzJFb9excn311W9HKbT3KA0Ot7eOMnVS6V7SGfXxnKs6szcXIEMa_FhB4zDAVLr-dnxvSG_uuWcHrAkLTUVhHbdQQXF7hXIEfyr5lkMJN-drjdz-bn40GaYulEmUvO1bjcL9toCVQ3Ismypyr0b8phj4w3uRsLDZQxTxK7jAXlyQ"
 	nonOidcToken                         = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE2MDU1NzQyMTIsImlzcyI6ImFyZ29jZCIsIm5iZiI6MTYwNTU3NDIxMiwic3ViIjoiYWRtaW4ifQ.zDJ4piwWnwsHON-oPusHMXWINlnrRDTQykYogT7afeE"
 	expectedNonOIDCLogoutURL             = "http://localhost:4000"
+	expectedDexLogoutURL                 = "http://localhost:4000"
 	expectedOIDCLogoutURL                = "https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint=" + oidcToken + "&post_logout_redirect_uri=" + baseURL
 	expectedOIDCLogoutURLWithRootPath    = "https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint=" + oidcToken + "&post_logout_redirect_uri=" + baseURL + "/" + rootPath
 )
@@ -85,6 +87,40 @@ func TestConstructLogoutURL(t *testing.T) {
 }
 
 func TestHandlerConstructLogoutURL(t *testing.T) {
+	kubeClientWithDexConfig := fake.NewSimpleClientset(
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{
+				"dex.config": "connectors: \n" +
+					"- type: dev \n" +
+					"name: Dev \n" +
+					"config: \n" +
+					"issuer: https://dev-5695098.okta.com \n" +
+					"clientID: aabbccddeeff00112233 \n" +
+					"clientSecret: aabbccddeeff00112233",
+				"url": "http://localhost:4000",
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"admin.password":   nil,
+				"server.secretkey": nil,
+			},
+		},
+	)
 	kubeClientWithOIDCConfig := fake.NewSimpleClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -208,13 +244,23 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 		},
 	)
 
+	settingsManagerWithDexConfig := settings.NewSettingsManager(context.Background(), kubeClientWithDexConfig, "default")
 	settingsManagerWithOIDCConfig := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfig, "default")
 	settingsManagerWithoutOIDCConfig := settings.NewSettingsManager(context.Background(), kubeClientWithoutOIDCConfig, "default")
 	settingsManagerWithOIDCConfigButNoLogoutURL := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfigButNoLogoutURL, "default")
 	settingsManagerWithOIDCConfigButNoURL := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfigButNoURL, "default")
 
-	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+	redisClient, closer := test.NewInMemoryRedis()
+	defer closer()
+	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(redisClient))
 
+	dexHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithDexConfig, sessionManager, rootPath, baseHRef, "default")
+	dexHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+		if !validJWTPattern.MatchString(tokenString) {
+			return nil, "", errors.New("invalid jwt")
+		}
+		return &jwt.RegisteredClaims{Issuer: "dev"}, "", nil
+	}
 	oidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfig, sessionManager, rootPath, baseHRef, "default")
 	oidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
@@ -236,7 +282,6 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 		}
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
-
 	oidcHandlerWithoutBaseURL := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfigButNoURL, sessionManager, "argocd", baseHRef, "default")
 	oidcHandlerWithoutBaseURL.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
@@ -244,6 +289,9 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 		}
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
+
+	dexTokenHeader := make(map[string][]string)
+	dexTokenHeader["Cookie"] = []string{"argocd.token=" + dexToken}
 	oidcTokenHeader := make(map[string][]string)
 	oidcTokenHeader["Cookie"] = []string{"argocd.token=" + oidcToken}
 	nonOidcTokenHeader := make(map[string][]string)
@@ -251,6 +299,9 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	invalidHeader := make(map[string][]string)
 	invalidHeader["Cookie"] = []string{"argocd.token=" + invalidToken}
 
+	dexRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
+	assert.NoError(t, err)
+	dexRequest.Header = dexTokenHeader
 	oidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
 	assert.NoError(t, err)
 	oidcRequest.Header = oidcTokenHeader
@@ -273,6 +324,14 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 		expectedLogoutURL string
 		wantErr           bool
 	}{
+		{
+			name:              "Case: Dex logout request with valid token",
+			handler:           dexHandler,
+			request:           dexRequest,
+			responseRecorder:  httptest.NewRecorder(),
+			expectedLogoutURL: expectedDexLogoutURL,
+			wantErr:           false,
+		},
 		{
 			name:              "Case: OIDC logout request with valid token",
 			handler:           oidcHandler,
