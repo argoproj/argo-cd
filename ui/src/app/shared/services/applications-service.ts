@@ -1,4 +1,4 @@
-import * as deepMerge from 'deepmerge';
+import deepMerge from 'deepmerge';
 import {Observable} from 'rxjs';
 import {map, repeat, retry} from 'rxjs/operators';
 

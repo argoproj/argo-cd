@@ -1,5 +1,5 @@
 import {useData, Checkbox} from 'argo-ui/v2';
-import * as minimatch from 'minimatch';
+import minimatch from 'minimatch';
 import * as React from 'react';
 import {Context} from '../../../shared/context';
 import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncPolicy, SyncStatusCode, SyncStatuses} from '../../../shared/models';

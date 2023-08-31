@@ -1,5 +1,5 @@
 import * as React from 'react';
-import * as minimatch from 'minimatch';
+import minimatch from 'minimatch';
 
 import {Application, ApplicationTree, State} from '../models';
 

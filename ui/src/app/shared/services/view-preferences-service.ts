@@ -1,4 +1,4 @@
-import * as deepMerge from 'deepmerge';
+import deepMerge from 'deepmerge';
 import {BehaviorSubject, Observable} from 'rxjs';
 
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
