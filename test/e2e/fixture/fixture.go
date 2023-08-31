@@ -63,25 +63,35 @@ const (
 )
 
 const (
-	EnvAdminUsername = "ARGOCD_E2E_ADMIN_USERNAME"
-	EnvAdminPassword = "ARGOCD_E2E_ADMIN_PASSWORD"
+	EnvAdminUsername           = "ARGOCD_E2E_ADMIN_USERNAME"
+	EnvAdminPassword           = "ARGOCD_E2E_ADMIN_PASSWORD"
+	EnvArgoCDServerName        = "ARGOCD_E2E_SERVER_NAME"
+	EnvArgoCDRedisHAProxyName  = "ARGOCD_E2E_REDIS_HAPROXY_NAME"
+	EnvArgoCDRedisName         = "ARGOCD_E2E_REDIS_NAME"
+	EnvArgoCDRepoServerName    = "ARGOCD_E2E_REPO_SERVER_NAME"
+	EnvArgoCDAppControllerName = "ARGOCD_E2E_APPLICATION_CONTROLLER_NAME"
 )
 
 var (
-	id                  string
-	deploymentNamespace string
-	name                string
-	KubeClientset       kubernetes.Interface
-	KubeConfig          *rest.Config
-	DynamicClientset    dynamic.Interface
-	AppClientset        appclientset.Interface
-	ArgoCDClientset     apiclient.Client
-	adminUsername       string
-	AdminPassword       string
-	apiServerAddress    string
-	token               string
-	plainText           bool
-	testsRun            map[string]bool
+	id                      string
+	deploymentNamespace     string
+	name                    string
+	KubeClientset           kubernetes.Interface
+	KubeConfig              *rest.Config
+	DynamicClientset        dynamic.Interface
+	AppClientset            appclientset.Interface
+	ArgoCDClientset         apiclient.Client
+	adminUsername           string
+	AdminPassword           string
+	apiServerAddress        string
+	token                   string
+	plainText               bool
+	testsRun                map[string]bool
+	argoCDServerName        string
+	argoCDRedisHAProxyName  string
+	argoCDRedisName         string
+	argoCDRepoServerName    string
+	argoCDAppControllerName string
 )
 
 type RepoURLType string
@@ -169,11 +179,26 @@ func init() {
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
+	argoCDServerName = GetEnvWithDefault(EnvArgoCDServerName, common.DefaultServerName)
+	argoCDRedisHAProxyName = GetEnvWithDefault(EnvArgoCDRedisHAProxyName, common.DefaultRedisHaProxyName)
+	argoCDRedisName = GetEnvWithDefault(EnvArgoCDRedisName, common.DefaultRedisName)
+	argoCDRepoServerName = GetEnvWithDefault(EnvArgoCDRepoServerName, common.DefaultRepoServerName)
+	argoCDAppControllerName = GetEnvWithDefault(EnvArgoCDAppControllerName, common.DefaultApplicationControllerName)
+
 	dialTime := 30 * time.Second
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
 	CheckError(err)
 
-	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
+	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
+		Insecure:          true,
+		ServerAddr:        apiServerAddress,
+		PlainText:         !tlsTestResult.TLS,
+		ServerName:        argoCDServerName,
+		RedisHaProxyName:  argoCDRedisHAProxyName,
+		RedisName:         argoCDRedisName,
+		RepoServerName:    argoCDRepoServerName,
+		AppControllerName: argoCDAppControllerName,
+	})
 	CheckError(err)
 
 	plainText = !tlsTestResult.TLS
@@ -219,10 +244,15 @@ func loginAs(username, password string) {
 	token = sessionResponse.Token
 
 	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
-		Insecure:   true,
-		ServerAddr: apiServerAddress,
-		AuthToken:  token,
-		PlainText:  plainText,
+		Insecure:          true,
+		ServerAddr:        apiServerAddress,
+		AuthToken:         token,
+		PlainText:         plainText,
+		ServerName:        argoCDServerName,
+		RedisHaProxyName:  argoCDRedisHAProxyName,
+		RedisName:         argoCDRedisName,
+		RepoServerName:    argoCDRepoServerName,
+		AppControllerName: argoCDAppControllerName,
 	})
 	CheckError(err)
 }
