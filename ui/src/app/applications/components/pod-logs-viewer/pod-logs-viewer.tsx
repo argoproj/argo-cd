@@ -1,5 +1,5 @@
 import {DataLoader} from 'argo-ui';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as React from 'react';
 import {useEffect, useState} from 'react';
 import {bufferTime, delay, retryWhen} from 'rxjs/operators';

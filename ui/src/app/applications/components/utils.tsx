@@ -1,10 +1,10 @@
 import {models, DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
 import {ActionButton} from 'argo-ui/v2';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 import {FormApi, Text} from 'react-form';
-import * as moment from 'moment';
+import moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
