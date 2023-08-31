@@ -8,7 +8,7 @@
     "build": "find ./dist -type f -not -name gitkeep -delete && webpack --config ./src/app/webpack.config.js --mode production",
     "lint": "tsc --noEmit --project ./src/app && tslint -p ./src/app",
     "lint:fix": "tslint -p ./src/app --fix",
-    "test": "jest"
+    "test": "NODE_ENV=test jest"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.4.0",
