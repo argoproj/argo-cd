@@ -1255,7 +1255,7 @@ func getResolvedValueFiles(
 		}
 
 		if !isRemote {
-			paths, err := doublestar.FilepathGlob(string(resolvedPath))
+			paths, err := doublestar.FilepathGlob(string(resolvedPath), doublestar.WithNoFollow())
 
 			if err != nil {
 				return nil, fmt.Errorf("failed to get Helm values file by glob pattern: %w", err)
@@ -1264,6 +1264,10 @@ func getResolvedValueFiles(
 			sort.Strings(paths)
 			if len(paths) > 0 {
 				for _, path := range paths {
+					err := argopath.CheckOutOfBoundsSymlink(path, repoRoot)
+					if err != nil {
+						return nil, err
+					}
 					resolvedValueFiles = append(resolvedValueFiles, pathutil.ResolvedFilePath(path))
 				}
 			} else {
