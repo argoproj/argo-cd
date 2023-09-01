@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
+	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
 )
 
@@ -38,12 +41,31 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 				log.Fatalf("Error in getting token from context")
 			}
 
-			prefix := "http"
-			if !globalClientOpts.Insecure {
-				prefix += "s"
+			dialTime := 30 * time.Second
+			tlsTestResult, err := grpc_util.TestTLS(context, dialTime)
+			errors.CheckError(err)
+			if !tlsTestResult.TLS {
+				if !globalClientOpts.PlainText {
+					if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
+						os.Exit(1)
+					}
+					globalClientOpts.PlainText = true
+				}
+			} else if tlsTestResult.InsecureErr != nil {
+				if !globalClientOpts.Insecure {
+					if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
+						os.Exit(1)
+					}
+					globalClientOpts.Insecure = true
+				}
 			}
 
-			logoutURL := fmt.Sprintf("%s://%s%s", prefix, context, common.LogoutEndpoint)
+			scheme := "http"
+			if !globalClientOpts.Insecure && !globalClientOpts.PlainText {
+				scheme += "s"
+			}
+
+			logoutURL := fmt.Sprintf("%s://%s%s", scheme, context, common.LogoutEndpoint)
 			req, err := http.NewRequest("POST", logoutURL, nil)
 			errors.CheckError(err)
 			cookie := &http.Cookie{
