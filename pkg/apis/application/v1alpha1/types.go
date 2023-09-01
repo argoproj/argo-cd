@@ -999,7 +999,7 @@ type SyncOperation struct {
 	// DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync
 	DryRun bool `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
 	// SyncStrategy describes how to perform the sync
-	SyncStrategy *SyncStrategy `json:"syncStrategy,omitempty" protobuf:"bytes,4,opt,name=syncStrategy"`
+	SyncStrategy *SyncOperationStrategy `json:"syncStrategy,omitempty" protobuf:"bytes,4,opt,name=syncStrategy"`
 	// Resources describes which resources shall be part of the sync
 	Resources []SyncOperationResource `json:"resources,omitempty" protobuf:"bytes,6,opt,name=resources"`
 	// Source overrides the source definition set in the application.
@@ -1174,16 +1174,16 @@ type SyncPolicyAutomated struct {
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 }
 
-// SyncStrategy controls the manner in which a sync is performed
-type SyncStrategy struct {
+// SyncOperationStrategy controls the manner in which a sync is performed
+type SyncOperationStrategy struct {
 	// Apply will perform a `kubectl apply` to perform the sync.
-	Apply *SyncStrategyApply `json:"apply,omitempty" protobuf:"bytes,1,opt,name=apply"`
+	Apply *SyncOperationStrategyApply `json:"apply,omitempty" protobuf:"bytes,1,opt,name=apply"`
 	// Hook will submit any referenced resources to perform the sync. This is the default strategy
-	Hook *SyncStrategyHook `json:"hook,omitempty" protobuf:"bytes,2,opt,name=hook"`
+	Hook *SyncOperationStrategyHook `json:"hook,omitempty" protobuf:"bytes,2,opt,name=hook"`
 }
 
 // Force returns true if the sync strategy specifies to perform a forced sync
-func (m *SyncStrategy) Force() bool {
+func (m *SyncOperationStrategy) Force() bool {
 	if m == nil {
 		return false
 	} else if m.Apply != nil {
@@ -1195,20 +1195,20 @@ func (m *SyncStrategy) Force() bool {
 	}
 }
 
-// SyncStrategyApply uses `kubectl apply` to perform the apply
-type SyncStrategyApply struct {
+// SyncOperationStrategyApply uses `kubectl apply` to perform the apply
+type SyncOperationStrategyApply struct {
 	// Force indicates whether or not to supply the --force flag to `kubectl apply`.
 	// The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
 	// retried for 5 times.
 	Force bool `json:"force,omitempty" protobuf:"bytes,1,opt,name=force"`
 }
 
-// SyncStrategyHook will perform a sync using hooks annotations.
+// SyncOperationStrategyHook will perform a sync using hooks annotations.
 // If no hook annotation is specified falls back to `kubectl apply`.
-type SyncStrategyHook struct {
-	// Embed SyncStrategyApply type to inherit any `apply` options
+type SyncOperationStrategyHook struct {
+	// Embed SyncOperationStrategyApply type to inherit any `apply` options
 	// +optional
-	SyncStrategyApply `json:",inline" protobuf:"bytes,1,opt,name=syncStrategyApply"`
+	SyncOperationStrategyApply `json:",inline" protobuf:"bytes,1,opt,name=syncStrategyApply"`
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository

@@ -17,9 +17,11 @@ import (
 
 var (
 	kindToCRDPath = map[string]string{
-		application.ApplicationFullName:    "manifests/crds/application-crd.yaml",
-		application.AppProjectFullName:     "manifests/crds/appproject-crd.yaml",
-		application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
+		application.ApplicationFullName:         "manifests/crds/application-crd.yaml",
+		application.AppProjectFullName:          "manifests/crds/appproject-crd.yaml",
+		application.ApplicationSetFullName:      "manifests/crds/applicationset-crd.yaml",
+		application.SyncStrategyFullName:        "manifests/crds/syncstrategy-crd.yaml",
+		application.ClusterSyncStrategyFullName: "manifests/crds/clustersyncstrategy-crd.yaml",
 	}
 )
 
@@ -39,6 +41,8 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 	deleteFile("config/argoproj.io_applications.yaml")
 	deleteFile("config/argoproj.io_appprojects.yaml")
 	deleteFile("config/argoproj.io_applicationsets.yaml")
+	deleteFile("config/argoproj.io_syncstrategies.yaml")
+	deleteFile("config/argoproj.io_clustersyncstrategies.yaml")
 	deleteFile("config")
 
 	objs, err := kube.SplitYAML(crdYamlBytes)
@@ -61,7 +65,6 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 			"app.kubernetes.io/part-of": "argocd",
 		}
 		delete(crd.Annotations, "controller-gen.kubebuilder.io/version")
-		crd.Spec.Scope = "Namespaced"
 		crds[crd.Name] = crd
 	}
 	return crds

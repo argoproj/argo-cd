@@ -121,7 +121,7 @@ message ApplicationSyncRequest {
 	optional string revision = 2;
 	optional bool dryRun = 3;
 	optional bool prune = 4;
-	optional github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.SyncStrategy strategy = 5;
+	optional github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.SyncOperationStrategy strategy = 5;
 	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.SyncOperationResource resources = 7;
 	repeated string manifests = 8;
 	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Info infos = 9;

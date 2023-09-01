@@ -9,8 +9,6 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/ap
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,AppProjectSpec,SourceRepos
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationMatchExpression,Values
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationPreservedFields,Annotations
-API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSetRolloutStep,MatchExpressions
-API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSetRolloutStrategy,Steps
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSetSpec,Generators
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSetSpec,GoTemplateOptions
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ApplicationSetStatus,ApplicationStatus
@@ -84,6 +82,8 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/ap
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,SyncOperation,Revisions
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,SyncOperationResult,Revisions
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,SyncStatus,Revisions
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,SyncStrategyRolloutStep,MatchExpressions
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,SyncStrategyRolloutStrategy,Steps
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,SyncWindow,Applications
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,SyncWindow,Clusters
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,SyncWindow,Namespaces

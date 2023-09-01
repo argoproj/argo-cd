@@ -13033,6 +13033,13 @@ spec:
                   type:
                     type: string
                 type: object
+              strategyRef:
+                properties:
+                  kind:
+                    type: string
+                  name:
+                    type: string
+                type: object
               syncPolicy:
                 properties:
                   applicationsSync:

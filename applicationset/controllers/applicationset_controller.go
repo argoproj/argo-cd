@@ -157,8 +157,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// appSyncMap tracks which apps will be synced during this reconciliation.
 	appSyncMap := map[string]bool{}
 
+	strategy, err := r.getApplicationSetStrategySpec(ctx, &applicationSetInfo)
+	if err != nil {
+		log.Errorf("failed to get application set syncstrategy: %v", err)
+	}
+
 	if r.EnableProgressiveSyncs {
-		if applicationSetInfo.Spec.Strategy == nil && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
+		if strategy == nil && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
 			log.Infof("Removing %v unnecessary AppStatus entries from ApplicationSet %v", len(applicationSetInfo.Status.ApplicationStatus), applicationSetInfo.Name)
 
 			err := r.setAppSetApplicationStatus(ctx, &applicationSetInfo, []argov1alpha1.ApplicationSetApplicationStatus{})
@@ -175,7 +180,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				appMap[app.Name] = app
 			}
 
-			appSyncMap, err = r.performProgressiveSyncs(ctx, applicationSetInfo, applications, desiredApplications, appMap)
+			appSyncMap, err = r.performProgressiveSyncs(ctx, applicationSetInfo, strategy, applications, desiredApplications, appMap)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
 			}
@@ -212,7 +217,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if r.EnableProgressiveSyncs {
 		// trigger appropriate application syncs if RollingSync strategy is enabled
-		if progressiveSyncsStrategyEnabled(&applicationSetInfo, "RollingSync") {
+		if progressiveSyncsStrategyEnabled(strategy, "RollingSync") {
 			validApps, err = r.syncValidApplications(ctx, &applicationSetInfo, appSyncMap, appMap, validApps)
 
 			if err != nil {
@@ -828,14 +833,14 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 	return nil
 }
 
-func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appMap map[string]argov1alpha1.Application) (map[string]bool, error) {
+func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, appset argov1alpha1.ApplicationSet, strategy *argov1alpha1.SyncStrategySpec, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appMap map[string]argov1alpha1.Application) (map[string]bool, error) {
 
-	appDependencyList, appStepMap, err := r.buildAppDependencyList(ctx, appset, desiredApplications)
+	appDependencyList, appStepMap, err := r.buildAppDependencyList(ctx, appset, strategy, desiredApplications)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build app dependency list: %w", err)
 	}
 
-	_, err = r.updateApplicationSetApplicationStatus(ctx, &appset, applications, appStepMap)
+	_, err = r.updateApplicationSetApplicationStatus(ctx, &appset, strategy, applications, appStepMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset app status: %w", err)
 	}
@@ -845,14 +850,14 @@ func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, 
 		log.Infof("step %v: %+v", i+1, step)
 	}
 
-	appSyncMap, err := r.buildAppSyncMap(ctx, appset, appDependencyList, appMap)
+	appSyncMap, err := r.buildAppSyncMap(ctx, appset, strategy, appDependencyList, appMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build app sync map: %w", err)
 	}
 
 	log.Infof("Application allowed to sync before maxUpdate?: %+v", appSyncMap)
 
-	_, err = r.updateApplicationSetApplicationStatusProgress(ctx, &appset, appSyncMap, appStepMap, appMap)
+	_, err = r.updateApplicationSetApplicationStatusProgress(ctx, &appset, strategy, appSyncMap, appStepMap, appMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset application status progress: %w", err)
 	}
@@ -866,15 +871,15 @@ func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, 
 }
 
 // this list tracks which Applications belong to each RollingUpdate step
-func (r *ApplicationSetReconciler) buildAppDependencyList(ctx context.Context, applicationSet argov1alpha1.ApplicationSet, applications []argov1alpha1.Application) ([][]string, map[string]int, error) {
+func (r *ApplicationSetReconciler) buildAppDependencyList(ctx context.Context, applicationSet argov1alpha1.ApplicationSet, strategy *argov1alpha1.SyncStrategySpec, applications []argov1alpha1.Application) ([][]string, map[string]int, error) {
 
-	if applicationSet.Spec.Strategy == nil || applicationSet.Spec.Strategy.Type == "" || applicationSet.Spec.Strategy.Type == "AllAtOnce" {
+	if strategy == nil || strategy.Type == "" || strategy.Type == "AllAtOnce" {
 		return [][]string{}, map[string]int{}, nil
 	}
 
-	steps := []argov1alpha1.ApplicationSetRolloutStep{}
-	if progressiveSyncsStrategyEnabled(&applicationSet, "RollingSync") {
-		steps = applicationSet.Spec.Strategy.RollingSync.Steps
+	steps := []argov1alpha1.SyncStrategyRolloutStep{}
+	if progressiveSyncsStrategyEnabled(strategy, "RollingSync") {
+		steps = strategy.RollingSync.Steps
 	}
 
 	appDependencyList := make([][]string, 0)
@@ -940,7 +945,7 @@ func labelMatchedExpression(val string, matchExpression argov1alpha1.Application
 }
 
 // this map is used to determine which stage of Applications are ready to be updated in the reconciler loop
-func (r *ApplicationSetReconciler) buildAppSyncMap(ctx context.Context, applicationSet argov1alpha1.ApplicationSet, appDependencyList [][]string, appMap map[string]argov1alpha1.Application) (map[string]bool, error) {
+func (r *ApplicationSetReconciler) buildAppSyncMap(ctx context.Context, applicationSet argov1alpha1.ApplicationSet, strategy *argov1alpha1.SyncStrategySpec, appDependencyList [][]string, appMap map[string]argov1alpha1.Application) (map[string]bool, error) {
 	appSyncMap := map[string]bool{}
 	syncEnabled := true
 
@@ -967,7 +972,7 @@ func (r *ApplicationSetReconciler) buildAppSyncMap(ctx context.Context, applicat
 
 			if app, ok := appMap[appName]; ok {
 
-				syncEnabled = appSyncEnabledForNextStep(&applicationSet, app, appStatus)
+				syncEnabled = appSyncEnabledForNextStep(strategy, app, appStatus)
 				if !syncEnabled {
 					break
 				}
@@ -982,9 +987,9 @@ func (r *ApplicationSetReconciler) buildAppSyncMap(ctx context.Context, applicat
 	return appSyncMap, nil
 }
 
-func appSyncEnabledForNextStep(appset *argov1alpha1.ApplicationSet, app argov1alpha1.Application, appStatus argov1alpha1.ApplicationSetApplicationStatus) bool {
+func appSyncEnabledForNextStep(strategy *argov1alpha1.SyncStrategySpec, app argov1alpha1.Application, appStatus argov1alpha1.ApplicationSetApplicationStatus) bool {
 
-	if progressiveSyncsStrategyEnabled(appset, "RollingSync") {
+	if progressiveSyncsStrategyEnabled(strategy, "RollingSync") {
 		// we still need to complete the current step if the Application is not yet Healthy or there are still pending Application changes
 		return isApplicationHealthy(app) && appStatus.Status == "Healthy"
 	}
@@ -992,12 +997,12 @@ func appSyncEnabledForNextStep(appset *argov1alpha1.ApplicationSet, app argov1al
 	return true
 }
 
-func progressiveSyncsStrategyEnabled(appset *argov1alpha1.ApplicationSet, strategyType string) bool {
-	if appset.Spec.Strategy == nil || appset.Spec.Strategy.Type != strategyType {
+func progressiveSyncsStrategyEnabled(strategy *argov1alpha1.SyncStrategySpec, strategyType string) bool {
+	if strategy == nil || strategy.Type != strategyType {
 		return false
 	}
 
-	if strategyType == "RollingSync" && appset.Spec.Strategy.RollingSync == nil {
+	if strategyType == "RollingSync" && strategy.RollingSync == nil {
 		return false
 	}
 
@@ -1025,7 +1030,7 @@ func statusStrings(app argov1alpha1.Application) (string, string, string) {
 }
 
 // check the status of each Application's status and promote Applications to the next status if needed
-func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
+func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, strategy *argov1alpha1.SyncStrategySpec, applications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 
 	now := metav1.Now()
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applications))
@@ -1053,7 +1058,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 		}
 
 		appOutdated := false
-		if progressiveSyncsStrategyEnabled(applicationSet, "RollingSync") {
+		if progressiveSyncsStrategyEnabled(strategy, "RollingSync") {
 			appOutdated = syncStatusString == "OutOfSync"
 		}
 
@@ -1114,19 +1119,19 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 }
 
 // check Applications that are in Waiting status and promote them to Pending if needed
-func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, appSyncMap map[string]bool, appStepMap map[string]int, appMap map[string]argov1alpha1.Application) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
+func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, strategy *argov1alpha1.SyncStrategySpec, appSyncMap map[string]bool, appStepMap map[string]int, appMap map[string]argov1alpha1.Application) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
 
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applicationSet.Status.ApplicationStatus))
 
 	// if we have no RollingUpdate steps, clear out the existing ApplicationStatus entries
-	if applicationSet.Spec.Strategy != nil && applicationSet.Spec.Strategy.Type != "" && applicationSet.Spec.Strategy.Type != "AllAtOnce" {
+	if strategy != nil && strategy.Type != "" && strategy.Type != "AllAtOnce" {
 		updateCountMap := []int{}
 		totalCountMap := []int{}
 
 		length := 0
-		if progressiveSyncsStrategyEnabled(applicationSet, "RollingSync") {
-			length = len(applicationSet.Spec.Strategy.RollingSync.Steps)
+		if progressiveSyncsStrategyEnabled(strategy, "RollingSync") {
+			length = len(strategy.RollingSync.Steps)
 		}
 		for s := 0; s < length; s++ {
 			updateCountMap = append(updateCountMap, 0)
@@ -1137,7 +1142,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
 			totalCountMap[appStepMap[appStatus.Application]] += 1
 
-			if progressiveSyncsStrategyEnabled(applicationSet, "RollingSync") {
+			if progressiveSyncsStrategyEnabled(strategy, "RollingSync") {
 				if appStatus.Status == "Pending" || appStatus.Status == "Progressing" {
 					updateCountMap[appStepMap[appStatus.Application]] += 1
 				}
@@ -1148,8 +1153,8 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 
 			maxUpdateAllowed := true
 			maxUpdate := &intstr.IntOrString{}
-			if progressiveSyncsStrategyEnabled(applicationSet, "RollingSync") {
-				maxUpdate = applicationSet.Spec.Strategy.RollingSync.Steps[appStepMap[appStatus.Application]].MaxUpdate
+			if progressiveSyncsStrategyEnabled(strategy, "RollingSync") {
+				maxUpdate = strategy.RollingSync.Steps[appStepMap[appStatus.Application]].MaxUpdate
 			}
 
 			// by default allow all applications to update if maxUpdate is unset
@@ -1422,6 +1427,65 @@ func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov
 	}
 
 	return false
+}
+
+func (r *ApplicationSetReconciler) getStrategySpecFromRef(ctx context.Context, ref *argov1alpha1.SyncStrategyRef, namespace string) (*argov1alpha1.SyncStrategySpec, error) {
+	if ref == nil {
+		return nil, nil
+	}
+
+	if ref.Kind != application.ClusterSyncStrategyKind && ref.Kind != application.SyncStrategyKind {
+		return nil, fmt.Errorf("unsupported kind for strategy: %s", ref.Kind)
+	}
+
+	var spec *argov1alpha1.SyncStrategySpec
+	if ref.Kind == application.ClusterSyncStrategyKind {
+		css := &argov1alpha1.ClusterSyncStrategy{}
+		err := r.Get(
+			ctx,
+			types.NamespacedName{
+				Name: ref.Name,
+			},
+			css)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching clustersyncstrategy %s: %v", ref.Name, err)
+		}
+
+		spec = &css.Spec
+	} else {
+		ss := &argov1alpha1.SyncStrategy{}
+		err := r.Get(
+			ctx,
+			types.NamespacedName{
+				Name:      ref.Name,
+				Namespace: namespace,
+			},
+			ss)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching syncstrategy %s/%s: %v", namespace, ref.Name, err)
+		}
+
+		spec = &ss.Spec
+	}
+
+	return spec, nil
+}
+
+func (r *ApplicationSetReconciler) getApplicationSetStrategySpec(ctx context.Context, appset *argov1alpha1.ApplicationSet) (*argov1alpha1.SyncStrategySpec, error) {
+	if appset.Spec.Strategy != nil {
+		return appset.Spec.Strategy, nil
+	}
+
+	if appset.Spec.StrategyRef == nil {
+		return nil, nil
+	}
+
+	spec, err := r.getStrategySpecFromRef(ctx, appset.Spec.StrategyRef, appset.Namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	return spec, nil
 }
 
 var _ handler.EventHandler = &clusterSecretEventHandler{}

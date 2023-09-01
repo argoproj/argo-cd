@@ -31,11 +31,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetGenerator":             schema_pkg_apis_application_v1alpha1_ApplicationSetGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetList":                  schema_pkg_apis_application_v1alpha1_ApplicationSetList(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetNestedGenerator":       schema_pkg_apis_application_v1alpha1_ApplicationSetNestedGenerator(ref),
-		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetRolloutStep":           schema_pkg_apis_application_v1alpha1_ApplicationSetRolloutStep(ref),
-		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetRolloutStrategy":       schema_pkg_apis_application_v1alpha1_ApplicationSetRolloutStrategy(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetSpec":                  schema_pkg_apis_application_v1alpha1_ApplicationSetSpec(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetStatus":                schema_pkg_apis_application_v1alpha1_ApplicationSetStatus(ref),
-		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetStrategy":              schema_pkg_apis_application_v1alpha1_ApplicationSetStrategy(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetSyncPolicy":            schema_pkg_apis_application_v1alpha1_ApplicationSetSyncPolicy(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate":              schema_pkg_apis_application_v1alpha1_ApplicationSetTemplate(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplateMeta":          schema_pkg_apis_application_v1alpha1_ApplicationSetTemplateMeta(ref),
@@ -62,6 +59,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterGenerator":                    schema_pkg_apis_application_v1alpha1_ClusterGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterInfo":                         schema_pkg_apis_application_v1alpha1_ClusterInfo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterList":                         schema_pkg_apis_application_v1alpha1_ClusterList(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterSyncStrategy":                 schema_pkg_apis_application_v1alpha1_ClusterSyncStrategy(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterSyncStrategyList":             schema_pkg_apis_application_v1alpha1_ClusterSyncStrategyList(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Command":                             schema_pkg_apis_application_v1alpha1_Command(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ComparedTo":                          schema_pkg_apis_application_v1alpha1_ComparedTo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ComponentParameter":                  schema_pkg_apis_application_v1alpha1_ComponentParameter(ref),
@@ -151,12 +150,18 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperation":                       schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResource":               schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResult":                 schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationStrategy":               schema_pkg_apis_application_v1alpha1_SyncOperationStrategy(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationStrategyApply":          schema_pkg_apis_application_v1alpha1_SyncOperationStrategyApply(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationStrategyHook":           schema_pkg_apis_application_v1alpha1_SyncOperationStrategyHook(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncPolicy":                          schema_pkg_apis_application_v1alpha1_SyncPolicy(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncPolicyAutomated":                 schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStatus":                          schema_pkg_apis_application_v1alpha1_SyncStatus(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategy":                        schema_pkg_apis_application_v1alpha1_SyncStrategy(ref),
-		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyApply":                   schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref),
-		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyHook":                    schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyList":                    schema_pkg_apis_application_v1alpha1_SyncStrategyList(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyRef":                     schema_pkg_apis_application_v1alpha1_SyncStrategyRef(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyRolloutStep":             schema_pkg_apis_application_v1alpha1_SyncStrategyRolloutStep(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyRolloutStrategy":         schema_pkg_apis_application_v1alpha1_SyncStrategyRolloutStrategy(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategySpec":                    schema_pkg_apis_application_v1alpha1_SyncStrategySpec(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncWindow":                          schema_pkg_apis_application_v1alpha1_SyncWindow(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TLSClientConfig":                     schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TagFilter":                           schema_pkg_apis_application_v1alpha1_TagFilter(ref),
@@ -1072,65 +1077,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetNestedGenerator(ref comm
 	}
 }
 
-func schema_pkg_apis_application_v1alpha1_ApplicationSetRolloutStep(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"matchExpressions": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationMatchExpression"),
-									},
-								},
-							},
-						},
-					},
-					"maxUpdate": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationMatchExpression", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
-	}
-}
-
-func schema_pkg_apis_application_v1alpha1_ApplicationSetRolloutStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"steps": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetRolloutStep"),
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetRolloutStep"},
-	}
-}
-
 func schema_pkg_apis_application_v1alpha1_ApplicationSetSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1170,7 +1116,12 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetSpec(ref common.Referenc
 					},
 					"strategy": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetStrategy"),
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategySpec"),
+						},
+					},
+					"strategyRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyRef"),
 						},
 					},
 					"preservedFields": {
@@ -1204,7 +1155,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetSpec(ref common.Referenc
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationPreservedFields", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetStrategy", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetSyncPolicy", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationPreservedFields", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetSyncPolicy", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyRef", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategySpec"},
 	}
 }
 
@@ -1247,32 +1198,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetStatus(ref common.Refere
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetApplicationStatus", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetCondition"},
-	}
-}
-
-func schema_pkg_apis_application_v1alpha1_ApplicationSetStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "ApplicationSetStrategy configures how generated Applications are updated in sequence.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"type": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"rollingSync": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetRolloutStrategy"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetRolloutStrategy"},
 	}
 }
 
@@ -2782,6 +2707,97 @@ func schema_pkg_apis_application_v1alpha1_ClusterList(ref common.ReferenceCallba
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Cluster", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ClusterSyncStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ClusterSyncStrategy defines a strategy to sync Applications from ApplicationSet",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategySpec"),
+						},
+					},
+				},
+				Required: []string{"metadata", "spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategySpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ClusterSyncStrategyList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ClusterSyncStrategyList is list of ClusterSyncStrategy resources",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterSyncStrategy"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"metadata", "items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterSyncStrategy", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -7053,7 +7069,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 					"syncStrategy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SyncStrategy describes how to perform the sync",
-							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategy"),
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationStrategy"),
 						},
 					},
 					"resources": {
@@ -7139,7 +7155,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategy"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationStrategy"},
 	}
 }
 
@@ -7259,6 +7275,73 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref common.Referen
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceResult"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SyncOperationStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SyncOperationStrategy controls the manner in which a sync is performed",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"apply": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Apply will perform a `kubectl apply` to perform the sync.",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationStrategyApply"),
+						},
+					},
+					"hook": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Hook will submit any referenced resources to perform the sync. This is the default strategy",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationStrategyHook"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationStrategyApply", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationStrategyHook"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SyncOperationStrategyApply(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SyncOperationStrategyApply uses `kubectl apply` to perform the apply",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"force": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Force indicates whether or not to supply the --force flag to `kubectl apply`. The --force flag deletes and re-create the resource, when PATCH encounters conflict and has retried for 5 times.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SyncOperationStrategyHook(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SyncOperationStrategyHook will perform a sync using hooks annotations. If no hook annotation is specified falls back to `kubectl apply`.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"force": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Force indicates whether or not to supply the --force flag to `kubectl apply`. The --force flag deletes and re-create the resource, when PATCH encounters conflict and has retried for 5 times.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -7401,66 +7484,200 @@ func schema_pkg_apis_application_v1alpha1_SyncStrategy(ref common.ReferenceCallb
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SyncStrategy controls the manner in which a sync is performed",
+				Description: "SyncStrategy defines a strategy to sync Applications from an ApplicationSet",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"apply": {
+					"kind": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Apply will perform a `kubectl apply` to perform the sync.",
-							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyApply"),
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
-					"hook": {
+					"apiVersion": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Hook will submit any referenced resources to perform the sync. This is the default strategy",
-							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyHook"),
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategySpec"),
+						},
+					},
+				},
+				Required: []string{"metadata", "spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategySpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SyncStrategyList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SyncStrategyList is list of SyncStrategy resources",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategy"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"metadata", "items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategy", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SyncStrategyRef(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Utility struct for a reference to a sync strategy.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SyncStrategyRolloutStep(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"matchExpressions": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationMatchExpression"),
+									},
+								},
+							},
+						},
+					},
+					"maxUpdate": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyApply", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyHook"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationMatchExpression", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 	}
 }
 
-func schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_application_v1alpha1_SyncStrategyRolloutStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SyncStrategyApply uses `kubectl apply` to perform the apply",
-				Type:        []string{"object"},
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"force": {
+					"steps": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Force indicates whether or not to supply the --force flag to `kubectl apply`. The --force flag deletes and re-create the resource, when PATCH encounters conflict and has retried for 5 times.",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyRolloutStep"),
+									},
+								},
+							},
 						},
 					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyRolloutStep"},
 	}
 }
 
-func schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_application_v1alpha1_SyncStrategySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SyncStrategyHook will perform a sync using hooks annotations. If no hook annotation is specified falls back to `kubectl apply`.",
+				Description: "SyncStrategySpec configures how generated Applications are updated in sequence.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"force": {
+					"type": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Force indicates whether or not to supply the --force flag to `kubectl apply`. The --force flag deletes and re-create the resource, when PATCH encounters conflict and has retried for 5 times.",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"rollingSync": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyRolloutStrategy"),
 						},
 					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStrategyRolloutStrategy"},
 	}
 }
 

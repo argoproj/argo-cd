@@ -24,4 +24,18 @@ const (
 	ApplicationSetShortName string = "appset"
 	ApplicationSetPlural    string = "applicationsets"
 	ApplicationSetFullName  string = ApplicationSetPlural + "." + Group
+
+	// SyncStrategy constants
+	SyncStrategyKind      string = "SyncStrategy"
+	SyncStrategySingular  string = "syncstrategy"
+	SyncStrategyShortName string = "syncstrategy"
+	SyncStrategyPlural    string = "syncstrategies"
+	SyncStrategyFullName  string = SyncStrategyPlural + "." + Group
+
+	// ClusterSyncStrategy constants
+	ClusterSyncStrategyKind      string = "ClusterSyncStrategy"
+	ClusterSyncStrategySingular  string = "clustersyncstrategy"
+	ClusterSyncStrategyShortName string = "clustersyncstrategy"
+	ClusterSyncStrategyPlural    string = "clustersyncstrategies"
+	ClusterSyncStrategyFullName  string = ClusterSyncStrategyPlural + "." + Group
 )

@@ -26,7 +26,6 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // Utility struct for a reference to a secret key.
@@ -59,30 +58,16 @@ type ApplicationSetSpec struct {
 	Generators        []ApplicationSetGenerator   `json:"generators" protobuf:"bytes,2,name=generators"`
 	Template          ApplicationSetTemplate      `json:"template" protobuf:"bytes,3,name=template"`
 	SyncPolicy        *ApplicationSetSyncPolicy   `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
-	Strategy          *ApplicationSetStrategy     `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
-	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
-	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,7,opt,name=goTemplateOptions"`
+	Strategy          *SyncStrategySpec           `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
+	StrategyRef       *SyncStrategyRef            `json:"strategyRef,omitempty" protobuf:"bytes,6,opt,name=strategyRef"`
+	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,7,opt,name=preservedFields"`
+	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,8,opt,name=goTemplateOptions"`
 	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
-	ApplyNestedSelectors bool `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
+	ApplyNestedSelectors bool `json:"applyNestedSelectors,omitempty" protobuf:"bytes,9,name=applyNestedSelectors"`
 }
 
 type ApplicationPreservedFields struct {
 	Annotations []string `json:"annotations,omitempty" protobuf:"bytes,1,name=annotations"`
-}
-
-// ApplicationSetStrategy configures how generated Applications are updated in sequence.
-type ApplicationSetStrategy struct {
-	Type        string                         `json:"type,omitempty" protobuf:"bytes,1,opt,name=type"`
-	RollingSync *ApplicationSetRolloutStrategy `json:"rollingSync,omitempty" protobuf:"bytes,2,opt,name=rollingSync"`
-	// RollingUpdate *ApplicationSetRolloutStrategy `json:"rollingUpdate,omitempty" protobuf:"bytes,3,opt,name=rollingUpdate"`
-}
-type ApplicationSetRolloutStrategy struct {
-	Steps []ApplicationSetRolloutStep `json:"steps,omitempty" protobuf:"bytes,1,opt,name=steps"`
-}
-
-type ApplicationSetRolloutStep struct {
-	MatchExpressions []ApplicationMatchExpression `json:"matchExpressions,omitempty" protobuf:"bytes,1,opt,name=matchExpressions"`
-	MaxUpdate        *intstr.IntOrString          `json:"maxUpdate,omitempty" protobuf:"bytes,2,opt,name=maxUpdate"`
 }
 
 type ApplicationMatchExpression struct {

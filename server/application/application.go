@@ -1860,7 +1860,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 			DryRun:       rollbackReq.GetDryRun(),
 			Prune:        rollbackReq.GetPrune(),
 			SyncOptions:  syncOptions,
-			SyncStrategy: &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
+			SyncStrategy: &appv1.SyncOperationStrategy{Apply: &appv1.SyncOperationStrategyApply{}},
 			Source:       &deploymentInfo.Source,
 		},
 		InitiatedBy: appv1.OperationInitiator{Username: session.Username(ctx)},

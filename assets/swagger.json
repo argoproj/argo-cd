@@ -4220,7 +4220,7 @@
           "type": "string"
         },
         "strategy": {
-          "$ref": "#/definitions/v1alpha1SyncStrategy"
+          "$ref": "#/definitions/v1alpha1SyncOperationStrategy"
         },
         "syncOptions": {
           "$ref": "#/definitions/applicationSyncOptions"
@@ -6049,31 +6049,6 @@
         }
       }
     },
-    "v1alpha1ApplicationSetRolloutStep": {
-      "type": "object",
-      "properties": {
-        "matchExpressions": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ApplicationMatchExpression"
-          }
-        },
-        "maxUpdate": {
-          "$ref": "#/definitions/intstrIntOrString"
-        }
-      }
-    },
-    "v1alpha1ApplicationSetRolloutStrategy": {
-      "type": "object",
-      "properties": {
-        "steps": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ApplicationSetRolloutStep"
-          }
-        }
-      }
-    },
     "v1alpha1ApplicationSetSpec": {
       "description": "ApplicationSetSpec represents a class of application set state.",
       "type": "object",
@@ -6101,7 +6076,10 @@
           "$ref": "#/definitions/v1alpha1ApplicationPreservedFields"
         },
         "strategy": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetStrategy"
+          "$ref": "#/definitions/v1alpha1SyncStrategySpec"
+        },
+        "strategyRef": {
+          "$ref": "#/definitions/v1alpha1SyncStrategyRef"
         },
         "syncPolicy": {
           "$ref": "#/definitions/v1alpha1ApplicationSetSyncPolicy"
@@ -6127,18 +6105,6 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationSetCondition"
           }
-        }
-      }
-    },
-    "v1alpha1ApplicationSetStrategy": {
-      "description": "ApplicationSetStrategy configures how generated Applications are updated in sequence.",
-      "type": "object",
-      "properties": {
-        "rollingSync": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetRolloutStrategy"
-        },
-        "type": {
-          "type": "string"
         }
       }
     },
@@ -8777,7 +8743,7 @@
           }
         },
         "syncStrategy": {
-          "$ref": "#/definitions/v1alpha1SyncStrategy"
+          "$ref": "#/definitions/v1alpha1SyncOperationStrategy"
         }
       }
     },
@@ -8833,6 +8799,37 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationSource"
           }
+        }
+      }
+    },
+    "v1alpha1SyncOperationStrategy": {
+      "type": "object",
+      "title": "SyncOperationStrategy controls the manner in which a sync is performed",
+      "properties": {
+        "apply": {
+          "$ref": "#/definitions/v1alpha1SyncOperationStrategyApply"
+        },
+        "hook": {
+          "$ref": "#/definitions/v1alpha1SyncOperationStrategyHook"
+        }
+      }
+    },
+    "v1alpha1SyncOperationStrategyApply": {
+      "type": "object",
+      "title": "SyncOperationStrategyApply uses `kubectl apply` to perform the apply",
+      "properties": {
+        "force": {
+          "description": "Force indicates whether or not to supply the --force flag to `kubectl apply`.\nThe --force flag deletes and re-create the resource, when PATCH encounters conflict and has\nretried for 5 times.",
+          "type": "boolean"
+        }
+      }
+    },
+    "v1alpha1SyncOperationStrategyHook": {
+      "description": "SyncOperationStrategyHook will perform a sync using hooks annotations.\nIf no hook annotation is specified falls back to `kubectl apply`.",
+      "type": "object",
+      "properties": {
+        "syncStrategyApply": {
+          "$ref": "#/definitions/v1alpha1SyncOperationStrategyApply"
         }
       }
     },
@@ -8900,34 +8897,52 @@
         }
       }
     },
-    "v1alpha1SyncStrategy": {
+    "v1alpha1SyncStrategyRef": {
+      "description": "Utility struct for a reference to a sync strategy.",
       "type": "object",
-      "title": "SyncStrategy controls the manner in which a sync is performed",
       "properties": {
-        "apply": {
-          "$ref": "#/definitions/v1alpha1SyncStrategyApply"
+        "kind": {
+          "type": "string"
         },
-        "hook": {
-          "$ref": "#/definitions/v1alpha1SyncStrategyHook"
+        "name": {
+          "type": "string"
         }
       }
     },
-    "v1alpha1SyncStrategyApply": {
+    "v1alpha1SyncStrategyRolloutStep": {
       "type": "object",
-      "title": "SyncStrategyApply uses `kubectl apply` to perform the apply",
       "properties": {
-        "force": {
-          "description": "Force indicates whether or not to supply the --force flag to `kubectl apply`.\nThe --force flag deletes and re-create the resource, when PATCH encounters conflict and has\nretried for 5 times.",
-          "type": "boolean"
+        "matchExpressions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationMatchExpression"
+          }
+        },
+        "maxUpdate": {
+          "$ref": "#/definitions/intstrIntOrString"
         }
       }
     },
-    "v1alpha1SyncStrategyHook": {
-      "description": "SyncStrategyHook will perform a sync using hooks annotations.\nIf no hook annotation is specified falls back to `kubectl apply`.",
+    "v1alpha1SyncStrategyRolloutStrategy": {
       "type": "object",
       "properties": {
-        "syncStrategyApply": {
-          "$ref": "#/definitions/v1alpha1SyncStrategyApply"
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SyncStrategyRolloutStep"
+          }
+        }
+      }
+    },
+    "v1alpha1SyncStrategySpec": {
+      "description": "SyncStrategySpec configures how generated Applications are updated in sequence.",
+      "type": "object",
+      "properties": {
+        "rollingSync": {
+          "$ref": "#/definitions/v1alpha1SyncStrategyRolloutStrategy"
+        },
+        "type": {
+          "type": "string"
         }
       }
     },

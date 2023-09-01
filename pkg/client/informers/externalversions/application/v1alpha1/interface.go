@@ -14,6 +14,10 @@ type Interface interface {
 	Applications() ApplicationInformer
 	// ApplicationSets returns a ApplicationSetInformer.
 	ApplicationSets() ApplicationSetInformer
+	// ClusterSyncStrategies returns a ClusterSyncStrategyInformer.
+	ClusterSyncStrategies() ClusterSyncStrategyInformer
+	// SyncStrategies returns a SyncStrategyInformer.
+	SyncStrategies() SyncStrategyInformer
 }
 
 type version struct {
@@ -40,4 +44,14 @@ func (v *version) Applications() ApplicationInformer {
 // ApplicationSets returns a ApplicationSetInformer.
 func (v *version) ApplicationSets() ApplicationSetInformer {
 	return &applicationSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ClusterSyncStrategies returns a ClusterSyncStrategyInformer.
+func (v *version) ClusterSyncStrategies() ClusterSyncStrategyInformer {
+	return &clusterSyncStrategyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// SyncStrategies returns a SyncStrategyInformer.
+func (v *version) SyncStrategies() SyncStrategyInformer {
+	return &syncStrategyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
