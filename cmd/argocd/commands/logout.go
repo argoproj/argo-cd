@@ -1,9 +1,11 @@
 package commands
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -41,6 +43,8 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 				log.Fatalf("Error in getting token from context")
 			}
 
+			client := &http.Client{}
+
 			dialTime := 30 * time.Second
 			tlsTestResult, err := grpc_util.TestTLS(context, dialTime)
 			errors.CheckError(err)
@@ -60,9 +64,15 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 				}
 			}
 
-			scheme := "http"
-			if !globalClientOpts.Insecure && !globalClientOpts.PlainText {
-				scheme += "s"
+			scheme := "https"
+			if globalClientOpts.PlainText {
+				scheme = strings.TrimSuffix(scheme, "s")
+			} else if globalClientOpts.Insecure {
+				client.Transport = &http.Transport{
+					TLSClientConfig: &tls.Config{
+						InsecureSkipVerify: true,
+					},
+				}
 			}
 
 			logoutURL := fmt.Sprintf("%s://%s%s", scheme, context, common.LogoutEndpoint)
@@ -74,7 +84,6 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 			}
 			req.AddCookie(cookie)
 
-			client := &http.Client{}
 			_, err = client.Do(req)
 			errors.CheckError(err)
 
