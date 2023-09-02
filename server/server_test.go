@@ -1301,7 +1301,7 @@ func TestCacheControlHeaders(t *testing.T) {
 
 			assert.Equal(t, testCase.expectedStatus, rr.Code)
 
-			cacheControl := rr.HeaderMap["Cache-Control"]
+			cacheControl := rr.Result().Header["Cache-Control"]
 			assert.Equal(t, testCase.expectedCacheControlHeaders, cacheControl)
 		})
 	}
