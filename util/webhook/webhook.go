@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/bitbucket"
@@ -47,6 +48,10 @@ var (
 	errBasicAuthVerificationFailed                = errors.New("basic auth verification failed")
 )
 
+const (
+	defaultAppRefreshConcurrency = 10
+)
+
 type ArgoCDWebhookHandler struct {
 	repoCache              *cache.Cache
 	serverCache            *servercache.Cache
@@ -62,6 +67,7 @@ type ArgoCDWebhookHandler struct {
 	azuredevopsAuthHandler func(r *http.Request) error
 	gogs                   *gogs.Webhook
 	settingsSrc            settingsSource
+	appRefreshConccurency  int
 }
 
 func NewHandler(namespace string, applicationNamespaces []string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
@@ -99,6 +105,11 @@ func NewHandler(namespace string, applicationNamespaces []string, appClientset a
 		return nil
 	}
 
+	appRefreshConccurency := defaultAppRefreshConcurrency
+	if set.WebhookAppRefreshConcurrency > 0 {
+		appRefreshConccurency = set.WebhookAppRefreshConcurrency
+	}
+
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:                     namespace,
 		appNs:                  applicationNamespaces,
@@ -114,6 +125,7 @@ func NewHandler(namespace string, applicationNamespaces []string, appClientset a
 		repoCache:              repoCache,
 		serverCache:            serverCache,
 		db:                     argoDB,
+		appRefreshConccurency:  appRefreshConccurency,
 	}
 
 	return &acdWebhook
@@ -288,24 +300,47 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 			log.Warnf("Failed to get repoRegexp: %s", err)
 			continue
 		}
-		for _, app := range filteredApps {
 
-			for _, source := range app.Spec.GetSources() {
-				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
-					if appFilesHaveChanged(&app, changedFiles) {
-						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
-						_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
-						if err != nil {
-							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
-							continue
-						}
-						// No need to refresh multiple times if multiple sources match.
-						break
-					} else if change.shaBefore != "" && change.shaAfter != "" {
-						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey); err != nil {
-							log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
-						}
-					}
+		appRefreshConccurency := a.appRefreshConccurency
+		appBacklog := make(chan v1alpha1.Application, len(filteredApps))
+
+		for _, filteredApp := range filteredApps {
+			appBacklog <- filteredApp
+		}
+		close(appBacklog)
+
+		var wg sync.WaitGroup
+		wg.Add(appRefreshConccurency)
+
+		for i := 0; i < appRefreshConccurency; i++ {
+			go func() {
+				defer wg.Done()
+				for app := range appBacklog {
+					a.refreshChangedAppOrStoreCachedManifests(app, revision, touchedHead, webURL, repoRegexp, changedFiles, change, trackingMethod, appInstanceLabelKey)
+				}
+			}()
+		}
+		wg.Wait()
+	}
+}
+
+func (a *ArgoCDWebhookHandler) refreshChangedAppOrStoreCachedManifests(app v1alpha1.Application, revision string, touchedHead bool, webURL string,
+	repoRegexp *regexp.Regexp, changedFiles []string, change changeInfo, trackingMethod string, appInstanceLabelKey string) {
+
+	for _, source := range app.Spec.GetSources() {
+		if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
+			if appFilesHaveChanged(&app, changedFiles) {
+				namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
+				_, err := argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
+				if err != nil {
+					log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
+					continue
+				}
+				// No need to refresh multiple times if multiple sources match.
+				break
+			} else if change.shaBefore != "" && change.shaAfter != "" {
+				if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey); err != nil {
+					log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
 				}
 			}
 		}
