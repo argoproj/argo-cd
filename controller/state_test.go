@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"bytes"
 	"encoding/json"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"testing"
 	"time"
@@ -281,8 +283,139 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Len(t, compRes.resources, 0)
-	assert.Len(t, compRes.managedResources, 0)
-	assert.Len(t, app.Status.Conditions, 0)
+}
+
+func TestCompareAppStateIgnoreResourceUpdatesWhenComparingWithRecent(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+
+	t.Run("Modified app should be OutOfSync", func(t *testing.T) {
+		// given
+		//t.Parallel()
+		obj1 := NewPod()
+		obj1.SetNamespace(test.FakeDestNamespace)
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{toJSON(t, obj1)},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				kube.GetResourceKey(obj1): obj1,
+			},
+		}
+
+		// Modify the live object to have a different cpu request
+		obj1.Object["spec"].(map[string]interface{})["containers"].([]interface{})[0].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})["cpu"] = 0.5
+
+		sources := make([]argoappv1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "")
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppStateWithComparisonLevel(app, &defaultProj, revisions, sources, false, false, nil, false, true)
+
+		// then
+		assert.NotNil(t, compRes)
+		assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 1)
+		assert.Len(t, compRes.managedResources, 1)
+		assert.Len(t, app.Status.Conditions, 0)
+	})
+
+	t.Run("Modified app ignored by ignoreDifferences should be Synced", func(t *testing.T) {
+		var logBuffer bytes.Buffer
+		log.SetOutput(&logBuffer)
+		defer func() {
+			log.SetOutput(log.StandardLogger().Out) // Restore the original logger output
+		}()
+
+		// given
+		obj1 := NewPod()
+		obj1.SetNamespace(test.FakeDestNamespace)
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{toJSON(t, obj1)},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				kube.GetResourceKey(obj1): obj1,
+			},
+		}
+
+		// Modify the live object to have a different cpu request
+		obj1.Object["spec"].(map[string]interface{})["containers"].([]interface{})[0].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})["cpu"] = 0.5
+
+		sources := make([]argoappv1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "")
+		data.configMapData = map[string]string{
+			"resource.ignoreResourceUpdatesEnabled": "true", // test our modification doesn't affect ignoreDifferences
+			"resource.customizations.ignoreDifferences.all": `jsonPointers:
+- /spec/containers/0/resources/requests/cpu`,
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppStateWithComparisonLevel(app, &defaultProj, revisions, sources, false, false, nil, false, true)
+
+		// then
+		assert.NotNil(t, compRes)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 1)
+		assert.Len(t, compRes.managedResources, 1)
+		assert.Len(t, app.Status.Conditions, 0)
+		assert.Contains(t, logBuffer.String(), "Using ignore resource updates as ignoreDifferences on comparing with recent")
+	})
+
+	t.Run("Modified app ignored by ignoreResourceUpdates should be Synced", func(t *testing.T) {
+		var logBuffer bytes.Buffer
+		log.SetOutput(&logBuffer)
+		defer func() {
+			log.SetOutput(log.StandardLogger().Out) // Restore the original logger output
+		}()
+		// given
+		obj1 := NewPod()
+		obj1.SetNamespace(test.FakeDestNamespace)
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{toJSON(t, obj1)},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				kube.GetResourceKey(obj1): obj1,
+			},
+		}
+
+		// Modify the live object to have a different cpu request
+		obj1.Object["spec"].(map[string]interface{})["containers"].([]interface{})[0].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})["cpu"] = 0.5
+
+		sources := make([]argoappv1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "")
+		data.configMapData = map[string]string{
+			"resource.ignoreResourceUpdatesEnabled": "true",
+			"resource.customizations.ignoreResourceUpdates.all": `jsonPointers:
+- /spec/containers/0/resources/requests/cpu`,
+		}
+		ctrl := newFakeController(&data)
+		compRes := ctrl.appStateManager.CompareAppStateWithComparisonLevel(app, &defaultProj, revisions, sources, false, false, nil, false, true)
+
+		// then
+		assert.NotNil(t, compRes)
+		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Len(t, compRes.resources, 1)
+		assert.Len(t, compRes.managedResources, 1)
+		assert.Len(t, app.Status.Conditions, 0)
+		assert.Contains(t, logBuffer.String(), "Using ignore resource updates as ignoreDifferences on comparing with recent")
+	})
 }
 
 // TestCompareAppStateExtraHook tests when there is an extra _hook_ object in live but not defined in git

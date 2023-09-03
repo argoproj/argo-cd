@@ -283,20 +283,24 @@ func DeduplicateTargetObjects(
 
 // getComparisonSettings will return the system level settings related to the
 // diff/normalization process.
-func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.ResourceOverride, *settings.ResourcesFilter, error) {
+func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.ResourceOverride, *settings.ResourcesFilter, bool, error) {
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, false, err
 	}
 	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, false, err
 	}
 	resFilter, err := m.settingsMgr.GetResourcesFilter()
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, false, err
 	}
-	return appLabelKey, resourceOverrides, resFilter, nil
+	ignoreResourceUpdatedEnabled, err := m.settingsMgr.GetIsIgnoreResourceUpdatesEnabled()
+	if err != nil {
+		return "", nil, nil, false, err
+	}
+	return appLabelKey, resourceOverrides, resFilter, ignoreResourceUpdatedEnabled, nil
 }
 
 // verifyGnuPGSignature verifies the result of a GnuPG operation for a given git
@@ -347,7 +351,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 func (m *appStateManager) CompareAppStateWithComparisonLevel(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool, isCompareWithRecent bool) *comparisonResult {
 	ts := stats.NewTimingStats()
-	appLabelKey, resourceOverrides, resFilter, err := m.getComparisonSettings()
+	appLabelKey, resourceOverrides, resFilter, ignoreResourceUpdatedEnabled, err := m.getComparisonSettings()
 
 	ts.AddCheckpoint("settings_ms")
 
@@ -525,14 +529,14 @@ func (m *appStateManager) CompareAppStateWithComparisonLevel(app *v1alpha1.Appli
 	_, refreshRequested := app.IsRefreshRequested()
 	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout) || specChanged || revisionChanged
 
-	if isCompareWithRecent {
+	if isCompareWithRecent && ignoreResourceUpdatedEnabled {
+		// Although we modify resourceOverrides here, it is not persisted
+		// since m.getComparisonSettings() is reading from the configMap every time its called
 		for k, v := range resourceOverrides {
 			resourceUpdates := v.IgnoreResourceUpdates
-			if compareOptions.IgnoreDifferencesOnResourceUpdates {
-				resourceUpdates.JQPathExpressions = append(resourceUpdates.JQPathExpressions, v.IgnoreDifferences.JQPathExpressions...)
-				resourceUpdates.JSONPointers = append(resourceUpdates.JSONPointers, v.IgnoreDifferences.JSONPointers...)
-				resourceUpdates.ManagedFieldsManagers = append(resourceUpdates.ManagedFieldsManagers, v.IgnoreDifferences.ManagedFieldsManagers...)
-			}
+			resourceUpdates.JQPathExpressions = append(resourceUpdates.JQPathExpressions, v.IgnoreDifferences.JQPathExpressions...)
+			resourceUpdates.JSONPointers = append(resourceUpdates.JSONPointers, v.IgnoreDifferences.JSONPointers...)
+			resourceUpdates.ManagedFieldsManagers = append(resourceUpdates.ManagedFieldsManagers, v.IgnoreDifferences.ManagedFieldsManagers...)
 			// Set the IgnoreDifferences because these are the overrides used by Normalizers
 			v.IgnoreDifferences = resourceUpdates
 			v.IgnoreResourceUpdates = v1alpha1.OverrideIgnoreDiff{}
