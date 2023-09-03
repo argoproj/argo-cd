@@ -75,8 +75,8 @@ type ArgoCDSettings struct {
 	WebhookAzureDevOpsUsername string `json:"webhookAzureDevOpsUsername,omitempty"`
 	// WebhookAzureDevOpsPassword holds the password for authenticating Azure DevOps webhook events
 	WebhookAzureDevOpsPassword string `json:"webhookAzureDevOpsPassword,omitempty"`
-	// WebhookAppRefreshConcurrency sets the number of concurrent app refreshes run by the webhook handler
-	WebhookAppRefreshConcurrency int `json:"webhookAppRefreshConcurrency,omitempty"`
+	// WebhookMaxConcurrentAppRefresh sets the number of concurrent app refreshes run by the webhook handler
+	WebhookMaxConcurrentAppRefresh int `json:"webhookMaxConcurrentAppRefresh,omitempty"`
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
 	// KustomizeBuildOptions is a string of kustomize build parameters
@@ -421,10 +421,6 @@ const (
 	settingsWebhookAzureDevOpsUsernameKey = "webhook.azuredevops.username"
 	// settingsWebhookAzureDevOpsPasswordKey is the key for Azure DevOps webhook password
 	settingsWebhookAzureDevOpsPasswordKey = "webhook.azuredevops.password"
-	// settingsWebhookAppRefreshConcurrency number of simultaneous applications to be processed
-	settingsWebhookAppRefreshConcurrency = "webhook.appRefreshConcurrency"
-	// defaultWebhookAppRefreshConcurrency default number for simultaneous applications to be processed
-	defaultWebhookAppRefreshConcurrency = 10
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
@@ -496,6 +492,10 @@ const (
 	// ResourceDeepLinks is the resource deep link key
 	ResourceDeepLinks = "resource.links"
 	extensionConfig   = "extension.config"
+	// settingsWebhookMaxConcurrentAppRefresh is the key for max concurrent app refresh
+	settingsWebhookMaxConcurrentAppRefresh = "webhook.maxConcurrentAppRefresh"
+	// defaultSettingsWebhookMaxConcurrentAppRefresh is the default value for the number of max concurrent app refresh
+	defaultWebhookMaxConcurrentAppRefresh = 10
 )
 
 var (
@@ -1477,13 +1477,13 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	if azureDevOpsPassword := argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey]; len(azureDevOpsPassword) > 0 {
 		settings.WebhookAzureDevOpsPassword = string(azureDevOpsPassword)
 	}
-	if webhookAppRefreshConcurrency := argoCDSecret.Data[settingsWebhookAppRefreshConcurrency]; len(webhookAppRefreshConcurrency) > 0 {
-		i, err := strconv.Atoi(string(webhookAppRefreshConcurrency))
+	if webhookMaxConcurrentAppRefresh := argoCDSecret.Data[settingsWebhookMaxConcurrentAppRefresh]; len(webhookMaxConcurrentAppRefresh) > 0 {
+		i, err := strconv.Atoi(string(webhookMaxConcurrentAppRefresh))
 		if err != nil {
-			i = defaultWebhookAppRefreshConcurrency
-			log.Warnf("invalid input for %s: %s. Using the default value.", settingsWebhookAppRefreshConcurrency, err.Error())
+			i = defaultWebhookMaxConcurrentAppRefresh
+			log.Warnf("invalid input for %s: %s. Using the default value.", settingsWebhookMaxConcurrentAppRefresh, err.Error())
 		}
-		settings.WebhookAppRefreshConcurrency = i
+		settings.WebhookMaxConcurrentAppRefresh = i
 	}
 
 	// The TLS certificate may be externally managed. We try to load it from an

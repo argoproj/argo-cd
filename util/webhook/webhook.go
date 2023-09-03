@@ -49,25 +49,25 @@ var (
 )
 
 const (
-	defaultAppRefreshConcurrency = 10
+	defaultMaxConcurrentAppRefresh = 10
 )
 
 type ArgoCDWebhookHandler struct {
-	repoCache              *cache.Cache
-	serverCache            *servercache.Cache
-	db                     db.ArgoDB
-	ns                     string
-	appNs                  []string
-	appClientset           appclientset.Interface
-	github                 *github.Webhook
-	gitlab                 *gitlab.Webhook
-	bitbucket              *bitbucket.Webhook
-	bitbucketserver        *bitbucketserver.Webhook
-	azuredevops            *azuredevops.Webhook
-	azuredevopsAuthHandler func(r *http.Request) error
-	gogs                   *gogs.Webhook
-	settingsSrc            settingsSource
-	appRefreshConccurency  int
+	repoCache               *cache.Cache
+	serverCache             *servercache.Cache
+	db                      db.ArgoDB
+	ns                      string
+	appNs                   []string
+	appClientset            appclientset.Interface
+	github                  *github.Webhook
+	gitlab                  *gitlab.Webhook
+	bitbucket               *bitbucket.Webhook
+	bitbucketserver         *bitbucketserver.Webhook
+	azuredevops             *azuredevops.Webhook
+	azuredevopsAuthHandler  func(r *http.Request) error
+	gogs                    *gogs.Webhook
+	settingsSrc             settingsSource
+	maxConcurrentAppRefresh int
 }
 
 func NewHandler(namespace string, applicationNamespaces []string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
@@ -105,27 +105,27 @@ func NewHandler(namespace string, applicationNamespaces []string, appClientset a
 		return nil
 	}
 
-	appRefreshConccurency := defaultAppRefreshConcurrency
-	if set.WebhookAppRefreshConcurrency > 0 {
-		appRefreshConccurency = set.WebhookAppRefreshConcurrency
+	maxConcurrentAppRefresh := defaultMaxConcurrentAppRefresh
+	if set.WebhookMaxConcurrentAppRefresh > 0 {
+		maxConcurrentAppRefresh = set.WebhookMaxConcurrentAppRefresh
 	}
 
 	acdWebhook := ArgoCDWebhookHandler{
-		ns:                     namespace,
-		appNs:                  applicationNamespaces,
-		appClientset:           appClientset,
-		github:                 githubWebhook,
-		gitlab:                 gitlabWebhook,
-		bitbucket:              bitbucketWebhook,
-		bitbucketserver:        bitbucketserverWebhook,
-		azuredevops:            azuredevopsWebhook,
-		azuredevopsAuthHandler: azuredevopsAuthHandler,
-		gogs:                   gogsWebhook,
-		settingsSrc:            settingsSrc,
-		repoCache:              repoCache,
-		serverCache:            serverCache,
-		db:                     argoDB,
-		appRefreshConccurency:  appRefreshConccurency,
+		ns:                      namespace,
+		appNs:                   applicationNamespaces,
+		appClientset:            appClientset,
+		github:                  githubWebhook,
+		gitlab:                  gitlabWebhook,
+		bitbucket:               bitbucketWebhook,
+		bitbucketserver:         bitbucketserverWebhook,
+		azuredevops:             azuredevopsWebhook,
+		azuredevopsAuthHandler:  azuredevopsAuthHandler,
+		gogs:                    gogsWebhook,
+		settingsSrc:             settingsSrc,
+		repoCache:               repoCache,
+		serverCache:             serverCache,
+		db:                      argoDB,
+		maxConcurrentAppRefresh: maxConcurrentAppRefresh,
 	}
 
 	return &acdWebhook
@@ -301,7 +301,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 			continue
 		}
 
-		appRefreshConccurency := a.appRefreshConccurency
+		maxConcurrentAppRefresh := a.maxConcurrentAppRefresh
 		appBacklog := make(chan v1alpha1.Application, len(filteredApps))
 
 		for _, filteredApp := range filteredApps {
@@ -310,9 +310,9 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 		close(appBacklog)
 
 		var wg sync.WaitGroup
-		wg.Add(appRefreshConccurency)
+		wg.Add(maxConcurrentAppRefresh)
 
-		for i := 0; i < appRefreshConccurency; i++ {
+		for i := 0; i < maxConcurrentAppRefresh; i++ {
 			go func() {
 				defer wg.Done()
 				for app := range appBacklog {
