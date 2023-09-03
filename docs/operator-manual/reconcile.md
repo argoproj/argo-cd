@@ -37,6 +37,17 @@ data:
     - /status
 ```
 
+### Using ignoreResourceUpdates with managedFieldsManagers
+It is possible to use `ignoreResourceUpdates` to ignore resource updates from fields owned by specific managers defined in `metadata.managedFields` in live resources.
+The following example will ignore resource updates on all fields owned by `kube-controller-manager` for all resources:
+
+```yaml
+data:
+  resource.customizations.ignoreResourceUpdates.all: |
+    managedFieldsManagers:
+    - kube-controller-manager
+```
+
 ### Using ignoreDifferences to ignore reconcile
 
 It is possible to use existing system-level `ignoreDifferences` customizations to ignore resource updates as well. Instead of copying all configurations,
