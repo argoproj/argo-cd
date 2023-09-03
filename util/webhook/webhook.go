@@ -105,8 +105,10 @@ func NewHandler(namespace string, applicationNamespaces []string, appClientset a
 		return nil
 	}
 
+	// though it seems redundant in util/settings, this serves as a safeguard for the handler
 	maxConcurrentAppRefresh := defaultMaxConcurrentAppRefresh
 	if set.WebhookMaxConcurrentAppRefresh > 0 {
+		log.Warnf("webhook setting for max concurrent app refresh is not set, using the default value %d", defaultMaxConcurrentAppRefresh)
 		maxConcurrentAppRefresh = set.WebhookMaxConcurrentAppRefresh
 	}
 

@@ -493,7 +493,7 @@ const (
 	ResourceDeepLinks = "resource.links"
 	extensionConfig   = "extension.config"
 	// settingsWebhookMaxConcurrentAppRefresh is the key for max concurrent app refresh
-	settingsWebhookMaxConcurrentAppRefresh = "webhook.maxConcurrentAppRefresh"
+	settingsWebhookMaxConcurrentAppRefreshKey = "webhook.maxConcurrentAppRefresh"
 	// defaultSettingsWebhookMaxConcurrentAppRefresh is the default value for the number of max concurrent app refresh
 	defaultWebhookMaxConcurrentAppRefresh = 10
 )
@@ -1430,6 +1430,19 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
 	settings.ExtensionConfig = argoCDCM.Data[extensionConfig]
+	if webhookMaxConcurrentAppRefresh := argoCDCM.Data[settingsWebhookMaxConcurrentAppRefreshKey]; len(webhookMaxConcurrentAppRefresh) > 0 {
+		i, err := strconv.Atoi(string(webhookMaxConcurrentAppRefresh))
+		if err != nil {
+			log.Warnf("invalid input for %s: %s. Using the default value %d.", settingsWebhookMaxConcurrentAppRefreshKey, err.Error(), defaultWebhookMaxConcurrentAppRefresh)
+		}
+		if i < 1 {
+			i = defaultWebhookMaxConcurrentAppRefresh
+			log.Warnf("%s is less than 1. Using the default value %d.", settingsWebhookMaxConcurrentAppRefreshKey, defaultWebhookMaxConcurrentAppRefresh)
+		}
+		settings.WebhookMaxConcurrentAppRefresh = i
+	} else {
+		settings.WebhookMaxConcurrentAppRefresh = defaultWebhookMaxConcurrentAppRefresh
+	}
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
@@ -1476,14 +1489,6 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	}
 	if azureDevOpsPassword := argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey]; len(azureDevOpsPassword) > 0 {
 		settings.WebhookAzureDevOpsPassword = string(azureDevOpsPassword)
-	}
-	if webhookMaxConcurrentAppRefresh := argoCDSecret.Data[settingsWebhookMaxConcurrentAppRefresh]; len(webhookMaxConcurrentAppRefresh) > 0 {
-		i, err := strconv.Atoi(string(webhookMaxConcurrentAppRefresh))
-		if err != nil {
-			i = defaultWebhookMaxConcurrentAppRefresh
-			log.Warnf("invalid input for %s: %s. Using the default value.", settingsWebhookMaxConcurrentAppRefresh, err.Error())
-		}
-		settings.WebhookMaxConcurrentAppRefresh = i
 	}
 
 	// The TLS certificate may be externally managed. We try to load it from an
