@@ -683,3 +683,39 @@ func Test_getWebUrlRegex(t *testing.T) {
 		})
 	}
 }
+
+func Test_getMaxConcurrentAppRefreshOrDefault(t *testing.T) {
+	tests := []struct {
+		expected int
+		set      *settings.ArgoCDSettings
+		name     string
+	}{
+		{
+			25,
+			&settings.ArgoCDSettings{
+				WebhookMaxConcurrentAppRefresh: 25,
+			},
+			"should get the same value",
+		},
+		{
+			10,
+			&settings.ArgoCDSettings{
+				WebhookMaxConcurrentAppRefresh: -1,
+			},
+			"should return default value",
+		},
+		{
+			10,
+			&settings.ArgoCDSettings{},
+			"should return default value",
+		},
+	}
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			res := getMaxConcurrentAppRefreshOrDefault(testCopy.set)
+			assert.Equal(t, res, testCopy.expected)
+		})
+	}
+}

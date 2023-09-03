@@ -105,12 +105,8 @@ func NewHandler(namespace string, applicationNamespaces []string, appClientset a
 		return nil
 	}
 
-	// though it seems redundant in util/settings, this serves as a safeguard for the handler
-	maxConcurrentAppRefresh := defaultMaxConcurrentAppRefresh
-	if set.WebhookMaxConcurrentAppRefresh > 0 {
-		log.Warnf("webhook setting for max concurrent app refresh is not set, using the default value %d", defaultMaxConcurrentAppRefresh)
-		maxConcurrentAppRefresh = set.WebhookMaxConcurrentAppRefresh
-	}
+	// though this seems redundant in util/settings, this serves as a safeguard for the handler
+	maxConcurrentAppRefresh := getMaxConcurrentAppRefreshOrDefault(set)
 
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:                      namespace,
@@ -131,6 +127,14 @@ func NewHandler(namespace string, applicationNamespaces []string, appClientset a
 	}
 
 	return &acdWebhook
+}
+
+func getMaxConcurrentAppRefreshOrDefault(set *settings.ArgoCDSettings) int {
+	if set.WebhookMaxConcurrentAppRefresh <= 0 {
+		log.Warnf("webhook setting for max concurrent set to <=0 or unset, using the default value %d", defaultMaxConcurrentAppRefresh)
+		return defaultMaxConcurrentAppRefresh
+	}
+	return set.WebhookMaxConcurrentAppRefresh
 }
 
 func parseRevision(ref string) string {
