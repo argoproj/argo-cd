@@ -1878,7 +1878,7 @@ func TestNamespacedNamespaceAutoCreation(t *testing.T) {
 		Then().
 		Expect(Success("")).
 		And(func(app *Application) {
-			// Verify delete app does not delete the namespace auto created
+			//Verify delete app does not delete the namespace auto created
 			output, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
 			assert.NoError(t, err)
 			assert.Contains(t, output, updatedNamespace)
