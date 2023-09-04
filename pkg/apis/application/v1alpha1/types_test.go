@@ -3097,7 +3097,10 @@ func Test_validatePolicy_ValidResource(t *testing.T) {
 	assert.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, unknown, *, some-project/*, allow")
 	assert.Error(t, err)
-
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, create, some-project/some-namespace/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, create, some-project/some-namespace/app-prefix*, allow")
+	assert.NoError(t, err)
 }
 
 func TestEnvsubst(t *testing.T) {
