@@ -68,13 +68,16 @@ func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManif
 		if (strings.HasSuffix(base, ".yaml") || strings.HasSuffix(base, ".yml")) && IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeDirectory, enableGenerateManifests) {
 			f, err := os.Open(path)
 			if err != nil {
-				return err
+				log.Errorf("failed to open %s: %v", path, err)
 			}
 			defer f.Close()
 
 			decoder := yaml.NewDecoder(f)
 			obj := make(map[string]interface{})
-			if err := decoder.Decode(&obj); err == nil {
+			err = decoder.Decode(&obj)
+			if err != nil {
+				log.Errorf("failed to decode %s: %v", path, err)
+			} else {
 				if obj["kind"] == "Service" || obj["kind"] == "Deployment" {
 					apps[dir] = string(v1alpha1.ApplicationSourceTypeDirectory)
 				}
