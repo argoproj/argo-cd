@@ -1,0 +1,122 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: >
+      {"apiVersion":"argoproj.io/v1alpha1","kind":"Rollout","metadata":{"annotations":{},"labels":{"app.kubernetes.io/component":"manual","app.kubernetes.io/instance":"init-manual","app.kubernetes.io/managed-by":"Helm","app.kubernetes.io/name":"init-manual","app.kubernetes.io/part-of":"init","helm.sh/chart":"init-0.1.0"},"name":"init-manual","namespace":"init"},"spec":{"replicas":1,"revisionHistoryLimit":4,"selector":{"matchLabels":{"app":"init-manual"}},"strategy":{"blueGreen":{"activeService":"manual","previewService":"manual-preview"}},"template":{"metadata":{"annotations":{"config.alpha.linkerd.io/proxy-wait-before-exit-seconds":"10","config.linkerd.io/proxy-await":"enabled","instrumentation.opentelemetry.io/container-names":"init","instrumentation.opentelemetry.io/inject-nodejs":"otel/init-instrumentation","linkerd.io/inject":"enabled"},"labels":{"app":"init-manual","linkerd.io/proxy-deployment":"init-manual"}},"spec":{"containers":[{"env":[{"name":"APP","value":"manual"},{"name":"HTTP_PORT","value":"8080"}],"image":"REDACTED","imagePullPolicy":"IfNotPresent","livenessProbe":{"failureThreshold":3,"grpc":{"port":8080,"service":"init"},"initialDelaySeconds":20,"periodSeconds":10},"name":"init","ports":[{"containerPort":8080,"protocol":"TCP"}],"readinessProbe":{"failureThreshold":1,"grpc":{"port":8080,"service":"init"},"initialDelaySeconds":20,"periodSeconds":5},"resources":{"limits":{"ephemeral-storage":"512Mi"},"requests":{"cpu":"50m","ephemeral-storage":"256Mi","memory":"256Mi"}}}],"imagePullSecrets":[{"name":"REDACTED"}],"nodeSelector":{"cloud.google.com/gke-provisioning":"spot","iam.gke.io/gke-metadata-server-enabled":"true"},"serviceAccountName":"default"}}}}
+    rollout.argoproj.io/revision: '215'
+  creationTimestamp: '2023-04-26T14:16:22Z'
+  generation: 228
+  labels:
+    app.kubernetes.io/component: manual
+    app.kubernetes.io/instance: init-manual
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: init-manual
+    app.kubernetes.io/part-of: init
+    helm.sh/chart: init-0.1.0
+    k8slens-edit-resource-version: v1alpha1
+  name: init-manual
+  namespace: init
+  resourceVersion: '97158718'
+  uid: ee833507-b862-47c4-ab1a-8c504ff1db71
+spec:
+  replicas: 1
+  revisionHistoryLimit: 4
+  selector:
+    matchLabels:
+      app: init-manual
+  strategy:
+    blueGreen:
+      activeService: manual
+      previewService: manual-preview
+  template:
+    metadata:
+      annotations:
+        config.alpha.linkerd.io/proxy-wait-before-exit-seconds: '10'
+        config.linkerd.io/proxy-await: enabled
+        instrumentation.opentelemetry.io/container-names: init
+        instrumentation.opentelemetry.io/inject-nodejs: otel/init-instrumentation
+        linkerd.io/inject: enabled
+      labels:
+        app: init-manual
+        linkerd.io/proxy-deployment: init-manual
+    spec:
+      containers:
+        - env:
+            - name: APP
+              value: manual
+            - name: HTTP_PORT
+              value: '8080'
+          image: 'REDACTED'
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            grpc:
+              port: 8080
+              service: init
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          name: init
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 1
+            grpc:
+              port: 8080
+              service: init
+            initialDelaySeconds: 20
+            periodSeconds: 5
+          resources:
+            limits:
+              ephemeral-storage: 512Mi
+            requests:
+              cpu: 50m
+              ephemeral-storage: 256Mi
+              memory: 256Mi
+      imagePullSecrets:
+        - name: REDACTED
+      nodeSelector:
+        cloud.google.com/gke-provisioning: spot
+        iam.gke.io/gke-metadata-server-enabled: 'true'
+      serviceAccountName: default
+status:
+  HPAReplicas: 1
+  availableReplicas: 1
+  blueGreen:
+    activeSelector: 6b6b5d8cd7
+    previewSelector: 6b6b5d8cd7
+  canary: {}
+  conditions:
+    - lastTransitionTime: '2023-08-30T09:45:41Z'
+      lastUpdateTime: '2023-08-30T09:45:41Z'
+      message: RolloutCompleted
+      reason: RolloutCompleted
+      status: 'True'
+      type: Completed
+    - lastTransitionTime: '2023-08-30T09:57:08Z'
+      lastUpdateTime: '2023-08-30T09:57:08Z'
+      message: Rollout is healthy
+      reason: RolloutHealthy
+      status: 'True'
+      type: Healthy
+    - lastTransitionTime: '2023-05-05T09:55:27Z'
+      lastUpdateTime: '2023-08-30T09:57:08Z'
+      message: ReplicaSet "init-manual-6b6b5d8cd7" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: 'True'
+      type: Progressing
+    - lastTransitionTime: '2023-08-30T09:57:08Z'
+      lastUpdateTime: '2023-08-30T09:57:08Z'
+      message: Rollout has minimum availability
+      reason: AvailableReason
+      status: 'True'
+      type: Available
+  currentPodHash: 6b6b5d8cd7
+  observedGeneration: '228'
+  phase: Healthy
+  readyReplicas: 1
+  replicas: 1
+  selector: 'app=init-manual,rollouts-pod-template-hash=6b6b5d8cd7'
+  stableRS: 6b6b5d8cd7
+  updatedReplicas: 1

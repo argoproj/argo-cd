@@ -1,0 +1,74 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  labels:
+    app.kubernetes.io/component: manual
+    app.kubernetes.io/instance: init-manual
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: init-manual
+    app.kubernetes.io/part-of: init
+    helm.sh/chart: init-0.1.0
+    k8slens-edit-resource-version: v1alpha1
+  name: init-manual
+  namespace: init
+spec:
+  replicas: 1
+  revisionHistoryLimit: 4
+  selector:
+    matchLabels:
+      app: init-manual
+  strategy:
+    blueGreen:
+      activeService: manual
+      previewService: manual-preview
+  template:
+    metadata:
+      annotations:
+        config.alpha.linkerd.io/proxy-wait-before-exit-seconds: '10'
+        config.linkerd.io/proxy-await: enabled
+        instrumentation.opentelemetry.io/container-names: init
+        instrumentation.opentelemetry.io/inject-nodejs: otel/init-instrumentation
+        linkerd.io/inject: enabled
+      labels:
+        app: init-manual
+        linkerd.io/proxy-deployment: init-manual
+    spec:
+      containers:
+        - env:
+            - name: APP
+              value: manual
+            - name: HTTP_PORT
+              value: '8080'
+          image: 'REDACTED'
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            grpc:
+              port: 8080
+              service: init
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          name: init
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 1
+            grpc:
+              port: 8080
+              service: init
+            initialDelaySeconds: 20
+            periodSeconds: 5
+          resources:
+            limits:
+              ephemeral-storage: 512Mi
+            requests:
+              cpu: 50m
+              ephemeral-storage: 256Mi
+              memory: 256Mi
+      imagePullSecrets:
+        - name: REDACTED
+      nodeSelector:
+        cloud.google.com/gke-provisioning: spot
+        iam.gke.io/gke-metadata-server-enabled: 'true'
+      serviceAccountName: default

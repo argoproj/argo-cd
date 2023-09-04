@@ -384,7 +384,6 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, 2, len(containers))
 	})
-
 	t.Run("will correctly set array entries if new entries have been added", func(t *testing.T) {
 		// given
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
@@ -431,7 +430,6 @@ func TestNormalizeTargetResources(t *testing.T) {
 		assert.Equal(t, "SOME_ENV_VAR", third.(map[string]interface{})["name"])
 		assert.Equal(t, "some_value", third.(map[string]interface{})["value"])
 	})
-
 	t.Run("mutating-webhook-config", func(t *testing.T) {
 		// given
 
@@ -466,6 +464,37 @@ func TestNormalizeTargetResources(t *testing.T) {
 		assert.Equal(t, "something", (first.(map[string]interface{})["clientConfig"]).(map[string]interface{})["caBundle"])
 		assert.Equal(t, "something", (second.(map[string]interface{})["clientConfig"]).(map[string]interface{})["caBundle"])
 		assert.Equal(t, "something-new", (third.(map[string]interface{})["clientConfig"]).(map[string]interface{})["caBundle"])
+	})
+	t.Run("rollout-obj", func(t *testing.T) {
+		// given
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "argoproj.io",
+				Kind:              "Rollout",
+				JQPathExpressions: []string{".spec.template.spec.containers[] | select(.name == \"init\") | .image"},
+			},
+		}
+		f := setup(t, ignores)
+		live := test.YamlToUnstructured(testdata.LiveRolloutYaml)
+		target := test.YamlToUnstructured(testdata.TargetRolloutYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		// when
+		targets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(targets))
+		containers, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "template", "spec", "containers")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, 1, len(containers))
+
+		container := containers[0]
+
+		assert.Equal(t, int64(15), (container.(map[string]interface{})["livenessProbe"]).(map[string]interface{})["initialDelaySeconds"])
 	})
 	t.Run("ignore-deployment-image-replicas-changes-additive", func(t *testing.T) {
 		// given

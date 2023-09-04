@@ -27,6 +27,12 @@ var (
 	//go:embed target-mutating-webhook-config.yaml
 	TargetMutatingWebhookConfigYaml string
 
+	//go:embed live-rollout.yaml
+	LiveRolloutYaml string
+
+	//go:embed target-rollout.yaml
+	TargetRolloutYaml string
+
 	//go:embed target-deployment-new-entries.yaml
 	TargetDeploymentNewEntries string
 )
