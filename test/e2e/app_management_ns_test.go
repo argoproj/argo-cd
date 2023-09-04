@@ -911,7 +911,7 @@ func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCod
 	}
 	expect.
 		Expect(HealthIs(statusCode)).
-		And(func(_ *Application) {
+		And(func(app *Application) {
 			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
