@@ -8,7 +8,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/kube"
 	argokube "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -209,7 +208,7 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return nil
 	}
 
-	label, err := kube.GetAppInstanceLabel(live, labelKey)
+	label, err := argokube.GetAppInstanceLabel(live, labelKey)
 	if err != nil {
 		return fmt.Errorf("failed to get app instance label: %w", err)
 	}

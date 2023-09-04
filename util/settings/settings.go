@@ -20,7 +20,6 @@ import (
 	timeutil "github.com/argoproj/pkg/time"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -577,7 +576,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) err
 	argoCDSecret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
 	createSecret := false
 	if err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return err
 		}
 		argoCDSecret = &apiv1.Secret{
@@ -618,7 +617,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) erro
 	argoCDCM, err := mgr.getConfigMap()
 	createCM := false
 	if err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return err
 		}
 		argoCDCM = &apiv1.ConfigMap{
@@ -1520,7 +1519,7 @@ func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, er
 	var cert tls.Certificate
 	secret, err := mgr.secrets.Secrets(mgr.namespace).Get(externalServerTLSSecretName)
 	if err != nil {
-		if apierr.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil, nil
 		}
 	}

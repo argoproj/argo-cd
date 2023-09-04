@@ -9,10 +9,8 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	clusterapi "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/test"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
@@ -27,7 +25,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/pointer"
@@ -100,7 +97,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 	db.On("ListClusters", mock.Anything).Return(
 		func(ctx context.Context) *v1alpha1.ClusterList {
 			return &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    clusters,
 			}
 		},
@@ -171,7 +168,7 @@ func TestGetCluster_UrlEncodedName(t *testing.T) {
 		Namespaces: []string{"default", "kube-system"},
 	}
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: v1.ListMeta{},
+		ListMeta: metav1.ListMeta{},
 		Items: []v1alpha1.Cluster{
 			mockCluster,
 		},
@@ -201,7 +198,7 @@ func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
 		Namespaces: []string{"default", "kube-system"},
 	}
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: v1.ListMeta{},
+		ListMeta: metav1.ListMeta{},
 		Items: []v1alpha1.Cluster{
 			mockCluster,
 		},
@@ -235,7 +232,7 @@ func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 	}
 
 	clusterList := v1alpha1.ClusterList{
-		ListMeta: v1.ListMeta{},
+		ListMeta: metav1.ListMeta{},
 		Items:    clusters,
 	}
 
@@ -513,7 +510,7 @@ func TestListCluster(t *testing.T) {
 	}
 
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: v1.ListMeta{},
+		ListMeta: metav1.ListMeta{},
 		Items:    []v1alpha1.Cluster{fooCluster, barCluster, bazCluster},
 	}
 
@@ -523,8 +520,8 @@ func TestListCluster(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		q       *cluster.ClusterQuery
-		want    *appv1.ClusterList
+		q       *clusterapi.ClusterQuery
+		want    *v1alpha1.ClusterList
 		wantErr bool
 	}{
 		{
@@ -533,7 +530,7 @@ func TestListCluster(t *testing.T) {
 				Name: fooCluster.Name,
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{fooCluster},
 			},
 		},
@@ -543,7 +540,7 @@ func TestListCluster(t *testing.T) {
 				Server: barCluster.Server,
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{barCluster},
 			},
 		},
@@ -556,7 +553,7 @@ func TestListCluster(t *testing.T) {
 				},
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{fooCluster},
 			},
 		},
@@ -569,7 +566,7 @@ func TestListCluster(t *testing.T) {
 				},
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{bazCluster},
 			},
 		},
@@ -582,7 +579,7 @@ func TestListCluster(t *testing.T) {
 				},
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{barCluster},
 			},
 		},

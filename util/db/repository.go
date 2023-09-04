@@ -10,7 +10,6 @@ import (
 	"google.golang.org/grpc/status"
 	apiv1 "k8s.io/api/core/v1"
 
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -38,24 +37,24 @@ const (
 
 // repositoryBackend defines the API for types that wish to provide interaction with repository storage
 type repositoryBackend interface {
-	CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error)
-	GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error)
-	ListRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error)
-	UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error)
+	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
+	GetRepository(ctx context.Context, repoURL string) (*appv1.Repository, error)
+	ListRepositories(ctx context.Context, repoType *string) ([]*appv1.Repository, error)
+	UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	DeleteRepository(ctx context.Context, repoURL string) error
 	RepositoryExists(ctx context.Context, repoURL string) (bool, error)
 
-	CreateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error)
-	GetRepoCreds(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error)
+	CreateRepoCreds(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
+	GetRepoCreds(ctx context.Context, repoURL string) (*appv1.RepoCreds, error)
 	ListRepoCreds(ctx context.Context) ([]string, error)
-	UpdateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error)
+	UpdateRepoCreds(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
 	DeleteRepoCreds(ctx context.Context, name string) error
 	RepoCredsExists(ctx context.Context, repoURL string) (bool, error)
 
-	GetAllHelmRepoCreds(ctx context.Context) ([]*appsv1.RepoCreds, error)
+	GetAllHelmRepoCreds(ctx context.Context) ([]*appv1.RepoCreds, error)
 }
 
-func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+func (db *db) CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error) {
 	secretBackend := db.repoBackend()
 	legacyBackend := db.legacyRepoBackend()
 
@@ -75,7 +74,7 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 	return secretBackend.CreateRepository(ctx, r)
 }
 
-func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
+func (db *db) GetRepository(ctx context.Context, repoURL string) (*appv1.Repository, error) {
 	repository, err := db.getRepository(ctx, repoURL)
 	if err != nil {
 		return repository, fmt.Errorf("unable to get repository %q: %v", repoURL, err)
@@ -88,7 +87,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	return repository, err
 }
 
-func (db *db) GetProjectRepositories(ctx context.Context, project string) ([]*appsv1.Repository, error) {
+func (db *db) GetProjectRepositories(ctx context.Context, project string) ([]*appv1.Repository, error) {
 	informer, err := db.settingsMgr.GetSecretsInformer()
 	if err != nil {
 		return nil, err
@@ -119,7 +118,7 @@ func (db *db) RepositoryExists(ctx context.Context, repoURL string) (bool, error
 	return legacyBackend.RepositoryExists(ctx, repoURL)
 }
 
-func (db *db) getRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
+func (db *db) getRepository(ctx context.Context, repoURL string) (*appv1.Repository, error) {
 	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)
 	if err != nil {
@@ -144,14 +143,14 @@ func (db *db) getRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		return repository, nil
 	}
 
-	return &appsv1.Repository{Repo: repoURL}, nil
+	return &appv1.Repository{Repo: repoURL}, nil
 }
 
-func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error) {
+func (db *db) ListRepositories(ctx context.Context) ([]*appv1.Repository, error) {
 	return db.listRepositories(ctx, nil)
 }
 
-func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error) {
+func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appv1.Repository, error) {
 	// TODO It would be nice to check for duplicates between secret and legacy repositories and make it so that
 	// 	repositories from secrets overlay repositories from legacys.
 
@@ -174,7 +173,7 @@ func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1
 }
 
 // UpdateRepository updates a repository
-func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+func (db *db) UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error) {
 	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepositoryExists(ctx, r.Repo)
 	if err != nil {
@@ -233,7 +232,7 @@ func (db *db) ListRepositoryCredentials(ctx context.Context) ([]string, error) {
 }
 
 // GetRepositoryCredentials retrieves a repository credential set
-func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error) {
+func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*appv1.RepoCreds, error) {
 	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepoCredsExists(ctx, repoURL)
 	if err != nil {
@@ -262,7 +261,7 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*ap
 }
 
 // GetAllHelmRepositoryCredentials retrieves all repository credentials
-func (db *db) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appsv1.RepoCreds, error) {
+func (db *db) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appv1.RepoCreds, error) {
 	// TODO It would be nice to check for duplicates between secret and legacy repositories and make it so that
 	// 	repositories from secrets overlay repositories from legacys.
 
@@ -280,7 +279,7 @@ func (db *db) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appsv1.Re
 }
 
 // CreateRepositoryCredentials creates a repository credential set
-func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
+func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error) {
 	legacyBackend := db.legacyRepoBackend()
 	secretBackend := db.repoBackend()
 
@@ -301,7 +300,7 @@ func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 }
 
 // UpdateRepositoryCredentials updates a repository credential set
-func (db *db) UpdateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
+func (db *db) UpdateRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error) {
 	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepoCredsExists(ctx, r.URL)
 	if err != nil {
@@ -343,7 +342,7 @@ func (db *db) DeleteRepositoryCredentials(ctx context.Context, name string) erro
 	return status.Errorf(codes.NotFound, "repository credentials '%s' not found", name)
 }
 
-func (db *db) enrichCredsToRepos(ctx context.Context, repositories []*appsv1.Repository) error {
+func (db *db) enrichCredsToRepos(ctx context.Context, repositories []*appv1.Repository) error {
 	for _, repository := range repositories {
 		if err := db.enrichCredsToRepo(ctx, repository); err != nil {
 			return err
@@ -360,7 +359,7 @@ func (db *db) legacyRepoBackend() repositoryBackend {
 	return &legacyRepositoryBackend{db: db}
 }
 
-func (db *db) enrichCredsToRepo(ctx context.Context, repository *appsv1.Repository) error {
+func (db *db) enrichCredsToRepo(ctx context.Context, repository *appv1.Repository) error {
 	if !repository.HasCredentials() {
 		creds, err := db.GetRepositoryCredentials(ctx, repository.Repo)
 		if err == nil {

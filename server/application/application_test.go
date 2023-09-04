@@ -27,7 +27,6 @@ import (
 	k8sappsv1 "k8s.io/api/apps/v1"
 	k8sbatchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -53,7 +52,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/assets"
-	"github.com/argoproj/argo-cd/v2/util/cache"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
@@ -136,7 +134,7 @@ func newTestAppServer(t *testing.T, objects ...runtime.Object) *Server {
 }
 
 func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T, objects ...runtime.Object) *Server {
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -144,7 +142,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
-	}, &v1.Secret{
+	}, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
 			Namespace: testNamespace,
@@ -245,7 +243,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 	broadcaster.On("OnUpdate", mock.Anything, mock.Anything).Return()
 	broadcaster.On("OnDelete", mock.Anything).Return()
 
-	appStateCache := appstate.NewCache(cache.NewCache(cache.NewInMemoryCache(time.Hour)), time.Hour)
+	appStateCache := appstate.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Hour)), time.Hour)
 	// pre-populate the app cache
 	for _, obj := range objects {
 		app, ok := obj.(*appsv1.Application)
@@ -317,7 +315,7 @@ func newTestAppServerWithBenchmark(b *testing.B, objects ...runtime.Object) *Ser
 }
 
 func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), b *testing.B, objects ...runtime.Object) *Server {
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -325,7 +323,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), 
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
-	}, &v1.Secret{
+	}, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
 			Namespace: testNamespace,
@@ -425,7 +423,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), 
 	broadcaster.On("OnUpdate", mock.Anything, mock.Anything).Return()
 	broadcaster.On("OnDelete", mock.Anything).Return()
 
-	appStateCache := appstate.NewCache(cache.NewCache(cache.NewInMemoryCache(time.Hour)), time.Hour)
+	appStateCache := appstate.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Hour)), time.Hour)
 	// pre-populate the app cache
 	for _, obj := range objects {
 		app, ok := obj.(*appsv1.Application)
@@ -1849,7 +1847,7 @@ func TestGetCachedAppState(t *testing.T) {
 		}
 
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
-			res := cache.ErrCacheMiss
+			res := cacheutil.ErrCacheMiss
 			if retryCount == 1 {
 				res = nil
 			}

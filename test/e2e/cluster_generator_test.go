@@ -8,7 +8,6 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
@@ -57,9 +56,9 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
 			Name: "simple-cluster-generator",
 		},
-			Spec: v1alpha1.ApplicationSetSpec{
-				Template: v1alpha1.ApplicationSetTemplate{
-					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
+			Spec: argov1alpha1.ApplicationSetSpec{
+				Template: argov1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &argov1alpha1.ApplicationSource{
@@ -160,9 +159,9 @@ func TestSimpleClusterGenerator(t *testing.T) {
 		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
 			Name: "simple-cluster-generator",
 		},
-			Spec: v1alpha1.ApplicationSetSpec{
-				Template: v1alpha1.ApplicationSetTemplate{
-					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
+			Spec: argov1alpha1.ApplicationSetSpec{
+				Template: argov1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &argov1alpha1.ApplicationSource{
@@ -290,9 +289,9 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 				Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
 					Name: "in-cluster-generator",
 				},
-					Spec: v1alpha1.ApplicationSetSpec{
-						Template: v1alpha1.ApplicationSetTemplate{
-							ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Template: argov1alpha1.ApplicationSetTemplate{
+							ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
 							Spec: argov1alpha1.ApplicationSpec{
 								Project: "default",
 								Source: &argov1alpha1.ApplicationSource{
@@ -387,9 +386,9 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
 			Name: "simple-cluster-generator",
 		},
-			Spec: v1alpha1.ApplicationSetSpec{
-				Template: v1alpha1.ApplicationSetTemplate{
-					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
+			Spec: argov1alpha1.ApplicationSetSpec{
+				Template: argov1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &argov1alpha1.ApplicationSource{
@@ -473,9 +472,9 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
 			Name: "simple-cluster-generator",
 		},
-			Spec: v1alpha1.ApplicationSetSpec{
-				Template: v1alpha1.ApplicationSetTemplate{
-					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
+			Spec: argov1alpha1.ApplicationSetSpec{
+				Template: argov1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &argov1alpha1.ApplicationSource{

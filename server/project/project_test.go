@@ -16,7 +16,6 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 
@@ -38,7 +37,7 @@ const testNamespace = "default"
 
 func TestProjectServer(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
 			Labels: map[string]string{
@@ -46,7 +45,7 @@ func TestProjectServer(t *testing.T) {
 			},
 		},
 	}, &corev1.Secret{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
 			Namespace: testNamespace,
 		},
@@ -58,7 +57,7 @@ func TestProjectServer(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
 	enforcer := newEnforcer(kubeclientset)
 	existingProj := v1alpha1.AppProject{
-		ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: testNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: testNamespace},
 		Spec: v1alpha1.AppProjectSpec{
 			Destinations: []v1alpha1.ApplicationDestination{
 				{Namespace: "ns1", Server: "https://server1"},
@@ -68,7 +67,7 @@ func TestProjectServer(t *testing.T) {
 		},
 	}
 	existingApp := v1alpha1.Application{
-		ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 		Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server3"}},
 	}
 
@@ -94,7 +93,7 @@ func TestProjectServer(t *testing.T) {
 		err := projectServer.NormalizeProjs()
 		assert.NoError(t, err)
 
-		appList, err := projectServer.appclientset.ArgoprojV1alpha1().AppProjects(projectWithRole.Namespace).List(context.Background(), v1.ListOptions{})
+		appList, err := projectServer.appclientset.ArgoprojV1alpha1().AppProjects(projectWithRole.Namespace).List(context.Background(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		assert.Equal(t, appList.Items[0].Status.JWTTokensByRole[roleName].Items[0].IssuedAt, int64(1))
 		assert.ElementsMatch(t, appList.Items[0].Status.JWTTokensByRole[roleName].Items, appList.Items[0].Spec.Roles[0].JWTTokens)
@@ -165,7 +164,7 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestRemoveDestinationSuccessful", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 			Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server3"}},
 		}
 
@@ -182,7 +181,7 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestRemoveDestinationUsedByApp", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 			Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns1", Server: "https://server1"}},
 		}
 
@@ -201,7 +200,7 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestRemoveSourceSuccessful", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 			Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test"},
 		}
 
@@ -218,7 +217,7 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestRemoveSourceUsedByApp", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 			Spec:       v1alpha1.ApplicationSpec{Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
 		}
 
@@ -239,7 +238,7 @@ func TestProjectServer(t *testing.T) {
 		proj := existingProj.DeepCopy()
 		proj.Spec.SourceRepos = []string{"https://github.com/argoproj/argo-cd.git", "https://github.com/argoproj/*"}
 		existingApp := v1alpha1.Application{
-			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 			Spec:       v1alpha1.ApplicationSpec{Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
 		}
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -261,7 +260,7 @@ func TestProjectServer(t *testing.T) {
 			{Namespace: "org1-*", Server: "https://server1"},
 		}
 		existingApp := v1alpha1.Application{
-			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 			Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{
 				Server:    "https://server1",
 				Namespace: "org1-team1",
@@ -294,7 +293,7 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestDeleteDefaultProjectFailure", func(t *testing.T) {
 		defaultProj := v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{Name: "default", Namespace: "default"},
+			ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
 			Spec:       v1alpha1.AppProjectSpec{},
 		}
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -307,7 +306,7 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestDeleteProjectReferencedByApp", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 			Spec:       v1alpha1.ApplicationSpec{Project: "test"},
 		}
 

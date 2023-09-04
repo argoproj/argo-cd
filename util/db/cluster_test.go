@@ -12,7 +12,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -45,10 +44,10 @@ func Test_secretToCluster(t *testing.T) {
 	}
 	cluster, err := SecretToCluster(secret)
 	require.NoError(t, err)
-	assert.Equal(t, *cluster, v1alpha1.Cluster{
+	assert.Equal(t, *cluster, appv1.Cluster{
 		Name:   "test",
 		Server: "http://mycluster",
-		Config: v1alpha1.ClusterConfig{
+		Config: appv1.ClusterConfig{
 			Username: "foo",
 		},
 		Labels:      labels,
@@ -62,7 +61,7 @@ func TestClusterToSecret(t *testing.T) {
 		Labels:      map[string]string{"test": "label"},
 		Annotations: map[string]string{"test": "annotation"},
 		Name:        "test",
-		Config:      v1alpha1.ClusterConfig{},
+		Config:      appv1.ClusterConfig{},
 		Project:     "project",
 		Namespaces:  []string{"default"},
 	}
@@ -91,7 +90,7 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 	}
 	cluster, err := SecretToCluster(secret)
 	assert.NoError(t, err)
-	assert.Equal(t, *cluster, v1alpha1.Cluster{
+	assert.Equal(t, *cluster, appv1.Cluster{
 		Name:        "test",
 		Server:      "http://mycluster",
 		Labels:      map[string]string{},
@@ -133,7 +132,7 @@ func TestUpdateCluster(t *testing.T) {
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 	requestedAt := metav1.Now()
-	_, err := db.UpdateCluster(context.Background(), &v1alpha1.Cluster{
+	_, err := db.UpdateCluster(context.Background(), &appv1.Cluster{
 		Name:               "test",
 		Server:             "http://mycluster",
 		RefreshRequestedAt: &requestedAt,
@@ -147,7 +146,7 @@ func TestUpdateCluster(t *testing.T) {
 		return
 	}
 
-	assert.Equal(t, secret.Annotations[v1alpha1.AnnotationKeyRefresh], requestedAt.Format(time.RFC3339))
+	assert.Equal(t, secret.Annotations[appv1.AnnotationKeyRefresh], requestedAt.Format(time.RFC3339))
 }
 
 func TestDeleteUnknownCluster(t *testing.T) {
@@ -203,7 +202,7 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) {
+func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *appv1.Cluster, new *appv1.Cluster)) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -211,7 +210,7 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 
 	allDone := make(chan bool, 1)
 
-	doNext := func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
+	doNext := func(old *appv1.Cluster, new *appv1.Cluster) {
 		if len(actions) == 0 {
 			assert.Fail(t, "Unexpected event")
 		}
@@ -228,12 +227,12 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 	}
 
 	go func() {
-		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
+		assert.NoError(t, db.WatchClusters(ctx, func(cluster *appv1.Cluster) {
 			doNext(nil, cluster)
-		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
+		}, func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
 			doNext(oldCluster, newCluster)
 		}, func(clusterServer string) {
-			doNext(&v1alpha1.Cluster{Server: clusterServer}, nil)
+			doNext(&appv1.Cluster{Server: clusterServer}, nil)
 		}))
 	}()
 

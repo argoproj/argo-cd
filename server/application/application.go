@@ -45,7 +45,6 @@ import (
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/deeplinks"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/argo"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/db"
@@ -88,7 +87,7 @@ type Server struct {
 	db                db.ArgoDB
 	enf               *rbac.Enforcer
 	projectLock       sync.KeyLock
-	auditLogger       *argo.AuditLogger
+	auditLogger       *argoutil.AuditLogger
 	settingsMgr       *settings.SettingsManager
 	cache             *servercache.Cache
 	projInformer      cache.SharedIndexInformer
@@ -130,7 +129,7 @@ func NewServer(
 		kubectl:           kubectl,
 		enf:               enf,
 		projectLock:       projectLock,
-		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		auditLogger:       argoutil.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
 		settingsMgr:       settingsMgr,
 		projInformer:      projInformer,
 		enabledNamespaces: enabledNamespaces,
@@ -324,7 +323,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 	created, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Create(ctx, a, metav1.CreateOptions{})
 	if err == nil {
-		s.logAppEvent(created, ctx, argo.EventReasonResourceCreated, "created application")
+		s.logAppEvent(created, ctx, argoutil.EventReasonResourceCreated, "created application")
 		s.waitSync(created)
 		return created, nil
 	}
@@ -385,7 +384,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, acti
 	if err != nil {
 		return fmt.Errorf("error getting kustomize settings options: %w", err)
 	}
-	proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	proj, err := argoutil.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
@@ -398,7 +397,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, acti
 		return fmt.Errorf("error listing helm repositories: %w", err)
 	}
 
-	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos)
+	permittedHelmRepos, err := argoutil.GetPermittedRepos(proj, helmRepos)
 	if err != nil {
 		return fmt.Errorf("error retrieving permitted repos: %w", err)
 	}
@@ -410,7 +409,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, acti
 	if err != nil {
 		return fmt.Errorf("error getting helm settings: %w", err)
 	}
-	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
+	permittedHelmCredentials, err := argoutil.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
 	if err != nil {
 		return fmt.Errorf("error getting permitted repos credentials: %w", err)
 	}
@@ -464,7 +463,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return fmt.Errorf("error getting API resources: %w", err)
 		}
 
-		proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+		proj, err := argoutil.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 		if err != nil {
 			return fmt.Errorf("error getting app project: %w", err)
 		}
@@ -479,7 +478,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			Repos:              helmRepos,
 			KustomizeOptions:   kustomizeOptions,
 			KubeVersion:        serverVersion,
-			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+			ApiVersions:        argoutil.APIResourcesToStrings(apiResources, true),
 			HelmRepoCreds:      helmCreds,
 			HelmOptions:        helmOptions,
 			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
@@ -562,7 +561,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 
 		source := a.Spec.GetSource()
 
-		proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+		proj, err := argoutil.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 		if err != nil {
 			return fmt.Errorf("error getting app project: %w", err)
 		}
@@ -577,7 +576,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			Repos:              helmRepos,
 			KustomizeOptions:   kustomizeOptions,
 			KubeVersion:        serverVersion,
-			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+			ApiVersions:        argoutil.APIResourcesToStrings(apiResources, true),
 			HelmRepoCreds:      helmCreds,
 			HelmOptions:        helmOptions,
 			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
@@ -863,7 +862,7 @@ func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ct
 
 		res, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
 		if err == nil {
-			s.logAppEvent(app, ctx, argo.EventReasonResourceUpdated, "updated application spec")
+			s.logAppEvent(app, ctx, argoutil.EventReasonResourceUpdated, "updated application spec")
 			s.waitSync(res)
 			return res, nil
 		}
@@ -1024,7 +1023,7 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	if err != nil {
 		return nil, fmt.Errorf("error deleting application: %w", err)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonResourceDeleted, "deleted application")
+	s.logAppEvent(a, ctx, argoutil.EventReasonResourceDeleted, "deleted application")
 	return &application.ApplicationResponse{}, nil
 }
 
@@ -1124,7 +1123,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 }
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, validate bool) error {
-	proj, err := argo.GetAppProject(app, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	proj, err := argoutil.GetAppProject(app, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			// Offer no hint that the project does not exist.
@@ -1158,7 +1157,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		}
 	}
 
-	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+	if err := argoutil.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
 		return status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", app.Name, err.Error())
 	}
 
@@ -1166,30 +1165,30 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 
 	if validate {
 		conditions := make([]appv1.ApplicationCondition, 0)
-		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
+		condition, err := argoutil.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
 		if err != nil {
 			return fmt.Errorf("error validating the repo: %w", err)
 		}
 		conditions = append(conditions, condition...)
 		if len(conditions) > 0 {
-			return status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
+			return status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argoutil.FormatAppConditions(conditions))
 		}
 	}
 
-	conditions, err = argo.ValidatePermissions(ctx, &app.Spec, proj, s.db)
+	conditions, err = argoutil.ValidatePermissions(ctx, &app.Spec, proj, s.db)
 	if err != nil {
 		return fmt.Errorf("error validating project permissions: %w", err)
 	}
 	if len(conditions) > 0 {
-		return status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
+		return status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argoutil.FormatAppConditions(conditions))
 	}
 
-	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
+	app.Spec = *argoutil.NormalizeApplicationSpec(&app.Spec)
 	return nil
 }
 
 func (s *Server) getApplicationClusterConfig(ctx context.Context, a *appv1.Application) (*rest.Config, error) {
-	if err := argo.ValidateDestination(ctx, &a.Spec.Destination, s.db); err != nil {
+	if err := argoutil.ValidateDestination(ctx, &a.Spec.Destination, s.db); err != nil {
 		return nil, fmt.Errorf("error validating destination: %w", err)
 	}
 	clst, err := s.db.GetCluster(ctx, a.Spec.Destination.Server)
@@ -1329,7 +1328,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	if err != nil {
 		return nil, fmt.Errorf("erro marshaling manifest object: %w", err)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
+	s.logAppEvent(a, ctx, argoutil.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
 	m := string(data)
 	return &application.ApplicationResourceResponse{
 		Manifest: &m,
@@ -1368,7 +1367,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 	if err != nil {
 		return nil, fmt.Errorf("error deleting resource: %w", err)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
+	s.logAppEvent(a, ctx, argoutil.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
 	return &application.ApplicationResponse{}, nil
 }
 
@@ -1387,7 +1386,7 @@ func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application
 		return err
 	}
 
-	cacheKey := argo.AppInstanceName(q.GetApplicationName(), q.GetAppNamespace(), s.ns)
+	cacheKey := argoutil.AppInstanceName(q.GetApplicationName(), q.GetAppNamespace(), s.ns)
 	return s.cache.OnAppResourcesTreeChanged(ws.Context(), cacheKey, func() error {
 		var tree appv1.ApplicationTree
 		err := s.cache.GetAppResourcesTree(cacheKey, &tree)
@@ -1411,7 +1410,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	}
 	// We need to get some information with the project associated to the app,
 	// so we'll know whether GPG signatures are enforced.
-	proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	proj, err := argoutil.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting app project: %w", err)
 	}
@@ -1714,7 +1713,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, err
 	}
 
-	proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	proj, err := argoutil.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return a, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
@@ -1801,7 +1800,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	appName := syncReq.GetName()
 	appNs := s.appNamespaceOrDefault(syncReq.GetAppNamespace())
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
-	a, err = argo.SetAppOperation(appIf, appName, &op)
+	a, err = argoutil.SetAppOperation(appIf, appName, &op)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
@@ -1813,7 +1812,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if syncReq.Manifests != nil {
 		reason = fmt.Sprintf("initiated %ssync locally", partial)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, reason)
+	s.logAppEvent(a, ctx, argoutil.EventReasonOperationStarted, reason)
 	return a, nil
 }
 
@@ -1868,11 +1867,11 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	appName := rollbackReq.GetName()
 	appNs := s.appNamespaceOrDefault(rollbackReq.GetAppNamespace())
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
-	a, err = argo.SetAppOperation(appIf, appName, &op)
+	a, err = argoutil.SetAppOperation(appIf, appName, &op)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.GetId()))
+	s.logAppEvent(a, ctx, argoutil.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.GetId()))
 	return a, nil
 }
 
@@ -1908,7 +1907,7 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 }
 
 func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Application) (cluster *unstructured.Unstructured, project *unstructured.Unstructured, err error) {
-	proj, err := argo.GetAppProject(app, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	proj, err := argoutil.GetAppProject(app, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting app project: %w", err)
 	}
@@ -1925,7 +1924,7 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Applicat
 		return s.db.GetProjectClusters(ctx, project)
 	}
 
-	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+	if err := argoutil.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
 		log.WithFields(map[string]interface{}{
 			"application": app.GetName(),
 			"ns":          app.GetNamespace(),
@@ -2044,7 +2043,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
 		if err == nil {
 			s.waitSync(updated)
-			s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, "terminated running operation")
+			s.logAppEvent(a, ctx, argoutil.EventReasonResourceUpdated, "terminated running operation")
 			return &application.OperationTerminateResponse{}, nil
 		}
 		if !apierr.IsConflict(err) {
@@ -2061,7 +2060,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 }
 
 func (s *Server) logAppEvent(a *appv1.Application, ctx context.Context, reason string, action string) {
-	eventInfo := argo.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
+	eventInfo := argoutil.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"
@@ -2071,7 +2070,7 @@ func (s *Server) logAppEvent(a *appv1.Application, ctx context.Context, reason s
 }
 
 func (s *Server) logResourceEvent(res *appv1.ResourceNode, ctx context.Context, reason string, action string) {
-	eventInfo := argo.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
+	eventInfo := argoutil.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"
@@ -2250,10 +2249,10 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	}
 
 	if res == nil {
-		s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
+		s.logAppEvent(a, ctx, argoutil.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
 	} else {
-		s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.GetAction(), res.Group, res.Kind, res.Name))
-		s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
+		s.logAppEvent(a, ctx, argoutil.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.GetAction(), res.Group, res.Kind, res.Name))
+		s.logResourceEvent(res, ctx, argoutil.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
 	}
 	return &application.ApplicationResponse{}, nil
 }
@@ -2302,7 +2301,7 @@ func (s *Server) patchResource(ctx context.Context, config *rest.Config, liveObj
 }
 
 func (s *Server) verifyResourcePermitted(ctx context.Context, app *appv1.Application, obj *unstructured.Unstructured) error {
-	proj, err := argo.GetAppProject(app, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	proj, err := argoutil.GetAppProject(app, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
@@ -2373,7 +2372,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 		return nil, err
 	}
 
-	proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	proj, err := argoutil.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting app project: %w", err)
 	}

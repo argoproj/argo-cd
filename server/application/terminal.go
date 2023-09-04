@@ -25,7 +25,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/security"
-	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -154,7 +153,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fieldLog := log.WithFields(log.Fields{"application": app, "userName": sessionmgr.Username(ctx), "container": container,
+	fieldLog := log.WithFields(log.Fields{"application": app, "userName": util_session.Username(ctx), "container": container,
 		"podName": podName, "namespace": namespace, "project": project, "appNamespace": appNamespace})
 
 	a, err := s.appLister.Applications(ns).Get(app)
