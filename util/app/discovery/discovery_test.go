@@ -13,8 +13,10 @@ func TestDiscover(t *testing.T) {
 	apps, err := Discover(context.Background(), "./testdata", "./testdata", map[string]bool{}, []string{})
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]string{
-		"foo": "Kustomize",
-		"baz": "Helm",
+		"foo":  "Kustomize",
+		"baz":  "Helm",
+		"foo2": "Directory",
+		"baz2": "Directory",
 	}, apps)
 }
 
