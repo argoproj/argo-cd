@@ -256,7 +256,7 @@ func TestMatchRepository(t *testing.T) {
 		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.False(t, match)
 		assert.True(t, discovery)
 	})
@@ -804,4 +804,18 @@ func Test_getCommandArgsToLog(t *testing.T) {
 			assert.Equal(t, tcc.expected, getCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
 		})
 	}
+}
+
+func TestGenerateZeroManifest(t *testing.T) {
+	configFilePath := "./testdata/kustomize-err/config"
+
+	t.Run("fails due to no output", func(t *testing.T) {
+		service, err := newService(configFilePath)
+		require.NoError(t, err)
+
+		res1, err := service.generateManifest(context.Background(), "testdata/kustomize-err", nil)
+		require.Error(t, err)
+		require.NotNil(t, res1)
+
+	})
 }
