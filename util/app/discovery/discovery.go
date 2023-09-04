@@ -9,6 +9,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
+	"gopkg.in/yaml.v2"
+
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
 
@@ -61,6 +63,22 @@ func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManif
 		}
 		if kustomize.IsKustomization(base) && IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeKustomize, enableGenerateManifests) {
 			apps[dir] = string(v1alpha1.ApplicationSourceTypeKustomize)
+		}
+
+		if (strings.HasSuffix(base, ".yaml") || strings.HasSuffix(base, ".yml")) && IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeDirectory, enableGenerateManifests) {
+			f, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			decoder := yaml.NewDecoder(f)
+			obj := make(map[string]interface{})
+			if err := decoder.Decode(&obj); err == nil {
+				if obj["kind"] == "Service" || obj["kind"] == "Deployment" {
+					apps[dir] = string(v1alpha1.ApplicationSourceTypeDirectory)
+				}
+			}
 		}
 		return nil
 	})
