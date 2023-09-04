@@ -1332,7 +1332,7 @@ func TestNamespacedPermissionDeniedWithScopedRepo(t *testing.T) {
 
 }
 
-//make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false
+// make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false
 func TestNamespacedSyncOptionPruneFalse(t *testing.T) {
 	Given(t).
 		Path("two-nice-pods").
