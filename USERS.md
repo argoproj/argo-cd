@@ -277,7 +277,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Trendyol](https://www.trendyol.com/)
 1. [tru.ID](https://tru.id)
 1. [Trusting Social](https://trustingsocial.com/)
-1. [Twilio Segment] (https://segment.com/)
+1. [Twilio Segment](https://segment.com/)
 1. [Twilio SendGrid](https://sendgrid.com)
 1. [tZERO](https://www.tzero.com/)
 1. [U.S. Veterans Affairs Department](https://www.va.gov/) 
