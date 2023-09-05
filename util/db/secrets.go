@@ -159,18 +159,21 @@ func URIToSecretName(uriType, uri string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	re := regexp.MustCompile(`:\d+$`)
-	host := re.ReplaceAllLiteralString(parsedURI.Host, "")
-	if strings.Contains(host, ":") {
-		addr, err := netip.ParseAddr(host[1 : len(host)-1])
-		if err != nil {
-			return "", err
+	host := parsedURI.Host
+	if strings.HasPrefix(host, "[") {
+		last := strings.Index(host, "]")
+		if last >= 0 {
+			addr, err := netip.ParseAddr(host[1:last])
+			if err != nil {
+				return "", err
+			}
+			host = strings.ReplaceAll(addr.StringExpanded(), ":", "-")
 		}
-		host = strings.ReplaceAll(addr.StringExpanded(), ":", "-")
-	}
-	length := len(host) + len(uriType) + 12
-	if length > 63 {
-		host = host[0 : len(host)-(length-63)]
+	} else {
+		last := strings.Index(host, ":")
+		if last >= 0 {
+			host = host[0:last]
+		}
 	}
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(uri))

@@ -30,7 +30,7 @@ func Test_URIToSecretName(t *testing.T) {
 
 	name, err = URIToSecretName("cluster", "http://thelongestdomainnameintheworld.argocd-project.com:3000")
 	assert.NoError(t, err)
-	assert.Equal(t, "cluster-thelongestdomainnameintheworld.argocd-projec-2721640553", name)
+	assert.Equal(t, "cluster-thelongestdomainnameintheworld.argocd-project.com-2721640553", name)
 
 	name, err = URIToSecretName("cluster", "http://[fe80::1ff:fe23:4567:890a]")
 	assert.NoError(t, err)
@@ -39,6 +39,10 @@ func Test_URIToSecretName(t *testing.T) {
 	name, err = URIToSecretName("cluster", "http://[fe80::1ff:fe23:4567:890a]:8000")
 	assert.NoError(t, err)
 	assert.Equal(t, "cluster-fe80-0000-0000-0000-01ff-fe23-4567-890a-664858999", name)
+
+	name, err = URIToSecretName("cluster", "http://:/abc")
+	assert.NoError(t, err)
+	assert.Equal(t, "cluster--1969338796", name)
 }
 
 func Test_secretToCluster(t *testing.T) {
