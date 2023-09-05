@@ -17,7 +17,6 @@ import (
 	"sync"
 	"time"
 
-	timeutil "github.com/argoproj/pkg/time"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +29,9 @@ import (
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
+
+	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
+	timeutil "github.com/argoproj/pkg/time"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -154,28 +156,36 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		return nil
 	}
 	return &OIDCConfig{
-		Name:                   o.Name,
-		Issuer:                 o.Issuer,
-		ClientID:               o.ClientID,
-		ClientSecret:           o.ClientSecret,
-		CLIClientID:            o.CLIClientID,
-		RequestedScopes:        o.RequestedScopes,
-		RequestedIDTokenClaims: o.RequestedIDTokenClaims,
-		LogoutURL:              o.LogoutURL,
-		RootCA:                 o.RootCA,
+		Name:                     o.Name,
+		Issuer:                   o.Issuer,
+		ClientID:                 o.ClientID,
+		ClientSecret:             o.ClientSecret,
+		CLIClientID:              o.CLIClientID,
+		UserInfoPath:             o.UserInfoPath,
+		EnableUserInfoGroups:     o.EnableUserInfoGroups,
+		UserInfoCacheExpiration:  o.UserInfoCacheExpiration,
+		RequestedScopes:          o.RequestedScopes,
+		RequestedIDTokenClaims:   o.RequestedIDTokenClaims,
+		LogoutURL:                o.LogoutURL,
+		RootCA:                   o.RootCA,
+		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
 	}
 }
 
 type OIDCConfig struct {
-	Name                   string                 `json:"name,omitempty"`
-	Issuer                 string                 `json:"issuer,omitempty"`
-	ClientID               string                 `json:"clientID,omitempty"`
-	ClientSecret           string                 `json:"clientSecret,omitempty"`
-	CLIClientID            string                 `json:"cliClientID,omitempty"`
-	RequestedScopes        []string               `json:"requestedScopes,omitempty"`
-	RequestedIDTokenClaims map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
-	LogoutURL              string                 `json:"logoutURL,omitempty"`
-	RootCA                 string                 `json:"rootCA,omitempty"`
+	Name                     string                 `json:"name,omitempty"`
+	Issuer                   string                 `json:"issuer,omitempty"`
+	ClientID                 string                 `json:"clientID,omitempty"`
+	ClientSecret             string                 `json:"clientSecret,omitempty"`
+	CLIClientID              string                 `json:"cliClientID,omitempty"`
+	EnableUserInfoGroups     bool                   `json:"enableUserInfoGroups,omitempty"`
+	UserInfoPath             string                 `json:"userInfoPath,omitempty"`
+	UserInfoCacheExpiration  string                 `json:"userInfoCacheExpiration,omitempty"`
+	RequestedScopes          []string               `json:"requestedScopes,omitempty"`
+	RequestedIDTokenClaims   map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
+	LogoutURL                string                 `json:"logoutURL,omitempty"`
+	RootCA                   string                 `json:"rootCA,omitempty"`
+	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -490,6 +500,10 @@ const (
 	// ResourceDeepLinks is the resource deep link key
 	ResourceDeepLinks = "resource.links"
 	extensionConfig   = "extension.config"
+	// RespectRBAC is the key to configure argocd to respect rbac while watching for resources
+	RespectRBAC            = "resource.respectRBAC"
+	RespectRBACValueStrict = "strict"
+	RespectRBACValueNormal = "normal"
 )
 
 var (
@@ -551,6 +565,24 @@ func (mgr *SettingsManager) onRepoOrClusterChanged() {
 	if mgr.reposOrClusterChanged != nil {
 		go mgr.reposOrClusterChanged()
 	}
+}
+
+func (mgr *SettingsManager) RespectRBAC() (int, error) {
+	cm, err := mgr.getConfigMap()
+	if err != nil {
+		return enginecache.RespectRbacDisabled, err
+	}
+	if cm.Data[RespectRBAC] != "" {
+		switch cm.Data[RespectRBAC] {
+		case RespectRBACValueNormal:
+			return enginecache.RespectRbacNormal, nil
+		case RespectRBACValueStrict:
+			return enginecache.RespectRbacStrict, nil
+		default:
+			return enginecache.RespectRbacDisabled, fmt.Errorf("invalid value for %s: %s", RespectRBAC, cm.Data[RespectRBAC])
+		}
+	}
+	return enginecache.RespectRbacDisabled, nil
 }
 
 func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
@@ -1301,8 +1333,15 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 	cmInformer := v1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
 	secretsInformer := v1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
-	cmInformer.AddEventHandler(eventHandler)
-	secretsInformer.AddEventHandler(eventHandler)
+	_, err := cmInformer.AddEventHandler(eventHandler)
+	if err != nil {
+		log.Error(err)
+	}
+
+	_, err = secretsInformer.AddEventHandler(eventHandler)
+	if err != nil {
+		log.Error(err)
+	}
 
 	log.Info("Starting configmap/secret informers")
 	go func() {
@@ -1345,8 +1384,14 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 			}
 		},
 	}
-	secretsInformer.AddEventHandler(handler)
-	cmInformer.AddEventHandler(handler)
+	_, err = secretsInformer.AddEventHandler(handler)
+	if err != nil {
+		log.Error(err)
+	}
+	_, err = cmInformer.AddEventHandler(handler)
+	if err != nil {
+		log.Error(err)
+	}
 	mgr.secrets = v1listers.NewSecretLister(secretsInformer.GetIndexer())
 	mgr.secretsInformer = secretsInformer
 	mgr.configmaps = v1listers.NewConfigMapLister(cmInformer.GetIndexer())
@@ -1809,6 +1854,34 @@ func (a *ArgoCDSettings) IssuerURL() string {
 		return a.URL + common.DexAPIEndpoint
 	}
 	return ""
+}
+
+// UserInfoGroupsEnabled returns whether group claims should be fetch from UserInfo endpoint
+func (a *ArgoCDSettings) UserInfoGroupsEnabled() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.EnableUserInfoGroups
+	}
+	return false
+}
+
+// UserInfoPath returns the sub-path on which the IDP exposes the UserInfo endpoint
+func (a *ArgoCDSettings) UserInfoPath() string {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.UserInfoPath
+	}
+	return ""
+}
+
+// UserInfoCacheExpiration returns the expiry time of the UserInfo cache
+func (a *ArgoCDSettings) UserInfoCacheExpiration() time.Duration {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.UserInfoCacheExpiration != "" {
+		userInfoCacheExpiration, err := time.ParseDuration(oidcConfig.UserInfoCacheExpiration)
+		if err != nil {
+			log.Warnf("Failed to parse 'oidc.config.userInfoCacheExpiration' key: %v", err)
+		}
+		return userInfoCacheExpiration
+	}
+	return 0
 }
 
 func (a *ArgoCDSettings) OAuth2ClientID() string {

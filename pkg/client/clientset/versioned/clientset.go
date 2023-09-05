@@ -3,7 +3,7 @@
 package versioned
 
 import (
-	"fmt"
+	fmt "fmt"
 	"net/http"
 
 	argoprojv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
@@ -17,8 +17,7 @@ type Interface interface {
 	ArgoprojV1alpha1() argoprojv1alpha1.ArgoprojV1alpha1Interface
 }
 
-// Clientset contains the clients for groups. Each group has exactly one
-// version included in a Clientset.
+// Clientset contains the clients for groups.
 type Clientset struct {
 	*discovery.DiscoveryClient
 	argoprojV1alpha1 *argoprojv1alpha1.ArgoprojV1alpha1Client

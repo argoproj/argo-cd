@@ -75,7 +75,7 @@ at that URL. If the `path` field is not set, Argo CD will use the repository sol
 ## Copying files across sources
 
 In some cases the builtin helm, kustomize or directory processing cannot be used due to the utilization of Config Management Plugins (CMPs).
-In these cases the `helm.valueFiles` referencing of different sources cannot be used, therefore files has to be made accessable using different
+In these cases the `helm.valueFiles` referencing of different sources cannot be used, therefore files has to be made accessible using different
 means. Currently this is being done by a `from:` section in the source.
 
 The `from:` section is a list with the following elements:
@@ -98,7 +98,7 @@ For the git repositories, the `path` field is ignored for copy operations, the `
 
 ### Example: Copying a single file, with plugin processing
 
-In this example there's a helm chart, and it's parameterized with with a values file from another repository, to be processed by a plugin.
+In this example there's a helm chart, and it's parameterized with a values file from another repository, to be processed by a plugin.
 
 ```yaml
 spec:
@@ -128,7 +128,7 @@ dev/values.yaml
 
 The result will be `$valuesrepo/dev/values.yaml` copied over to the helm repository's root as `env-values.yaml`.
 
-The plugin section tells the plugin about the location and name of the extra values file in an environment variable, and using that it's passed as `helm template (...) -f $ARGOCD_ENV_VALUES | our-faveorite-plugin`, and thus our manifest is generated in a multisource setup, processed through a plugin.
+The plugin section tells the plugin about the location and name of the extra values file in an environment variable, and using that the value file from the other source passed as `helm template (...) -f $ARGOCD_ENV_VALUES | our-faveorite-plugin`, and thus our manifest is generated in a multisource setup, processed through a plugin.
 
 
 ### Copying a directory structure

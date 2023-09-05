@@ -63,11 +63,14 @@ type ApplicationSetSpec struct {
 	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
 	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,7,opt,name=goTemplateOptions"`
 	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
-	ApplyNestedSelectors bool `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
+	ApplyNestedSelectors         bool                            `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
+	IgnoreApplicationDifferences ApplicationSetIgnoreDifferences `json:"ignoreApplicationDifferences,omitempty" protobuf:"bytes,9,name=ignoreApplicationDifferences"`
+	TemplatePatch                *string                         `json:"templatePatch,omitempty" protobuf:"bytes,10,name=templatePatch"`
 }
 
 type ApplicationPreservedFields struct {
 	Annotations []string `json:"annotations,omitempty" protobuf:"bytes,1,name=annotations"`
+	Labels      []string `json:"labels,omitempty" protobuf:"bytes,2,name=labels"`
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
@@ -124,6 +127,39 @@ type ApplicationSetSyncPolicy struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=create-only;create-update;create-delete;sync
 	ApplicationsSync *ApplicationsSyncPolicy `json:"applicationsSync,omitempty" protobuf:"bytes,2,opt,name=applicationsSync,casttype=ApplicationsSyncPolicy"`
+}
+
+// ApplicationSetIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live
+// applications when applying changes from generated applications.
+type ApplicationSetIgnoreDifferences []ApplicationSetResourceIgnoreDifferences
+
+func (a ApplicationSetIgnoreDifferences) ToApplicationIgnoreDifferences() []ResourceIgnoreDifferences {
+	var result []ResourceIgnoreDifferences
+	for _, item := range a {
+		result = append(result, item.ToApplicationResourceIgnoreDifferences())
+	}
+	return result
+}
+
+// ApplicationSetResourceIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live
+// applications when applying changes from generated applications.
+type ApplicationSetResourceIgnoreDifferences struct {
+	// Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.
+	Name string `json:"name,omitempty" protobuf:"bytes,1,name=name"`
+	// JSONPointers is a list of JSON pointers to fields to ignore differences for.
+	JSONPointers []string `json:"jsonPointers,omitempty" protobuf:"bytes,2,name=jsonPointers"`
+	// JQPathExpressions is a list of JQ path expressions to fields to ignore differences for.
+	JQPathExpressions []string `json:"jqPathExpressions,omitempty" protobuf:"bytes,3,name=jqExpressions"`
+}
+
+func (a *ApplicationSetResourceIgnoreDifferences) ToApplicationResourceIgnoreDifferences() ResourceIgnoreDifferences {
+	return ResourceIgnoreDifferences{
+		Kind:              ApplicationSchemaGroupVersionKind.Kind,
+		Group:             ApplicationSchemaGroupVersionKind.Group,
+		Name:              a.Name,
+		JSONPointers:      a.JSONPointers,
+		JQPathExpressions: a.JQPathExpressions,
+	}
 }
 
 // ApplicationSetTemplate represents argocd ApplicationSpec
@@ -194,7 +230,7 @@ type ApplicationSetTerminalGenerator struct {
 	SCMProvider             *SCMProviderGenerator `json:"scmProvider,omitempty" protobuf:"bytes,4,name=scmProvider"`
 	ClusterDecisionResource *DuckTypeGenerator    `json:"clusterDecisionResource,omitempty" protobuf:"bytes,5,name=clusterDecisionResource"`
 	PullRequest             *PullRequestGenerator `json:"pullRequest,omitempty" protobuf:"bytes,6,name=pullRequest"`
-	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=pullRequest"`
+	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=plugin"`
 
 	// Selector allows to post-filter all generator.
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,8,name=selector"`
@@ -397,6 +433,22 @@ type SCMProviderGenerator struct {
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values        map[string]string                  `json:"values,omitempty" protobuf:"bytes,11,name=values"`
 	AWSCodeCommit *SCMProviderGeneratorAWSCodeCommit `json:"awsCodeCommit,omitempty" protobuf:"bytes,12,opt,name=awsCodeCommit"`
+	// If you add a new SCM provider, update CustomApiUrl below.
+}
+
+func (g *SCMProviderGenerator) CustomApiUrl() string {
+	if g.Github != nil {
+		return g.Github.API
+	} else if g.Gitlab != nil {
+		return g.Gitlab.API
+	} else if g.Gitea != nil {
+		return g.Gitea.API
+	} else if g.BitbucketServer != nil {
+		return g.BitbucketServer.API
+	} else if g.AzureDevOps != nil {
+		return g.AzureDevOps.API
+	}
+	return ""
 }
 
 // SCMProviderGeneratorGitea defines a connection info specific to Gitea.
@@ -539,6 +591,29 @@ type PullRequestGenerator struct {
 	Bitbucket           *PullRequestGeneratorBitbucket `json:"bitbucket,omitempty" protobuf:"bytes,8,opt,name=bitbucket"`
 	// Additional provider to use and config for it.
 	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,9,opt,name=azuredevops"`
+	// If you add a new SCM provider, update CustomApiUrl below.
+}
+
+func (p *PullRequestGenerator) CustomApiUrl() string {
+	if p.Github != nil {
+		return p.Github.API
+	}
+	if p.GitLab != nil {
+		return p.GitLab.API
+	}
+	if p.Gitea != nil {
+		return p.Gitea.API
+	}
+	if p.BitbucketServer != nil {
+		return p.BitbucketServer.API
+	}
+	if p.Bitbucket != nil {
+		return p.Bitbucket.API
+	}
+	if p.AzureDevOps != nil {
+		return p.AzureDevOps.API
+	}
+	return ""
 }
 
 // PullRequestGeneratorGitea defines connection info specific to Gitea.
