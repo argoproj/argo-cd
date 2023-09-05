@@ -1,4 +1,3 @@
-
 # Architectural Overview
 
 ![Argo CD Architecture](../assets/argocd_architecture.png)
