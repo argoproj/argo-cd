@@ -14,7 +14,15 @@ import (
 
 // Component names
 const (
-	ApplicationController = "argocd-application-controller"
+	ApplicationController    = "argocd-application-controller"
+	Server                   = "argocd-server"
+	RepoServer               = "argocd-repo-server"
+	CMPServer                = "argocd-cmp-server"
+	Dex                      = "argocd-dex"
+	Notifications            = "argocd-notifications"
+	GitAskPass               = "argocd-git-ask-pass"
+	ApplicationSetController = "argocd-applicationset-controller"
+	K8sAuth                  = "argocd-k8s-auth"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -116,6 +124,8 @@ const (
 	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
 	RoundRobinShardingAlgorithm = "round-robin"
 	DefaultShardingAlgorithm    = LegacyShardingAlgorithm
+	// AppControllerHeartbeatUpdateRetryCount is the retry count for updating the Shard Mapping to the Shard Mapping ConfigMap used by Application Controller
+	AppControllerHeartbeatUpdateRetryCount = 3
 )
 
 // Dex related constants

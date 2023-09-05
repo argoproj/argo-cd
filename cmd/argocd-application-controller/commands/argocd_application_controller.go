@@ -229,14 +229,14 @@ func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.Se
 		// check for shard mapping using configmap if application-controller is a deployment
 		// else use existing logic to infer shard from pod name if application-controller is a statefulset
 		if appControllerDeployment != nil {
-			retryCount := 3
 
 			var err error
 			// retry 3 times if we find a conflict while updating shard mapping configMap.
 			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
-			for i := 0; i <= retryCount; i++ {
-				shard, err = sharding.GetShardFromConfigMap(kubeClient, settingsMgr, replicas, shard)
+			for i := 0; i <= common.AppControllerHeartbeatUpdateRetryCount; i++ {
+				shard, err = sharding.GetOrUpdateShardFromConfigMap(kubeClient, settingsMgr, replicas, shard)
 				if !kubeerrors.IsConflict(err) {
+					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %s", err)
 					break
 				}
 				log.Warnf("conflict when getting shard from shard mapping configMap. Retrying (%d/3)", i)

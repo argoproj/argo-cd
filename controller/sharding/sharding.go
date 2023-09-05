@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	log "github.com/sirupsen/logrus"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Make it overridable for testing
@@ -187,12 +188,10 @@ func createClusterIndexByClusterIdMap(db db.ArgoDB) map[string]int {
 	return clusterIndexedByClusterId
 }
 
-/*
- * GetShardFromConfigMap finds the shard number from the shard mapping configmap. If the shard mapping configmap does not exist,
- * the function creates the shard mapping configmap. If the shard number is set as an environment variable for the application controller pod,
- * we use the shard number to update the mapping.
- */
-func GetShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, replicas, shard int) (int, error) {
+// GetOrUpdateShardFromConfigMap finds the shard number from the shard mapping configmap. If the shard mapping configmap does not exist,
+// the function creates the shard mapping configmap. If the shard number is set as an environment variable for the application controller pod,
+// we use the shard number to update the mapping else we set the shard as 0 to compute the default sharding config map.
+func GetOrUpdateShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, replicas, shard int) (int, error) {
 
 	hostname, err := osHostnameFunction()
 	if err != nil {
@@ -203,6 +202,9 @@ func GetShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settin
 	shardMappingCM, err := kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Get(context.Background(), common.ArgoCDAppControllerShardConfigMapName, metav1.GetOptions{})
 
 	if err != nil {
+		if !kubeerrors.IsNotFound(err) {
+			return -1, fmt.Errorf("error getting sharding config map: %s", err)
+		}
 		log.Infof("shard mapping configmap %s not found. Creating default shard mapping configmap.", common.ArgoCDAppControllerShardConfigMapName)
 
 		// if the shard is not set as an environment variable, set the default value of shard to 0 for generating default CM
@@ -238,7 +240,7 @@ func GetShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settin
 		if err != nil {
 			return -1, err
 		}
-		return shard, err
+		return shard, nil
 	}
 }
 

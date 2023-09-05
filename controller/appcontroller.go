@@ -60,6 +60,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -205,14 +206,17 @@ func NewApplicationController(
 
 	readinessHealthCheck := func(r *http.Request) error {
 		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
-		appControllerDeployment, _ := kubeClientset.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+		appControllerDeployment, err := kubeClientset.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+		if !kubeerrors.IsNotFound(err) {
+			return fmt.Errorf("error retrieving Application Controller Deployment: %s", err)
+		}
 		if appControllerDeployment != nil {
 			if appControllerDeployment.Spec.Replicas != nil && int(*appControllerDeployment.Spec.Replicas) <= 0 {
 				return fmt.Errorf("application controller deployment replicas is not set or is less than 0, replicas: %d", appControllerDeployment.Spec.Replicas)
 			}
 			shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
-			if _, err := sharding.GetShardFromConfigMap(kubeClientset.(*kubernetes.Clientset), settingsMgr, int(*appControllerDeployment.Spec.Replicas), shard); err != nil {
-				return err
+			if _, err := sharding.GetOrUpdateShardFromConfigMap(kubeClientset.(*kubernetes.Clientset), settingsMgr, int(*appControllerDeployment.Spec.Replicas), shard); err != nil {
+				return fmt.Errorf("error while updating the heartbeat for to the Shard Mapping ConfigMap: %s", err)
 			}
 		}
 		return nil
