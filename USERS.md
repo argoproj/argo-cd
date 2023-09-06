@@ -73,6 +73,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Devtron Labs](https://github.com/devtron-labs/devtron)
 1. [DigitalOcean](https://www.digitalocean.com)
 1. [Divistant](https://divistant.com)
+1. [Dott](https://ridedott.com)
 1. [Doximity](https://www.doximity.com/)
 1. [EDF Renewables](https://www.edf-re.com/)
 1. [edX](https://edx.org)
