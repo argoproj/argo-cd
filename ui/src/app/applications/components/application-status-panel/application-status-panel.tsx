@@ -63,6 +63,10 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
         showOperation = null;
     }
 
+    const extensions = services.extensions.getStatusBarExtensions();
+
+    console.log(`Extensions: ${extensions}`)
+
     const infos = cntByCategory.get('info');
     const warnings = cntByCategory.get('warning');
     const errors = cntByCategory.get('error');
@@ -203,6 +207,14 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     </React.Fragment>
                 )}
             </DataLoader>
+            {extensions && extensions.map(ext => (
+                <div className='application-status-panel__item' style={{position: 'relative'}}>
+                    {sectionLabel({
+                        title: ext.title.toLocaleUpperCase(),
+                    })}
+                    <ext.component />
+                </div>
+            ))}
         </div>
     );
 };

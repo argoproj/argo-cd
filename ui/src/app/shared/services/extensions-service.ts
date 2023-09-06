@@ -6,7 +6,8 @@ import {Application, ApplicationTree, State} from '../models';
 const extensions = {
     resourceExtentions: new Array<ResourceTabExtension>(),
     systemLevelExtensions: new Array<SystemLevelExtension>(),
-    appViewExtensions: new Array<AppViewExtension>()
+    appViewExtensions: new Array<AppViewExtension>(),
+    statusBarExtensions: new Array<StatusBarExtension>()
 };
 
 function registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string, opts?: {icon: string}) {
@@ -19,6 +20,10 @@ function registerSystemLevelExtension(component: ExtensionComponent, title: stri
 
 function registerAppViewExtension(component: ExtensionComponent, title: string, icon: string) {
     extensions.appViewExtensions.push({component, title, icon});
+}
+
+function registerStatusBarExtension(component: ExtensionComponent, title: string, icon: string) {
+    extensions.statusBarExtensions.push({component, title, icon});
 }
 
 let legacyInitialized = false;
@@ -56,9 +61,16 @@ export interface AppViewExtension {
     icon?: string;
 }
 
+export interface StatusBarExtension {
+    component: StatusBarExtensionComponent;
+    title: string;
+    icon?: string;
+}
+
 export type ExtensionComponent = React.ComponentType<ExtensionComponentProps>;
 export type SystemExtensionComponent = React.ComponentType;
 export type AppViewExtensionComponent = React.ComponentType<AppViewComponentProps>;
+export type StatusBarExtensionComponent = React.ComponentType;
 
 export interface Extension {
     component: ExtensionComponent;
@@ -89,6 +101,10 @@ export class ExtensionsService {
     public getAppViewExtensions(): AppViewExtension[] {
         return extensions.appViewExtensions.slice();
     }
+
+    public getStatusBarExtensions(): StatusBarExtension[] {
+        return extensions.statusBarExtensions.slice();
+    }
 }
 
 ((window: any) => {
@@ -97,6 +113,7 @@ export class ExtensionsService {
     window.extensionsAPI = {
         registerResourceExtension,
         registerSystemLevelExtension,
-        registerAppViewExtension
+        registerAppViewExtension,
+        registerStatusBarExtension
     };
 })(window);
