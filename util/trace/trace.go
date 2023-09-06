@@ -3,9 +3,11 @@ package trace
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -14,11 +16,23 @@ import (
 )
 
 // InitTracer initializes the trace provider and the otel grpc exporter.
-func InitTracer(ctx context.Context, serviceName, otlpAddress string) (func(), error) {
+func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpAttrs []string) (func(), error) {
+	attrs := make([]attribute.KeyValue, 0, len(otlpAttrs))
+	for i := range otlpAttrs {
+		attr := otlpAttrs[i]
+		slice := strings.Split(attr, ":")
+		if len(slice) != 2 {
+			log.Warnf("OTLP attr '%s' split with ':' length not 2", attr)
+			continue
+		}
+		attrs = append(attrs, attribute.String(slice[0], slice[1]))
+	}
+
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(serviceName),
 		),
+		resource.WithAttributes(attrs...),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create resource: %w", err)

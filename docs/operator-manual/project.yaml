@@ -91,3 +91,8 @@ spec:
   # scoped to this project. Set the following field to `true` to restrict apps in this cluster to only clusters
   # scoped to this project.
   permitOnlyProjectScopedClusters: false
+
+  # When using Applications-in-any-namespace, this field determines which namespaces this AppProject permits
+  # Applications to reside in. Details: https://argo-cd.readthedocs.io/en/stable/operator-manual/app-any-namespace/
+  sourceNamespaces:
+  - "argocd-apps-*"
