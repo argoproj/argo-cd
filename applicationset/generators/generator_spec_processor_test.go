@@ -515,7 +515,6 @@ func TestInterpolateGeneratorError(t *testing.T) {
 		want           argov1alpha1.ApplicationSetGenerator
 		expectedErrStr string
 	}{
-		//{{ index .registry_map (default .registry_override .jurisdiction) }}
 		{name: "Empty Gen", args: args{
 			requestedGenerator: nil,
 			params:             nil,
