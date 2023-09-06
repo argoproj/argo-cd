@@ -62,6 +62,11 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 		case kube.IngressKind:
 			populateIngressInfo(un, res)
 		}
+	case "traefik.containo.us":
+		switch gvk.Kind {
+		case "IngressRoute":
+			populateTraefikIngressRouteInfo(un, res)
+		}
 	case "networking.istio.io":
 		switch gvk.Kind {
 		case "VirtualService":
@@ -115,6 +120,11 @@ func getServiceName(backend map[string]interface{}, gvk schema.GroupVersionKind)
 			if service, ok, err := unstructured.NestedMap(backend, "service"); ok && err == nil {
 				return fmt.Sprintf("%s", service["name"]), nil
 			}
+		}
+	case "traefik.containo.us":
+		switch gvk.Version {
+		case "v1alpha1":
+			return fmt.Sprintf("%s", backend["name"]), nil
 		}
 	}
 	return "", errors.New("unable to resolve string")
@@ -224,6 +234,47 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		urls = append(urls, url)
 	}
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
+}
+
+func populateTraefikIngressRouteInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	targetsMap := make(map[v1alpha1.ResourceRef]bool)
+	gvk := un.GroupVersionKind()
+
+	if routes, ok, err := unstructured.NestedSlice(un.Object, "spec", "routes"); ok && err == nil {
+		for i := range routes {
+			route, ok := routes[i].(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			services, ok, err := unstructured.NestedSlice(route, "services")
+			if !ok || err != nil {
+				continue
+			}
+			for i := range services {
+				service, ok := services[i].(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				if serviceName, err := getServiceName(service, gvk); err == nil {
+					targetsMap[v1alpha1.ResourceRef{
+						Group:     "",
+						Kind:      kube.ServiceKind,
+						Namespace: un.GetNamespace(),
+						Name:      serviceName,
+					}] = true
+				}
+			}
+		}
+	}
+
+	targets := make([]v1alpha1.ResourceRef, 0)
+	for target := range targetsMap {
+		targets = append(targets, target)
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets}
 }
 
 func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
