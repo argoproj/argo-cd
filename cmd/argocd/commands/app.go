@@ -19,6 +19,8 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/fatih/color"
+	"github.com/gosuri/uitable"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
@@ -52,6 +54,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
+
+type void struct{}
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
 func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -259,6 +263,33 @@ func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
 	return true
 }
 
+func ParentChildDetails(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string) (mapUidToNode map[string]argoappv1.ResourceNode, mapParentToChild map[string][]string, parentNode map[string]void) {
+
+	mapUidToNode = make(map[string]argoappv1.ResourceNode)
+	mapParentToChild = make(map[string][]string)
+	parentNode = make(map[string]void)
+	var member void
+	resourceTree, err := appIf.ResourceTree(ctx, &application.ResourcesQuery{Name: &appName, AppNamespace: &appNs, ApplicationName: &appName})
+	errors.CheckError(err)
+
+	for _, node := range resourceTree.Nodes {
+		mapUidToNode[node.UID] = node
+
+		if len(node.ParentRefs) > 0 {
+			_, ok := mapParentToChild[node.ParentRefs[0].UID]
+			if !ok {
+				var temp []string
+				mapParentToChild[node.ParentRefs[0].UID] = temp
+			}
+			mapParentToChild[node.ParentRefs[0].UID] = append(mapParentToChild[node.ParentRefs[0].UID], node.UID)
+		} else {
+			parentNode[node.UID] = member
+		}
+
+	}
+	return
+}
+
 // NewApplicationGetCommand returns a new instance of an `argocd app get` command
 func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -268,12 +299,13 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		showParams    bool
 		showOperation bool
 	)
+
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
 		Short: "Get application details",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
-
+			output, _ = c.Flags().GetString("output")
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -283,11 +315,13 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			defer argoio.Close(conn)
 
 			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
 				Name:         &appName,
 				Refresh:      getRefreshType(refresh, hardRefresh),
 				AppNamespace: &appNs,
 			})
+
 			errors.CheckError(err)
 
 			pConn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
@@ -319,18 +353,28 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				if showParams {
 					printParams(app)
 				}
+
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 					printAppResources(w, app)
 					_ = w.Flush()
 				}
+			case "tree":
+				mapUidToNode, mapParentToChild, parentNode := ParentChildDetails(appIf, ctx, appName, appNs)
+				mapNodeNameToResourceState := make(map[string]*resourceState)
+				for _, res := range getResourceStates(app, nil) {
+					mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
+				}
+				if len(mapUidToNode) > 0 {
+					printTreeView(os.Stderr, mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
+				}
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree")
 	command.Flags().BoolVar(&showOperation, "show-operation", false, "Show application operation")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
@@ -1519,6 +1563,14 @@ func printAppResources(w io.Writer, app *argoappv1.Application) {
 	for _, res := range getResourceStates(app, nil) {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, res.Health, res.Hook, res.Message)
 	}
+}
+
+func printTreeView(w io.Writer, nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parent map[string]void, mapNodeNameToResourceState map[string]*resourceState) {
+	tbl := uitable.New()
+	tbl.Separator = "  "
+	tbl.AddRow("GROUP", "NAMESPACE", "KIND", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
+	treeView(tbl, nodeMapping, parentChildMapping, parent, mapNodeNameToResourceState)
+	fmt.Fprintln(color.Output, tbl)
 }
 
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
