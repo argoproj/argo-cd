@@ -17,7 +17,6 @@ import (
 	"sync"
 	"time"
 
-	timeutil "github.com/argoproj/pkg/time"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -39,6 +38,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/password"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
+	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
+	timeutil "github.com/argoproj/pkg/time"
 )
 
 // ArgoCDSettings holds in-memory runtime configuration options.
@@ -490,6 +491,10 @@ const (
 	// ResourceDeepLinks is the resource deep link key
 	ResourceDeepLinks = "resource.links"
 	extensionConfig   = "extension.config"
+	// RespectRBAC is the key to configure argocd to respect rbac while watching for resources
+	RespectRBAC            = "resource.respectRBAC"
+	RespectRBACValueStrict = "strict"
+	RespectRBACValueNormal = "normal"
 )
 
 var (
@@ -551,6 +556,24 @@ func (mgr *SettingsManager) onRepoOrClusterChanged() {
 	if mgr.reposOrClusterChanged != nil {
 		go mgr.reposOrClusterChanged()
 	}
+}
+
+func (mgr *SettingsManager) RespectRBAC() (int, error) {
+	cm, err := mgr.getConfigMap()
+	if err != nil {
+		return enginecache.RespectRbacDisabled, err
+	}
+	if cm.Data[RespectRBAC] != "" {
+		switch cm.Data[RespectRBAC] {
+		case RespectRBACValueNormal:
+			return enginecache.RespectRbacNormal, nil
+		case RespectRBACValueStrict:
+			return enginecache.RespectRbacStrict, nil
+		default:
+			return enginecache.RespectRbacDisabled, fmt.Errorf("invalid value for %s: %s", RespectRBAC, cm.Data[RespectRBAC])
+		}
+	}
+	return enginecache.RespectRbacDisabled, nil
 }
 
 func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
