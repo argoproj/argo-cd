@@ -361,6 +361,23 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					_ = w.Flush()
 				}
 			case "tree":
+				aURL := appURL(ctx, acdClient, app.Name)
+				printAppSummaryTable(app, aURL, windows)
+
+				if len(app.Status.Conditions) > 0 {
+					fmt.Println()
+					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+					printAppConditions(w, app)
+					_ = w.Flush()
+					fmt.Println()
+				}
+				if showOperation && app.Status.OperationState != nil {
+					fmt.Println()
+					printOperationResult(app.Status.OperationState)
+				}
+				if showParams {
+					printParams(app)
+				}
 				mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
 				mapNodeNameToResourceState := make(map[string]*resourceState)
 				for _, res := range getResourceStates(app, nil) {
