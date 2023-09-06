@@ -490,7 +490,7 @@ func (c *clusterCache) startMissingWatches() error {
 			c.apisMeta[api.GroupKind] = &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
 
 			err := c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
-				resourceVersion, err := c.loadInitialState(ctx, api, resClient, ns)
+				resourceVersion, err := c.loadInitialState(ctx, api, resClient, ns, false) // don't lock here, we are already in a lock before startMissingWatches is called inside watchEvents
 				if err != nil && c.isRestrictedResource(err) {
 					keep := false
 					if c.respectRBAC == RespectRbacStrict {
@@ -566,7 +566,7 @@ func (c *clusterCache) listResources(ctx context.Context, resClient dynamic.Reso
 	return resourceVersion, callback(listPager)
 }
 
-func (c *clusterCache) loadInitialState(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string) (string, error) {
+func (c *clusterCache) loadInitialState(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, lock bool) (string, error) {
 	return c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
 		var items []*Resource
 		err := listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
@@ -581,11 +581,15 @@ func (c *clusterCache) loadInitialState(ctx context.Context, api kube.APIResourc
 		if err != nil {
 			return fmt.Errorf("failed to load initial state of resource %s: %w", api.GroupKind.String(), err)
 		}
-
-		return runSynced(&c.lock, func() error {
+		if lock {
+			return runSynced(&c.lock, func() error {
+				c.replaceResourceCache(api.GroupKind, items, ns)
+				return nil
+			})
+		} else {
 			c.replaceResourceCache(api.GroupKind, items, ns)
 			return nil
-		})
+		}
 	})
 }
 
@@ -599,7 +603,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 
 		// load API initial state if no resource version provided
 		if resourceVersion == "" {
-			resourceVersion, err = c.loadInitialState(ctx, api, resClient, ns)
+			resourceVersion, err = c.loadInitialState(ctx, api, resClient, ns, true)
 			if err != nil {
 				return err
 			}
