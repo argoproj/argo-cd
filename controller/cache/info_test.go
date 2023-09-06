@@ -245,6 +245,23 @@ spec:
         - destination:
             host: service
 `)
+
+	testTraefikIngressRoute = strToUnstructured(`
+  apiVersion: traefik.containo.us/v1alpha1
+  kind: IngressRoute
+  metadata:
+    name: traefik-ingress
+    namespace: demo
+  spec:
+    entryPoints:
+    - web
+    routes:
+    - kind: Rule
+      match: Host(\"example.com\") || (Host(\"example.org\") && Path(\"/traefik\"))
+      services:
+      - name: test-svc
+        port: 80
+`)
 )
 
 func TestGetPodInfo(t *testing.T) {
@@ -350,6 +367,19 @@ func TestGetIstioVirtualServiceInfo(t *testing.T) {
 	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
 		Kind:      kube.ServiceKind,
 		Name:      "service",
+		Namespace: "demo",
+	})
+}
+
+func TestGetTraefikIngressRouteInfo(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testTraefikIngressRoute, info, []string{})
+	assert.Equal(t, 0, len(info.Info))
+	require.NotNil(t, info.NetworkingInfo)
+	require.NotNil(t, info.NetworkingInfo.TargetRefs)
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "test-svc",
 		Namespace: "demo",
 	})
 }
