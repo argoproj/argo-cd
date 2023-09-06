@@ -7,7 +7,7 @@ const extensions = {
     resourceExtentions: new Array<ResourceTabExtension>(),
     systemLevelExtensions: new Array<SystemLevelExtension>(),
     appViewExtensions: new Array<AppViewExtension>(),
-    statusBarExtensions: new Array<StatusBarExtension>()
+    statusPanelExtensions: new Array<StatusPanelExtension>()
 };
 
 function registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string, opts?: {icon: string}) {
@@ -22,8 +22,8 @@ function registerAppViewExtension(component: ExtensionComponent, title: string, 
     extensions.appViewExtensions.push({component, title, icon});
 }
 
-function registerStatusBarExtension(component: ExtensionComponent, title: string, icon: string) {
-    extensions.statusBarExtensions.push({component, title, icon});
+function registerStatusPanelExtension(component: ExtensionComponent, title: string, opts?: {helpContent: string}) {
+    extensions.statusPanelExtensions.push({component, title, helpContent: opts?.helpContent});
 }
 
 let legacyInitialized = false;
@@ -61,16 +61,16 @@ export interface AppViewExtension {
     icon?: string;
 }
 
-export interface StatusBarExtension {
-    component: StatusBarExtensionComponent;
+export interface StatusPanelExtension {
+    component: StatusPanelExtensionComponent;
     title: string;
-    icon?: string;
+    helpContent?: string;
 }
 
 export type ExtensionComponent = React.ComponentType<ExtensionComponentProps>;
 export type SystemExtensionComponent = React.ComponentType;
 export type AppViewExtensionComponent = React.ComponentType<AppViewComponentProps>;
-export type StatusBarExtensionComponent = React.ComponentType;
+export type StatusPanelExtensionComponent = React.ComponentType<StatusPanelComponentProps>;
 
 export interface Extension {
     component: ExtensionComponent;
@@ -85,6 +85,10 @@ export interface ExtensionComponentProps {
 export interface AppViewComponentProps {
     application: Application;
     tree: ApplicationTree;
+}
+
+export interface StatusPanelComponentProps {
+    application: Application;
 }
 
 export class ExtensionsService {
@@ -102,8 +106,8 @@ export class ExtensionsService {
         return extensions.appViewExtensions.slice();
     }
 
-    public getStatusBarExtensions(): StatusBarExtension[] {
-        return extensions.statusBarExtensions.slice();
+    public getStatusPanelExtensions(): StatusPanelExtension[] {
+        return extensions.statusPanelExtensions.slice();
     }
 }
 
@@ -114,6 +118,6 @@ export class ExtensionsService {
         registerResourceExtension,
         registerSystemLevelExtension,
         registerAppViewExtension,
-        registerStatusBarExtension
+        registerStatusBarExtension: registerStatusPanelExtension
     };
 })(window);

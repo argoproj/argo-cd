@@ -63,7 +63,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
         showOperation = null;
     }
 
-    const extensions = services.extensions.getStatusBarExtensions();
+    const extensions = services.extensions.getStatusPanelExtensions();
 
     console.log(`Extensions: ${extensions}`)
 
@@ -210,9 +210,10 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
             {extensions && extensions.map(ext => (
                 <div className='application-status-panel__item' style={{position: 'relative'}}>
                     {sectionLabel({
-                        title: ext.title.toLocaleUpperCase(),
+                        title: ext.title,
+                        helpContent: ext.helpContent
                     })}
-                    <ext.component />
+                    <ext.component application={application} />
                 </div>
             ))}
         </div>
