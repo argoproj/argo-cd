@@ -257,11 +257,16 @@ func populateTraefikIngressRouteInfo(un *unstructured.Unstructured, res *Resourc
 					continue
 				}
 
+				namespace, ok := service["namespace"].(string)
+				if !ok {
+					namespace = un.GetNamespace()
+				}
+
 				if serviceName, err := getServiceName(service, gvk); err == nil {
 					targetsMap[v1alpha1.ResourceRef{
 						Group:     "",
 						Kind:      kube.ServiceKind,
-						Namespace: un.GetNamespace(),
+						Namespace: namespace,
 						Name:      serviceName,
 					}] = true
 				}
