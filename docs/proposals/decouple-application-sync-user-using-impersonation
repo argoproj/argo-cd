@@ -258,6 +258,138 @@ spec:
     serviceAccountName: guestbook-deployer
 ```
 
+#### Example 3: Remote destination with cluster-admin access and using different service account for the sync operation
+
+- Install ArgoCD in the `argocd` namespace.
+```
+kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
+```
+- Enable the impersonation feature in ArgoCD.
+```
+kubectl set env statefulset/argocd-application-controller ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true
+```
+- Add the remote cluster as a destination to argocd
+```
+argocd cluster add remote-cluster --name remote-cluster
+```
+The above command would create a service account named `argocd-manager` in `kube-system` namespace and `ClusterRole` named `argocd-manager-role` with full cluster admin access and a `ClusterRoleBinding` named `argocd-manager-role-binding` mapping the `argocd-manager-role` to the service account `remote-cluster`
+
+- In the remote cluster, create a namespace called `guestbook` and a service account called `guestbook-deployer`.
+```
+kubectl ctx remote-cluster
+kubectl create namespace guestbook
+kubectl create serviceaccount guestbook-deployer
+```
+- In the remote cluster, create `Role` and `RoleBindings` and configure RBAC access for creating `Service` and `Deployment` objects in namespace `guestbook` for service account `guestbook-deployer`.
+
+```
+kubectl ctx remote-cluster
+kubectl create role guestbook-deployer-role --verb get,list,update,delete --resource pods,deployment,service
+kubectl create rolebinding guestbook-deployer-rb --serviceaccount guestbook-deployer --role guestbook-deployer-role
+```
+
+In this specific scenario, service account name `guestbook-deployer` will get used as it matches to the specific namespace `guestbook`.
+```
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  project: my-project
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: my-project
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Example Project
+  # Allow manifests to deploy from any Git repos
+  sourceRepos:
+  - '*'
+  destinations:
+  - namespace: guestbook
+    server: https://kubernetes.default.svc
+    serviceAccountName: guestbook-deployer
+```
+
+#### Example 4: Remote destination with cluster-admin access and using different service account for the sync operation
+
+- Install ArgoCD in the `argocd` namespace.
+```
+kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
+```
+- Enable the impersonation feature in ArgoCD.
+```
+kubectl set env statefulset/argocd-application-controller ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true
+```
+- In the remote cluster, create a service account called `argocd-admin`
+```
+kubectl ctx remote-cluster
+kubectl create serviceaccount argocd-admin
+kubectl create clusterrole argocd-admin-role --verb=impersonate --resource="users,groups"
+kubectl create clusterrole argocd-admin-role --verb=create --resource="selfsubjectaccessreviews"
+kubectl create clusterrolebinding --serviceaccount argocd-admin --clusterrole  argocd-admin-role
+```
+
+- In the remote cluster, create a namespace called `guestbook` and a service account called `guestbook-deployer`.
+```
+kubectl ctx remote-cluster
+kubectl create namespace guestbook
+kubectl create serviceaccount guestbook-deployer
+```
+
+- In the remote cluster, create `Role` and `RoleBindings` and configure RBAC access for creating `Service` and `Deployment` objects in namespace `guestbook` for service account `guestbook-deployer`.
+```
+kubectl create role guestbook-deployer-role --verb get,list,update,delete --resource pods,deployment,service
+kubectl create rolebinding guestbook-deployer-rb --serviceaccount guestbook-deployer --role guestbook-deployer-role
+```
+
+In this specific scenario, service account name `guestbook-deployer` will get used as it matches to the specific namespace `guestbook`.
+```
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  project: my-project
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: my-project
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Example Project
+  # Allow manifests to deploy from any Git repos
+  sourceRepos:
+  - '*'
+  destinations:
+  - namespace: guestbook
+    server: https://kubernetes.default.svc
+    serviceAccountName: guestbook-deployer
+```
+
 ### Security Considerations
 
 * How does this proposal impact the security aspects of Argo CD workloads ?
