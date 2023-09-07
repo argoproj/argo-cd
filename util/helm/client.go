@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"io"
 	"net/http"
 	"net/url"
@@ -23,7 +24,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/cache"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
@@ -51,7 +51,7 @@ type indexCache interface {
 
 type Client interface {
 	CleanChartCache(chart string, version string) error
-	ExtractChart(chart string, version string, passCredentials bool) (string, argoio.Closer, error)
+	ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
 	GetIndex(noCache bool) (*Index, error)
 	GetTags(chart string, noCache bool) (*TagsList, error)
 	TestHelmOCI() (bool, error)
@@ -121,7 +121,21 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
 	return os.RemoveAll(cachePath)
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool) (string, argoio.Closer, error) {
+func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) error {
+	if disableManifestMaxExtractedSize {
+		cmd := exec.Command("tar", "-zxvf", cachedChartPath)
+		cmd.Dir = tempDir
+		_, err := executil.Run(cmd)
+		return err
+	}
+	reader, err := os.Open(cachedChartPath)
+	if err != nil {
+		return err
+	}
+	return files.Untgz(tempDir, reader, manifestMaxExtractedSize, false)
+}
+
+func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
 	helmCmd, err := NewCmdWithVersion("", HelmV3, c.enableOci, c.proxy)
 
@@ -195,15 +209,14 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 		if len(infos) != 1 {
 			return "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
 		}
+
 		err = os.Rename(filepath.Join(tempDest, infos[0].Name()), cachedChartPath)
 		if err != nil {
 			return "", nil, err
 		}
 	}
 
-	cmd := exec.Command("tar", "-zxvf", cachedChartPath)
-	cmd.Dir = tempDir
-	_, err = executil.Run(cmd)
+	err = untarChart(tempDir, cachedChartPath, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	if err != nil {
 		_ = os.RemoveAll(tempDir)
 		return "", nil, err
