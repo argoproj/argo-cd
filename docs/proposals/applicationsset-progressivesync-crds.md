@@ -23,7 +23,8 @@ last-updated: 2023-09-07
 
 Add a way to define a sync strategy that can be reused across multiple ApplicationSets.
 
-This was discussed in https://github.com/argoproj/argo-cd/issues/14458
+This was discussed in https://github.com/argoproj/argo-cd/issues/14458 and in the comments of the original progressive sync proposal: https://github.com/argoproj/argo-cd/pull/9979
+
 And a PR implementing what is discussed here was opened here: https://github.com/argoproj/argo-cd/pull/15313
 
 ## Motivation
@@ -33,9 +34,11 @@ The RollingSync strategy for Progressive Sync requires the steps to be defined i
 ### Goals
 
 - Possibility to define a sync strategy for multiple ApplicationSets
+- Reduce duplication in ApplicationSets
 
 ### Non-Goals
 
+- Make progressive sync a stable feature
 
 ## Proposal
 
@@ -182,6 +185,7 @@ There should not be any follow-up work required.
 
 ### Risks and Mitigations
 
+I can't think of any risks related to this feature.
 
 ### Upgrade / Downgrade Strategy
 
