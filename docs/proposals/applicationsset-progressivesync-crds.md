@@ -15,13 +15,16 @@ last-updated: 2023-09-07
 
 # SyncStragy CRDs for ApplicationSet progressive sync
 
-## Open Questions [optional]
+## Open Questions 
 
 - Should we find a way to make these CRDs opt-in instead of being bundled with the main CRDs? These CRDs will only be used for the progressive sync feature which is used by a minority of ArgoCD users as of now.
 
 ## Summary
 
 Add a way to define a sync strategy that can be reused across multiple ApplicationSets.
+
+This was discussed in https://github.com/argoproj/argo-cd/issues/14458
+And a PR implementing what is discussed here was opened here: https://github.com/argoproj/argo-cd/pull/15313
 
 ## Motivation
 
@@ -95,14 +98,6 @@ As a team managing multiple applicationsets, I would like be able to define a co
 #### Use case 2:
 As an organization or a group of team, I want to be able to define a default common sync strategy for all applicationsets for that group. This would reove the need to duplicate a strategy across multiple namespaces and would allow easier changes to the general strategy.
 
-### Implementation Details/Notes/Constraints [optional]
-
-What are the caveats to the implementation? What are some important details that didn't come across
-above. Go in to as much detail as necessary here. This might be a good place to talk about core
-concepts and how they relate.
-
-You may have a work-in-progress Pull Request to demonstrate the functioning of the enhancement you are proposing.
-
 ### Detailed examples
 
 Using a SyncStrategy in an ApplicationSet:
@@ -173,6 +168,8 @@ spec:
         namespace: guestbook
 ```
 
+The usage of the `ClusterSyncStrategy` is the same, with the exception of having to replace the `kind` with `ClusterSyncStrategy`.
+
 ### Security Considerations
 
 * How does this proposal impact the security aspects of Argo CD workloads ?
@@ -181,21 +178,16 @@ I'm not sure I see a possible security issue with this proposal other than if th
 
 * Are there any unresolved follow-ups that need to be done to make the enhancement more robust ?
 
+There should not be any follow-up work required.
+
 ### Risks and Mitigations
-
-What are the risks of this proposal and how do we mitigate. Think broadly.
-
-For example, consider
-both security and how this will impact the larger Kubernetes ecosystem.
-
-Consider including folks that also work outside your immediate sub-project.
 
 
 ### Upgrade / Downgrade Strategy
 
-Apart from the new CRDs that will be installed, the upgrade will be transparent, ApplicationSets that define an inline strategy will still work and have priority. There will be no change of behavior, the only change will be the possibility to use the CRDs and the new `strategyRef` field
+Apart from the new CRDs that will be installed, the upgrade will be transparent, ApplicationSets that define an inline strategy will still work and have priority. There will be no change of behavior, the only change will be the possibility to use the CRDs and the new `strategyRef` field.
 
-For a downgrade, if the new `strategyRef` field is used, it will stop working with the old CRDs so it will need to be removed. If it is not used, the downgrad will be transparent
+For a downgrade, if the new `strategyRef` field is used, it will stop working with the old CRDs so it will need to be removed. If it is not used, the downgrade will be transparent.
 
 ## Drawbacks
 
