@@ -65,6 +65,8 @@ func NewCommand() *cobra.Command {
 		allowOutOfBoundsSymlinks          bool
 		streamedManifestMaxTarSize        string
 		streamedManifestMaxExtractedSize  string
+		helmManifestMaxExtractedSize      string
+		disableManifestMaxExtractedSize   bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -103,6 +105,9 @@ func NewCommand() *cobra.Command {
 			streamedManifestMaxExtractedSizeQuantity, err := resource.ParseQuantity(streamedManifestMaxExtractedSize)
 			errors.CheckError(err)
 
+			helmManifestMaxExtractedSizeQuantity, err := resource.ParseQuantity(helmManifestMaxExtractedSize)
+			errors.CheckError(err)
+
 			askPassServer := askpass.NewServer()
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer)
@@ -117,6 +122,7 @@ func NewCommand() *cobra.Command {
 				AllowOutOfBoundsSymlinks:                     allowOutOfBoundsSymlinks,
 				StreamedManifestMaxExtractedSize:             streamedManifestMaxExtractedSizeQuantity.ToDec().Value(),
 				StreamedManifestMaxTarSize:                   streamedManifestMaxTarSizeQuantity.ToDec().Value(),
+				HelmManifestMaxExtractedSize:                 helmManifestMaxExtractedSizeQuantity.ToDec().Value(),
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -197,6 +203,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&allowOutOfBoundsSymlinks, "allow-oob-symlinks", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS", false), "Allow out-of-bounds symlinks in repositories (not recommended)")
 	command.Flags().StringVar(&streamedManifestMaxTarSize, "streamed-manifest-max-tar-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE", "100M"), "Maximum size of streamed manifest archives")
 	command.Flags().StringVar(&streamedManifestMaxExtractedSize, "streamed-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of streamed manifest archives when extracted")
+	command.Flags().StringVar(&helmManifestMaxExtractedSize, "helm-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of helm manifest archives when extracted")
+	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
