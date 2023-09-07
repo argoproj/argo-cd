@@ -19,7 +19,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/fatih/color"
 	"github.com/gosuri/uitable"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/mattn/go-isatty"
@@ -273,6 +272,7 @@ func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.
 	errors.CheckError(err)
 
 	for _, node := range resourceTree.Nodes {
+
 		mapUidToNode[node.UID] = node
 
 		if len(node.ParentRefs) > 0 {
@@ -1583,11 +1583,12 @@ func printAppResources(w io.Writer, app *argoappv1.Application) {
 }
 
 func printTreeView(w io.Writer, nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parent map[string]void, mapNodeNameToResourceState map[string]*resourceState) {
+	w = os.Stdout
 	tbl := uitable.New()
 	tbl.Separator = "  "
 	tbl.AddRow("GROUP", "NAMESPACE", "KIND", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
 	treeView(tbl, nodeMapping, parentChildMapping, parent, mapNodeNameToResourceState)
-	fmt.Fprintln(color.Output, tbl)
+	fmt.Fprintln(w, tbl)
 }
 
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
