@@ -178,12 +178,10 @@ func (rt *resourceTracking) BuildAppInstanceValue(value AppInstanceValue) string
 // ParseAppInstanceValue parse resource tracking id from format <application-name>:<group>/<kind>:<namespace>/<name> to struct
 func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceValue, error) {
 	var appInstanceValue AppInstanceValue
-	parts := strings.Split(value, ":")
+	parts := strings.SplitN(value, ":", 3)
 	appInstanceValue.ApplicationName = parts[0]
 	if len(parts) < 2 {
 		return nil, WrongResourceTrackingFormat
-	} else if len(parts) > 3 {
-		parts = []string{parts[0], parts[1], strings.Join(parts[2:], ":")}
 	}
 	groupParts := strings.Split(parts[1], "/")
 	if len(groupParts) != 2 {
