@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"testing"
@@ -117,7 +116,6 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 }
 
 func TestPrintTreeView(t *testing.T) {
-	var buf bytes.Buffer
 	var nodes [3]v1alpha1.ResourceNode
 	nodes[0].ResourceRef = v1alpha1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5-6trpt", UID: "92c3a5fe-d13e-4ae2-b8ec-c10dd3543b28"}
 	nodes[0].ParentRefs = []v1alpha1.ResourceRef{{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}}
@@ -145,7 +143,7 @@ func TestPrintTreeView(t *testing.T) {
 	}
 
 	output, _ := captureOutput(func() error {
-		printTreeView(&buf, nodeMapping, mapParentToChild, parentNode, nil)
+		printTreeView(nodeMapping, mapParentToChild, parentNode, nil)
 		return nil
 	})
 

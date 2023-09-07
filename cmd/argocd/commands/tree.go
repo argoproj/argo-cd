@@ -20,15 +20,7 @@ var (
 	gray = color.New(color.FgHiBlack)
 )
 
-// treeView prints object hierarchy to out stream.
-func treeView(tbl *uitable.Table, objs map[string]v1alpha1.ResourceNode, obj map[string][]string, parentNodes map[string]void, mapNodeNameToResourceState map[string]*resourceState) {
-	for uid := range parentNodes {
-		treeViewInner("", tbl, objs, obj, objs[uid], mapNodeNameToResourceState)
-	}
-
-}
-
-func treeViewInner(prefix string, tbl *uitable.Table, objs map[string]v1alpha1.ResourceNode, obj map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState) {
+func treeViewInnerGet(prefix string, tbl *uitable.Table, objs map[string]v1alpha1.ResourceNode, obj map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState) {
 	if mapNodeNameToResourceState[parent.Kind+"/"+parent.Name] != nil {
 		value := mapNodeNameToResourceState[parent.Kind+"/"+parent.Name]
 
@@ -61,7 +53,7 @@ func treeViewInner(prefix string, tbl *uitable.Table, objs map[string]v1alpha1.R
 		default:
 			p = prefix + firstElemPrefix
 		}
-		treeViewInner(p, tbl, objs, obj, objs[child], mapNodeNameToResourceState)
+		treeViewInnerGet(p, tbl, objs, obj, objs[child], mapNodeNameToResourceState)
 	}
 
 }

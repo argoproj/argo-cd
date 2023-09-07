@@ -384,7 +384,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
 				}
 				if len(mapUidToNode) > 0 {
-					printTreeView(os.Stderr, mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
+					printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 				}
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
@@ -1582,12 +1582,14 @@ func printAppResources(w io.Writer, app *argoappv1.Application) {
 	}
 }
 
-func printTreeView(w io.Writer, nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parent map[string]void, mapNodeNameToResourceState map[string]*resourceState) {
-	w = os.Stdout
+func printTreeView(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]void, mapNodeNameToResourceState map[string]*resourceState) {
+	w := os.Stdout
 	tbl := uitable.New()
 	tbl.Separator = "  "
 	tbl.AddRow("GROUP", "NAMESPACE", "KIND", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
-	treeView(tbl, nodeMapping, parentChildMapping, parent, mapNodeNameToResourceState)
+	for uid := range parentNodes {
+		treeViewInnerGet("", tbl, nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState)
+	}
 	fmt.Fprintln(w, tbl)
 }
 
