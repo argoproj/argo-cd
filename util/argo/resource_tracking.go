@@ -180,7 +180,7 @@ func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceVal
 	var appInstanceValue AppInstanceValue
 	parts := strings.SplitN(value, ":", 3)
 	appInstanceValue.ApplicationName = parts[0]
-	if len(parts) < 2 {
+	if len(parts) != 3 {
 		return nil, WrongResourceTrackingFormat
 	}
 	groupParts := strings.Split(parts[1], "/")
