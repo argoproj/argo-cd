@@ -58,10 +58,6 @@ const (
 	//   https://github.com/argoproj-labs/argocd-notifications/blob/33d345fa838829bb50fca5c08523aba380d2c12b/pkg/controller/state.go#L17
 	NotifiedAnnotationKey             = "notified.notifications.argoproj.io"
 	ReconcileRequeueOnValidationError = time.Minute * 3
-
-	// LabelKeyAppSetInstance is the label key to use to uniquely identify the apps of an applicationset
-	// The ArgoCD applicationset name is used as the instance name
-	LabelKeyAppSetInstance = "argocd.argoproj.io/application-set-name"
 )
 
 var (
@@ -516,10 +512,6 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 
 		for _, a := range t {
 			tmplApplication := getTempApplication(a.Template)
-			if tmplApplication.Labels == nil {
-				tmplApplication.Labels = make(map[string]string)
-			}
-			tmplApplication.Labels[LabelKeyAppSetInstance] = applicationSetInfo.Name
 
 			for _, p := range a.Params {
 				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
