@@ -157,12 +157,14 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// appSyncMap tracks which apps will be synced during this reconciliation.
 	appSyncMap := map[string]bool{}
 
-	strategy, err := r.getApplicationSetStrategySpec(ctx, &applicationSetInfo)
-	if err != nil {
-		log.Errorf("failed to get application set syncstrategy: %v", err)
-	}
+	var strategy *argov1alpha1.SyncStrategySpec
 
 	if r.EnableProgressiveSyncs {
+		strategy, err := r.getApplicationSetStrategySpec(ctx, &applicationSetInfo)
+		if err != nil {
+			log.Errorf("failed to get application set syncstrategy: %v", err)
+		}
+
 		if strategy == nil && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
 			log.Infof("Removing %v unnecessary AppStatus entries from ApplicationSet %v", len(applicationSetInfo.Status.ApplicationStatus), applicationSetInfo.Name)
 
