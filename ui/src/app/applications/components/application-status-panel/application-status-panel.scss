@@ -6,10 +6,6 @@
     color: $argo-color-gray-4;
 }
 
-.neutral {
-    color: #5da0db
-}
-
 @mixin responsive-widths {
     @include breakpoint(large up) {
         max-width: 250px;

@@ -208,13 +208,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                 )}
             </DataLoader>
             {extensions && extensions.map(ext => (
-                <div className='application-status-panel__item' style={{position: 'relative'}}>
-                    {sectionLabel({
-                        title: ext.title,
-                        helpContent: ext.helpContent
-                    })}
-                    <ext.component application={application} />
-                </div>
+                <ext.component application={application} />
             ))}
         </div>
     );
