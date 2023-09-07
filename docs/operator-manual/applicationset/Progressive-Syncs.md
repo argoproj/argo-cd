@@ -105,7 +105,7 @@ spec:
       source:
         repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
-  `      path: guestbook/{{.cluster}}
+         path: guestbook/{{.cluster}}
       destination:
         server: '{{.url}}'
         namespace: guestbook
@@ -188,7 +188,7 @@ spec:
       source:
         repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
-  `      path: guestbook/{{.cluster}}
+         path: guestbook/{{.cluster}}
       destination:
         server: '{{.url}}'
         namespace: guestbook
@@ -261,7 +261,7 @@ spec:
       source:
         repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
-  `      path: guestbook/{{.cluster}}
+         path: guestbook/{{.cluster}}
       destination:
         server: '{{.url}}'
         namespace: guestbook
