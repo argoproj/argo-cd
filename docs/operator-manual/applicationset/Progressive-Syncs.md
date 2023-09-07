@@ -118,6 +118,8 @@ CRDs are available to define strategies that can be reused in multiple Applicati
 - SyncStrategy (namespaced)
 - ClusterSyncStrategy (cluster-wide)
 
+If both the `strategy` and `strategyRef` fields are specified, `strategy` will take precedence and `strategyRef` will be ignored.
+
 #### SyncStrategy (namespaced)
 
 SyncStrategy is the namespaced version of the CRD. It must exist in the same namespace as the ApplicationSet referring to it.
