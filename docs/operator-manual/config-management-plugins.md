@@ -1,3 +1,4 @@
+
 # Config Management Plugins
 
 Argo CD's "native" config management tools are Helm, Jsonnet, and Kustomize. If you want to use a different config
@@ -334,6 +335,7 @@ If you are actively developing a sidecar-installed CMP, keep a few things in min
 
 ### Other Common Errors
 | Error Message | Cause |
+| -- | -- |
 | `no matches for kind "ConfigManagementPlugin" in version "argoproj.io/v1alpha1"` | The `ConfigManagementPlugin` CRD was deprecated in Argo CD 2.4 and removed in 2.8. This error means you've tried to put the configuration for your plugin directly into Kubernetes as a CRD. Refer to this [section of documentation](#write-the-plugin-configuration-file) for how to write the plugin configuration file and place it properly in the sidecar. |
 
 ## Plugin tar stream exclusions
