@@ -2131,6 +2131,18 @@ spec:
               key: reposerver.streamed.manifest.max.extracted.size
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.helm.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.disable.helm.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_GIT_MODULES_ENABLED
           valueFrom:
             configMapKeyRef:
