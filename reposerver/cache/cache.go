@@ -135,18 +135,18 @@ func clusterRuntimeInfoKeyUnhashed(info ClusterRuntimeInfo) string {
 	return info.GetKubeVersion() + "|" + strings.Join(apiVersions, ",")
 }
 
-func listApps(repoURL, revision string) string {
+func listAppsKey(repoURL, revision string) string {
 	return fmt.Sprintf("ldir|%s|%s", repoURL, revision)
 }
 
 func (c *Cache) ListApps(repoUrl, revision string) (map[string]string, error) {
 	res := make(map[string]string)
-	err := c.cache.GetItem(listApps(repoUrl, revision), &res)
+	err := c.cache.GetItem(listAppsKey(repoUrl, revision), &res)
 	return res, err
 }
 
 func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error {
-	return c.cache.SetItem(listApps(repoUrl, revision), apps, c.repoCacheExpiration, apps == nil)
+	return c.cache.SetItem(listAppsKey(repoUrl, revision), apps, c.repoCacheExpiration, apps == nil)
 }
 
 func helmIndexRefsKey(repo string) string {

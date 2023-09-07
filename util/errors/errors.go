@@ -4,6 +4,8 @@ import (
 	"os"
 
 	log "github.com/sirupsen/logrus"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 )
 
 const (
@@ -49,4 +51,14 @@ func Fatalf(exitcode int, format string, args ...interface{}) {
 	}
 	log.RegisterExitHandler(exitfunc)
 	log.Fatalf(format, args...)
+}
+
+func IsRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	return apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
+		apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err)
+
 }

@@ -27,12 +27,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	utilnet "k8s.io/apimachinery/pkg/util/net"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
@@ -108,21 +107,14 @@ type runOpts struct {
 }
 
 var (
-	maxAttemptsCount = 1
+	maxAttemptsCount int64
 	maxRetryDuration time.Duration
 	retryDuration    time.Duration
 	factor           int64
 )
 
 func init() {
-	if countStr := os.Getenv(common.EnvGitAttemptsCount); countStr != "" {
-		if cnt, err := strconv.Atoi(countStr); err != nil {
-			panic(fmt.Sprintf("Invalid value in %s env variable: %v", common.EnvGitAttemptsCount, err))
-		} else {
-			maxAttemptsCount = int(math.Max(float64(cnt), 1))
-		}
-	}
-
+	maxAttemptsCount = env.ParseInt64FromEnv(common.EnvGitAttemptsCount, 1, 1, math.MaxInt64)
 	maxRetryDuration = env.ParseDurationFromEnv(common.EnvGitRetryMaxDuration, common.DefaultGitRetryMaxDuration, 0, math.MaxInt64)
 	retryDuration = env.ParseDurationFromEnv(common.EnvGitRetryDuration, common.DefaultGitRetryDuration, 0, math.MaxInt64)
 	factor = env.ParseInt64FromEnv(common.EnvGitRetryFactor, common.DefaultGitRetryFactor, 0, math.MaxInt64)
@@ -545,12 +537,11 @@ func (m *nativeGitClient) LsRefs() (*Refs, error) {
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
 func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
-	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
+	for attempt := 0; attempt < int(maxAttemptsCount); attempt++ {
 		res, err = m.lsRemote(revision)
 		if err == nil {
 			return
-		} else if apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
-			apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err) {
+		} else if errors.IsRetryableError(err) {
 			// Formula: timeToWait = duration * factor^retry_number
 			// Note that timeToWait should equal to duration for the first retry attempt.
 			// When timeToWait is more than maxDuration retry should be performed at maxDuration.
@@ -589,7 +580,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		if ref.Type() == plumbing.HashReference {
 			refToHash[refName] = hash
 		}
-		//log.Debugf("%s\t%s", hash, refName)
+		// log.Debugf("%s\t%s", hash, refName)
 		if ref.Name().Short() == revision || refName == revision {
 			if ref.Type() == plumbing.HashReference {
 				log.Debugf("revision '%s' resolved to '%s'", revision, hash)

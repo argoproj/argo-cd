@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +24,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	argoioutils "github.com/argoproj/argo-cd/v2/util/io"
 )
 
@@ -44,13 +44,7 @@ const (
 )
 
 func init() {
-	githubAppCredsExp := common.GithubAppCredsExpirationDuration
-	if exp := os.Getenv(common.EnvGithubAppCredsExpirationDuration); exp != "" {
-		if qps, err := strconv.Atoi(exp); err != nil {
-			githubAppCredsExp = time.Duration(qps) * time.Minute
-		}
-	}
-
+	githubAppCredsExp := env.ParseDurationFromEnv(common.EnvGithubAppCredsExpirationDuration, common.GithubAppCredsExpirationDuration, 1*time.Hour, 24*time.Hour)
 	githubAppTokenCache = gocache.New(githubAppCredsExp, 1*time.Minute)
 	// oauth2.TokenSource handles fetching new Tokens once they are expired. The oauth2.TokenSource itself does not expire.
 	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
