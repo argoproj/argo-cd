@@ -169,7 +169,12 @@ p, role:staging-db-admin, projects, get, staging-db-project, allow
 g, db-admins, role:staging-db-admin
 ```
 
-This example defines a *role* called `staging-db-admin` with *nine permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, `get` logs, `create` exec and `get` appprojects) against `*` (all) objects in the `staging-db-project` Argo CD `AppProject`.
+This example defines a *role* called `staging-db-admin` with nine *permissions* that allow users with that role to perform the following *actions*:
+
+* `create`, `delete`, `get`, `override`, `sync` and `update` for applications in the `staging-db-project` project,
+* `get` logs for objects in the `staging-db-project` project,
+* `create` exec for objects in the `staging-db-project` project, and
+* `get` for the project named `staging-db-project`.
 
 !!! note
     The `scopes` field controls which OIDC scopes to examine during rbac
