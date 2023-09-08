@@ -1803,6 +1803,12 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool,
 	return retryAfter <= 0, retryAfter
 }
 
+// isAppNamespaceAllowed returns whether the application is allowed in the
+// namespace it's residing in.
+func (ctrl *ApplicationController) isAppNamespaceAllowed(app *appv1.Application) bool {
+	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false)
+}
+
 func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 	app, ok := obj.(*appv1.Application)
 	if !ok {
@@ -1811,7 +1817,7 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 
 	// Only process given app if it exists in a watched namespace, or in the
 	// control plane's namespace.
-	if app.Namespace != ctrl.namespace && !glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
+	if !ctrl.isAppNamespaceAllowed(app) {
 		return false
 	}
 
@@ -1862,7 +1868,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 				newItems := []appv1.Application{}
 				for _, app := range appList.Items {
-					if ctrl.namespace == app.Namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
+					if ctrl.isAppNamespaceAllowed(&app) {
 						newItems = append(newItems, app)
 					}
 				}
@@ -1879,6 +1885,14 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
 				app, ok := obj.(*appv1.Application)
 				if ok {
+					// If the application is not allowed to use the project,
+					// log an error.
+					if ctrl.isAppNamespaceAllowed(app) {
+						if _, err := ctrl.getAppProj(app); err != nil {
+							ctrl.setAppCondition(app, ctrl.projectErrorToCondition(err, app))
+						}
+					}
+
 					// This call to 'ValidateDestination' ensures that the .spec.destination field of all Applications
 					// returned by the informer/lister will have server field set (if not already set) based on the name.
 					// (or, if not found, an error app condition)
@@ -1889,11 +1903,6 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
 					}
 
-					// If the application is not allowed to use the project,
-					// log an error.
-					if _, err := ctrl.getAppProj(app); err != nil {
-						ctrl.setAppCondition(app, ctrl.projectErrorToCondition(err, app))
-					}
 				}
 
 				return cache.MetaNamespaceIndexFunc(obj)
@@ -1901,6 +1910,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			orphanedIndex: func(obj interface{}) (i []string, e error) {
 				app, ok := obj.(*appv1.Application)
 				if !ok {
+					return nil, nil
+				}
+
+				if !ctrl.isAppNamespaceAllowed(app) {
 					return nil, nil
 				}
 
