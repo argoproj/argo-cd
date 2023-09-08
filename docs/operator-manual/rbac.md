@@ -101,11 +101,11 @@ p, role:extension, extensions, invoke, httpbin, allow
 
 Explanation:
 
-- *line1*: defines the group `role:extension` associated with the
+* *line1*: defines the group `role:extension` associated with the
   subject `ext`.
-- *line2*: defines a policy allowing this role to read (`get`) the
+* *line2*: defines a policy allowing this role to read (`get`) the
   `httpbin-app` application in the `default` project.
-- *line3*: defines another policy allowing this role to `invoke` the
+* *line3*: defines another policy allowing this role to `invoke` the
   `httpbin` extension.
 
 **Note 1**: that for extensions requests to be allowed, the policy defined
