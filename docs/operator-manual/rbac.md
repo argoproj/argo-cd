@@ -281,13 +281,16 @@ Given the example from the above ConfigMap, which defines the role
 `role:org-admin`, and is stored on your local system as `argocd-rbac-cm-yaml`,
 you can test whether that role can do something like follows:
 
-```shell
+```console
 $ argocd admin settings rbac can role:org-admin get applications --policy-file argocd-rbac-cm.yaml
 Yes
+
 $ argocd admin settings rbac can role:org-admin get clusters --policy-file argocd-rbac-cm.yaml
 Yes
+
 $ argocd admin settings rbac can role:org-admin create clusters 'somecluster' --policy-file argocd-rbac-cm.yaml
 No
+
 $ argocd admin settings rbac can role:org-admin create applications 'someproj/someapp' --policy-file argocd-rbac-cm.yaml
 Yes
 ```
@@ -298,21 +301,23 @@ Policy is stored locally as `policy.csv`:
 
 You can test against the role:
 
-```shell
-# Plain policy, without a default role defined
+```console
+$ # Plain policy, without a default role defined
 $ argocd admin settings rbac can role:staging-db-admin get applications --policy-file policy.csv
 No
+
 $ argocd admin settings rbac can role:staging-db-admin get applications 'staging-db-project/*' --policy-file policy.csv
 Yes
-# Argo CD augments a builtin policy with two roles defined, the default role
-# being 'role:readonly' - You can include a named default role to use:
+
+$ # Argo CD augments a builtin policy with two roles defined, the default role
+$ # being 'role:readonly' - You can include a named default role to use:
 $ argocd admin settings rbac can role:staging-db-admin get applications --policy-file policy.csv --default-role role:readonly
 Yes
 ```
 
 Or against the group defined:
 
-```shell
+```console
 $ argocd admin settings rbac can db-admins get applications 'staging-db-project/*' --policy-file policy.csv
 Yes
 ```
