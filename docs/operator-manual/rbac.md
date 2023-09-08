@@ -157,19 +157,19 @@ data:
 Another `policy.csv` example might look as follows:
 
 ```csv
-p, role:staging-db-admins, applications, create, staging-db-project/*, allow
-p, role:staging-db-admins, applications, delete, staging-db-project/*, allow
-p, role:staging-db-admins, applications, get, staging-db-project/*, allow
-p, role:staging-db-admins, applications, override, staging-db-project/*, allow
-p, role:staging-db-admins, applications, sync, staging-db-project/*, allow
-p, role:staging-db-admins, applications, update, staging-db-project/*, allow
-p, role:staging-db-admins, logs, get, staging-db-project/*, allow
-p, role:staging-db-admins, exec, create, staging-db-project/*, allow
-p, role:staging-db-admins, projects, get, staging-db-project, allow
-g, db-admins, role:staging-db-admins
+p, role:staging-db-admin, applications, create, staging-db-project/*, allow
+p, role:staging-db-admin, applications, delete, staging-db-project/*, allow
+p, role:staging-db-admin, applications, get, staging-db-project/*, allow
+p, role:staging-db-admin, applications, override, staging-db-project/*, allow
+p, role:staging-db-admin, applications, sync, staging-db-project/*, allow
+p, role:staging-db-admin, applications, update, staging-db-project/*, allow
+p, role:staging-db-admin, logs, get, staging-db-project/*, allow
+p, role:staging-db-admin, exec, create, staging-db-project/*, allow
+p, role:staging-db-admin, projects, get, staging-db-project, allow
+g, db-admins, role:staging-db-admin
 ```
 
-This example defines a *role* called `staging-db-admins` with *nine permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, `get` logs, `create` exec and `get` appprojects) against `*` (all) objects in the `staging-db-project` Argo CD AppProject.
+This example defines a *role* called `staging-db-admin` with *nine permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, `get` logs, `create` exec and `get` appprojects) against `*` (all) objects in the `staging-db-project` Argo CD AppProject.
 
 !!! note
     The `scopes` field controls which OIDC scopes to examine during rbac
@@ -293,20 +293,20 @@ Yes
 ```
 
 Another example,  given the policy above from `policy.csv`, which defines the
-role `role:staging-db-admins` and associates the group `db-admins` with it.
+role `role:staging-db-admin` and associates the group `db-admins` with it.
 Policy is stored locally as `policy.csv`:
 
 You can test against the role:
 
 ```shell
 # Plain policy, without a default role defined
-$ argocd admin settings rbac can role:staging-db-admins get applications --policy-file policy.csv
+$ argocd admin settings rbac can role:staging-db-admin get applications --policy-file policy.csv
 No
-$ argocd admin settings rbac can role:staging-db-admins get applications 'staging-db-project/*' --policy-file policy.csv
+$ argocd admin settings rbac can role:staging-db-admin get applications 'staging-db-project/*' --policy-file policy.csv
 Yes
 # Argo CD augments a builtin policy with two roles defined, the default role
 # being 'role:readonly' - You can include a named default role to use:
-$ argocd admin settings rbac can role:staging-db-admins get applications --policy-file policy.csv --default-role role:readonly
+$ argocd admin settings rbac can role:staging-db-admin get applications --policy-file policy.csv --default-role role:readonly
 Yes
 ```
 
