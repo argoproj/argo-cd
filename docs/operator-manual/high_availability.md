@@ -112,6 +112,18 @@ stringData:
 
 * `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` - environment variable that enables collecting RPC performance metrics. Enable it if you need to troubleshoot performance issues. Note: This metric is expensive to both query and store!
 
+* `ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` - environment variable controlling the number of pages the controller
+  buffers in memory when performing a list operation against the K8s api server while syncing the cluster cache. This
+  is useful when the cluster contains a large number of resources and cluster sync times exceed the default etcd
+  compaction interval timeout. In this scenario, when attempting to sync the cluster cache, the application controller
+  may throw an error that the `continue parameter is too old to display a consistent list result`. Setting a higher
+  value for this environment variable configures the controller with a larger buffer in which to store pre-fetched
+  pages which are processed asynchronously, increasing the likelihood that all pages have been pulled before the etcd
+  compaction interval timeout expires. In the most extreme case, operators can set this value such that
+  `ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE * ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` exceeds the largest resource
+  count (grouped by k8s api version, the granule of parallelism for list operations). In this case, all resources will
+  be buffered in memory -- no api server request will be blocked by processing.
+
 **metrics**
 
 * `argocd_app_reconcile` - reports application reconciliation duration. Can be used to build reconciliation duration heat map to get a high-level reconciliation performance picture.
