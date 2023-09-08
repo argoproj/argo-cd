@@ -58,7 +58,7 @@ func treeViewAppResourcesOrphaned(prefix string, tbl *uitable.Table, objs map[st
 		default:
 			p = prefix + firstElemPrefix
 		}
-		treeViewAppResourcesNotOrphaned(p, tbl, objs, obj, objs[child])
+		treeViewAppResourcesOrphaned(p, tbl, objs, obj, objs[child])
 	}
 }
 
