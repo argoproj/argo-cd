@@ -22,7 +22,6 @@ func TestPrintTreeViewAppResources(t *testing.T) {
 
 	for _, node := range nodes {
 		nodeMapping[node.UID] = node
-
 		if len(node.ParentRefs) > 0 {
 			_, ok := mapParentToChild[node.ParentRefs[0].UID]
 			if !ok {
