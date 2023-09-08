@@ -22,7 +22,7 @@ Breaking down the permissions definition differs slightly between applications a
 
     `p, <role/user/group>, <resource>, <action>, <object>`
 
-* Applications, applicationsets, logs, and exec (which belong to an AppProject):
+* Applications, applicationsets, logs, and exec (which belong to an `AppProject`):
 
     `p, <role/user/group>, <resource>, <action>, <appproject>/<object>`
 
@@ -169,7 +169,7 @@ p, role:staging-db-admin, projects, get, staging-db-project, allow
 g, db-admins, role:staging-db-admin
 ```
 
-This example defines a *role* called `staging-db-admin` with *nine permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, `get` logs, `create` exec and `get` appprojects) against `*` (all) objects in the `staging-db-project` Argo CD AppProject.
+This example defines a *role* called `staging-db-admin` with *nine permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, `get` logs, `create` exec and `get` appprojects) against `*` (all) objects in the `staging-db-project` Argo CD `AppProject`.
 
 !!! note
     The `scopes` field controls which OIDC scopes to examine during rbac
