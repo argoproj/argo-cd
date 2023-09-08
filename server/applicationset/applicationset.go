@@ -113,7 +113,9 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 		return nil, fmt.Errorf("error parsing the selector: %w", err)
 	}
 
-	appIf := s.appclientset.ArgoprojV1alpha1().ApplicationSets(q.AppsetNamespace)
+	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
+
+	appIf := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace)
 	appsetList, err := appIf.List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return nil, fmt.Errorf("error listing ApplicationSets with selectors: %w", err)
