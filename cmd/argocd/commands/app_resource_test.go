@@ -42,7 +42,6 @@ func TestPrintTreeViewAppResources(t *testing.T) {
 
 	assert.Contains(t, output, "Rollout")
 	assert.Contains(t, output, "argoproj.io")
-
 }
 
 func TestPrintResourcesTree(t *testing.T) {
