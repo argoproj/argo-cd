@@ -2,7 +2,7 @@
 
 The RBAC feature enables restriction of access to Argo CD resources. Argo CD does not have its own
 user management system and has only one built-in user `admin`. The `admin` user is a superuser and
-it has unrestricted access to the system. RBAC requires [SSO configuration](user-management/index.md) or [one or more local users setup](user-management/index.md). 
+it has unrestricted access to the system. RBAC requires [SSO configuration](user-management/index.md) or [one or more local users setup](user-management/index.md).
 Once SSO or local users are configured, additional RBAC roles can be defined, and SSO groups or local users can then be mapped to roles.
 
 ## Basic Built-in Roles
@@ -59,7 +59,7 @@ also use glob patterns in the action path: `action/*` (or regex patterns if you 
 
 #### The `exec` resource
 
-`exec` is a special resource. When enabled with the `create` action, this privilege allows a user to `exec` into Pods via 
+`exec` is a special resource. When enabled with the `create` action, this privilege allows a user to `exec` into Pods via
 the Argo CD UI. The functionality is similar to `kubectl exec`.
 
 See [Web-based Terminal](web_based_terminal.md) for more info.
@@ -68,7 +68,7 @@ See [Web-based Terminal](web_based_terminal.md) for more info.
 
 [ApplicationSets](applicationset/index.md) provide a declarative way to automatically create/update/delete Applications.
 
-Granting `applicationsets, create` effectively grants the ability to create Applications. While it doesn't allow the 
+Granting `applicationsets, create` effectively grants the ability to create Applications. While it doesn't allow the
 user to create Applications directly, they can create Applications via an ApplicationSet.
 
 In v2.5, it is not possible to create an ApplicationSet with a templated Project field (e.g. `project: {{path.basename}}`)
@@ -109,11 +109,11 @@ Explanation:
   `httpbin` extension.
 
 **Note 1**: that for extensions requests to be allowed, the policy defined
-in the *line2* is also required. 
+in the *line2* is also required.
 
 **Note 2**: `invoke` is a new action introduced specifically to be used
 with the `extensions` resource. The current actions for `extensions`
-are `*` or `invoke`. 
+are `*` or `invoke`.
 
 ## Tying It All Together
 
@@ -123,7 +123,7 @@ configures a custom role, named `org-admin`. The role is assigned to any user wh
 which cannot modify Argo CD settings.
 
 !!! warning
-    All authenticated users get _at least_ the permissions granted by the default policy. This access cannot be blocked 
+    All authenticated users get _at least_ the permissions granted by the default policy. This access cannot be blocked
     by a `deny` rule. Instead, restrict the default policy and then grant permissions to individual roles as needed.
 
 *ArgoCD ConfigMap `argocd-rbac-cm` Example:*
