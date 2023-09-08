@@ -338,8 +338,9 @@ kubectl set env statefulset/argocd-application-controller ARGOCD_APPLICATION_CON
 kubectl ctx remote-cluster
 kubectl create serviceaccount argocd-admin
 kubectl create clusterrole argocd-admin-role --verb=impersonate --resource="users,groups"
-kubectl create clusterrole argocd-admin-role --verb=create --resource="selfsubjectaccessreviews"
-kubectl create clusterrolebinding --serviceaccount argocd-admin --clusterrole  argocd-admin-role
+kubectl create clusterrole argocd-admin-role-access-review --verb=create --resource="selfsubjectaccessreviews"
+kubectl create clusterrolebinding argocd-admin-role-binding --serviceaccount argocd-admin --clusterrole  argocd-admin-role
+kubectl create clusterrolebinding argocd-admin-access-review-role-binding --serviceaccount argocd-admin --clusterrole  argocd-admin-role
 ```
 
 - In the remote cluster, create a namespace called `guestbook` and a service account called `guestbook-deployer`.
