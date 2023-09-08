@@ -123,7 +123,7 @@ configures a custom role, named `org-admin`. The role is assigned to any user wh
 which cannot modify Argo CD settings.
 
 !!! warning
-    All authenticated users get _at least_ the permissions granted by the default policy. This access cannot be blocked
+    All authenticated users get *at least* the permissions granted by the default policy. This access cannot be blocked
     by a `deny` rule. Instead, restrict the default policy and then grant permissions to individual roles as needed.
 
 *ArgoCD ConfigMap `argocd-rbac-cm` Example:*
