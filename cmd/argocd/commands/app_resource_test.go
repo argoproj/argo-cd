@@ -33,10 +33,8 @@ func TestPrintTreeViewAppResources(t *testing.T) {
 		}
 	}
 
-	output, _ := captureOutput(func() error {
-		printTreeViewAppResourcesOrphaned(nodeMapping, mapParentToChild, parentNode, false, false, tbl)
-		return nil
-	})
+	printTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, false, false, tbl)
+	output := tbl.String()
 
 	assert.Contains(t, output, "Rollout")
 	assert.Contains(t, output, "argoproj.io")

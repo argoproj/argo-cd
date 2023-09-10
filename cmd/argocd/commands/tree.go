@@ -47,7 +47,7 @@ func treeViewAppResourcesOrphaned(prefix string, tbl *uitable.Table, objs map[st
 		gray.Sprint(printPrefix(prefix)),
 		parent.Kind,
 		color.New(color.Bold).Sprint(parent.Name)),
-		"No")
+		"Yes")
 
 	chs := obj[parent.UID]
 	for i, child := range chs {
@@ -63,7 +63,6 @@ func treeViewAppResourcesOrphaned(prefix string, tbl *uitable.Table, objs map[st
 }
 
 func printPrefix(p string) string {
-	// this part is hacky af
 	if strings.HasSuffix(p, firstElemPrefix) {
 		p = strings.Replace(p, firstElemPrefix, pipe, strings.Count(p, firstElemPrefix)-1)
 	} else {

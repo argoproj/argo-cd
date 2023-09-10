@@ -158,19 +158,16 @@ func tableConfig() (tbl *uitable.Table) {
 }
 
 func printTreeViewAppResourcesNotOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, tbl *uitable.Table) {
-	w := os.Stdout
 	for uid := range parentNodes {
 		treeViewAppResourcesNotOrphaned("", tbl, nodeMapping, parentChildMapping, nodeMapping[uid])
 	}
-	fmt.Fprintln(w, tbl)
+
 }
 
 func printTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, tbl *uitable.Table) {
-	w := os.Stdout
 	for uid := range parentNodes {
 		treeViewAppResourcesOrphaned("", tbl, nodeMapping, parentChildMapping, nodeMapping[uid])
 	}
-	fmt.Fprintln(w, tbl)
 }
 
 func parentChildDetails(nodes []v1alpha1.ResourceNode) (mapUidToNode map[string]v1alpha1.ResourceNode, mapParentToChild map[string][]string, parentNode map[string]struct{}) {
@@ -179,7 +176,6 @@ func parentChildDetails(nodes []v1alpha1.ResourceNode) (mapUidToNode map[string]
 	parentNode = make(map[string]struct{})
 
 	for _, node := range nodes {
-
 		mapUidToNode[node.UID] = node
 
 		if len(node.ParentRefs) > 0 {
@@ -192,17 +188,16 @@ func parentChildDetails(nodes []v1alpha1.ResourceNode) (mapUidToNode map[string]
 		} else {
 			parentNode[node.UID] = struct{}{}
 		}
-
 	}
 	return
 }
 
 func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.ApplicationTree, output string) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-
 	if output == "tree" {
+		w := os.Stdout
 		tbl := tableConfig()
 		tbl.AddRow("GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED")
+
 		if !orphaned || listAll {
 			mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appResourceTree.Nodes)
 			printTreeViewAppResourcesNotOrphaned(mapUidToNode, mapParentToChild, parentNode, orphaned, listAll, tbl)
@@ -213,7 +208,10 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 			printTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, orphaned, listAll, tbl)
 		}
 
+		fmt.Fprintln(w, tbl)
+
 	} else {
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
 		fmtStr := "%s\t%s\t%s\t%s\t%s\n"
 		_, _ = fmt.Fprintf(w, fmtStr, headers...)
@@ -229,8 +227,9 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 				_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "Yes")
 			}
 		}
+		_ = w.Flush()
 	}
-	_ = w.Flush()
+
 }
 
 func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
