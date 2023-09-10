@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,6 +22,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
 
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
 
 	"github.com/argoproj/argo-cd/v2/util/db/mocks"
@@ -716,6 +720,146 @@ func Test_getMaxConcurrentAppRefreshOrDefault(t *testing.T) {
 			t.Parallel()
 			res := getMaxConcurrentAppRefreshOrDefault(testCopy.set)
 			assert.Equal(t, res, testCopy.expected)
+		})
+	}
+}
+
+func populateCache(a *ArgoCDWebhookHandler, revision string, app v1alpha1.Application) {
+	var clusterInfo v1alpha1.ClusterInfo
+	a.serverCache.SetClusterInfo(app.Spec.Destination.Server, &clusterInfo)
+	fakeManifestResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}}
+	cachedManifests := cache.CachedManifestResponse{
+		CacheEntryHash:   app.GetName(),
+		ManifestResponse: fakeManifestResponse,
+	}
+	source := app.Spec.GetSource()
+	refSources, _ := argo.GetRefSources(context.Background(), app.Spec, a.db)
+	a.repoCache.SetManifests(revision, &source,
+		refSources, &clusterInfo, "argocd", string(argo.TrackingMethodLabel),
+		common.LabelKeyAppInstance, app.GetName(), &cachedManifests, nil)
+}
+
+func Test_refreshChangedAppOrStoreCachedManifests(t *testing.T) {
+	fakeOldRev := "fb81885d143ab7da038e3e4d3e792fe20f75c1e9"
+	fakeNewRev := "be2e98524d382426e06c78ba94aaef8bde250b33"
+	fakeChgInfo := changeInfo{shaBefore: fakeOldRev, shaAfter: fakeNewRev}
+	fakeDest := v1alpha1.ApplicationDestination{Server: "kubernetes.svc.cluster.local", Namespace: "argocd"}
+	fakeRepoURL := "https://provider.com/project/some-repo"
+	fakeDefaultSrc := &v1alpha1.ApplicationSource{RepoURL: fakeRepoURL, Path: ".", TargetRevision: "master"}
+	tests := []struct {
+		name                         string
+		app                          *v1alpha1.Application
+		revision                     string
+		changedFiles                 []string
+		expectedRefreshAnnotationVal string
+		expectCacheCalled            bool
+	}{
+		{
+			"should refresh app",
+			&v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "app-to-refresh",
+					Namespace:   "argocd",
+					Labels:      map[string]string{common.LabelKeyAppInstance: "app-to-refresh"},
+					Annotations: map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "./some-dir"},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Source:      fakeDefaultSrc,
+					Destination: fakeDest,
+				},
+			},
+			"master",
+			[]string{"./some-dir/file.yaml"},
+			"normal",
+			false,
+		},
+		{
+			"should skip refresh when push to different branch",
+			&v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "app-to-skip-refresh",
+					Namespace:   "argocd",
+					Labels:      map[string]string{common.LabelKeyAppInstance: "app-to-refresh"},
+					Annotations: map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "./some-dir"},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Source:      fakeDefaultSrc,
+					Destination: fakeDest,
+				},
+			},
+			"different_branch",
+			[]string{"./some-dir/file.yaml"},
+			"",
+			false,
+		},
+		{
+			"should skip refresh for app with different repo",
+			&v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app-to-ignore",
+					Namespace: "argocd",
+					Labels:    map[string]string{common.LabelKeyAppInstance: "app-to-ignore"},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://provider.com/project/ignored-repo",
+						Path:           ".",
+						TargetRevision: "master",
+					},
+					Destination: fakeDest,
+				},
+			},
+			"master",
+			[]string{"some-dir/file.yaml"},
+			"",
+			false,
+		},
+		{
+			"should skip refresh and cache new revision",
+			&v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "app-to-cache",
+					Namespace:   "argocd",
+					Labels:      map[string]string{common.LabelKeyAppInstance: "app-to-cache"},
+					Annotations: map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "./some-dir"},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Source:      fakeDefaultSrc,
+					Destination: fakeDest,
+				},
+			},
+			"master",
+			[]string{"other-dir/file.yaml"},
+			"",
+			true,
+		},
+	}
+	for _, testCase := range tests {
+		tc := testCase
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			a := NewMockHandler(nil, []string{"argocd"}, tc.app)
+			populateCache(a, fakeOldRev, *tc.app)
+			repoRegexp, err := getWebUrlRegex(fakeRepoURL)
+			assert.NoError(t, err)
+			touchedHead := true // doesn't really matter in this test as we use master, just mandatory for the function
+			a.refreshChangedAppOrStoreCachedManifests(*tc.app, tc.revision, touchedHead, fakeRepoURL,
+				repoRegexp, tc.changedFiles, fakeChgInfo, string(argo.TrackingMethodLabel), common.LabelKeyAppInstance)
+			refreshApp, err := a.appClientset.ArgoprojV1alpha1().Applications("argocd").Get(
+				context.Background(), tc.app.GetName(), metav1.GetOptions{})
+			assert.NoError(t, err)
+			refresh := refreshApp.Annotations[v1alpha1.AnnotationKeyRefresh]
+			assert.Equal(t, refresh, tc.expectedRefreshAnnotationVal)
+
+			// we assume cache will miss if only the webhook's refreshApp is called,
+			// as application-controller would set the cache normally, but does not happen in this test
+			var clusterInfo v1alpha1.ClusterInfo
+			a.serverCache.GetClusterInfo(tc.app.Spec.Destination.Server, &clusterInfo)
+			err = a.repoCache.GetManifests(fakeNewRev, tc.app.Spec.Source, v1alpha1.RefTargetRevisionMapping{},
+				&clusterInfo, "argocd", string(argo.TrackingMethodLabel), common.LabelKeyAppInstance, tc.app.GetName(),
+				&cache.CachedManifestResponse{CacheEntryHash: tc.app.GetName()}, nil)
+			// cache hits only if webhook handler sets the cache
+			assert.Equal(t, tc.expectCacheCalled, err == nil)
 		})
 	}
 }
