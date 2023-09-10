@@ -20,7 +20,7 @@ var (
 	gray = color.New(color.FgHiBlack)
 )
 
-func treeViewInnerGet(prefix string, tbl *uitable.Table, objs map[string]v1alpha1.ResourceNode, obj map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState) {
+func treeViewAppGet(prefix string, tbl *uitable.Table, objs map[string]v1alpha1.ResourceNode, obj map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState) {
 	if mapNodeNameToResourceState[parent.Kind+"/"+parent.Name] != nil {
 		value := mapNodeNameToResourceState[parent.Kind+"/"+parent.Name]
 
@@ -43,7 +43,6 @@ func treeViewInnerGet(prefix string, tbl *uitable.Table, objs map[string]v1alpha
 			"")
 
 	}
-
 	chs := obj[parent.UID]
 	for i, child := range chs {
 		var p string
@@ -53,13 +52,13 @@ func treeViewInnerGet(prefix string, tbl *uitable.Table, objs map[string]v1alpha
 		default:
 			p = prefix + firstElemPrefix
 		}
-		treeViewInnerGet(p, tbl, objs, obj, objs[child], mapNodeNameToResourceState)
+		treeViewAppGet(p, tbl, objs, obj, objs[child], mapNodeNameToResourceState)
 	}
 
 }
 
 func printPrefix(p string) string {
-	// this part is hacky af
+
 	if strings.HasSuffix(p, firstElemPrefix) {
 		p = strings.Replace(p, firstElemPrefix, pipe, strings.Count(p, firstElemPrefix)-1)
 	} else {

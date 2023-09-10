@@ -54,8 +54,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
-type void struct{}
-
 // NewApplicationCommand returns a new instance of an `argocd app` command
 func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
@@ -262,12 +260,12 @@ func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
 	return true
 }
 
-func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string) (mapUidToNode map[string]argoappv1.ResourceNode, mapParentToChild map[string][]string, parentNode map[string]void) {
+func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string) (mapUidToNode map[string]argoappv1.ResourceNode, mapParentToChild map[string][]string, parentNode map[string]struct{}) {
 
 	mapUidToNode = make(map[string]argoappv1.ResourceNode)
 	mapParentToChild = make(map[string][]string)
-	parentNode = make(map[string]void)
-	var member void
+	parentNode = make(map[string]struct{})
+
 	resourceTree, err := appIf.ResourceTree(ctx, &application.ResourcesQuery{Name: &appName, AppNamespace: &appNs, ApplicationName: &appName})
 	errors.CheckError(err)
 
@@ -283,7 +281,7 @@ func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.
 			}
 			mapParentToChild[node.ParentRefs[0].UID] = append(mapParentToChild[node.ParentRefs[0].UID], node.UID)
 		} else {
-			parentNode[node.UID] = member
+			parentNode[node.UID] = struct{}{}
 		}
 
 	}
@@ -1582,13 +1580,18 @@ func printAppResources(w io.Writer, app *argoappv1.Application) {
 	}
 }
 
-func printTreeView(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]void, mapNodeNameToResourceState map[string]*resourceState) {
+func tableConfig() (tbl *uitable.Table) {
+	tbl = uitable.New()
+	tbl.Separator = " "
+	return
+}
+
+func printTreeView(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState) {
 	w := os.Stdout
-	tbl := uitable.New()
-	tbl.Separator = "  "
+	tbl := tableConfig()
 	tbl.AddRow("GROUP", "NAMESPACE", "KIND", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
 	for uid := range parentNodes {
-		treeViewInnerGet("", tbl, nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState)
+		treeViewAppGet("", tbl, nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState)
 	}
 	fmt.Fprintln(w, tbl)
 }
