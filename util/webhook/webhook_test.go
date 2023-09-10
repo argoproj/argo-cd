@@ -724,9 +724,11 @@ func Test_getMaxConcurrentAppRefreshOrDefault(t *testing.T) {
 	}
 }
 
-func populateCache(a *ArgoCDWebhookHandler, revision string, app v1alpha1.Application) {
+func populateCache(t *testing.T, a *ArgoCDWebhookHandler, revision string, app v1alpha1.Application) {
 	var clusterInfo v1alpha1.ClusterInfo
-	a.serverCache.SetClusterInfo(app.Spec.Destination.Server, &clusterInfo)
+	if err := a.serverCache.SetClusterInfo(app.Spec.Destination.Server, &clusterInfo); err != nil {
+		t.Fatal(err)
+	}
 	fakeManifestResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}}
 	cachedManifests := cache.CachedManifestResponse{
 		CacheEntryHash:   app.GetName(),
@@ -734,9 +736,11 @@ func populateCache(a *ArgoCDWebhookHandler, revision string, app v1alpha1.Applic
 	}
 	source := app.Spec.GetSource()
 	refSources, _ := argo.GetRefSources(context.Background(), app.Spec, a.db)
-	a.repoCache.SetManifests(revision, &source,
-		refSources, &clusterInfo, "argocd", string(argo.TrackingMethodLabel),
+	err := a.repoCache.SetManifests(revision, &source, refSources, &clusterInfo, "argocd", string(argo.TrackingMethodLabel),
 		common.LabelKeyAppInstance, app.GetName(), &cachedManifests, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func Test_refreshChangedAppOrStoreCachedManifests(t *testing.T) {
@@ -839,7 +843,7 @@ func Test_refreshChangedAppOrStoreCachedManifests(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			a := NewMockHandler(nil, []string{"argocd"}, tc.app)
-			populateCache(a, fakeOldRev, *tc.app)
+			populateCache(t, a, fakeOldRev, *tc.app)
 			repoRegexp, err := getWebUrlRegex(fakeRepoURL)
 			assert.NoError(t, err)
 			touchedHead := true // doesn't really matter in this test as we use master, just mandatory for the function
@@ -854,10 +858,11 @@ func Test_refreshChangedAppOrStoreCachedManifests(t *testing.T) {
 			// we assume cache will miss if only the webhook's refreshApp is called,
 			// as application-controller would set the cache normally, but does not happen in this test
 			var clusterInfo v1alpha1.ClusterInfo
-			a.serverCache.GetClusterInfo(tc.app.Spec.Destination.Server, &clusterInfo)
-			err = a.repoCache.GetManifests(fakeNewRev, tc.app.Spec.Source, v1alpha1.RefTargetRevisionMapping{},
-				&clusterInfo, "argocd", string(argo.TrackingMethodLabel), common.LabelKeyAppInstance, tc.app.GetName(),
-				&cache.CachedManifestResponse{CacheEntryHash: tc.app.GetName()}, nil)
+			if err := a.serverCache.GetClusterInfo(tc.app.Spec.Destination.Server, &clusterInfo); err != nil {
+				t.Fatal(err)
+			}
+			err = a.repoCache.GetManifests(fakeNewRev, tc.app.Spec.Source, v1alpha1.RefTargetRevisionMapping{}, &clusterInfo, "argocd", string(argo.TrackingMethodLabel),
+				common.LabelKeyAppInstance, tc.app.GetName(), &cache.CachedManifestResponse{CacheEntryHash: tc.app.GetName()}, nil)
 			// cache hits only if webhook handler sets the cache
 			assert.Equal(t, tc.expectCacheCalled, err == nil)
 		})
