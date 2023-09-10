@@ -16,7 +16,7 @@ func TestTreeViewAppGetDetailed(t *testing.T) {
 	var child v1alpha1.ResourceNode
 	child.ResourceRef = v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}
 	child.ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
-
+	child.Health = &v1alpha1.HealthStatus{Status: "Degraded", Message: "Readiness Gate failed"}
 	objs["75c30dce-1b66-414f-a86c-573a74be0f40"] = child
 
 	childMapping := make(map[string][]string)
@@ -35,7 +35,7 @@ func TestTreeViewAppGetDetailed(t *testing.T) {
 
 	tbl := uitable.New()
 
-	treeViewAppGetDetailed("", tbl, objs, childMapping, parent, stateMap)
+	detailedTreeViewAppGet("", tbl, objs, childMapping, parent, stateMap)
 
 	output := tbl.String()
 
@@ -45,6 +45,8 @@ func TestTreeViewAppGetDetailed(t *testing.T) {
 	assert.Contains(t, output, "Healthy")
 	assert.Contains(t, output, "No Issues")
 	assert.Contains(t, output, "argoproj.io")
+	assert.Contains(t, output, "Degraded")
+	assert.Contains(t, output, "Readiness Gate failed")
 }
 
 func TestPrintPrefix(t *testing.T) {

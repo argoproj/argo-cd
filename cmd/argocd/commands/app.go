@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/mattn/go-isatty"
 	"io"
 	"os"
 	"reflect"
@@ -14,6 +13,8 @@ import (
 	"text/tabwriter"
 	"time"
 	"unicode/utf8"
+
+	"github.com/mattn/go-isatty"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -1591,7 +1592,7 @@ func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parent
 	tbl := tableConfig()
 	tbl.AddRow("GROUP", "NAMESPACE", "KIND", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE", "RESOURCE STATUS", "REASON", "AGE")
 	for uid := range parentNodes {
-		treeViewAppGetDetailed("", tbl, nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState)
+		detailedTreeViewAppGet("", tbl, nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState)
 	}
 	fmt.Fprintln(w, tbl)
 }

@@ -34,7 +34,7 @@ func extractHealthStatusAndReason(node v1alpha1.ResourceNode) (healthStatus heal
 	return
 }
 
-func treeViewAppGetDetailed(prefix string, tbl *uitable.Table, objs map[string]v1alpha1.ResourceNode, obj map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState) {
+func detailedTreeViewAppGet(prefix string, tbl *uitable.Table, objs map[string]v1alpha1.ResourceNode, obj map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState) {
 	healthStatus, reason := extractHealthStatusAndReason(parent)
 
 	var readyColor *color.Color
@@ -89,7 +89,7 @@ func treeViewAppGetDetailed(prefix string, tbl *uitable.Table, objs map[string]v
 		default:
 			p = prefix + firstElemPrefix
 		}
-		treeViewAppGetDetailed(p, tbl, objs, obj, objs[child], mapNodeNameToResourceState)
+		detailedTreeViewAppGet(p, tbl, objs, obj, objs[child], mapNodeNameToResourceState)
 	}
 
 }
