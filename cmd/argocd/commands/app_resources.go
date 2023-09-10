@@ -25,8 +25,6 @@ import (
 	"text/tabwriter"
 )
 
-type void struct{}
-
 func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var patch string
 	var patchType string
@@ -153,33 +151,33 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	return command
 }
 
-func printTreeViewAppResourcesNotOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]void, orphaned bool, listAll bool) {
-	w := os.Stdout
-	tbl := uitable.New()
+func tableConfig() (tbl *uitable.Table) {
+	tbl = uitable.New()
 	tbl.Separator = "  "
-	tbl.AddRow("GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED")
+	return
+}
+
+func printTreeViewAppResourcesNotOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, tbl *uitable.Table) {
+	w := os.Stdout
 	for uid := range parentNodes {
 		treeViewAppResourcesNotOrphaned("", tbl, nodeMapping, parentChildMapping, nodeMapping[uid])
 	}
 	fmt.Fprintln(w, tbl)
 }
 
-func printTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]void, orphaned bool, listAll bool) {
+func printTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, tbl *uitable.Table) {
 	w := os.Stdout
-	tbl := uitable.New()
-	tbl.Separator = "  "
-	tbl.AddRow("GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED")
 	for uid := range parentNodes {
 		treeViewAppResourcesOrphaned("", tbl, nodeMapping, parentChildMapping, nodeMapping[uid])
 	}
 	fmt.Fprintln(w, tbl)
 }
 
-func parentChildDetails(nodes []v1alpha1.ResourceNode) (mapUidToNode map[string]v1alpha1.ResourceNode, mapParentToChild map[string][]string, parentNode map[string]void) {
+func parentChildDetails(nodes []v1alpha1.ResourceNode) (mapUidToNode map[string]v1alpha1.ResourceNode, mapParentToChild map[string][]string, parentNode map[string]struct{}) {
 	mapUidToNode = make(map[string]v1alpha1.ResourceNode)
 	mapParentToChild = make(map[string][]string)
-	parentNode = make(map[string]void)
-	var member void
+	parentNode = make(map[string]struct{})
+
 	for _, node := range nodes {
 
 		mapUidToNode[node.UID] = node
@@ -192,7 +190,7 @@ func parentChildDetails(nodes []v1alpha1.ResourceNode) (mapUidToNode map[string]
 			}
 			mapParentToChild[node.ParentRefs[0].UID] = append(mapParentToChild[node.ParentRefs[0].UID], node.UID)
 		} else {
-			parentNode[node.UID] = member
+			parentNode[node.UID] = struct{}{}
 		}
 
 	}
@@ -203,14 +201,16 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 
 	if output == "tree" {
+		tbl := tableConfig()
+		tbl.AddRow("GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED")
 		if !orphaned || listAll {
 			mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appResourceTree.Nodes)
-			printTreeViewAppResourcesNotOrphaned(mapUidToNode, mapParentToChild, parentNode, orphaned, listAll)
+			printTreeViewAppResourcesNotOrphaned(mapUidToNode, mapParentToChild, parentNode, orphaned, listAll, tbl)
 		}
 
 		if orphaned || listAll {
 			mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appResourceTree.OrphanedNodes)
-			printTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, orphaned, listAll)
+			printTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, orphaned, listAll, tbl)
 		}
 
 	} else {
