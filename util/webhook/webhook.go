@@ -332,24 +332,28 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 
 func (a *ArgoCDWebhookHandler) refreshChangedAppOrStoreCachedManifests(app v1alpha1.Application, revision string, touchedHead bool, webURL string,
 	repoRegexp *regexp.Regexp, changedFiles []string, change changeInfo, trackingMethod string, appInstanceLabelKey string) {
-
 	for _, source := range app.Spec.GetSources() {
-		if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
-			if appFilesHaveChanged(&app, changedFiles) {
-				namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
-				_, err := argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
-				if err != nil {
-					log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
-					continue
-				}
-				// No need to refresh multiple times if multiple sources match.
-				break
-			} else if change.shaBefore != "" && change.shaAfter != "" {
-				if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey); err != nil {
-					log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
-				}
-			}
+		if !(sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp)) {
+			continue
 		}
+		if !appFilesHaveChanged(&app, changedFiles) {
+			// we cannot retrieve previous and next commit SHA for bitbucket.
+			// don't attempt to load/create cache for empty strings instead of SHA
+			if change.shaBefore == "" && change.shaAfter == "" {
+				continue
+			}
+			if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey); err != nil {
+				log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
+			}
+			continue
+		}
+		namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
+		if _, err := argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal); err != nil {
+			log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
+			continue
+		}
+		// No need to refresh multiple times if one source already matches
+		break
 	}
 }
 

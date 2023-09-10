@@ -819,7 +819,7 @@ func Test_refreshChangedAppOrStoreCachedManifests(t *testing.T) {
 			false,
 		},
 		{
-			"should skip refresh and cache new revision",
+			"should cache new revision and skip refresh",
 			&v1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        "app-to-cache",
