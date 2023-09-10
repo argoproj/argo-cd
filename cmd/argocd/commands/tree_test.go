@@ -33,7 +33,6 @@ func TestTreeViewAppResources(t *testing.T) {
 	orphanchildMapping := make(map[string][]string)
 	orphanParent := orphan
 	treeViewAppResourcesOrphaned("", tbl, objsOrphan, orphanchildMapping, orphanParent)
-
 	output := tbl.String()
 
 	assert.Contains(t, output, "ReplicaSet")
