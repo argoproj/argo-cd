@@ -71,7 +71,7 @@ func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects
 	}
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
 
-	return NewHandler("argocd", applicationNamespaces, appClientset, &settings.ArgoCDSettings{}, &fakeSettingsSrc{}, cache.NewCache(
+	return NewHandler("argocd", applicationNamespaces, appClientset, &settings.ArgoCDSettings{WebhookMaxConcurrentAppRefresh: 10}, &fakeSettingsSrc{}, cache.NewCache(
 		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
