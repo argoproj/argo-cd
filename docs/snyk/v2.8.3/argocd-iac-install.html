@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">August 13th 2023, 12:24:11 am (UTC+00:00)</p>
+                <p class="timestamp">September 10th 2023, 12:21:20 am (UTC+00:00)</p>
               </div>
                 <div class="source-panel">
                   <span>Scanned the following path:</span>
@@ -466,7 +466,7 @@
                 </div>
     
                 <div class="meta-counts">
-                  <div class="meta-count"><span>41</span> <span>total issues</span></div>
+                  <div class="meta-count"><span>40</span> <span>total issues</span></div>
                 </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -507,7 +507,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15180
+                              Line number: 18466
                           </li>
                       </ul>
               
@@ -553,7 +553,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15257
+                              Line number: 18543
                           </li>
                       </ul>
               
@@ -599,7 +599,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15285
+                              Line number: 18571
                           </li>
                       </ul>
               
@@ -645,7 +645,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15329
+                              Line number: 18619
                           </li>
                       </ul>
               
@@ -691,7 +691,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15311
+                              Line number: 18601
                           </li>
                       </ul>
               
@@ -737,7 +737,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15345
+                              Line number: 18635
                           </li>
                       </ul>
               
@@ -774,7 +774,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
+                                  [DocId: 45]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -789,7 +789,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16349
+                              Line number: 19743
                           </li>
                       </ul>
               
@@ -826,7 +826,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 42]
+                                  [DocId: 41]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -847,7 +847,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15812
+                              Line number: 19106
                           </li>
                       </ul>
               
@@ -884,7 +884,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
+                                  [DocId: 42]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -905,7 +905,65 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15985
+                              Line number: 19339
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>CPU limits can prevent containers from consuming valuable compute time for no benefit (e.g. inefficient code) that might lead to unnecessary costs. It is advisable to also configure CPU requests to ensure application stability.</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Add &#x60;resources.limits.cpu&#x60; field with required CPU limit value</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-5">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+                  <h2 class="card__title">Container has no CPU limit</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--low">
+                          <span class="label__text">low severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-5">SNYK-CC-K8S-5</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 42]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  input
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  template
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  containers[dex]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  limits
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  cpu
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 19305
                           </li>
                       </ul>
               
@@ -952,7 +1010,7 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  containers[dex]
+                                  containers[argocd-notifications-controller]
                                    <span class="list-paths__item__arrow">›</span> 
                                   resources
                                    <span class="list-paths__item__arrow">›</span> 
@@ -963,7 +1021,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15951
+                              Line number: 19399
                           </li>
                       </ul>
               
@@ -1010,7 +1068,7 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  containers[argocd-notifications-controller]
+                                  containers[redis]
                                    <span class="list-paths__item__arrow">›</span> 
                                   resources
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1021,7 +1079,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16041
+                              Line number: 19486
                           </li>
                       </ul>
               
@@ -1068,64 +1126,6 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  containers[redis]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  resources
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  limits
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  cpu
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 16115
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>CPU limits can prevent containers from consuming valuable compute time for no benefit (e.g. inefficient code) that might lead to unnecessary costs. It is advisable to also configure CPU requests to ensure application stability.</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Add &#x60;resources.limits.cpu&#x60; field with required CPU limit value</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-5">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-                  <h2 class="card__title">Container has no CPU limit</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--low">
-                          <span class="label__text">low severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-5">SNYK-CC-K8S-5</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
                                   initContainers[copyutil]
                                    <span class="list-paths__item__arrow">›</span> 
                                   resources
@@ -1137,7 +1137,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16349
+                              Line number: 19743
                           </li>
                       </ul>
               
@@ -1174,7 +1174,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
+                                  [DocId: 45]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1195,7 +1195,65 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16171
+                              Line number: 19543
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>CPU limits can prevent containers from consuming valuable compute time for no benefit (e.g. inefficient code) that might lead to unnecessary costs. It is advisable to also configure CPU requests to ensure application stability.</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Add &#x60;resources.limits.cpu&#x60; field with required CPU limit value</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-5">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+                  <h2 class="card__title">Container has no CPU limit</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--low">
+                          <span class="label__text">low severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-5">SNYK-CC-K8S-5</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 46]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  input
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  template
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  containers[argocd-server]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  limits
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  cpu
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 19828
                           </li>
                       </ul>
               
@@ -1242,64 +1300,6 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  containers[argocd-server]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  resources
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  limits
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  cpu
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 16434
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>CPU limits can prevent containers from consuming valuable compute time for no benefit (e.g. inefficient code) that might lead to unnecessary costs. It is advisable to also configure CPU requests to ensure application stability.</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Add &#x60;resources.limits.cpu&#x60; field with required CPU limit value</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-5">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-                  <h2 class="card__title">Container has no CPU limit</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--low">
-                          <span class="label__text">low severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-5">SNYK-CC-K8S-5</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 48]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
                                   containers[argocd-application-controller]
                                    <span class="list-paths__item__arrow">›</span> 
                                   resources
@@ -1311,7 +1311,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16738
+                              Line number: 20144
                           </li>
                       </ul>
               
@@ -1348,7 +1348,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
+                                  [DocId: 42]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1363,7 +1363,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15965
+                              Line number: 19319
                           </li>
                       </ul>
               
@@ -1400,7 +1400,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 42]
+                                  [DocId: 41]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1415,7 +1415,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15812
+                              Line number: 19106
                           </li>
                       </ul>
               
@@ -1452,7 +1452,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
+                                  [DocId: 42]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1467,7 +1467,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15951
+                              Line number: 19305
                           </li>
                       </ul>
               
@@ -1504,7 +1504,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
+                                  [DocId: 42]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1519,7 +1519,59 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15985
+                              Line number: 19339
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>Kubernetes will not be able to detect if application is able to service requests, and will not restart unhealthy pods</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Add &#x60;livenessProbe&#x60; attribute</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-41">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+                  <h2 class="card__title">Container is running without liveness probe</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--low">
+                          <span class="label__text">low severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-41">SNYK-CC-K8S-41</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 44]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  template
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  containers[redis]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  livenessProbe
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 19486
                           </li>
                       </ul>
               
@@ -1564,14 +1616,14 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  containers[redis]
+                                  initContainers[copyutil]
                                    <span class="list-paths__item__arrow">›</span> 
                                   livenessProbe
                                   
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16115
+                              Line number: 19743
                           </li>
                       </ul>
               
@@ -1593,7 +1645,7 @@
               
               </div><!-- .card -->
               <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-                  <h2 class="card__title">Container is running without liveness probe</h2>
+                  <h2 class="card__title">Container is running without memory limit</h2>
                   <div class="card__section">
               
                       <div class="label label--low">
@@ -1604,11 +1656,13 @@
               
                       <ul class="card__meta">
                           <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-41">SNYK-CC-K8S-41</a> 
+                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-4">SNYK-CC-K8S-4</a> 
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
+                                  [DocId: 41]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  input
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1616,31 +1670,35 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  initContainers[copyutil]
+                                  containers[argocd-applicationset-controller]
                                    <span class="list-paths__item__arrow">›</span> 
-                                  livenessProbe
+                                  resources
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  limits
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  memory
                                   
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16349
+                              Line number: 19106
                           </li>
                       </ul>
               
                       <hr/>
               
                           <h2>Impact</h2>
-                          <p>Kubernetes will not be able to detect if application is able to service requests, and will not restart unhealthy pods</p>
+                          <p>Containers without memory limits are more likely to be terminated when the node runs out of memory</p>
               
                           <h2>Remediation</h2>
-                          <p>Add &#x60;livenessProbe&#x60; attribute</p>
+                          <p>Set &#x60;resources.limits.memory&#x60; value</p>
               
               
                           <hr/>
                   </div><!-- .card__section -->
               
                   <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-41">More about this issue</a></p>
+                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-4">More about this issue</a></p>
                   </div>
               
               </div><!-- .card -->
@@ -1670,64 +1728,6 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  containers[argocd-applicationset-controller]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  resources
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  limits
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  memory
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 15812
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Containers without memory limits are more likely to be terminated when the node runs out of memory</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Set &#x60;resources.limits.memory&#x60; value</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-4">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-                  <h2 class="card__title">Container is running without memory limit</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--low">
-                          <span class="label__text">low severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-4">SNYK-CC-K8S-4</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
                                   containers[dex]
                                    <span class="list-paths__item__arrow">›</span> 
                                   resources
@@ -1739,7 +1739,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15951
+                              Line number: 19305
                           </li>
                       </ul>
               
@@ -1776,7 +1776,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
+                                  [DocId: 42]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1797,7 +1797,65 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15985
+                              Line number: 19339
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>Containers without memory limits are more likely to be terminated when the node runs out of memory</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Set &#x60;resources.limits.memory&#x60; value</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-4">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+                  <h2 class="card__title">Container is running without memory limit</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--low">
+                          <span class="label__text">low severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-4">SNYK-CC-K8S-4</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 43]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  input
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  template
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  containers[argocd-notifications-controller]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  limits
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  memory
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 19399
                           </li>
                       </ul>
               
@@ -1844,7 +1902,7 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  containers[argocd-notifications-controller]
+                                  containers[redis]
                                    <span class="list-paths__item__arrow">›</span> 
                                   resources
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1855,7 +1913,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16041
+                              Line number: 19486
                           </li>
                       </ul>
               
@@ -1902,64 +1960,6 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  containers[redis]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  resources
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  limits
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  memory
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 16115
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Containers without memory limits are more likely to be terminated when the node runs out of memory</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Set &#x60;resources.limits.memory&#x60; value</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-4">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-                  <h2 class="card__title">Container is running without memory limit</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--low">
-                          <span class="label__text">low severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-4">SNYK-CC-K8S-4</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
                                   initContainers[copyutil]
                                    <span class="list-paths__item__arrow">›</span> 
                                   resources
@@ -1971,7 +1971,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16349
+                              Line number: 19743
                           </li>
                       </ul>
               
@@ -2008,7 +2008,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
+                                  [DocId: 45]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2029,7 +2029,65 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16171
+                              Line number: 19543
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>Containers without memory limits are more likely to be terminated when the node runs out of memory</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Set &#x60;resources.limits.memory&#x60; value</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-4">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+                  <h2 class="card__title">Container is running without memory limit</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--low">
+                          <span class="label__text">low severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-4">SNYK-CC-K8S-4</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 46]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  input
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  template
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  containers[argocd-server]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  limits
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  memory
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 19828
                           </li>
                       </ul>
               
@@ -2076,64 +2134,6 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  containers[argocd-server]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  resources
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  limits
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  memory
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 16434
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Containers without memory limits are more likely to be terminated when the node runs out of memory</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Set &#x60;resources.limits.memory&#x60; value</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-4">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-                  <h2 class="card__title">Container is running without memory limit</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--low">
-                          <span class="label__text">low severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-4">SNYK-CC-K8S-4</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 48]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
                                   containers[argocd-application-controller]
                                    <span class="list-paths__item__arrow">›</span> 
                                   resources
@@ -2145,7 +2145,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16738
+                              Line number: 20144
                           </li>
                       </ul>
               
@@ -2167,7 +2167,7 @@
               
               </div><!-- .card -->
               <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-                  <h2 class="card__title">Container or Pod is running with writable root filesystem</h2>
+                  <h2 class="card__title">Container&#x27;s or Pod&#x27;s  UID could clash with host&#x27;s UID</h2>
                   <div class="card__section">
               
                       <div class="label label--low">
@@ -2178,11 +2178,11 @@
               
                       <ul class="card__meta">
                           <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-8">SNYK-CC-K8S-8</a> 
+                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-11">SNYK-CC-K8S-11</a> 
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 45]
+                                  [DocId: 41]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2192,33 +2192,33 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  containers[redis]
+                                  containers[argocd-applicationset-controller]
                                    <span class="list-paths__item__arrow">›</span> 
                                   securityContext
                                    <span class="list-paths__item__arrow">›</span> 
-                                  readOnlyRootFilesystem
+                                  runAsUser
                                   
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16125
+                              Line number: 19229
                           </li>
                       </ul>
               
                       <hr/>
               
                           <h2>Impact</h2>
-                          <p>Compromised process could abuse writable root filesystem to elevate privileges</p>
+                          <p>UID of the container processes could clash with host&#x27;s UIDs and lead to unintentional authorization bypass</p>
               
                           <h2>Remediation</h2>
-                          <p>Set &#x60;securityContext.readOnlyRootFilesystem&#x60; to &#x60;true&#x60;</p>
+                          <p>Set &#x60;securityContext.runAsUser&#x60; value to greater or equal than 10&#x27;000. SecurityContext can be set on both &#x60;pod&#x60; and &#x60;container&#x60; level. If both are set, then the container level takes precedence</p>
               
               
                           <hr/>
                   </div><!-- .card__section -->
               
                   <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-8">More about this issue</a></p>
+                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-11">More about this issue</a></p>
                   </div>
               
               </div><!-- .card -->
@@ -2248,62 +2248,6 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  containers[argocd-applicationset-controller]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  securityContext
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  runAsUser
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 15888
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>UID of the container processes could clash with host&#x27;s UIDs and lead to unintentional authorization bypass</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Set &#x60;securityContext.runAsUser&#x60; value to greater or equal than 10&#x27;000. SecurityContext can be set on both &#x60;pod&#x60; and &#x60;container&#x60; level. If both are set, then the container level takes precedence</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-11">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-                  <h2 class="card__title">Container&#x27;s or Pod&#x27;s  UID could clash with host&#x27;s UID</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--low">
-                          <span class="label__text">low severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-11">SNYK-CC-K8S-11</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
                                   initContainers[copyutil]
                                    <span class="list-paths__item__arrow">›</span> 
                                   securityContext
@@ -2313,7 +2257,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15993
+                              Line number: 19347
                           </li>
                       </ul>
               
@@ -2350,7 +2294,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
+                                  [DocId: 42]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2369,7 +2313,63 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15968
+                              Line number: 19322
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>UID of the container processes could clash with host&#x27;s UIDs and lead to unintentional authorization bypass</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Set &#x60;securityContext.runAsUser&#x60; value to greater or equal than 10&#x27;000. SecurityContext can be set on both &#x60;pod&#x60; and &#x60;container&#x60; level. If both are set, then the container level takes precedence</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-11">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+                  <h2 class="card__title">Container&#x27;s or Pod&#x27;s  UID could clash with host&#x27;s UID</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--low">
+                          <span class="label__text">low severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-11">SNYK-CC-K8S-11</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 43]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  input
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  template
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  containers[argocd-notifications-controller]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  securityContext
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  runAsUser
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 19420
                           </li>
                       </ul>
               
@@ -2416,7 +2416,7 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  containers[argocd-notifications-controller]
+                                  containers[redis]
                                    <span class="list-paths__item__arrow">›</span> 
                                   securityContext
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2425,7 +2425,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16049
+                              Line number: 19496
                           </li>
                       </ul>
               
@@ -2472,62 +2472,6 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  containers[redis]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  securityContext
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  runAsUser
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 16125
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>UID of the container processes could clash with host&#x27;s UIDs and lead to unintentional authorization bypass</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Set &#x60;securityContext.runAsUser&#x60; value to greater or equal than 10&#x27;000. SecurityContext can be set on both &#x60;pod&#x60; and &#x60;container&#x60; level. If both are set, then the container level takes precedence</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-11">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-                  <h2 class="card__title">Container&#x27;s or Pod&#x27;s  UID could clash with host&#x27;s UID</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--low">
-                          <span class="label__text">low severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-11">SNYK-CC-K8S-11</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
                                   initContainers[copyutil]
                                    <span class="list-paths__item__arrow">›</span> 
                                   securityContext
@@ -2537,7 +2481,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16356
+                              Line number: 19750
                           </li>
                       </ul>
               
@@ -2574,7 +2518,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
+                                  [DocId: 45]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2593,7 +2537,63 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16322
+                              Line number: 19716
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>UID of the container processes could clash with host&#x27;s UIDs and lead to unintentional authorization bypass</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Set &#x60;securityContext.runAsUser&#x60; value to greater or equal than 10&#x27;000. SecurityContext can be set on both &#x60;pod&#x60; and &#x60;container&#x60; level. If both are set, then the container level takes precedence</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-11">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+                  <h2 class="card__title">Container&#x27;s or Pod&#x27;s  UID could clash with host&#x27;s UID</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--low">
+                          <span class="label__text">low severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-11">SNYK-CC-K8S-11</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 46]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  input
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  template
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  containers[argocd-server]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  securityContext
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  runAsUser
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 20054
                           </li>
                       </ul>
               
@@ -2640,62 +2640,6 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  containers[argocd-server]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  securityContext
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  runAsUser
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 16648
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>UID of the container processes could clash with host&#x27;s UIDs and lead to unintentional authorization bypass</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Set &#x60;securityContext.runAsUser&#x60; value to greater or equal than 10&#x27;000. SecurityContext can be set on both &#x60;pod&#x60; and &#x60;container&#x60; level. If both are set, then the container level takes precedence</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-11">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-                  <h2 class="card__title">Container&#x27;s or Pod&#x27;s  UID could clash with host&#x27;s UID</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--low">
-                          <span class="label__text">low severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-11">SNYK-CC-K8S-11</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 48]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
                                   containers[argocd-application-controller]
                                    <span class="list-paths__item__arrow">›</span> 
                                   securityContext
@@ -2705,7 +2649,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16874
+                              Line number: 20292
                           </li>
                       </ul>
               
