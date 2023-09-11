@@ -1830,6 +1830,12 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool,
 	return retryAfter <= 0, retryAfter
 }
 
+// isAppNamespaceAllowed returns whether the application is allowed in the
+// namespace it's residing in.
+func (ctrl *ApplicationController) isAppNamespaceAllowed(app *appv1.Application) bool {
+	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false)
+}
+
 func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 	app, ok := obj.(*appv1.Application)
 	if !ok {
@@ -1838,7 +1844,7 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 
 	// Only process given app if it exists in a watched namespace, or in the
 	// control plane's namespace.
-	if app.Namespace != ctrl.namespace && !glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
+	if !ctrl.isAppNamespaceAllowed(app) {
 		return false
 	}
 
@@ -1889,7 +1895,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 				newItems := []appv1.Application{}
 				for _, app := range appList.Items {
-					if ctrl.namespace == app.Namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
+					if ctrl.isAppNamespaceAllowed(&app) {
 						newItems = append(newItems, app)
 					}
 				}
@@ -1906,20 +1912,24 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
 				app, ok := obj.(*appv1.Application)
 				if ok {
-					// This call to 'ValidateDestination' ensures that the .spec.destination field of all Applications
-					// returned by the informer/lister will have server field set (if not already set) based on the name.
-					// (or, if not found, an error app condition)
+					// We only generally work with applications that are in one
+					// the allowed namespaces.
+					if ctrl.isAppNamespaceAllowed(app) {
+						// If the application is not allowed to use the project,
+						// log an error.
+						if _, err := ctrl.getAppProj(app); err != nil {
+							ctrl.setAppCondition(app, ctrl.projectErrorToCondition(err, app))
+						} else {
+							// This call to 'ValidateDestination' ensures that the .spec.destination field of all Applications
+							// returned by the informer/lister will have server field set (if not already set) based on the name.
+							// (or, if not found, an error app condition)
 
-					// If the server field is not set, set it based on the cluster name; if the cluster name can't be found,
-					// log an error as an App Condition.
-					if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
-						ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
-					}
-
-					// If the application is not allowed to use the project,
-					// log an error.
-					if _, err := ctrl.getAppProj(app); err != nil {
-						ctrl.setAppCondition(app, ctrl.projectErrorToCondition(err, app))
+							// If the server field is not set, set it based on the cluster name; if the cluster name can't be found,
+							// log an error as an App Condition.
+							if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
+								ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
+							}
+						}
 					}
 				}
 
@@ -1931,7 +1941,11 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					return nil, nil
 				}
 
-				proj, err := applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()).AppProjects(ctrl.namespace).Get(app.Spec.GetProject())
+				if !ctrl.isAppNamespaceAllowed(app) {
+					return nil, nil
+				}
+
+				proj, err := ctrl.getAppProj(app)
 				if err != nil {
 					return nil, nil
 				}
