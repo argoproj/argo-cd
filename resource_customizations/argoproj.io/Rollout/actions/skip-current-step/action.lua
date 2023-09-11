@@ -3,6 +3,7 @@ if obj.status ~= nil then
         obj.status.pauseConditions = nil
         obj.spec.pause = false
         obj.status.currentStepIndex = obj.status.currentStepIndex + 1
+        obj.status.controllerPause = false
     end
 end
 return obj
