@@ -28,8 +28,8 @@ $header: 120px;
         padding: 1em;
         overflow-x: auto;
         overflow-y: auto;
-        margin-top: 150px;
-        height: calc(100vh - 2 * 70px - 115px);
+        margin-top: 100px;
+        height: calc(100vh - 200px);
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             margin-top: 165px;
         }
