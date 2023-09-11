@@ -262,7 +262,6 @@ func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
 }
 
 func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string) (mapUidToNode map[string]argoappv1.ResourceNode, mapParentToChild map[string][]string, parentNode map[string]struct{}) {
-
 	mapUidToNode = make(map[string]argoappv1.ResourceNode)
 	mapParentToChild = make(map[string][]string)
 	parentNode = make(map[string]struct{})
