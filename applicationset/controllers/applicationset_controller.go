@@ -623,7 +623,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 
 			if applicationSet.Spec.PreservedFields != nil {
 				preservedAnnotations = append(preservedAnnotations, applicationSet.Spec.PreservedFields.Annotations...)
-				preservedLabels = append(preservedLabels, applicationSet.Spec.PreservedFields.Annotations...)
+				preservedLabels = append(preservedLabels, applicationSet.Spec.PreservedFields.Labels...)
 			}
 
 			if len(r.GlobalPreservedAnnotations) > 0 {
