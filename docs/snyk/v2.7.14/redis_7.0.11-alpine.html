@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="4 known vulnerabilities found in 22 vulnerable dependency paths.">
+  <meta name="description" content="4 known vulnerabilities found in 32 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,26 +456,143 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">August 13th 2023, 12:16:41 am (UTC+00:00)</p>
+                <p class="timestamp">September 10th 2023, 12:22:56 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
-                <span>Scanned the following paths:</span>
+                <span>Scanned the following path:</span>
                 <ul>
-                  <li class="paths">ghcr.io/dexidp/dex:v2.37.0/dexidp/dex (apk)</li><li class="paths">ghcr.io/dexidp/dex:v2.37.0/hairyhenderson/gomplate/v3 (gomodules)</li><li class="paths">ghcr.io/dexidp/dex:v2.37.0/dexidp/dex (gomodules)</li><li class="paths">ghcr.io/dexidp/dex:v2.37.0/dexidp/dex (gomodules)</li>
+                  <li class="paths">redis:7.0.11-alpine (apk)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
                 <div class="meta-count"><span>4</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>22 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>786</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>32 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>18</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
-
+      <section class="layout-container">
+          <table class="metatable">
+              <tbody>
+              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|redis</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">redis:7.0.11-alpine</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Package Manager</th> <td class="meta-row-value">apk</td></tr>
+              
+              </tbody>
+          </table>
+      </section>
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
+            <h2 class="card__title">Out-of-bounds Write</h2>
+            <div class="card__section">
+        
+                <div class="label label--critical">
+                    <span class="label__text">critical severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.18
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            busybox/busybox
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|redis@7.0.11-alpine and busybox/busybox@1.36.1-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout@3.4.3-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout@3.4.3-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>busybox</code> package and not the <code>busybox</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
+        <p>There is a stack overflow vulnerability in ash.c:6030 in busybox before 1.35. In the environment of Internet of Vehicles, this vulnerability can be executed from command to arbitrary code execution.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.18</code> <code>busybox</code> to version 1.36.1-r1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://bugs.busybox.net/show_bug.cgi?id=15216">cve@mitre.org</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-BUSYBOX-5890990">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Improper Authentication</h2>
             <div class="card__section">
@@ -498,7 +615,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.37.0 and openssl/libcrypto3@3.1.1-r1
+                                docker-image|redis@7.0.11-alpine and openssl/libcrypto3@3.1.1-r1
         
                     </li>
                 </ul>
@@ -511,7 +628,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.1.1-r1
                                         
@@ -520,7 +637,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20230614.215749
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -531,7 +659,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -542,9 +670,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r2
+                                        .redis-rundeps@20230614.215749
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.1.1-r1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -555,7 +683,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.1.1-r1
                                         
@@ -564,7 +692,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20230614.215749
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -575,7 +714,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -651,7 +790,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.37.0 and openssl/libcrypto3@3.1.1-r1
+                                docker-image|redis@7.0.11-alpine and openssl/libcrypto3@3.1.1-r1
         
                     </li>
                 </ul>
@@ -664,7 +803,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.1.1-r1
                                         
@@ -673,7 +812,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20230614.215749
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -684,7 +834,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -695,9 +845,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r2
+                                        .redis-rundeps@20230614.215749
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.1.1-r1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -708,7 +858,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.1.1-r1
                                         
@@ -717,7 +867,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20230614.215749
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -728,7 +889,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -782,6 +943,7 @@
         <li><a href="http://www.openwall.com/lists/oss-security/2023/07/19/6">openssl-security@openssl.org</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2023/07/31/1">openssl-security@openssl.org</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20230803-0011/">openssl-security@openssl.org</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2023/08/msg00019.html">openssl-security@openssl.org</a></li>
         </ul>
         
               <hr/>
@@ -813,7 +975,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.37.0 and openssl/libcrypto3@3.1.1-r1
+                                docker-image|redis@7.0.11-alpine and openssl/libcrypto3@3.1.1-r1
         
                     </li>
                 </ul>
@@ -826,7 +988,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.1.1-r1
                                         
@@ -835,7 +997,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20230614.215749
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -846,7 +1019,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -857,9 +1030,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r2
+                                        .redis-rundeps@20230614.215749
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.1.1-r1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -870,7 +1043,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.1.1-r1
                                         
@@ -879,7 +1052,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20230614.215749
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -890,7 +1074,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.37.0
+                                        docker-image|redis@7.0.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -939,135 +1123,14 @@
         <li><a href="https://www.openssl.org/news/secadv/20230731.txt">openssl-security@openssl.org</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2023/07/31/1">openssl-security@openssl.org</a></li>
         <li><a href="http://seclists.org/fulldisclosure/2023/Jul/43">openssl-security@openssl.org</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2023/08/msg00019.html">openssl-security@openssl.org</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20230818-0014/">openssl-security@openssl.org</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-OPENSSL-5821142">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Cross-site Scripting (XSS)</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            golang.org/x/net/html
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/dexidp/dex@* and golang.org/x/net/html@v0.11.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/dexidp/dex@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/net/html@v0.11.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
-        <p>Affected versions of this package are vulnerable to Cross-site Scripting (XSS) in the <code>render1()</code> function in <code>render.go</code>. Text nodes not in the HTML namespace are incorrectly literally rendered, causing text which should be escaped to not be.</p>
-        <h2 id="details">Details</h2>
-        <p>A cross-site scripting attack occurs when the attacker tricks a legitimate web-based application or site to accept a request as originating from a trusted source.</p>
-        <p>This is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.</p>
-        <p>Injecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.</p>
-        <p>Escaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, <code>&lt;</code> can be coded as  <code>&amp;lt</code>; and <code>&gt;</code> can be coded as <code>&amp;gt</code>; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses <code>&lt;</code> and <code>&gt;</code> as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.</p>
-        <p>The most prominent use of XSS is to steal cookies (source: OWASP HttpOnly) and hijack user sessions, but XSS exploits have been used to expose sensitive information, enable access to privileged services and functionality and deliver malware. </p>
-        <h3 id="types-of-attacks">Types of attacks</h3>
-        <p>There are a few methods by which XSS can be manipulated:</p>
-        <table>
-        <thead>
-        <tr>
-        <th>Type</th>
-        <th>Origin</th>
-        <th>Description</th>
-        </tr>
-        </thead>
-        <tbody><tr>
-        <td><strong>Stored</strong></td>
-        <td>Server</td>
-        <td>The malicious code is inserted in the application (usually as a link) by the attacker. The code is activated every time a user clicks the link.</td>
-        </tr>
-        <tr>
-        <td><strong>Reflected</strong></td>
-        <td>Server</td>
-        <td>The attacker delivers a malicious link externally from the vulnerable web site application to a user. When clicked, malicious code is sent to the vulnerable web site, which reflects the attack back to the user’s browser.</td>
-        </tr>
-        <tr>
-        <td><strong>DOM-based</strong></td>
-        <td>Client</td>
-        <td>The attacker forces the user’s browser to render a malicious page. The data in the page itself delivers the cross-site scripting data.</td>
-        </tr>
-        <tr>
-        <td><strong>Mutated</strong></td>
-        <td></td>
-        <td>The attacker injects code that appears safe, but is then rewritten and modified by the browser, while parsing the markup. An example is rebalancing unclosed quotation marks or even adding quotation marks to unquoted parameters.</td>
-        </tr>
-        </tbody></table>
-        <h3 id="affected-environments">Affected environments</h3>
-        <p>The following environments are susceptible to an XSS attack:</p>
-        <ul>
-        <li>Web servers</li>
-        <li>Application servers</li>
-        <li>Web application environments</li>
-        </ul>
-        <h3 id="how-to-prevent">How to prevent</h3>
-        <p>This section describes the top best practices designed to specifically protect your code: </p>
-        <ul>
-        <li>Sanitize data input in an HTTP request before reflecting it back, ensuring all data is validated, filtered or escaped before echoing anything back to the user, such as the values of query parameters during searches. </li>
-        <li>Convert special characters such as <code>?</code>, <code>&amp;</code>, <code>/</code>, <code>&lt;</code>, <code>&gt;</code> and spaces to their respective HTML or URL encoded equivalents. </li>
-        <li>Give users the option to disable client-side scripts.</li>
-        <li>Redirect invalid requests.</li>
-        <li>Detect simultaneous logins, including those from two separate IP addresses, and invalidate those sessions.</li>
-        <li>Use and enforce a Content Security Policy (source: Wikipedia) to disable any features that might be manipulated for an XSS attack.</li>
-        <li>Read the documentation for any of the libraries referenced in your code to understand which elements allow for embedded HTML.</li>
-        </ul>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.13.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/golang/net/commit/8ffa475fbdb33da97e8bf79cc5791ee8751fca5e">GitHub Commit</a></li>
-        <li><a href="https://go.dev/issue/61615">GitHub Issue</a></li>
-        <li><a href="https://go.dev/cl/514896">Golang PR</a></li>
-        <li><a href="https://pkg.go.dev/vuln/GO-2023-1988">Vulnerability Advisory</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-5816820">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
