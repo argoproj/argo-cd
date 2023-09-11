@@ -1885,24 +1885,25 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
 				app, ok := obj.(*appv1.Application)
 				if ok {
-					// If the application is not allowed to use the project,
-					// log an error.
+					// We only generally work with applications that are in one
+					// the allowed namespaces.
 					if ctrl.isAppNamespaceAllowed(app) {
+						// If the application is not allowed to use the project,
+						// log an error.
 						if _, err := ctrl.getAppProj(app); err != nil {
 							ctrl.setAppCondition(app, ctrl.projectErrorToCondition(err, app))
+						} else {
+							// This call to 'ValidateDestination' ensures that the .spec.destination field of all Applications
+							// returned by the informer/lister will have server field set (if not already set) based on the name.
+							// (or, if not found, an error app condition)
+
+							// If the server field is not set, set it based on the cluster name; if the cluster name can't be found,
+							// log an error as an App Condition.
+							if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
+								ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
+							}
 						}
 					}
-
-					// This call to 'ValidateDestination' ensures that the .spec.destination field of all Applications
-					// returned by the informer/lister will have server field set (if not already set) based on the name.
-					// (or, if not found, an error app condition)
-
-					// If the server field is not set, set it based on the cluster name; if the cluster name can't be found,
-					// log an error as an App Condition.
-					if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
-						ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
-					}
-
 				}
 
 				return cache.MetaNamespaceIndexFunc(obj)
@@ -1917,7 +1918,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					return nil, nil
 				}
 
-				proj, err := applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()).AppProjects(ctrl.namespace).Get(app.Spec.GetProject())
+				proj, err := ctrl.getAppProj(app)
 				if err != nil {
 					return nil, nil
 				}
