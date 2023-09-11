@@ -2630,6 +2630,17 @@ func (app *Application) IsFinalizerPresent(finalizer string) bool {
 	return getFinalizerIndex(app.ObjectMeta, finalizer) > -1
 }
 
+// Equals compares two instances of Application and returns true if instances spec is equal.
+func (app *Application) Equals(compare *Application) bool {
+	if app == nil || compare == nil {
+		return false
+	}
+	return reflect.DeepEqual(app.Spec, compare.Spec) &&
+		reflect.DeepEqual(app.Labels, compare.Labels) &&
+		reflect.DeepEqual(app.Annotations, compare.Annotations) &&
+		reflect.DeepEqual(app.Finalizers, compare.Finalizers)
+}
+
 // SetConditions updates the application status conditions for a subset of evaluated types.
 // If the application has a pre-existing condition of a type that is not in the evaluated list,
 // it will be preserved. If the application has a pre-existing condition of a type that
