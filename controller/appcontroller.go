@@ -211,21 +211,6 @@ func NewApplicationController(
 	factory := informers.NewSharedInformerFactory(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration)
 	deploymentInformer := factory.Apps().V1().Deployments()
 
-	// deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-	// 	UpdateFunc: func(old, new interface{}) {
-	// 		_, err := cache.MetaNamespaceKeyFunc(new)
-	// 		if err != nil {
-	// 			return
-	// 		}
-	// 		oldDepl, oldOK := old.(*apiv1.Deployment)
-	// 		newDepl, newOK := new.(*apiv1.Deployment)
-	// 		if oldOK && newOK && oldDepl.Spec.Replicas != nil && newDepl.Spec.Replicas != nil && oldDepl.Spec.Replicas != newDepl.Spec.Replicas {
-	// 			// Update Cache
-	// 			log.Debugf("Reached here")
-	// 		}
-	// 	},
-	// })
-
 	readinessHealthCheck := func(r *http.Request) error {
 		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 		appControllerDeployment, err := deploymentInformer.Lister().Deployments(settingsMgr.GetNamespace()).Get(applicationControllerName)
