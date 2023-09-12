@@ -13001,6 +13001,10 @@ spec:
                     items:
                       type: string
                     type: array
+                  labels:
+                    items:
+                      type: string
+                    type: array
                 type: object
               strategy:
                 properties:
