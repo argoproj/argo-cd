@@ -159,6 +159,8 @@ message ApplicationMatchExpression {
 
 message ApplicationPreservedFields {
   repeated string annotations = 1;
+
+  repeated string labels = 2;
 }
 
 // ApplicationSet is a set of Application resources
