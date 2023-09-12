@@ -105,7 +105,165 @@ spec:
       source:
         repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
-        path: guestbook/{{.cluster}}
+         path: guestbook/{{.cluster}}
+      destination:
+        server: '{{.url}}'
+        namespace: guestbook
+```
+
+### CRDs
+
+CRDs are available to define strategies that can be reused in multiple ApplicationSets. 2 variations of the same CRD are available:
+
+- SyncStrategy (namespaced)
+- ClusterSyncStrategy (cluster-wide)
+
+If both the `strategy` and `strategyRef` fields are specified, `strategy` will take precedence and `strategyRef` will be ignored.
+
+#### SyncStrategy (namespaced)
+
+SyncStrategy is the namespaced version of the CRD. It must exist in the same namespace as the ApplicationSet referring to it.
+
+!!! warning 
+    A SyncStrategy can only be used in the namespace it is defined in. For example, if a SyncStrategy is created in the namespace `namespace-a`, it cannot be used by an ApplicationSet in `namespace-b`. To share a SyncStrategy across multiple namespaces, see ClusterSyncStrategy.
+
+An example spec is as follows:
+
+```
+---
+apiVersion: argoproj.io/v1alpha1
+kind: SyncStrategy 
+metadata:
+  name: gradual-environments 
+spec:
+  type: RollingSync
+  rollingSync:
+    steps:
+      - matchExpressions:
+        - key: envLabel
+          operator: In
+          values:
+            - env-dev
+        #maxUpdate: 100%  # if undefined, all applications matched are updated together (default is 100%)
+      - matchExpressions:
+        - key: envLabel
+          operator: In
+          values:
+            - env-qa
+        maxUpdate: 0      # if 0, no matched applications will be updated
+      - matchExpressions:
+        - key: envLabel
+          operator: In
+          values:
+            - env-prod
+        maxUpdate: 10%    # maxUpdate supports both integer and percentage string values (rounds down, but floored at 1 Application for >0%)
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  generators:
+  - list:
+      elements:
+      - cluster: engineering-dev
+        url: https://1.2.3.4
+        env: env-dev
+      - cluster: engineering-qa
+        url: https://2.4.6.8
+        env: env-qa
+      - cluster: engineering-prod
+        url: https://9.8.7.6/
+        env: env-prod
+  strategyRef:
+    kind: SyncStrategy
+    name: gradual-environments
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  template:
+    metadata:
+      name: '{{.cluster}}-guestbook'
+      labels:
+        envLabel: '{{.env}}'
+    spec:
+      project: my-project
+      source:
+        repoURL: https://github.com/infra-team/cluster-deployments.git
+        targetRevision: HEAD
+         path: guestbook/{{.cluster}}
+      destination:
+        server: '{{.url}}'
+        namespace: guestbook
+```
+
+#### ClusterSyncStrategy (cluster-wide)
+
+SyncStrategy is the cluster-wide version of the CRD. It does not belong to a namespace and can be used by ApplicationSets from any namespace in the cluster. 
+
+An example spec is as follows:
+
+```
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ClusterSyncStrategy 
+metadata:
+  name: gradual-environments 
+spec:
+  type: RollingSync
+  rollingSync:
+    steps:
+      - matchExpressions:
+        - key: envLabel
+          operator: In
+          values:
+            - env-dev
+        #maxUpdate: 100%  # if undefined, all applications matched are updated together (default is 100%)
+      - matchExpressions:
+        - key: envLabel
+          operator: In
+          values:
+            - env-qa
+        maxUpdate: 0      # if 0, no matched applications will be updated
+      - matchExpressions:
+        - key: envLabel
+          operator: In
+          values:
+            - env-prod
+        maxUpdate: 10%    # maxUpdate supports both integer and percentage string values (rounds down, but floored at 1 Application for >0%)
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  generators:
+  - list:
+      elements:
+      - cluster: engineering-dev
+        url: https://1.2.3.4
+        env: env-dev
+      - cluster: engineering-qa
+        url: https://2.4.6.8
+        env: env-qa
+      - cluster: engineering-prod
+        url: https://9.8.7.6/
+        env: env-prod
+  strategyRef:
+    kind: ClusterSyncStrategy
+    name: gradual-environments
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  template:
+    metadata:
+      name: '{{.cluster}}-guestbook'
+      labels:
+        envLabel: '{{.env}}'
+    spec:
+      project: my-project
+      source:
+        repoURL: https://github.com/infra-team/cluster-deployments.git
+        targetRevision: HEAD
+         path: guestbook/{{.cluster}}
       destination:
         server: '{{.url}}'
         namespace: guestbook

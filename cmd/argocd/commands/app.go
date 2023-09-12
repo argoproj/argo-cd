@@ -1741,10 +1741,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				switch strategy {
 				case "apply":
-					syncReq.Strategy = &argoappv1.SyncStrategy{Apply: &argoappv1.SyncStrategyApply{}}
+					syncReq.Strategy = &argoappv1.SyncOperationStrategy{Apply: &argoappv1.SyncOperationStrategyApply{}}
 					syncReq.Strategy.Apply.Force = force
 				case "", "hook":
-					syncReq.Strategy = &argoappv1.SyncStrategy{Hook: &argoappv1.SyncStrategyHook{}}
+					syncReq.Strategy = &argoappv1.SyncOperationStrategy{Hook: &argoappv1.SyncOperationStrategyHook{}}
 					syncReq.Strategy.Hook.Force = force
 				default:
 					log.Fatalf("Unknown sync strategy: '%s'", strategy)

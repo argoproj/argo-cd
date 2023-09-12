@@ -43,6 +43,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Argoproj().V1alpha1().Applications().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("applicationsets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Argoproj().V1alpha1().ApplicationSets().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("clustersyncstrategies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Argoproj().V1alpha1().ClusterSyncStrategies().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("syncstrategies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Argoproj().V1alpha1().SyncStrategies().Informer()}, nil
 
 	}
 

@@ -1142,8 +1142,8 @@ func TestRepository_CopySettingsFrom(t *testing.T) {
 
 func TestSyncStrategy_Force(t *testing.T) {
 	type fields struct {
-		Apply *SyncStrategyApply
-		Hook  *SyncStrategyHook
+		Apply *SyncOperationStrategyApply
+		Hook  *SyncOperationStrategyHook
 	}
 	tests := []struct {
 		name   string
@@ -1151,14 +1151,14 @@ func TestSyncStrategy_Force(t *testing.T) {
 		want   bool
 	}{
 		{"TestZero", fields{}, false},
-		{"TestApply", fields{Apply: &SyncStrategyApply{}}, false},
-		{"TestForceApply", fields{Apply: &SyncStrategyApply{Force: true}}, true},
-		{"TestHook", fields{Hook: &SyncStrategyHook{}}, false},
-		{"TestForceHook", fields{Hook: &SyncStrategyHook{SyncStrategyApply{Force: true}}}, true},
+		{"TestApply", fields{Apply: &SyncOperationStrategyApply{}}, false},
+		{"TestForceApply", fields{Apply: &SyncOperationStrategyApply{Force: true}}, true},
+		{"TestHook", fields{Hook: &SyncOperationStrategyHook{}}, false},
+		{"TestForceHook", fields{Hook: &SyncOperationStrategyHook{SyncOperationStrategyApply{Force: true}}}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &SyncStrategy{
+			m := &SyncOperationStrategy{
 				Apply: tt.fields.Apply,
 				Hook:  tt.fields.Hook,
 			}
@@ -1171,7 +1171,7 @@ func TestSyncStrategy_Force(t *testing.T) {
 
 func TestSyncOperation_IsApplyStrategy(t *testing.T) {
 	type fields struct {
-		SyncStrategy *SyncStrategy
+		SyncStrategy *SyncOperationStrategy
 	}
 	tests := []struct {
 		name   string
@@ -1179,8 +1179,8 @@ func TestSyncOperation_IsApplyStrategy(t *testing.T) {
 		want   bool
 	}{
 		{"TestZero", fields{}, false},
-		{"TestSyncStrategy", fields{SyncStrategy: &SyncStrategy{}}, false},
-		{"TestApplySyncStrategy", fields{SyncStrategy: &SyncStrategy{Apply: &SyncStrategyApply{}}}, true},
+		{"TestSyncStrategy", fields{SyncStrategy: &SyncOperationStrategy{}}, false},
+		{"TestApplySyncStrategy", fields{SyncStrategy: &SyncOperationStrategy{Apply: &SyncOperationStrategyApply{}}}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

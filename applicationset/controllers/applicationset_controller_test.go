@@ -2816,7 +2816,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "AllAtOnce",
 					},
 				},
@@ -2833,10 +2833,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
@@ -2867,10 +2867,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
@@ -2912,10 +2912,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
@@ -2990,10 +2990,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
@@ -3051,10 +3051,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
@@ -3115,10 +3115,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
@@ -3149,10 +3149,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
@@ -3194,10 +3194,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
@@ -3248,10 +3248,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
@@ -3307,10 +3307,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
@@ -3387,10 +3387,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
@@ -3450,10 +3450,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
@@ -3531,7 +3531,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 				KubeClientset:    kubeclientset,
 			}
 
-			appDependencyList, appStepMap, err := r.buildAppDependencyList(context.TODO(), cc.appSet, cc.apps)
+			appDependencyList, appStepMap, err := r.buildAppDependencyList(context.TODO(), cc.appSet, cc.appSet.Spec.Strategy, cc.apps)
 			assert.Equal(t, err, nil, "expected no errors, but errors occured")
 			assert.Equal(t, cc.expectedList, appDependencyList, "expected appDependencyList did not match actual")
 			assert.Equal(t, cc.expectedStepMap, appStepMap, "expected appStepMap did not match actual")
@@ -3565,9 +3565,9 @@ func TestBuildAppSyncMap(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 			},
@@ -3582,9 +3582,9 @@ func TestBuildAppSyncMap(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 			},
@@ -3605,9 +3605,9 @@ func TestBuildAppSyncMap(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 			},
@@ -3628,9 +3628,9 @@ func TestBuildAppSyncMap(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -3697,9 +3697,9 @@ func TestBuildAppSyncMap(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -3766,9 +3766,9 @@ func TestBuildAppSyncMap(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -3835,9 +3835,9 @@ func TestBuildAppSyncMap(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -3904,9 +3904,9 @@ func TestBuildAppSyncMap(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -3973,9 +3973,9 @@ func TestBuildAppSyncMap(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4124,7 +4124,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 				KubeClientset:    kubeclientset,
 			}
 
-			appSyncMap, err := r.buildAppSyncMap(context.TODO(), cc.appSet, cc.appDependencyList, cc.appMap)
+			appSyncMap, err := r.buildAppSyncMap(context.TODO(), cc.appSet, cc.appSet.Spec.Strategy, cc.appDependencyList, cc.appMap)
 			assert.Equal(t, err, nil, "expected no errors, but errors occured")
 			assert.Equal(t, cc.expectedMap, appSyncMap, "expected appSyncMap did not match actual")
 		})
@@ -4155,9 +4155,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 			},
@@ -4172,9 +4172,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 			},
@@ -4213,9 +4213,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{},
@@ -4255,9 +4255,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4300,9 +4300,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4345,9 +4345,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4396,9 +4396,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4447,9 +4447,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4498,9 +4498,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 			},
@@ -4543,9 +4543,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4600,9 +4600,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4657,9 +4657,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4714,9 +4714,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4783,7 +4783,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				KubeClientset:    kubeclientset,
 			}
 
-			appStatuses, err := r.updateApplicationSetApplicationStatus(context.TODO(), &cc.appSet, cc.apps, cc.appStepMap)
+			appStatuses, err := r.updateApplicationSetApplicationStatus(context.TODO(), &cc.appSet, cc.appSet.Spec.Strategy, cc.apps, cc.appStepMap)
 
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
@@ -4821,10 +4821,10 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
 								},
@@ -4867,7 +4867,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{},
+					Strategy: &v1alpha1.SyncStrategySpec{},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{},
@@ -4906,10 +4906,10 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
 								},
@@ -4954,10 +4954,10 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
 								},
@@ -5003,10 +5003,10 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
 								},
@@ -5052,10 +5052,10 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
 									MaxUpdate: &intstr.IntOrString{
@@ -5192,10 +5192,10 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
 									MaxUpdate: &intstr.IntOrString{
@@ -5275,10 +5275,10 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
 									MaxUpdate: &intstr.IntOrString{
@@ -5358,10 +5358,10 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
 									MaxUpdate: &intstr.IntOrString{
@@ -5441,10 +5441,10 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
+					Strategy: &v1alpha1.SyncStrategySpec{
 						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
+						RollingSync: &v1alpha1.SyncStrategyRolloutStrategy{
+							Steps: []v1alpha1.SyncStrategyRolloutStep{
 								{
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
 									MaxUpdate: &intstr.IntOrString{
@@ -5536,7 +5536,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				KubeClientset:    kubeclientset,
 			}
 
-			appStatuses, err := r.updateApplicationSetApplicationStatusProgress(context.TODO(), &cc.appSet, cc.appSyncMap, cc.appStepMap, cc.appMap)
+			appStatuses, err := r.updateApplicationSetApplicationStatusProgress(context.TODO(), &cc.appSet, cc.appSet.Spec.Strategy, cc.appSyncMap, cc.appStepMap, cc.appMap)
 
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
@@ -5675,6 +5675,131 @@ func TestOwnsHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ownsHandler = getOwnsHandlerPredicates(tt.args.enableProgressiveSyncs)
 			assert.Equalf(t, tt.want, ownsHandler.UpdateFunc(tt.args.e), "UpdateFunc(%v)", tt.args.e)
+		})
+	}
+}
+
+func TestReconcilerGetSyncStrategy(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	strategy := &v1alpha1.SyncStrategy{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-syncstrategy", Namespace: "test"},
+		Spec: v1alpha1.SyncStrategySpec{
+			Type: "AllAtOnce",
+		},
+	}
+
+	clusterstrategy := &v1alpha1.ClusterSyncStrategy{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-clustersyncstrategy"},
+		Spec: v1alpha1.SyncStrategySpec{
+			Type: "RollingSync",
+		},
+	}
+
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(strategy, clusterstrategy).Build()
+	r := ApplicationSetReconciler{
+		Client:   client,
+		Scheme:   scheme,
+		Recorder: record.NewFakeRecorder(10),
+	}
+	ctx := context.Background()
+
+	cases := []struct {
+		name, namespace, strategyType string
+		spec                          v1alpha1.ApplicationSetSpec
+		hasError                      bool
+	}{
+		{
+			name: "valid ref",
+			spec: v1alpha1.ApplicationSetSpec{
+				StrategyRef: &v1alpha1.SyncStrategyRef{Name: "test-syncstrategy", Kind: application.SyncStrategyKind},
+			},
+			namespace:    "test",
+			strategyType: "AllAtOnce",
+			hasError:     false,
+		},
+		{
+			name: "valid ref cluster",
+			spec: v1alpha1.ApplicationSetSpec{
+				StrategyRef: &v1alpha1.SyncStrategyRef{Name: "test-clustersyncstrategy", Kind: application.ClusterSyncStrategyKind},
+			},
+			strategyType: "RollingSync",
+			hasError:     false,
+		},
+		{
+			name: "ref and strategy use strategy",
+			spec: v1alpha1.ApplicationSetSpec{
+				StrategyRef: &v1alpha1.SyncStrategyRef{Name: "test-clustersyncstrategy", Kind: application.ClusterSyncStrategyKind},
+				Strategy:    &v1alpha1.SyncStrategySpec{Type: "not-a-ref"},
+			},
+			strategyType: "not-a-ref",
+			hasError:     false,
+		},
+		{
+			name: "wrong name",
+			spec: v1alpha1.ApplicationSetSpec{
+				StrategyRef: &v1alpha1.SyncStrategyRef{Name: "other", Kind: application.SyncStrategyKind},
+			},
+			namespace:    "test",
+			strategyType: "",
+			hasError:     true,
+		},
+		{
+			name: "wrong kind",
+			spec: v1alpha1.ApplicationSetSpec{
+				StrategyRef: &v1alpha1.SyncStrategyRef{Name: "test-syncstrategy", Kind: "OtherKind"},
+			},
+			namespace:    "test",
+			strategyType: "",
+			hasError:     true,
+		},
+		{
+			name: "wrong namespace",
+			spec: v1alpha1.ApplicationSetSpec{
+				StrategyRef: &v1alpha1.SyncStrategyRef{Name: "test-syncstrategy", Kind: application.SyncStrategyKind},
+			},
+			namespace:    "other",
+			strategyType: "",
+			hasError:     true,
+		},
+		{
+			name: "ignore namespace for cluster resource",
+			spec: v1alpha1.ApplicationSetSpec{
+				StrategyRef: &v1alpha1.SyncStrategyRef{Name: "test-clustersyncstrategy", Kind: application.ClusterSyncStrategyKind},
+			},
+			namespace:    "other",
+			strategyType: "RollingSync",
+			hasError:     false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			appset := &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: c.namespace,
+				},
+				Spec: c.spec,
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{},
+				},
+			}
+
+			spec, err := r.getApplicationSetStrategySpec(ctx, appset)
+			if c.hasError {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+
+			if c.strategyType == "" {
+				assert.Nil(t, spec)
+			} else {
+				assert.Equal(t, c.strategyType, spec.Type)
+			}
 		})
 	}
 }
