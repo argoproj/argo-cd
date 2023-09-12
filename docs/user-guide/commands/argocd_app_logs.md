@@ -9,9 +9,9 @@ argocd app logs APPNAME [flags]
 ### Options
 
 ```
-  -c, --container string    Optional container name
+      --container string    Optional container name
       --filter string       Show logs contain this string
-  -f, --follow              Specify if the logs should be streamed
+      --follow              Specify if the logs should be streamed
       --group string        Resource group
   -h, --help                help for logs
       --kind string         Resource kind
