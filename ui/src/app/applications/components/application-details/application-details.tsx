@@ -1,4 +1,4 @@
-import {DropDownMenu, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
+import {DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -25,7 +25,7 @@ import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters, FiltersProps} from './application-resource-filter';
 import {getAppDefaultSource, urlPattern, helpTip} from '../utils';
-import {ChartDetails, ResourceStatus} from '../../../shared/models';
+import {ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
@@ -87,16 +87,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         extensions.forEach(ext => {
             extensionsMap[ext.title] = ext;
         });
-        this.state = {
-            page: 0,
-            groupedResources: [],
-            slidingPanelPage: 0,
-            filteredGraph: [],
-            truncateNameOnRight: false,
-            collapsedNodes: [],
-            extensions,
-            extensionsMap
-        };
+
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], truncateNameOnRight: false, collapsedNodes: [], extensions, extensionsMap};
         if (typeof this.props.match.params.appnamespace === 'undefined') {
             this.appNamespace = '';
         } else {
@@ -147,8 +139,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         this.setState({slidingPanelPage: 0});
     }
 
-    private toggleCompactView(appName: string, pref: AppDetailsPreferences) {
-        pref.userHelpTipMsgs = pref.userHelpTipMsgs.map(usrMsg => (usrMsg.appName === appName && usrMsg.msgKey === 'groupNodes' ? {...usrMsg, display: true} : usrMsg));
+    private toggleCompactView(pref: AppDetailsPreferences) {
         services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: !pref.groupNodes}});
     }
 
@@ -232,7 +223,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
                             const source = getAppDefaultSource(application);
-                            const showToolTip = pref?.userHelpTipMsgs.find(usrMsg => usrMsg.appName === application.metadata.name);
                             const resourceNodes = (): any[] => {
                                 const statusByKey = new Map<string, models.ResourceStatus>();
                                 application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
@@ -294,17 +284,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             };
                             const setFilterGraph = (filterGraph: any[]) => {
                                 this.setState({filteredGraph: filterGraph});
-                            };
-                            const setShowCompactNodes = (showCompactView: boolean) => {
-                                services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: showCompactView}});
-                            };
-                            const updateHelpTipState = (usrHelpTip: models.UserMessages) => {
-                                const existingIndex = pref.userHelpTipMsgs.findIndex(msg => msg.appName === usrHelpTip.appName && msg.msgKey === usrHelpTip.msgKey);
-                                if (existingIndex !== -1) {
-                                    pref.userHelpTipMsgs[existingIndex] = usrHelpTip;
-                                } else {
-                                    (pref.userHelpTipMsgs || []).push(usrHelpTip);
-                                }
                             };
                             const toggleNameDirection = () => {
                                 this.setState({truncateNameOnRight: !this.state.truncateNameOnRight});
@@ -456,19 +435,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             />
                                                         </a>
                                                         {(pref.view === 'tree' || pref.view === 'network') && (
-                                                            <Tooltip
-                                                                content={AppUtils.userMsgsList[showToolTip?.msgKey] || 'Group Nodes'}
-                                                                visible={pref.groupNodes && showToolTip !== undefined && !showToolTip?.display}
-                                                                duration={showToolTip?.duration}>
-                                                                <a
-                                                                    className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
-                                                                    title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
-                                                                    onClick={() => this.toggleCompactView(application.metadata.name, pref)}>
-                                                                    <i className={classNames('fa fa-object-group fa-fw')} />
-                                                                </a>
-                                                            </Tooltip>
+                                                            <a
+                                                                className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
+                                                                title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
+                                                                onClick={() => this.toggleCompactView(pref)}>
+                                                                <i className={classNames('fa fa-object-group fa-fw')} />
+                                                            </a>
                                                         )}
-
                                                         <span className={`separator`} />
                                                         <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
                                                             <i className='fa fa-plus fa-fw' />
@@ -477,15 +450,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             <i className='fa fa-minus fa-fw' />
                                                         </a>
                                                         <span className={`separator`} />
-                                                        <span>
-                                                            <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
-                                                                <i className='fa fa-search-plus fa-fw' />
-                                                            </a>
-                                                            <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
-                                                                <i className='fa fa-search-minus fa-fw' />
-                                                            </a>
-                                                            <div className={`zoom-value`}>{zoomNum}%</div>
-                                                        </span>
+                                                        <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
+                                                            <i className='fa fa-search-plus fa-fw' />
+                                                        </a>
+                                                        <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
+                                                            <i className='fa fa-search-minus fa-fw' />
+                                                        </a>
+                                                        <div className={`zoom-value`}>{zoomNum}%</div>
                                                     </div>
                                                     <ApplicationResourceTree
                                                         nodeFilter={node => this.filterTreeNode(node, treeFilter)}
@@ -497,7 +468,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             )
                                                         }
                                                         showCompactNodes={pref.groupNodes}
-                                                        userMsgs={pref.userHelpTipMsgs}
                                                         tree={tree}
                                                         app={application}
                                                         showOrphanedResources={pref.orphanedResources}
@@ -505,13 +475,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         onClearFilter={clearFilter}
                                                         onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
                                                         zoom={pref.zoom}
-                                                        podGroupCount={pref.podGroupCount}
                                                         appContext={this.appContext}
                                                         nameDirection={this.state.truncateNameOnRight}
                                                         filters={pref.resourceFilter}
                                                         setTreeFilterGraph={setFilterGraph}
-                                                        updateUsrHelpTipMsgs={updateHelpTipState}
-                                                        setShowCompactNodes={setShowCompactNodes}
                                                         setNodeExpansion={(node, isExpanded) => this.setNodeExpansion(node, isExpanded)}
                                                         getNodeExpansion={node => this.getNodeExpansion(node)}
                                                     />
@@ -566,7 +533,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                                 () => this.getApplicationActionMenu(application, false)
                                                                             )
                                                                         }
-                                                                        tree={tree}
                                                                     />
                                                                 )}
                                                             </Paginate>
@@ -595,7 +561,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                     this.getApplicationActionMenu(application, false)
                                                                 )
                                                             }
-                                                            tree={tree}
                                                         />
                                                     )}
                                                 </Paginate>
@@ -633,101 +598,55 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             {conditions && <ApplicationConditions conditions={conditions} />}
                                         </SlidingPanel>
                                         <SlidingPanel isShown={!!this.state.revision} isMiddle={true} onClose={() => this.setState({revision: null})}>
-                                            {this.state.revision &&
-                                                (source.chart ? (
-                                                    <DataLoader
-                                                        input={application}
-                                                        load={input =>
-                                                            services.applications.revisionChartDetails(input.metadata.name, input.metadata.namespace, this.state.revision)
-                                                        }>
-                                                        {(m: ChartDetails) => (
-                                                            <div className='white-box' style={{marginTop: '1.5em'}}>
-                                                                <div className='white-box__details'>
-                                                                    <div className='row white-box__details-row'>
-                                                                        <div className='columns small-3'>Revision:</div>
-                                                                        <div className='columns small-9'>{this.state.revision}</div>
-                                                                    </div>
-                                                                    <div className='row white-box__details-row'>
-                                                                        <div className='columns small-3'>Helm Chart:</div>
-                                                                        <div className='columns small-9'>
-                                                                            {source.chart}&nbsp;
-                                                                            {m.home && (
-                                                                                <a
-                                                                                    title={m.home}
-                                                                                    onClick={e => {
-                                                                                        e.stopPropagation();
-                                                                                        window.open(m.home);
-                                                                                    }}>
-                                                                                    <i className='fa fa-external-link-alt' />
-                                                                                </a>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                    {m.description && (
-                                                                        <div className='row white-box__details-row'>
-                                                                            <div className='columns small-3'>Description:</div>
-                                                                            <div className='columns small-9'>{m.description}</div>
-                                                                        </div>
-                                                                    )}
-                                                                    {m.maintainers && m.maintainers.length > 0 && (
-                                                                        <div className='row white-box__details-row'>
-                                                                            <div className='columns small-3'>Maintainers:</div>
-                                                                            <div className='columns small-9'>{m.maintainers.join(', ')}</div>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </DataLoader>
-                                                ) : (
-                                                    <DataLoader
-                                                        load={() =>
-                                                            services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, this.state.revision)
-                                                        }>
-                                                        {metadata => (
-                                                            <div className='white-box' style={{marginTop: '1.5em'}}>
-                                                                <div className='white-box__details'>
-                                                                    <div className='row white-box__details-row'>
-                                                                        <div className='columns small-3'>SHA:</div>
-                                                                        <div className='columns small-9'>
-                                                                            <Revision repoUrl={source.repoURL} revision={this.state.revision} />
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className='white-box__details'>
-                                                                    <div className='row white-box__details-row'>
-                                                                        <div className='columns small-3'>Date:</div>
-                                                                        <div className='columns small-9'>
-                                                                            <Timestamp date={metadata.date} />
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className='white-box__details'>
-                                                                    <div className='row white-box__details-row'>
-                                                                        <div className='columns small-3'>Tags:</div>
-                                                                        <div className='columns small-9'>
-                                                                            {((metadata.tags || []).length > 0 && metadata.tags.join(', ')) || 'No tags'}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className='white-box__details'>
-                                                                    <div className='row white-box__details-row'>
-                                                                        <div className='columns small-3'>Author:</div>
-                                                                        <div className='columns small-9'>{metadata.author}</div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className='white-box__details'>
-                                                                    <div className='row white-box__details-row'>
-                                                                        <div className='columns small-3'>Message:</div>
-                                                                        <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
-                                                                            <div className='application-details__commit-message'>{renderCommitMessage(metadata.message)}</div>
-                                                                        </div>
+                                            {this.state.revision && (
+                                                <DataLoader
+                                                    load={() =>
+                                                        services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, this.state.revision)
+                                                    }>
+                                                    {metadata => (
+                                                        <div className='white-box' style={{marginTop: '1.5em'}}>
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>SHA:</div>
+                                                                    <div className='columns small-9'>
+                                                                        <Revision repoUrl={source.repoURL} revision={this.state.revision} />
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        )}
-                                                    </DataLoader>
-                                                ))}
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>Date:</div>
+                                                                    <div className='columns small-9'>
+                                                                        <Timestamp date={metadata.date} />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>Tags:</div>
+                                                                    <div className='columns small-9'>
+                                                                        {((metadata.tags || []).length > 0 && metadata.tags.join(', ')) || 'No tags'}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>Author:</div>
+                                                                    <div className='columns small-9'>{metadata.author}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>Message:</div>
+                                                                    <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
+                                                                        <div className='application-details__commit-message'>{renderCommitMessage(metadata.message)}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </DataLoader>
+                                            )}
                                         </SlidingPanel>
                                     </Page>
                                 </div>
@@ -821,7 +740,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const root = node.root || ({} as ResourceTreeNode);
         const hook = root && root.hook;
         if (
-            (filterInput.name.length === 0 || this.nodeNameMatchesWildcardFilters(node.name, filterInput.name)) &&
+            (filterInput.name.length === 0 || filterInput.name.indexOf(node.name) > -1) &&
             (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
             // include if node's root sync matches filter
             (syncStatuses.length === 0 || hook || (root.status && syncStatuses.indexOf(root.status) > -1)) &&
@@ -836,24 +755,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         }
 
         return false;
-    }
-
-    private nodeNameMatchesWildcardFilters(nodeName: string, filterInputNames: string[]): boolean {
-        const regularExpression = new RegExp(
-            filterInputNames
-                // Escape any regex input to ensure only * can be used
-                .map(pattern => '^' + this.escapeRegex(pattern) + '$')
-                // Replace any escaped * with proper regex
-                .map(pattern => pattern.replace(/\\\*/g, '.*'))
-                // Join all filterInputs to a single regular expression
-                .join('|'),
-            'gi'
-        );
-        return regularExpression.test(nodeName);
-    }
-
-    private escapeRegex(input: string): string {
-        return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     private loadAppInfo(name: string, appNamespace: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {

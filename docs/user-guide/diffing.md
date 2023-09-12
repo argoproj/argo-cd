@@ -68,15 +68,6 @@ spec:
 
 The above configuration will ignore differences from all fields owned by `kube-controller-manager` for all resources belonging to this application.
 
-If you have a slash `/` in your pointer path, you can use the `~1` character. For example:
-
-```yaml
-spec:
-  ignoreDifferences:
-  - kind: Node
-    jsonPointers: /metadata/labels/node-role.kubernetes.io~1worker
-```
-
 ## System-Level Configuration
 
 The comparison of resources with well-known issues can be customized at a system level. Ignored differences can be configured for a specified group and kind

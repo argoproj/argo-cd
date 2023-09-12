@@ -16,12 +16,12 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/argoproj/notifications-engine/pkg/triggers"
 	"github.com/argoproj/notifications-engine/pkg/util/misc"
+	"github.com/ghodss/yaml"
 	"github.com/olekukonko/tablewriter"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/yaml"
 )
 
 func main() {

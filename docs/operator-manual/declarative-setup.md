@@ -8,16 +8,16 @@ All resources, including `Application` and `AppProject` specs, have to be instal
 
 ### Atomic configuration
 
-| Sample File                                                           | Resource Name                                                                      | Kind      | Description                                                                          |
-|-----------------------------------------------------------------------|------------------------------------------------------------------------------------|-----------|--------------------------------------------------------------------------------------|
-| [`argocd-cm.yaml`](argocd-cm-yaml.md)                                 | argocd-cm                                                                          | ConfigMap | General Argo CD configuration                                                        |
-| [`argocd-repositories.yaml`](argocd-repositories-yaml.md)             | my-private-repo / istio-helm-repo / private-helm-repo / private-repo               | Secrets   | Sample repository connection details                                                 |
-| [`argocd-repo-creds.yaml`](argocd-repo-creds-yaml.md)                    | argoproj-https-creds / argoproj-ssh-creds / github-creds / github-enterprise-creds | Secrets   | Sample repository credential templates                                               |
-| [`argocd-cmd-params-cm.yaml`](argocd-cmd-params-cm-yaml.md)           | argocd-cmd-params-cm                                                               | ConfigMap | Argo CD env variables configuration                                                  |
-| [`argocd-secret.yaml`](argocd-secret-yaml.md)                         | argocd-secret                                                                      | Secret    | User Passwords, Certificates (deprecated), Signing Key, Dex secrets, Webhook secrets |
-| [`argocd-rbac-cm.yaml`](argocd-rbac-cm-yaml.md)                       | argocd-rbac-cm                                                                     | ConfigMap | RBAC Configuration                                                                   |
-| [`argocd-tls-certs-cm.yaml`](argocd-tls-certs-cm-yaml.md)             | argocd-tls-certs-cm                                                                | ConfigMap | Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later)   |
-| [`argocd-ssh-known-hosts-cm.yaml`](argocd-ssh-known-hosts-cm-yaml.md) | argocd-ssh-known-hosts-cm                                                          | ConfigMap | SSH known hosts data for connecting Git repositories via SSH (v1.2 and later)        |
+| Sample File | Resource Name | Kind | Description |
+|-------------|---------------|------|-------------|
+| [`argocd-cm.yaml`](argocd-cm.yaml) | argocd-cm | ConfigMap | General Argo CD configuration |
+| [`argocd-repositories.yaml`](argocd-repositories.yaml) | my-private-repo / istio-helm-repo / private-helm-repo / private-repo | Secrets | Sample repository connection details |
+| [`argocd-repo-creds.yaml`](argocd-repo-creds.yaml) | argoproj-https-creds / argoproj-ssh-creds / github-creds / github-enterprise-creds | Secrets | Sample repository credential templates |
+| [`argocd-cmd-params-cm.yaml`](argocd-cmd-params-cm.yaml) | argocd-cmd-params-cm | ConfigMap | Argo CD env variables configuration |
+| [`argocd-secret.yaml`](argocd-secret.yaml) | argocd-secret | Secret | User Passwords, Certificates (deprecated), Signing Key, Dex secrets, Webhook secrets |
+| [`argocd-rbac-cm.yaml`](argocd-rbac-cm.yaml) | argocd-rbac-cm | ConfigMap | RBAC Configuration |
+| [`argocd-tls-certs-cm.yaml`](argocd-tls-certs-cm.yaml) | argocd-tls-certs-cm | ConfigMap | Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later) |
+| [`argocd-ssh-known-hosts-cm.yaml`](argocd-ssh-known-hosts-cm.yaml) | argocd-ssh-known-hosts-cm | ConfigMap | SSH known hosts data for connecting Git repositories via SSH (v1.2 and later) |
 
 For each specific kind of ConfigMap and Secret resource, there is only a single supported resource name (as listed in the above table) - if you need to merge things you need to do it before creating them.
 
@@ -26,11 +26,11 @@ For each specific kind of ConfigMap and Secret resource, there is only a single 
 
 ### Multiple configuration objects
 
-| Sample File                                                      | Kind        | Description              |
-|------------------------------------------------------------------|-------------|--------------------------|
-| [`application.yaml`](../user-guide/application-specification.md) | Application | Example application spec |
-| [`project.yaml`](./project-specification.md)                     | AppProject  | Example project spec     |
-| -                                                                | Secret      | Repository credentials   |
+| Sample File | Kind | Description |
+|-------------|------|-------------|
+| [`application.yaml`](application.yaml) | Application | Example application spec |
+| [`project.yaml`](project.yaml) | AppProject | Example project spec |
+| - | Secret | Repository credentials |
 
 For `Application` and `AppProject` resources, the name of the resource equals the name of the application or project within Argo CD. This also means that application and project names are unique within a given Argo CD installation - you cannot have the same application name for two different applications.
 
@@ -209,7 +209,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  url: git@github.com:argoproj/my-private-repository.git
+  url: git@github.com:argoproj/my-private-repository
   sshPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
@@ -602,8 +602,6 @@ stringData:
     }
 ```
 
-### EKS
-
 EKS cluster secret example using argocd-k8s-auth and [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html):
 
 ```yaml
@@ -729,7 +727,6 @@ data:
       "rolearn": "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"
       "username": "<some-username>"
 ```
-### GKE
 
 GKE cluster secret example using argocd-k8s-auth and [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity):
 
@@ -759,99 +756,6 @@ stringData:
 ```
 
 Note that you must enable Workload Identity on your GKE cluster, create GCP service account with appropriate IAM role and bind it to Kubernetes service account for argocd-application-controller and argocd-server (showing Pod logs on UI). See [Use Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity) and [Authenticating to the Kubernetes API server](https://cloud.google.com/kubernetes-engine/docs/how-to/api-server-authentication).
-
-### AKS
-
-Azure cluster secret example using argocd-k8s-auth and [kubelogin](https://github.com/Azure/kubelogin).  The option *azure* to the argocd-k8s-auth execProviderConfig encapsulates the *get-token* command for kubelogin.  Depending upon which authentication flow is desired (devicecode, spn, ropc, msi, azurecli, workloadidentity), set the environment variable AAD_LOGIN_METHOD with this value.  Set other appropriate environment variables depending upon which authentication flow is desired.
-
-|Variable Name|Description|
-|-------------|-----------|
-|AAD_LOGIN_METHOD|One of devicecode, spn, ropc, msi, azurecli, or workloadidentity|
-|AAD_SERVICE_PRINCIPAL_CLIENT_CERTIFICATE|AAD client cert in pfx.  Used in spn login|
-|AAD_SERVICE_PRINCIPAL_CLIENT_ID|AAD client application ID|
-|AAD_SERVICE_PRINCIPAL_CLIENT_SECRET|AAD client application secret|
-|AAD_USER_PRINCIPAL_NAME|Used in the ropc flow|
-|AAD_USER_PRINCIPAL_PASSWORD|Used in the ropc flow|
-|AZURE_TENANT_ID|The AAD tenant ID.|
-|AZURE_AUTHORITY_HOST|Used in the WorkloadIdentityLogin flow|
-|AZURE_FEDERATED_TOKEN_FILE|Used in the WorkloadIdentityLogin flow|
-|AZURE_CLIENT_ID|Used in the WorkloadIdentityLogin flow|
-
-In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [here](https://github.com/azure/kubelogin#exec-plugin-format) for details.
-
-|Variable Name|Description|
-|-------------|-----------|
-|AAD_ENVIRONMENT_NAME|The azure environment to use, default of AzurePublicCloud|
-|AAD_SERVER_APPLICATION_ID|The optional AAD server application ID, defaults to 6dae42f8-4368-4678-94ff-3960e28e3630|
-
-This is an example of using the [federated workload login flow](https://github.com/Azure/kubelogin#azure-workload-federated-identity-non-interactive).  The federated token file needs to be mounted as a secret into argoCD, so it can be used in the flow.  The location of the token file needs to be set in the environment variable AZURE_FEDERATED_TOKEN_FILE.
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mycluster-secret
-  labels:
-    argocd.argoproj.io/secret-type: cluster
-type: Opaque
-stringData:
-  name: mycluster.com
-  server: https://mycluster.com
-  config: |
-    {
-      "execProviderConfig": {
-        "command": "argocd-k8s-auth",
-        "env": {
-          "AAD_ENVIRONMENT_NAME": "AzurePublicCloud",
-          "AZURE_CLIENT_ID": "fill in client id",
-          "AZURE_TENANT_ID": "fill in tenant id",
-          "AZURE_FEDERATED_TOKEN_FILE": "/opt/path/to/federated_file.json",
-          "AZURE_AUTHORITY_HOST": "https://login.microsoftonline.com/",
-          "AAD_LOGIN_METHOD": "workloadidentity"
-        },
-        "args": ["azure"],
-        "apiVersion": "client.authentication.k8s.io/v1beta1"
-      },
-      "tlsClientConfig": {
-        "insecure": false,
-        "caData": "<base64 encoded certificate>"
-      }
-    }
-```
-
-This is an example of using the spn (service principal name) flow.
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mycluster-secret
-  labels:
-    argocd.argoproj.io/secret-type: cluster
-type: Opaque
-stringData:
-  name: mycluster.com
-  server: https://mycluster.com
-  config: |
-    {
-      "execProviderConfig": {
-        "command": "argocd-k8s-auth",
-        "env": {
-          "AAD_ENVIRONMENT_NAME": "AzurePublicCloud",
-          "AAD_SERVICE_PRINCIPAL_CLIENT_SECRET": "fill in your service principal client secret",
-          "AZURE_TENANT_ID": "fill in tenant id",
-          "AAD_SERVICE_PRINCIPAL_CLIENT_ID": "fill in your service principal client id",
-          "AAD_LOGIN_METHOD": "spn"
-        },
-        "args": ["azure"],
-        "apiVersion": "client.authentication.k8s.io/v1beta1"
-      },
-      "tlsClientConfig": {
-        "insecure": false,
-        "caData": "<base64 encoded certificate>"
-      }
-    }
-```
 
 ## Helm Chart Repositories
 
@@ -893,7 +797,7 @@ stringData:
 
 ## Resource Exclusion/Inclusion
 
-Resources can be excluded from discovery and sync so that Argo CD is unaware of them. For example, the apiGroup/kind `events.k8s.io/*`, `metrics.k8s.io/*`, `coordination.k8s.io/Lease`, and `""/Endpoints` are always excluded. Use cases:
+Resources can be excluded from discovery and sync so that Argo CD is unaware of them. For example, `events.k8s.io` and `metrics.k8s.io` are always excluded. Use cases:
 
 * You have temporal issues and you want to exclude problematic resources.
 * There are many of a kind of resources that impacts Argo CD's performance.
@@ -952,33 +856,6 @@ Notes:
 * Quote globs in your YAML to avoid parsing errors.
 * Invalid globs result in the whole rule being ignored.
 * If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
-
-## Auto respect RBAC for controller
-
-Argocd controller can be restricted from discovering/syncing specific resources using just controller rbac, without having to manually configure resource exclusions.
-This feature can be enabled by setting `resource.respectRBAC` key in argocd cm, once it is set the controller will automatically stop watching for resources 
-that it does not have the permission to list/access. Possible values for `resource.respectRBAC` are:
-    - `strict` : This setting checks whether the list call made by controller is forbidden/unauthorized and if it is, it will cross-check the permission by making a `SelfSubjectAccessReview` call for the resource.
-    - `normal` : This will only check whether the list call response is forbidden/unauthorized and skip `SelfSubjectAccessReview` call, to minimize any extra api-server calls.
-    - unset/empty (default) : This will disable the feature and controller will continue to monitor all resources.
-
-Users who are comfortable with an increase in kube api-server calls can opt for `strict` option while users who are concerned with higher api calls and are willing to compromise on the accuracy can opt for the `normal` option.
-
-Notes:
-
-* When set to use `strict` mode controller must have rbac permission to `create` a `SelfSubjectAccessReview` resource 
-* The `SelfSubjectAccessReview` request will be only made for the `list` verb, it is assumed that if `list` is allowed for a resource then all other permissions are also available to the controller.
-
-Example argocd cm with `resource.respectRBAC` set to `strict`:
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-cm
-data:
-  resource.respectRBAC: "strict"
-```
 
 ## Resource Custom Labels
 

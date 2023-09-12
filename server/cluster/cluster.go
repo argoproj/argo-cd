@@ -56,21 +56,8 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 		return nil, err
 	}
 
-	filteredItems := clusterList.Items
-
-	// Filter clusters by id
-	if filteredItems, err = filterClustersById(filteredItems, q.Id); err != nil {
-		return nil, err
-	}
-
-	// Filter clusters by name
-	filteredItems = filterClustersByName(filteredItems, q.Name)
-
-	// Filter clusters by server
-	filteredItems = filterClustersByServer(filteredItems, q.Server)
-
 	items := make([]appv1.Cluster, 0)
-	for _, clust := range filteredItems {
+	for _, clust := range clusterList.Items {
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, CreateClusterRBACObject(clust.Project, clust.Server)) {
 			items = append(items, clust)
 		}
@@ -82,62 +69,8 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 	if err != nil {
 		return nil, err
 	}
-
-	cl := *clusterList
-	cl.Items = items
-
-	return &cl, nil
-}
-
-func filterClustersById(clusters []appv1.Cluster, id *cluster.ClusterID) ([]appv1.Cluster, error) {
-	if id == nil {
-		return clusters, nil
-	}
-
-	var items []appv1.Cluster
-
-	switch id.Type {
-	case "name":
-		items = filterClustersByName(clusters, id.Value)
-	case "name_escaped":
-		nameUnescaped, err := url.QueryUnescape(id.Value)
-		if err != nil {
-			return nil, err
-		}
-		items = filterClustersByName(clusters, nameUnescaped)
-	default:
-		items = filterClustersByServer(clusters, id.Value)
-	}
-
-	return items, nil
-}
-
-func filterClustersByName(clusters []appv1.Cluster, name string) []appv1.Cluster {
-	if name == "" {
-		return clusters
-	}
-	items := make([]appv1.Cluster, 0)
-	for i := 0; i < len(clusters); i++ {
-		if clusters[i].Name == name {
-			items = append(items, clusters[i])
-			return items
-		}
-	}
-	return items
-}
-
-func filterClustersByServer(clusters []appv1.Cluster, server string) []appv1.Cluster {
-	if server == "" {
-		return clusters
-	}
-	items := make([]appv1.Cluster, 0)
-	for i := 0; i < len(clusters); i++ {
-		if clusters[i].Server == server {
-			items = append(items, clusters[i])
-			return items
-		}
-	}
-	return items
+	clusterList.Items = items
+	return clusterList, nil
 }
 
 // Create creates a cluster
