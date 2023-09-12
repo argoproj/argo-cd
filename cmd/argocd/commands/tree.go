@@ -15,11 +15,11 @@ const (
 	pipe            = `│ `
 )
 
-func treeViewAppResourcesNotOrphaned(prefix string, objs map[string]v1alpha1.ResourceNode, obj map[string][]string, parent v1alpha1.ResourceNode, w *tabwriter.Writer) {
+func treeViewAppResourcesNotOrphaned(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, w *tabwriter.Writer) {
 	if len(parent.ParentRefs) == 0 {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", parent.Group, parent.Kind, parent.Namespace, parent.Name, "No")
 	}
-	chs := obj[parent.UID]
+	chs := parentChildMap[parent.UID]
 	for i, child := range chs {
 		var p string
 		switch i {
@@ -28,13 +28,13 @@ func treeViewAppResourcesNotOrphaned(prefix string, objs map[string]v1alpha1.Res
 		default:
 			p = prefix + firstElemPrefix
 		}
-		treeViewAppResourcesNotOrphaned(p, objs, obj, objs[child], w)
+		treeViewAppResourcesNotOrphaned(p, uidToNodeMap, parentChildMap, uidToNodeMap[child], w)
 	}
 }
 
-func treeViewAppResourcesOrphaned(prefix string, objs map[string]v1alpha1.ResourceNode, obj map[string][]string, parent v1alpha1.ResourceNode, w *tabwriter.Writer) {
+func treeViewAppResourcesOrphaned(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, w *tabwriter.Writer) {
 	_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", parent.Group, parent.Kind, parent.Namespace, parent.Name, "Yes")
-	chs := obj[parent.UID]
+	chs := parentChildMap[parent.UID]
 	for i, child := range chs {
 		var p string
 		switch i {
@@ -43,7 +43,7 @@ func treeViewAppResourcesOrphaned(prefix string, objs map[string]v1alpha1.Resour
 		default:
 			p = prefix + firstElemPrefix
 		}
-		treeViewAppResourcesOrphaned(p, objs, obj, objs[child], w)
+		treeViewAppResourcesOrphaned(p, uidToNodeMap, parentChildMap, uidToNodeMap[child], w)
 	}
 }
 
