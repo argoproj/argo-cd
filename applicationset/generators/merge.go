@@ -201,13 +201,15 @@ func (m *MergeGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.App
 		matrixGen, _ := getMatrixGenerator(r)
 		mergeGen, _ := getMergeGenerator(r)
 		base := &argoprojiov1alpha1.ApplicationSetGenerator{
-			List:        r.List,
-			Clusters:    r.Clusters,
-			Git:         r.Git,
-			PullRequest: r.PullRequest,
-			Plugin:      r.Plugin,
-			Matrix:      matrixGen,
-			Merge:       mergeGen,
+			List:                    r.List,
+			Clusters:                r.Clusters,
+			Git:                     r.Git,
+			PullRequest:             r.PullRequest,
+			Plugin:                  r.Plugin,
+			SCMProvider:             r.SCMProvider,
+			ClusterDecisionResource: r.ClusterDecisionResource,
+			Matrix:                  matrixGen,
+			Merge:                   mergeGen,
 		}
 		generators := GetRelevantGenerators(base, m.supportedGenerators)
 
