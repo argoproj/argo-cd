@@ -19,7 +19,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/gosuri/uitable"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
@@ -384,6 +383,33 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				if len(mapUidToNode) > 0 {
 					printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 				}
+			case "tree=detailed":
+				aURL := appURL(ctx, acdClient, app.Name)
+				printAppSummaryTable(app, aURL, windows)
+
+				if len(app.Status.Conditions) > 0 {
+					fmt.Println()
+					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+					printAppConditions(w, app)
+					_ = w.Flush()
+					fmt.Println()
+				}
+				if showOperation && app.Status.OperationState != nil {
+					fmt.Println()
+					printOperationResult(app.Status.OperationState)
+				}
+				if showParams {
+					printParams(app)
+				}
+				mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
+				mapNodeNameToResourceState := make(map[string]*resourceState)
+				for _, res := range getResourceStates(app, nil) {
+					mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
+				}
+				if len(mapUidToNode) > 0 {
+					fmt.Println()
+					printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
+				}
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
@@ -479,12 +505,12 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&kind, "kind", "", "Resource kind")
 	command.Flags().StringVar(&namespace, "namespace", "", "Resource namespace")
 	command.Flags().StringVar(&resourceName, "name", "", "Resource name")
-	command.Flags().BoolVarP(&follow, "follow", "f", false, "Specify if the logs should be streamed")
+	command.Flags().BoolVar(&follow, "follow", false, "Specify if the logs should be streamed")
 	command.Flags().Int64Var(&tail, "tail", 0, "The number of lines from the end of the logs to show")
 	command.Flags().Int64Var(&sinceSeconds, "since-seconds", 0, "A relative time in seconds before the current time from which to show logs")
 	command.Flags().StringVar(&untilTime, "until-time", "", "Show logs until this time")
 	command.Flags().StringVar(&filter, "filter", "", "Show logs contain this string")
-	command.Flags().StringVarP(&container, "container", "c", "", "Optional container name")
+	command.Flags().StringVar(&container, "container", "", "Optional container name")
 	command.Flags().BoolVarP(&previous, "previous", "p", false, "Specify if the previously terminated container logs should be returned")
 
 	return command
@@ -1580,20 +1606,22 @@ func printAppResources(w io.Writer, app *argoappv1.Application) {
 	}
 }
 
-func tableConfig() (tbl *uitable.Table) {
-	tbl = uitable.New()
-	tbl.Separator = " "
-	return
+func printTreeView(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintf(w, "KIND/NAME\tSTATUS\tHEALTH\tMESSAGE\n")
+	for uid := range parentNodes {
+		treeViewAppGet("", nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState, w)
+	}
+	_ = w.Flush()
 }
 
-func printTreeView(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState) {
-	w := os.Stdout
-	tbl := tableConfig()
-	tbl.AddRow("GROUP", "NAMESPACE", "KIND", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
+func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(w, "KIND/NAME\tSTATUS\tHEALTH\tAGE\tMESSAGE\tREASON\n")
 	for uid := range parentNodes {
-		treeViewAppGet("", tbl, nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState)
+		detailedTreeViewAppGet("", nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState, w)
 	}
-	fmt.Fprintln(w, tbl)
+	_ = w.Flush()
 }
 
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
