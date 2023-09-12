@@ -165,7 +165,7 @@ func URIToSecretName(uriType, uri string) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			host = strings.ReplaceAll(addr.StringExpanded(), ":", "-")
+			host = strings.ReplaceAll(addr.String(), ":", "-")
 		}
 	} else {
 		last := strings.Index(host, ":")
@@ -175,5 +175,6 @@ func URIToSecretName(uriType, uri string) (string, error) {
 	}
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(uri))
+	host = strings.ToLower(host)
 	return fmt.Sprintf("%s-%s-%v", uriType, host, h.Sum32()), nil
 }
