@@ -14,15 +14,7 @@ import (
 
 // Component names
 const (
-	ApplicationController    = "argocd-application-controller"
-	Server                   = "argocd-server"
-	RepoServer               = "argocd-repo-server"
-	CMPServer                = "argocd-cmp-server"
-	Dex                      = "argocd-dex"
-	Notifications            = "argocd-notifications"
-	GitAskPass               = "argocd-git-ask-pass"
-	ApplicationSetController = "argocd-applicationset-controller"
-	K8sAuth                  = "argocd-k8s-auth"
+	ApplicationController = "argocd-application-controller"
 )
 
 // Default service addresses and URLS of Argo CD internal services

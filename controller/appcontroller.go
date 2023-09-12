@@ -34,6 +34,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/informers"
+	informerv1 "k8s.io/client-go/informers/apps/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -64,7 +66,8 @@ import (
 )
 
 const (
-	updateOperationStateTimeout = 1 * time.Second
+	updateOperationStateTimeout             = 1 * time.Second
+	defaultDeploymentInformerResyncDuration = 10
 	// orphanedIndex contains application which monitor orphaned resources by namespace
 	orphanedIndex = "orphaned"
 )
@@ -107,6 +110,7 @@ type ApplicationController struct {
 	appInformer                   cache.SharedIndexInformer
 	appLister                     applisters.ApplicationLister
 	projInformer                  cache.SharedIndexInformer
+	deploymentInformer            informerv1.DeploymentInformer
 	appStateManager               AppStateManager
 	stateCache                    statecache.LiveStateCache
 	statusRefreshTimeout          time.Duration
@@ -204,9 +208,27 @@ func NewApplicationController(
 		},
 	})
 
+	factory := informers.NewSharedInformerFactory(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration)
+	deploymentInformer := factory.Apps().V1().Deployments()
+
+	// deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	// 	UpdateFunc: func(old, new interface{}) {
+	// 		_, err := cache.MetaNamespaceKeyFunc(new)
+	// 		if err != nil {
+	// 			return
+	// 		}
+	// 		oldDepl, oldOK := old.(*apiv1.Deployment)
+	// 		newDepl, newOK := new.(*apiv1.Deployment)
+	// 		if oldOK && newOK && oldDepl.Spec.Replicas != nil && newDepl.Spec.Replicas != nil && oldDepl.Spec.Replicas != newDepl.Spec.Replicas {
+	// 			// Update Cache
+	// 			log.Debugf("Reached here")
+	// 		}
+	// 	},
+	// })
+
 	readinessHealthCheck := func(r *http.Request) error {
 		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
-		appControllerDeployment, err := kubeClientset.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+		appControllerDeployment, err := deploymentInformer.Lister().Deployments(settingsMgr.GetNamespace()).Get(applicationControllerName)
 		if !kubeerrors.IsNotFound(err) {
 			return fmt.Errorf("error retrieving Application Controller Deployment: %s", err)
 		}
@@ -239,6 +261,7 @@ func NewApplicationController(
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
+	ctrl.deploymentInformer = deploymentInformer
 	ctrl.appStateManager = appStateManager
 	ctrl.stateCache = stateCache
 
@@ -743,6 +766,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
+	go ctrl.deploymentInformer.Informer().Run(ctx.Done())
 
 	errors.CheckError(ctrl.stateCache.Init())
 

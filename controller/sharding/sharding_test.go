@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -429,4 +430,252 @@ func Test_generateDefaultShardMappingCM_PredefinedShard(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedShadingCM, shardingCM)
 
+}
+
+func Test_getOrUpdateShardNumberForController(t *testing.T) {
+	expectedTime := metav1.Now()
+
+	testCases := []struct {
+		name                              string
+		shardApplicationControllerMapping []shardApplicationControllerMapping
+		hostname                          string
+		replicas                          int
+		shard                             int
+		expectedShard                     int
+		expectedShardMappingData          []shardApplicationControllerMapping
+	}{
+		{
+			name: "length of shard mapping less than number of replicas - Existing controller",
+			shardApplicationControllerMapping: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  metav1.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC),
+				},
+			},
+			hostname:      "test-example",
+			replicas:      2,
+			shard:         -1,
+			expectedShard: 0,
+			expectedShardMappingData: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  expectedTime,
+				}, {
+					ControllerName: "",
+					ShardNumber:    1,
+					HeartbeatTime:  metav1.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC),
+				},
+			},
+		},
+		{
+			name: "length of shard mapping less than number of replicas - New controller",
+			shardApplicationControllerMapping: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  expectedTime,
+				},
+			},
+			hostname:      "test-example-1",
+			replicas:      2,
+			shard:         -1,
+			expectedShard: 1,
+			expectedShardMappingData: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  expectedTime,
+				}, {
+					ControllerName: "test-example-1",
+					ShardNumber:    1,
+					HeartbeatTime:  expectedTime,
+				},
+			},
+		},
+		{
+			name: "length of shard mapping more than number of replicas",
+			shardApplicationControllerMapping: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  expectedTime,
+				}, {
+					ControllerName: "test-example-1",
+					ShardNumber:    1,
+					HeartbeatTime:  expectedTime,
+				},
+			},
+			hostname:      "test-example",
+			replicas:      1,
+			shard:         -1,
+			expectedShard: 0,
+			expectedShardMappingData: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  expectedTime,
+				},
+			},
+		},
+		{
+			name: "shard number is pre-specified and length of shard mapping less than number of replicas - Existing controller",
+			shardApplicationControllerMapping: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example-1",
+					ShardNumber:    1,
+					HeartbeatTime:  metav1.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC),
+				}, {
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  expectedTime,
+				},
+			},
+			hostname:      "test-example-1",
+			replicas:      2,
+			shard:         1,
+			expectedShard: 1,
+			expectedShardMappingData: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example-1",
+					ShardNumber:    1,
+					HeartbeatTime:  expectedTime,
+				}, {
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  expectedTime,
+				},
+			},
+		},
+		{
+			name: "shard number is pre-specified and length of shard mapping less than number of replicas - New controller",
+			shardApplicationControllerMapping: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  expectedTime,
+				},
+			},
+			hostname:      "test-example-1",
+			replicas:      2,
+			shard:         1,
+			expectedShard: 1,
+			expectedShardMappingData: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  expectedTime,
+				}, {
+					ControllerName: "test-example-1",
+					ShardNumber:    1,
+					HeartbeatTime:  expectedTime,
+				},
+			},
+		},
+		{
+			name: "shard number is pre-specified and length of shard mapping more than number of replicas",
+			shardApplicationControllerMapping: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  expectedTime,
+				}, {
+					ControllerName: "test-example-1",
+					ShardNumber:    1,
+					HeartbeatTime:  expectedTime,
+				}, {
+					ControllerName: "test-example-2",
+					ShardNumber:    2,
+					HeartbeatTime:  expectedTime,
+				},
+			},
+			hostname:      "test-example",
+			replicas:      2,
+			shard:         1,
+			expectedShard: 1,
+			expectedShardMappingData: []shardApplicationControllerMapping{
+				{
+					ControllerName: "",
+					ShardNumber:    0,
+					HeartbeatTime:  metav1.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC),
+				}, {
+					ControllerName: "test-example",
+					ShardNumber:    1,
+					HeartbeatTime:  expectedTime,
+				},
+			},
+		},
+		{
+			name: "updating heartbeat",
+			shardApplicationControllerMapping: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  expectedTime,
+				}, {
+					ControllerName: "test-example-1",
+					ShardNumber:    1,
+					HeartbeatTime:  metav1.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC),
+				},
+			},
+			hostname:      "test-example-1",
+			replicas:      2,
+			shard:         -1,
+			expectedShard: 1,
+			expectedShardMappingData: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  expectedTime,
+				}, {
+					ControllerName: "test-example-1",
+					ShardNumber:    1,
+					HeartbeatTime:  expectedTime,
+				},
+			},
+		},
+		{
+			name: "updating heartbeat - shard pre-defined",
+			shardApplicationControllerMapping: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  expectedTime,
+				}, {
+					ControllerName: "test-example-1",
+					ShardNumber:    1,
+					HeartbeatTime:  metav1.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC),
+				},
+			},
+			hostname:      "test-example-1",
+			replicas:      2,
+			shard:         1,
+			expectedShard: 1,
+			expectedShardMappingData: []shardApplicationControllerMapping{
+				{
+					ControllerName: "test-example",
+					ShardNumber:    0,
+					HeartbeatTime:  expectedTime,
+				}, {
+					ControllerName: "test-example-1",
+					ShardNumber:    1,
+					HeartbeatTime:  expectedTime,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() { osHostnameFunction = os.Hostname }()
+			heartbeatCurrentTime = func() metav1.Time { return expectedTime }
+			shard, shardMappingData := getOrUpdateShardNumberForController(tc.shardApplicationControllerMapping, tc.hostname, tc.replicas, tc.shard)
+			assert.Equal(t, tc.expectedShard, shard)
+			// for i, shardMapping := range shardMappingData {
+			// 	assert.True(t, tc.expectedShardMappingData[i].Equals(&shardMapping))
+			// }
+			assert.Equal(t, tc.expectedShardMappingData, shardMappingData)
+		})
+	}
 }

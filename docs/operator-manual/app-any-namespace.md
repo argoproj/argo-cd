@@ -58,7 +58,7 @@ would allow the `app-team-one` and `app-team-two` namespaces for managing `Appli
 
 ```bash
 kubectl rollout restart -n argocd deployment argocd-server
-kubectl rollout restart -n argocd statefulset argocd-application-controller
+kubectl rollout restart -n argocd deployment argocd-application-controller
 ```
 
 #### Adapt Kubernetes RBAC

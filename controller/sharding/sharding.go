@@ -49,6 +49,21 @@ type shardApplicationControllerMapping struct {
 	HeartbeatTime  metav1.Time
 }
 
+func (s *shardApplicationControllerMapping) Equals(other *shardApplicationControllerMapping) bool {
+	if s.ShardNumber != other.ShardNumber {
+		return false
+	}
+	if s.ControllerName != other.ControllerName {
+		return false
+	}
+	if !s.HeartbeatTime.Equal(&other.HeartbeatTime) {
+		log.Info(s.HeartbeatTime)
+		log.Info(other.HeartbeatTime)
+		return false
+	}
+	return true
+}
+
 // GetClusterFilter returns a ClusterFilterFunction which is a function taking a cluster as a parameter
 // and returns wheter or not the cluster should be processed by a given shard. It calls the distributionFunction
 // to determine which shard will process the cluster, and if the given shard is equal to the calculated shard
@@ -266,16 +281,27 @@ func getOrUpdateShardNumberForController(shardMappingData []shardApplicationCont
 
 	if shard != -1 && shard < replicas {
 		log.Debugf("update heartbeat for shard %d", shard)
-		shardMappingData[shard].ControllerName = hostname
-		shardMappingData[shard].HeartbeatTime = heartbeatCurrentTime()
+		for i := range shardMappingData {
+			shardMapping := shardMappingData[i]
+			if shardMapping.ShardNumber == shard {
+				log.Infof("Shard found. Updating heartbeat!!")
+				shardMapping.ControllerName = hostname
+				shardMapping.HeartbeatTime = heartbeatCurrentTime()
+				shardMappingData[i] = shardMapping
+				log.Info(shardMapping.HeartbeatTime)
+				break
+			}
+		}
 	} else {
 		// find the matching shard with assigned controllerName
 		for i := range shardMappingData {
 			shardMapping := shardMappingData[i]
 			if shardMapping.ControllerName == hostname {
-				log.Debugf("Shard matched. Updating heartbeat!!")
+				log.Infof("Shard matched. Updating heartbeat!!")
 				shard = int(shardMapping.ShardNumber)
 				shardMapping.HeartbeatTime = heartbeatCurrentTime()
+				shardMappingData[i] = shardMapping
+				log.Info(shardMapping.HeartbeatTime)
 				break
 			}
 		}
@@ -297,7 +323,6 @@ func getOrUpdateShardNumberForController(shardMappingData []shardApplicationCont
 			}
 		}
 	}
-
 	return shard, shardMappingData
 }
 
