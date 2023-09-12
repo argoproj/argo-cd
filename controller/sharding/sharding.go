@@ -204,8 +204,10 @@ func createClusterIndexByClusterIdMap(db db.ArgoDB) map[string]int {
 }
 
 // GetOrUpdateShardFromConfigMap finds the shard number from the shard mapping configmap. If the shard mapping configmap does not exist,
-// the function creates the shard mapping configmap. If the shard number is set as an environment variable for the application controller pod,
-// we use the shard number to update the mapping else we set the shard as 0 to compute the default sharding config map.
+// the function creates the shard mapping configmap.
+// The function takes the shard number from the environment variable (default value -1, if not set) and passes it to this function.
+// If the shard value passed to this function is -1, that is, the shard was not set as an environment variable,
+// we default the shard number to 0 for computing the default config map.
 func GetOrUpdateShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, replicas, shard int) (int, error) {
 
 	hostname, err := osHostnameFunction()
