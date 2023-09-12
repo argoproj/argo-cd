@@ -31,7 +31,7 @@ func NewGiteaProvider(ctx context.Context, owner, token, url string, allBranches
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
 		httpClient = &http.Client{
-			Jar: cookieJar,
+			Jar:       cookieJar,
 			Transport: tr,
 		}
 	}

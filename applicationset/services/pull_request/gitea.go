@@ -30,7 +30,7 @@ func NewGiteaService(ctx context.Context, token, url, owner, repo string, insecu
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
 		httpClient = &http.Client{
-			Jar: cookieJar,
+			Jar:       cookieJar,
 			Transport: tr,
 		}
 	}
