@@ -217,9 +217,9 @@ As of this writing, there is [an issue open](https://github.com/argoproj/applica
 
 ### Limitation: ApplicationSet controller will not selectively ignore changes to individual fields
 
-Currently, you can only instruct the ApplicationSet controller to ignore changes to Application annotations.
+Currently, you can only instruct the ApplicationSet controller to ignore changes to Application annotations and labels.
 
-For example, imagine that we have an Application created from an ApplicationSet, but a user has attempted to add a custom annotation (to the Application) that does not exist in the `ApplicationSet` resource:
+For example, imagine that we have an Application created from an ApplicationSet, but a user has attempted to add a custom annotation/label (to the Application) that does not exist in the `ApplicationSet` resource:
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -234,12 +234,12 @@ spec:
 
 As above, the `ApplicationSet` resource does not have a `my-custom-label: some-value` label in the `.spec.template.labels` for the Application.
 
-Since this field is not in the ApplicationSet template, as soon as a user adds this custom annotation, it will be immediately reverted (removed) by the ApplicationSet controller.
+Since this field is not in the ApplicationSet template, as soon as a user adds this custom label, it will be immediately reverted (removed) by the ApplicationSet controller.
 
-There is currently no support for disabling or customizing this behaviour.
+If the labels/annotations are not mentioned in appset preserved fields, there is currently no way for disabling or customizing this behaviour.
 
 To some extent this is by design:  the main principle of ApplicationSets is that we maintain a 1-to-many relationship between the ApplicationSet and the Applications that it owns, such that all the Applications necessarily conform to a strict template.
 
 This provides the advantages of the 'cattle not pets' philosophy of microservice/cloud native application resource management, wherein you don't need to worry about individual Applications differing from each other in subtle ways: they will all necessarily be reconciled to be consistent with the parent template.
 
-BUT, support exists for preserving changes to Application annotations as documented [above](#preserving-changes-made-to-an-applications-annotations).
+BUT, support exists for preserving changes to Application annotations and labels as documented [above](#preserving-changes-made-to-an-applications-annotations-and-labels).
