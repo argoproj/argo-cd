@@ -30,7 +30,13 @@ func unmarshalObject(data []byte, obj interface{}) error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(jsonData, &obj)
+
+	err = json.Unmarshal(jsonData, &obj)
+	if err != nil {
+		return err
+	}
+
+	return err
 }
 
 // MarshalLocalYAMLFile writes JSON or YAML to a file on disk.

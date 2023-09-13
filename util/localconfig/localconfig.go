@@ -2,11 +2,11 @@ package localconfig
 
 import (
 	"fmt"
+	"github.com/golang-jwt/jwt/v4"
 	"os"
+	"os/user"
 	"path"
 	"strings"
-
-	"github.com/golang-jwt/jwt/v4"
 
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
 )
@@ -281,10 +281,14 @@ func DefaultConfigDir() (string, error) {
 }
 
 func getHomeDir() (string, error) {
-	homeDir, err := os.UserHomeDir()
+	homeDir := os.Getenv("HOME")
+	if homeDir == "" {
+		usr, err := user.Current()
+		if err != nil {
+			return "", err
+		}
 
-	if err != nil {
-		return "", err
+		homeDir = usr.HomeDir
 	}
 
 	return homeDir, nil

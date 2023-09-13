@@ -74,26 +74,26 @@ func NewCommand() *cobra.Command {
 
 			restConfig, err := clientConfig.ClientConfig()
 			if err != nil {
-				return fmt.Errorf("failed to create REST client config: %w", err)
+				return err
 			}
 			restConfig.UserAgent = fmt.Sprintf("argocd-notifications-controller/%s (%s)", vers.Version, vers.Platform)
 			dynamicClient, err := dynamic.NewForConfig(restConfig)
 			if err != nil {
-				return fmt.Errorf("failed to create dynamic client: %w", err)
+				return err
 			}
 			k8sClient, err := kubernetes.NewForConfig(restConfig)
 			if err != nil {
-				return fmt.Errorf("failed to create Kubernetes client: %w", err)
+				return err
 			}
 			if namespace == "" {
 				namespace, _, err = clientConfig.Namespace()
 				if err != nil {
-					return fmt.Errorf("failed to determine controller's host namespace: %w", err)
+					return err
 				}
 			}
 			level, err := log.ParseLevel(logLevel)
 			if err != nil {
-				return fmt.Errorf("failed to parse log level: %w", err)
+				return err
 			}
 			log.SetLevel(level)
 
@@ -105,7 +105,7 @@ func NewCommand() *cobra.Command {
 					log.SetFormatter(&log.TextFormatter{ForceColors: true})
 				}
 			default:
-				return fmt.Errorf("unknown log format '%s'", logFormat)
+				return fmt.Errorf("Unknown log format '%s'", logFormat)
 			}
 
 			tlsConfig := apiclient.TLSConfiguration{
@@ -118,14 +118,14 @@ func NewCommand() *cobra.Command {
 					fmt.Sprintf("%s/reposerver/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
 				)
 				if err != nil {
-					return fmt.Errorf("failed to load repo-server certificate pool: %w", err)
+					return err
 				}
 				tlsConfig.Certificates = pool
 			}
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, 5, tlsConfig)
 			argocdService, err := service.NewArgoCDService(k8sClient, namespace, repoClientset)
 			if err != nil {
-				return fmt.Errorf("failed to initialize Argo CD service: %w", err)
+				return err
 			}
 			defer argocdService.Close()
 
@@ -141,7 +141,7 @@ func NewCommand() *cobra.Command {
 			ctrl := notificationscontroller.NewController(k8sClient, dynamicClient, argocdService, namespace, appLabelSelector, registry, secretName, configMapName)
 			err = ctrl.Init(ctx)
 			if err != nil {
-				return fmt.Errorf("failed to initialize controller: %w", err)
+				return err
 			}
 
 			go ctrl.Run(ctx, processorsCount)

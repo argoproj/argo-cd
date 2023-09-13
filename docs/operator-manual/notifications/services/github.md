@@ -75,12 +75,8 @@ template.app-deployed: |
       environmentURL: "https://{{.app.metadata.name}}.example.com"
       logURL: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
       requiredContexts: []
-      autoMerge: true
 ```
 
 **Notes**:
 - If the message is set to 140 characters or more, it will be truncated.
 - If `github.repoURLPath` and `github.revisionPath` are same as above, they can be omitted.
-- Automerge is optional and `true` by default for github deployments to ensure the requested ref is up to date with the default branch.
-  Setting this option to `false` is required if you would like to deploy older refs in your default branch.
-  For more information see the [Github Deployment API Docs](https://docs.github.com/en/rest/deployments/deployments?apiVersion=2022-11-28#create-a-deployment).

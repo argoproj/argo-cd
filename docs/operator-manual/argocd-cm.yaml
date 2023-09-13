@@ -231,10 +231,6 @@ data:
     # 'none' - disabled
     ignoreResourceStatusField: crd
 
-  # configuration to instruct controller to only watch for resources that it has permissions to list
-  # can be either empty, "normal" or "strict". By default, it is empty i.e. disabled.
-  resource.respectRBAC: "normal"
-
   # Configuration to add a config management plugin.
   configManagementPlugins: |
     - name: kasane

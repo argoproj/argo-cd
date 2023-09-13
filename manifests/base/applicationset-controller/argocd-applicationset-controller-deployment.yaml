@@ -27,18 +27,6 @@ spec:
             - containerPort: 8080
               name: metrics
           env:
-            - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS
-              valueFrom:
-                configMapKeyRef:
-                  key: applicationsetcontroller.global.preserved.annotations
-                  name: argocd-cmd-params-cm
-                  optional: true
-            - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS
-              valueFrom:
-                configMapKeyRef:
-                  key: applicationsetcontroller.global.preserved.labels
-                  name: argocd-cmd-params-cm
-                  optional: true
             - name: NAMESPACE
               valueFrom:
                 fieldRef:

@@ -7,13 +7,12 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/antonmedv/expr"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/pointer"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/utils/pointer"
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
@@ -28,7 +27,6 @@ func init() {
 const (
 	ResourceDeepLinkKey = "resource"
 	AppDeepLinkKey      = "application"
-	AppDeepLinkShortKey = "app"
 	ClusterDeepLinkKey  = "cluster"
 	ProjectDeepLinkKey  = "project"
 )
@@ -69,7 +67,6 @@ func CreateDeepLinksObject(resourceObj *unstructured.Unstructured, app *unstruct
 	}
 	if app != nil {
 		deeplinkObj[AppDeepLinkKey] = app.Object
-		deeplinkObj[AppDeepLinkShortKey] = app.Object
 	}
 	if cluster != nil {
 		deeplinkObj[ClusterDeepLinkKey] = cluster.Object

@@ -35,9 +35,14 @@ const (
 )
 
 var (
-	failureRetryCount              = env.ParseNumFromEnv(failureRetryCountEnv, 0, 0, 10)
-	failureRetryPeriodMilliSeconds = env.ParseNumFromEnv(failureRetryPeriodMilliSecondsEnv, 100, 0, 1000)
+	failureRetryCount              = 0
+	failureRetryPeriodMilliSeconds = 100
 )
+
+func init() {
+	failureRetryCount = env.ParseNumFromEnv(failureRetryCountEnv, failureRetryCount, 0, 10)
+	failureRetryPeriodMilliSeconds = env.ParseNumFromEnv(failureRetryPeriodMilliSecondsEnv, failureRetryPeriodMilliSeconds, 0, 1000)
+}
 
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
@@ -49,7 +54,6 @@ func NewCommand() *cobra.Command {
 		metricsHost              string
 		metricsPort              int
 		otlpAddress              string
-		otlpAttrs                []string
 		glogLevel                int
 		clientConfig             clientcmd.ClientConfig
 		repoServerTimeoutSeconds int
@@ -199,7 +203,7 @@ func NewCommand() *cobra.Command {
 				var closer func()
 				ctx, cancel := context.WithCancel(ctx)
 				if otlpAddress != "" {
-					closer, err = traceutil.InitTracer(ctx, "argocd-server", otlpAddress, otlpAttrs)
+					closer, err = traceutil.InitTracer(ctx, "argocd-server", otlpAddress)
 					if err != nil {
 						log.Fatalf("failed to initialize tracing: %v", err)
 					}
@@ -231,7 +235,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&metricsHost, env.StringFromEnv("ARGOCD_SERVER_METRICS_LISTEN_ADDRESS", "metrics-address"), common.DefaultAddressAPIServerMetrics, "Listen for metrics on given address")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
-	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_SERVER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().StringVar(&frameOptions, "x-frame-options", env.StringFromEnv("ARGOCD_SERVER_X_FRAME_OPTIONS", "sameorigin"), "Set X-Frame-Options header in HTTP responses to `value`. To disable, set to \"\".")
 	command.Flags().StringVar(&contentSecurityPolicy, "content-security-policy", env.StringFromEnv("ARGOCD_SERVER_CONTENT_SECURITY_POLICY", "frame-ancestors 'self';"), "Set Content-Security-Policy header in HTTP responses to `value`. To disable, set to \"\".")

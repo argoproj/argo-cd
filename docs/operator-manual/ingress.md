@@ -414,132 +414,6 @@ Once we create this service, we can configure the Ingress to conditionally route
       - argocd.argoproj.io
 ```
 
-## [Istio](https://www.istio.io)
-You can put Argo CD behind Istio using following configurations. Here we will achive both serving Argo CD behind istio and using subpath on Istio
-
-First we need to make sure that we can run Argo CD with subpath (ie /argocd). For this we have used install.yaml from argocd project as is
-
-```bash
-curl -kLs -o install.yaml https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-```
-
-save following file as kustomization.yml
-
-```yaml
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-- ./install.yaml
-
-patches:
-- path: ./patch.yml
-``` 
-
-And following lines as patch.yml
-
-```yaml
-# Use --insecure so Ingress can send traffic with HTTP
-# --bashref /argocd is the subpath like https://IP/argocd
-# env was added because of https://github.com/argoproj/argo-cd/issues/3572 error
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
- name: argocd-server
-spec:
- template:
-   spec:
-     containers:
-     - args:
-       - /usr/local/bin/argocd-server
-       - --staticassets
-       - /shared/app
-       - --redis
-       - argocd-redis-ha-haproxy:6379
-       - --insecure
-       - --basehref
-       - /argocd
-       - --rootpath
-       - /argocd
-       name: argocd-server
-       env:
-       - name: ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT
-         value: "0"
-```
-
-After that install Argo CD  (there should be only 3 yml file defined above in current directory )
-
-```bash
-kubectl apply -k ./ -n argocd --wait=true
-```
-
-Be sure you create secret for Isito ( in our case secretname is argocd-server-tls on argocd Namespace). After that we create Istio Resources
-
-```yaml
-apiVersion: networking.istio.io/v1alpha3
-kind: Gateway
-metadata:
-  name: argocd-gateway
-  namespace: argocd
-spec:
-  selector:
-    istio: ingressgateway
-  servers:
-  - port:
-      number: 80
-      name: http
-      protocol: HTTP
-    hosts:
-    - "*"
-    tls:
-     httpsRedirect: true
-  - port:
-      number: 443
-      name: https
-      protocol: HTTPS
-    hosts:
-    - "*"
-    tls:
-      credentialName: argocd-server-tls
-      maxProtocolVersion: TLSV1_3
-      minProtocolVersion: TLSV1_2
-      mode: SIMPLE
-      cipherSuites:
-        - ECDHE-ECDSA-AES128-GCM-SHA256
-        - ECDHE-RSA-AES128-GCM-SHA256
-        - ECDHE-ECDSA-AES128-SHA
-        - AES128-GCM-SHA256
-        - AES128-SHA
-        - ECDHE-ECDSA-AES256-GCM-SHA384
-        - ECDHE-RSA-AES256-GCM-SHA384
-        - ECDHE-ECDSA-AES256-SHA
-        - AES256-GCM-SHA384
-        - AES256-SHA
----
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: argocd-virtualservice
-  namespace: argocd
-spec:
-  hosts:
-  - "*"
-  gateways:
-  - argocd-gateway
-  http:
-  - match:
-    - uri:
-        prefix: /argocd
-    route:
-    - destination:
-        host: argocd-server
-        port:
-          number: 80
-```
-
-And now we can browse http://{{ IP }}/argocd (it will be rewritten to https://{{ IP }}/argocd
-
-
 ## Google Cloud load balancers with Kubernetes Ingress
 
 You can make use of the integration of GKE with Google Cloud to deploy Load Balancers using just Kubernetes objects.
@@ -712,7 +586,7 @@ Once the DNS change is propagated, you're ready to use Argo with your Google Clo
 
 ## Authenticating through multiple layers of authenticating reverse proxies
 
-Argo CD endpoints may be protected by one or more reverse proxies layers, in that case, you can provide additional headers through the `argocd` CLI `--header` parameter to authenticate through those layers.
+ArgoCD endpoints may be protected by one or more reverse proxies layers, in that case, you can provide additional headers through the `argocd` CLI `--header` parameter to authenticate through those layers.
 
 ```shell
 $ argocd login <host>:<port> --header 'x-token1:foo' --header 'x-token2:bar' # can be repeated multiple times
@@ -720,7 +594,7 @@ $ argocd login <host>:<port> --header 'x-token1:foo,x-token2:bar' # headers can 
 ```
 ## ArgoCD Server and UI Root Path (v1.5.3)
 
-Argo CD server and UI can be configured to be available under a non-root path (e.g. `/argo-cd`).
+ArgoCD server and UI can be configured to be available under a non-root path (e.g. `/argo-cd`).
 To do this, add the `--rootpath` flag into the `argocd-server` deployment command:
 
 ```yaml

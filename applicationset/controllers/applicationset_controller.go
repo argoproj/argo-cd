@@ -79,12 +79,10 @@ type ApplicationSetReconciler struct {
 	Policy               argov1alpha1.ApplicationsSyncPolicy
 	EnablePolicyOverride bool
 	utils.Renderer
-	ArgoCDNamespace            string
-	ApplicationSetNamespaces   []string
-	EnableProgressiveSyncs     bool
-	SCMRootCAPath              string
-	GlobalPreservedAnnotations []string
-	GlobalPreservedLabels      []string
+	ArgoCDNamespace          string
+	ApplicationSetNamespaces []string
+	EnableProgressiveSyncs   bool
+	SCMRootCAPath            string
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -450,7 +448,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 
 		conditions, err := argoutil.ValidatePermissions(ctx, &app.Spec, proj, r.ArgoDB)
 		if err != nil {
-			return nil, fmt.Errorf("error validating permissions: %s", err)
+			return nil, err
 		}
 		if len(conditions) > 0 {
 			errorsByIndex[i] = fmt.Errorf("application spec is invalid: %s", argoutil.FormatAppConditions(conditions))
@@ -619,21 +617,9 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			}
 
 			preservedAnnotations := make([]string, 0)
-			preservedLabels := make([]string, 0)
-
 			if applicationSet.Spec.PreservedFields != nil {
 				preservedAnnotations = append(preservedAnnotations, applicationSet.Spec.PreservedFields.Annotations...)
-				preservedLabels = append(preservedLabels, applicationSet.Spec.PreservedFields.Labels...)
 			}
-
-			if len(r.GlobalPreservedAnnotations) > 0 {
-				preservedAnnotations = append(preservedAnnotations, r.GlobalPreservedAnnotations...)
-			}
-
-			if len(r.GlobalPreservedLabels) > 0 {
-				preservedLabels = append(preservedLabels, r.GlobalPreservedLabels...)
-			}
-
 			// Preserve specially treated argo cd annotations:
 			// * https://github.com/argoproj/applicationset/issues/180
 			// * https://github.com/argoproj/argo-cd/issues/10500
@@ -647,16 +633,6 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 					generatedApp.Annotations[key] = state
 				}
 			}
-
-			for _, key := range preservedLabels {
-				if state, exists := found.ObjectMeta.Labels[key]; exists {
-					if generatedApp.Labels == nil {
-						generatedApp.Labels = map[string]string{}
-					}
-					generatedApp.Labels[key] = state
-				}
-			}
-
 			found.ObjectMeta.Annotations = generatedApp.Annotations
 
 			found.ObjectMeta.Finalizers = generatedApp.Finalizers
@@ -712,7 +688,7 @@ func (r *ApplicationSetReconciler) getCurrentApplications(_ context.Context, app
 	err := r.Client.List(context.Background(), &current, client.MatchingFields{".metadata.controller": applicationSet.Name})
 
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving applications: %w", err)
+		return nil, err
 	}
 
 	return current.Items, nil

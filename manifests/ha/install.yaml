@@ -787,8 +787,7 @@ spec:
                 properties:
                   name:
                     description: Name is an alternate way of specifying the target
-                      cluster by its symbolic name. This must be set if Server is
-                      not set.
+                      cluster by its symbolic name
                     type: string
                   namespace:
                     description: Namespace specifies the target namespace for the
@@ -796,9 +795,8 @@ spec:
                       namespace-scoped resources that have not set a value for .metadata.namespace
                     type: string
                   server:
-                    description: Server specifies the URL of the target cluster's
-                      Kubernetes control plane API. This must be set if Name is not
-                      set.
+                    description: Server specifies the URL of the target cluster and
+                      must be set to the Kubernetes control plane API
                     type: string
                 type: object
               ignoreDifferences:
@@ -3796,8 +3794,7 @@ spec:
                         properties:
                           name:
                             description: Name is an alternate way of specifying the
-                              target cluster by its symbolic name. This must be set
-                              if Server is not set.
+                              target cluster by its symbolic name
                             type: string
                           namespace:
                             description: Namespace specifies the target namespace
@@ -3806,9 +3803,8 @@ spec:
                               not set a value for .metadata.namespace
                             type: string
                           server:
-                            description: Server specifies the URL of the target cluster's
-                              Kubernetes control plane API. This must be set if Name
-                              is not set.
+                            description: Server specifies the URL of the target cluster
+                              and must be set to the Kubernetes control plane API
                             type: string
                         type: object
                       ignoreDifferences:
@@ -10044,8 +10040,6 @@ spec:
                                         type: string
                                       group:
                                         type: string
-                                      includeSharedProjects:
-                                        type: boolean
                                       includeSubgroups:
                                         type: boolean
                                       insecure:
@@ -10060,8 +10054,6 @@ spec:
                                         - key
                                         - secretName
                                         type: object
-                                      topic:
-                                        type: string
                                     required:
                                     - group
                                     type: object
@@ -14527,8 +14519,6 @@ spec:
                                         type: string
                                       group:
                                         type: string
-                                      includeSharedProjects:
-                                        type: boolean
                                       includeSubgroups:
                                         type: boolean
                                       insecure:
@@ -14543,8 +14533,6 @@ spec:
                                         - key
                                         - secretName
                                         type: object
-                                      topic:
-                                        type: string
                                     required:
                                     - group
                                     type: object
@@ -16939,8 +16927,6 @@ spec:
                               type: string
                             group:
                               type: string
-                            includeSharedProjects:
-                              type: boolean
                             includeSubgroups:
                               type: boolean
                             insecure:
@@ -16955,8 +16941,6 @@ spec:
                               - key
                               - secretName
                               type: object
-                            topic:
-                              type: string
                           required:
                           - group
                           type: object
@@ -17489,10 +17473,6 @@ spec:
               preservedFields:
                 properties:
                   annotations:
-                    items:
-                      type: string
-                    type: array
-                  labels:
                     items:
                       type: string
                     type: array
@@ -18175,8 +18155,7 @@ spec:
                   properties:
                     name:
                       description: Name is an alternate way of specifying the target
-                        cluster by its symbolic name. This must be set if Server is
-                        not set.
+                        cluster by its symbolic name
                       type: string
                     namespace:
                       description: Namespace specifies the target namespace for the
@@ -18184,9 +18163,8 @@ spec:
                         namespace-scoped resources that have not set a value for .metadata.namespace
                       type: string
                     server:
-                      description: Server specifies the URL of the target cluster's
-                        Kubernetes control plane API. This must be set if Name is
-                        not set.
+                      description: Server specifies the URL of the target cluster
+                        and must be set to the Kubernetes control plane API
                       type: string
                   type: object
                 type: array
@@ -19296,9 +19274,7 @@ data:
     check inter 3s fall 1 rise 1\n  use-server R1 if { srv_is_up(R1) } { nbsrv(check_if_redis_is_master_1)
     ge 2 }\n  server R1 argocd-redis-ha-announce-1:6379 check inter 3s fall 1 rise
     1\n  use-server R2 if { srv_is_up(R2) } { nbsrv(check_if_redis_is_master_2) ge
-    2 }\n  server R2 argocd-redis-ha-announce-2:6379 check inter 3s fall 1 rise 1\nfrontend
-    stats\n  mode http\n  bind :9101 \n  http-request use-service prometheus-exporter
-    if { path /metrics }\n  stats enable\n  stats uri /stats\n  stats refresh 10s\n"
+    2 }\n  server R2 argocd-redis-ha-announce-2:6379 check inter 3s fall 1 rise 1\n"
   haproxy_init.sh: |
     HAPROXY_CONF=/data/haproxy.cfg
     cp /readonly/haproxy.cfg "$HAPROXY_CONF"
@@ -19781,8 +19757,7 @@ metadata:
   name: argocd-dex-server
 spec:
   ports:
-  - appProtocol: TCP
-    name: http
+  - name: http
     port: 5556
     protocol: TCP
     targetPort: 5556
@@ -19946,10 +19921,6 @@ spec:
     port: 6379
     protocol: TCP
     targetPort: redis
-  - name: http-exporter-port
-    port: 9101
-    protocol: TCP
-    targetPort: metrics-port
   selector:
     app.kubernetes.io/name: argocd-redis-ha-haproxy
   type: ClusterIP
@@ -20034,18 +20005,6 @@ spec:
       - args:
         - /usr/local/bin/argocd-applicationset-controller
         env:
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.global.preserved.annotations
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.global.preserved.labels
-              name: argocd-cmd-params-cm
-              optional: true
         - name: NAMESPACE
           valueFrom:
             fieldRef:
@@ -20158,7 +20117,7 @@ spec:
               key: applicationsetcontroller.allowed.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.8.3
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -20281,7 +20240,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.8.3
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -20351,7 +20310,7 @@ spec:
               key: notificationscontroller.log.level
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.8.3
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -20409,10 +20368,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 492a6adabb741e0cee39be9aa5155c41a4456629f862d0006a2d892dbecfbcae
-        prometheus.io/path: /metrics
-        prometheus.io/port: "9101"
-        prometheus.io/scrape: "true"
+        checksum/config: 718bbb277da8610063a7c0fd810984577c2e8ab215815a71211dfa6e20f67321
       labels:
         app.kubernetes.io/name: argocd-redis-ha-haproxy
       name: argocd-redis-ha-haproxy
@@ -20438,8 +20394,6 @@ spec:
         ports:
         - containerPort: 6379
           name: redis
-        - containerPort: 9101
-          name: metrics-port
         readinessProbe:
           httpGet:
             path: /healthz
@@ -20682,7 +20636,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.8.3
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -20734,7 +20688,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.8.3
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -21023,7 +20977,7 @@ spec:
               key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.8.3
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -21269,7 +21223,7 @@ spec:
               key: controller.kubectl.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.8.3
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:

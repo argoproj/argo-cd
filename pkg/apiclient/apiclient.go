@@ -45,6 +45,7 @@ import (
 	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
 	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
@@ -102,7 +103,7 @@ type Client interface {
 	NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient)
 	NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error)
 	NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient)
-	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent
+	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent
 }
 
 // ClientOptions hold address, security, and other settings for the API client.
@@ -125,11 +126,6 @@ type ClientOptions struct {
 	Headers              []string
 	HttpRetryMax         int
 	KubeOverrides        *clientcmd.ConfigOverrides
-	AppControllerName    string
-	ServerName           string
-	RedisHaProxyName     string
-	RedisName            string
-	RepoServerName       string
 }
 
 type client struct {
@@ -211,8 +207,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		if opts.KubeOverrides == nil {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
 		}
-		serverPodLabelSelector := common.LabelKeyAppName + "=" + opts.ServerName
-		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, serverPodLabelSelector)
+		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, "app.kubernetes.io/name=argocd-server")
 		if err != nil {
 			return nil, err
 		}
@@ -806,8 +801,8 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 
 // WatchApplicationWithRetry returns a channel of watch events for an application, retrying the
 // watch upon errors. Closes the returned channel when the context is cancelled.
-func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent {
-	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
+func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent {
+	appEventsCh := make(chan *argoappv1.ApplicationWatchEvent)
 	cancelled := false
 	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	go func() {
