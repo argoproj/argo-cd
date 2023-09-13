@@ -58,10 +58,6 @@ const (
 	//   https://github.com/argoproj-labs/argocd-notifications/blob/33d345fa838829bb50fca5c08523aba380d2c12b/pkg/controller/state.go#L17
 	NotifiedAnnotationKey             = "notified.notifications.argoproj.io"
 	ReconcileRequeueOnValidationError = time.Minute * 3
-
-	// LabelKeyAppSetInstance is the label key to use to uniquely identify the apps of an applicationset
-	// The ArgoCD applicationset name is used as the instance name
-	LabelKeyAppSetInstance = "argocd.argoproj.io/application-set-name"
 )
 
 var (
@@ -83,10 +79,12 @@ type ApplicationSetReconciler struct {
 	Policy               argov1alpha1.ApplicationsSyncPolicy
 	EnablePolicyOverride bool
 	utils.Renderer
-	ArgoCDNamespace          string
-	ApplicationSetNamespaces []string
-	EnableProgressiveSyncs   bool
-	SCMRootCAPath            string
+	ArgoCDNamespace            string
+	ApplicationSetNamespaces   []string
+	EnableProgressiveSyncs     bool
+	SCMRootCAPath              string
+	GlobalPreservedAnnotations []string
+	GlobalPreservedLabels      []string
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -516,10 +514,6 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 
 		for _, a := range t {
 			tmplApplication := getTempApplication(a.Template)
-			if tmplApplication.Labels == nil {
-				tmplApplication.Labels = make(map[string]string)
-			}
-			tmplApplication.Labels[LabelKeyAppSetInstance] = applicationSetInfo.Name
 
 			for _, p := range a.Params {
 				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
@@ -625,9 +619,21 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			}
 
 			preservedAnnotations := make([]string, 0)
+			preservedLabels := make([]string, 0)
+
 			if applicationSet.Spec.PreservedFields != nil {
 				preservedAnnotations = append(preservedAnnotations, applicationSet.Spec.PreservedFields.Annotations...)
+				preservedLabels = append(preservedLabels, applicationSet.Spec.PreservedFields.Labels...)
 			}
+
+			if len(r.GlobalPreservedAnnotations) > 0 {
+				preservedAnnotations = append(preservedAnnotations, r.GlobalPreservedAnnotations...)
+			}
+
+			if len(r.GlobalPreservedLabels) > 0 {
+				preservedLabels = append(preservedLabels, r.GlobalPreservedLabels...)
+			}
+
 			// Preserve specially treated argo cd annotations:
 			// * https://github.com/argoproj/applicationset/issues/180
 			// * https://github.com/argoproj/argo-cd/issues/10500
@@ -641,6 +647,16 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 					generatedApp.Annotations[key] = state
 				}
 			}
+
+			for _, key := range preservedLabels {
+				if state, exists := found.ObjectMeta.Labels[key]; exists {
+					if generatedApp.Labels == nil {
+						generatedApp.Labels = map[string]string{}
+					}
+					generatedApp.Labels[key] = state
+				}
+			}
+
 			found.ObjectMeta.Annotations = generatedApp.Annotations
 
 			found.ObjectMeta.Finalizers = generatedApp.Finalizers

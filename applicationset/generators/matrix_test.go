@@ -426,6 +426,10 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 
 	pullRequestGenerator := &argoprojiov1alpha1.PullRequestGenerator{}
 
+	scmGenerator := &argoprojiov1alpha1.SCMProviderGenerator{}
+
+	duckTypeGenerator := &argoprojiov1alpha1.DuckTypeGenerator{}
+
 	testCases := []struct {
 		name               string
 		baseGenerators     []argoprojiov1alpha1.ApplicationSetNestedGenerator
@@ -483,6 +487,30 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 			},
 			expected: time.Duration(30 * time.Minute),
 		},
+		{
+			name: "returns the default time for duck type generator",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					Git: gitGenerator,
+				},
+				{
+					ClusterDecisionResource: duckTypeGenerator,
+				},
+			},
+			expected: time.Duration(3 * time.Minute),
+		},
+		{
+			name: "returns the default time for scm generator",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					Git: gitGenerator,
+				},
+				{
+					SCMProvider: scmGenerator,
+				},
+			},
+			expected: time.Duration(30 * time.Minute),
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -493,18 +521,22 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 
 			for _, g := range testCaseCopy.baseGenerators {
 				gitGeneratorSpec := argoprojiov1alpha1.ApplicationSetGenerator{
-					Git:         g.Git,
-					List:        g.List,
-					PullRequest: g.PullRequest,
+					Git:                     g.Git,
+					List:                    g.List,
+					PullRequest:             g.PullRequest,
+					SCMProvider:             g.SCMProvider,
+					ClusterDecisionResource: g.ClusterDecisionResource,
 				}
 				mock.On("GetRequeueAfter", &gitGeneratorSpec).Return(testCaseCopy.gitGetRequeueAfter, nil)
 			}
 
 			var matrixGenerator = NewMatrixGenerator(
 				map[string]Generator{
-					"Git":         mock,
-					"List":        &ListGenerator{},
-					"PullRequest": &PullRequestGenerator{},
+					"Git":                     mock,
+					"List":                    &ListGenerator{},
+					"PullRequest":             &PullRequestGenerator{},
+					"SCMProvider":             &SCMProviderGenerator{},
+					"ClusterDecisionResource": &DuckTypeGenerator{},
 				},
 			)
 
