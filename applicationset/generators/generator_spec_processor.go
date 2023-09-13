@@ -152,7 +152,7 @@ func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetG
 	interpolatedGenerator, err := render.RenderGeneratorParams(requestedGenerator, params, useGoTemplate)
 	if err != nil {
 		log.WithError(err).WithField("interpolatedGenerator", interpolatedGenerator).Error("error interpolating generator with other generator's parameter")
-		return *interpolatedGenerator, err
+		return argoprojiov1alpha1.ApplicationSetGenerator{}, err
 	}
 
 	return *interpolatedGenerator, nil

@@ -501,3 +501,60 @@ func TestInterpolateGenerator_go(t *testing.T) {
 	assert.Equal(t, "production_01/west", interpolatedGenerator.Git.Files[0].Path)
 	assert.Equal(t, "https://production-01.example.com", interpolatedGenerator.Git.Files[1].Path)
 }
+
+func TestInterpolateGeneratorError(t *testing.T) {
+	type args struct {
+		requestedGenerator *argov1alpha1.ApplicationSetGenerator
+		params             map[string]interface{}
+		useGoTemplate      bool
+		goTemplateOptions  []string
+	}
+	tests := []struct {
+		name           string
+		args           args
+		want           argov1alpha1.ApplicationSetGenerator
+		expectedErrStr string
+	}{
+		{name: "Empty Gen", args: args{
+			requestedGenerator: nil,
+			params:             nil,
+			useGoTemplate:      false,
+			goTemplateOptions:  nil,
+		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: "generator is empty"},
+		{name: "No Params", args: args{
+			requestedGenerator: &argov1alpha1.ApplicationSetGenerator{},
+			params:             map[string]interface{}{},
+			useGoTemplate:      false,
+			goTemplateOptions:  nil,
+		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: ""},
+		{name: "Error templating", args: args{
+			requestedGenerator: &argov1alpha1.ApplicationSetGenerator{Git: &argov1alpha1.GitGenerator{
+				RepoURL:  "foo",
+				Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "bar/"}},
+				Revision: "main",
+				Values: map[string]string{
+					"git_test":  "{{ toPrettyJson . }}",
+					"selection": "{{ default .override .test }}",
+					"resolved":  "{{ index .rmap (default .override .test) }}",
+				},
+			}},
+			params: map[string]interface{}{
+				"name":     "in-cluster",
+				"override": "foo",
+			},
+			useGoTemplate:     true,
+			goTemplateOptions: []string{},
+		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: "failed to replace parameters in generator: failed to execute go template {{ index .rmap (default .override .test) }}: template: :1:3: executing \"\" at <index .rmap (default .override .test)>: error calling index: index of untyped nil"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := InterpolateGenerator(tt.args.requestedGenerator, tt.args.params, tt.args.useGoTemplate, tt.args.goTemplateOptions)
+			if tt.expectedErrStr != "" {
+				assert.EqualError(t, err, tt.expectedErrStr)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equalf(t, tt.want, got, "InterpolateGenerator(%v, %v, %v, %v)", tt.args.requestedGenerator, tt.args.params, tt.args.useGoTemplate, tt.args.goTemplateOptions)
+		})
+	}
+}
