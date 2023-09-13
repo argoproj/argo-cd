@@ -2,6 +2,7 @@ package applicationset
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/argoproj/pkg/sync"
@@ -50,10 +51,21 @@ func newTestAppSetServer(objects ...runtime.Object) *Server {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
 	}
-	return newTestAppSetServerWithEnforcerConfigure(f, objects...)
+	scopedNamespaces := ""
+	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, objects...)
 }
 
-func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...runtime.Object) *Server {
+// return an ApplicationServiceServer which returns fake data
+func newTestNamespacedAppSetServer(objects ...runtime.Object) *Server {
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	scopedNamespaces := "argocd"
+	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, objects...)
+}
+
+func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace string, objects ...runtime.Object) *Server {
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -97,9 +109,10 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ..
 	objects = append(objects, defaultProj, myProj)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(namespace), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
-
+	fakeAppsetLister := factory.Argoproj().V1alpha1().ApplicationSets().Lister().ApplicationSets(testNamespace)
+	fmt.Print(fakeAppsetLister)
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	f(enforcer)
 	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
@@ -114,6 +127,12 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ..
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
 		panic("Timed out waiting for caches to sync")
 	}
+	// populate the appset informer with the fake objects
+	appsetInformer := factory.Argoproj().V1alpha1().ApplicationSets().Informer()
+	go appsetInformer.Run(ctx.Done())
+	if !k8scache.WaitForCacheSync(ctx.Done(), appsetInformer.HasSynced) {
+		panic("Timed out waiting for caches to sync")
+	}
 
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	go projInformer.Run(ctx.Done())
@@ -125,11 +144,10 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ..
 		db,
 		kubeclientset,
 		enforcer,
-		nil,
 		fakeAppsClientset,
 		factory.Argoproj().V1alpha1().Applications().Lister(),
 		appInformer,
-		factory.Argoproj().V1alpha1().ApplicationSets().Lister().ApplicationSets(testNamespace),
+		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
 		fakeProjLister,
 		settingsMgr,
 		testNamespace,
@@ -264,7 +282,7 @@ func TestListAppSetsInDefaultNSWithLabels(t *testing.T) {
 // default namespace must be used and not all the namespaces
 func TestListAppSetsWithoutNamespace(t *testing.T) {
 	testNamespace := "test-namespace"
-	appSetServer := newTestAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
+	appSetServer := newTestNamespacedAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
 		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
