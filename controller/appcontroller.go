@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/client/ratelimiter"
+	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"

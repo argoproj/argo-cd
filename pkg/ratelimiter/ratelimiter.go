@@ -20,11 +20,14 @@ type AppControllerRateLimiterConfig struct {
 
 func GetAppRateLimiterConfig() *AppControllerRateLimiterConfig {
 	return &AppControllerRateLimiterConfig{
+		// global queue rate limit config
 		int(env.ParseInt64FromEnv("WORKQUEUE_BUCKET_SIZE", 500, 1, math.MaxInt64)),
 		int(env.ParseInt64FromEnv("WORKQUEUE_BUCKET_QPS", 50, 1, math.MaxInt64)),
-		env.ParseDurationFromEnv("WORKQUEUE_FAILURE_COOLDOWN", 5*time.Minute, 0, 24*time.Hour),
-		env.ParseDurationFromEnv("WORKQUEUE_BASE_DELAY", 2*time.Millisecond, 1*time.Millisecond, 24*time.Hour),
-		env.ParseDurationFromEnv("WORKQUEUE_MAX_DELAY", 1000*time.Second, 1*time.Millisecond, 24*time.Hour),
+		// individual item rate limit config
+		// when WORKQUEUE_FAILURE_COOLDOWN is 0 per item rate limiting default disabled(default)
+		time.Duration(env.ParseInt64FromEnv("WORKQUEUE_FAILURE_COOLDOWN_NS", 0, 0, (24 * time.Hour).Nanoseconds())),
+		time.Duration(env.ParseInt64FromEnv("WORKQUEUE_BASE_DELAY_NS", 1000, 1, (24 * time.Hour).Nanoseconds())),
+		time.Duration(env.ParseInt64FromEnv("WORKQUEUE_MAX_DELAY_NS", (120 * time.Second).Nanoseconds(), 1*time.Millisecond.Nanoseconds(), (24 * time.Hour).Nanoseconds())),
 	}
 }
 
