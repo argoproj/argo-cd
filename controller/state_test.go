@@ -51,91 +51,6 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	assert.Len(t, app.Status.Conditions, 0)
 }
 
-// TestCompareAppStateNamespaceMetadataDiffers tests comparison when managed namespace metadata differs
-func TestCompareAppStateNamespaceMetadataDiffers(t *testing.T) {
-	app := newFakeApp()
-	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
-		Labels: map[string]string{
-			"foo": "bar",
-		},
-		Annotations: map[string]string{
-			"foo": "bar",
-		},
-	}
-	app.Status.OperationState = &argoappv1.OperationState{
-		SyncResult: &argoappv1.SyncOperationResult{},
-	}
-
-	data := fakeData{
-		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
-			Namespace: test.FakeDestNamespace,
-			Server:    test.FakeClusterURL,
-			Revision:  "abc123",
-		},
-		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-	}
-	ctrl := newFakeController(&data)
-	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.GetSource())
-	revisions := make([]string, 0)
-	revisions = append(revisions, "")
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NotNil(t, compRes)
-	assert.NotNil(t, compRes.syncStatus)
-	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
-	assert.Len(t, compRes.resources, 0)
-	assert.Len(t, compRes.managedResources, 0)
-	assert.Len(t, app.Status.Conditions, 0)
-}
-
-// TestCompareAppStateNamespaceMetadataIsTheSame tests comparison when managed namespace metadata is the same
-func TestCompareAppStateNamespaceMetadataIsTheSame(t *testing.T) {
-	app := newFakeApp()
-	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
-		Labels: map[string]string{
-			"foo": "bar",
-		},
-		Annotations: map[string]string{
-			"foo": "bar",
-		},
-	}
-	app.Status.OperationState = &argoappv1.OperationState{
-		SyncResult: &argoappv1.SyncOperationResult{
-			ManagedNamespaceMetadata: &argoappv1.ManagedNamespaceMetadata{
-				Labels: map[string]string{
-					"foo": "bar",
-				},
-				Annotations: map[string]string{
-					"foo": "bar",
-				},
-			},
-		},
-	}
-
-	data := fakeData{
-		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
-			Namespace: test.FakeDestNamespace,
-			Server:    test.FakeClusterURL,
-			Revision:  "abc123",
-		},
-		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-	}
-	ctrl := newFakeController(&data)
-	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.GetSource())
-	revisions := make([]string, 0)
-	revisions = append(revisions, "")
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NotNil(t, compRes)
-	assert.NotNil(t, compRes.syncStatus)
-	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-	assert.Len(t, compRes.resources, 0)
-	assert.Len(t, compRes.managedResources, 0)
-	assert.Len(t, app.Status.Conditions, 0)
-}
-
 // TestCompareAppStateMissing tests when there is a manifest defined in the repo which doesn't exist in live
 func TestCompareAppStateMissing(t *testing.T) {
 	app := newFakeApp()
@@ -341,6 +256,7 @@ func TestAppRevisionsSingleSource(t *testing.T) {
 	assert.NotNil(t, compRes.syncStatus)
 	assert.NotEmpty(t, compRes.syncStatus.Revision)
 	assert.Len(t, compRes.syncStatus.Revisions, 0)
+
 }
 
 // TestAppRevisions tests that revisions are properly propagated for a multi source app
@@ -430,47 +346,6 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	assert.Equal(t, argoappv1.ApplicationConditionRepeatedResourceWarning, app.Status.Conditions[0].Type)
 	assert.Equal(t, "Resource /Pod/fake-dest-ns/my-pod appeared 2 times among application resources.", app.Status.Conditions[0].Message)
 	assert.Equal(t, 4, len(compRes.resources))
-}
-
-func TestCompareAppStateManagedNamespaceMetadataWithLiveNsDoesNotGetPruned(t *testing.T) {
-	app := newFakeApp()
-	app.Spec.SyncPolicy = &argoappv1.SyncPolicy{
-		ManagedNamespaceMetadata: &argoappv1.ManagedNamespaceMetadata{
-			Labels:      nil,
-			Annotations: nil,
-		},
-	}
-
-	ns := NewNamespace()
-	ns.SetName(test.FakeDestNamespace)
-	ns.SetNamespace(test.FakeDestNamespace)
-	ns.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true"})
-
-	data := fakeData{
-		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
-			Namespace: test.FakeDestNamespace,
-			Server:    test.FakeClusterURL,
-			Revision:  "abc123",
-		},
-		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
-			kube.GetResourceKey(ns): ns,
-		},
-	}
-	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, []string{}, app.Spec.Sources, false, false, nil, false)
-
-	assert.NotNil(t, compRes)
-	assert.Equal(t, 0, len(app.Status.Conditions))
-	assert.NotNil(t, compRes)
-	assert.NotNil(t, compRes.syncStatus)
-	// Ensure that ns does not get pruned
-	assert.NotNil(t, compRes.reconciliationResult.Target[0])
-	assert.Equal(t, compRes.reconciliationResult.Target[0].GetName(), ns.GetName())
-	assert.Equal(t, compRes.reconciliationResult.Target[0].GetAnnotations(), ns.GetAnnotations())
-	assert.Equal(t, compRes.reconciliationResult.Target[0].GetLabels(), ns.GetLabels())
-	assert.Len(t, compRes.resources, 1)
-	assert.Len(t, compRes.managedResources, 1)
 }
 
 var defaultProj = argoappv1.AppProject{
@@ -748,8 +623,9 @@ var signedProj = argoappv1.AppProject{
 }
 
 func TestSignedResponseNoSignatureRequired(t *testing.T) {
-	t.Setenv("ARGOCD_GPG_ENABLED", "true")
-
+	oldval := os.Getenv("ARGOCD_GPG_ENABLED")
+	os.Setenv("ARGOCD_GPG_ENABLED", "true")
+	defer os.Setenv("ARGOCD_GPG_ENABLED", oldval)
 	// We have a good signature response, but project does not require signed commits
 	{
 		app := newFakeApp()
@@ -805,7 +681,9 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 }
 
 func TestSignedResponseSignatureRequired(t *testing.T) {
-	t.Setenv("ARGOCD_GPG_ENABLED", "true")
+	oldval := os.Getenv("ARGOCD_GPG_ENABLED")
+	os.Setenv("ARGOCD_GPG_ENABLED", "true")
+	defer os.Setenv("ARGOCD_GPG_ENABLED", oldval)
 
 	// We have a good signature response, valid key, and signing is required - sync!
 	{
@@ -971,7 +849,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		assert.Contains(t, app.Status.Conditions[0].Message, "Cannot use local manifests")
 	}
 
-	t.Setenv("ARGOCD_GPG_ENABLED", "false")
+	os.Setenv("ARGOCD_GPG_ENABLED", "false")
 	// We have a bad signature response and signing would be required, but GPG subsystem is disabled - sync
 	{
 		app := newFakeApp()
@@ -1027,6 +905,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		assert.Len(t, compRes.managedResources, 0)
 		assert.Len(t, app.Status.Conditions, 0)
 	}
+
 }
 
 func TestComparisonResult_GetHealthStatus(t *testing.T) {

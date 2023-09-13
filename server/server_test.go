@@ -7,12 +7,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/ghodss/yaml"
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +19,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -39,12 +37,7 @@ import (
 	testutil "github.com/argoproj/argo-cd/v2/util/test"
 )
 
-type FakeArgoCDServer struct {
-	*ArgoCDServer
-	TmpAssetsDir string
-}
-
-func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
+func fakeServer() (*ArgoCDServer, func()) {
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
@@ -52,7 +45,6 @@ func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
 	redis, closer := test.NewInMemoryRedis()
 	port, err := test.GetFreePort()
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
-	tmpAssetsDir := t.TempDir()
 
 	if err != nil {
 		panic(err)
@@ -76,13 +68,11 @@ func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
 			1*time.Minute,
 			1*time.Minute,
 		),
-		RedisClient:     redis,
-		RepoClientset:   mockRepoClient,
-		StaticAssetsDir: tmpAssetsDir,
+		RedisClient:   redis,
+		RepoClientset: mockRepoClient,
 	}
 	srv := NewServer(context.Background(), argoCDOpts)
-	fakeSrv := &FakeArgoCDServer{srv, tmpAssetsDir}
-	return fakeSrv, closer
+	return srv, closer
 }
 
 func TestEnforceProjectToken(t *testing.T) {
@@ -403,7 +393,7 @@ func TestRevokedToken(t *testing.T) {
 }
 
 func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
-	s, closer := fakeServer(t)
+	s, closer := fakeServer()
 	defer closer()
 	assert.True(t, s.Insecure)
 	assert.Nil(t, s.settings.Certificate)
@@ -1240,72 +1230,6 @@ func TestIsMainJsBundle(t *testing.T) {
 	}
 }
 
-func TestCacheControlHeaders(t *testing.T) {
-	testCases := []struct {
-		name                        string
-		filename                    string
-		createFile                  bool
-		expectedStatus              int
-		expectedCacheControlHeaders []string
-	}{
-		{
-			name:                        "file exists",
-			filename:                    "exists.html",
-			createFile:                  true,
-			expectedStatus:              200,
-			expectedCacheControlHeaders: nil,
-		},
-		{
-			name:                        "file does not exist",
-			filename:                    "missing.html",
-			createFile:                  false,
-			expectedStatus:              404,
-			expectedCacheControlHeaders: nil,
-		},
-		{
-			name:                        "main js bundle exists",
-			filename:                    "main.e4188e5adc97bbfc00c3.js",
-			createFile:                  true,
-			expectedStatus:              200,
-			expectedCacheControlHeaders: []string{"public, max-age=31536000, immutable"},
-		},
-		{
-			name:                        "main js bundle does not exists",
-			filename:                    "main.e4188e5adc97bbfc00c0.js",
-			createFile:                  false,
-			expectedStatus:              404,
-			expectedCacheControlHeaders: []string{"no-cache"},
-		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			argocd, closer := fakeServer(t)
-			defer closer()
-
-			handler := argocd.newStaticAssetsHandler()
-
-			rr := httptest.NewRecorder()
-			req := httptest.NewRequest("", fmt.Sprintf("/%s", testCase.filename), nil)
-
-			fp := filepath.Join(argocd.TmpAssetsDir, testCase.filename)
-
-			if testCase.createFile {
-				tmpFile, err := os.Create(fp)
-				assert.NoError(t, err)
-				err = tmpFile.Close()
-				assert.NoError(t, err)
-			}
-
-			handler(rr, req)
-
-			assert.Equal(t, testCase.expectedStatus, rr.Code)
-
-			cacheControl := rr.Result().Header["Cache-Control"]
-			assert.Equal(t, testCase.expectedCacheControlHeaders, cacheControl)
-		})
-	}
-}
 func TestReplaceBaseHRef(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -1331,7 +1255,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 <body>
     <noscript>
         <p>
-        Your browser does not support JavaScript. Please enable JavaScript to view the site.
+        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
         Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
         </p>
     </noscript>
@@ -1355,7 +1279,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 <body>
     <noscript>
         <p>
-        Your browser does not support JavaScript. Please enable JavaScript to view the site.
+        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
         Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
         </p>
     </noscript>
@@ -1383,7 +1307,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 <body>
     <noscript>
         <p>
-        Your browser does not support JavaScript. Please enable JavaScript to view the site.
+        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
         Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
         </p>
     </noscript>
@@ -1407,7 +1331,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 <body>
     <noscript>
         <p>
-        Your browser does not support JavaScript. Please enable JavaScript to view the site.
+        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
         Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
         </p>
     </noscript>

@@ -74,23 +74,6 @@ func (t *terminalSession) Done() {
 	close(t.doneChan)
 }
 
-func (t *terminalSession) StartKeepalives(dur time.Duration) {
-	ticker := time.NewTicker(dur)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			err := t.Ping()
-			if err != nil {
-				log.Errorf("ping error: %v", err)
-				return
-			}
-		case <-t.doneChan:
-			return
-		}
-	}
-}
-
 // Next called in a loop from remotecommand as long as the process is running
 func (t *terminalSession) Next() *remotecommand.TerminalSize {
 	select {
@@ -156,17 +139,6 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 	default:
 		return copy(p, EndOfTransmission), fmt.Errorf("unknown message type %s", msg.Operation)
 	}
-}
-
-// Ping called periodically to ensure connection stays alive through load balancers
-func (t *terminalSession) Ping() error {
-	t.writeLock.Lock()
-	err := t.wsConn.WriteMessage(websocket.PingMessage, []byte("ping"))
-	t.writeLock.Unlock()
-	if err != nil {
-		log.Errorf("ping message err: %v", err)
-	}
-	return err
 }
 
 // Write called from remotecommand whenever there is any output

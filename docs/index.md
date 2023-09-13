@@ -25,7 +25,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 ```
 
 Follow our [getting started guide](getting_started.md). Further user oriented [documentation](user-guide/)
-is provided for additional features. If you are looking to upgrade Argo CD, see the [upgrade guide](./operator-manual/upgrading/overview.md).
+is provided for additional features. If you are looking to upgrade ArgoCD, see the [upgrade guide](./operator-manual/upgrading/overview.md).
 Developer oriented [documentation](developer-guide/) is available for people interested in building third-party integrations.
 
 ## How it works

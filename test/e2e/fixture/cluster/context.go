@@ -12,13 +12,12 @@ import (
 type Context struct {
 	t *testing.T
 	// seconds
-	timeout     int
-	name        string
-	project     string
-	server      string
-	upsert      bool
-	namespaces  []string
-	bearerToken string
+	timeout    int
+	name       string
+	project    string
+	server     string
+	upsert     bool
+	namespaces []string
 }
 
 func Given(t *testing.T) *Context {
@@ -65,11 +64,6 @@ func (c *Context) When() *Actions {
 
 func (c *Context) Project(project string) *Context {
 	c.project = project
-	return c
-}
-
-func (c *Context) BearerToken(bearerToken string) *Context {
-	c.bearerToken = bearerToken
 	return c
 }
 
