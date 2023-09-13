@@ -15,6 +15,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -41,7 +42,19 @@ var (
 		},
 	}
 	testApp = v1alpha1.Application{
-		ObjectMeta: v1.ObjectMeta{Name: "testApp", Namespace: "default"},
+		ObjectMeta: v1.ObjectMeta{Name: "test-app", Namespace: "default"},
+		Status: v1alpha1.ApplicationStatus{
+			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+			Health: v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
+			OperationState: &v1alpha1.OperationState{
+				SyncResult: &v1alpha1.SyncOperationResult{
+					Revision: "aa29b85",
+				},
+			},
+		},
+	}
+	testApp2 = v1alpha1.Application{
+		ObjectMeta: v1.ObjectMeta{Name: "test-app", Namespace: "argocd-test"},
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
 			Health: v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
@@ -53,15 +66,15 @@ var (
 		},
 	}
 	testProject = v1alpha1.AppProject{
-		ObjectMeta: v1.ObjectMeta{Name: "testProject", Namespace: "default"},
+		ObjectMeta: v1.ObjectMeta{Name: "test-project", Namespace: "default"},
 		Spec:       v1alpha1.AppProjectSpec{},
 	}
 )
 
 func TestHandlerFeatureIsEnabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
-	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default")
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=testApp", nil)
+	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default", []string{})
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -81,6 +94,7 @@ func TestHandlerFeatureIsEnabled(t *testing.T) {
 func TestHandlerFeatureProjectIsEnabled(t *testing.T) {
 	projectTests := []struct {
 		testApp     []*v1alpha1.Application
+		response    int
 		apiEndPoint string
 		namespace   string
 		health      string
@@ -89,42 +103,105 @@ func TestHandlerFeatureProjectIsEnabled(t *testing.T) {
 		statusColor color.RGBA
 	}{
 		{createApplications([]string{"Healthy:Synced", "Healthy:Synced"}, []string{"default", "default"}, "test"),
-			"/api/badge?project=default", "test", "Healthy", "Synced", Green, Green},
-		{createApplications([]string{"Healthy:Synced", "Healthy:OutOfSync"}, []string{"testProject", "testProject"}, "default"),
-			"/api/badge?project=testProject", "default", "Healthy", "OutOfSync", Green, Orange},
+			http.StatusOK, "/api/badge?project=default", "test", "Healthy", "Synced", Green, Green},
+		{createApplications([]string{"Healthy:Synced", "Healthy:OutOfSync"}, []string{"test-project", "test-project"}, "default"),
+			http.StatusOK, "/api/badge?project=test-project", "default", "Healthy", "OutOfSync", Green, Orange},
 		{createApplications([]string{"Healthy:Synced", "Degraded:Synced"}, []string{"default", "default"}, "test"),
-			"/api/badge?project=default", "test", "Degraded", "Synced", Red, Green},
-		{createApplications([]string{"Healthy:Synced", "Degraded:OutOfSync"}, []string{"testProject", "testProject"}, "default"),
-			"/api/badge?project=testProject", "default", "Degraded", "OutOfSync", Red, Orange},
-		{createApplications([]string{"Healthy:Synced", "Healthy:Synced"}, []string{"testProject", "default"}, "test"),
-			"/api/badge?project=default&project=testProject", "test", "Healthy", "Synced", Green, Green},
-		{createApplications([]string{"Healthy:OutOfSync", "Healthy:Synced"}, []string{"testProject", "default"}, "default"),
-			"/api/badge?project=default&project=testProject", "default", "Healthy", "OutOfSync", Green, Orange},
-		{createApplications([]string{"Degraded:Synced", "Healthy:Synced"}, []string{"testProject", "default"}, "test"),
-			"/api/badge?project=default&project=testProject", "test", "Degraded", "Synced", Red, Green},
-		{createApplications([]string{"Degraded:OutOfSync", "Healthy:OutOfSync"}, []string{"testProject", "default"}, "default"),
-			"/api/badge?project=default&project=testProject", "default", "Degraded", "OutOfSync", Red, Orange},
-		{createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"testProject", "default"}, "default"),
-			"/api/badge?project=", "default", "Unknown", "Unknown", Purple, Purple},
+			http.StatusOK, "/api/badge?project=default", "test", "Degraded", "Synced", Red, Green},
+		{createApplications([]string{"Healthy:Synced", "Degraded:OutOfSync"}, []string{"test-project", "test-project"}, "default"),
+			http.StatusOK, "/api/badge?project=test-project", "default", "Degraded", "OutOfSync", Red, Orange},
+		{createApplications([]string{"Healthy:Synced", "Healthy:Synced"}, []string{"test-project", "default"}, "test"),
+			http.StatusOK, "/api/badge?project=default&project=test-project", "test", "Healthy", "Synced", Green, Green},
+		{createApplications([]string{"Healthy:OutOfSync", "Healthy:Synced"}, []string{"test-project", "default"}, "default"),
+			http.StatusOK, "/api/badge?project=default&project=test-project", "default", "Healthy", "OutOfSync", Green, Orange},
+		{createApplications([]string{"Degraded:Synced", "Healthy:Synced"}, []string{"test-project", "default"}, "test"),
+			http.StatusOK, "/api/badge?project=default&project=test-project", "test", "Degraded", "Synced", Red, Green},
+		{createApplications([]string{"Degraded:OutOfSync", "Healthy:OutOfSync"}, []string{"test-project", "default"}, "default"),
+			http.StatusOK, "/api/badge?project=default&project=test-project", "default", "Degraded", "OutOfSync", Red, Orange},
+		{createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
+			http.StatusOK, "/api/badge?project=", "default", "Unknown", "Unknown", Purple, Purple},
+		{createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
+			http.StatusBadRequest, "/api/badge?project=test$project", "default", "Unknown", "Unknown", Purple, Purple},
+		{createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
+			http.StatusOK, "/api/badge?project=unknown", "default", "Unknown", "Unknown", Purple, Purple},
+		{createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
+			http.StatusBadRequest, "/api/badge?name=foo_bar", "default", "Unknown", "Unknown", Purple, Purple},
+		{createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
+			http.StatusOK, "/api/badge?name=foobar", "default", "Not Found", "", Purple, Purple},
 	}
 	for _, tt := range projectTests {
 		argoCDCm.ObjectMeta.Namespace = tt.namespace
 		argoCDSecret.ObjectMeta.Namespace = tt.namespace
 		settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), tt.namespace)
-		handler := NewHandler(appclientset.NewSimpleClientset(&testProject, tt.testApp[0], tt.testApp[1]), settingsMgr, tt.namespace)
+		handler := NewHandler(appclientset.NewSimpleClientset(&testProject, tt.testApp[0], tt.testApp[1]), settingsMgr, tt.namespace, []string{})
 		rr := httptest.NewRecorder()
 		req, err := http.NewRequest(http.MethodGet, tt.apiEndPoint, nil)
 		assert.NoError(t, err)
 		handler.ServeHTTP(rr, req)
+		require.Equal(t, tt.response, rr.Result().StatusCode)
+		if rr.Result().StatusCode != 400 {
+			assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
+			assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
+			response := rr.Body.String()
+			require.Greater(t, len(response), 2)
+			assert.Equal(t, toRGBString(tt.healthColor), leftRectColorPattern.FindStringSubmatch(response)[1])
+			assert.Equal(t, toRGBString(tt.statusColor), rightRectColorPattern.FindStringSubmatch(response)[1])
+			assert.Equal(t, tt.health, leftTextPattern.FindStringSubmatch(response)[1])
+			assert.Equal(t, tt.status, rightTextPattern.FindStringSubmatch(response)[1])
+		}
+	}
+}
+
+func TestHandlerNamespacesIsEnabled(t *testing.T) {
+	t.Run("Application in allowed namespace", func(t *testing.T) {
+		settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
+		handler := NewHandler(appclientset.NewSimpleClientset(&testApp2), settingsMgr, "default", []string{"argocd-test"})
+		req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&namespace=argocd-test", nil)
+		assert.NoError(t, err)
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
 		assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
 		assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
-		response := rr.Body.String()
-		assert.Equal(t, toRGBString(tt.healthColor), leftRectColorPattern.FindStringSubmatch(response)[1])
-		assert.Equal(t, toRGBString(tt.statusColor), rightRectColorPattern.FindStringSubmatch(response)[1])
-		assert.Equal(t, tt.health, leftTextPattern.FindStringSubmatch(response)[1])
-		assert.Equal(t, tt.status, rightTextPattern.FindStringSubmatch(response)[1])
 
-	}
+		response := rr.Body.String()
+		assert.Equal(t, toRGBString(Green), leftRectColorPattern.FindStringSubmatch(response)[1])
+		assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
+		assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
+		assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+		assert.NotContains(t, response, "(aa29b85)")
+	})
+
+	t.Run("Application in disallowed namespace", func(t *testing.T) {
+		settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
+		handler := NewHandler(appclientset.NewSimpleClientset(&testApp2), settingsMgr, "default", []string{"argocd-test"})
+		req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&namespace=kube-system", nil)
+		assert.NoError(t, err)
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+		response := rr.Body.String()
+		assert.Equal(t, toRGBString(Purple), leftRectColorPattern.FindStringSubmatch(response)[1])
+		assert.Equal(t, toRGBString(Purple), rightRectColorPattern.FindStringSubmatch(response)[1])
+		assert.Equal(t, "Not Found", leftTextPattern.FindStringSubmatch(response)[1])
+		assert.Equal(t, "", rightTextPattern.FindStringSubmatch(response)[1])
+
+	})
+
+	t.Run("Request with illegal namespace", func(t *testing.T) {
+		settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
+		handler := NewHandler(appclientset.NewSimpleClientset(&testApp2), settingsMgr, "default", []string{"argocd-test"})
+		req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&namespace=kube()system", nil)
+		assert.NoError(t, err)
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Result().StatusCode)
+	})
 }
 
 func createApplicationFeatureProjectIsEnabled(healthStatus health.HealthStatusCode, syncStatus v1alpha1.SyncStatusCode, appName, projectName, namespace string) *v1alpha1.Application {
@@ -176,8 +253,8 @@ func createApplications(appCombo, projectName []string, namespace string) []*v1a
 }
 func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
-	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default")
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=testApp&revision=true", nil)
+	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default", []string{})
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -199,8 +276,8 @@ func TestHandlerRevisionIsEnabledNoOperationState(t *testing.T) {
 	app.Status.OperationState = nil
 
 	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
-	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default")
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=testApp&revision=true", nil)
+	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -222,8 +299,8 @@ func TestHandlerRevisionIsEnabledShortCommitSHA(t *testing.T) {
 	app.Status.OperationState.SyncResult.Revision = "abc"
 
 	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
-	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default")
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=testApp&revision=true", nil)
+	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -239,8 +316,8 @@ func TestHandlerFeatureIsDisabled(t *testing.T) {
 	delete(argoCDCmDisabled.Data, "statusbadge.enabled")
 
 	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCmDisabled, &argoCDSecret), "default")
-	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default")
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=testApp", nil)
+	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default", []string{})
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
