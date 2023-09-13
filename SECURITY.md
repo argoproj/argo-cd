@@ -50,7 +50,7 @@ of releasing it within a patch branch for the currently supported releases.
 
 ## Reporting a Vulnerability
 
-If you find a security related bug in Argo CD, we kindly ask you for responsible
+If you find a security related bug in ArgoCD, we kindly ask you for responsible
 disclosure and for giving us appropriate time to react, analyze and develop a
 fix to mitigate the found security vulnerability.
 
@@ -63,10 +63,9 @@ We will publish security advisories using the
 feature to keep our community well-informed, and will credit you for your
 findings (unless you prefer to stay anonymous, of course).
 
-There are two ways to report a vulnerability to the Argo CD team:
+Please report vulnerabilities by e-mail to the following address:
 
-* By opening a draft GitHub security advisory: https://github.com/argoproj/argo-cd/security/advisories/new
-* By e-mail to the following address: cncf-argo-security@lists.cncf.io
+* cncf-argo-security@lists.cncf.io
 
 ## Internet Bug Bounty collaboration
 

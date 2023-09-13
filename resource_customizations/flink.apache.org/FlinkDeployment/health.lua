@@ -1,7 +1,7 @@
 health_status = {}
 
 if obj.status ~= nil and obj.status.reconciliationStatus ~= nil then
-  if obj.status.reconciliationStatus.success or obj.status.reconciliationStatus.state == "DEPLOYED" then
+  if obj.status.reconciliationStatus.success then
     health_status.status = "Healthy"
     return health_status
   end 

@@ -4,7 +4,6 @@ metadata:
   name: merge-two-matrixes
 spec:
   goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
     - merge:
         mergeKeys:

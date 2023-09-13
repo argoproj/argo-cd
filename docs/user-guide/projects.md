@@ -271,15 +271,15 @@ projectName: `proj-global-test` should be replaced with your own global project 
 
 ## Project scoped Repositories and Clusters
 
-Normally, an Argo CD admin creates a project and decides in advance which clusters and Git repositories
+Normally, an ArgoCD admin creates a project and decides in advance which clusters and Git repositories
 it defines. However, this creates a problem in scenarios where a developer wants to add a repository or cluster
-after the initial creation of the project. This forces the developer to contact their Argo CD admin again to update the project definition.
+after the initial creation of the project. This forces the developer to contact their ArgoCD admin again to update the project definition.
 
 It is possible to offer a self-service process for developers so that they can add a repository and/or cluster in a project on their own even after the initial creation of the project.
 
-For this purpose Argo CD supports project-scoped repositories and clusters.
+For this purpose ArgoCD supports project-scoped repositories and clusters.
 
-To begin the process, Argo CD admins must configure RBAC security to allow this self-service behavior.
+To begin the process, ArgoCD admins must configure RBAC security to allow this self-service behavior.
 For example, to allow users to add project scoped repositories and admin would have to add
 the following RBAC rules:
 

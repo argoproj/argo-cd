@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"time"
 
 	util_session "github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -143,7 +142,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	appRBACName := security.RBACName(s.namespace, project, appNamespace, app)
+	appRBACName := security.AppRBACName(s.namespace, project, appNamespace, app)
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -231,10 +230,6 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer session.Done()
-
-	// send pings across the WebSocket channel at regular intervals to keep it alive through
-	// load balancers which may close an idle connection after some period of time
-	go session.StartKeepalives(time.Second * 5)
 
 	if isValidShell(s.allowedShells, shell) {
 		cmd := []string{shell}

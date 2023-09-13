@@ -3,6 +3,7 @@ package admin
 import (
 	"reflect"
 
+	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -11,11 +12,9 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/yaml"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 
@@ -36,7 +35,7 @@ var (
 )
 
 // NewAdminCommand returns a new instance of an argocd command
-func NewAdminCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewAdminCommand() *cobra.Command {
 	var (
 		pathOpts = clientcmd.NewDefaultPathOptions()
 	)
@@ -50,10 +49,10 @@ func NewAdminCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 
-	command.AddCommand(NewClusterCommand(clientOpts, pathOpts))
+	command.AddCommand(NewClusterCommand(pathOpts))
 	command.AddCommand(NewProjectsCommand())
 	command.AddCommand(NewSettingsCommand())
-	command.AddCommand(NewAppCommand(clientOpts))
+	command.AddCommand(NewAppCommand())
 	command.AddCommand(NewRepoCommand())
 	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())

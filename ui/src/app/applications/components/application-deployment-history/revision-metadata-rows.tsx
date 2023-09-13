@@ -1,46 +1,22 @@
 import {DataLoader} from 'argo-ui';
 import * as React from 'react';
 import {Timestamp} from '../../../shared/components/timestamp';
-import {ApplicationSource, RevisionMetadata, ChartDetails} from '../../../shared/models';
+import {ApplicationSource, RevisionMetadata} from '../../../shared/models';
 import {services} from '../../../shared/services';
 
 export const RevisionMetadataRows = (props: {applicationName: string; applicationNamespace: string; source: ApplicationSource}) => {
     if (props.source.chart) {
         return (
-            <DataLoader input={props} load={input => services.applications.revisionChartDetails(input.applicationName, input.applicationNamespace, input.source.targetRevision)}>
-                {(m: ChartDetails) => (
-                    <div>
-                        <div className='row'>
-                            <div className='columns small-3'>Helm Chart:</div>
-                            <div className='columns small-9'>
-                                {props.source.chart}&nbsp;
-                                {m.home && (
-                                    <a
-                                        title={m.home}
-                                        onClick={e => {
-                                            e.stopPropagation();
-                                            window.open(m.home);
-                                        }}>
-                                        <i className='fa fa-external-link-alt' />
-                                    </a>
-                                )}
-                            </div>
-                        </div>
-                        {m.description && (
-                            <div className='row'>
-                                <div className='columns small-3'>Description:</div>
-                                <div className='columns small-9'>{m.description}</div>
-                            </div>
-                        )}
-                        {m.maintainers && m.maintainers.length > 0 && (
-                            <div className='row'>
-                                <div className='columns small-3'>Maintainers:</div>
-                                <div className='columns small-9'>{m.maintainers.join(', ')}</div>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </DataLoader>
+            <div>
+                <div className='row'>
+                    <div className='columns small-3'>Helm Chart </div>
+                    <div className='columns small-9'>{props.source.chart}</div>
+                </div>
+                <div className='row'>
+                    <div className='columns small-3'>Version</div>
+                    <div className='columns small-9'>v{props.source.targetRevision}</div>
+                </div>
+            </div>
         );
     }
     return (

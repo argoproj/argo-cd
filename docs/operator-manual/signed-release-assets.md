@@ -136,13 +136,11 @@ slsa-verifier verify-artifact argocd-linux-amd64 \
 
 ## Verification of Sbom
 
-A single attestation (`argocd-sbom.intoto.jsonl`) from each release is provided along with the sbom (`sbom.tar.gz`). This can be used with [slsa-verifier](https://github.com/slsa-framework/slsa-verifier#verification-for-github-builders) to verify that the SBOM was generated using Argo CD workflows on GitHub and ensures it was cryptographically signed.
-
 ```bash
-slsa-verifier verify-artifact sbom.tar.gz \
-  --provenance-path argocd-sbom.intoto.jsonl \
-  --source-uri github.com/argoproj/argo-cd \
-  --source-tag v2.7.0
+cosign verify-blob --signature sbom.tar.gz.sig --certificate sbom.tar.gz.pem \
+--certificate-identity-regexp ^https://github.com/argoproj/argo-cd/.github/workflows/release.yaml@refs/tags/v \
+--certificate-oidc-issuer https://token.actions.githubusercontent.com  \
+ ~/Downloads/sbom.tar.gz | jq
 ```
 
 ***

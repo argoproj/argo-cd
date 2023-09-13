@@ -21,11 +21,7 @@ func StartGPGWatcher(sourcePath string) error {
 	if err != nil {
 		return err
 	}
-	defer func(watcher *fsnotify.Watcher) {
-		if err = watcher.Close(); err != nil {
-			log.Errorf("Error closing watcher: %v", err)
-		}
-	}(watcher)
+	defer watcher.Close()
 
 	done := make(chan bool)
 	go func() {
