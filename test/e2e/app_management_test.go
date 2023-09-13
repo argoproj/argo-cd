@@ -1754,6 +1754,40 @@ func TestCompareOptionIgnoreExtraneous(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
+func TestSourceNamespaceCanBeMigratedToManagedNamespaceWithoutBeingPrunedOrOutOfSync(t *testing.T) {
+	Given(t).
+		Prune(true).
+		Path("guestbook-with-plain-namespace-manifest").
+		When().
+		PatchFile("guestbook-ui-namespace.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/name", "value": "%s"}]`, DeploymentNamespace())).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		PatchApp(`[{
+				"op": "add",
+				"path": "/spec/syncPolicy",
+				"value": { "prune": true, "syncOptions": ["PrunePropagationPolicy=foreground"], "managedNamespaceMetadata": { "labels": { "foo": "bar" } } }
+				}]`).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, &ManagedNamespaceMetadata{Labels: map[string]string{"foo": "bar"}}, app.Spec.SyncPolicy.ManagedNamespaceMetadata)
+		}).
+		When().
+		DeleteFile("guestbook-ui-namespace.yaml").
+		Refresh(RefreshTypeHard).
+		Sync().
+		Wait().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestSelfManagedApps(t *testing.T) {
 
 	Given(t).
