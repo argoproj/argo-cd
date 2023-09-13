@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/pkg/client/ratelimiter"
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -144,6 +145,7 @@ func NewApplicationController(
 ) (*ApplicationController, error) {
 	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v", appResyncPeriod, appHardResyncPeriod)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
+	rateLimiterConfig := ratelimiter.GetAppRateLimiterConfig()
 	ctrl := ApplicationController{
 		cache:                         argoCache,
 		namespace:                     namespace,
@@ -151,10 +153,10 @@ func NewApplicationController(
 		kubectl:                       kubectl,
 		applicationClientset:          applicationClientset,
 		repoClientset:                 repoClientset,
-		appRefreshQueue:               workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "app_reconciliation_queue"),
-		appOperationQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "app_operation_processing_queue"),
-		projectRefreshQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "project_reconciliation_queue"),
-		appComparisonTypeRefreshQueue: workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		appRefreshQueue:               workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "app_reconciliation_queue"),
+		appOperationQueue:             workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "app_operation_processing_queue"),
+		projectRefreshQueue:           workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "project_reconciliation_queue"),
+		appComparisonTypeRefreshQueue: workqueue.NewRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig)),
 		db:                            db,
 		statusRefreshTimeout:          appResyncPeriod,
 		statusHardRefreshTimeout:      appHardResyncPeriod,
@@ -177,7 +179,7 @@ func NewApplicationController(
 	projInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
-				ctrl.projectRefreshQueue.Add(key)
+				ctrl.projectRefreshQueue.AddRateLimited(key)
 				if projMeta, ok := obj.(metav1.Object); ok {
 					ctrl.InvalidateProjectsCache(projMeta.GetName())
 				}
@@ -186,7 +188,7 @@ func NewApplicationController(
 		},
 		UpdateFunc: func(old, new interface{}) {
 			if key, err := cache.MetaNamespaceKeyFunc(new); err == nil {
-				ctrl.projectRefreshQueue.Add(key)
+				ctrl.projectRefreshQueue.AddRateLimited(key)
 				if projMeta, ok := new.(metav1.Object); ok {
 					ctrl.InvalidateProjectsCache(projMeta.GetName())
 				}
@@ -194,6 +196,7 @@ func NewApplicationController(
 		},
 		DeleteFunc: func(obj interface{}) {
 			if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err == nil {
+				// immediately push to queue for deletes
 				ctrl.projectRefreshQueue.Add(key)
 				if projMeta, ok := obj.(metav1.Object); ok {
 					ctrl.InvalidateProjectsCache(projMeta.GetName())
@@ -778,8 +781,8 @@ func (ctrl *ApplicationController) requestAppRefresh(appName string, compareWith
 			ctrl.appRefreshQueue.AddAfter(key, *after)
 			ctrl.appOperationQueue.AddAfter(key, *after)
 		} else {
-			ctrl.appRefreshQueue.Add(key)
-			ctrl.appOperationQueue.Add(key)
+			ctrl.appRefreshQueue.AddRateLimited(key)
+			ctrl.appOperationQueue.AddRateLimited(key)
 		}
 	}
 }
@@ -1938,8 +1941,8 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 				key, err := cache.MetaNamespaceKeyFunc(obj)
 				if err == nil {
-					ctrl.appRefreshQueue.Add(key)
-					ctrl.appOperationQueue.Add(key)
+					ctrl.appRefreshQueue.AddRateLimited(key)
+					ctrl.appOperationQueue.AddRateLimited(key)
 				}
 			},
 			UpdateFunc: func(old, new interface{}) {
@@ -1959,7 +1962,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					compareWith = CompareWithLatest.Pointer()
 				}
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, nil)
-				ctrl.appOperationQueue.Add(key)
+				ctrl.appOperationQueue.AddRateLimited(key)
 			},
 			DeleteFunc: func(obj interface{}) {
 				if !ctrl.canProcessApp(obj) {
@@ -1969,6 +1972,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				// key function.
 				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 				if err == nil {
+					// for deletes, we immediately add to the refresh queue
 					ctrl.appRefreshQueue.Add(key)
 				}
 			},
