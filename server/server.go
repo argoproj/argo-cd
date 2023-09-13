@@ -949,7 +949,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		Handler: &handlerSwitcher{
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
-				"/api/badge":          badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
+				"/api/badge":          badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace, a.ApplicationNamespaces),
 				common.LogoutEndpoint: logout.NewHandler(a.AppClientset, a.settingsMgr, a.sessionMgr, a.ArgoCDServerOpts.RootPath, a.ArgoCDServerOpts.BaseHRef, a.Namespace),
 			},
 			contentTypeToHandler: map[string]http.Handler{
