@@ -79,10 +79,12 @@ type ApplicationSetReconciler struct {
 	Policy               argov1alpha1.ApplicationsSyncPolicy
 	EnablePolicyOverride bool
 	utils.Renderer
-	ArgoCDNamespace          string
-	ApplicationSetNamespaces []string
-	EnableProgressiveSyncs   bool
-	SCMRootCAPath            string
+	ArgoCDNamespace            string
+	ApplicationSetNamespaces   []string
+	EnableProgressiveSyncs     bool
+	SCMRootCAPath              string
+	GlobalPreservedAnnotations []string
+	GlobalPreservedLabels      []string
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -617,9 +619,21 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			}
 
 			preservedAnnotations := make([]string, 0)
+			preservedLabels := make([]string, 0)
+
 			if applicationSet.Spec.PreservedFields != nil {
 				preservedAnnotations = append(preservedAnnotations, applicationSet.Spec.PreservedFields.Annotations...)
+				preservedLabels = append(preservedLabels, applicationSet.Spec.PreservedFields.Labels...)
 			}
+
+			if len(r.GlobalPreservedAnnotations) > 0 {
+				preservedAnnotations = append(preservedAnnotations, r.GlobalPreservedAnnotations...)
+			}
+
+			if len(r.GlobalPreservedLabels) > 0 {
+				preservedLabels = append(preservedLabels, r.GlobalPreservedLabels...)
+			}
+
 			// Preserve specially treated argo cd annotations:
 			// * https://github.com/argoproj/applicationset/issues/180
 			// * https://github.com/argoproj/argo-cd/issues/10500
@@ -633,6 +647,16 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 					generatedApp.Annotations[key] = state
 				}
 			}
+
+			for _, key := range preservedLabels {
+				if state, exists := found.ObjectMeta.Labels[key]; exists {
+					if generatedApp.Labels == nil {
+						generatedApp.Labels = map[string]string{}
+					}
+					generatedApp.Labels[key] = state
+				}
+			}
+
 			found.ObjectMeta.Annotations = generatedApp.Annotations
 
 			found.ObjectMeta.Finalizers = generatedApp.Finalizers
