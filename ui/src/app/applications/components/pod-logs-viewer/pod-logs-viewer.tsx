@@ -8,7 +8,6 @@ import {LogEntry} from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
 
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
-import Grid from 'react-virtualized/dist/commonjs/Grid';
 
 import './pod-logs-viewer.scss';
 import {CopyLogsButton} from './copy-logs-button';
@@ -24,9 +23,8 @@ import {LogMessageFilter} from './log-message-filter';
 import {SinceSecondsSelector} from './since-seconds-selector';
 import {TailSelector} from './tail-selector';
 import {PodNamesToggleButton} from './pod-names-toggle-button';
-import Ansi from 'ansi-to-react';
 import {AutoScrollButton} from './auto-scroll-button';
-import {GridCellProps} from 'react-virtualized/dist/es/Grid';
+import {WrapLinesButton} from './wrap-lines-button';
 
 export interface PodLogsProps {
     namespace: string;
@@ -133,22 +131,17 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         (viewTimestamps ? (lineNum === 0 || (logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : '').padEnd(30)) + ' ' : '') +
         // show the log content, highlight the filter text
         log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
-
-    const cellRenderer = ({rowIndex, key, style}: GridCellProps) => {
-        return (
-            <pre key={key} style={style} className='noscroll'>
-                <Ansi>{renderLog(logs[rowIndex], rowIndex)}</Ansi>
-            </pre>
-        );
-    };
-
-    // calculate the width of the grid based on the longest log line
-    const maxWidth =
-        14 *
-        logs
-            .map(renderLog)
-            .map(v => v.length)
-            .reduce((a, b) => Math.max(a, b), 0);
+    const logsContent = (width: number, height: number, isWrapped: boolean) => (
+        <div style={{width, height, overflow: 'scroll'}}>
+            {
+                logs.map((log, lineNum) => (
+                    <div key={lineNum}>
+                        <div style={{height: '95%', whiteSpace: isWrapped ? 'normal' : 'pre'}} className='noscroll'>{renderLog(log, lineNum)}</div>
+                    </div>
+                ))
+            }
+        </div>
+    );
 
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -159,6 +152,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             <span>
                                 <FollowToggleButton follow={follow} setFollow={setFollow} />
                                 {follow && <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} />}
+                                <WrapLinesButton prefs={prefs} />
                                 <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogs} showPreviousLogs={previous} />
                                 <Spacer />
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
@@ -191,16 +185,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             }}>
                             <AutoSizer>
                                 {({width, height}: {width: number; height: number}) => (
-                                    <Grid
-                                        cellRenderer={cellRenderer}
-                                        columnCount={1}
-                                        columnWidth={Math.max(width, maxWidth)}
-                                        height={height}
-                                        rowCount={logs.length}
-                                        rowHeight={18}
-                                        width={width}
-                                        scrollToRow={scrollToBottom ? logs.length - 1 : undefined}
-                                    />
+                                    logsContent(width, height, prefs.appDetails.wrapLines)
                                 )}
                             </AutoSizer>
                         </div>
