@@ -13,6 +13,16 @@ Git repository via file url: `file:///tmp/argocd-e2e***`.
 
 You can observe the tests by using the UI [http://localhost:8080/applications](http://localhost:8080/applications) with username `"admin"` and password `"password"`.
 
+### Running Single E2E Test
+
+The `test-e2e` target passes the `TEST_FLAGS` environment variable to the `go test` run inside the local ArgoCD server container. To run a single e2e test, set this environment variable execution: `TEST_FLAGS="-run ^TestCustomToolWithEnv\$$" make test-e2e`
+
+_Dollar signs need to be escaped with a double dollar for the `Makefile` forwarding the execution to the underlying container._
+
+If you are running using the local toolchain, this same environment variable can be used. `make` only reads the variable in the translation between the local and virtual environments, so only standard bash escaping mechanisms need to be used: `TEST_FLAGS="-run ^TestCustomToolWithEnv\$" make test-e2e-local`
+
+See the [Toolchain Guide](toolchain-guide.md) for more information about local development practices.
+
 ## Configuration of E2E Tests execution
 
 The Makefile's `start-e2e` target starts instances of ArgoCD on your local machine, of which the most will require a network listener. If for whatever reason you already have network services on your machine listening on the same ports, the e2e tests will not be able to run. You can derive from the defaults by setting the following environment variables before you run `make start-e2e`:

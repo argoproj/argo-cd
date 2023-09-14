@@ -4,7 +4,7 @@ set -eux -o pipefail
 which go-junit-report || go install github.com/jstemmer/go-junit-report@latest
 
 TEST_RESULTS=${TEST_RESULTS:-test-results}
-TEST_FLAGS=
+TEST_FLAGS=${TEST_FLAGS:-}
 
 if test "${ARGOCD_TEST_PARALLELISM:-}" != ""; then
 	TEST_FLAGS="$TEST_FLAGS -p $ARGOCD_TEST_PARALLELISM"
