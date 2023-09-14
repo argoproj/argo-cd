@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/labels"
+
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -1996,4 +1998,56 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 
 	assert.Equal(t, health.HealthStatusDegraded, testApp.Status.Resources[0].Health.Status)
 	assert.Nil(t, testApp.Status.Resources[1].Health)
+}
+
+func TestIsApplicationPermitted(t *testing.T) {
+	t.Run("Incorrect project", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		projects := map[string]bool{"test-app": false}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, "test", "default", projects, *testApp)
+		assert.False(t, permitted)
+	})
+
+	t.Run("Version is incorrect", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		minVersion := 100000
+		testApp.ResourceVersion = strconv.Itoa(minVersion - 1)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), minVersion, nil, "test", "default", nil, *testApp)
+		assert.False(t, permitted)
+	})
+
+	t.Run("Application name is incorrect", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		appName := "test"
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, appName, "default", nil, *testApp)
+		assert.False(t, permitted)
+	})
+
+	t.Run("Application namespace is incorrect", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, "demo", nil, *testApp)
+		assert.False(t, permitted)
+	})
+
+	t.Run("Application is not part of enabled namespace", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		appServer.ns = "server-ns"
+		appServer.enabledNamespaces = []string{"demo"}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
+		assert.False(t, permitted)
+	})
+
+	t.Run("Application is part of enabled namespace", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		appServer.ns = "server-ns"
+		appServer.enabledNamespaces = []string{testApp.Namespace}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
+		assert.True(t, permitted)
+	})
 }
