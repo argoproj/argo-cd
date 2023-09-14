@@ -24,11 +24,8 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster1-guestbook",
-			Namespace: utils.ArgoCDExternalNamespace,
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-cluster-generator",
-			},
+			Name:       "cluster1-guestbook",
+			Namespace:  utils.ArgoCDExternalNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -104,15 +101,13 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-				"label-key":            "label-value",
-				LabelKeyAppSetInstance: "simple-cluster-generator",
+				"label-key": "label-value",
 			}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{
-				"label-key":            "label-value",
-				LabelKeyAppSetInstance: "simple-cluster-generator",
+				"label-key": "label-value",
 			}
 		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
 
@@ -132,9 +127,6 @@ func TestSimpleClusterGenerator(t *testing.T) {
 			Name:       "cluster1-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-cluster-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -206,10 +198,7 @@ func TestSimpleClusterGenerator(t *testing.T) {
 		And(func() {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-				LabelKeyAppSetInstance: "simple-cluster-generator",
-				"label-key":            "label-value",
-			}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
@@ -231,9 +220,6 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 			Name:       "in-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "in-cluster-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -326,10 +312,7 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 				And(func() {
 					expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 					expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-					expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-						"label-key":            "label-value",
-						LabelKeyAppSetInstance: "in-cluster-generator",
-					}
+					expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 				}).
 				Update(func(appset *v1alpha1.ApplicationSet) {
 					appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
@@ -354,9 +337,6 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 			Name:       "{{name}}-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-cluster-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -439,9 +419,6 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 			Name:       "{{name}}-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-cluster-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
