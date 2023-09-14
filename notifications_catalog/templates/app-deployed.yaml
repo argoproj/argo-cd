@@ -29,7 +29,7 @@ slack:
           {{if $index}},{{end}}
           {
             "title": "{{$c.type}}",
-            "value": "{{$c.message}}",
+            "value": {{$c.message | quote}},
             "short": true
           }
           {{end}}
@@ -56,7 +56,7 @@ teams:
           {{if $index}},{{end}}
           {
             "name": "{{$c.type}}",
-            "value": "{{$c.message}}"
+            "value": {{$c.message | quote}}
           }
         {{end}}
         ]
