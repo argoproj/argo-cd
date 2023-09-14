@@ -28,9 +28,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
+	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -85,6 +87,7 @@ type ApplicationSetReconciler struct {
 	SCMRootCAPath              string
 	GlobalPreservedAnnotations []string
 	GlobalPreservedLabels      []string
+	Cache                      cache.Cache
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -582,6 +585,20 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 		Complete(r)
 }
 
+func (r *ApplicationSetReconciler) updateCache(ctx context.Context, obj client.Object) error {
+	informer, err := r.Cache.GetInformer(ctx, obj)
+	if err != nil {
+		return err
+	}
+	// The controller runtime abstract away informers creation
+	// so unfortunately could not find any other way to access informer store.
+	k8sInformer, ok := informer.(k8scache.SharedInformer)
+	if !ok {
+		return fmt.Errorf("informer is not a kubernetes informer")
+	}
+	return k8sInformer.GetStore().Update(obj)
+}
+
 // createOrUpdateInCluster will create / update application resources in the cluster.
 // - For new applications, it will call create
 // - For existing application, it will call update
@@ -663,6 +680,9 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			found.ObjectMeta.Labels = generatedApp.Labels
 			return controllerutil.SetControllerReference(&applicationSet, found, r.Scheme)
 		})
+		if err == nil {
+			err = r.updateCache(ctx, found)
+		}
 
 		if err != nil {
 			appLog.WithError(err).WithField("action", action).Errorf("failed to %s Application", action)
@@ -829,15 +849,18 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 
 		// If the finalizer length changed (due to filtering out an Argo finalizer), update the finalizer list on the app
 		if len(newFinalizers) != len(app.Finalizers) {
+			updated := app.DeepCopy()
+			updated.Finalizers = newFinalizers
+			if err := r.Client.Patch(ctx, updated, client.MergeFrom(app)); err != nil {
+				return fmt.Errorf("error updating finalizers: %w", err)
+			}
+			if err := r.updateCache(ctx, updated); err != nil {
+				return fmt.Errorf("error updating app cache: %w", err)
+			}
 			app.Finalizers = newFinalizers
 
 			r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, "Updated", "Updated Application %q finalizer before deletion, because application has an invalid destination", app.Name)
 			appLog.Log(log.InfoLevel, "Updating application finalizer before deletion, because application has an invalid destination")
-
-			err := r.Client.Update(ctx, app, &client.UpdateOptions{})
-			if err != nil {
-				return fmt.Errorf("error updating finalizers: %w", err)
-			}
 		}
 	}
 
