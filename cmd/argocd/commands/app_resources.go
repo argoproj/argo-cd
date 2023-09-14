@@ -166,7 +166,7 @@ func parentChildInfo(nodes []v1alpha1.ResourceNode) (mapUidToNode map[string]v1a
 			parentNode[node.UID] = struct{}{}
 		}
 	}
-	return
+	return mapUidToNode, mapParentToChild, parentNode
 }
 
 func printDetailedTreeViewAppResourcesNotOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, w *tabwriter.Writer) {
