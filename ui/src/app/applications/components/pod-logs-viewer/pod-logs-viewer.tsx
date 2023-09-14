@@ -133,13 +133,13 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
     const logsContent = (width: number, height: number, isWrapped: boolean) => (
         <div style={{width, height, overflow: 'scroll'}}>
-            {
-                logs.map((log, lineNum) => (
-                    <div key={lineNum}>
-                        <div style={{height: '95%', whiteSpace: isWrapped ? 'normal' : 'pre'}} className='noscroll'>{renderLog(log, lineNum)}</div>
+            {logs.map((log, lineNum) => (
+                <div key={lineNum}>
+                    <div style={{height: '95%', whiteSpace: isWrapped ? 'normal' : 'pre'}} className='noscroll'>
+                        {renderLog(log, lineNum)}
                     </div>
-                ))
-            }
+                </div>
+            ))}
         </div>
     );
 
@@ -183,11 +183,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             onWheel={e => {
                                 if (e.deltaY < 0) setScrollToBottom(false);
                             }}>
-                            <AutoSizer>
-                                {({width, height}: {width: number; height: number}) => (
-                                    logsContent(width, height, prefs.appDetails.wrapLines)
-                                )}
-                            </AutoSizer>
+                            <AutoSizer>{({width, height}: {width: number; height: number}) => logsContent(width, height, prefs.appDetails.wrapLines)}</AutoSizer>
                         </div>
                     </React.Fragment>
                 );
