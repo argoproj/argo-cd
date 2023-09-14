@@ -786,7 +786,8 @@ spec:
                 properties:
                   name:
                     description: Name is an alternate way of specifying the target
-                      cluster by its symbolic name
+                      cluster by its symbolic name. This must be set if Server is
+                      not set.
                     type: string
                   namespace:
                     description: Namespace specifies the target namespace for the
@@ -794,8 +795,9 @@ spec:
                       namespace-scoped resources that have not set a value for .metadata.namespace
                     type: string
                   server:
-                    description: Server specifies the URL of the target cluster and
-                      must be set to the Kubernetes control plane API
+                    description: Server specifies the URL of the target cluster's
+                      Kubernetes control plane API. This must be set if Name is not
+                      set.
                     type: string
                 type: object
               ignoreDifferences:
@@ -3793,7 +3795,8 @@ spec:
                         properties:
                           name:
                             description: Name is an alternate way of specifying the
-                              target cluster by its symbolic name
+                              target cluster by its symbolic name. This must be set
+                              if Server is not set.
                             type: string
                           namespace:
                             description: Namespace specifies the target namespace
@@ -3802,8 +3805,9 @@ spec:
                               not set a value for .metadata.namespace
                             type: string
                           server:
-                            description: Server specifies the URL of the target cluster
-                              and must be set to the Kubernetes control plane API
+                            description: Server specifies the URL of the target cluster's
+                              Kubernetes control plane API. This must be set if Name
+                              is not set.
                             type: string
                         type: object
                       ignoreDifferences:

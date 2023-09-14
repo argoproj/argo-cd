@@ -19,9 +19,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 
+	"github.com/go-playground/webhooks/v6/github"
+	"github.com/go-playground/webhooks/v6/gitlab"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/go-playground/webhooks.v5/github"
-	"gopkg.in/go-playground/webhooks.v5/gitlab"
 )
 
 type WebhookHandler struct {
@@ -562,7 +562,7 @@ func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) err
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		err := c.Get(context.Background(), types.NamespacedName{Name: appSet.Name, Namespace: appSet.Namespace}, appSet)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting ApplicationSet: %w", err)
 		}
 		if appSet.Annotations == nil {
 			appSet.Annotations = map[string]string{}

@@ -420,12 +420,12 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&kind, "kind", "", "Resource kind")
 	command.Flags().StringVar(&namespace, "namespace", "", "Resource namespace")
 	command.Flags().StringVar(&resourceName, "name", "", "Resource name")
-	command.Flags().BoolVar(&follow, "follow", false, "Specify if the logs should be streamed")
+	command.Flags().BoolVarP(&follow, "follow", "f", false, "Specify if the logs should be streamed")
 	command.Flags().Int64Var(&tail, "tail", 0, "The number of lines from the end of the logs to show")
 	command.Flags().Int64Var(&sinceSeconds, "since-seconds", 0, "A relative time in seconds before the current time from which to show logs")
 	command.Flags().StringVar(&untilTime, "until-time", "", "Show logs until this time")
 	command.Flags().StringVar(&filter, "filter", "", "Show logs contain this string")
-	command.Flags().StringVar(&container, "container", "", "Optional container name")
+	command.Flags().StringVarP(&container, "container", "c", "", "Optional container name")
 	command.Flags().BoolVarP(&previous, "previous", "p", false, "Specify if the previously terminated container logs should be returned")
 
 	return command
@@ -1535,6 +1535,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		force                   bool
 		replace                 bool
 		serverSideApply         bool
+		applyOutOfSyncOnly      bool
 		async                   bool
 		retryLimit              int64
 		retryBackoffDuration    time.Duration
@@ -1714,6 +1715,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					if serverSideApply {
 						items = append(items, common.SyncOptionServerSideApply)
 					}
+					if applyOutOfSyncOnly {
+						items = append(items, common.SyncOptionApplyOutOfSyncOnly)
+					}
 
 					if len(items) == 0 {
 						// for prevent send even empty array if not need
@@ -1818,6 +1822,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
 	command.Flags().BoolVar(&replace, "replace", false, "Use a kubectl create/replace instead apply")
 	command.Flags().BoolVar(&serverSideApply, "server-side", false, "Use server-side apply while syncing the application")
+	command.Flags().BoolVar(&applyOutOfSyncOnly, "apply-out-of-sync-only", false, "Sync only out-of-sync resources")
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
 	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
