@@ -42,34 +42,35 @@ var (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		redisClient              *redis.Client
-		insecure                 bool
-		listenHost               string
-		listenPort               int
-		metricsHost              string
-		metricsPort              int
-		otlpAddress              string
-		otlpAttrs                []string
-		glogLevel                int
-		clientConfig             clientcmd.ClientConfig
-		repoServerTimeoutSeconds int
-		baseHRef                 string
-		rootPath                 string
-		repoServerAddress        string
-		dexServerAddress         string
-		disableAuth              bool
-		enableGZip               bool
-		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
-		cacheSrc                 func() (*servercache.Cache, error)
-		frameOptions             string
-		contentSecurityPolicy    string
-		repoServerPlaintext      bool
-		repoServerStrictTLS      bool
-		dexServerPlaintext       bool
-		dexServerStrictTLS       bool
-		staticAssetsDir          string
-		applicationNamespaces    []string
-		enableProxyExtension     bool
+		redisClient                   *redis.Client
+		insecure                      bool
+		listenHost                    string
+		listenPort                    int
+		metricsHost                   string
+		metricsPort                   int
+		otlpAddress                   string
+		otlpAttrs                     []string
+		glogLevel                     int
+		clientConfig                  clientcmd.ClientConfig
+		repoServerTimeoutSeconds      int
+		baseHRef                      string
+		rootPath                      string
+		repoServerAddress             string
+		dexServerAddress              string
+		disableAuth                   bool
+		enableGZip                    bool
+		tlsConfigCustomizerSrc        func() (tls.ConfigCustomizer, error)
+		cacheSrc                      func() (*servercache.Cache, error)
+		frameOptions                  string
+		contentSecurityPolicy         string
+		repoServerPlaintext           bool
+		repoServerStrictTLS           bool
+		dexServerPlaintext            bool
+		dexServerStrictTLS            bool
+		staticAssetsDir               string
+		applicationNamespaces         []string
+		enableProxyExtension          bool
+		disableDefaultProjectCreation bool
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
@@ -163,29 +164,30 @@ func NewCommand() *cobra.Command {
 			}
 
 			argoCDOpts := server.ArgoCDServerOpts{
-				Insecure:              insecure,
-				ListenPort:            listenPort,
-				ListenHost:            listenHost,
-				MetricsPort:           metricsPort,
-				MetricsHost:           metricsHost,
-				Namespace:             namespace,
-				BaseHRef:              baseHRef,
-				RootPath:              rootPath,
-				KubeClientset:         kubeclientset,
-				AppClientset:          appClientSet,
-				RepoClientset:         repoclientset,
-				DexServerAddr:         dexServerAddress,
-				DexTLSConfig:          dexTlsConfig,
-				DisableAuth:           disableAuth,
-				EnableGZip:            enableGZip,
-				TLSConfigCustomizer:   tlsConfigCustomizer,
-				Cache:                 cache,
-				XFrameOptions:         frameOptions,
-				ContentSecurityPolicy: contentSecurityPolicy,
-				RedisClient:           redisClient,
-				StaticAssetsDir:       staticAssetsDir,
-				ApplicationNamespaces: applicationNamespaces,
-				EnableProxyExtension:  enableProxyExtension,
+				Insecure:                      insecure,
+				ListenPort:                    listenPort,
+				ListenHost:                    listenHost,
+				MetricsPort:                   metricsPort,
+				MetricsHost:                   metricsHost,
+				Namespace:                     namespace,
+				BaseHRef:                      baseHRef,
+				RootPath:                      rootPath,
+				KubeClientset:                 kubeclientset,
+				AppClientset:                  appClientSet,
+				RepoClientset:                 repoclientset,
+				DexServerAddr:                 dexServerAddress,
+				DexTLSConfig:                  dexTlsConfig,
+				DisableAuth:                   disableAuth,
+				EnableGZip:                    enableGZip,
+				TLSConfigCustomizer:           tlsConfigCustomizer,
+				Cache:                         cache,
+				XFrameOptions:                 frameOptions,
+				ContentSecurityPolicy:         contentSecurityPolicy,
+				RedisClient:                   redisClient,
+				StaticAssetsDir:               staticAssetsDir,
+				ApplicationNamespaces:         applicationNamespaces,
+				EnableProxyExtension:          enableProxyExtension,
+				DisableDefaultProjectCreation: disableDefaultProjectCreation,
 			}
 
 			stats.RegisterStackDumper()
@@ -241,6 +243,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&dexServerStrictTLS, "dex-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to dex server")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
+	command.Flags().BoolVar(&disableDefaultProjectCreation, "disable-default-project-creation", env.ParseBoolFromEnv("ARGOCD_DISABLE_DEFAULT_PROJECT_CREATION", false), "Disable default project creation")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
 		redisClient = client

@@ -196,33 +196,37 @@ type ArgoCDServer struct {
 }
 
 type ArgoCDServerOpts struct {
-	DisableAuth           bool
-	EnableGZip            bool
-	Insecure              bool
-	StaticAssetsDir       string
-	ListenPort            int
-	ListenHost            string
-	MetricsPort           int
-	MetricsHost           string
-	Namespace             string
-	DexServerAddr         string
-	DexTLSConfig          *dexutil.DexTLSConfig
-	BaseHRef              string
-	RootPath              string
-	KubeClientset         kubernetes.Interface
-	AppClientset          appclientset.Interface
-	RepoClientset         repoapiclient.Clientset
-	Cache                 *servercache.Cache
-	RedisClient           *redis.Client
-	TLSConfigCustomizer   tlsutil.ConfigCustomizer
-	XFrameOptions         string
-	ContentSecurityPolicy string
-	ApplicationNamespaces []string
-	EnableProxyExtension  bool
+	DisableAuth                   bool
+	EnableGZip                    bool
+	Insecure                      bool
+	StaticAssetsDir               string
+	ListenPort                    int
+	ListenHost                    string
+	MetricsPort                   int
+	MetricsHost                   string
+	Namespace                     string
+	DexServerAddr                 string
+	DexTLSConfig                  *dexutil.DexTLSConfig
+	BaseHRef                      string
+	RootPath                      string
+	KubeClientset                 kubernetes.Interface
+	AppClientset                  appclientset.Interface
+	RepoClientset                 repoapiclient.Clientset
+	Cache                         *servercache.Cache
+	RedisClient                   *redis.Client
+	TLSConfigCustomizer           tlsutil.ConfigCustomizer
+	XFrameOptions                 string
+	ContentSecurityPolicy         string
+	ApplicationNamespaces         []string
+	EnableProxyExtension          bool
+	DisableDefaultProjectCreation bool
 }
 
-// initializeDefaultProject creates the default project if it does not already exist
+// initializeDefaultProject creates the default project if it does not already exist and the feature is not disabled.
 func initializeDefaultProject(opts ArgoCDServerOpts) error {
+	if opts.DisableDefaultProjectCreation {
+		return nil
+	}
 	defaultProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: opts.Namespace},
 		Spec: v1alpha1.AppProjectSpec{

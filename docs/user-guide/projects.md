@@ -27,6 +27,8 @@ spec:
     kind: '*'
 ```
 
+To disable automatic creation of the default project, set the environment variable ARGOCD_DISABLE_DEFAULT_PROJECT_CREATION=true for the argocd-server, or use the --disable-default-project-creation command line flag.
+
 ### Creating Projects
 
 Additional projects can be created to give separate teams different levels of access to namespaces.
