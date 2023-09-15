@@ -11,6 +11,7 @@ export const WrapLinesButton = ({prefs}: {prefs: ViewPreferences}) => (
             services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, wrapLines: !wrap}});
         }}
         toggled={prefs.appDetails.wrapLines}
-        icon='paragraph'
+        icon='share'
+        rotate={true}
     />
 );
