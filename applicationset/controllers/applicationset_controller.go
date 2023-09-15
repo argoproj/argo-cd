@@ -585,18 +585,23 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 		Complete(r)
 }
 
-func (r *ApplicationSetReconciler) updateCache(ctx context.Context, obj client.Object) error {
+func (r *ApplicationSetReconciler) updateCache(ctx context.Context, obj client.Object, logger *log.Entry) {
 	informer, err := r.Cache.GetInformer(ctx, obj)
 	if err != nil {
-		return err
+		logger.Errorf("failed to get informer: %v", err)
+		return
 	}
 	// The controller runtime abstract away informers creation
 	// so unfortunately could not find any other way to access informer store.
 	k8sInformer, ok := informer.(k8scache.SharedInformer)
 	if !ok {
-		return fmt.Errorf("informer is not a kubernetes informer")
+		logger.Error("informer is not a kubernetes informer")
+		return
 	}
-	return k8sInformer.GetStore().Update(obj)
+	if err := k8sInformer.GetStore().Update(obj); err != nil {
+		logger.Errorf("failed to update cache: %v", err)
+		return
+	}
 }
 
 // createOrUpdateInCluster will create / update application resources in the cluster.
@@ -680,9 +685,6 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			found.ObjectMeta.Labels = generatedApp.Labels
 			return controllerutil.SetControllerReference(&applicationSet, found, r.Scheme)
 		})
-		if err == nil {
-			err = r.updateCache(ctx, found)
-		}
 
 		if err != nil {
 			appLog.WithError(err).WithField("action", action).Errorf("failed to %s Application", action)
@@ -691,7 +693,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			}
 			continue
 		}
-
+		r.updateCache(ctx, found, appLog)
 		r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, fmt.Sprint(action), "%s Application %q", action, generatedApp.Name)
 		appLog.Logf(log.InfoLevel, "%s Application", action)
 	}
@@ -854,10 +856,9 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 			if err := r.Client.Patch(ctx, updated, client.MergeFrom(app)); err != nil {
 				return fmt.Errorf("error updating finalizers: %w", err)
 			}
-			if err := r.updateCache(ctx, updated); err != nil {
-				return fmt.Errorf("error updating app cache: %w", err)
-			}
-			app.Finalizers = newFinalizers
+			r.updateCache(ctx, updated, appLog)
+			// Application must have updated list of finalizers
+			updated.DeepCopyInto(app)
 
 			r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, "Updated", "Updated Application %q finalizer before deletion, because application has an invalid destination", app.Name)
 			appLog.Log(log.InfoLevel, "Updating application finalizer before deletion, because application has an invalid destination")
