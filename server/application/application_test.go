@@ -751,8 +751,42 @@ func TestNoAppEnumeration(t *testing.T) {
 			},
 		}
 	})
+	testAppMulti := newTestApp(func(app *appsv1.Application) {
+		app.Name = "test-multi"
+		app.Spec.Sources = appsv1.ApplicationSources{
+			appsv1.ApplicationSource{
+				TargetRevision: "something-old",
+			},
+			appsv1.ApplicationSource{
+				TargetRevision: "something-old",
+			},
+		}
+		app.Status.Resources = []appsv1.ResourceStatus{
+			{
+				Group:     deployment.GroupVersionKind().Group,
+				Kind:      deployment.GroupVersionKind().Kind,
+				Version:   deployment.GroupVersionKind().Version,
+				Name:      deployment.Name,
+				Namespace: deployment.Namespace,
+				Status:    "Synced",
+			},
+		}
+		app.Status.History = []appsv1.RevisionHistory{
+			{
+				ID: 1,
+				Sources: appsv1.ApplicationSources{
+					appsv1.ApplicationSource{
+						TargetRevision: "something-old",
+					},
+					appsv1.ApplicationSource{
+						TargetRevision: "something-old",
+					},
+				},
+			},
+		}
+	})
 	testDeployment := kube.MustToUnstructured(&deployment)
-	appServer := newTestAppServerWithEnforcerConfigure(f, t, testApp, testHelmApp, testDeployment)
+	appServer := newTestAppServerWithEnforcerConfigure(f, t, testApp, testHelmApp, testAppMulti, testDeployment)
 
 	noRoleCtx := context.Background()
 	// nolint:staticcheck
@@ -878,6 +912,8 @@ func TestNoAppEnumeration(t *testing.T) {
 	t.Run("RevisionMetadata", func(t *testing.T) {
 		_, err := appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: pointer.String("test")})
 		assert.NoError(t, err)
+		_, err = appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: pointer.String("test-multi"), SourceIndex: pointer.Int32(0), VersionId: pointer.Int32(1)})
+		assert.NoError(t, err)
 		_, err = appServer.RevisionMetadata(noRoleCtx, &application.RevisionMetadataQuery{Name: pointer.String("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: pointer.String("doest-not-exist")})
@@ -936,6 +972,8 @@ func TestNoAppEnumeration(t *testing.T) {
 	t.Run("Rollback", func(t *testing.T) {
 		unsetSyncRunningOperationState(t, appServer)
 		_, err := appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: pointer.String("test")})
+		assert.NoError(t, err)
+		_, err = appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: pointer.String("test-multi"), Id: pointer.Int64(1)})
 		assert.NoError(t, err)
 		_, err = appServer.Rollback(noRoleCtx, &application.ApplicationRollbackRequest{Name: pointer.String("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")

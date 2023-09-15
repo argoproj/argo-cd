@@ -1614,6 +1614,20 @@
             "type": "string",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "source index (for multi source apps).",
+            "name": "sourceIndex",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "versionId from historical data (for multi source apps).",
+            "name": "versionId",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1663,6 +1677,20 @@
           {
             "type": "string",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "source index (for multi source apps).",
+            "name": "sourceIndex",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "versionId from historical data (for multi source apps).",
+            "name": "versionId",
             "in": "query"
           }
         ],
@@ -5028,6 +5056,16 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sourceIndex": {
+          "type": "integer",
+          "format": "int32",
+          "title": "source index (for multi source apps)"
+        },
+        "versionId": {
+          "type": "integer",
+          "format": "int32",
+          "title": "versionId from historical data (for multi source apps)"
         }
       }
     },

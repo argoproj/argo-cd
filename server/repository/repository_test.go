@@ -135,6 +135,47 @@ var (
 			},
 		},
 	}
+	guestbookAppMultiSource = &appsv1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook-multisource",
+			Namespace: testNamespace,
+		},
+		Spec: appsv1.ApplicationSpec{
+			Project: "default",
+			Sources: appsv1.ApplicationSources{
+				appsv1.ApplicationSource{
+					RepoURL:        "https://test",
+					TargetRevision: "HEAD",
+					Helm: &appsv1.ApplicationSourceHelm{
+						ValueFiles: []string{"values.yaml"},
+					},
+				},
+			},
+		},
+		Status: appsv1.ApplicationStatus{
+			History: appsv1.RevisionHistories{
+				{
+					ID: 1,
+					Revisions: []string{
+						"abcdef123567",
+					},
+					Sources: appsv1.ApplicationSources{
+						appsv1.ApplicationSource{
+							RepoURL:        "https://test",
+							TargetRevision: "HEAD",
+							Helm: &appsv1.ApplicationSourceHelm{
+								ValueFiles: []string{"values-old.yaml"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 )
 
 func newAppAndProjLister(objects ...runtime.Object) (applisters.ApplicationLister, k8scache.SharedIndexInformer) {
@@ -598,20 +639,71 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		url := "https://test"
 		db := &dbmocks.ArgoDB{}
 		db.On("GetRepository", context.TODO(), url).Return(&appsv1.Repository{Repo: url}, nil)
-		appLister, projLister := newAppAndProjLister(defaultProj, guestbookApp)
-		differentSource := guestbookApp.Spec.Source.DeepCopy()
+		appLister, projLister := newAppAndProjLister(defaultProj, guestbookAppMultiSource)
+		differentSource := guestbookAppMultiSource.Spec.Sources[0].DeepCopy()
 		differentSource.Helm.ValueFiles = []string{"/etc/passwd"}
 
 		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
 			Source:     differentSource,
-			AppName:    "guestbook",
+			AppName:    "guestbook-multisource",
 			AppProject: "default",
 		})
 		assert.Equal(t, errPermissionDenied, err)
 		assert.Nil(t, resp)
 	})
 	t.Run("Test_ExistingAppSourceInHistory", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.On("GetRepository", context.TODO(), url).Return(&appsv1.Repository{Repo: url}, nil)
+		db.On("ListHelmRepositories", context.TODO(), mock.Anything).Return(nil, nil)
+		db.On("GetProjectRepositories", context.TODO(), "default").Return(nil, nil)
+		db.On("GetProjectClusters", context.TODO(), "default").Return(nil, nil)
+		expectedResp := apiclient.RepoAppDetailsResponse{Type: "Directory"}
+		repoServerClient.On("GetAppDetails", context.TODO(), mock.Anything).Return(&expectedResp, nil)
+		appLister, projLister := newAppAndProjLister(defaultProj, guestbookAppMultiSource)
+		previousSource := guestbookAppMultiSource.Status.History[0].Sources[0].DeepCopy()
+		previousSource.TargetRevision = guestbookAppMultiSource.Status.History[0].Revisions[0]
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
+			Source:      previousSource,
+			AppName:     "guestbook-multisource",
+			AppProject:  "default",
+			SourceIndex: 0,
+			VersionId:   1,
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResp, *resp)
+	})
+	t.Run("Test_ExistingAppMultiSourceNotInHistory", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.On("GetRepository", context.TODO(), url).Return(&appsv1.Repository{Repo: url}, nil)
+		appLister, projLister := newAppAndProjLister(defaultProj, guestbookApp)
+		differentSource := guestbookApp.Spec.Source.DeepCopy()
+		differentSource.Helm.ValueFiles = []string{"/etc/passwd"}
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
+			Source:      differentSource,
+			AppName:     "guestbook",
+			AppProject:  "default",
+			SourceIndex: 0,
+			VersionId:   1,
+		})
+		assert.Equal(t, errPermissionDenied, err)
+		assert.Nil(t, resp)
+	})
+	t.Run("Test_ExistingAppMultiSourceInHistory", func(t *testing.T) {
 		repoServerClient := mocks.RepoServerServiceClient{}
 		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 		enforcer := newEnforcer(kubeclientset)

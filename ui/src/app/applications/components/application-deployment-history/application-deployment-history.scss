@@ -43,4 +43,11 @@
     .white-box__details p {
         margin-left: -1em;
     }
+
+    .separator {
+        height: 2px;
+        margin: 1em 0;
+        width: 100%;
+        background-color: $argo-color-gray-5;
+    }
 }

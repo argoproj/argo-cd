@@ -62,7 +62,7 @@ type managedResource struct {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) *comparisonResult
+	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool, rollback bool) *comparisonResult
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
@@ -107,8 +107,7 @@ type appStateManager struct {
 	persistResourceHealth bool
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
-
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
@@ -160,7 +159,14 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 	targetObjs := make([]*unstructured.Unstructured, 0)
 
 	// Store the map of all sources having ref field into a map for applications with sources field
-	refSources, err := argo.GetRefSources(context.Background(), app.Spec, m.db)
+	// If it's for a rollback process, the refSources[*].targetRevision fields are the desired
+	// revisions for the rollback
+	refSources, err := argo.GetRefSources(context.Background(), argo.GetRefSourcesOptions{
+		Spec:       app.Spec,
+		Db:         m.db,
+		Revisions:  revisions,
+		IsRollback: rollback,
+	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get ref sources: %v", err)
 	}
@@ -214,7 +220,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			return nil, nil, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
 		}
 		targetObjs = append(targetObjs, targetObj...)
-
 		manifestInfos = append(manifestInfos, manifestInfo)
 	}
 
@@ -345,7 +350,7 @@ func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) *comparisonResult {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool, rollback bool) *comparisonResult {
 	ts := stats.NewTimingStats()
 	appLabelKey, resourceOverrides, resFilter, err := m.getComparisonSettings()
 
@@ -402,7 +407,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfos, err = m.getRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
+		targetObjs, manifestInfos, err = m.getRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, rollback)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := fmt.Sprintf("Failed to load target state: %s", err.Error())

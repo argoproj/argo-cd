@@ -2200,10 +2200,20 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	_, _ = fmt.Fprintf(w, "ID\tDATE\tREVISION\n")
 	for _, depInfo := range revHistory {
-		rev := depInfo.Source.TargetRevision
-		if len(depInfo.Revision) >= 7 {
-			rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:7])
+		var rev string
+		if depInfo.Sources.IsZero() {
+			rev = depInfo.Source.TargetRevision
+			if len(depInfo.Revision) >= 7 {
+				rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:7])
+			}
+		} else {
+			rev = depInfo.Sources[0].TargetRevision
+			if len(depInfo.Revisions[0]) >= 7 {
+				rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revisions[0][0:7])
+			}
+			rev = fmt.Sprintf("%s and (%d) more", rev, len(depInfo.Sources)-1)
 		}
+
 		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, rev)
 	}
 	_ = w.Flush()

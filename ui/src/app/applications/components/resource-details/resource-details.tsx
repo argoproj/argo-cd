@@ -168,7 +168,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         key='appDetails'
                         input={application}
                         load={app =>
-                            services.repos.appDetails(AppUtils.getAppDefaultSource(app), app.metadata.name, app.spec.project).catch(() => ({
+                            services.repos.appDetails(AppUtils.getAppDefaultSource(app), app.metadata.name, app.spec.project, 0, 0).catch(() => ({
                                 type: 'Directory' as AppSourceType,
                                 path: AppUtils.getAppDefaultSource(app).path
                             }))

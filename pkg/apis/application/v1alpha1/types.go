@@ -205,6 +205,11 @@ func (s ApplicationSources) Equals(other ApplicationSources) bool {
 	return true
 }
 
+// IsZero returns true if the application source is considered empty
+func (a ApplicationSources) IsZero() bool {
+	return len(a) == 0
+}
+
 func (a *ApplicationSpec) GetSource() ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
@@ -246,6 +251,11 @@ func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
 		return a.Kustomize.AllowsConcurrentProcessing()
 	}
 	return true
+}
+
+// IsRef returns true when the application source is of type Ref
+func (a *ApplicationSource) IsRef() bool {
+	return a.Ref != ""
 }
 
 // IsHelm returns true when the application source is of type Helm
