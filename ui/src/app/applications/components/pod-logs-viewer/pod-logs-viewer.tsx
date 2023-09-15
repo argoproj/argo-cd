@@ -25,6 +25,7 @@ import {TailSelector} from './tail-selector';
 import {PodNamesToggleButton} from './pod-names-toggle-button';
 import {AutoScrollButton} from './auto-scroll-button';
 import {WrapLinesButton} from './wrap-lines-button';
+import Ansi from 'ansi-to-react';
 
 export interface PodLogsProps {
     namespace: string;
@@ -134,11 +135,9 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const logsContent = (width: number, height: number, isWrapped: boolean) => (
         <div style={{width, height, overflow: 'scroll'}}>
             {logs.map((log, lineNum) => (
-                <div key={lineNum}>
-                    <div style={{height: '95%', whiteSpace: isWrapped ? 'normal' : 'pre'}} className='noscroll'>
-                        {renderLog(log, lineNum)}
-                    </div>
-                </div>
+                <pre key={lineNum} style={{whiteSpace: isWrapped ? 'normal' : 'pre'}} className='noscroll'>
+                    <Ansi>{renderLog(log, lineNum)}</Ansi>
+                </pre>
             ))}
         </div>
     );
