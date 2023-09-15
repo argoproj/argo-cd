@@ -12,7 +12,7 @@ export const ToggleButton = ({
     beat,
     disabled,
     icon,
-    rotate,
+    rotate
 }: {
     toggled: boolean;
     beat?: boolean;
