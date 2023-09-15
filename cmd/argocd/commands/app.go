@@ -259,11 +259,11 @@ func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
 	return true
 }
 
-func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string) (mapUidToNode map[string]argoappv1.ResourceNode, mapParentToChild map[string][]string, parentNode map[string]struct{}) {
+func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}) {
 
-	mapUidToNode = make(map[string]argoappv1.ResourceNode)
-	mapParentToChild = make(map[string][]string)
-	parentNode = make(map[string]struct{})
+	mapUidToNode := make(map[string]argoappv1.ResourceNode)
+	mapParentToChild := make(map[string][]string)
+	parentNode := make(map[string]struct{})
 
 	resourceTree, err := appIf.ResourceTree(ctx, &application.ResourcesQuery{Name: &appName, AppNamespace: &appNs, ApplicationName: &appName})
 	errors.CheckError(err)
@@ -287,7 +287,7 @@ func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.
 	return mapUidToNode, mapParentToChild, parentNode
 }
 
-func commonOutputFunctionality(acdClient argocdclient.Client, app *argoappv1.Application, ctx context.Context, windows *argoappv1.SyncWindows, showOperation bool, showParams bool) {
+func printHeader(acdClient argocdclient.Client, app *argoappv1.Application, ctx context.Context, windows *argoappv1.SyncWindows, showOperation bool, showParams bool) {
 	aURL := appURL(ctx, acdClient, app.Name)
 	printAppSummaryTable(app, aURL, windows)
 
@@ -353,7 +353,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				err := PrintResource(app, output)
 				errors.CheckError(err)
 			case "wide", "":
-				commonOutputFunctionality(acdClient, app, ctx, windows, showOperation, showParams)
+				printHeader(acdClient, app, ctx, windows, showOperation, showParams)
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -361,7 +361,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					_ = w.Flush()
 				}
 			case "tree":
-				commonOutputFunctionality(acdClient, app, ctx, windows, showOperation, showParams)
+				printHeader(acdClient, app, ctx, windows, showOperation, showParams)
 				mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
 				mapNodeNameToResourceState := make(map[string]*resourceState)
 				for _, res := range getResourceStates(app, nil) {
@@ -372,7 +372,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 				}
 			case "tree=detailed":
-				commonOutputFunctionality(acdClient, app, ctx, windows, showOperation, showParams)
+				printHeader(acdClient, app, ctx, windows, showOperation, showParams)
 				mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
 				mapNodeNameToResourceState := make(map[string]*resourceState)
 				for _, res := range getResourceStates(app, nil) {

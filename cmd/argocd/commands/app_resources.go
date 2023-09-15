@@ -147,10 +147,11 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 
 	return command
 }
-func parentChildInfo(nodes []v1alpha1.ResourceNode) (mapUidToNode map[string]v1alpha1.ResourceNode, mapParentToChild map[string][]string, parentNode map[string]struct{}) {
-	mapUidToNode = make(map[string]v1alpha1.ResourceNode)
-	mapParentToChild = make(map[string][]string)
-	parentNode = make(map[string]struct{})
+
+func parentChildInfo(nodes []v1alpha1.ResourceNode) (map[string]v1alpha1.ResourceNode, map[string][]string, map[string]struct{}) {
+	mapUidToNode := make(map[string]v1alpha1.ResourceNode)
+	mapParentToChild := make(map[string][]string)
+	parentNode := make(map[string]struct{})
 
 	for _, node := range nodes {
 		mapUidToNode[node.UID] = node
