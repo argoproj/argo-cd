@@ -22,7 +22,6 @@ import (
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/hashicorp/go-retryablehttp"
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -126,6 +125,11 @@ type ClientOptions struct {
 	Headers              []string
 	HttpRetryMax         int
 	KubeOverrides        *clientcmd.ConfigOverrides
+	AppControllerName    string
+	ServerName           string
+	RedisHaProxyName     string
+	RedisName            string
+	RepoServerName       string
 }
 
 type client struct {
@@ -207,7 +211,8 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		if opts.KubeOverrides == nil {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
 		}
-		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, "app.kubernetes.io/name=argocd-server")
+		serverPodLabelSelector := common.LabelKeyAppName + "=" + opts.ServerName
+		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, serverPodLabelSelector)
 		if err != nil {
 			return nil, err
 		}
@@ -220,10 +225,6 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	// Make sure we got the server address and auth token from somewhere
 	if c.ServerAddr == "" {
 		return nil, errors.New("Argo CD server address unspecified")
-	}
-	if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
-		// If port is unspecified, assume the most likely port
-		c.ServerAddr += ":443"
 	}
 	// Override auth-token if specified in env variable or CLI flag
 	c.AuthToken = env.StringFromEnv(EnvArgoCDAuthToken, c.AuthToken)
@@ -280,6 +281,10 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		}
 	}
 	if !c.GRPCWeb {
+		if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
+			// If port is unspecified, assume the most likely port
+			c.ServerAddr += ":443"
+		}
 		// test if we need to set it to true
 		// if a call to grpc failed, then try again with GRPCWeb
 		conn, versionIf, err := c.NewVersionClient()
@@ -519,8 +524,8 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)))
 	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)))
 	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(grpc_retry.UnaryClientInterceptor(retryOpts...))))
-	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()))
-	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()))
+	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()))
+	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()))
 
 	ctx := context.Background()
 

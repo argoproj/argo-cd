@@ -5894,6 +5894,12 @@
           "items": {
             "type": "string"
           }
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -8693,6 +8699,10 @@
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
+        },
+        "topic": {
+          "description": "Filter repos list based on Gitlab Topic.",
+          "type": "string"
         }
       }
     },
