@@ -113,6 +113,8 @@ data:
   server.default.cache.expiration: "24h0m0s"
   # Enable the experimental proxy extension feature
   server.enable.proxy.extension: "false"
+  # Disable the default project creation feature
+  server.disable.default.project.creation: "false"
 
   ## Repo-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")

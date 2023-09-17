@@ -1563,6 +1563,12 @@ spec:
               key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_DISABLE_DEFAULT_PROJECT_CREATION
+          valueFrom:
+            configMapKeyRef:
+              key: server.disable.default.project.creation
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
