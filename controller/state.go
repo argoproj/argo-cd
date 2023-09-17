@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	v1 "k8s.io/api/core/v1"
 	"reflect"
 	"strings"
 	"time"
@@ -200,6 +201,8 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			HelmOptions:        helmOptions,
 			HasMultipleSources: app.Spec.HasMultipleSources(),
 			RefSources:         refSources,
+			ProjectName:        proj.Name,
+			ProjectSourceRepos: proj.Spec.SourceRepos,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
@@ -333,6 +336,10 @@ func verifyGnuPGSignature(revision string, project *v1alpha1.AppProject, manifes
 	}
 
 	return conditions
+}
+
+func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application) bool {
+	return ns != nil && ns.GetKind() == kubeutil.NamespaceKind && ns.GetName() == app.Spec.Destination.Namespace && app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil
 }
 
 // CompareAppState compares application git state to the live app state, using the specified
@@ -494,6 +501,35 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					LastTransitionTime: &now,
 				})
 			}
+
+			// For the case when a namespace is managed with `managedNamespaceMetadata` AND it has resource tracking
+			// enabled (e.g. someone manually adds resource tracking labels or annotations), we need to do some
+			// bookkeeping in order to prevent the managed namespace from being pruned.
+			//
+			// Live namespaces which are managed namespaces (i.e. application namespaces which are managed with
+			// CreateNamespace=true and has non-nil managedNamespaceMetadata) will (usually) not have a corresponding
+			// entry in source control. In order for the namespace not to risk being pruned, we'll need to generate a
+			// namespace which we can compare the live namespace with. For that, we'll do the same as is done in
+			// gitops-engine, the difference here being that we create a managed namespace which is only used for comparison.
+			if isManagedNamespace(liveObj, app) {
+				nsSpec := &v1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()}}
+				managedNs, err := kubeutil.ToUnstructured(nsSpec)
+
+				if err != nil {
+					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+					failedToLoadObjs = true
+					continue
+				}
+
+				// No need to care about the return value here, we just want the modified managedNs
+				_, err = syncNamespace(m.resourceTracking, appLabelKey, trackingMethod, app.Name, app.Spec.SyncPolicy)(managedNs, liveObj)
+				if err != nil {
+					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+					failedToLoadObjs = true
+				} else {
+					targetObjs = append(targetObjs, managedNs)
+				}
+			}
 		}
 	}
 
@@ -588,12 +624,22 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		} else {
 			diffResult = diff.DiffResult{Modified: false, NormalizedLive: []byte("{}"), PredictedLive: []byte("{}")}
 		}
+
+		// For the case when a namespace is managed with `managedNamespaceMetadata` AND it has resource tracking
+		// enabled (e.g. someone manually adds resource tracking labels or annotations), we need to do some
+		// bookkeeping in order to ensure that it's not considered `OutOfSync` (since it does not exist in source
+		// control).
+		//
+		// This is in addition to the bookkeeping we do (see `isManagedNamespace` and its references) to prevent said
+		// namespace from being pruned.
+		isManagedNs := isManagedNamespace(targetObj, app) && liveObj == nil
+
 		if resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) || !isSelfReferencedObj {
 			// For resource hooks, skipped resources or objects that may have
 			// been created by another controller with annotations copied from
 			// the source object, don't store sync status, and do not affect
 			// overall sync status
-		} else if diffResult.Modified || targetObj == nil || liveObj == nil {
+		} else if !isManagedNs && (diffResult.Modified || targetObj == nil || liveObj == nil) {
 			// Set resource state to OutOfSync since one of the following is true:
 			// * target and live resource are different
 			// * target resource not defined and live resource is extra

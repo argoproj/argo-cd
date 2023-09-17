@@ -106,6 +106,8 @@ type RepoServerInitConstants struct {
 	AllowOutOfBoundsSymlinks                     bool
 	StreamedManifestMaxExtractedSize             int64
 	StreamedManifestMaxTarSize                   int64
+	HelmManifestMaxExtractedSize                 int64
+	DisableHelmManifestMaxExtractedSize          bool
 }
 
 // NewService returns a new instance of the Manifest service
@@ -345,7 +347,7 @@ func (s *Service) runRepoOperation(
 		if source.Helm != nil {
 			helmPassCredentials = source.Helm.PassCredentials
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 		if err != nil {
 			return err
 		}
@@ -1048,9 +1050,9 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 	manifestGenerateLock.Lock(appPath)
 	defer manifestGenerateLock.Unlock(appPath)
 
-	// the `helm dependency build` is potentially time consuming 1~2 seconds
-	// marker file is used to check if command already run to avoid running it again unnecessary
-	// file is removed when repository re-initialized (e.g. when another commit is processed)
+	// the `helm dependency build` is potentially a time-consuming 1~2 seconds,
+	// a marker file is used to check if command already run to avoid running it again unnecessarily
+	// the file is removed when repository is re-initialized (e.g. when another commit is processed)
 	markerFile := path.Join(appPath, helmDepUpMarkerFile)
 	_, err := os.Stat(markerFile)
 	if err == nil {
@@ -1064,6 +1066,11 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 		return fmt.Errorf("error building helm chart dependencies: %w", err)
 	}
 	return os.WriteFile(markerFile, []byte("marker"), 0644)
+}
+
+func isSourcePermitted(url string, repos []string) bool {
+	p := v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{SourceRepos: repos}}
+	return p.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: url})
 }
 
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, error) {
@@ -1162,6 +1169,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	if err != nil {
 		return nil, fmt.Errorf("error getting helm repos: %w", err)
 	}
+
 	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, passCredentials)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing helm app object: %w", err)
@@ -1186,6 +1194,24 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 
 		if err != nil {
+			var reposNotPermitted []string
+			// We do a sanity check here to give a nicer error message in case any of the Helm repositories are not permitted by
+			// the AppProject which the application is a part of
+			for _, repo := range helmRepos {
+				msg := err.Error()
+
+				chartCannotBeReached := strings.Contains(msg, "is not a valid chart repository or cannot be reached")
+				couldNotDownloadChart := strings.Contains(msg, "could not download")
+
+				if (chartCannotBeReached || couldNotDownloadChart) && !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
+					reposNotPermitted = append(reposNotPermitted, repo.Repo)
+				}
+			}
+
+			if len(reposNotPermitted) > 0 {
+				return nil, status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
+			}
+
 			return nil, err
 		}
 
@@ -2127,17 +2153,17 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	}
 	defer io.Close(conn)
 
-	generateManifestStream, err := cmpClient.GetParametersAnnouncement(ctx, grpc_retry.Disable())
+	parametersAnnouncementStream, err := cmpClient.GetParametersAnnouncement(ctx, grpc_retry.Disable())
 	if err != nil {
-		return fmt.Errorf("error getting generateManifestStream: %w", err)
+		return fmt.Errorf("error getting parametersAnnouncementStream: %w", err)
 	}
 
-	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, tarExcludedGlobs)
+	err = cmp.SendRepoStream(parametersAnnouncementStream.Context(), appPath, repoPath, parametersAnnouncementStream, env, tarExcludedGlobs)
 	if err != nil {
 		return fmt.Errorf("error sending file to cmp-server: %s", err)
 	}
 
-	announcement, err := generateManifestStream.CloseAndRecv()
+	announcement, err := parametersAnnouncementStream.CloseAndRecv()
 	if err != nil {
 		return fmt.Errorf("failed to get parameter anouncement: %w", err)
 	}
@@ -2242,7 +2268,7 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 	if err != nil {
 		return nil, fmt.Errorf("helm client error: %v", err)
 	}
-	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false)
+	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 	if err != nil {
 		return nil, fmt.Errorf("error extracting chart: %v", err)
 	}
