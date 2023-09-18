@@ -7,6 +7,7 @@ Currently, the following organizations are **officially** using Argo CD:
 
 1. [127Labs](https://127labs.com/)
 1. [3Rein](https://www.3rein.com/)
+1. [4data](https://4data.ch/)
 1. [7shifts](https://www.7shifts.com/)
 1. [Adevinta](https://www.adevinta.com/)
 1. [Adfinis](https://adfinis.com)
