@@ -24,7 +24,7 @@ Application syncs in Argo CD have the same privileges as the Argo CD control pla
 The goal of this proposal is to perform the Application sync as a different user using impersonation and use the service account provided in the cluster config purely for control plane tasks.
 
 ### What is Impersonation
-Impersonation is a feature in kubernetes and enabled in the `kubectl` CLI client, using which, a user can act as another user through impersonation headers. For example, an admin could use this feature to debug an authorization policy by temporarily impersonating another user and seeing if a request was denied.
+Impersonation is a feature in Kubernetes and enabled in the `kubectl` CLI client, using which, a user can act as another user through impersonation headers. For example, an admin could use this feature to debug an authorization policy by temporarily impersonating another user and seeing if a request was denied.
 
 Impersonation requests first authenticate as the requesting user, then switch to the impersonated user info.
 
@@ -36,12 +36,13 @@ kubectl --as <user-to-impersonate> --as-group <group-to-impersonate> ...
 ## Open Questions [optional]
 
 - Should the restrictions imposed as part of the `AppProjects` be honored if the impersonation feature is enabled ?
-Yes, other restrictions implemented by `AppProject` related to whitelisting/blacklisting resources should continue to be honoured.
+>Yes, other restrictions implemented by `AppProject` related to whitelisting/blacklisting resources must continue to be honoured.
 - Can an Application refer to a service account with elevated privileges like say  `cluster-admin`, `admin`, and service accounts used for running the ArgoCD controllers itself ?
-Yes, this is possible as long as the ArgoCD admin user explicitly allows it through the `AppProject` configuration.
+>Yes, this is possible as long as the ArgoCD admin user explicitly allows it through the `AppProject` configuration.
 - Among the destinations configured in the `AppProject`, if there are multiple matches for a given destination, which destination option should be used ?
+>If there are more than one matching destination, either with a regex match or an exact match, then we report an error in the sync operation. This is to avoid conflicting destination configurations and to simplify the overhead of choosing the right/closest matching service account.
 - Can the kubernetes audit trail events capture the impersonation.
-Yes, kubernetes audit trail events capture both the actual user and the impersonating user details and hence its possible to track who executed the commands and as which user permissions using the audit trails.
+>Yes, kubernetes audit trail events capture both the actual user and the impersonating user details and hence its possible to track who executed the commands and as which user permissions using the audit trails.
 ## Summary
 
 In a multi team/multi tenant environment, an application team is typically granted access to a namespace to self-manage their Applications in a declarative way. Current implementation of ArgoCD requires the ArgoCD Administrator to create an `AppProject` with access settings configured to replicate the RBAC resources that are configured for each team. This approach requires duplication of effort and also requires syncing the access between both to maintain the security posture. It would be desirable for users to use the existing RBAC rules without having to revert to Argo CD API to create and manage these Applications. One namespace per team, or even one namespace per application is what we are looking to address as part of this proposal.
@@ -170,7 +171,7 @@ kubectl create role guestbook-deployer-role --verb get,list,update,delete --reso
 kubectl create rolebinding guestbook-deployer-rb --serviceaccount guestbook-deployer --role guestbook-deployer-role
 ```
 
-- Create the application as below in the `guestbook` namespace
+- Create the `Application` in the `guestbook` namespace and the required `AppProject` as below 
 ```
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -207,6 +208,8 @@ spec:
 
 #### Example 2: Service account for application sync specified at the AppProject level for specific namespaces
 
+In this specific scenario, service account name `guestbook-deployer` will get used for the application sync as the namespace `guestbook` matches the target namespace `guestbook`.
+
 - Install ArgoCD in the `argocd` namespace.
 ```
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
@@ -233,7 +236,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: guestbook
-  namespace: argocd
+  namespace: guestbook
 spec:
   project: my-project
   source:
@@ -260,9 +263,14 @@ spec:
   - namespace: guestbook
     server: https://kubernetes.default.svc
     serviceAccountName: guestbook-deployer
+  - namespace: guestbook-ui
+    server: https://kubernetes.default.svc
+    serviceAccountName: guestbook-ui-deployer
 ```
 
 #### Example 3: Remote destination with cluster-admin access and using different service account for the sync operation
+
+**Note**: In this example, we are relying on the default service account `argocd-manager` with `cluster-admin` privileges which gets created when adding a remote cluster destination using the ArgoCD CLI.
 
 - Install ArgoCD in the `argocd` namespace.
 ```
@@ -276,7 +284,7 @@ kubectl set env statefulset/argocd-application-controller ARGOCD_APPLICATION_CON
 ```
 argocd cluster add remote-cluster --name remote-cluster
 ```
-The above command would create a service account named `argocd-manager` in `kube-system` namespace and `ClusterRole` named `argocd-manager-role` with full cluster admin access and a `ClusterRoleBinding` named `argocd-manager-role-binding` mapping the `argocd-manager-role` to the service account `remote-cluster`
+**Note:** The above command would create a service account named `argocd-manager` in `kube-system` namespace and `ClusterRole` named `argocd-manager-role` with full cluster admin access and a `ClusterRoleBinding` named `argocd-manager-role-binding` mapping the `argocd-manager-role` to the service account `remote-cluster`
 
 - In the remote cluster, create a namespace called `guestbook` and a service account called `guestbook-deployer`.
 ```
@@ -292,13 +300,13 @@ kubectl create role guestbook-deployer-role --verb get,list,update,delete --reso
 kubectl create rolebinding guestbook-deployer-rb --serviceaccount guestbook-deployer --role guestbook-deployer-role
 ```
 
-In this specific scenario, service account name `guestbook-deployer` will get used as it matches to the specific namespace `guestbook`.
+- Create the `Application` and `AppProject` for the `guestbook` application.
 ```
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: guestbook
-  namespace: argocd
+  namespace: guestbook
 spec:
   project: my-project
   source:
@@ -327,7 +335,9 @@ spec:
     serviceAccountName: guestbook-deployer
 ```
 
-#### Example 4: Remote destination with cluster-admin access and using different service account for the sync operation
+#### Example 4: Remote destination with a custom service account for the sync operation
+
+**Note**: In this example, we are relying on a non default service account `guestbook` created in the target cluster and namespace for the sync operation. This use case is for handling scenarios where the remote cluster is managed by a different administrator and providing a service account with `cluster-admin` level access is not feasible.
 
 - Install ArgoCD in the `argocd` namespace.
 ```
@@ -366,7 +376,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: guestbook
-  namespace: argocd
+  namespace: guestbook
 spec:
   project: my-project
   source:
@@ -393,6 +403,9 @@ spec:
   - namespace: guestbook
     server: https://kubernetes.default.svc
     serviceAccountName: guestbook-deployer
+  - namespace: guestbook-ui
+    server: https://kubernetes.default.svc
+    serviceAccountName: guestbook-ui-deployer
 ```
 
 ### Security Considerations
@@ -406,6 +419,7 @@ spec:
 
 There could be an issue of privilege escalation, if we allow users to impersonate without restrictions. This is mitigated by only allowing admin users to configure service account used for the sync operation at the `AppProject` level.
 
+Instead of allowing users to impersonate all possible users, administrators can restrict the users a particular service account can impersonate using the `resourceName` field in the RBAC spec.
 
 
 ### Upgrade / Downgrade Strategy
