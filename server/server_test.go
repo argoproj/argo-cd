@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -37,7 +39,12 @@ import (
 	testutil "github.com/argoproj/argo-cd/v2/util/test"
 )
 
-func fakeServer() (*ArgoCDServer, func()) {
+type FakeArgoCDServer struct {
+	*ArgoCDServer
+	TmpAssetsDir string
+}
+
+func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
@@ -45,6 +52,7 @@ func fakeServer() (*ArgoCDServer, func()) {
 	redis, closer := test.NewInMemoryRedis()
 	port, err := test.GetFreePort()
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	tmpAssetsDir := t.TempDir()
 
 	if err != nil {
 		panic(err)
@@ -68,11 +76,13 @@ func fakeServer() (*ArgoCDServer, func()) {
 			1*time.Minute,
 			1*time.Minute,
 		),
-		RedisClient:   redis,
-		RepoClientset: mockRepoClient,
+		RedisClient:     redis,
+		RepoClientset:   mockRepoClient,
+		StaticAssetsDir: tmpAssetsDir,
 	}
 	srv := NewServer(context.Background(), argoCDOpts)
-	return srv, closer
+	fakeSrv := &FakeArgoCDServer{srv, tmpAssetsDir}
+	return fakeSrv, closer
 }
 
 func TestEnforceProjectToken(t *testing.T) {
@@ -393,7 +403,7 @@ func TestRevokedToken(t *testing.T) {
 }
 
 func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
-	s, closer := fakeServer()
+	s, closer := fakeServer(t)
 	defer closer()
 	assert.True(t, s.Insecure)
 	assert.Nil(t, s.settings.Certificate)
@@ -1230,6 +1240,72 @@ func TestIsMainJsBundle(t *testing.T) {
 	}
 }
 
+func TestCacheControlHeaders(t *testing.T) {
+	testCases := []struct {
+		name                        string
+		filename                    string
+		createFile                  bool
+		expectedStatus              int
+		expectedCacheControlHeaders []string
+	}{
+		{
+			name:                        "file exists",
+			filename:                    "exists.html",
+			createFile:                  true,
+			expectedStatus:              200,
+			expectedCacheControlHeaders: nil,
+		},
+		{
+			name:                        "file does not exist",
+			filename:                    "missing.html",
+			createFile:                  false,
+			expectedStatus:              404,
+			expectedCacheControlHeaders: nil,
+		},
+		{
+			name:                        "main js bundle exists",
+			filename:                    "main.e4188e5adc97bbfc00c3.js",
+			createFile:                  true,
+			expectedStatus:              200,
+			expectedCacheControlHeaders: []string{"public, max-age=31536000, immutable"},
+		},
+		{
+			name:                        "main js bundle does not exists",
+			filename:                    "main.e4188e5adc97bbfc00c0.js",
+			createFile:                  false,
+			expectedStatus:              404,
+			expectedCacheControlHeaders: []string{"no-cache"},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			argocd, closer := fakeServer(t)
+			defer closer()
+
+			handler := argocd.newStaticAssetsHandler()
+
+			rr := httptest.NewRecorder()
+			req := httptest.NewRequest("", fmt.Sprintf("/%s", testCase.filename), nil)
+
+			fp := filepath.Join(argocd.TmpAssetsDir, testCase.filename)
+
+			if testCase.createFile {
+				tmpFile, err := os.Create(fp)
+				assert.NoError(t, err)
+				err = tmpFile.Close()
+				assert.NoError(t, err)
+			}
+
+			handler(rr, req)
+
+			assert.Equal(t, testCase.expectedStatus, rr.Code)
+
+			cacheControl := rr.Result().Header["Cache-Control"]
+			assert.Equal(t, testCase.expectedCacheControlHeaders, cacheControl)
+		})
+	}
+}
 func TestReplaceBaseHRef(t *testing.T) {
 	testCases := []struct {
 		name        string
