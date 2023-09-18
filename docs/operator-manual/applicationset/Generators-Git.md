@@ -383,7 +383,7 @@ this delay from polling, the ApplicationSet webhook server can be configured to 
 Git webhook notifications from GitHub and GitLab. The following explains how to configure a Git webhook for GitHub, but the same process should be applicable to other providers.
 
 !!! note
-    ApplicationSet exposes the webhook server as a service of type ClusterIP. An Ingress resource needs to be created to expose this service to the webhook source.
+    The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
 
 ### 1. Create the webhook in the Git provider
 
