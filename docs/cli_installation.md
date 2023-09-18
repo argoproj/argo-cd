@@ -115,6 +115,11 @@ $output = "argocd.exe"
 Invoke-WebRequest -Uri $url -OutFile $output
 ```
 Also please note you will probably need to move the file into your PATH.
+Use following command to add Argo CD into environment variables PATH
+
+```powershell
+[Environment]::SetEnvironmentVariable("Path", "$env:Path;C:\Path\To\ArgoCD-CLI", "User")
+```
 
 
 After finishing the instructions above, you should now be able to run `argocd` commands.

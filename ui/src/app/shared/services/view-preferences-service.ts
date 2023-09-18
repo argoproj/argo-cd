@@ -2,6 +2,7 @@ import * as deepMerge from 'deepmerge';
 import {BehaviorSubject, Observable} from 'rxjs';
 
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
+import {UserMessages} from '../models';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -27,6 +28,8 @@ export interface AppDetailsPreferences {
     wrapLines: boolean;
     groupNodes?: boolean;
     zoom: number;
+    podGroupCount: number;
+    userHelpTipMsgs: UserMessages[];
 }
 
 export interface PodViewPreferences {
@@ -120,7 +123,9 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         darkMode: false,
         followLogs: false,
         wrapLines: false,
-        zoom: 1.0
+        zoom: 1.0,
+        podGroupCount: 15.0,
+        userHelpTipMsgs: []
     },
     appList: {
         view: 'tiles' as AppsListViewType,

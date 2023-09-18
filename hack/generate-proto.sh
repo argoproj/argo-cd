@@ -120,7 +120,10 @@ EOF
       del(.definitions.v1alpha1OptionalMap) |
       # Output for int64 is incorrect, because it is based on proto definitions, where int64 is a string. In our JSON API, we expect int64 to be an integer. https://github.com/grpc-ecosystem/grpc-gateway/issues/219
       (.definitions[]?.properties[]? | select(.type == "string" and .format == "int64")) |= (.type = "integer")
-    ' "${COMBINED_SWAGGER}" > "${SWAGGER_OUT}"
+    ' "${COMBINED_SWAGGER}" | \
+    jq '.definitions.v1Time.type = "string" | .definitions.v1Time.format = "date-time" | del(.definitions.v1Time.properties)' | \
+    jq '.definitions.v1alpha1ResourceNode.allOf = [{"$ref": "#/definitions/v1alpha1ResourceRef"}] | del(.definitions.v1alpha1ResourceNode.properties.resourceRef) ' \
+    > "${SWAGGER_OUT}"
 
     /bin/rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
 }

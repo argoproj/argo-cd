@@ -45,18 +45,6 @@ func TestEnsurePrefix(t *testing.T) {
 	}
 }
 
-func TestRemoveSuffix(t *testing.T) {
-	data := [][]string{
-		{"hello.git", ".git", "hello"},
-		{"hello", ".git", "hello"},
-		{".git", ".git", ""},
-	}
-	for _, table := range data {
-		result := removeSuffix(table[0], table[1])
-		assert.Equal(t, table[2], result)
-	}
-}
-
 func TestIsSSHURL(t *testing.T) {
 	data := map[string]bool{
 		"git://github.com/argoproj/test.git":     false,
@@ -172,10 +160,7 @@ func TestCustomHTTPClient(t *testing.T) {
 		assert.Equal(t, "http://proxy:5000", proxy.String())
 	}
 
-	os.Setenv("http_proxy", "http://proxy-from-env:7878")
-	defer func() {
-		assert.Nil(t, os.Unsetenv("http_proxy"))
-	}()
+	t.Setenv("http_proxy", "http://proxy-from-env:7878")
 
 	// Get HTTPSCreds without client cert creds, but insecure connection
 	creds = NewHTTPSCreds("test", "test", "", "", true, "", &NoopCredsStore{}, false)
@@ -211,7 +196,7 @@ func TestCustomHTTPClient(t *testing.T) {
 	defer os.RemoveAll(temppath)
 	err = os.WriteFile(filepath.Join(temppath, "127.0.0.1"), cert, 0666)
 	assert.NoError(t, err)
-	os.Setenv(common.EnvVarTLSDataPath, temppath)
+	t.Setenv(common.EnvVarTLSDataPath, temppath)
 	client = GetRepoHTTPClient("https://127.0.0.1", false, creds, "")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
@@ -410,4 +395,55 @@ func TestListRevisions(t *testing.T) {
 	assert.Contains(t, lsResult.Tags, testTag)
 	assert.NotContains(t, lsResult.Branches, testTag)
 	assert.NotContains(t, lsResult.Tags, testBranch)
+}
+
+func TestLsFiles(t *testing.T) {
+	tmpDir1 := t.TempDir()
+	tmpDir2 := t.TempDir()
+
+	client, err := NewClientExt("", tmpDir1, NopCreds{}, false, false, "")
+	assert.NoError(t, err)
+
+	err = runCmd(tmpDir1, "git", "init")
+	assert.NoError(t, err)
+
+	// Prepare files
+	a, err := os.Create(filepath.Join(tmpDir1, "a.yaml"))
+	assert.NoError(t, err)
+	a.Close()
+	err = os.MkdirAll(filepath.Join(tmpDir1, "subdir"), 0755)
+	assert.NoError(t, err)
+	b, err := os.Create(filepath.Join(tmpDir1, "subdir", "b.yaml"))
+	assert.NoError(t, err)
+	b.Close()
+	err = os.MkdirAll(filepath.Join(tmpDir2, "subdir"), 0755)
+	assert.NoError(t, err)
+	c, err := os.Create(filepath.Join(tmpDir2, "c.yaml"))
+	assert.NoError(t, err)
+	c.Close()
+	err = os.Symlink(filepath.Join(tmpDir2, "c.yaml"), filepath.Join(tmpDir1, "link.yaml"))
+	assert.NoError(t, err)
+
+	err = runCmd(tmpDir1, "git", "add", ".")
+	assert.NoError(t, err)
+	err = runCmd(tmpDir1, "git", "commit", "-m", "Initial commit")
+	assert.NoError(t, err)
+
+	// Old and default globbing
+	expectedResult := []string{"a.yaml", "link.yaml", "subdir/b.yaml"}
+	lsResult, err := client.LsFiles("*.yaml", false)
+	assert.NoError(t, err)
+	assert.Equal(t, lsResult, expectedResult)
+
+	// New and safer globbing, do not return symlinks resolving outside of the repo
+	expectedResult = []string{"a.yaml"}
+	lsResult, err = client.LsFiles("*.yaml", true)
+	assert.NoError(t, err)
+	assert.Equal(t, lsResult, expectedResult)
+
+	// New globbing, do not return files outside of the repo
+	var nilResult []string
+	lsResult, err = client.LsFiles(filepath.Join(tmpDir2, "*.yaml"), true)
+	assert.NoError(t, err)
+	assert.Equal(t, lsResult, nilResult)
 }

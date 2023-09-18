@@ -89,6 +89,19 @@ func TestParseAppInstanceValue(t *testing.T) {
 	assert.Equal(t, appInstanceValue.Name, "<name>")
 }
 
+func TestParseAppInstanceValueColon(t *testing.T) {
+	resourceTracking := NewResourceTracking()
+	appInstanceValue, err := resourceTracking.ParseAppInstanceValue("app:<group>/<kind>:<namespace>/<name>:<colon>")
+	if !assert.NoError(t, err) {
+		t.Fatal()
+	}
+	assert.Equal(t, appInstanceValue.ApplicationName, "app")
+	assert.Equal(t, appInstanceValue.Group, "<group>")
+	assert.Equal(t, appInstanceValue.Kind, "<kind>")
+	assert.Equal(t, appInstanceValue.Namespace, "<namespace>")
+	assert.Equal(t, appInstanceValue.Name, "<name>:<colon>")
+}
+
 func TestParseAppInstanceValueWrongFormat1(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app")
@@ -136,7 +149,8 @@ func TestResourceIdNormalizer_Normalize(t *testing.T) {
 	_ = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
 
 	// the normalization should affect add the new style annotation and drop old tracking label from live object
-	annotation := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
+	annotation, err := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
+	assert.Nil(t, err)
 	assert.Equal(t, liveObj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
 	_, hasOldLabel := liveObj.GetLabels()[common.LabelKeyAppInstance]
 	assert.False(t, hasOldLabel)
@@ -160,7 +174,8 @@ func TestResourceIdNormalizer_Normalize_ConfigHasOldLabel(t *testing.T) {
 	_ = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
 
 	// the normalization should affect add the new style annotation and drop old tracking label from live object
-	annotation := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
+	annotation, err := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
+	assert.Nil(t, err)
 	assert.Equal(t, liveObj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
 	_, hasOldLabel := liveObj.GetLabels()[common.LabelKeyAppInstance]
 	assert.True(t, hasOldLabel)
