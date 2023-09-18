@@ -68,7 +68,7 @@ We decided to not extend the Kubernetes RBAC for the `argocd-server` workload by
 We supply a `ClusterRole` and `ClusterRoleBinding` suitable for this purpose in the `examples/k8s-rbac/argocd-server-applications` directory. For a default Argo CD installation (i.e. installed to the `argocd` namespace), you can just apply them as-is:
 
 ```shell
-kubectl apply -f examples/k8s-rbac/argocd-server-applications/
+kubectl apply -k examples/k8s-rbac/argocd-server-applications/
 ```
 
 !!! note
