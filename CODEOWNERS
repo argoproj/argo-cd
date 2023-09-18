@@ -2,11 +2,11 @@
 ** @argoproj/argocd-approvers
 
 # Docs
-/docs/** @argoproj/argocd-approvers
+/docs/** @argoproj/argocd-approvers @todaywasawesome @34fathombelow @blakepettersson
 
 # CI
-/.github/**       @argoproj/argocd-approvers
-/.goreleaser.yaml @argoproj/argocd-approvers
+/.github/**       @argoproj/argocd-approvers @34fathombelow
+/.goreleaser.yaml @argoproj/argocd-approvers @34fathombelow
 
 # owners:
 # - alexmt
