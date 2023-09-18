@@ -12,7 +12,7 @@ a local file, and in either CSV or K8s ConfigMap format.
 
 
 ```
-argocd admin settings rbac validate --policy-file=POLICYFILE [flags]
+argocd admin settings rbac validate --policy-file=POLICYFILE [--namespace=NAMESPACE] [flags]
 ```
 
 ### Options
@@ -20,6 +20,7 @@ argocd admin settings rbac validate --policy-file=POLICYFILE [flags]
 ```
   -h, --help                 help for validate
       --policy-file string   path to the policy file to use
+      --namespace            namespace to get rbac configmap from
 ```
 
 ### Options inherited from parent commands
