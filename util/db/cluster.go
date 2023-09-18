@@ -345,6 +345,9 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	secret.Data = data
 
 	secret.Labels = c.Labels
+	if c.Annotations != nil && c.Annotations[apiv1.LastAppliedConfigAnnotation] != "" {
+		return status.Errorf(codes.InvalidArgument, "annotation %s cannot be set", apiv1.LastAppliedConfigAnnotation)
+	}
 	secret.Annotations = c.Annotations
 
 	if secret.Annotations == nil {
@@ -403,6 +406,8 @@ func SecretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 	annotations := map[string]string{}
 	if s.Annotations != nil {
 		annotations = collections.CopyStringMap(s.Annotations)
+		// delete system annotations
+		delete(annotations, apiv1.LastAppliedConfigAnnotation)
 		delete(annotations, common.AnnotationKeyManagedBy)
 	}
 
