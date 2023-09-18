@@ -18,7 +18,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.6.0
-	github.com/casbin/casbin/v2 v2.73.0
+	github.com/casbin/casbin/v2 v2.77.2
 	github.com/coreos/go-oidc/v3 v3.6.0
 	github.com/cyphar/filepath-securejoin v0.2.4
 	github.com/dustin/go-humanize v1.0.1
@@ -29,7 +29,7 @@ require (
 	github.com/go-logr/logr v1.2.4
 	github.com/go-openapi/loads v0.21.2
 	github.com/go-openapi/runtime v0.26.0
-	github.com/go-playground/webhooks/v6 v6.2.1-0.20230808162451-10570b0a59e8
+	github.com/go-playground/webhooks/v6 v6.3.0
 	github.com/go-redis/cache/v9 v9.0.0
 	github.com/gobwas/glob v0.2.3
 	github.com/gogits/go-gogs-client v0.0.0-20200905025246-8bb8a50cb355
