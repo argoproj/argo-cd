@@ -1,3 +1,5 @@
+# `argocd app resources` Command Reference
+
 ## argocd app resources
 
 List resource of application

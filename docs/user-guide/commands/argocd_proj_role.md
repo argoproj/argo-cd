@@ -1,3 +1,5 @@
+# `argocd proj role` Command Reference
+
 ## argocd proj role
 
 Manage a project's roles

@@ -1,3 +1,5 @@
+# `argocd admin repo` Command Reference
+
 ## argocd admin repo
 
 Manage repositories configuration

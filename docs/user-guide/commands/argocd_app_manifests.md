@@ -1,3 +1,5 @@
+# `argocd app manifests` Command Reference
+
 ## argocd app manifests
 
 Print manifests of an application

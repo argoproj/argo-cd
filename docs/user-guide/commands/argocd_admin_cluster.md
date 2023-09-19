@@ -1,3 +1,5 @@
+# `argocd admin cluster` Command Reference
+
 ## argocd admin cluster
 
 Manage clusters configuration

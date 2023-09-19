@@ -1,3 +1,5 @@
+# `argocd repo` Command Reference
+
 ## argocd repo
 
 Manage repository connection parameters

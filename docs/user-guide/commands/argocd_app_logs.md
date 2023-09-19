@@ -1,3 +1,5 @@
+# `argocd app logs` Command Reference
+
 ## argocd app logs
 
 Get logs of application pods
