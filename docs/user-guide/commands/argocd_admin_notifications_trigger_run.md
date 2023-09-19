@@ -1,3 +1,5 @@
+# `argocd admin notifications trigger run` Command Reference
+
 ## argocd admin notifications trigger run
 
 Evaluates specified trigger condition and prints the result

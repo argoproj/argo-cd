@@ -1,3 +1,5 @@
+# `argocd proj set` Command Reference
+
 ## argocd proj set
 
 Set project parameters

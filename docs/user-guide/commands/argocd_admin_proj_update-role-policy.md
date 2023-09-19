@@ -1,3 +1,5 @@
+# `argocd admin proj update-role-policy` Command Reference
+
 ## argocd admin proj update-role-policy
 
 Implement bulk project role update. Useful to back-fill existing project policies or remove obsolete actions.

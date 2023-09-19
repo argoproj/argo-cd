@@ -1,3 +1,5 @@
+# `argocd context` Command Reference
+
 ## argocd context
 
 Switch between contexts

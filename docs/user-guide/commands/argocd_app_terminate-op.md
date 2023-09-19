@@ -1,3 +1,5 @@
+# `argocd app terminate-op` Command Reference
+
 ## argocd app terminate-op
 
 Terminate running operation of an application

@@ -1,3 +1,5 @@
+# `argocd admin proj generate-spec` Command Reference
+
 ## argocd admin proj generate-spec
 
 Generate declarative config for a project

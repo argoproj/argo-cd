@@ -1,3 +1,5 @@
+# `argocd-repo-server` Command Reference
+
 ## argocd-repo-server
 
 Run ArgoCD Repository Server
