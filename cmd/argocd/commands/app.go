@@ -316,13 +316,11 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		showParams    bool
 		showOperation bool
 	)
-
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
 		Short: "Get application details",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
-			output, _ = c.Flags().GetString("output")
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -1540,7 +1538,6 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			output, _ = c.Flags().GetString("output")
 			watch = getWatchOpts(watch)
 			selectedResources, err := parseSelectedResources(resources)
 			errors.CheckError(err)
@@ -1569,7 +1566,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
 	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
-	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: tree|tree=detailed")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
 	return command
 }
 
@@ -1661,7 +1658,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if len(args) > 1 && selector != "" {
 				log.Fatal("Cannot use selector option when application name(s) passed as argument(s)")
 			}
-			output, _ = c.Flags().GetString("output")
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
@@ -1908,7 +1904,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&diffChangesConfirm, "assumeYes", false, "Assume yes as answer for all user queries or prompts")
 	command.Flags().BoolVar(&diffChanges, "preview-changes", false, "Preview difference against the target and live state before syncing app and wait for user confirmation")
 	command.Flags().StringArrayVar(&projects, "project", []string{}, "Sync apps that belong to the specified projects. This option may be specified repeatedly.")
-	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: tree|tree=detailed")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
 	return command
 }
 
@@ -2126,30 +2122,41 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			printOperationResult(app.Status.OperationState)
 		}
 
-		if output != "" {
+		switch output {
+		case "yaml", "json":
+			err := PrintResource(app, output)
+			errors.CheckError(err)
+		case "wide", "":
+			if len(app.Status.Resources) > 0 {
+				fmt.Println()
+				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+				printAppResources(w, app)
+				_ = w.Flush()
+			}
+		case "tree":
 			_, appIf := acdClient.NewApplicationClientOrDie()
 			mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
 			mapNodeNameToResourceState := make(map[string]*resourceState)
 			for _, res := range getResourceStates(app, nil) {
 				mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
 			}
-			if output == "tree" {
-				if len(mapUidToNode) > 0 {
-					fmt.Println()
-					printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
-				}
-			} else if output == "tree=detailed" {
-				if len(mapUidToNode) > 0 {
-					fmt.Println()
-					printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
-				}
+			if len(mapUidToNode) > 0 {
+				fmt.Println()
+				printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 			}
-		} else {
-			fmt.Println()
-			w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
-			fmt.Println("Entered the app resources")
-			printAppResources(w, app)
-			_ = w.Flush()
+		case "tree=detailed":
+			_, appIf := acdClient.NewApplicationClientOrDie()
+			mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
+			mapNodeNameToResourceState := make(map[string]*resourceState)
+			for _, res := range getResourceStates(app, nil) {
+				mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
+			}
+			if len(mapUidToNode) > 0 {
+				fmt.Println()
+				printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
+			}
+		default:
+			errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 		}
 		return app
 	}
@@ -2382,7 +2389,6 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			output, _ = c.Flags().GetString("output")
 			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			var err error
 			depID := -1
@@ -2418,7 +2424,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 	}
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
-	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of:  tree|tree=detailed")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
 	return command
 }
 
