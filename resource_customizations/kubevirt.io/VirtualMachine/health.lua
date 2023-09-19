@@ -13,7 +13,7 @@ if obj.status ~= nil then
           hs.message="Running"
         else
           if obj.status.created then
-	    hs.message = "Starting"
+            hs.message = "Starting"
           else
             hs.status = "Suspended"
             hs.message = "Stopped"
