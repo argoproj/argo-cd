@@ -363,17 +363,20 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 			level = CompareWithRecent
 		}
 
-		// Additional check for debug level so we don't need to evaluate the
-		// format string in case of non-debug scenarios
-		if log.GetLevel() >= log.DebugLevel {
-			var resKey string
-			if ref.Namespace != "" {
-				resKey = ref.Namespace + "/" + ref.Name
-			} else {
-				resKey = "(cluster-scoped)/" + ref.Name
-			}
-			log.Debugf("Refreshing app %s for change in cluster of object %s of type %s/%s", appKey, resKey, ref.APIVersion, ref.Kind)
+		namespace := ref.Namespace
+		if ref.Namespace == "" {
+			namespace = "(cluster-scoped)"
 		}
+		log.WithFields(log.Fields{
+			"application":  appKey,
+			"level":        level,
+			"namespace":    namespace,
+			"name":         ref.Name,
+			"api-version":  ref.APIVersion,
+			"kind":         ref.Kind,
+			"server":       app.Spec.Destination.Server,
+			"cluster-name": app.Spec.Destination.Name,
+		}).Debug("Requesting app refresh caused by object update")
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
 	}
@@ -1249,40 +1252,44 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 }
 
 func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
-	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		if state.Phase == "" {
-			// expose any bugs where we neglect to set phase
-			panic("no phase was set")
-		}
-		if state.Phase.Completed() {
-			now := metav1.Now()
-			state.FinishedAt = &now
-		}
-		patch := map[string]interface{}{
-			"status": map[string]interface{}{
-				"operationState": state,
-			},
-		}
-		if state.Phase.Completed() {
-			// If operation is completed, clear the operation field to indicate no operation is
-			// in progress.
-			patch["operation"] = nil
-		}
-		if reflect.DeepEqual(app.Status.OperationState, state) {
-			log.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
-			return nil
-		}
-		patchJSON, err := json.Marshal(patch)
-		if err != nil {
-			return fmt.Errorf("error marshaling json: %w", err)
-		}
-		if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
-			patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
-			if err != nil {
-				return fmt.Errorf("error merging operation state patch: %w", err)
-			}
-		}
+	logCtx := log.WithFields(log.Fields{"application": app.Name, "appNamespace": app.Namespace, "project": app.Spec.Project})
 
+	if state.Phase == "" {
+		// expose any bugs where we neglect to set phase
+		panic("no phase was set")
+	}
+	if state.Phase.Completed() {
+		now := metav1.Now()
+		state.FinishedAt = &now
+	}
+	patch := map[string]interface{}{
+		"status": map[string]interface{}{
+			"operationState": state,
+		},
+	}
+	if state.Phase.Completed() {
+		// If operation is completed, clear the operation field to indicate no operation is
+		// in progress.
+		patch["operation"] = nil
+	}
+	if reflect.DeepEqual(app.Status.OperationState, state) {
+		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
+		return
+	}
+	patchJSON, err := json.Marshal(patch)
+	if err != nil {
+		logCtx.Errorf("error marshaling json: %v", err)
+		return
+	}
+	if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
+		patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
+		if err != nil {
+			logCtx.Errorf("error merging operation state patch: %v", err)
+			return
+		}
+	}
+
+	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 		_, err = appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
@@ -1290,32 +1297,36 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			if apierr.IsNotFound(err) {
 				return nil
 			}
+			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
+			// warning.
+			logCtx.Warnf("error patching application with operation state: %v", err)
 			return fmt.Errorf("error patching application with operation state: %w", err)
-		}
-		log.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
-		if state.Phase.Completed() {
-			eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
-			var messages []string
-			if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
-				messages = []string{"Partial sync operation"}
-			} else {
-				messages = []string{"Sync operation"}
-			}
-			if state.SyncResult != nil {
-				messages = append(messages, "to", state.SyncResult.Revision)
-			}
-			if state.Phase.Successful() {
-				eventInfo.Type = v1.EventTypeNormal
-				messages = append(messages, "succeeded")
-			} else {
-				eventInfo.Type = v1.EventTypeWarning
-				messages = append(messages, "failed:", state.Message)
-			}
-			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "), "")
-			ctrl.metricsServer.IncSync(app, state)
 		}
 		return nil
 	})
+
+	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
+	if state.Phase.Completed() {
+		eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
+		var messages []string
+		if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
+			messages = []string{"Partial sync operation"}
+		} else {
+			messages = []string{"Sync operation"}
+		}
+		if state.SyncResult != nil {
+			messages = append(messages, "to", state.SyncResult.Revision)
+		}
+		if state.Phase.Successful() {
+			eventInfo.Type = v1.EventTypeNormal
+			messages = append(messages, "succeeded")
+		} else {
+			eventInfo.Type = v1.EventTypeWarning
+			messages = append(messages, "failed:", state.Message)
+		}
+		ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "), "")
+		ctrl.metricsServer.IncSync(app, state)
+	}
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
@@ -1536,6 +1547,8 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 			reason = "spec.destination differs"
 		} else if app.HasChangedManagedNamespaceMetadata() {
 			reason = "spec.syncPolicy.managedNamespaceMetadata differs"
+		} else if !app.Spec.IgnoreDifferences.Equals(app.Status.Sync.ComparedTo.IgnoreDifferences) {
+			reason = "spec.ignoreDifferences differs"
 		} else if requested, level := ctrl.isRefreshRequested(app.QualifiedName()); requested {
 			compareWith = level
 			reason = "controller refresh requested"
@@ -1794,6 +1807,12 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool,
 	return retryAfter <= 0, retryAfter
 }
 
+// isAppNamespaceAllowed returns whether the application is allowed in the
+// namespace it's residing in.
+func (ctrl *ApplicationController) isAppNamespaceAllowed(app *appv1.Application) bool {
+	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false)
+}
+
 func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 	app, ok := obj.(*appv1.Application)
 	if !ok {
@@ -1802,7 +1821,7 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 
 	// Only process given app if it exists in a watched namespace, or in the
 	// control plane's namespace.
-	if app.Namespace != ctrl.namespace && !glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
+	if !ctrl.isAppNamespaceAllowed(app) {
 		return false
 	}
 
@@ -1853,7 +1872,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 				newItems := []appv1.Application{}
 				for _, app := range appList.Items {
-					if ctrl.namespace == app.Namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
+					if ctrl.isAppNamespaceAllowed(&app) {
 						newItems = append(newItems, app)
 					}
 				}
@@ -1870,20 +1889,24 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
 				app, ok := obj.(*appv1.Application)
 				if ok {
-					// This call to 'ValidateDestination' ensures that the .spec.destination field of all Applications
-					// returned by the informer/lister will have server field set (if not already set) based on the name.
-					// (or, if not found, an error app condition)
+					// We only generally work with applications that are in one
+					// the allowed namespaces.
+					if ctrl.isAppNamespaceAllowed(app) {
+						// If the application is not allowed to use the project,
+						// log an error.
+						if _, err := ctrl.getAppProj(app); err != nil {
+							ctrl.setAppCondition(app, ctrl.projectErrorToCondition(err, app))
+						} else {
+							// This call to 'ValidateDestination' ensures that the .spec.destination field of all Applications
+							// returned by the informer/lister will have server field set (if not already set) based on the name.
+							// (or, if not found, an error app condition)
 
-					// If the server field is not set, set it based on the cluster name; if the cluster name can't be found,
-					// log an error as an App Condition.
-					if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
-						ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
-					}
-
-					// If the application is not allowed to use the project,
-					// log an error.
-					if _, err := ctrl.getAppProj(app); err != nil {
-						ctrl.setAppCondition(app, ctrl.projectErrorToCondition(err, app))
+							// If the server field is not set, set it based on the cluster name; if the cluster name can't be found,
+							// log an error as an App Condition.
+							if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
+								ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
+							}
+						}
 					}
 				}
 
@@ -1895,7 +1918,11 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					return nil, nil
 				}
 
-				proj, err := applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()).AppProjects(ctrl.namespace).Get(app.Spec.GetProject())
+				if !ctrl.isAppNamespaceAllowed(app) {
+					return nil, nil
+				}
+
+				proj, err := ctrl.getAppProj(app)
 				if err != nil {
 					return nil, nil
 				}

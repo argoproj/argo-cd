@@ -210,6 +210,14 @@ func TestRegisterHandlers(t *testing.T) {
 				name:       "invalid name",
 				configYaml: getExtensionConfigInvalidName(),
 			},
+			{
+				name:       "no header name",
+				configYaml: getExtensionConfigNoHeaderName(),
+			},
+			{
+				name:       "no header value",
+				configYaml: getExtensionConfigNoHeaderValue(),
+			},
 		}
 
 		// when
@@ -335,8 +343,13 @@ func TestExtensionsHandler(t *testing.T) {
 	}
 
 	withExtensionConfig := func(configYaml string, f *fixture) {
+		secrets := make(map[string]string)
+		secrets["extension.auth.header"] = "Bearer some-bearer-token"
+		secrets["extension.auth.header2"] = "Bearer another-bearer-token"
+
 		settings := &settings.ArgoCDSettings{
 			ExtensionConfig: configYaml,
+			Secrets:         secrets,
 		}
 		f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
 	}
@@ -352,6 +365,9 @@ func TestExtensionsHandler(t *testing.T) {
 
 	startBackendTestSrv := func(response string) *httptest.Server {
 		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			for k, v := range r.Header {
+				w.Header().Add(k, strings.Join(v, ","))
+			}
 			fmt.Fprintln(w, response)
 		}))
 
@@ -393,6 +409,9 @@ func TestExtensionsHandler(t *testing.T) {
 		clusterName := "clusterName"
 		clusterURL := "clusterURL"
 		backendSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			for k, v := range r.Header {
+				w.Header().Add(k, strings.Join(v, ","))
+			}
 			fmt.Fprintln(w, backendResponse)
 		}))
 		defer backendSrv.Close()
@@ -417,6 +436,8 @@ func TestExtensionsHandler(t *testing.T) {
 		require.NoError(t, err)
 		actual := strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, backendResponse, actual)
+		assert.Equal(t, clusterURL, resp.Header.Get(extension.HeaderArgoCDTargetClusterURL))
+		assert.Equal(t, "Bearer some-bearer-token", resp.Header.Get("Authorization"))
 	})
 	t.Run("will route requests with 2 backends for the same extension successfully", func(t *testing.T) {
 		// given
@@ -466,6 +487,7 @@ func TestExtensionsHandler(t *testing.T) {
 		require.NoError(t, err)
 		actual := strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, response1, actual)
+		assert.Equal(t, "Bearer some-bearer-token", resp1.Header.Get("Authorization"))
 
 		require.NotNil(t, resp2)
 		assert.Equal(t, http.StatusOK, resp2.StatusCode)
@@ -473,6 +495,7 @@ func TestExtensionsHandler(t *testing.T) {
 		require.NoError(t, err)
 		actual = strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, response2, actual)
+		assert.Equal(t, "Bearer another-bearer-token", resp2.Header.Get("Authorization"))
 	})
 	t.Run("will return 401 if sub has no access to get application", func(t *testing.T) {
 		// given
@@ -637,6 +660,9 @@ extensions:
   backend:
     services:
     - url: %s
+      headers:
+      - name: Authorization
+        value: '$extension.auth.header'
 `
 	return fmt.Sprintf(cfg, name, url)
 }
@@ -648,9 +674,15 @@ extensions:
   backend:
     services:
     - url: %s
+      headers:
+      - name: Authorization
+        value: '$extension.auth.header'
       cluster:
         name: %s
     - url: %s
+      headers:
+      - name: Authorization
+        value: '$extension.auth.header2'
       cluster:
         server: %s
 `
@@ -667,6 +699,9 @@ extensions:
   backend:
     services:
     - url: https://httpbin.org
+      headers:
+      - name: some-header
+        value: '$some.secret.ref'
 - name: some-backend
   backend:
     services:
@@ -699,5 +734,29 @@ extensions:
   backend:
     services:
     - cluster: some-cluster
+`
+}
+
+func getExtensionConfigNoHeaderName() string {
+	return `
+extensions:
+- name: some-extension
+  backend:
+    services:
+    - url: https://httpbin.org
+      headers:
+      - value: '$some.secret.key'
+`
+}
+
+func getExtensionConfigNoHeaderValue() string {
+	return `
+extensions:
+- name: some-extension
+  backend:
+    services:
+    - url: https://httpbin.org
+      headers:
+      - name: some-header-name
 `
 }
