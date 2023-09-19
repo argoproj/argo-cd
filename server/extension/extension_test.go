@@ -196,6 +196,10 @@ func TestRegisterExtensions(t *testing.T) {
 				configYaml: getExtensionConfigNoName(),
 			},
 			{
+				name:       "no service",
+				configYaml: getExtensionConfigNoService(),
+			},
+			{
 				name:       "no URL",
 				configYaml: getExtensionConfigNoURL(),
 			},
@@ -377,29 +381,6 @@ func TestCallExtension(t *testing.T) {
 		return r
 	}
 
-	t.Run("proxy will return 404 if extension endpoint not registered", func(t *testing.T) {
-		// given
-		t.Parallel()
-		f := setup()
-		withExtensionConfig(getExtensionConfigString(), f)
-		withRbac(f, true, true)
-		cluster1Name := "cluster1"
-		f.appGetterMock.On("Get", "namespace", "app-name").Return(getApp(cluster1Name, "", defaultProjectName), nil)
-		withProject(getProjectWithDestinations("project-name", []string{cluster1Name}, []string{"some-url"}), f)
-
-		ts := startTestServer(t, f)
-		defer ts.Close()
-		nonRegistered := "non-registered"
-		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, nonRegistered))
-
-		// when
-		resp, err := http.DefaultClient.Do(r)
-
-		// then
-		require.NoError(t, err)
-		require.NotNil(t, resp)
-		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
-	})
 	t.Run("will call extension backend successfully", func(t *testing.T) {
 		// given
 		t.Parallel()
@@ -438,6 +419,29 @@ func TestCallExtension(t *testing.T) {
 		assert.Equal(t, backendResponse, actual)
 		assert.Equal(t, clusterURL, resp.Header.Get(extension.HeaderArgoCDTargetClusterURL))
 		assert.Equal(t, "Bearer some-bearer-token", resp.Header.Get("Authorization"))
+	})
+	t.Run("proxy will return 404 if extension endpoint not registered", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup()
+		withExtensionConfig(getExtensionConfigString(), f)
+		withRbac(f, true, true)
+		cluster1Name := "cluster1"
+		f.appGetterMock.On("Get", "namespace", "app-name").Return(getApp(cluster1Name, "", defaultProjectName), nil)
+		withProject(getProjectWithDestinations("project-name", []string{cluster1Name}, []string{"some-url"}), f)
+
+		ts := startTestServer(t, f)
+		defer ts.Close()
+		nonRegistered := "non-registered"
+		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, nonRegistered))
+
+		// when
+		resp, err := http.DefaultClient.Do(r)
+
+		// then
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 	})
 	t.Run("will route requests with 2 backends for the same extension successfully", func(t *testing.T) {
 		// given
@@ -651,6 +655,29 @@ func TestCallExtension(t *testing.T) {
 		actual := strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, "invalid extension", actual)
 	})
+	t.Run("will return 400 if no extension name is provided", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup()
+		allowApp := true
+		allowExtension := true
+		extName := "some-extension"
+		differentProject := "differentProject"
+		withRbac(f, allowApp, allowExtension)
+		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
+		ts := startTestServer(t, f)
+		defer ts.Close()
+		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/", ts.URL))
+		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(getApp("", "", differentProject), nil)
+
+		// when
+		resp, err := http.DefaultClient.Do(r)
+
+		// then
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
 }
 
 func getExtensionConfig(name, url string) string {
@@ -709,6 +736,13 @@ extensions:
 `
 }
 
+func getExtensionConfigNoService() string {
+	return `
+extensions:
+- backend:
+    connectionTimeout: 2s
+`
+}
 func getExtensionConfigNoName() string {
 	return `
 extensions:
