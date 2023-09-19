@@ -492,9 +492,10 @@ const (
 	ResourceDeepLinks = "resource.links"
 	extensionConfig   = "extension.config"
 	// RespectRBAC is the key to configure argocd to respect rbac while watching for resources
-	RespectRBAC            = "resource.respectRBAC"
-	RespectRBACValueStrict = "strict"
-	RespectRBACValueNormal = "normal"
+	RespectRBAC                                  = "resource.respectRBAC"
+	RespectRBACValueStrict                       = "strict"
+	RespectRBACValueNormal                       = "normal"
+	settingsServerDefaultApplicationListSelector = "server.application.list.selector"
 )
 
 var (
@@ -777,6 +778,15 @@ func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACLogEnforceEnableKey])
+}
+
+func (mgr *SettingsManager) GetServerDefaultApplicationListSelector() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", fmt.Errorf("error retrieving argocd-cm: %w", err)
+	}
+
+	return argoCDCM.Data[settingsServerDefaultApplicationListSelector], nil
 }
 
 func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {

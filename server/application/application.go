@@ -244,7 +244,19 @@ func (s *Server) getApplicationEnforceRBACClient(ctx context.Context, action, pr
 
 // List returns list of applications
 func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*appv1.ApplicationList, error) {
-	selector, err := labels.Parse(q.GetSelector())
+	selectorStr := q.GetSelector()
+	defaultApplicationListSelector, err := s.settingsMgr.GetServerDefaultApplicationListSelector()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
+	}
+	if defaultApplicationListSelector != "" {
+		if selectorStr == "" {
+			selectorStr = defaultApplicationListSelector
+		} else {
+			selectorStr = defaultApplicationListSelector + "," + selectorStr
+		}
+	}
+	selector, err := labels.Parse(selectorStr)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing the selector: %w", err)
 	}
