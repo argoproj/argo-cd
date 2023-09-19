@@ -1,9 +1,9 @@
-health_status = {}
+local health_status = {}
 if obj.status ~= nil then
   if obj.status.ingress ~= nil then
-    numIngressRules = 0
-    numTrue = 0
-    numFalse = 0
+    local numIngressRules = 0
+    local numTrue = 0
+    local numFalse = 0
     for _, ingressRules in pairs(obj.status.ingress) do
         numIngressRules = numIngressRules + 1
         if obj.status.ingress ~= nil then
