@@ -640,6 +640,8 @@ func findProxy(registry ProxyRegistry, extName string, dest v1alpha1.Application
 	return nil, fmt.Errorf("no proxy found for extension %q", extName)
 }
 
+// ProxyRegistry returns the proxy registry associated for the given
+// extension name.
 func (m *Manager) ProxyRegistry(name string) (ProxyRegistry, bool) {
 	pReg, found := m.registry[name]
 	return pReg, found
