@@ -135,25 +135,41 @@ func newTestAppServer(t *testing.T, objects ...runtime.Object) *Server {
 	return newTestAppServerWithEnforcerConfigure(f, t, objects...)
 }
 
-func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T, objects ...runtime.Object) *Server {
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "argocd-cm",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
+func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T, allObjects ...runtime.Object) *Server {
+	settingsMgrObjects := map[string]runtime.Object{
+		"argocd-cm": &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "argocd-cm",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
 			},
 		},
-	}, &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: testNamespace,
+		"argocd-secret": &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd-secret",
+				Namespace: testNamespace,
+			},
+			Data: map[string][]byte{
+				"admin.password":   []byte("test"),
+				"server.secretkey": []byte("test"),
+			},
 		},
-		Data: map[string][]byte{
-			"admin.password":   []byte("test"),
-			"server.secretkey": []byte("test"),
-		},
-	})
+	}
+	var objects []runtime.Object
+	for _, obj := range allObjects {
+		if cm, ok := obj.(*v1.ConfigMap); ok {
+			settingsMgrObjects[cm.Name] = cm
+		} else {
+			objects = append(objects, obj)
+		}
+	}
+	var settingsMgrObjectsArr []runtime.Object
+	for _, obj := range settingsMgrObjects {
+		settingsMgrObjectsArr = append(settingsMgrObjectsArr, obj)
+	}
+	kubeclientset := fake.NewSimpleClientset(settingsMgrObjectsArr...)
 	ctx := context.Background()
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
 	_, err := db.CreateRepository(ctx, fakeRepo())
@@ -1070,6 +1086,75 @@ func unsetSyncRunningOperationState(t *testing.T, appServer *Server) {
 	app.Status.OperationState = nil
 	_, err = appIf.Update(context.Background(), app, metav1.UpdateOptions{})
 	require.NoError(t, err)
+}
+
+func TestListFilteredApps(t *testing.T) {
+	allApps := []runtime.Object{
+		newTestApp(func(app *appsv1.Application) {
+			app.Name = "App1"
+			app.ObjectMeta.Namespace = "test-namespace"
+			app.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
+		}), newTestApp(func(app *appsv1.Application) {
+			app.Name = "App2"
+			app.ObjectMeta.Namespace = "test-namespace"
+			app.SetLabels(map[string]string{"key1": "value2"})
+		}),
+	}
+	tests := []struct {
+		testName        string
+		defaultSelector string
+		querySelector   string
+		expectedResult  []string
+	}{
+		{testName: "When no filters applied everything is returned",
+			defaultSelector: "",
+			querySelector:   "",
+			expectedResult:  []string{"App1", "App2"}},
+		{testName: "Only default filter is applied",
+			defaultSelector: "key1=value1",
+			querySelector:   "",
+			expectedResult:  []string{"App1"}},
+		{testName: "Only UI filter is applied",
+			defaultSelector: "",
+			querySelector:   "key1=value1",
+			expectedResult:  []string{"App1"}},
+		{testName: "both filters applied for the same app",
+			defaultSelector: "key1=value1",
+			querySelector:   "key1=value1",
+			expectedResult:  []string{"App1"}},
+		{testName: "both filters mutually exclusive",
+			defaultSelector: "key1=value1",
+			querySelector:   "key1=value2",
+			expectedResult:  []string{}},
+	}
+
+	//test scenarios
+	for _, testCase := range tests {
+		t.Run(testCase.testName, func(t *testing.T) {
+			objects := append([]runtime.Object{&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "argocd-cm",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"server.application.list.selector": testCase.defaultSelector,
+				},
+			}}, allApps...)
+			appServer := newTestAppServer(t, objects...)
+			appServer.ns = "test-namespace"
+
+			res, err := appServer.List(context.Background(), &application.ApplicationQuery{Selector: &testCase.querySelector})
+			assert.NoError(t, err)
+			apps := []string{}
+			for i := range res.Items {
+				apps = append(apps, res.Items[i].Name)
+			}
+			assert.Equal(t, testCase.expectedResult, apps)
+		})
+	}
 }
 
 func TestListAppsInNamespaceWithLabels(t *testing.T) {
