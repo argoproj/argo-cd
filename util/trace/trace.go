@@ -13,10 +13,11 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.6.1"
+	"google.golang.org/grpc/credentials"
 )
 
 // InitTracer initializes the trace provider and the otel grpc exporter.
-func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpAttrs []string) (func(), error) {
+func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecure bool, otlpHeaders map[string]string, otlpAttrs []string) (func(), error) {
 	attrs := make([]attribute.KeyValue, 0, len(otlpAttrs))
 	for i := range otlpAttrs {
 		attr := otlpAttrs[i]
@@ -38,10 +39,19 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpAttrs 
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	// Set up a trace exporter
+	// set up grpc options based on secure/insecure connection
+	var secureOption otlptracegrpc.Option
+	if otlpInsecure {
+		secureOption = otlptracegrpc.WithInsecure()
+	} else {
+		secureOption = otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, ""))
+	}
+
+	// set up a trace exporter
 	exporter, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithInsecure(),
+		secureOption,
 		otlptracegrpc.WithEndpoint(otlpAddress),
+		otlptracegrpc.WithHeaders(otlpHeaders),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
