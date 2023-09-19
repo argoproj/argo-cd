@@ -9,9 +9,10 @@ argocd app rollback APPNAME [ID] [flags]
 ### Options
 
 ```
-  -h, --help           help for rollback
-      --prune          Allow deleting unexpected resources
-      --timeout uint   Time out after this many seconds
+  -h, --help            help for rollback
+  -o, --output string   Output format. One of:  tree|tree=detailed
+      --prune           Allow deleting unexpected resources
+      --timeout uint    Time out after this many seconds
 ```
 
 ### Options inherited from parent commands
