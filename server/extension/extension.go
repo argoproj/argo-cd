@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 
@@ -300,6 +299,7 @@ type Manager struct {
 	application ApplicationGetter
 	project     ProjectGetter
 	rbac        RbacEnforcer
+	registry    ExtensionRegistry
 }
 
 // NewManager will initialize a new manager.
@@ -312,6 +312,11 @@ func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, pg Proj
 		rbac:        rbac,
 	}
 }
+
+// ExtensionRegistry is an in memory registry that contains contains all
+// proxies for all extensions. The key is the extension name defined in
+// the Argo CD configmap.
+type ExtensionRegistry map[string]ProxyRegistry
 
 // ProxyRegistry is an in memory registry that contains all proxies for a
 // given extension. Different extensions will have independent proxy registries.
@@ -344,6 +349,10 @@ func proxyKey(extName, cName, cServer string) ProxyKey {
 }
 
 func parseAndValidateConfig(s *settings.ArgoCDSettings) (*ExtensionConfigs, error) {
+	if s.ExtensionConfig == "" {
+		return nil, fmt.Errorf("No extensions configurations found")
+	}
+
 	extConfigMap := map[string]interface{}{}
 	err := yaml.Unmarshal([]byte(s.ExtensionConfig), &extConfigMap)
 	if err != nil {
@@ -383,6 +392,9 @@ func validateConfigs(configs *ExtensionConfigs) error {
 		}
 		exts[ext.Name] = struct{}{}
 		svcTotal := len(ext.Backend.Services)
+		if svcTotal == 0 {
+			return fmt.Errorf("no backend service configured for extension %s", ext.Name)
+		}
 		for _, svc := range ext.Backend.Services {
 			if svc.URL == "" {
 				return fmt.Errorf("extensions.backend.services.url must be configured")
@@ -465,25 +477,30 @@ func applyProxyConfigDefaults(c *ProxyConfig) {
 	}
 }
 
-// RegisterHandlers will retrieve all configured extensions
-// and register the respective http handlers in the given
-// router.
-func (m *Manager) RegisterHandlers(r *mux.Router) error {
-	m.log.Info("Registering extension handlers...")
+// RegisterExtensions will retrieve all extensions configurations
+// and update the extension registry.
+func (m *Manager) RegisterExtensions() error {
 	settings, err := m.settings.Get()
 	if err != nil {
 		return fmt.Errorf("error getting settings: %s", err)
 	}
-
-	if settings.ExtensionConfig == "" {
-		return fmt.Errorf("No extensions configurations found")
+	err = m.UpdateExtensionRegistry(settings)
+	if err != nil {
+		return fmt.Errorf("error updating extension registry: %s", err)
 	}
+	return nil
+}
 
-	extConfigs, err := parseAndValidateConfig(settings)
+// UpdateExtensionRegistry will first parse and validate the extensions
+// configurations from the given settings. If no errors are found, it will
+// iterate over the given configurations building a new extension registry.
+// At the end, it will update the manager with the newly created registry.
+func (m *Manager) UpdateExtensionRegistry(s *settings.ArgoCDSettings) error {
+	extConfigs, err := parseAndValidateConfig(s)
 	if err != nil {
 		return fmt.Errorf("error parsing extension config: %s", err)
 	}
-	return m.registerExtensions(r, extConfigs)
+	return m.updateExtensionRegistry(extConfigs)
 }
 
 // appendProxy will append the given proxy in the given registry. Will use
@@ -525,28 +542,27 @@ func appendProxy(registry ProxyRegistry,
 	return nil
 }
 
-// registerExtensions will iterate over the given extConfigs and register
-// http handlers for every extension. It also registers a list extensions
-// handler under the "/extensions/" endpoint.
-func (m *Manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs) error {
-	extRouter := r.PathPrefix(fmt.Sprintf("%s/", URLPrefix)).Subrouter()
+// updateExtensionRegistry will iterate over the given extConfigs building
+// a new extension registry. At the end, if no errors are returned in
+// this process it updates the manager with the new created registry.
+func (m *Manager) updateExtensionRegistry(extConfigs *ExtensionConfigs) error {
+	extReg := make(map[string]ProxyRegistry)
 	for _, ext := range extConfigs.Extensions {
-		registry := NewProxyRegistry()
+		proxyReg := NewProxyRegistry()
 		singleBackend := len(ext.Backend.Services) == 1
 		for _, service := range ext.Backend.Services {
 			proxy, err := NewProxy(service.URL, service.Headers, ext.Backend.ProxyConfig)
 			if err != nil {
 				return fmt.Errorf("error creating proxy: %s", err)
 			}
-			err = appendProxy(registry, ext.Name, service, proxy, singleBackend)
+			err = appendProxy(proxyReg, ext.Name, service, proxy, singleBackend)
 			if err != nil {
 				return fmt.Errorf("error appending proxy: %s", err)
 			}
 		}
-		m.log.Infof("Registering handler for %s/%s...", URLPrefix, ext.Name)
-		extRouter.PathPrefix(fmt.Sprintf("/%s/", ext.Name)).
-			HandlerFunc(m.CallExtension(ext.Name, registry))
+		extReg[ext.Name] = proxyReg
 	}
+	m.registry = extReg
 	return nil
 }
 
@@ -624,10 +640,25 @@ func findProxy(registry ProxyRegistry, extName string, dest v1alpha1.Application
 	return nil, fmt.Errorf("no proxy found for extension %q", extName)
 }
 
+func (m *Manager) ProxyRegistry(name string) (ProxyRegistry, bool) {
+	pReg, found := m.registry[name]
+	return pReg, found
+}
+
 // CallExtension returns a handler func responsible for forwarding requests to the
 // extension service. The request will be sanitized by removing sensitive headers.
-func (m *Manager) CallExtension(extName string, registry ProxyRegistry) func(http.ResponseWriter, *http.Request) {
+func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		segments := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
+		if segments[0] != "extensions" {
+			http.Error(w, fmt.Sprintf("Invalid URL: first segment must be %s", URLPrefix), http.StatusBadRequest)
+			return
+		}
+		extName := segments[1]
+		if extName == "" {
+			http.Error(w, "Invalid URL: extension name must be provided", http.StatusBadRequest)
+			return
+		}
 		reqResources, err := ValidateHeaders(r)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Invalid headers: %s", err), http.StatusBadRequest)
@@ -640,7 +671,12 @@ func (m *Manager) CallExtension(extName string, registry ProxyRegistry) func(htt
 			return
 		}
 
-		proxy, err := findProxy(registry, extName, app.Spec.Destination)
+		proxyRegistry, ok := m.ProxyRegistry(extName)
+		if !ok {
+			http.Error(w, fmt.Sprintf("Invalid extension: no extension configured to handle %s", extName), http.StatusNotFound)
+			return
+		}
+		proxy, err := findProxy(proxyRegistry, extName, app.Spec.Destination)
 		if err != nil {
 			m.log.Errorf("findProxy error: %s", err)
 			http.Error(w, "invalid extension", http.StatusBadRequest)
