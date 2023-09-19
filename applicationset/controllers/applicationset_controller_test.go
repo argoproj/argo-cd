@@ -2153,7 +2153,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&defaultProject}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2323,7 +2323,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&defaultProject}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
