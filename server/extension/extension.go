@@ -350,7 +350,7 @@ func proxyKey(extName, cName, cServer string) ProxyKey {
 
 func parseAndValidateConfig(s *settings.ArgoCDSettings) (*ExtensionConfigs, error) {
 	if s.ExtensionConfig == "" {
-		return nil, fmt.Errorf("No extensions configurations found")
+		return nil, fmt.Errorf("no extensions configurations found")
 	}
 
 	extConfigMap := map[string]interface{}{}
@@ -661,6 +661,8 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 			http.Error(w, "Invalid URL: extension name must be provided", http.StatusBadRequest)
 			return
 		}
+		extName = strings.ReplaceAll(extName, "\n", "")
+		extName = strings.ReplaceAll(extName, "\r", "")
 		reqResources, err := ValidateHeaders(r)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Invalid headers: %s", err), http.StatusBadRequest)
@@ -675,7 +677,8 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 
 		proxyRegistry, ok := m.ProxyRegistry(extName)
 		if !ok {
-			http.Error(w, fmt.Sprintf("Invalid extension: no extension configured to handle %s", extName), http.StatusNotFound)
+			m.log.Warnf("proxy extension warning: attempt to call unregistered extension: %s", extName)
+			http.Error(w, "Extension not found", http.StatusNotFound)
 			return
 		}
 		proxy, err := findProxy(proxyRegistry, extName, app.Spec.Destination)
