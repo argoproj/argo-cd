@@ -1506,6 +1506,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		timeout   uint
 		selector  string
 		resources []string
+		output    string
 	)
 	var command = &cobra.Command{
 		Use:   "wait [APPNAME.. | -l selector]",
@@ -1539,6 +1540,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			output, _ = c.Flags().GetString("output")
 			watch = getWatchOpts(watch)
 			selectedResources, err := parseSelectedResources(resources)
 			errors.CheckError(err)
@@ -1554,7 +1556,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			for _, appName := range appNames {
-				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources)
+				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output)
 				errors.CheckError(err)
 			}
 		},
@@ -1567,6 +1569,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
 	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
+	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: tree|tree=detailed")
 	return command
 }
 
@@ -1622,6 +1625,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		diffChanges             bool
 		diffChangesConfirm      bool
 		projects                []string
+		output                  string
 	)
 	var command = &cobra.Command{
 		Use:   "sync [APPNAME... | -l selector | --project project-name]",
@@ -1650,17 +1654,14 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app sync my-app --resource argoproj.io:Rollout:my-namespace/my-rollout`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
-
 			if len(args) == 0 && selector == "" && len(projects) == 0 {
-
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-
 			if len(args) > 1 && selector != "" {
 				log.Fatal("Cannot use selector option when application name(s) passed as argument(s)")
 			}
-
+			output, _ = c.Flags().GetString("output")
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
@@ -1704,6 +1705,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					if err != nil {
 						log.Fatal(err)
 					}
+
+					fmt.Println("The name of the app is ", appName)
 
 					for _, mfst := range res.Manifests {
 						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
@@ -1864,7 +1867,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 
 				if !async {
-					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources)
+					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output)
 					errors.CheckError(err)
 
 					if !dryRun {
@@ -1905,6 +1908,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&diffChangesConfirm, "assumeYes", false, "Assume yes as answer for all user queries or prompts")
 	command.Flags().BoolVar(&diffChanges, "preview-changes", false, "Preview difference against the target and live state before syncing app and wait for user confirmation")
 	command.Flags().StringArrayVar(&projects, "project", []string{}, "Sync apps that belong to the specified projects. This option may be specified repeatedly.")
+	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: tree|tree=detailed")
 	return command
 }
 
@@ -2090,7 +2094,7 @@ const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfiled or we reach the timeout. Returns the app once desired conditions have been filled.
 // Additionally return the operationState at time of fulfilment (which may be different than returned app).
-func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (*argoappv1.Application, *argoappv1.OperationState, error) {
+func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string) (*argoappv1.Application, *argoappv1.OperationState, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -2122,9 +2126,28 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			printOperationResult(app.Status.OperationState)
 		}
 
-		if len(app.Status.Resources) > 0 {
+		if output != "" {
+			_, appIf := acdClient.NewApplicationClientOrDie()
+			mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
+			mapNodeNameToResourceState := make(map[string]*resourceState)
+			for _, res := range getResourceStates(app, nil) {
+				mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
+			}
+			if output == "tree" {
+				if len(mapUidToNode) > 0 {
+					fmt.Println()
+					printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
+				}
+			} else if output == "tree=detailed" {
+				if len(mapUidToNode) > 0 {
+					fmt.Println()
+					printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
+				}
+			}
+		} else {
 			fmt.Println()
 			w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
+			fmt.Println("Entered the app resources")
 			printAppResources(w, app)
 			_ = w.Flush()
 		}
@@ -2133,6 +2156,13 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 	if timeout != 0 {
 		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
+			_, appClient := acdClient.NewApplicationClientOrDie()
+			app, err := appClient.Get(ctx, &application.ApplicationQuery{
+				Name:         &appRealName,
+				AppNamespace: &appNs,
+			})
+			errors.CheckError(err)
+			printFinalStatus(app)
 			cancel()
 		})
 	}
@@ -2341,17 +2371,18 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 	var (
 		prune   bool
 		timeout uint
+		output  string
 	)
 	var command = &cobra.Command{
 		Use:   "rollback APPNAME [ID]",
 		Short: "Rollback application to a previous deployed version by History ID, omitted will Rollback to the previous version",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
-
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			output, _ = c.Flags().GetString("output")
 			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			var err error
 			depID := -1
@@ -2381,12 +2412,13 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 			_, _, err = waitOnApplicationStatus(ctx, acdClient, app.QualifiedName(), timeout, watchOpts{
 				operation: true,
-			}, nil)
+			}, nil, output)
 			errors.CheckError(err)
 		},
 	}
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
+	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of:  tree|tree=detailed")
 	return command
 }
 
