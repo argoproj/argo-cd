@@ -106,7 +106,7 @@ jobs:
             echo 'EOF' >> $GITHUB_ENV
 
       - name: Login to Quay.io
-        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
           registry: quay.io
           username: ${{ secrets.quay_username }}
@@ -114,7 +114,7 @@ jobs:
         if: ${{ inputs.quay_image_name && inputs.push }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
           registry: ghcr.io
           username: ${{ secrets.ghcr_username }}
@@ -122,7 +122,7 @@ jobs:
         if: ${{ inputs.ghcr_image_name && inputs.push }}
 
       - name: Login to dockerhub Container Registry
-        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
           username: ${{ secrets.docker_username }}
           password: ${{ secrets.docker_password }}
