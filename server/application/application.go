@@ -247,7 +247,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 	selectorStr := q.GetSelector()
 	defaultApplicationListSelector, err := s.settingsMgr.GetServerDefaultApplicationListSelector()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
+		return nil, fmt.Errorf("failed to read default application list selector from configmap: %w", err)
 	}
 	if defaultApplicationListSelector != "" {
 		if selectorStr == "" {
