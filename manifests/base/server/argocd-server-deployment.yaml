@@ -20,7 +20,8 @@ spec:
       - name: argocd-server
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
-        command: [argocd-server]
+        args:
+          - /usr/local/bin/argocd-server
         env:
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
@@ -195,6 +196,18 @@ spec:
               configMapKeyRef:
                 name: argocd-cmd-params-cm
                 key: server.http.cookie.maxnumber
+                optional: true
+        - name: ARGOCD_SERVER_LISTEN_ADDRESS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.listen.address
+                optional: true
+        - name: ARGOCD_SERVER_METRICS_LISTEN_ADDRESS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.metrics.listen.address
                 optional: true
         - name: ARGOCD_SERVER_OTLP_ADDRESS
           valueFrom:

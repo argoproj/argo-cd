@@ -91,6 +91,8 @@ spec:
         - preview
         # MR state is used to filter MRs only with a certain state. (optional)
         pullRequestState: opened
+        # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
+        insecure: false
       requeueAfterSeconds: 1800
   template:
   # ...
@@ -101,6 +103,9 @@ spec:
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the MRs that you want to target. (Optional)
 * `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
+* `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
+
+As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Add-self-signed-TLS-Certs.md).
 
 ## Gitea
 
@@ -180,6 +185,102 @@ If you want to access a private repository, you must also provide the credential
 * `username`: The username to authenticate with. It only needs read access to the relevant repo.
 * `passwordRef`: A `Secret` name and key containing the password or personal access token to use for requests.
 
+## Bitbucket Cloud
+
+Fetch pull requests from a repo hosted on a Bitbucket Cloud.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+    - pullRequest:
+        bitbucket:
+          # Workspace name where the repoistory is stored under. Required.
+          owner: myproject
+          # Repository slug. Required.
+          repo: myrepository
+          # URL of the Bitbucket Server. (optional) Will default to 'https://api.bitbucket.org/2.0'.
+          api: https://api.bitbucket.org/2.0
+          # Credentials for Basic authentication (App Password). Either basicAuth or bearerToken
+          # authentication is required to access private repositories
+          basicAuth:
+            # The username to authenticate with
+            username: myuser
+            # Reference to a Secret containing the password or personal access token.
+            passwordRef:
+              secretName: mypassword
+              key: password
+          # Credentials for Bearer Token (App Token) authentication. Either basicAuth or bearerToken
+          # authentication is required to access private repositories
+          bearerToken:
+            tokenRef:
+              secretName: repotoken
+              key: token
+        # Labels are not supported by Bitbucket Cloud, so filtering by label is not possible.
+        # Filter PRs using the source branch name. (optional)
+        filters:
+          - branchMatch: ".*-argocd"
+  template:
+  # ...
+```
+
+- `owner`: Required name of the Bitbucket workspace
+- `repo`: Required name of the Bitbucket repository.
+- `api`: Optional URL to access the Bitbucket REST API. For the example above, an API request would be made to `https://api.bitbucket.org/2.0/repositories/{workspace}/{repo_slug}/pullrequests`. If not set, defaults to `https://api.bitbucket.org/2.0`
+- `branchMatch`: Optional regexp filter which should match the source branch name. This is an alternative to labels which are not supported by Bitbucket server.
+
+If you want to access a private repository, Argo CD will need credentials to access repository in Bitbucket Cloud. You can use Bitbucket App Password (generated per user, with access to whole workspace), or Bitbucket App Token (generated per repository, with access limited to repository scope only). If both App Password and App Token are defined, App Token will be used.
+
+To use Bitbucket App Password, use `basicAuth` section.
+- `username`: The username to authenticate with. It only needs read access to the relevant repo.
+- `passwordRef`: A `Secret` name and key containing the password or personal access token to use for requests.
+
+In case of Bitbucket App Token, go with `bearerToken` section.
+- `tokenRef`: A `Secret` name and key containing the app token to use for requests.
+
+## Azure DevOps
+
+Specify the organization, project and repository from which you want to fetch pull requests.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+  - pullRequest:
+      azuredevops:
+        # Azure DevOps org to scan. Required.
+        organization: myorg
+        # Azure DevOps project name to scan. Required.
+        project: myproject
+        # Azure DevOps repo name to scan. Required.
+        repo: myrepository
+        # The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.
+        api: https://dev.azure.com/
+        # Reference to a Secret containing an access token. (optional)
+        tokenRef:
+          secretName: azure-devops-token
+          key: token
+        # Labels is used to filter the PRs that you want to target. (optional)
+        labels:
+        - preview
+      requeueAfterSeconds: 1800
+  template:
+  # ...
+```
+
+* `organization`: Required name of the Azure DevOps organization.
+* `project`: Required name of the Azure DevOps project.
+* `repo`: Required name of the Azure DevOps repository.
+* `api`: If using self-hosted Azure DevOps Repos, the URL to access it. (Optional)
+* `tokenRef`: A `Secret` name and key containing the Azure DevOps access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
+* `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
+
 ## Filters
 
 Filters allow selecting which pull requests to generate for. Each filter can declare one or more conditions, all of which must pass. If multiple filters are present, any can match for a repository to be included. If no filters are specified, all pull requests will be processed.
@@ -202,6 +303,7 @@ spec:
 ```
 
 * `branchMatch`: A regexp matched against source branch names.
+* `targetBranchMatch`: A regexp matched against target branch names.
 
 [GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
 
@@ -272,8 +374,11 @@ spec:
 * `number`: The ID number of the pull request.
 * `branch`: The name of the branch of the pull request head.
 * `branch_slug`: The branch name will be cleaned to be conform to the DNS label standard as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names), and truncated to 50 characters to give room to append/suffix-ing it with 13 more characters.
+* `target_branch`: The name of the target branch of the pull request.
+* `target_branch_slug`: The target branch name will be cleaned to be conform to the DNS label standard as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names), and truncated to 50 characters to give room to append/suffix-ing it with 13 more characters.
 * `head_sha`: This is the SHA of the head of the pull request.
 * `head_short_sha`: This is the short SHA of the head of the pull request (8 characters long or the length of the head SHA if it's shorter).
+* `head_short_sha_7`: This is the short SHA of the head of the pull request (7 characters long or the length of the head SHA if it's shorter).
 * `labels`: The array of pull request labels. (Supported only for Go Template ApplicationSet manifests.)
 
 ## Webhook Configuration
@@ -281,6 +386,9 @@ spec:
 When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes. To eliminate this delay from polling, the ApplicationSet webhook server can be configured to receive webhook events, which will trigger Application generation by the Pull Request generator.
 
 The configuration is almost the same as the one described [in the Git generator](Generators-Git.md), but there is one difference: if you want to use the Pull Request Generator as well, additionally configure the following settings.
+
+!!! note
+    The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
 
 ### Github webhook configuration
 

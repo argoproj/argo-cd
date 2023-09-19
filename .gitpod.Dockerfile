@@ -1,4 +1,4 @@
-FROM gitpod/workspace-full
+FROM gitpod/workspace-full@sha256:511cecde4dc129ca9eb4cc4c479d61f95e5485ebe320a07f5b902f11899956a3
 
 USER root
 
@@ -12,6 +12,8 @@ ENV GOCACHE=/go-build-cache
 
 RUN apt-get install redis-server -y
 RUN go install github.com/mattn/goreman@latest
+
+RUN chown -R gitpod:gitpod /go-build-cache
 
 USER gitpod
 

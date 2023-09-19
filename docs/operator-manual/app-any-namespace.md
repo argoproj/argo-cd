@@ -24,7 +24,7 @@ This feature can only be enabled and used when your Argo CD is installed as a cl
 
 ### Switch resource tracking method
 
-Also, while technically not necessary, it is strongly suggested that you switch the application tracking method from the default `label` setting to either `annotation` or `annotation+label`. The reasonsing for this is, that application names will be a composite of the namespace's name and the name of the `Application`, and this can easily exceed the 63 characters length limit imposed on label values. Annotations have a notably greater length limit.
+Also, while technically not necessary, it is strongly suggested that you switch the application tracking method from the default `label` setting to either `annotation` or `annotation+label`. The reasoning for this is, that application names will be a composite of the namespace's name and the name of the `Application`, and this can easily exceed the 63 characters length limit imposed on label values. Annotations have a notably greater length limit.
 
 To enable annotation based resource tracking, refer to the documentation about [resource tracking methods](../../user-guide/resource_tracking/)
 
@@ -68,7 +68,7 @@ We decided to not extend the Kubernetes RBAC for the `argocd-server` workload by
 We supply a `ClusterRole` and `ClusterRoleBinding` suitable for this purpose in the `examples/k8s-rbac/argocd-server-applications` directory. For a default Argo CD installation (i.e. installed to the `argocd` namespace), you can just apply them as-is:
 
 ```shell
-kubectl apply -f examples/k8s-rbac/argocd-server-applications/
+kubectl apply -k examples/k8s-rbac/argocd-server-applications/
 ```
 
 !!! note
@@ -130,7 +130,7 @@ For backwards compatibility, if the namespace of the Application is the control 
 
 ### Application RBAC
 
-The RBAC syntax for Application objects has been changed from `<project>/<application>` to `<project>/<namespace>/<application>` to accomodate the need to restrict access based on the source namespace of the Application to be managed.
+The RBAC syntax for Application objects has been changed from `<project>/<application>` to `<project>/<namespace>/<application>` to accommodate the need to restrict access based on the source namespace of the Application to be managed.
 
 For backwards compatibility, Applications in the `argocd` namespace can still be refered to as `<project>/<application>` in the RBAC policy rules.
 

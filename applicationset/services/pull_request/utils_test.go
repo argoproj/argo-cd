@@ -16,9 +16,10 @@ func TestFilterBranchMatchBadRegexp(t *testing.T) {
 		context.Background(),
 		[]*PullRequest{
 			{
-				Number:  1,
-				Branch:  "branch1",
-				HeadSHA: "089d92cbf9ff857a39e6feccd32798ca700fb958",
+				Number:       1,
+				Branch:       "branch1",
+				TargetBranch: "master",
+				HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 		},
 		nil,
@@ -37,24 +38,28 @@ func TestFilterBranchMatch(t *testing.T) {
 		context.Background(),
 		[]*PullRequest{
 			{
-				Number:  1,
-				Branch:  "one",
-				HeadSHA: "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Number:       1,
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
-				Number:  2,
-				Branch:  "two",
-				HeadSHA: "289d92cbf9ff857a39e6feccd32798ca700fb958",
+				Number:       2,
+				Branch:       "two",
+				TargetBranch: "master",
+				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
-				Number:  3,
-				Branch:  "three",
-				HeadSHA: "389d92cbf9ff857a39e6feccd32798ca700fb958",
+				Number:       3,
+				Branch:       "three",
+				TargetBranch: "master",
+				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
-				Number:  4,
-				Branch:  "four",
-				HeadSHA: "489d92cbf9ff857a39e6feccd32798ca700fb958",
+				Number:       4,
+				Branch:       "four",
+				TargetBranch: "master",
+				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 		},
 		nil,
@@ -70,29 +75,75 @@ func TestFilterBranchMatch(t *testing.T) {
 	assert.Equal(t, "two", pullRequests[0].Branch)
 }
 
+func TestFilterTargetBranchMatch(t *testing.T) {
+	provider, _ := NewFakeService(
+		context.Background(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+			{
+				Number:       2,
+				Branch:       "two",
+				TargetBranch: "branch1",
+				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+			{
+				Number:       3,
+				Branch:       "three",
+				TargetBranch: "branch2",
+				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+			{
+				Number:       4,
+				Branch:       "four",
+				TargetBranch: "branch3",
+				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			TargetBranchMatch: strp("1"),
+		},
+	}
+	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
+	assert.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
+	assert.Equal(t, "two", pullRequests[0].Branch)
+}
+
 func TestMultiFilterOr(t *testing.T) {
 	provider, _ := NewFakeService(
 		context.Background(),
 		[]*PullRequest{
 			{
-				Number:  1,
-				Branch:  "one",
-				HeadSHA: "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Number:       1,
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
-				Number:  2,
-				Branch:  "two",
-				HeadSHA: "289d92cbf9ff857a39e6feccd32798ca700fb958",
+				Number:       2,
+				Branch:       "two",
+				TargetBranch: "master",
+				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
-				Number:  3,
-				Branch:  "three",
-				HeadSHA: "389d92cbf9ff857a39e6feccd32798ca700fb958",
+				Number:       3,
+				Branch:       "three",
+				TargetBranch: "master",
+				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
-				Number:  4,
-				Branch:  "four",
-				HeadSHA: "489d92cbf9ff857a39e6feccd32798ca700fb958",
+				Number:       4,
+				Branch:       "four",
+				TargetBranch: "master",
+				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 		},
 		nil,
@@ -113,19 +164,69 @@ func TestMultiFilterOr(t *testing.T) {
 	assert.Equal(t, "four", pullRequests[2].Branch)
 }
 
+func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
+	provider, _ := NewFakeService(
+		context.Background(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+			{
+				Number:       2,
+				Branch:       "two",
+				TargetBranch: "branch1",
+				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+			{
+				Number:       3,
+				Branch:       "three",
+				TargetBranch: "branch2",
+				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+			{
+				Number:       4,
+				Branch:       "four",
+				TargetBranch: "branch3",
+				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			BranchMatch:       strp("w"),
+			TargetBranchMatch: strp("1"),
+		},
+		{
+			BranchMatch:       strp("r"),
+			TargetBranchMatch: strp("3"),
+		},
+	}
+	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
+	assert.NoError(t, err)
+	assert.Len(t, pullRequests, 2)
+	assert.Equal(t, "two", pullRequests[0].Branch)
+	assert.Equal(t, "four", pullRequests[1].Branch)
+}
+
 func TestNoFilters(t *testing.T) {
 	provider, _ := NewFakeService(
 		context.Background(),
 		[]*PullRequest{
 			{
-				Number:  1,
-				Branch:  "one",
-				HeadSHA: "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Number:       1,
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
-				Number:  2,
-				Branch:  "two",
-				HeadSHA: "289d92cbf9ff857a39e6feccd32798ca700fb958",
+				Number:       2,
+				Branch:       "two",
+				TargetBranch: "master",
+				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 		},
 		nil,

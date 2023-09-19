@@ -176,9 +176,9 @@ XWyb96wrUlv+E8I=
 // Taken from hack/ssh_known_hosts
 const Test_ValidSSHKnownHostsData = `
 # BitBucket
-bitbucket.org ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAubiN81eDcafrgMeLzaFPsw2kNvEcqTKl/VqLat/MaB33pZy0y3rJZtnqwR2qOOvbwKZYKiEO1O6VqNEBxKvJJelCq0dTXWT5pbO2gDXC6h6QDXCaHo6pOHGPUy+YBaGQRGuSusMEASYiWunYN0vCAI8QaXnWMXNMdFP3jHAJH0eDsoiGnLPBlBp4TNm6rYI74nMzgz3B9IikW4WVK+dc8KZJZWYjAuORU3jc1c/NPskD2ASinf8v3xnfXeukU0sJ5N6m5E8VLjObPEO+mN2t/FZTMZLiFqPWc/ALSqnMnnhwrNi2rbfg/rd/IpL8Le3pSBne8+seeFVBoGqzHM9yXw==
+bitbucket.org ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDQeJzhupRu0u0cdegZIa8e86EG2qOCsIsD1Xw0xSeiPDlCr7kq97NLmMbpKTX6Esc30NuoqEEHCuc7yWtwp8dI76EEEB1VqY9QJq6vk+aySyboD5QF61I/1WeTwu+deCbgKMGbUijeXhtfbxSxm6JwGrXrhBdofTsbKRUsrN1WoNgUa8uqN1Vx6WAJw1JHPhglEGGHea6QICwJOAr/6mrui/oB7pkaWKHj3z7d1IC4KWLtY47elvjbaTlkN04Kc/5LFEirorGYVbt15kAUlqGM65pk6ZBxtaO3+30LVlORZkxOh+LKL/BvbZ/iRNhItLqNyieoQj/uh/7Iv4uyH/cV/0b4WDSd3DptigWq84lJubb9t/DnZlrJazxyDCulTmKdOR7vs9gMTo+uoIrPSb8ScTtvw65+odKAlBj59dhnVp9zd7QUojOpXlL62Aw56U4oO+FALuevvMjiWeavKhJqlR7i5n9srYcrNV7ttmDw7kf/97P5zauIhxcjX+xHv4M=
 # GitHub
-github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==
+github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
 # GitLab
 gitlab.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBFSMqzJeV9rUzU4kWitGjeR4PWSa29SPqJ1fVkhtj3Hw9xjLVXVYrU9QlYWrOLXBpQ6KWjbjTDTdDkoohFzgbEY=
 gitlab.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHKVTjquxvt6CM6tdG4SLp1Btn/nOeHHE5UOzRdf
@@ -189,9 +189,9 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 `
 
 const Test_InvalidSSHKnownHostsData = `
-bitbucket.org AAAAB3NzaC1yc2EAAAABIwAAAQEAubiN81eDcafrgMeLzaFPsw2kNvEcqTKl/VqLat/MaB33pZy0y3rJZtnqwR2qOOvbwKZYKiEO1O6VqNEBxKvJJelCq0dTXWT5pbO2gDXC6h6QDXCaHo6pOHGPUy+YBaGQRGuSusMEASYiWunYN0vCAI8QaXnWMXNMdFP3jHAJH0eDsoiGnLPBlBp4TNm6rYI74nMzgz3B9IikW4WVK+dc8KZJZWYjAuORU3jc1c/NPskD2ASinf8v3xnfXeukU0sJ5N6m5E8VLjObPEO+mN2t/FZTMZLiFqPWc/ALSqnMnnhwrNi2rbfg/rd/IpL8Le3pSBne8+seeFVBoGqzHM9yXw==
+bitbucket.org AAAAB3NzaC1yc2EAAAADAQABAAABgQDQeJzhupRu0u0cdegZIa8e86EG2qOCsIsD1Xw0xSeiPDlCr7kq97NLmMbpKTX6Esc30NuoqEEHCuc7yWtwp8dI76EEEB1VqY9QJq6vk+aySyboD5QF61I/1WeTwu+deCbgKMGbUijeXhtfbxSxm6JwGrXrhBdofTsbKRUsrN1WoNgUa8uqN1Vx6WAJw1JHPhglEGGHea6QICwJOAr/6mrui/oB7pkaWKHj3z7d1IC4KWLtY47elvjbaTlkN04Kc/5LFEirorGYVbt15kAUlqGM65pk6ZBxtaO3+30LVlORZkxOh+LKL/BvbZ/iRNhItLqNyieoQj/uh/7Iv4uyH/cV/0b4WDSd3DptigWq84lJubb9t/DnZlrJazxyDCulTmKdOR7vs9gMTo+uoIrPSb8ScTtvw65+odKAlBj59dhnVp9zd7QUojOpXlL62Aw56U4oO+FALuevvMjiWeavKhJqlR7i5n9srYcrNV7ttmDw7kf/97P5zauIhxcjX+xHv4M=
 # GitHub
-github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==
+github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
 # GitLab
 gitlab.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBFSMqzJeV9rUzU4kWitGjeR4PWSa29SPqJ1fVkhtj3Hw9xjLVXVYrU9QlYWrOLXBpQ6KWjbjTDTdDkoohFzgbEY=
 gitlab.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHKVTjquxvt6CM6tdG4SLp1Btn/nOeHHE5UOzRdf
@@ -322,8 +322,8 @@ func Test_MatchHostName(t *testing.T) {
 func Test_SSHFingerprintSHA256(t *testing.T) {
 	// actual SHA256 fingerprints for keys defined above
 	fingerprints := [...]string{
-		"zzXQOXSRBEiUtuE8AikJYKwbHaxvSc0ojez9YXaGp1A",
-		"nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8",
+		"46OSHA1Rmj8E8ERTC6xkNcmGOw9oFxYr0WF6zWW8l1E",
+		"uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s",
 		"HbW3g8zUjNSksFbqTiUWPWg2Bq1x8xdGUrliXFzSnUw",
 		"eUXGGm1YGsMAS7vkcx6JOJdOGHPem5gQp4taiCfCLB8",
 		"ROQFvPThGrW4RuWLoL9tq9I9zJ42fK4XywyRtbOz/EQ",
@@ -344,8 +344,8 @@ func Test_SSHFingerprintSHA256(t *testing.T) {
 func Test_SSHFingerPrintSHA256FromString(t *testing.T) {
 	// actual SHA256 fingerprints for keys defined above
 	fingerprints := [...]string{
-		"zzXQOXSRBEiUtuE8AikJYKwbHaxvSc0ojez9YXaGp1A",
-		"nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8",
+		"46OSHA1Rmj8E8ERTC6xkNcmGOw9oFxYr0WF6zWW8l1E",
+		"uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s",
 		"HbW3g8zUjNSksFbqTiUWPWg2Bq1x8xdGUrliXFzSnUw",
 		"eUXGGm1YGsMAS7vkcx6JOJdOGHPem5gQp4taiCfCLB8",
 		"ROQFvPThGrW4RuWLoL9tq9I9zJ42fK4XywyRtbOz/EQ",
@@ -441,31 +441,29 @@ func Test_EscapeBracketPattern(t *testing.T) {
 
 func TestGetTLSCertificateDataPath(t *testing.T) {
 	t.Run("Get default path", func(t *testing.T) {
-		os.Setenv(common.EnvVarTLSDataPath, "")
+		t.Setenv(common.EnvVarTLSDataPath, "")
 		path := GetTLSCertificateDataPath()
 		assert.Equal(t, common.DefaultPathTLSConfig, path)
 	})
 
 	t.Run("Get custom path", func(t *testing.T) {
-		os.Setenv(common.EnvVarTLSDataPath, "/some/where")
+		t.Setenv(common.EnvVarTLSDataPath, "/some/where")
 		path := GetTLSCertificateDataPath()
 		assert.Equal(t, "/some/where", path)
-		os.Setenv(common.EnvVarTLSDataPath, "")
 	})
 }
 
 func TestGetSSHKnownHostsDataPath(t *testing.T) {
 	t.Run("Get default path", func(t *testing.T) {
-		os.Setenv(common.EnvVarSSHDataPath, "")
+		t.Setenv(common.EnvVarSSHDataPath, "")
 		p := GetSSHKnownHostsDataPath()
 		assert.Equal(t, path.Join(common.DefaultPathSSHConfig, "ssh_known_hosts"), p)
 	})
 
 	t.Run("Get custom path", func(t *testing.T) {
-		os.Setenv(common.EnvVarSSHDataPath, "/some/where")
+		t.Setenv(common.EnvVarSSHDataPath, "/some/where")
 		path := GetSSHKnownHostsDataPath()
 		assert.Equal(t, "/some/where/ssh_known_hosts", path)
-		os.Setenv(common.EnvVarSSHDataPath, "")
 	})
 }
 
@@ -480,7 +478,7 @@ func TestGetCertificateForConnect(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		os.Setenv(common.EnvVarTLSDataPath, temppath)
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
 		certs, err := GetCertificateForConnect("127.0.0.1")
 		assert.NoError(t, err)
 		assert.Len(t, certs, 1)
@@ -488,7 +486,7 @@ func TestGetCertificateForConnect(t *testing.T) {
 
 	t.Run("No cert found", func(t *testing.T) {
 		temppath := t.TempDir()
-		os.Setenv(common.EnvVarTLSDataPath, temppath)
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
 		certs, err := GetCertificateForConnect("127.0.0.1")
 		assert.NoError(t, err)
 		assert.Len(t, certs, 0)
@@ -500,7 +498,7 @@ func TestGetCertificateForConnect(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		os.Setenv(common.EnvVarTLSDataPath, temppath)
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
 		certs, err := GetCertificateForConnect("127.0.0.1")
 		assert.Error(t, err)
 		assert.Len(t, certs, 0)
@@ -520,7 +518,7 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		os.Setenv(common.EnvVarTLSDataPath, temppath)
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
 		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
 		assert.NoError(t, err)
 		assert.Equal(t, certpath, path.Join(temppath, "127.0.0.1"))
@@ -528,7 +526,7 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 
 	t.Run("No cert found", func(t *testing.T) {
 		temppath := t.TempDir()
-		os.Setenv(common.EnvVarTLSDataPath, temppath)
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
 		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
 		assert.NoError(t, err)
 		assert.Empty(t, certpath)
@@ -540,7 +538,7 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		os.Setenv(common.EnvVarTLSDataPath, temppath)
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
 		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
 		assert.NoError(t, err)
 		assert.Empty(t, certpath)

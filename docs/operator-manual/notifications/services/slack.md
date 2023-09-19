@@ -29,60 +29,60 @@ The Slack notification service configuration includes following settings:
 1. Invite your slack bot to this channel **otherwise slack bot won't be able to deliver notifications to this channel**
 1. Store Oauth access token in `argocd-notifications-secret` secret
 
-```yaml
-  apiVersion: v1
-  kind: Secret
-  metadata:
-      name: <secret-name>
-  stringData:
-      slack-token: <Oauth-access-token>
-```
+    ```yaml
+      apiVersion: v1
+      kind: Secret
+      metadata:
+          name: <secret-name>
+      stringData:
+          slack-token: <Oauth-access-token>
+    ```
 
 1. Define service type slack in data section of `argocd-notifications-cm` configmap:
 
-```yaml
-  apiVersion: v1
-  kind: ConfigMap
-  metadata:
-    name: <config-map-name>
-  data:
-    service.slack: |
-      token: $slack-token
-```
+    ```yaml
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: <config-map-name>
+      data:
+        service.slack: |
+          token: $slack-token
+    ```
 
-1. Add annotation in application yaml file to enable notifications for specific argocd app
+1. Add annotation in application yaml file to enable notifications for specific argocd app.  The following example uses the [on-sync-succeeded trigger](../catalog.md#triggers):
 
-```yaml
-  apiVersion: argoproj.io/v1alpha1
-  kind: Application
-  metadata:
-    annotations:
-      notifications.argoproj.io/subscribe.on-sync-succeeded.slack: my_channel
-```
+    ```yaml
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        annotations:
+          notifications.argoproj.io/subscribe.on-sync-succeeded.slack: my_channel
+    ```
 
-1. Annotation with more than one trigger multiple of destinations and recipients
+1. Annotation with more than one [trigger](../catalog.md#triggers), with multiple destinations and recipients
 
-```yaml
-  apiVersion: argoproj.io/v1alpha1
-  kind: Application
-  metadata:
-    annotations:
-      notifications.argoproj.io/subscriptions: |
-        - trigger: [on-scaling-replica-set, on-rollout-updated, on-rollout-step-completed]
-          destinations:
-            - service: slack
-              recipients: [my-channel-1, my-channel-2]
-            - service: email
-              recipients: [recipient-1, recipient-2, recipient-3 ]
-        - trigger: [on-rollout-aborted, on-analysis-run-failed, on-analysis-run-error]
-          destinations:
-            - service: slack
-              recipients: [my-channel-21, my-channel-22]
-```
+    ```yaml
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        annotations:
+          notifications.argoproj.io/subscriptions: |
+            - trigger: [on-scaling-replica-set, on-rollout-updated, on-rollout-step-completed]
+              destinations:
+                - service: slack
+                  recipients: [my-channel-1, my-channel-2]
+                - service: email
+                  recipients: [recipient-1, recipient-2, recipient-3 ]
+            - trigger: [on-rollout-aborted, on-analysis-run-failed, on-analysis-run-error]
+              destinations:
+                - service: slack
+                  recipients: [my-channel-21, my-channel-22]
+    ```
 
 ## Templates
 
-Notification templates can be customized to leverage slack message blocks and attachments
+[Notification templates](../templates.md) can be customized to leverage slack message blocks and attachments
 [feature](https://api.slack.com/messaging/composing/layouts).
 
 ![](https://user-images.githubusercontent.com/426437/72776856-6dcef880-3bc8-11ea-8e3b-c72df16ee8e6.png)

@@ -19,9 +19,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 
+	"github.com/go-playground/webhooks/v6/github"
+	"github.com/go-playground/webhooks/v6/gitlab"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/go-playground/webhooks.v5/github"
-	"gopkg.in/go-playground/webhooks.v5/gitlab"
 )
 
 type WebhookHandler struct {
@@ -98,6 +98,7 @@ func (h *WebhookHandler) HandleEvent(payload interface{}) {
 			// check if the ApplicationSet uses any generator that is relevant to the payload
 			shouldRefresh = shouldRefreshGitGenerator(gen.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(gen.PullRequest, prGenInfo) ||
+				shouldRefreshPluginGenerator(gen.Plugin) ||
 				h.shouldRefreshMatrixGenerator(gen.Matrix, &appSet, gitGenInfo, prGenInfo) ||
 				h.shouldRefreshMergeGenerator(gen.Merge, &appSet, gitGenInfo, prGenInfo)
 			if shouldRefresh {
@@ -133,7 +134,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Infof("Webhook processing failed: %s", err)
 		status := http.StatusBadRequest
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			status = http.StatusMethodNotAllowed
 		}
 		http.Error(w, fmt.Sprintf("Webhook processing failed: %s", html.EscapeString(err.Error())), status)
@@ -287,6 +288,10 @@ func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInf
 	return true
 }
 
+func shouldRefreshPluginGenerator(gen *v1alpha1.PluginGenerator) bool {
+	return gen != nil
+}
+
 func genRevisionHasChanged(gen *v1alpha1.GitGenerator, revision string, touchedHead bool) bool {
 	targetRev := parseRevision(gen.Revision)
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
@@ -417,6 +422,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		SCMProvider:             g0.SCMProvider,
 		ClusterDecisionResource: g0.ClusterDecisionResource,
 		PullRequest:             g0.PullRequest,
+		Plugin:                  g0.Plugin,
 		Matrix:                  matrixGenerator0,
 		Merge:                   mergeGenerator0,
 	}
@@ -471,6 +477,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		SCMProvider:             g1.SCMProvider,
 		ClusterDecisionResource: g1.ClusterDecisionResource,
 		PullRequest:             g1.PullRequest,
+		Plugin:                  g1.Plugin,
 		Matrix:                  matrixGenerator1,
 		Merge:                   mergeGenerator1,
 	}
@@ -478,7 +485,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	// Interpolate second child generator with params from first child generator, if there are any params
 	if len(params) != 0 {
 		for _, p := range params {
-			tempInterpolatedGenerator, err := generators.InterpolateGenerator(requestedGenerator1, p, appSet.Spec.GoTemplate)
+			tempInterpolatedGenerator, err := generators.InterpolateGenerator(requestedGenerator1, p, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 			interpolatedGenerator := &tempInterpolatedGenerator
 			if err != nil {
 				log.Error(err)
@@ -488,6 +495,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 			// Check all interpolated child generators
 			if shouldRefreshGitGenerator(interpolatedGenerator.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(interpolatedGenerator.PullRequest, prGenInfo) ||
+				shouldRefreshPluginGenerator(interpolatedGenerator.Plugin) ||
 				h.shouldRefreshMatrixGenerator(interpolatedGenerator.Matrix, appSet, gitGenInfo, prGenInfo) ||
 				h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo) {
 				return true
@@ -498,6 +506,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	// First child generator didn't return any params, just check the second child generator
 	return shouldRefreshGitGenerator(requestedGenerator1.Git, gitGenInfo) ||
 		shouldRefreshPRGenerator(requestedGenerator1.PullRequest, prGenInfo) ||
+		shouldRefreshPluginGenerator(requestedGenerator1.Plugin) ||
 		h.shouldRefreshMatrixGenerator(requestedGenerator1.Matrix, appSet, gitGenInfo, prGenInfo) ||
 		h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo)
 }
@@ -553,7 +562,7 @@ func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) err
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		err := c.Get(context.Background(), types.NamespacedName{Name: appSet.Name, Namespace: appSet.Namespace}, appSet)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting ApplicationSet: %w", err)
 		}
 		if appSet.Annotations == nil {
 			appSet.Annotations = map[string]string{}
