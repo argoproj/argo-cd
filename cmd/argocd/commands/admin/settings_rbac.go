@@ -208,11 +208,11 @@ func NewRBACValidateCommand(clientConfig clientcmd.ClientConfig) *cobra.Command 
 	)
 
 	var command = &cobra.Command{
-		Use:   "validate --policy-file=POLICYFILE [--namepsace=NAMESPACE]",
+		Use:   "validate --policy-file POLICYFILE [--namespace NAMESPACE]",
 		Short: "Validate RBAC policy",
 		Long: `
 Validates an RBAC policy for being syntactically correct. The policy must be
-a local file, and in either CSV or K8s ConfigMap format.
+a local file or a K8s ConfigMap in the provided namespace, and in either CSV or K8s ConfigMap format.
 `,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -224,7 +224,7 @@ a local file, and in either CSV or K8s ConfigMap format.
 			namespace, nsOverride, err := clientConfig.Namespace()
 
 			if err != nil {
-				log.Fatalf("error creating k8s client, please make sure kubectl has access to the configmap : %v", err)
+				log.Fatalf("error creating k8s client, please make sure kubectl has access to the namespace : %v", err)
 			}
 
 			if (!nsOverride && policyFile == "") || (nsOverride && policyFile != "") {
@@ -261,6 +261,8 @@ a local file, and in either CSV or K8s ConfigMap format.
 	}
 
 	command.Flags().StringVar(&policyFile, "policy-file", "", "path to the policy file to use")
+	command.Flags().StringVar(&policyFile, "namespace", "", "namespace to get argo rbac configmap from")
+
 	return command
 }
 

@@ -5,14 +5,41 @@ import (
 	"os"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-
-	"github.com/argoproj/argo-cd/v2/util/assets"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
+
+type FakeClientConfig struct {
+	clientConfig clientcmd.ClientConfig
+}
+
+func NewFakeClientConfig(clientConfig clientcmd.ClientConfig) *FakeClientConfig {
+	return &FakeClientConfig{clientConfig: clientConfig}
+}
+
+func (f *FakeClientConfig) RawConfig() (clientcmdapi.Config, error) {
+	config, err := f.clientConfig.RawConfig()
+	return config, err
+}
+
+func (f *FakeClientConfig) ClientConfig() (*restclient.Config, error) {
+	return f.clientConfig.ClientConfig()
+}
+
+func (f *FakeClientConfig) Namespace() (string, bool, error) {
+	return f.clientConfig.Namespace()
+}
+
+func (f *FakeClientConfig) ConfigAccess() clientcmd.ConfigAccess {
+	return nil
+}
 
 func Test_isValidRBACAction(t *testing.T) {
 	for k := range validRBACActions {
@@ -200,3 +227,93 @@ p, role:, certificates, get, .*, allow`
 		require.True(t, ok)
 	})
 }
+
+func TestNewRBACValidateCommand(t *testing.T) {
+
+	// sample kubeconfig
+	rawConfig := &clientcmdapi.Config{
+		APIVersion: "v1",
+		Kind:       "Config",
+		Clusters: map[string]*clientcmdapi.Cluster{
+			"my-cluster": {
+				Server:                   "https://example.com",
+				CertificateAuthorityData: []byte("CAData"),
+			},
+		},
+		Contexts: map[string]*clientcmdapi.Context{
+			"my-context": {
+				Cluster:   "my-cluster",
+				Namespace: "my-namespace",
+			},
+		},
+		CurrentContext: "my-context",
+	}
+
+	clientConfig := clientcmd.NewDefaultClientConfig(*rawConfig, &clientcmd.ConfigOverrides{})
+
+	fakeClientConfig := NewFakeClientConfig(clientConfig)
+
+	command := NewRBACValidateCommand(fakeClientConfig)
+
+	require.NotNil(t, command)
+	assert.Equal(t, "validate", command.Name())
+	assert.Equal(t, "Validate RBAC policy", command.Short)
+}
+
+// func TestNewRBACValidateCommand_ValidatePolicyFromNamespace(t *testing.T) {
+// 	tmpDir := t.TempDir()
+
+// 	policyContent := `
+// p, role:user, clusters, get, .+, allow
+// p, role:user, applications, get, .*, allow
+// `
+// 	policyFile := filepath.Join(tmpDir, "policy.csv")
+// 	file, err := os.Create(policyFile)
+// 	require.NoError(t, err)
+// 	defer file.Close()
+
+// 	_, err = file.WriteString(policyContent)
+// 	require.NoError(t, err)
+
+// 	kubeconfig := &clientcmdapi.Config{
+// 		APIVersion: "v1",
+// 		Kind:       "Config",
+// 		Clusters: map[string]*clientcmdapi.Cluster{
+// 			"my-cluster": {
+// 				Server:                   "https://example.com",
+// 				CertificateAuthorityData: []byte("CAData"),
+// 			},
+// 		},
+// 		Contexts: map[string]*clientcmdapi.Context{
+// 			"my-context": {
+// 				Cluster:   "my-cluster",
+// 				Namespace: "my-namespace",
+// 			},
+// 		},
+// 		CurrentContext: "my-context",
+// 	}
+
+// 	fakeClientConfig := NewFakeClientConfig(clientcmd.NewNonInteractiveClientConfig(*kubeconfig, "my-context", &clientcmd.ConfigOverrides{}, nil))
+
+// 	originalStdout := os.Stdout
+// 	r, w, _ := os.Pipe()
+// 	os.Stdout = w
+// 	// redirect output to buf
+// 	output := &bytes.Buffer{}
+// 	defer func() {
+// 		os.Stdout = originalStdout
+// 	}()
+// 	go func() {
+// 		io.Copy(output, r)
+// 	}()
+
+// 	// test policy retrieval from namespace cm
+// 	t.Run("Policy from ConfigMap", func(t *testing.T) {
+// 		command := NewRBACValidateCommand(fakeClientConfig)
+// 		command.SetArgs([]string{"--namespace=my-namespace"})
+// 		err := command.Execute()
+// 		assert.NoError(t, err)
+// 		w.Close()
+// 		assert.Contains(t, output.String(), "Policy is valid.")
+// 	})
+// }
