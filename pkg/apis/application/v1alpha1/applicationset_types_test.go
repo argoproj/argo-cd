@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 )
 
 func testAppSetCond(t ApplicationSetConditionType, msg string, lastTransitionTime *metav1.Time, status ApplicationSetConditionStatus, reason string) ApplicationSetCondition {
@@ -47,6 +48,31 @@ func TestApplicationsSyncPolicy(t *testing.T) {
 
 	assert.True(t, ApplicationsSyncPolicySync.AllowDelete())
 	assert.True(t, ApplicationsSyncPolicySync.AllowUpdate())
+}
+
+func TestApplicationSetRBACName(t *testing.T) {
+	testRepo := "https://github.com/org/repo"
+
+	t.Run("Test RBAC name with namespace", func(t *testing.T) {
+		namespace := "guestbook"
+		a := newTestAppSet("test-appset", namespace, testRepo)
+		a.Spec.Template.Spec.Project = "test"
+		assert.Equal(t, "test/guestbook/test-appset", a.RBACName("argocd"))
+	})
+
+	t.Run("Test RBAC name default ns", func(t *testing.T) {
+		namespace := "argocd"
+		a := newTestAppSet("test-appset", namespace, testRepo)
+		a.Spec.Template.Spec.Project = "test"
+		assert.Equal(t, "test/test-appset", a.RBACName("argocd"))
+	})
+
+	t.Run("Test RBAC no ns", func(t *testing.T) {
+		a := newTestAppSet("test-appset", "", testRepo)
+		a.Spec.Template.Spec.Project = "test"
+		assert.Equal(t, "test/test-appset", a.RBACName("argocd"))
+	})
+
 }
 
 func TestApplicationSetSetConditions(t *testing.T) {
@@ -141,4 +167,15 @@ func assertAppSetConditions(t *testing.T, expected []ApplicationSetCondition, ac
 		assert.Equal(t, expected[i].Type, actual[i].Type)
 		assert.Equal(t, expected[i].Message, actual[i].Message)
 	}
+}
+
+func TestSCMProviderGeneratorGitlab_WillIncludeSharedProjects(t *testing.T) {
+	settings := SCMProviderGeneratorGitlab{}
+	assert.True(t, settings.WillIncludeSharedProjects())
+
+	settings.IncludeSharedProjects = pointer.BoolPtr(false)
+	assert.False(t, settings.WillIncludeSharedProjects())
+
+	settings.IncludeSharedProjects = pointer.BoolPtr(true)
+	assert.True(t, settings.WillIncludeSharedProjects())
 }

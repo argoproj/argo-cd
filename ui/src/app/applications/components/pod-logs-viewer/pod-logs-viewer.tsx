@@ -8,7 +8,6 @@ import {LogEntry} from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
 
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
-import List from 'react-virtualized/dist/commonjs/List';
 
 import './pod-logs-viewer.scss';
 import {CopyLogsButton} from './copy-logs-button';
@@ -24,8 +23,9 @@ import {LogMessageFilter} from './log-message-filter';
 import {SinceSecondsSelector} from './since-seconds-selector';
 import {TailSelector} from './tail-selector';
 import {PodNamesToggleButton} from './pod-names-toggle-button';
-import Ansi from 'ansi-to-react';
 import {AutoScrollButton} from './auto-scroll-button';
+import {WrapLinesButton} from './wrap-lines-button';
+import Ansi from 'ansi-to-react';
 
 export interface PodLogsProps {
     namespace: string;
@@ -132,14 +132,15 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         (viewTimestamps ? (lineNum === 0 || (logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : '').padEnd(30)) + ' ' : '') +
         // show the log content, highlight the filter text
         log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
-
-    const rowRenderer = ({index, key, style}: {index: number; key: string; style: React.CSSProperties}) => {
-        return (
-            <pre key={key} style={style} className='noscroll'>
-                <Ansi>{renderLog(logs[index], index)}</Ansi>
-            </pre>
-        );
-    };
+    const logsContent = (width: number, height: number, isWrapped: boolean) => (
+        <div style={{width, height, overflow: 'scroll'}}>
+            {logs.map((log, lineNum) => (
+                <pre key={lineNum} style={{whiteSpace: isWrapped ? 'normal' : 'pre'}} className='noscroll'>
+                    <Ansi>{renderLog(log, lineNum)}</Ansi>
+                </pre>
+            ))}
+        </div>
+    );
 
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -164,6 +165,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             </span>
                             <Spacer />
                             <span>
+                                <WrapLinesButton prefs={prefs} />
                                 <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={setViewPodNames} />
                                 <TimestampsToggleButton setViewTimestamps={setViewTimestamps} viewTimestamps={viewTimestamps} timestamp={timestamp} />
                                 <DarkModeToggleButton prefs={prefs} />
@@ -178,21 +180,9 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                         <div
                             className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})}
                             onWheel={e => {
-                                if (e.deltaY !== 0) setScrollToBottom(false);
+                                if (e.deltaY < 0) setScrollToBottom(false);
                             }}>
-                            <AutoSizer>
-                                {({width, height}: {width: number; height: number}) => (
-                                    <List
-                                        rowCount={logs.length}
-                                        height={height}
-                                        rowHeight={18}
-                                        rowRenderer={rowRenderer}
-                                        width={width}
-                                        noRowsRenderer={() => <>No logs</>}
-                                        scrollToIndex={scrollToBottom ? logs.length - 1 : undefined}
-                                    />
-                                )}
-                            </AutoSizer>
+                            <AutoSizer>{({width, height}: {width: number; height: number}) => logsContent(width, height, prefs.appDetails.wrapLines)}</AutoSizer>
                         </div>
                     </React.Fragment>
                 );
