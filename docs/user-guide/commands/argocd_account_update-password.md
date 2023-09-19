@@ -1,3 +1,5 @@
+# `argocd account update-password` Command Reference
+
 ## argocd account update-password
 
 Update an account's password

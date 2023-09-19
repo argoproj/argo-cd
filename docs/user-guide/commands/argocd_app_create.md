@@ -1,3 +1,5 @@
+# `argocd app create` Command Reference
+
 ## argocd app create
 
 Create an application

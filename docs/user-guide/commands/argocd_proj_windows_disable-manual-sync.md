@@ -1,3 +1,5 @@
+# `argocd proj windows disable-manual-sync` Command Reference
+
 ## argocd proj windows disable-manual-sync
 
 Disable manual sync for a sync window

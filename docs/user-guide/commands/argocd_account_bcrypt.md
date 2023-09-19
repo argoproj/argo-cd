@@ -1,3 +1,5 @@
+# `argocd account bcrypt` Command Reference
+
 ## argocd account bcrypt
 
 Generate bcrypt hash for the admin password

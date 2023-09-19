@@ -1,3 +1,5 @@
+# `argocd proj role add-policy` Command Reference
+
 ## argocd proj role add-policy
 
 Add a policy to a project role

@@ -1,3 +1,5 @@
+# `argocd admin app generate-spec` Command Reference
+
 ## argocd admin app generate-spec
 
 Generate declarative config for an application

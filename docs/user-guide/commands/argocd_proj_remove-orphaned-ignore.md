@@ -1,3 +1,5 @@
+# `argocd proj remove-orphaned-ignore` Command Reference
+
 ## argocd proj remove-orphaned-ignore
 
 Remove a resource from orphaned ignore list

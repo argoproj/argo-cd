@@ -1,3 +1,5 @@
+# `argocd proj deny-cluster-resource` Command Reference
+
 ## argocd proj deny-cluster-resource
 
 Removes a cluster-scoped API resource from the allow list and adds it to deny list
