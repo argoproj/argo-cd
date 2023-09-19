@@ -26,9 +26,13 @@ func NewDashboardCommand() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
 
+			var disableDefaultProjectCreation bool
+
+			cmd.Flags().BoolVar(&disableDefaultProjectCreation, "disable-default-project-creation", false, "Disable default project creation")
+
 			compression, err := cache.CompressionTypeFromString(compressionStr)
 			errors.CheckError(err)
-			errors.CheckError(headless.StartLocalServer(ctx, &argocdclient.ClientOptions{Core: true}, initialize.RetrieveContextIfChanged(cmd.Flag("context")), &port, &address, compression))
+			errors.CheckError(headless.StartLocalServer(ctx, &argocdclient.ClientOptions{Core: true}, initialize.RetrieveContextIfChanged(cmd.Flag("context")), &port, &address, compression, disableDefaultProjectCreation))
 			println(fmt.Sprintf("Argo CD UI is available at http://%s:%d", address, port))
 			<-ctx.Done()
 		},

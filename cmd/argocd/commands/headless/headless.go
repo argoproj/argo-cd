@@ -147,7 +147,7 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 
 // StartLocalServer allows executing command in a headless mode: on the fly starts Argo CD API server and
 // changes provided client options to use started API server port
-func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType) error {
+func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType, disableDefaultProjectCreation bool) error {
 	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
 	clientConfig := cli.AddKubectlFlagsToSet(flags)
 	startInProcessAPI := clientOpts.Core
@@ -222,7 +222,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		ListenHost:                    *address,
 		RepoClientset:                 &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName},
 		EnableProxyExtension:          false,
-		DisableDefaultProjectCreation: true,
+		DisableDefaultProjectCreation: disableDefaultProjectCreation,
 	})
 	srv.Init(ctx)
 
@@ -251,8 +251,12 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.Client {
 	ctx := c.Context()
 
+	var disableDefaultProjectCreation bool
+
+	c.Flags().BoolVar(&disableDefaultProjectCreation, "disable-default-project-creation", false, "Disable default project creation")
+
 	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
-	err := StartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone)
+	err := StartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone, disableDefaultProjectCreation)
 	if err != nil {
 		log.Fatal(err)
 	}
