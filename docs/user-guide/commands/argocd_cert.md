@@ -1,3 +1,5 @@
+# `argocd cert` Command Reference
+
 ## argocd cert
 
 Manage repository certificates and SSH known hosts entries

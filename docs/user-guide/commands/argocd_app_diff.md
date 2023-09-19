@@ -1,3 +1,5 @@
+# `argocd app diff` Command Reference
+
 ## argocd app diff
 
 Perform a diff against the target and live state.

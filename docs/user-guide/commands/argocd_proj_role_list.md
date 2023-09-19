@@ -1,3 +1,5 @@
+# `argocd proj role list` Command Reference
+
 ## argocd proj role list
 
 List all the roles in a project

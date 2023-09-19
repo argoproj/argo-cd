@@ -1,3 +1,5 @@
+# `argocd cert rm` Command Reference
+
 ## argocd cert rm
 
 Remove certificate of TYPE for REPOSERVER

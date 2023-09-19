@@ -1,3 +1,5 @@
+# `argocd app wait` Command Reference
+
 ## argocd app wait
 
 Wait for an application to reach a synced and healthy state

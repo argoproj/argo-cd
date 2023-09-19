@@ -1,3 +1,5 @@
+# `argocd proj edit` Command Reference
+
 ## argocd proj edit
 
 Edit project

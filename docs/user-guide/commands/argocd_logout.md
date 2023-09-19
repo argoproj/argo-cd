@@ -1,3 +1,5 @@
+# `argocd logout` Command Reference
+
 ## argocd logout
 
 Log out from Argo CD
