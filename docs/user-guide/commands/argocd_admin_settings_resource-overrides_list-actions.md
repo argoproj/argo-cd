@@ -1,3 +1,5 @@
+# `argocd admin settings resource-overrides list-actions` Command Reference
+
 ## argocd admin settings resource-overrides list-actions
 
 List available resource actions

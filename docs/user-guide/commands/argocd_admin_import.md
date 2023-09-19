@@ -1,3 +1,5 @@
+# `argocd admin import` Command Reference
+
 ## argocd admin import
 
 Import Argo CD data from stdin (specify `-') or a file

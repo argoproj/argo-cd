@@ -1,3 +1,5 @@
+# `argocd account delete-token` Command Reference
+
 ## argocd account delete-token
 
 Deletes account token

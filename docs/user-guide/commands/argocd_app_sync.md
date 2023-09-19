@@ -1,3 +1,5 @@
+# `argocd app sync` Command Reference
+
 ## argocd app sync
 
 Sync an application to its target state

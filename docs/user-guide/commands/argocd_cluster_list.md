@@ -1,3 +1,5 @@
+# `argocd cluster list` Command Reference
+
 ## argocd cluster list
 
 List configured clusters

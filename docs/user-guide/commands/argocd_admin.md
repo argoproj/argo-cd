@@ -1,3 +1,5 @@
+# `argocd admin` Command Reference
+
 ## argocd admin
 
 Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access

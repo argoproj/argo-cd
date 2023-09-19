@@ -1,3 +1,5 @@
+# `argocd proj role delete` Command Reference
+
 ## argocd proj role delete
 
 Delete a project role

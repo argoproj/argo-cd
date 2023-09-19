@@ -1,3 +1,5 @@
+# `argocd admin notifications` Command Reference
+
 ## argocd admin notifications
 
 Set of CLI commands that helps manage notifications settings

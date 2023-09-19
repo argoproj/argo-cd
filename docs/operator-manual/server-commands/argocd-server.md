@@ -1,3 +1,5 @@
+# `argocd-server` Command Reference
+
 ## argocd-server
 
 Run the ArgoCD API server

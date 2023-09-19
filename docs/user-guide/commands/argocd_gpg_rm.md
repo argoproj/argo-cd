@@ -1,3 +1,5 @@
+# `argocd gpg rm` Command Reference
+
 ## argocd gpg rm
 
 Removes a GPG public key from the server's keyring
