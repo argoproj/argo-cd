@@ -14,7 +14,7 @@ approvers:
   - "@jannfis"
 
 creation-date: 2023-06-23
-last-updated: 2023-08-24
+last-updated: 2023-09-18
 ---
 
 # Decouple Application Sync using Impersonation
@@ -54,7 +54,7 @@ This proposal would allow ArgoCD administrators to manage the cluster permission
 ### Assumptions
 
 - Namespaces are pre-populated with one or more `ServiceAccounts` that define the permissions for each `AppProject`.
-- Many users prefer to control access to k8s resources through kubernetes RBAC constructs instead of Argo specific constructs.
+- Many users prefer to control access to kubernetes resources through kubernetes RBAC constructs instead of Argo specific constructs.
 - Each tenant is generally given access to a specific namespace along with a service account, role or cluster role and role binding to control access to that namespace.
 - An `AppProject` can either be mapped to a single tenant or multiple related tenants and the respective destinations that needs to be managed via the `AppProject`, needs to be configured.
 
@@ -117,17 +117,17 @@ So that, I can use a generic convention of naming service accounts and avoid ass
 
 #### Component : GitOps Engine
 
-Fix GitOps Engine code to honor Impersonate configuration set in the Application sync context for all kubectl commands that are being executed.
+- Fix GitOps Engine code to honor Impersonate configuration set in the Application sync context for all kubectl commands that are being executed.
 
 #### Component: ArgoCD API
 
-- Support new property `serviceAccountName` in `Destination` section of `AppProject`
+- Support new property `serviceAccountName` in `ApplicationDestination` section of `AppProject`
 
 - Documentation of the new fields
 
 #### Component: ArgoCD Application Controller
 
-- Provide a configuration in argocd-cm  which can be modified to enable the Impersonation feature. Set `applicationcontroller.enable.impersonation: true` in the Argo CD ConfigMap. Default value of `applicationcontroller.enable.impersonation` would be `false` and user has to explicitly override it to use this feature.
+- Provide a configuration in `argocd-cm`  which can be modified to enable the Impersonation feature. Set `applicationcontroller.enable.impersonation: true` in the Argo CD ConfigMap. Default value of `applicationcontroller.enable.impersonation` would be `false` and user has to explicitly override it to use this feature.
 
 - Provide an option to override the Impersonation feature using environment variables.
 Set `ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true` in the Application controller environment variables. Default value of the environment variable must be `false` and user has to explicitly set it to `true` to use this feature.
@@ -137,7 +137,7 @@ Set `ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true` in the Application
 - Fix Application Controller `sync.go` to set the Impersonate configuration from the AppProject CR to the `SyncContext` Object (rawConfig and restConfig field, need to understand which config is used for the actual sync and if both configs need to be impersonated.)
 #### Component: ArgoCD UI
 
-- Provide option to provide `serviceAccountName` for a `Destination` section in an `AppProject` created/updated via the web console.
+- Provide option to provide `serviceAccountName` for a `ApplicationDestination` section in an `AppProject` created/updated via the web console.
 - Update the User Guide documentation on how to use these newly added fields from the web console.
 #### Component: ArgoCD CLI
 
@@ -419,7 +419,7 @@ spec:
 
 There could be an issue of privilege escalation, if we allow users to impersonate without restrictions. This is mitigated by only allowing admin users to configure service account used for the sync operation at the `AppProject` level.
 
-Instead of allowing users to impersonate all possible users, administrators can restrict the users a particular service account can impersonate using the `resourceName` field in the RBAC spec.
+Instead of allowing users to impersonate all possible users, administrators can restrict the users a particular service account can impersonate using the `resourceNames` field in the RBAC spec.
 
 
 ### Upgrade / Downgrade Strategy
