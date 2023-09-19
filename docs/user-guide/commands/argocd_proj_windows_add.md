@@ -1,3 +1,5 @@
+# `argocd proj windows add` Command Reference
+
 ## argocd proj windows add
 
 Add a sync window to a project

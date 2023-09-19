@@ -1,3 +1,5 @@
+# `argocd admin settings resource-overrides health` Command Reference
+
 ## argocd admin settings resource-overrides health
 
 Assess resource health

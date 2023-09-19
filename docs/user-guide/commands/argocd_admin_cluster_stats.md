@@ -1,3 +1,5 @@
+# `argocd admin cluster stats` Command Reference
+
 ## argocd admin cluster stats
 
 Prints information cluster statistics and inferred shard number

@@ -1,3 +1,5 @@
+# `argocd app delete` Command Reference
+
 ## argocd app delete
 
 Delete an application

@@ -1,3 +1,5 @@
+# `argocd repo list` Command Reference
+
 ## argocd repo list
 
 List configured repositories

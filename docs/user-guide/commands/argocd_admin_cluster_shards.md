@@ -1,3 +1,5 @@
+# `argocd admin cluster shards` Command Reference
+
 ## argocd admin cluster shards
 
 Print information about each controller shard and portion of Kubernetes resources it is responsible for.
