@@ -1326,6 +1326,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
+	patch_ms := time.Duration(0) // time spent in doing patch/update calls
 	appKey, shutdown := ctrl.appRefreshQueue.Get()
 	if shutdown {
 		processNext = false
@@ -1367,6 +1368,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
 		logCtx.WithFields(log.Fields{
 			"time_ms":        reconcileDuration.Milliseconds(),
+			"patch_ms":       patch_ms.Milliseconds(),
 			"level":          comparisonLevel,
 			"dest-server":    origApp.Spec.Destination.Server,
 			"dest-name":      origApp.Spec.Destination.Name,
@@ -1388,7 +1390,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 				}
 			}
 
-			ctrl.persistAppStatus(origApp, &app.Status)
+			patch_ms = ctrl.persistAppStatus(origApp, &app.Status)
 			return
 		}
 	}
@@ -1397,7 +1399,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
-		ctrl.persistAppStatus(origApp, &app.Status)
+		patch_ms = ctrl.persistAppStatus(origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
 			log.Warnf("failed to set app resource tree: %v", err)
@@ -1487,7 +1489,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.SourceType = compareResult.appSourceType
 	app.Status.SourceTypes = compareResult.appSourceTypes
 	app.Status.ControllerNamespace = ctrl.namespace
-	ctrl.persistAppStatus(origApp, &app.Status)
+	patch_ms = ctrl.persistAppStatus(origApp, &app.Status)
 	return
 }
 
@@ -1602,7 +1604,8 @@ func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Applica
 }
 
 // persistAppStatus persists updates to application status. If no changes were made, it is a no-op
-func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) {
+func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) (patch_ms time.Duration) {
+	patch_ms := time.Duration(0)
 	logCtx := log.WithFields(log.Fields{"application": orig.QualifiedName()})
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
 		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
@@ -1631,6 +1634,11 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		logCtx.Infof("No status changes. Skipping patch")
 		return
 	}
+	// calculate time for path call
+	start := time.Now()
+	defer func() {
+		patch_ms = time.Since(start)
+	}()
 	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
 	_, err = appClient.Patch(context.Background(), orig.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
@@ -1638,6 +1646,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	} else {
 		logCtx.Infof("Update successful")
 	}
+	return patch_ms
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
