@@ -1,3 +1,5 @@
+# `argocd admin cluster generate-spec` Command Reference
+
 ## argocd admin cluster generate-spec
 
 Generate declarative config for a cluster

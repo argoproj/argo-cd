@@ -18,6 +18,7 @@ Here are some ways people are doing GitOps secrets:
 * [argocd-vault-plugin](https://github.com/argoproj-labs/argocd-vault-plugin)
 * [argocd-vault-replacer](https://github.com/crumbhole/argocd-vault-replacer)
 * [Kubernetes Secrets Store CSI Driver](https://github.com/kubernetes-sigs/secrets-store-csi-driver)
+* [Vals-Operator](https://github.com/digitalis-io/vals-operator)
 
 For discussion, see [#1364](https://github.com/argoproj/argo-cd/issues/1364)
 

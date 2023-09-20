@@ -1,3 +1,5 @@
+# `argocd app delete-resource` Command Reference
+
 ## argocd app delete-resource
 
 Delete resource in an application

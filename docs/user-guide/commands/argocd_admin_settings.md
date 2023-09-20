@@ -1,3 +1,5 @@
+# `argocd admin settings` Command Reference
+
 ## argocd admin settings
 
 Provides set of commands for settings validation and troubleshooting

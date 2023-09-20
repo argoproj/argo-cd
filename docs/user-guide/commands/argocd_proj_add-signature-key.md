@@ -1,3 +1,5 @@
+# `argocd proj add-signature-key` Command Reference
+
 ## argocd proj add-signature-key
 
 Add GnuPG signature key to project

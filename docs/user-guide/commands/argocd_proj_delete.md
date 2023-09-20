@@ -1,3 +1,5 @@
+# `argocd proj delete` Command Reference
+
 ## argocd proj delete
 
 Delete project
