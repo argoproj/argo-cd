@@ -57,6 +57,13 @@ corresponds to the `action` path `action/extensions/DaemonSet/restart`. You can
 also use glob patterns in the action path: `action/*` (or regex patterns if you have
 [enabled the `regex` match mode](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-rbac-cm.yaml)).
 
+If the resource is not under a group (for examples, Pods or ConfigMaps), then omit the group name from your RBAC
+configuration:
+
+```csv
+p, example-user, applications, action//Pod/maintenance-off, default/*, allow
+```
+
 #### The `exec` resource
 
 `exec` is a special resource. When enabled with the `create` action, this privilege allows a user to `exec` into Pods via 
