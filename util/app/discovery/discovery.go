@@ -78,12 +78,13 @@ func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManif
 			if err != nil {
 				log.Errorf("failed to decode %s: %v", path, err)
 			} else {
-				if obj["kind"] != nil && obj["apiVersion"] != nil && obj["metadata"] != nil {
+				if (obj["kind"] == "Service" || obj["kind"] == "Deployment") && obj["apiVersion"] != nil && obj["metadata"] != nil {
 					// if plain manifest for type Directory is inside 'templates' dir in helm app, we should not consider it as type 'Directory'
-					grandParentDir, _ := filepath.Rel(appPath, filepath.Dir(dir))
+					// ex. if current dir is dir1/templates , dir1 will be checked first for helm app and later, dir1/templates must not be considered
+					parentDir, _ := filepath.Rel(appPath, filepath.Dir(filepath.Dir(path)))
 
 					// helm and kustomize directory discovery must override plain directory discovery
-					if apps[dir] != string(v1alpha1.ApplicationSourceTypeKustomize) && apps[dir] != string(v1alpha1.ApplicationSourceTypeHelm) && apps[grandParentDir] != string(v1alpha1.ApplicationSourceTypeHelm) {
+					if apps[dir] != string(v1alpha1.ApplicationSourceTypeKustomize) && apps[dir] != string(v1alpha1.ApplicationSourceTypeHelm) && apps[parentDir] != string(v1alpha1.ApplicationSourceTypeHelm) {
 						apps[dir] = string(v1alpha1.ApplicationSourceTypeDirectory)
 					}
 				}
