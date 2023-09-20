@@ -281,7 +281,6 @@ func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.
 		} else {
 			parentNode[node.UID] = struct{}{}
 		}
-
 	}
 	return mapUidToNode, mapParentToChild, parentNode
 }
