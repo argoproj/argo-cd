@@ -1,3 +1,5 @@
+# `argocd app unset` Command Reference
+
 ## argocd app unset
 
 Unset application parameters

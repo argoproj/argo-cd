@@ -1,3 +1,5 @@
+# `argocd repocreds list` Command Reference
+
 ## argocd repocreds list
 
 List configured repository credentials
