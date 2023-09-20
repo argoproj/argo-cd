@@ -269,7 +269,6 @@ func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.
 	errors.CheckError(err)
 
 	for _, node := range resourceTree.Nodes {
-
 		mapUidToNode[node.UID] = node
 
 		if len(node.ParentRefs) > 0 {
