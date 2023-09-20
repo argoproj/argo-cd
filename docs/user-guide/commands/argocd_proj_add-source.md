@@ -1,3 +1,5 @@
+# `argocd proj add-source` Command Reference
+
 ## argocd proj add-source
 
 Add project source repository

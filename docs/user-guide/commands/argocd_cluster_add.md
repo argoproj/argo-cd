@@ -1,3 +1,5 @@
+# `argocd cluster add` Command Reference
+
 ## argocd cluster add
 
 argocd cluster add CONTEXT
