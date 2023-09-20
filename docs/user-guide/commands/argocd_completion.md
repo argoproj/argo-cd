@@ -1,3 +1,5 @@
+# `argocd completion` Command Reference
+
 ## argocd completion
 
 output shell completion code for the specified shell (bash or zsh)

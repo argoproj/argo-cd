@@ -1,3 +1,5 @@
+# `argocd proj role remove-policy` Command Reference
+
 ## argocd proj role remove-policy
 
 Remove a policy from a role within a project

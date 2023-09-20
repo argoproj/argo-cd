@@ -1,3 +1,5 @@
+# `argocd proj role get` Command Reference
+
 ## argocd proj role get
 
 Get the details of a specific role

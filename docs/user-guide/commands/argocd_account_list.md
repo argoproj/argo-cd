@@ -1,3 +1,5 @@
+# `argocd account list` Command Reference
+
 ## argocd account list
 
 List accounts

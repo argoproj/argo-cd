@@ -1,3 +1,5 @@
+# `argocd admin settings resource-overrides ignore-resource-updates` Command Reference
+
 ## argocd admin settings resource-overrides ignore-resource-updates
 
 Renders fields excluded from resource updates

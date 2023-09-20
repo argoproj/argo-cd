@@ -1,3 +1,5 @@
+# `argocd app actions list` Command Reference
+
 ## argocd app actions list
 
 Lists available actions on a resource

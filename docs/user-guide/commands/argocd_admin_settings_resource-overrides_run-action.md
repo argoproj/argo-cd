@@ -1,3 +1,5 @@
+# `argocd admin settings resource-overrides run-action` Command Reference
+
 ## argocd admin settings resource-overrides run-action
 
 Executes resource action

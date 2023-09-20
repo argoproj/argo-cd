@@ -1,3 +1,5 @@
+# `argocd proj get` Command Reference
+
 ## argocd proj get
 
 Get project details

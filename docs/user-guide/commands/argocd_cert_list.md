@@ -1,3 +1,5 @@
+# `argocd cert list` Command Reference
+
 ## argocd cert list
 
 List configured certificates

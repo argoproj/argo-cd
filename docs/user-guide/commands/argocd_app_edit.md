@@ -1,3 +1,5 @@
+# `argocd app edit` Command Reference
+
 ## argocd app edit
 
 Edit application
