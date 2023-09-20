@@ -358,22 +358,14 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				}
 			case "tree":
 				printHeader(acdClient, app, ctx, windows, showOperation, showParams)
-				mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
-				mapNodeNameToResourceState := make(map[string]*resourceState)
-				for _, res := range getResourceStates(app, nil) {
-					mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
-				}
+				mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(acdClient, ctx, appName, appNs, app)
 				if len(mapUidToNode) > 0 {
 					fmt.Println()
 					printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 				}
 			case "tree=detailed":
 				printHeader(acdClient, app, ctx, windows, showOperation, showParams)
-				mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
-				mapNodeNameToResourceState := make(map[string]*resourceState)
-				for _, res := range getResourceStates(app, nil) {
-					mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
-				}
+				mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(acdClient, ctx, appName, appNs, app)
 				if len(mapUidToNode) > 0 {
 					fmt.Println()
 					printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
@@ -2082,6 +2074,15 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	operational := !watch.operation || operationStatus == nil
 	return synced && healthCheckPassed && operational
 }
+func resourceParentChild(acdClient argocdclient.Client, ctx context.Context, appName string, appNs string, app *argoappv1.Application) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}, map[string]*resourceState) {
+	_, appIf := acdClient.NewApplicationClientOrDie()
+	mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
+	mapNodeNameToResourceState := make(map[string]*resourceState)
+	for _, res := range getResourceStates(app, nil) {
+		mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
+	}
+	return mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState
+}
 
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
@@ -2132,23 +2133,13 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				_ = w.Flush()
 			}
 		case "tree":
-			_, appIf := acdClient.NewApplicationClientOrDie()
-			mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
-			mapNodeNameToResourceState := make(map[string]*resourceState)
-			for _, res := range getResourceStates(app, nil) {
-				mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
-			}
+			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(acdClient, ctx, appName, appNs, app)
 			if len(mapUidToNode) > 0 {
 				fmt.Println()
 				printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 			}
 		case "tree=detailed":
-			_, appIf := acdClient.NewApplicationClientOrDie()
-			mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
-			mapNodeNameToResourceState := make(map[string]*resourceState)
-			for _, res := range getResourceStates(app, nil) {
-				mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
-			}
+			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(acdClient, ctx, appName, appNs, app)
 			if len(mapUidToNode) > 0 {
 				fmt.Println()
 				printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
