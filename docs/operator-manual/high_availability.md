@@ -79,6 +79,22 @@ spec:
 ```
 * In order to manually set the cluster's shard number, specify the optional `shard` property when creating a cluster. If not specified, it will be calculated on the fly by the application controller.
 
+* The application controller will use the configMap `argocd-app-controller-shard-cm` to store the controller to shard mapping and the heartbeat. The ConfigMap would look like:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+data:
+  shardControllerMapping:
+    - ControllerName: "example-controller"
+      ShardNumber: 0
+      Heartbeat: Wed Sep 20 08:05:26
+```
+
+The heartbeat of the controller will be updated during every cheack of readiness probe (that is every 10 seconds). 
+
 * The shard distribution algorithm of the `argocd-application-controller` can be set by using the `--sharding-method` parameter. Supported sharding methods are : [legacy (default), round-robin]. `legacy` mode uses an `uid` based distribution (non-uniform). `round-robin` uses an equal distribution across all shards. The `--sharding-method` parameter can also be overriden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifiying the same possible values.
 
 !!! warning "Alpha Feature"

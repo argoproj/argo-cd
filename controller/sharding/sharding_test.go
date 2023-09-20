@@ -672,9 +672,6 @@ func Test_getOrUpdateShardNumberForController(t *testing.T) {
 			heartbeatCurrentTime = func() metav1.Time { return expectedTime }
 			shard, shardMappingData := getOrUpdateShardNumberForController(tc.shardApplicationControllerMapping, tc.hostname, tc.replicas, tc.shard)
 			assert.Equal(t, tc.expectedShard, shard)
-			// for i, shardMapping := range shardMappingData {
-			// 	assert.True(t, tc.expectedShardMappingData[i].Equals(&shardMapping))
-			// }
 			assert.Equal(t, tc.expectedShardMappingData, shardMappingData)
 		})
 	}
