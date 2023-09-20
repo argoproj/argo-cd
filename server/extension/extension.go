@@ -500,7 +500,24 @@ func (m *Manager) UpdateExtensionRegistry(s *settings.ArgoCDSettings) error {
 	if err != nil {
 		return fmt.Errorf("error parsing extension config: %s", err)
 	}
-	return m.updateExtensionRegistry(extConfigs)
+	extReg := make(map[string]ProxyRegistry)
+	for _, ext := range extConfigs.Extensions {
+		proxyReg := NewProxyRegistry()
+		singleBackend := len(ext.Backend.Services) == 1
+		for _, service := range ext.Backend.Services {
+			proxy, err := NewProxy(service.URL, service.Headers, ext.Backend.ProxyConfig)
+			if err != nil {
+				return fmt.Errorf("error creating proxy: %s", err)
+			}
+			err = appendProxy(proxyReg, ext.Name, service, proxy, singleBackend)
+			if err != nil {
+				return fmt.Errorf("error appending proxy: %s", err)
+			}
+		}
+		extReg[ext.Name] = proxyReg
+	}
+	m.registry = extReg
+	return nil
 }
 
 // appendProxy will append the given proxy in the given registry. Will use
@@ -539,30 +556,6 @@ func appendProxy(registry ProxyRegistry,
 		}
 		registry[key] = proxy
 	}
-	return nil
-}
-
-// updateExtensionRegistry will iterate over the given extConfigs building
-// a new extension registry. At the end, if no errors are returned in
-// this process it updates the manager with the new created registry.
-func (m *Manager) updateExtensionRegistry(extConfigs *ExtensionConfigs) error {
-	extReg := make(map[string]ProxyRegistry)
-	for _, ext := range extConfigs.Extensions {
-		proxyReg := NewProxyRegistry()
-		singleBackend := len(ext.Backend.Services) == 1
-		for _, service := range ext.Backend.Services {
-			proxy, err := NewProxy(service.URL, service.Headers, ext.Backend.ProxyConfig)
-			if err != nil {
-				return fmt.Errorf("error creating proxy: %s", err)
-			}
-			err = appendProxy(proxyReg, ext.Name, service, proxy, singleBackend)
-			if err != nil {
-				return fmt.Errorf("error appending proxy: %s", err)
-			}
-		}
-		extReg[ext.Name] = proxyReg
-	}
-	m.registry = extReg
 	return nil
 }
 
