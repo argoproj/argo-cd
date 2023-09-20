@@ -1,3 +1,5 @@
+# `argocd app logs` Command Reference
+
 ## argocd app logs
 
 Get logs of application pods
@@ -9,9 +11,9 @@ argocd app logs APPNAME [flags]
 ### Options
 
 ```
-      --container string    Optional container name
+  -c, --container string    Optional container name
       --filter string       Show logs contain this string
-      --follow              Specify if the logs should be streamed
+  -f, --follow              Specify if the logs should be streamed
       --group string        Resource group
   -h, --help                help for logs
       --kind string         Resource kind

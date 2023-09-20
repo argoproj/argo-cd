@@ -1,3 +1,5 @@
+# `argocd proj windows` Command Reference
+
 ## argocd proj windows
 
 Manage a project's sync windows

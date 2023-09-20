@@ -1,3 +1,5 @@
+# `argocd proj windows update` Command Reference
+
 ## argocd proj windows update
 
 Update a project sync window

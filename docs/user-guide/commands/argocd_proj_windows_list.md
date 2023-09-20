@@ -1,3 +1,5 @@
+# `argocd proj windows list` Command Reference
+
 ## argocd proj windows list
 
 List project sync windows

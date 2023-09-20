@@ -233,6 +233,9 @@ func (s *Server) getApplicationEnforceRBACInformer(ctx context.Context, action, 
 func (s *Server) getApplicationEnforceRBACClient(ctx context.Context, action, project, namespace, name, resourceVersion string) (*appv1.Application, error) {
 	namespaceOrDefault := s.appNamespaceOrDefault(namespace)
 	return s.getAppEnforceRBAC(ctx, action, project, namespaceOrDefault, name, func() (*appv1.Application, error) {
+		if !s.isNamespaceEnabled(namespaceOrDefault) {
+			return nil, security.NamespaceNotPermittedError(namespaceOrDefault)
+		}
 		return s.appclientset.ArgoprojV1alpha1().Applications(namespaceOrDefault).Get(ctx, name, metav1.GetOptions{
 			ResourceVersion: resourceVersion,
 		})
@@ -644,6 +647,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	} else if len(projects) > 1 {
 		return nil, status.Errorf(codes.InvalidArgument, "multiple projects specified - the get endpoint accepts either zero or one project")
 	}
+
 	// We must use a client Get instead of an informer Get, because it's common to call Get immediately
 	// following a Watch (which is not yet powered by an informer), and the Get must reflect what was
 	// previously seen by the client.
