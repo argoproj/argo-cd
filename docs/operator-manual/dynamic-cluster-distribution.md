@@ -1,8 +1,8 @@
 # Dynamic Cluster Distribution
 
-Before Argo CD v2.9, sharding uses StatefulSet for the application controller. Although the application controller does not have any state to preserve, StatefulSets were used to get predictable hostnames and the serial number in the hostname was used to get the shard id of a particular instance.
+Sharding in Argo CD uses StatefulSet for the application controller. Although the application controller does not have any state to preserve, StatefulSets are used to get predictable hostnames and the serial number in the hostname is used to get the shard id of a particular instance.
 
-Using StatefulSet has the following limitations:
+But using StatefulSet has the following limitations:
 
 * Any change done to the StatefulSet would cause all the child pods to restart in a serial fashion. This makes scaling up/down of the application controller slow as even existing healthy instances need to be restarted as well. 
 
@@ -270,9 +270,9 @@ Along with the new mechanism of sharding using Deployments for Application Contr
 Application Controller will create a new ConfigMap named `argocd-app-controller-shard-cm` to store the Controller <-> Shard mapping. The mapping would look like below for each shard:
 
 ```yaml
-ControllerName: "argocd-application-controller-hydrxyt"
-ShardNumber: 0
-HeartbeatTime: "2009-11-17 20:34:58.651387237 +0000 UTC"
+ShardNumber    : 0
+ControllerName : "argocd-application-controller-hydrxyt"
+HeartbeatTime  : "2009-11-17 20:34:58.651387237 +0000 UTC"
 ```
 
 * `ControllerName`: Stores the hostname of the Application Controller pod
