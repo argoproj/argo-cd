@@ -1059,6 +1059,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 // in the given mux. If any error is returned while registering
 // extensions handlers, no route will be added in the given mux.
 func registerExtensions(mux *http.ServeMux, a *ArgoCDServer) {
+	a.log.Info("Registering extensions...")
 	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
 	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth)
 	// auth middleware ensures that requests to all extensions are authenticated first
@@ -1066,7 +1067,7 @@ func registerExtensions(mux *http.ServeMux, a *ArgoCDServer) {
 
 	err := a.extensionManager.RegisterExtensions()
 	if err != nil {
-		a.log.Errorf("error registering extensions: %s", err)
+		a.log.Errorf("Error registering extensions: %s", err)
 	}
 }
 
