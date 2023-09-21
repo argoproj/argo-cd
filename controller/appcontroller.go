@@ -1326,6 +1326,8 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
+	patchMs := time.Duration(0) // time spent in doing patch/update calls
+	setOpMs := time.Duration(0) // time spent in doing Operation patch calls in autosync
 	appKey, shutdown := ctrl.appRefreshQueue.Get()
 	if shutdown {
 		processNext = false
@@ -1367,6 +1369,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
 		logCtx.WithFields(log.Fields{
 			"time_ms":        reconcileDuration.Milliseconds(),
+			"patch_ms":       patchMs.Milliseconds(),
+			"setop_ms":       setOpMs.Milliseconds(),
 			"level":          comparisonLevel,
 			"dest-server":    origApp.Spec.Destination.Server,
 			"dest-name":      origApp.Spec.Destination.Name,
@@ -1388,7 +1392,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 				}
 			}
 
-			ctrl.persistAppStatus(origApp, &app.Status)
+			patchMs = ctrl.persistAppStatus(origApp, &app.Status)
 			return
 		}
 	}
@@ -1397,7 +1401,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
-		ctrl.persistAppStatus(origApp, &app.Status)
+		patchMs = ctrl.persistAppStatus(origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
 			log.Warnf("failed to set app resource tree: %v", err)
@@ -1459,7 +1463,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 
 	if project.Spec.SyncWindows.Matches(app).CanSync(false) {
-		syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
+		syncErrCond, opMS := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
+		setOpMs = opMS
 		if syncErrCond != nil {
 			app.Status.SetConditions(
 				[]appv1.ApplicationCondition{*syncErrCond},
@@ -1487,7 +1492,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.SourceType = compareResult.appSourceType
 	app.Status.SourceTypes = compareResult.appSourceTypes
 	app.Status.ControllerNamespace = ctrl.namespace
-	ctrl.persistAppStatus(origApp, &app.Status)
+	patchMs = ctrl.persistAppStatus(origApp, &app.Status)
 	return
 }
 
@@ -1602,7 +1607,7 @@ func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Applica
 }
 
 // persistAppStatus persists updates to application status. If no changes were made, it is a no-op
-func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) {
+func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) (patchMs time.Duration) {
 	logCtx := log.WithFields(log.Fields{"application": orig.QualifiedName()})
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
 		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
@@ -1631,6 +1636,11 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		logCtx.Infof("No status changes. Skipping patch")
 		return
 	}
+	// calculate time for path call
+	start := time.Now()
+	defer func() {
+		patchMs = time.Since(start)
+	}()
 	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
 	_, err = appClient.Patch(context.Background(), orig.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
@@ -1638,29 +1648,30 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	} else {
 		logCtx.Infof("Update successful")
 	}
+	return patchMs
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
-func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus) *appv1.ApplicationCondition {
+func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus) (*appv1.ApplicationCondition, time.Duration) {
 	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
-		return nil
+		return nil, 0
 	}
 	logCtx := log.WithFields(log.Fields{"application": app.QualifiedName()})
 
 	if app.Operation != nil {
 		logCtx.Infof("Skipping auto-sync: another operation is in progress")
-		return nil
+		return nil, 0
 	}
 	if app.DeletionTimestamp != nil && !app.DeletionTimestamp.IsZero() {
 		logCtx.Infof("Skipping auto-sync: deletion in progress")
-		return nil
+		return nil, 0
 	}
 
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
 		logCtx.Infof("Skipping auto-sync: application status is %s", syncStatus.Status)
-		return nil
+		return nil, 0
 	}
 
 	if !app.Spec.SyncPolicy.Automated.Prune {
@@ -1673,7 +1684,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 		if requirePruneOnly {
 			logCtx.Infof("Skipping auto-sync: need to prune extra resources only but automated prune is disabled")
-			return nil
+			return nil, 0
 		}
 	}
 
@@ -1702,10 +1713,10 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		if !attemptPhase.Successful() {
 			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s", desiredCommitSHA)
 			message := fmt.Sprintf("Failed sync attempt to %s: %s", desiredCommitSHA, app.Status.OperationState.Message)
-			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}
+			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
 		}
 		logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredCommitSHA)
-		return nil
+		return nil, 0
 	} else if alreadyAttempted && selfHeal {
 		if shouldSelfHeal, retryAfter := ctrl.shouldSelfHeal(app); shouldSelfHeal {
 			for _, resource := range resources {
@@ -1720,7 +1731,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		} else {
 			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredCommitSHA, ctrl.selfHealTimeout, retryAfter)
 			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
-			return nil
+			return nil, 0
 		}
 
 	}
@@ -1735,19 +1746,22 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		if bAllNeedPrune {
 			message := fmt.Sprintf("Skipping sync attempt to %s: auto-sync will wipe out all resources", desiredCommitSHA)
 			logCtx.Warnf(message)
-			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}
+			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
 		}
 	}
+
 	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
+	start := time.Now()
 	_, err := argo.SetAppOperation(appIf, app.Name, &op)
+	setOpTime := time.Since(start)
 	if err != nil {
 		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
-		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}
+		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, setOpTime
 	}
 	message := fmt.Sprintf("Initiated automated sync to '%s'", desiredCommitSHA)
 	ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message, "")
 	logCtx.Info(message)
-	return nil
+	return nil, setOpTime
 }
 
 // alreadyAttemptedSync returns whether the most recent sync was performed against the
