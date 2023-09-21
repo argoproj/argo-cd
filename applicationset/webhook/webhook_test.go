@@ -162,7 +162,7 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithGitGenerator("git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithGitGenerator("git-gitlab", namespace, "https://gitlab/group/name"),
 				fakeAppWithGithubPullRequestGenerator("pull-request-github", namespace, "Codertocat", "Hello-World"),
-				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "100500"),
+				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "group/name"),
 				fakeAppWithPluginGenerator("plugin", namespace),
 				fakeAppWithMatrixAndGitGenerator("matrix-git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithMatrixAndPullRequestGenerator("matrix-pull-request-github", namespace, "Codertocat", "Hello-World"),
@@ -297,7 +297,7 @@ func fakeAppWithGitGenerator(name, namespace, repo string) *v1alpha1.Application
 	}
 }
 
-func fakeAppWithGitlabPullRequestGenerator(name, namespace, projectId string) *v1alpha1.ApplicationSet {
+func fakeAppWithGitlabPullRequestGenerator(name, namespace, projectNameWithNamespace string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -308,7 +308,7 @@ func fakeAppWithGitlabPullRequestGenerator(name, namespace, projectId string) *v
 				{
 					PullRequest: &v1alpha1.PullRequestGenerator{
 						GitLab: &v1alpha1.PullRequestGeneratorGitLab{
-							Project: projectId,
+							Project: projectNameWithNamespace,
 						},
 					},
 				},
