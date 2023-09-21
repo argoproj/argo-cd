@@ -22,7 +22,7 @@ kubectl apply -n argocd --force -f manifests/install.yaml
 Make sure that Argo CD is not running in your development cluster by scaling down the deployments:
 
 ```shell
-kubectl -n argocd scale deployment/argocd-application-controller --replicas 0
+kubectl -n argocd scale statefulset/argocd-application-controller --replicas 0
 kubectl -n argocd scale deployment/argocd-dex-server --replicas 0
 kubectl -n argocd scale deployment/argocd-repo-server --replicas 0
 kubectl -n argocd scale deployment/argocd-server --replicas 0
@@ -166,7 +166,7 @@ kind delete cluster; rm -f ~/.kube/config-kind
 Once you have finished testing your changes locally and want to bring back Argo CD in your development cluster, simply scale the deployments up again:
 
 ```bash
-kubectl -n argocd scale deployment/argocd-application-controller --replicas 1
+kubectl -n argocd scale statefulset/argocd-application-controller --replicas 1
 kubectl -n argocd scale deployment/argocd-dex-server --replicas 1
 kubectl -n argocd scale deployment/argocd-repo-server --replicas 1
 kubectl -n argocd scale deployment/argocd-server --replicas 1
