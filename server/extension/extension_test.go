@@ -178,6 +178,7 @@ func TestRegisterExtensions(t *testing.T) {
 			assert.True(t, found)
 			assert.NotNil(t, proxyRegistry)
 		}
+
 	})
 	t.Run("will return error if extension config is invalid", func(t *testing.T) {
 		// given
@@ -724,6 +725,10 @@ func getExtensionConfigString() string {
 extensions:
 - name: external-backend
   backend:
+    connectionTimeout: 10s
+    keepAlive: 11s
+    idleConnectionTimeout: 12s
+    maxIdleConnections: 30
     services:
     - url: https://httpbin.org
       headers:

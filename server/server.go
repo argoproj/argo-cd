@@ -667,6 +667,7 @@ func (a *ArgoCDServer) watchSettings() {
 			break
 		}
 		if prevExtConfig != a.settings.ExtensionConfig {
+			prevExtConfig = a.settings.ExtensionConfig
 			log.Infof("extensions configs modified. Updating proxy registry...")
 			err := a.extensionManager.UpdateExtensionRegistry(a.settings)
 			if err != nil {

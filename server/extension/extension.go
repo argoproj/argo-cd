@@ -13,7 +13,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"sigs.k8s.io/yaml"
+	"gopkg.in/yaml.v3"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -125,15 +125,15 @@ func getAppName(appHeader string) (string, string, error) {
 // ExtensionConfigs defines the configurations for all extensions
 // retrieved from Argo CD configmap (argocd-cm).
 type ExtensionConfigs struct {
-	Extensions []ExtensionConfig `json:"extensions"`
+	Extensions []ExtensionConfig `yaml:"extensions"`
 }
 
 // ExtensionConfig defines the configuration for one extension.
 type ExtensionConfig struct {
 	// Name defines the endpoint that will be used to register
 	// the extension route. Mandatory field.
-	Name    string        `json:"name"`
-	Backend BackendConfig `json:"backend"`
+	Name    string        `yaml:"name"`
+	Backend BackendConfig `yaml:"backend"`
 }
 
 // BackendConfig defines the backend service configurations that will
@@ -143,30 +143,30 @@ type ExtensionConfig struct {
 // service.
 type BackendConfig struct {
 	ProxyConfig
-	Services []ServiceConfig `json:"services"`
+	Services []ServiceConfig `yaml:"services"`
 }
 
 // ServiceConfig provides the configuration for a backend service.
 type ServiceConfig struct {
 	// URL is the address where the extension backend must be available.
 	// Mandatory field.
-	URL string `json:"url"`
+	URL string `yaml:"url"`
 
 	// Cluster if provided, will have to match the application
 	// destination name to have requests properly forwarded to this
 	// service URL.
-	Cluster *ClusterConfig `json:"cluster,omitempty"`
+	Cluster *ClusterConfig `yaml:"cluster,omitempty"`
 
 	// Headers if provided, the headers list will be added on all
 	// outgoing requests for this service config.
-	Headers []Header `json:"headers"`
+	Headers []Header `yaml:"headers"`
 }
 
 // Header defines the header to be added in the proxy requests.
 type Header struct {
 	// Name defines the name of the header. It is a mandatory field if
 	// a header is provided.
-	Name string `json:"name"`
+	Name string `yaml:"name"`
 	// Value defines the value of the header. The actual value can be
 	// provided as verbatim or as a reference to an Argo CD secret key.
 	// In order to provide it as a reference, it is necessary to prefix
@@ -175,15 +175,15 @@ type Header struct {
 	//   value: '$some.argocd.secret.key'
 	// In the example above, the value will be replaced with the one from
 	// the argocd-secret with key 'some.argocd.secret.key'.
-	Value string `json:"value"`
+	Value string `yaml:"value"`
 }
 
 type ClusterConfig struct {
 	// Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.
-	Server string `json:"server"`
+	Server string `yaml:"server"`
 
 	// Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.
-	Name string `json:"name"`
+	Name string `yaml:"name"`
 }
 
 // ProxyConfig allows configuring connection behaviour between Argo CD
@@ -192,24 +192,24 @@ type ProxyConfig struct {
 	// ConnectionTimeout is the maximum amount of time a dial to
 	// the extension server will wait for a connect to complete.
 	// Default: 2 seconds
-	ConnectionTimeout time.Duration `json:"connectionTimeout"`
+	ConnectionTimeout time.Duration `yaml:"connectionTimeout"`
 
 	// KeepAlive specifies the interval between keep-alive probes
 	// for an active network connection between the API server and
 	// the extension server.
 	// Default: 15 seconds
-	KeepAlive time.Duration `json:"keepAlive"`
+	KeepAlive time.Duration `yaml:"keepAlive"`
 
 	// IdleConnectionTimeout is the maximum amount of time an idle
 	// (keep-alive) connection between the API server and the extension
 	// server will remain idle before closing itself.
 	// Default: 60 seconds
-	IdleConnectionTimeout time.Duration `json:"idleConnectionTimeout"`
+	IdleConnectionTimeout time.Duration `yaml:"idleConnectionTimeout"`
 
 	// MaxIdleConnections controls the maximum number of idle (keep-alive)
 	// connections between the API server and the extension server.
 	// Default: 30
-	MaxIdleConnections int `json:"maxIdleConnections"`
+	MaxIdleConnections int `yaml:"maxIdleConnections"`
 }
 
 // SettingsGetter defines the contract to retrieve Argo CD Settings.
