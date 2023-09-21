@@ -18,6 +18,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Checkout prisma automation repo
+        uses: actions/checkout@v3
+        with:
+          repository: betterup/automate-prisma-issues
+          path: automate-prisma-issues
+          token: ${{ secrets.PRISMA_TOKEN }}
+
       - name: Login to Ironbank Registry
         uses: docker/login-action@v1
         with:
@@ -49,7 +56,42 @@ jobs:
           pcc_user: ${{ secrets.PCC_USER }}
           pcc_pass: ${{ secrets.PCC_PASS }}
           image_name: ${{ env.IMAGE_NAME }}
-      
+
+      - name: Install jq
+        run: sudo apt-get install jq
+
+      - name: Authenticate and get prisma token
+        id: get-token
+        shell: bash
+        run: |
+          TOKEN=$(curl -s -k -X POST -H "Content-Type: application/json" -d '{"username": "${{ secrets.PCC_USER }}", "password": "${{ secrets.PCC_PASS }}"}' ${{ secrets.PCC_CONSOLE_URL }}/api/v1/authenticate | jq -r '.token')
+          echo "PRISMA_TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - name: Parse ID and set as env var
+        run: |
+          IMAGE_SHA=$(jq '.results[0].id' pcc_scan_results.json)
+          echo "IMAGE_SHA=$IMAGE_SHA" >> $GITHUB_ENV
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r automate-prisma-issues/requirements.txt
+
+      - name: Update prisma jira issues
+        run: |
+          python automate-prisma-issues/script.py ${{ env.IMAGE_SHA }}
+        env:
+          PRISMA_SCAN_JIRA_BASE_URL: ${{ vars.PRISMA_SCAN_JIRA_BASE_URL }}
+          PRISMA_SCAN_JIRA_USER_EMAIL: ${{ vars.PRISMA_SCAN_JIRA_USER_EMAIL }}
+          PRISMA_SCAN_JIRA_API_TOKEN: ${{ secrets.PRISMA_SCAN_JIRA_API_TOKEN }}
+          PRISMA_CLOUD_URL: ${{ secrets.PCC_CONSOLE_URL }}
+          PRISMA_TOKEN: ${{ env.PRISMA_TOKEN }}
+
       - name: Install Cosign
         uses: sigstore/cosign-installer@main
 
@@ -65,4 +107,3 @@ jobs:
           TAGS: ghcr.io/${{ env.IMAGE_NAME }}
           COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
           COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
-
