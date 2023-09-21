@@ -596,7 +596,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 				Properties: map[string]spec.Schema{
 					"server": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API",
+							Description: "Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -610,7 +610,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 					},
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name is an alternate way of specifying the target cluster by its symbolic name",
+							Description: "Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -715,6 +715,20 @@ func schema_pkg_apis_application_v1alpha1_ApplicationPreservedFields(ref common.
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"annotations": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"labels": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
 							Items: &spec.SchemaOrArray{
@@ -5578,6 +5592,18 @@ func schema_pkg_apis_application_v1alpha1_ResourceAction(ref common.ReferenceCal
 							Format: "",
 						},
 					},
+					"iconClass": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"displayName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},
@@ -6998,6 +7024,20 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref common.
 						SchemaProps: spec.SchemaProps{
 							Description: "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false",
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"includeSharedProjects": {
+						SchemaProps: spec.SchemaProps{
+							Description: "When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to \"true\"",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"topic": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Filter repos list based on Gitlab Topic.",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},

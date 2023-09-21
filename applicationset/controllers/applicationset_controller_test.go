@@ -21,8 +21,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -41,6 +43,34 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
+
+type fakeStore struct {
+	k8scache.Store
+}
+
+func (f *fakeStore) Update(obj interface{}) error {
+	return nil
+}
+
+type fakeInformer struct {
+	k8scache.SharedInformer
+}
+
+func (f *fakeInformer) AddIndexers(indexers k8scache.Indexers) error {
+	return nil
+}
+
+func (f *fakeInformer) GetStore() k8scache.Store {
+	return &fakeStore{}
+}
+
+type fakeCache struct {
+	cache.Cache
+}
+
+func (f *fakeCache) GetInformer(ctx context.Context, obj crtclient.Object) (cache.Informer, error) {
+	return &fakeInformer{}, nil
+}
 
 type generatorMock struct {
 	mock.Mock
@@ -167,9 +197,6 @@ func TestExtractApplications(t *testing.T) {
 			if cc.generateParamsError == nil {
 				for _, p := range cc.params {
 
-					tmpApplication := getTempApplication(cc.template)
-					tmpApplication.Labels[LabelKeyAppSetInstance] = appSet.Name
-
 					if cc.rendererError != nil {
 						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p, false, []string(nil)).
 							Return(nil, cc.rendererError)
@@ -190,6 +217,7 @@ func TestExtractApplications(t *testing.T) {
 				},
 				Renderer:      &rendererMock,
 				KubeClientset: kubefake.NewSimpleClientset(),
+				Cache:         &fakeCache{},
 			}
 
 			got, reason, err := r.generateApplications(v1alpha1.ApplicationSet{
@@ -291,21 +319,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 
 			rendererMock := rendererMock{}
 
-			appSet := &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Generators: []v1alpha1.ApplicationSetGenerator{generator},
-					Template:   cc.template,
-				},
-			}
-
-			tmpApplication := getTempApplication(cc.expectedMerged)
-			tmpApplication.Labels[LabelKeyAppSetInstance] = appSet.Name
-
-			rendererMock.On("RenderTemplateParams", tmpApplication, cc.params[0], false, []string(nil)).
+			rendererMock.On("RenderTemplateParams", getTempApplication(cc.expectedMerged), cc.params[0], false, []string(nil)).
 				Return(&cc.expectedApps[0], nil)
 
 			r := ApplicationSetReconciler{
@@ -319,7 +333,17 @@ func TestMergeTemplateApplications(t *testing.T) {
 				KubeClientset: kubefake.NewSimpleClientset(),
 			}
 
-			got, _, _ := r.generateApplications(*appSet)
+			got, _, _ := r.generateApplications(v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{generator},
+					Template:   cc.template,
+				},
+			},
+			)
 
 			assert.Equal(t, cc.expectedApps, got)
 		})
@@ -976,6 +1000,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				Client:   client,
 				Scheme:   scheme,
 				Recorder: record.NewFakeRecorder(len(initObjs) + len(c.expected)),
+				Cache:    &fakeCache{},
 			}
 
 			err = r.createOrUpdateInCluster(context.TODO(), c.appSet, c.desiredApps)
@@ -1089,6 +1114,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
+				Cache:         &fakeCache{},
 			}
 			//settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
 			//argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
@@ -1250,6 +1276,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
+				Cache:         &fakeCache{},
 			}
 			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd")
 			// argoDB := db.NewDB("argocd", settingsMgr, r.KubeClientset)
@@ -1461,6 +1488,7 @@ func TestCreateApplications(t *testing.T) {
 				Client:   client,
 				Scheme:   scheme,
 				Recorder: record.NewFakeRecorder(len(initObjs) + len(c.expected)),
+				Cache:    &fakeCache{},
 			}
 
 			err = r.createInCluster(context.TODO(), c.appSet, c.apps)
@@ -1668,6 +1696,7 @@ func TestGetMinRequeueAfter(t *testing.T) {
 		Client:   client,
 		Scheme:   scheme,
 		Recorder: record.NewFakeRecorder(0),
+		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List":     &generatorMock10,
 			"Git":      &generatorMock1,
@@ -1881,6 +1910,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
+				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoCDNamespace:  "namespace",
@@ -1985,6 +2015,7 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(1),
+		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -2005,7 +2036,7 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 	// Verify that on validation error, no error is returned, but the object is requeued
 	res, err := r.Reconcile(context.Background(), req)
 	assert.Nil(t, err)
-	assert.True(t, res.RequeueAfter == 0)
+	assert.True(t, res.RequeueAfter == ReconcileRequeueOnValidationError)
 
 	var app v1alpha1.Application
 
@@ -2061,6 +2092,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(1),
+		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -2135,6 +2167,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(recordBuffer),
+		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -2171,7 +2204,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	assert.Nil(t, err)
 
 	retrievedApplicationSet.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
-	retrievedApplicationSet.Spec.Template.Labels = map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}
+	retrievedApplicationSet.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
 
 	retrievedApplicationSet.Spec.Template.Spec.Source.Helm = &v1alpha1.ApplicationSourceHelm{
 		Values: "global.test: test",
@@ -2199,7 +2232,6 @@ func TestUpdateNotPerformedWithSyncPolicyCreateOnly(t *testing.T) {
 
 	assert.Nil(t, app.Spec.Source.Helm)
 	assert.Nil(t, app.ObjectMeta.Annotations)
-	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdateNotPerformedWithSyncPolicyCreateDelete(t *testing.T) {
@@ -2210,7 +2242,6 @@ func TestUpdateNotPerformedWithSyncPolicyCreateDelete(t *testing.T) {
 
 	assert.Nil(t, app.Spec.Source.Helm)
 	assert.Nil(t, app.ObjectMeta.Annotations)
-	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdatePerformedWithSyncPolicyCreateUpdate(t *testing.T) {
@@ -2221,7 +2252,7 @@ func TestUpdatePerformedWithSyncPolicyCreateUpdate(t *testing.T) {
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
 	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
-	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}, app.ObjectMeta.Labels)
+	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdatePerformedWithSyncPolicySync(t *testing.T) {
@@ -2232,7 +2263,7 @@ func TestUpdatePerformedWithSyncPolicySync(t *testing.T) {
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
 	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
-	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}, app.ObjectMeta.Labels)
+	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
@@ -2243,7 +2274,7 @@ func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *t
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
 	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
-	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}, app.ObjectMeta.Labels)
+	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.ApplicationList {
@@ -2306,6 +2337,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(recordBuffer),
+		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -2451,8 +2483,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "AppSet-branch1-1",
 						Labels: map[string]string{
-							"app1":                 "label1",
-							LabelKeyAppSetInstance: "",
+							"app1": "label1",
 						},
 					},
 					Spec: v1alpha1.ApplicationSpec{
@@ -2487,6 +2518,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 				Client:   client,
 				Scheme:   scheme,
 				Recorder: record.NewFakeRecorder(1),
+				Cache:    &fakeCache{},
 				Generators: map[string]generators.Generator{
 					"PullRequest": &generatorMock,
 				},
@@ -2611,6 +2643,7 @@ func TestPolicies(t *testing.T) {
 				Scheme:   scheme,
 				Renderer: &utils.Render{},
 				Recorder: record.NewFakeRecorder(10),
+				Cache:    &fakeCache{},
 				Generators: map[string]generators.Generator{
 					"List": generators.NewListGenerator(),
 				},
@@ -2773,6 +2806,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 				Scheme:   scheme,
 				Renderer: &utils.Render{},
 				Recorder: record.NewFakeRecorder(1),
+				Cache:    &fakeCache{},
 				Generators: map[string]generators.Generator{
 					"List": generators.NewListGenerator(),
 				},
@@ -3537,6 +3571,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
+				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
@@ -4130,6 +4165,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
+				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
@@ -4789,6 +4825,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
+				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
@@ -5542,6 +5579,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
+				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),

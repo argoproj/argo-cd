@@ -1248,40 +1248,44 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 }
 
 func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
-	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		if state.Phase == "" {
-			// expose any bugs where we neglect to set phase
-			panic("no phase was set")
-		}
-		if state.Phase.Completed() {
-			now := metav1.Now()
-			state.FinishedAt = &now
-		}
-		patch := map[string]interface{}{
-			"status": map[string]interface{}{
-				"operationState": state,
-			},
-		}
-		if state.Phase.Completed() {
-			// If operation is completed, clear the operation field to indicate no operation is
-			// in progress.
-			patch["operation"] = nil
-		}
-		if reflect.DeepEqual(app.Status.OperationState, state) {
-			log.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
-			return nil
-		}
-		patchJSON, err := json.Marshal(patch)
-		if err != nil {
-			return fmt.Errorf("error marshaling json: %w", err)
-		}
-		if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
-			patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
-			if err != nil {
-				return fmt.Errorf("error merging operation state patch: %w", err)
-			}
-		}
+	logCtx := log.WithFields(log.Fields{"application": app.Name, "appNamespace": app.Namespace, "project": app.Spec.Project})
 
+	if state.Phase == "" {
+		// expose any bugs where we neglect to set phase
+		panic("no phase was set")
+	}
+	if state.Phase.Completed() {
+		now := metav1.Now()
+		state.FinishedAt = &now
+	}
+	patch := map[string]interface{}{
+		"status": map[string]interface{}{
+			"operationState": state,
+		},
+	}
+	if state.Phase.Completed() {
+		// If operation is completed, clear the operation field to indicate no operation is
+		// in progress.
+		patch["operation"] = nil
+	}
+	if reflect.DeepEqual(app.Status.OperationState, state) {
+		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
+		return
+	}
+	patchJSON, err := json.Marshal(patch)
+	if err != nil {
+		logCtx.Errorf("error marshaling json: %v", err)
+		return
+	}
+	if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
+		patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
+		if err != nil {
+			logCtx.Errorf("error merging operation state patch: %v", err)
+			return
+		}
+	}
+
+	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 		_, err = appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
@@ -1289,35 +1293,41 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			if apierr.IsNotFound(err) {
 				return nil
 			}
+			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
+			// warning.
+			logCtx.Warnf("error patching application with operation state: %v", err)
 			return fmt.Errorf("error patching application with operation state: %w", err)
-		}
-		log.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
-		if state.Phase.Completed() {
-			eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
-			var messages []string
-			if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
-				messages = []string{"Partial sync operation"}
-			} else {
-				messages = []string{"Sync operation"}
-			}
-			if state.SyncResult != nil {
-				messages = append(messages, "to", state.SyncResult.Revision)
-			}
-			if state.Phase.Successful() {
-				eventInfo.Type = v1.EventTypeNormal
-				messages = append(messages, "succeeded")
-			} else {
-				eventInfo.Type = v1.EventTypeWarning
-				messages = append(messages, "failed:", state.Message)
-			}
-			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "), "")
-			ctrl.metricsServer.IncSync(app, state)
 		}
 		return nil
 	})
+
+	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
+	if state.Phase.Completed() {
+		eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
+		var messages []string
+		if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
+			messages = []string{"Partial sync operation"}
+		} else {
+			messages = []string{"Sync operation"}
+		}
+		if state.SyncResult != nil {
+			messages = append(messages, "to", state.SyncResult.Revision)
+		}
+		if state.Phase.Successful() {
+			eventInfo.Type = v1.EventTypeNormal
+			messages = append(messages, "succeeded")
+		} else {
+			eventInfo.Type = v1.EventTypeWarning
+			messages = append(messages, "failed:", state.Message)
+		}
+		ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "), "")
+		ctrl.metricsServer.IncSync(app, state)
+	}
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
+	patchMs := time.Duration(0) // time spent in doing patch/update calls
+	setOpMs := time.Duration(0) // time spent in doing Operation patch calls in autosync
 	appKey, shutdown := ctrl.appRefreshQueue.Get()
 	if shutdown {
 		processNext = false
@@ -1359,6 +1369,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
 		logCtx.WithFields(log.Fields{
 			"time_ms":        reconcileDuration.Milliseconds(),
+			"patch_ms":       patchMs.Milliseconds(),
+			"setop_ms":       setOpMs.Milliseconds(),
 			"level":          comparisonLevel,
 			"dest-server":    origApp.Spec.Destination.Server,
 			"dest-name":      origApp.Spec.Destination.Name,
@@ -1380,7 +1392,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 				}
 			}
 
-			ctrl.persistAppStatus(origApp, &app.Status)
+			patchMs = ctrl.persistAppStatus(origApp, &app.Status)
 			return
 		}
 	}
@@ -1389,7 +1401,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
-		ctrl.persistAppStatus(origApp, &app.Status)
+		patchMs = ctrl.persistAppStatus(origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
 			log.Warnf("failed to set app resource tree: %v", err)
@@ -1451,7 +1463,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 
 	if project.Spec.SyncWindows.Matches(app).CanSync(false) {
-		syncErrCond := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
+		syncErrCond, opMS := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
+		setOpMs = opMS
 		if syncErrCond != nil {
 			app.Status.SetConditions(
 				[]appv1.ApplicationCondition{*syncErrCond},
@@ -1479,7 +1492,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.SourceType = compareResult.appSourceType
 	app.Status.SourceTypes = compareResult.appSourceTypes
 	app.Status.ControllerNamespace = ctrl.namespace
-	ctrl.persistAppStatus(origApp, &app.Status)
+	patchMs = ctrl.persistAppStatus(origApp, &app.Status)
 	return
 }
 
@@ -1594,7 +1607,7 @@ func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Applica
 }
 
 // persistAppStatus persists updates to application status. If no changes were made, it is a no-op
-func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) {
+func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) (patchMs time.Duration) {
 	logCtx := log.WithFields(log.Fields{"application": orig.QualifiedName()})
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
 		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
@@ -1623,6 +1636,11 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		logCtx.Infof("No status changes. Skipping patch")
 		return
 	}
+	// calculate time for path call
+	start := time.Now()
+	defer func() {
+		patchMs = time.Since(start)
+	}()
 	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
 	_, err = appClient.Patch(context.Background(), orig.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
@@ -1630,29 +1648,30 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	} else {
 		logCtx.Infof("Update successful")
 	}
+	return patchMs
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
-func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus) *appv1.ApplicationCondition {
+func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus) (*appv1.ApplicationCondition, time.Duration) {
 	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
-		return nil
+		return nil, 0
 	}
 	logCtx := log.WithFields(log.Fields{"application": app.QualifiedName()})
 
 	if app.Operation != nil {
 		logCtx.Infof("Skipping auto-sync: another operation is in progress")
-		return nil
+		return nil, 0
 	}
 	if app.DeletionTimestamp != nil && !app.DeletionTimestamp.IsZero() {
 		logCtx.Infof("Skipping auto-sync: deletion in progress")
-		return nil
+		return nil, 0
 	}
 
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
 		logCtx.Infof("Skipping auto-sync: application status is %s", syncStatus.Status)
-		return nil
+		return nil, 0
 	}
 
 	if !app.Spec.SyncPolicy.Automated.Prune {
@@ -1665,7 +1684,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 		if requirePruneOnly {
 			logCtx.Infof("Skipping auto-sync: need to prune extra resources only but automated prune is disabled")
-			return nil
+			return nil, 0
 		}
 	}
 
@@ -1694,10 +1713,10 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		if !attemptPhase.Successful() {
 			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s", desiredCommitSHA)
 			message := fmt.Sprintf("Failed sync attempt to %s: %s", desiredCommitSHA, app.Status.OperationState.Message)
-			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}
+			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
 		}
 		logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredCommitSHA)
-		return nil
+		return nil, 0
 	} else if alreadyAttempted && selfHeal {
 		if shouldSelfHeal, retryAfter := ctrl.shouldSelfHeal(app); shouldSelfHeal {
 			for _, resource := range resources {
@@ -1712,7 +1731,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		} else {
 			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredCommitSHA, ctrl.selfHealTimeout, retryAfter)
 			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
-			return nil
+			return nil, 0
 		}
 
 	}
@@ -1727,19 +1746,22 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		if bAllNeedPrune {
 			message := fmt.Sprintf("Skipping sync attempt to %s: auto-sync will wipe out all resources", desiredCommitSHA)
 			logCtx.Warnf(message)
-			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}
+			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
 		}
 	}
+
 	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
+	start := time.Now()
 	_, err := argo.SetAppOperation(appIf, app.Name, &op)
+	setOpTime := time.Since(start)
 	if err != nil {
 		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
-		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}
+		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, setOpTime
 	}
 	message := fmt.Sprintf("Initiated automated sync to '%s'", desiredCommitSHA)
 	ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message, "")
 	logCtx.Info(message)
-	return nil
+	return nil, setOpTime
 }
 
 // alreadyAttemptedSync returns whether the most recent sync was performed against the
@@ -1795,6 +1817,12 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool,
 	return retryAfter <= 0, retryAfter
 }
 
+// isAppNamespaceAllowed returns whether the application is allowed in the
+// namespace it's residing in.
+func (ctrl *ApplicationController) isAppNamespaceAllowed(app *appv1.Application) bool {
+	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false)
+}
+
 func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 	app, ok := obj.(*appv1.Application)
 	if !ok {
@@ -1803,7 +1831,7 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 
 	// Only process given app if it exists in a watched namespace, or in the
 	// control plane's namespace.
-	if app.Namespace != ctrl.namespace && !glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
+	if !ctrl.isAppNamespaceAllowed(app) {
 		return false
 	}
 
@@ -1854,7 +1882,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 				newItems := []appv1.Application{}
 				for _, app := range appList.Items {
-					if ctrl.namespace == app.Namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
+					if ctrl.isAppNamespaceAllowed(&app) {
 						newItems = append(newItems, app)
 					}
 				}
@@ -1871,20 +1899,24 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
 				app, ok := obj.(*appv1.Application)
 				if ok {
-					// This call to 'ValidateDestination' ensures that the .spec.destination field of all Applications
-					// returned by the informer/lister will have server field set (if not already set) based on the name.
-					// (or, if not found, an error app condition)
+					// We only generally work with applications that are in one
+					// the allowed namespaces.
+					if ctrl.isAppNamespaceAllowed(app) {
+						// If the application is not allowed to use the project,
+						// log an error.
+						if _, err := ctrl.getAppProj(app); err != nil {
+							ctrl.setAppCondition(app, ctrl.projectErrorToCondition(err, app))
+						} else {
+							// This call to 'ValidateDestination' ensures that the .spec.destination field of all Applications
+							// returned by the informer/lister will have server field set (if not already set) based on the name.
+							// (or, if not found, an error app condition)
 
-					// If the server field is not set, set it based on the cluster name; if the cluster name can't be found,
-					// log an error as an App Condition.
-					if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
-						ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
-					}
-
-					// If the application is not allowed to use the project,
-					// log an error.
-					if _, err := ctrl.getAppProj(app); err != nil {
-						ctrl.setAppCondition(app, ctrl.projectErrorToCondition(err, app))
+							// If the server field is not set, set it based on the cluster name; if the cluster name can't be found,
+							// log an error as an App Condition.
+							if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
+								ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
+							}
+						}
 					}
 				}
 
@@ -1896,7 +1928,11 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					return nil, nil
 				}
 
-				proj, err := applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()).AppProjects(ctrl.namespace).Get(app.Spec.GetProject())
+				if !ctrl.isAppNamespaceAllowed(app) {
+					return nil, nil
+				}
+
+				proj, err := ctrl.getAppProj(app)
 				if err != nil {
 					return nil, nil
 				}
