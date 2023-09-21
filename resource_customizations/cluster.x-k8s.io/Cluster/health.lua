@@ -27,7 +27,7 @@ function getReadyContitionStatus(obj, hs)
     return hs
 end
 
-hs = {}
+local hs = {}
 if obj.spec.paused ~= nil and obj.spec.paused then
     hs.status = "Suspended"
     hs.message = "Cluster is paused"

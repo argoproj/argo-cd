@@ -323,6 +323,11 @@ func (in *ApplicationPreservedFields) DeepCopyInto(out *ApplicationPreservedFiel
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Labels != nil {
+		in, out := &in.Labels, &out.Labels
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -3904,6 +3909,11 @@ func (in *SCMProviderGeneratorGitlab) DeepCopyInto(out *SCMProviderGeneratorGitl
 	if in.TokenRef != nil {
 		in, out := &in.TokenRef, &out.TokenRef
 		*out = new(SecretRef)
+		**out = **in
+	}
+	if in.IncludeSharedProjects != nil {
+		in, out := &in.IncludeSharedProjects, &out.IncludeSharedProjects
+		*out = new(bool)
 		**out = **in
 	}
 	return

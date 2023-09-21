@@ -28,7 +28,7 @@ function deepCopy(object)
     return _copy(object)
 end
 
-job = {}
+local job = {}
 job.apiVersion = "batch/v1"
 job.kind = "Job"
 
@@ -39,7 +39,7 @@ end
 job.metadata.name = obj.metadata.name .. "-" ..os.date("!%Y%m%d%H%M")
 job.metadata.namespace = obj.metadata.namespace
 
-ownerRef = {}
+local ownerRef = {}
 ownerRef.apiVersion = obj.apiVersion
 ownerRef.kind = obj.kind
 ownerRef.name = obj.metadata.name
@@ -53,10 +53,10 @@ job.spec.template = {}
 job.spec.template.metadata = deepCopy(obj.spec.jobTemplate.spec.template.metadata)
 job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
 
-impactedResource = {}
+local impactedResource = {}
 impactedResource.operation = "create"
 impactedResource.resource = job
-result = {}
+local result = {}
 result[1] = impactedResource
 
 return result

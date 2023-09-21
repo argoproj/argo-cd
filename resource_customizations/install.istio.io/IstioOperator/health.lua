@@ -1,4 +1,4 @@
-health_status = {}
+local health_status = {}
 if obj.status ~= nil then
   if obj.status.status ~= nil then
     if obj.status.status == 0 or obj.status.status == "NONE" then

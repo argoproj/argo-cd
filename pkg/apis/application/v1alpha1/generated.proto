@@ -130,14 +130,14 @@ message ApplicationCondition {
 
 // ApplicationDestination holds information about the application's destination
 message ApplicationDestination {
-  // Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API
+  // Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.
   optional string server = 1;
 
   // Namespace specifies the target namespace for the application's resources.
   // The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
   optional string namespace = 2;
 
-  // Name is an alternate way of specifying the target cluster by its symbolic name
+  // Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.
   optional string name = 3;
 }
 
@@ -159,6 +159,8 @@ message ApplicationMatchExpression {
 
 message ApplicationPreservedFields {
   repeated string annotations = 1;
+
+  repeated string labels = 2;
 }
 
 // ApplicationSet is a set of Application resources
@@ -1631,6 +1633,10 @@ message ResourceAction {
   repeated ResourceActionParam params = 2;
 
   optional bool disabled = 3;
+
+  optional string iconClass = 4;
+
+  optional string displayName = 5;
 }
 
 // TODO: describe this type
@@ -2065,6 +2071,12 @@ message SCMProviderGeneratorGitlab {
 
   // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
   optional bool insecure = 6;
+
+  // When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to "true"
+  optional bool includeSharedProjects = 7;
+
+  // Filter repos list based on Gitlab Topic.
+  optional string topic = 8;
 }
 
 // Utility struct for a reference to a secret key.

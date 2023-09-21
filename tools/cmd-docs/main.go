@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra/doc"
 
@@ -18,27 +21,36 @@ func main() {
 	os.Setenv("HOME", "/home/user")
 	os.Setenv("XDG_CONFIG_HOME", "/home/user/.config")
 
-	err := doc.GenMarkdownTree(argocdcli.NewCommand(), "./docs/user-guide/commands")
+	identity := func(s string) string { return s }
+	headerPrepender := func(filename string) string {
+		// The default header looks like `Argocd app get`. The leading capital letter is off-putting.
+		// This header overrides the default. It's better visually and for search results.
+		filename = filepath.Base(filename)
+		filename = filename[:len(filename)-3] // Drop the '.md'
+		return fmt.Sprintf("# `%s` Command Reference\n\n", strings.ReplaceAll(filename, "_", " "))
+	}
+
+	err := doc.GenMarkdownTreeCustom(argocdcli.NewCommand(), "./docs/user-guide/commands", headerPrepender, identity)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = doc.GenMarkdownTree(argocdserver.NewCommand(), "./docs/operator-manual/server-commands")
+	err = doc.GenMarkdownTreeCustom(argocdserver.NewCommand(), "./docs/operator-manual/server-commands", headerPrepender, identity)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = doc.GenMarkdownTree(controller.NewCommand(), "./docs/operator-manual/server-commands")
+	err = doc.GenMarkdownTreeCustom(controller.NewCommand(), "./docs/operator-manual/server-commands", headerPrepender, identity)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = doc.GenMarkdownTree(reposerver.NewCommand(), "./docs/operator-manual/server-commands")
+	err = doc.GenMarkdownTreeCustom(reposerver.NewCommand(), "./docs/operator-manual/server-commands", headerPrepender, identity)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = doc.GenMarkdownTree(argocddex.NewCommand(), "./docs/operator-manual/server-commands")
+	err = doc.GenMarkdownTreeCustom(argocddex.NewCommand(), "./docs/operator-manual/server-commands", headerPrepender, identity)
 	if err != nil {
 		log.Fatal(err)
 	}
