@@ -1,3 +1,5 @@
+# `argocd gpg list` Command Reference
+
 ## argocd gpg list
 
 List configured GPG public keys

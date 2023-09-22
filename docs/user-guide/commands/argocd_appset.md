@@ -1,3 +1,5 @@
+# `argocd appset` Command Reference
+
 ## argocd appset
 
 Manage ApplicationSets
