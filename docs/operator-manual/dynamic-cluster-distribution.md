@@ -1,5 +1,8 @@
 # Dynamic Cluster Distribution
 
+*Current Status: [Alpha][1] (Since v2.9.0)*
+
+
 Sharding in Argo CD uses StatefulSet for the application controller. Although the application controller does not have any state to preserve, StatefulSets are used to get predictable hostnames and the serial number in the hostname is used to get the shard id of a particular instance.
 
 But using StatefulSet has the following limitations:
