@@ -1,0 +1,26 @@
+.number-of-pods {
+  border: 6px solid #00d2ff;
+  border-radius: 50%;
+  width: 100px;
+  height: 100px;
+
+  &__border {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    flex-direction: column;
+
+    &__label {
+      font-size: 14px;
+    }
+
+    &__number {
+      font-size: 20px;
+      max-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}

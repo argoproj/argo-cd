@@ -2192,7 +2192,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, fmt.Errorf("error getting Lua resource action: %w", err)
 	}
 
-	newObjects, err := luaVM.ExecuteResourceAction(liveObj, action.ActionLua)
+	newObjects, err := luaVM.ExecuteResourceAction(liveObj, action.ActionLua, q.ResourceActionParameters)
 	if err != nil {
 		return nil, fmt.Errorf("error executing Lua resource action: %w", err)
 	}

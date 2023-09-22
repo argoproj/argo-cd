@@ -607,7 +607,7 @@ argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --a
 				action, err := luaVM.GetResourceAction(&res, action)
 				errors.CheckError(err)
 
-				modifiedRes, err := luaVM.ExecuteResourceAction(&res, action.ActionLua)
+				modifiedRes, err := luaVM.ExecuteResourceAction(&res, action.ActionLua, nil)
 				errors.CheckError(err)
 
 				for _, impactedResource := range modifiedRes {

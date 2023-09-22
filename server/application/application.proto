@@ -195,6 +195,11 @@ message ApplicationResourceDeleteRequest {
 	optional string project = 10;
 }
 
+message ResourceActionParameters {
+	required string name = 1;
+	required string value = 2;
+}
+
 message ResourceActionRunRequest {
 	required string name = 1;
 	optional string namespace = 2;
@@ -205,6 +210,7 @@ message ResourceActionRunRequest {
 	required string action = 7;
 	optional string appNamespace = 8;
 	optional string project = 9;
+	repeated ResourceActionParameters resourceActionParameters = 10;
 }
 
 message ResourceActionsListResponse {
@@ -454,7 +460,7 @@ service ApplicationService {
 	rpc RunResourceAction(ResourceActionRunRequest) returns (ApplicationResponse) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/resource/actions"
-			body: "action"
+			body: "*"
 		};
 	}
 

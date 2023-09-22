@@ -380,6 +380,10 @@ export interface ResourceNode extends ResourceRef {
     createdAt?: models.Time;
 }
 
+export interface ResourceActionParameters {
+    name: string;
+    value: string;
+}
 export interface ApplicationTree {
     nodes: ResourceNode[];
     orphanedNodes: ResourceNode[];

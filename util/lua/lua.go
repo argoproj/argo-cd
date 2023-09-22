@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -58,7 +59,7 @@ type VM struct {
 	UseOpenLibs bool
 }
 
-func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState, error) {
+func (vm VM) runLua(obj *unstructured.Unstructured, script string, resourceActionParameters []*applicationpkg.ResourceActionParameters) (*lua.LState, error) {
 	l := lua.NewState(lua.Options{
 		SkipOpenLibs: !vm.UseOpenLibs,
 	})
@@ -88,6 +89,12 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	l.SetContext(ctx)
+
+	for _, resourceActionParameter := range resourceActionParameters {
+		value := decodeValue(l, resourceActionParameter.GetValue())
+		l.SetGlobal(resourceActionParameter.GetName(), value)
+	}
+
 	objectValue := decodeValue(l, obj.Object)
 	l.SetGlobal("obj", objectValue)
 	err := l.DoString(script)
@@ -96,7 +103,7 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 
 // ExecuteHealthLua runs the lua script to generate the health status of a resource
 func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*health.HealthStatus, error) {
-	l, err := vm.runLua(obj, script)
+	l, err := vm.runLua(obj, script, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -149,8 +156,8 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, bool, erro
 	return builtInScript, true, err
 }
 
-func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) ([]ImpactedResource, error) {
-	l, err := vm.runLua(obj, script)
+func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string, resourceActionParameters []*applicationpkg.ResourceActionParameters) ([]ImpactedResource, error) {
+	l, err := vm.runLua(obj, script, resourceActionParameters)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +277,7 @@ func cleanReturnedArray(newObj, obj []interface{}) []interface{} {
 }
 
 func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, script string) ([]appv1.ResourceAction, error) {
-	l, err := vm.runLua(obj, script)
+	l, err := vm.runLua(obj, script, nil)
 	if err != nil {
 		return nil, err
 	}

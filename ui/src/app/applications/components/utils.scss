@@ -27,3 +27,16 @@
 .radio-button {
     margin-right: 0.1em;       
 }
+
+.scale-resource-popup {
+    display: flex;
+    flex-direction: row;
+    margin: 16px;
+}
+
+.arrow-button {
+    &--disabled {
+        pointer-events: none;
+        opacity: 0.5;
+    }
+}
