@@ -14,7 +14,7 @@ Starting v2.9, ArgoCD supports a dynamic cluster distribution feature. In this m
 
 ## Enabling Dynamic Distribution of Clusters
 
-Inorder to utilize the feature, the StatefulSet of Application Controller needs to be replaced with the Deployment Configuration of Application Controller. To do so, set the number of replicas of StatefulSet and the environment variable `ARGOCD_CONTROLLER_REPLICAS` to 0 disabling all current application controllers and deploy application controller as a deployment.
+In order to utilize the feature, the StatefulSet of Application Controller needs to be replaced with the Deployment Configuration of Application Controller. To do so, set the number of replicas of StatefulSet and the environment variable `ARGOCD_CONTROLLER_REPLICAS` to 0 disabling all current application controllers and deploy application controller as a deployment.
 
 The manifests `manifests/ha/base/controller-deployment/` can be applied to set the StatefulSet replicas to `0` and deploy application controller as a deployment.
 
