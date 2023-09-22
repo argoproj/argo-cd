@@ -1,6 +1,7 @@
 package generators
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -65,6 +66,16 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 					return nil, fmt.Errorf("failed to merge params from the second generator in the matrix generator with temp map: %w", err)
 				}
 				if err := mergo.Merge(&tmp, a, mergo.WithOverride); err != nil {
+					firstGeneratorJson, jsonErr := json.Marshal(a)
+					if jsonErr != nil {
+						secondGeneratorJson, jsonErr := json.Marshal(b)
+						if jsonErr != nil {
+							log.WithFields(log.Fields{
+								"firstGenerator":  string(firstGeneratorJson),
+								"secondGenerator": string(secondGeneratorJson),
+							}).Errorf("failed to merge params from the second generator in the matrix generator with the first: %v", err)
+						}
+					}
 					return nil, fmt.Errorf("failed to merge params from the second generator in the matrix generator with the first: %w", err)
 				}
 				res = append(res, tmp)
