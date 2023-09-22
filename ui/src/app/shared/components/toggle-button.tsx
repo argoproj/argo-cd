@@ -9,21 +9,27 @@ export const ToggleButton = ({
     children,
     onToggle,
     toggled,
+    beat,
     disabled,
-    icon
+    icon,
+    rotate
 }: {
     toggled: boolean;
+    beat?: boolean;
     onToggle: () => void;
     children?: ReactNode;
     title: string;
     disabled?: boolean;
     icon: Icon;
+    rotate?: boolean;
 }) => (
     <Button
         title={title}
         onClick={onToggle}
         icon={icon}
+        rotate={rotate}
         disabled={disabled}
+        beat={beat}
         style={{
             // these are the argo-button color swapped
             backgroundColor: toggled && ARGO_WARNING_COLOR,

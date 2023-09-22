@@ -345,7 +345,7 @@ before enabling `managedNamespaceMetadata`. Argo CD relies on `kubectl`, which d
 client-side-applied resources with server-side-applies. If you do not upgrade the resource to server-side apply, Argo CD
 may remove existing labels/annotations, which may or may not be the desired behavior.
 
-Another thing to keep mind of is that if you have a k8s manifest for the same namespace in your ArgoCD application, that
+Another thing to keep mind of is that if you have a k8s manifest for the same namespace in your Argo CD application, that
 will take precedence and *overwrite whatever values that have been set in `managedNamespaceMetadata`*. In other words, if
 you have an application that sets `managedNamespaceMetadata`
 

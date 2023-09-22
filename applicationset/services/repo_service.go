@@ -58,13 +58,13 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision s
 	}
 	closer, client, err := a.repoServerClientSet.NewRepoServerClient()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error initialising new repo server client: %w", err)
 	}
 	defer io.Close(closer)
 
 	fileResponse, err := client.GetGitFiles(ctx, fileRequest)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving Git files: %w", err)
 	}
 	return fileResponse.GetMap(), nil
 }
@@ -83,13 +83,13 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revi
 
 	closer, client, err := a.repoServerClientSet.NewRepoServerClient()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error initialising new repo server client: %w", err)
 	}
 	defer io.Close(closer)
 
 	dirResponse, err := client.GetGitDirectories(ctx, dirRequest)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving Git Directories: %w", err)
 	}
 	return dirResponse.GetPaths(), nil
 
