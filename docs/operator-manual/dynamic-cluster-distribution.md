@@ -12,8 +12,8 @@ algorithm is re-run to ensure that the clusters are distributed according to the
 well-balanced, like round-robin, then the shards will be well-balanced.
 
 Previously, the shard count was set via the `ARGOCD_CONTROLLER_REPLICAS` environment variable. Changing the environment 
-variable forced a restart of all application controller pods. Now, the shard count is set via the `replicas` field, 
-which does not require a restart of the application controller pods. 
+variable forced a restart of all application controller pods. Now, the shard count is set via the `replicas` field of
+the Deployment, which does not require a restart of the application controller pods. 
 
 ## Enabling Dynamic Distribution of Clusters
 
