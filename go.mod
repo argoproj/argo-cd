@@ -92,7 +92,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.24.2
 	k8s.io/apimachinery v0.24.2
 	k8s.io/apiserver v0.24.2
-	k8s.io/client-go v1.5.2
+	k8s.io/client-go v0.24.2
 	k8s.io/code-generator v0.24.2
 	k8s.io/klog/v2 v2.70.1
 	k8s.io/kube-openapi v0.0.0-20220627174259-011e075b9cb8
