@@ -11,10 +11,9 @@ Starting v2.9, Argo CD supports a dynamic cluster distribution feature. When rep
 algorithm is re-run to ensure that the clusters are distributed according to the algorithm. If the algorithm is 
 well-balanced, like round-robin, then the shards will be well-balanced.
 
-The dynamic cluster distribution feature also eliminates the problem of restarting the application controller when the
-number of shards is adjusted. Previously, the shard count was set via the `ARGOCD_CONTROLLER_REPLICAS` environment
-variable. Changing the environment variable forced a restart of all application controller pods. Now, the shard count
-is set via the `replicas` field, which does not require a restart of the application controller pods.
+Previously, the shard count was set via the `ARGOCD_CONTROLLER_REPLICAS` environment variable. Changing the environment 
+variable forced a restart of all application controller pods. Now, the shard count is set via the `replicas` field, 
+which does not require a restart of the application controller pods. 
 
 ## Enabling Dynamic Distribution of Clusters
 
@@ -31,8 +30,9 @@ Note the introduction of new environment variable `ARGOCD_CONTROLLER_HEARTBEAT_T
 
 ## Working of Dynamic Distribution
 
-Along with the new dynamic shard assignment strategy, there is a new mechanism to dynamically associate clusters to 
-specific Controller shard (replica).
+To accomplish runtime distribution of clusters, the Application Controller uses a ConfigMap to associate a controller 
+pod with a shard number and a heartbeat to ensure that controller pods are still alive and handling their shard, in 
+effect, their share of the work.
 
 The Application Controller will create a new ConfigMap named `argocd-app-controller-shard-cm` to store the Controller <-> Shard mapping. The mapping would look like below for each shard:
 
