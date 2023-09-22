@@ -1,3 +1,5 @@
+# `argocd admin notifications template` Command Reference
+
 ## argocd admin notifications template
 
 Notification templates related commands

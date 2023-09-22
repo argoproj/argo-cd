@@ -1,3 +1,5 @@
+# `argocd app` Command Reference
+
 ## argocd app
 
 Manage applications

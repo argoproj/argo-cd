@@ -1,3 +1,5 @@
+# `argocd admin settings resource-overrides` Command Reference
+
 ## argocd admin settings resource-overrides
 
 Troubleshoot resource overrides

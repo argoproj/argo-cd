@@ -1,3 +1,5 @@
+# `argocd admin notifications template get` Command Reference
+
 ## argocd admin notifications template get
 
 Prints information about configured templates

@@ -1,3 +1,5 @@
+# `argocd admin settings validate` Command Reference
+
 ## argocd admin settings validate
 
 Validate settings

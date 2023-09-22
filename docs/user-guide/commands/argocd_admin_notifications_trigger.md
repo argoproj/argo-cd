@@ -1,3 +1,5 @@
+# `argocd admin notifications trigger` Command Reference
+
 ## argocd admin notifications trigger
 
 Notification triggers related commands

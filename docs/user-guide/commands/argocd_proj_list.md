@@ -1,3 +1,5 @@
+# `argocd proj list` Command Reference
+
 ## argocd proj list
 
 List projects

@@ -1,3 +1,5 @@
+# `argocd admin app get-reconcile-results` Command Reference
+
 ## argocd admin app get-reconcile-results
 
 Reconcile all applications and stores reconciliation summary in the specified file.

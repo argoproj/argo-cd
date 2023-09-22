@@ -1,3 +1,5 @@
+# `argocd app patch-resource` Command Reference
+
 ## argocd app patch-resource
 
 Patch resource in an application

@@ -1,3 +1,5 @@
+# `argocd admin settings rbac` Command Reference
+
 ## argocd admin settings rbac
 
 Validate and test RBAC configuration

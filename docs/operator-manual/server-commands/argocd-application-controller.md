@@ -1,3 +1,5 @@
+# `argocd-application-controller` Command Reference
+
 ## argocd-application-controller
 
 Run ArgoCD Application Controller

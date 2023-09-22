@@ -1,3 +1,5 @@
+# `argocd proj windows delete` Command Reference
+
 ## argocd proj windows delete
 
 Delete a sync window from a project. Requires ID which can be found by running "argocd proj windows list PROJECT"

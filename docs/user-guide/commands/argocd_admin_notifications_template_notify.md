@@ -1,3 +1,5 @@
+# `argocd admin notifications template notify` Command Reference
+
 ## argocd admin notifications template notify
 
 Generates notification using the specified template and send it to specified recipients

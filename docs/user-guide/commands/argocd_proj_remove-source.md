@@ -1,3 +1,5 @@
+# `argocd proj remove-source` Command Reference
+
 ## argocd proj remove-source
 
 Remove project source repository

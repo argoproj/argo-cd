@@ -1,3 +1,5 @@
+# `argocd proj` Command Reference
+
 ## argocd proj
 
 Manage projects

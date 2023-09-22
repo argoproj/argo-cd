@@ -1,3 +1,5 @@
+# `argocd-dex gendexcfg` Command Reference
+
 ## argocd-dex gendexcfg
 
 Generates a dex config from Argo CD settings
