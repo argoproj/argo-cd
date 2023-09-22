@@ -6,6 +6,7 @@ patches:
 - path: overlays/argocd-repo-server-deployment.yaml
 - path: overlays/argocd-server-deployment.yaml
 - path: overlays/argocd-application-controller-statefulset.yaml
+- path: overlays/argocd-cmd-params-cm.yaml
 
 
 images:

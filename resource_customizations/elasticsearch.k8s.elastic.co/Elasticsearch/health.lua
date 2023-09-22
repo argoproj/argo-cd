@@ -1,4 +1,4 @@
-hs = {}
+local hs = {}
 if obj.status ~= nil then
   if obj.status.availableNodes ~= nil then
     local sum = 0
@@ -17,7 +17,7 @@ if obj.status ~= nil then
             hs.message = "Elasticsearch Cluster status is Green"
             return hs
           elseif obj.status.health == "yellow" then
-            hs.status = "Degraded"
+            hs.status = "Progressing"
             hs.message = "Elasticsearch Cluster status is Yellow. Check the status of indices, replicas and shards"
             return hs
           elseif obj.status.health == "red" then
