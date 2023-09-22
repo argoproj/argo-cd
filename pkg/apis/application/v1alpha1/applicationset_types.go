@@ -68,6 +68,7 @@ type ApplicationSetSpec struct {
 
 type ApplicationPreservedFields struct {
 	Annotations []string `json:"annotations,omitempty" protobuf:"bytes,1,name=annotations"`
+	Labels      []string `json:"labels,omitempty" protobuf:"bytes,2,name=labels"`
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.

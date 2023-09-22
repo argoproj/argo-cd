@@ -226,10 +226,6 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if c.ServerAddr == "" {
 		return nil, errors.New("Argo CD server address unspecified")
 	}
-	if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
-		// If port is unspecified, assume the most likely port
-		c.ServerAddr += ":443"
-	}
 	// Override auth-token if specified in env variable or CLI flag
 	c.AuthToken = env.StringFromEnv(EnvArgoCDAuthToken, c.AuthToken)
 	if opts.AuthToken != "" {
@@ -285,6 +281,10 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		}
 	}
 	if !c.GRPCWeb {
+		if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
+			// If port is unspecified, assume the most likely port
+			c.ServerAddr += ":443"
+		}
 		// test if we need to set it to true
 		// if a call to grpc failed, then try again with GRPCWeb
 		conn, versionIf, err := c.NewVersionClient()

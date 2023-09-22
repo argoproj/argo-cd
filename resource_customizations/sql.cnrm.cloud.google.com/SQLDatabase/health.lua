@@ -1,4 +1,4 @@
-hs = {
+local hs = {
   status = "Progressing",
   message = "Update in progress"
 }
