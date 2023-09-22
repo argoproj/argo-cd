@@ -1461,43 +1461,8 @@
             "in": "body",
             "required": true,
             "schema": {
-              "type": "string"
+              "$ref": "#/definitions/applicationResourceActionRunRequest"
             }
-          },
-          {
-            "type": "string",
-            "name": "namespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "resourceName",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "version",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "group",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "kind",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "appNamespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "project",
-            "in": "query"
           }
         ],
         "responses": {
@@ -4334,6 +4299,55 @@
     },
     "applicationOperationTerminateResponse": {
       "type": "object"
+    },
+    "applicationResourceActionParameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationResourceActionRunRequest": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "appNamespace": {
+          "type": "string"
+        },
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        },
+        "resourceActionParameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationResourceActionParameters"
+          }
+        },
+        "resourceName": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
     },
     "applicationResourceActionsListResponse": {
       "type": "object",

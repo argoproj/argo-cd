@@ -144,7 +144,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				assert.NoError(t, err)
 
 				assert.NoError(t, err)
-				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua)
+				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua, nil)
 				assert.NoError(t, err)
 
 				// Treat the Lua expected output as a list
