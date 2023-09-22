@@ -2,8 +2,8 @@
 
 *Current Status: [Alpha][1] (Since v2.9.0)*
 
-By default, clusters are assigned to shards indefinitely. For users of the default, random sharding algorithm, this 
-static assignment is fine: shards will always be roughly-balanced by the random algorithm. But for users of the 
+By default, clusters are assigned to shards indefinitely. For users of the default, hash-based sharding algorithm, this 
+static assignment is fine: shards will always be roughly-balanced by the hash-based algorithm. But for users of the 
 [round-robin](high_availability.md#argocd-application-controller) or other custom shard assignment algorithms, this 
 static assignment can lead to unbalanced shards when clusters are added or removed.
 
