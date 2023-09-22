@@ -35,6 +35,10 @@ const (
 	errDestinationMissing = "Destination server missing from app spec"
 )
 
+var (
+	ErrAnotherOperationInProgress = status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
+)
+
 // AugmentSyncMsg enrich the K8s message with user-relevant information
 func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() ([]kube.APIResourceInfo, error)) (string, error) {
 	switch res.Message {
@@ -800,7 +804,7 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 			return nil, fmt.Errorf("error getting application %q: %w", appName, err)
 		}
 		if a.Operation != nil {
-			return nil, status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
+			return nil, ErrAnotherOperationInProgress
 		}
 		a.Operation = op
 		a.Status.OperationState = nil
