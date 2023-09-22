@@ -13,7 +13,7 @@ import {ResourceTreeNode} from './application-resource-tree/application-resource
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
-import {NumberOfPods} from '../../shared/components/number-of-pods/number-of-pods';
+import {NumberOfPods} from "../../shared/components/number-of-pods/number-of-pods";
 
 require('./utils.scss');
 
@@ -144,37 +144,34 @@ export async function scalePods(resource: ResourceTreeNode, metadata: models.Obj
                 }
             };
 
-            return (
+            return(
                 <div>
                     <p>Select the desired number of pods</p>
                     <div className='scale-resource-popup'>
-                        <NumberOfPods numberOfPods={showNumberOfPods ? numberOfPods.toString() : 'N/A'} />
+                        <NumberOfPods numberOfPods={showNumberOfPods ? numberOfPods.toString() : 'N/A'}/>
 
                         <div style={{display: 'flex', alignItems: 'center', margin: '16px', width: '60%'}}>
                             <div className='columns small-8'>
-                                <FormField formApi={api} field='numberOfPods' component={Text} componentProps={{showErrors: true}} />
+                                <FormField formApi={api} field='numberOfPods' component={Text} componentProps={{showErrors: true}}/>
                             </div>
                             <div style={{display: 'flex', flexDirection: 'column'}}>
                                 <a onClick={incrementCounter}>
-                                    <i className='fa fa-caret-up fa-fw' />
+                                    <i className='fa fa-caret-up fa-fw'/>
                                 </a>
-                                <a className={classNames({'arrow-button--disabled': numberOfPods < 1})} onClick={decrementCounter} aria-disabled={true}>
+                                <a className={classNames({'arrow-button--disabled': numberOfPods < 1 })} onClick={decrementCounter} aria-disabled={true}>
                                     <i className='fa fa-caret-down fa-fw' />
                                 </a>
                             </div>
                         </div>
-                    </div>
-                </div>
-            );
+                    </div></div>);
         },
         {
             validate: ({numberOfPods}: FormValues) => ({
-                numberOfPods:
-                    (isNaN(+numberOfPods) || +numberOfPods < 0 || +numberOfPods > 2147483647) && `Number of Pods should be valid number more than 0 and less than 2147483647`
+                numberOfPods: (isNaN(+numberOfPods) || +numberOfPods < 0 || +numberOfPods > 2147483647) && `Number of Pods should be valid number more than 0 and less than 2147483647`
             }),
             submit: async ({numberOfPods}: FormValues, _, close) => {
                 try {
-                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, 'scale', [{name: 'scale', value: numberOfPods}]);
+                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, 'scale', [{'name': 'scale', 'value': numberOfPods}]);
                     confirmed = true;
                     close();
                 } catch (e) {
@@ -527,7 +524,7 @@ function getActionItems(
         });
     }
 
-    if (['Deployment', 'DaemonSet', 'StatefulSet'].includes(resource.kind)) {
+    if(['Deployment', 'Job', 'StatefulSet'].includes(resource.kind)){
         items.push({
             iconClassName: 'fa argo-icon-settings',
             title: 'Scale Pods',
@@ -552,8 +549,8 @@ function getActionItems(
     const execAction = services.authService
         .settings()
         .then(async settings => {
-            const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
-            if (resource.kind === 'Pod' && execAllowed) {
+            const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
+            if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
                 return [
                     {
                         title: 'Exec',
