@@ -49,3 +49,6 @@ In the scenario when the number of Application Controller replicas increases, a 
 
 In the scenario when the number of Application Controller replicas decreases, the mappings in the `argocd-app-controller-shard-cm` ConfigMap are reset and every controller acquires the shard again thus triggering the re-distribution of the clusters.
 
+
+[1]: https://github.com/argoproj/argoproj/blob/master/community/feature-status.md
+
