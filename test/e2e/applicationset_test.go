@@ -19,10 +19,11 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 
+	"github.com/stretchr/testify/assert"
+
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
@@ -2277,9 +2278,6 @@ func TestIgnoreApplicationDifferences(t *testing.T) {
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
