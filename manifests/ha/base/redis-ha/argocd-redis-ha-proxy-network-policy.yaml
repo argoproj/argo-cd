@@ -40,3 +40,8 @@ spec:
       protocol: UDP
     - port: 53
       protocol: TCP
+  - ports:
+    - port: 5353
+      protocol: UDP
+    - port: 5353
+      protocol: TCP

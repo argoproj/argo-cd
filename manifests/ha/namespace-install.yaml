@@ -763,7 +763,7 @@ data:
     done
   haproxy.cfg: "defaults REDIS\n  mode tcp\n  timeout connect 4s\n  timeout server
     6m\n  timeout client 6m\n  timeout check 2s\n\nlisten health_check_http_url\n
-    \ bind :8888  \n  mode http\n  monitor-uri /healthz\n  option      dontlognull\n#
+    \ bind [::]:8888  \n  mode http\n  monitor-uri /healthz\n  option      dontlognull\n#
     Check Sentinel and whether they are nominated master\nbackend check_if_redis_is_master_0\n
     \ mode tcp\n  option tcp-check\n  tcp-check connect\n  tcp-check send PING\\r\\n\n
     \ tcp-check expect string +PONG\n  tcp-check send SENTINEL\\ get-master-addr-by-name\\
@@ -782,7 +782,7 @@ data:
     argocd\\r\\n\n  tcp-check expect string REPLACE_ANNOUNCE2\n  tcp-check send QUIT\\r\\n\n
     \ server R0 argocd-redis-ha-announce-0:26379 check inter 3s\n  server R1 argocd-redis-ha-announce-1:26379
     check inter 3s\n  server R2 argocd-redis-ha-announce-2:26379 check inter 3s\n\n#
-    decide redis backend to use\n#master\nfrontend ft_redis_master\n  bind :6379 \n
+    decide redis backend to use\n#master\nfrontend ft_redis_master\n  bind [::]:6379 \n
     \ use_backend bk_redis_master\n# Check all redis servers to see if they think
     they are master\nbackend bk_redis_master\n  mode tcp\n  option tcp-check\n  tcp-check
     connect\n  tcp-check send PING\\r\\n\n  tcp-check expect string +PONG\n  tcp-check
@@ -793,7 +793,7 @@ data:
     ge 2 }\n  server R1 argocd-redis-ha-announce-1:6379 check inter 3s fall 1 rise
     1\n  use-server R2 if { srv_is_up(R2) } { nbsrv(check_if_redis_is_master_2) ge
     2 }\n  server R2 argocd-redis-ha-announce-2:6379 check inter 3s fall 1 rise 1\nfrontend
-    stats\n  mode http\n  bind :9101 \n  http-request use-service prometheus-exporter
+    stats\n  mode http\n  bind [::]:9101 \n  http-request use-service prometheus-exporter
     if { path /metrics }\n  stats enable\n  stats uri /stats\n  stats refresh 10s\n"
   haproxy_init.sh: |
     HAPROXY_CONF=/data/haproxy.cfg
@@ -1093,7 +1093,7 @@ data:
     port 6379
     rename-command FLUSHDB ""
     rename-command FLUSHALL ""
-    bind 0.0.0.0
+    bind 0.0.0.0 ::
     maxmemory 0
     maxmemory-policy volatile-lru
     min-replicas-max-lag 5
@@ -1105,7 +1105,7 @@ data:
   sentinel.conf: |
     dir "/data"
     port 26379
-    bind 0.0.0.0
+    bind 0.0.0.0 ::
         sentinel down-after-milliseconds argocd 10000
         sentinel failover-timeout argocd 180000
         maxclients 10000

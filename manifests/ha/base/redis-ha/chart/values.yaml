@@ -5,7 +5,7 @@ redis-ha:
     masterGroupName: argocd
     config:
       save: "\"\""
-      bind: "0.0.0.0"
+      bind: "0.0.0.0 ::"
   haproxy:
     enabled: true
     IPv6:
@@ -23,4 +23,4 @@ redis-ha:
     tag: 7.0.11-alpine
   containerSecurityContext: null
   sentinel:
-    bind: "0.0.0.0"
+    bind: "0.0.0.0 ::"

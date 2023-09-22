@@ -41,7 +41,7 @@ data:
     port 6379
     rename-command FLUSHDB ""
     rename-command FLUSHALL ""
-    bind 0.0.0.0
+    bind 0.0.0.0 ::
     maxmemory 0
     maxmemory-policy volatile-lru
     min-replicas-max-lag 5
@@ -54,7 +54,7 @@ data:
   sentinel.conf: |
     dir "/data"
     port 26379
-    bind 0.0.0.0
+    bind 0.0.0.0 ::
         sentinel down-after-milliseconds argocd 10000
         sentinel failover-timeout argocd 180000
         maxclients 10000
@@ -620,7 +620,7 @@ data:
       timeout check 2s
 
     listen health_check_http_url
-      bind :8888  
+      bind [::]:8888  
       mode http
       monitor-uri /healthz
       option      dontlognull
@@ -667,7 +667,7 @@ data:
     # decide redis backend to use
     #master
     frontend ft_redis_master
-      bind :6379 
+      bind [::]:6379 
       use_backend bk_redis_master
     # Check all redis servers to see if they think they are master
     backend bk_redis_master
@@ -688,7 +688,7 @@ data:
       server R2 argocd-redis-ha-announce-2:6379 check inter 3s fall 1 rise 1
     frontend stats
       mode http
-      bind :9101 
+      bind [::]:9101 
       http-request use-service prometheus-exporter if { path /metrics }
       stats enable
       stats uri /stats
