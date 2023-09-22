@@ -747,8 +747,8 @@ github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+Ce
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kBD4zp0CCIs=
-github.com/blakepettersson/gitops-engine v0.0.0-20230919213747-76e7caf6a548 h1:LqByO4+N+2iyPrJ0KT6ee+irXcZpAuz05H5NUBfhPfs=
-github.com/blakepettersson/gitops-engine v0.0.0-20230919213747-76e7caf6a548/go.mod h1:BLDyUmYGi1ucPdNRXeQVFINRmqLxFn7/Nipe0Z9/hLU=
+github.com/blakepettersson/gitops-engine v0.0.0-20230922161412-9aa89ddf12dc h1:I61Ve7b16bWdM5jJ+/dJ7zxJ99akFueYBPu9M3D0HZ8=
+github.com/blakepettersson/gitops-engine v0.0.0-20230922161412-9aa89ddf12dc/go.mod h1:BLDyUmYGi1ucPdNRXeQVFINRmqLxFn7/Nipe0Z9/hLU=
 github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM=
 github.com/blang/semver/v4 v4.0.0/go.mod h1:IbckMUScFkM3pff0VJDNKRiT6TG/YpiHIM2yvyW5YoQ=
 github.com/bmatcuk/doublestar/v4 v4.6.0 h1:HTuxyug8GyFbRkrffIpzNCSK4luc0TY3wzXvzIZhEXc=
