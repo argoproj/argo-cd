@@ -5,14 +5,14 @@
 By default, clusters are assigned to shards indefinitely. For users of the default, hash-based sharding algorithm, this 
 static assignment is fine: shards will always be roughly-balanced by the hash-based algorithm. But for users of the 
 [round-robin](high_availability.md#argocd-application-controller) or other custom shard assignment algorithms, this 
-static assignment can lead to unbalanced shards when clusters are added or removed.
+static assignment can lead to unbalanced shards when replicas are added or removed.
 
-Starting v2.9, Argo CD supports a dynamic cluster distribution feature. When clusters are added or removed, the sharding
+Starting v2.9, Argo CD supports a dynamic cluster distribution feature. When replicas are added or removed, the sharding
 algorithm is re-run to ensure that the clusters are distributed according to the algorithm. If the algorithm is 
-well-balanced, like round-robin, then the clusters will be well-balanced.
+well-balanced, like round-robin, then the shards will be well-balanced.
 
 The dynamic cluster distribution feature also eliminates the problem of restarting the application controller when the
-number of shards are adjusted. Previously, the shard count was set via the `ARGOCD_CONTROLLER_REPLICAS` environment
+number of shards is adjusted. Previously, the shard count was set via the `ARGOCD_CONTROLLER_REPLICAS` environment
 variable. Changing the environment variable forced a restart of all application controller pods. Now, the shard count
 is set via the `replicas` field, which does not require a restart of the application controller pods.
 
