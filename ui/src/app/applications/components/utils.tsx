@@ -527,7 +527,7 @@ function getActionItems(
         });
     }
 
-    if (['Deployment', 'Job', 'StatefulSet'].includes(resource.kind)) {
+    if (['Deployment', 'DaemonSet', 'StatefulSet'].includes(resource.kind)) {
         items.push({
             iconClassName: 'fa argo-icon-settings',
             title: 'Scale Pods',
