@@ -61,8 +61,7 @@ reconciliation. In this case, we advise to use the preferred resource version in
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
 controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller` `StatefulSet`
-and repeat the number of replicas in the `ARGOCD_CONTROLLER_REPLICAS` environment variable. The strategic merge patch below
-demonstrates changes required to configure two controller replicas.
+and repeat the number of replicas in the `ARGOCD_CONTROLLER_REPLICAS` environment variable. The strategic merge patch below demonstrates changes required to configure two controller replicas.
 
 * By default, the controller will update the cluster information every 10 seconds. If there is a problem with your cluster network environment that is causing the update time to take a long time, you can try modifying the environment variable `ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT` to increase the timeout (the unit is seconds).
 
