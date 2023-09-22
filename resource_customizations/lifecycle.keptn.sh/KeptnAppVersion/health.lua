@@ -1,4 +1,4 @@
-hs = {}
+local hs = {}
 if obj.status.status == "Succeeded" then
     hs.status = "Healthy"
     hs.message = "KeptnAppVersion is healthy"
