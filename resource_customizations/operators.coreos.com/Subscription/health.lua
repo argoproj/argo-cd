@@ -1,9 +1,9 @@
-health_status = {}
+local health_status = {}
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
-    numDegraded = 0
-    numPending = 0
-    msg = ""
+    local numDegraded = 0
+    local numPending = 0
+    local msg = ""
     for i, condition in pairs(obj.status.conditions) do
       msg = msg .. i .. ": " .. condition.type .. " | " .. condition.status .. "\n"
       if condition.type == "InstallPlanPending" and condition.status == "True" then

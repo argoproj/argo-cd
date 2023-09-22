@@ -34,6 +34,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/informers"
+	informerv1 "k8s.io/client-go/informers/apps/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -51,6 +53,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/env"
 
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
@@ -59,10 +62,12 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
-	updateOperationStateTimeout = 1 * time.Second
+	updateOperationStateTimeout             = 1 * time.Second
+	defaultDeploymentInformerResyncDuration = 10
 	// orphanedIndex contains application which monitor orphaned resources by namespace
 	orphanedIndex = "orphaned"
 )
@@ -105,6 +110,7 @@ type ApplicationController struct {
 	appInformer                   cache.SharedIndexInformer
 	appLister                     applisters.ApplicationLister
 	projInformer                  cache.SharedIndexInformer
+	deploymentInformer            informerv1.DeploymentInformer
 	appStateManager               AppStateManager
 	stateCache                    statecache.LiveStateCache
 	statusRefreshTimeout          time.Duration
@@ -160,7 +166,7 @@ func NewApplicationController(
 		statusHardRefreshTimeout:      appHardResyncPeriod,
 		refreshRequestedApps:          make(map[string]CompareWith),
 		refreshRequestedAppsMutex:     &sync.Mutex{},
-		auditLogger:                   argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
+		auditLogger:                   argo.NewAuditLogger(namespace, kubeClientset, common.ApplicationController),
 		settingsMgr:                   settingsMgr,
 		selfHealTimeout:               selfHealTimeout,
 		clusterFilter:                 clusterFilter,
@@ -201,11 +207,31 @@ func NewApplicationController(
 			}
 		},
 	})
+
+	factory := informers.NewSharedInformerFactory(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration)
+	deploymentInformer := factory.Apps().V1().Deployments()
+
+	readinessHealthCheck := func(r *http.Request) error {
+		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+		appControllerDeployment, err := deploymentInformer.Lister().Deployments(settingsMgr.GetNamespace()).Get(applicationControllerName)
+		if !kubeerrors.IsNotFound(err) {
+			return fmt.Errorf("error retrieving Application Controller Deployment: %s", err)
+		}
+		if appControllerDeployment != nil {
+			if appControllerDeployment.Spec.Replicas != nil && int(*appControllerDeployment.Spec.Replicas) <= 0 {
+				return fmt.Errorf("application controller deployment replicas is not set or is less than 0, replicas: %d", appControllerDeployment.Spec.Replicas)
+			}
+			shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
+			if _, err := sharding.GetOrUpdateShardFromConfigMap(kubeClientset.(*kubernetes.Clientset), settingsMgr, int(*appControllerDeployment.Spec.Replicas), shard); err != nil {
+				return fmt.Errorf("error while updating the heartbeat for to the Shard Mapping ConfigMap: %s", err)
+			}
+		}
+		return nil
+	}
+
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 	var err error
-	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, func(r *http.Request) error {
-		return nil
-	}, metricsApplicationLabels)
+	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, readinessHealthCheck, metricsApplicationLabels)
 	if err != nil {
 		return nil, err
 	}
@@ -220,6 +246,7 @@ func NewApplicationController(
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
+	ctrl.deploymentInformer = deploymentInformer
 	ctrl.appStateManager = appStateManager
 	ctrl.stateCache = stateCache
 
@@ -724,6 +751,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
+	go ctrl.deploymentInformer.Informer().Run(ctx.Done())
 
 	errors.CheckError(ctrl.stateCache.Init())
 
