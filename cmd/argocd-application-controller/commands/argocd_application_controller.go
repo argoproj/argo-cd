@@ -30,11 +30,13 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/trace"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	// CLIName is the name of the CLI
-	cliName = "argocd-application-controller"
+	cliName = common.ApplicationController
 	// Default time in seconds for application resync period
 	defaultAppResyncPeriod = 180
 	// Default time in seconds for application hard resync period
@@ -92,7 +94,7 @@ func NewCommand() *cobra.Command {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
-			config.UserAgent = fmt.Sprintf("argocd-application-controller/%s (%s)", vers.Version, vers.Platform)
+			config.UserAgent = fmt.Sprintf("%s/%s (%s)", common.DefaultApplicationControllerName, vers.Version, vers.Platform)
 
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			appClient := appclientset.NewForConfigOrDie(config)
@@ -138,6 +140,7 @@ func NewCommand() *cobra.Command {
 			}))
 			kubectl := kubeutil.NewKubectl()
 			clusterFilter := getClusterFilter(kubeClient, settingsMgr, shardingAlgorithm)
+			errors.CheckError(err)
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -208,20 +211,49 @@ func NewCommand() *cobra.Command {
 }
 
 func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string) sharding.ClusterFilterFunction {
-	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+
+	var replicas int
 	shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
+
+	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+	appControllerDeployment, _ := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+
+	if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
+		replicas = int(*appControllerDeployment.Spec.Replicas)
+	} else {
+		replicas = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+	}
+
 	var clusterFilter func(cluster *v1alpha1.Cluster) bool
 	if replicas > 1 {
-		if shard < 0 {
+		// check for shard mapping using configmap if application-controller is a deployment
+		// else use existing logic to infer shard from pod name if application-controller is a statefulset
+		if appControllerDeployment != nil {
+
 			var err error
-			shard, err = sharding.InferShard()
+			// retry 3 times if we find a conflict while updating shard mapping configMap.
+			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
+			for i := 0; i <= common.AppControllerHeartbeatUpdateRetryCount; i++ {
+				shard, err = sharding.GetOrUpdateShardFromConfigMap(kubeClient, settingsMgr, replicas, shard)
+				if !kubeerrors.IsConflict(err) {
+					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %s", err)
+					break
+				}
+				log.Warnf("conflict when getting shard from shard mapping configMap. Retrying (%d/3)", i)
+			}
 			errors.CheckError(err)
+		} else {
+			if shard < 0 {
+				var err error
+				shard, err = sharding.InferShard()
+				errors.CheckError(err)
+			}
 		}
 		log.Infof("Processing clusters from shard %d", shard)
 		db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
 		log.Infof("Using filter function:  %s", shardingAlgorithm)
 		distributionFunction := sharding.GetDistributionFunction(db, shardingAlgorithm)
-		clusterFilter = sharding.GetClusterFilter(distributionFunction, shard)
+		clusterFilter = sharding.GetClusterFilter(db, distributionFunction, shard)
 	} else {
 		log.Info("Processing all cluster shards")
 	}

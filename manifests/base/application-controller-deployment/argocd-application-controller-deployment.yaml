@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   labels:
     app.kubernetes.io/name: argocd-application-controller
@@ -10,7 +10,6 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-application-controller
-  serviceName: argocd-application-controller
   replicas: 1
   template:
     metadata:
@@ -155,6 +154,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: controller.kubectl.parallelism.limit
                 optional: true
+        - name: ARGOCD_CONTROLLER_HEARTBEAT_TIME
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.heatbeat.time
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
