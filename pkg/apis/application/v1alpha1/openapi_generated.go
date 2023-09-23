@@ -87,8 +87,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JWTTokens":                           schema_pkg_apis_application_v1alpha1_JWTTokens(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JsonnetVar":                          schema_pkg_apis_application_v1alpha1_JsonnetVar(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KnownTypeField":                      schema_pkg_apis_application_v1alpha1_KnownTypeField(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeGvk":                        schema_pkg_apis_application_v1alpha1_KustomizeGvk(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeOptions":                    schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizePatch":                      schema_pkg_apis_application_v1alpha1_KustomizePatch(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeReplica":                    schema_pkg_apis_application_v1alpha1_KustomizeReplica(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeResId":                      schema_pkg_apis_application_v1alpha1_KustomizeResId(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeSelector":                   schema_pkg_apis_application_v1alpha1_KustomizeSelector(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator":                       schema_pkg_apis_application_v1alpha1_ListGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata":            schema_pkg_apis_application_v1alpha1_ManagedNamespaceMetadata(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.MatrixGenerator":                     schema_pkg_apis_application_v1alpha1_MatrixGenerator(ref),
@@ -1875,11 +1879,25 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							},
 						},
 					},
+					"patches": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Patches is a list of Kustomize patches",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizePatch"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeReplica"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizePatch", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeReplica"},
 	}
 }
 
@@ -3762,6 +3780,36 @@ func schema_pkg_apis_application_v1alpha1_KnownTypeField(ref common.ReferenceCal
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_KustomizeGvk(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"group": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3792,6 +3840,52 @@ func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceC
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_KustomizePatch(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"patch": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"target": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeSelector"),
+						},
+					},
+					"options": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: false,
+										Type:    []string{"boolean"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeSelector"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_KustomizeReplica(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3819,6 +3913,102 @@ func schema_pkg_apis_application_v1alpha1_KustomizeReplica(ref common.ReferenceC
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_KustomizeResId(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"group": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_KustomizeSelector(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"group": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"annotationSelector": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"labelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
