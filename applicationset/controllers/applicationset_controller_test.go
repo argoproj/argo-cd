@@ -992,7 +992,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				initObjs = append(initObjs, &a)
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -1086,7 +1086,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 
 			initObjs := []crtclient.Object{&app, &appSet}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
@@ -1248,7 +1248,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 
 			initObjs := []crtclient.Object{&app, &appSet}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
@@ -1480,7 +1480,7 @@ func TestCreateApplications(t *testing.T) {
 				initObjs = append(initObjs, &a)
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -1624,7 +1624,7 @@ func TestDeleteInCluster(t *testing.T) {
 			initObjs = append(initObjs, &temp)
 		}
 
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
 		r := ApplicationSetReconciler{
 			Client:        client,
@@ -1999,7 +1999,7 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&defaultProject}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	badCluster := v1alpha1.Cluster{Server: "https://bad-cluster", Name: "bad-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
@@ -2083,7 +2083,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -2153,7 +2153,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&defaultProject}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2323,7 +2323,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&defaultProject}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2634,7 +2634,7 @@ func TestPolicies(t *testing.T) {
 				},
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
