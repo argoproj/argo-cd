@@ -218,7 +218,7 @@ type SharedInformerFactory interface {
 
 	// WaitForCacheSync blocks until all started informers' caches were synced
 	// or the stop channel gets closed.
- 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
+	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
 	// ForResource gives generic access to a shared informer of the matching type.
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
@@ -227,7 +227,7 @@ type SharedInformerFactory interface {
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
- 	Argoproj() application.Interface
+	Argoproj() application.Interface
 }
 
 func (f *sharedInformerFactory) Argoproj() application.Interface {
