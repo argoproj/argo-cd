@@ -208,15 +208,19 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 			patches, ok := kMap["patches"]
 			if ok {
+				// The kustomization.yaml already had a patches field, so we need to append to it.
 				patchesList, ok := patches.([]interface{})
 				if !ok {
 					return nil, nil, fmt.Errorf("expected 'patches' field in kustomization.yaml to be []interface{}, but got %T", patches)
 				}
+				// Since the patches from the Application manifest are typed, we need to convert them to a type which
+				// can be appended to the existing list.
 				untypedPatches := make([]interface{}, len(opts.Patches))
 				for i := range opts.Patches {
 					untypedPatches[i] = opts.Patches[i]
 				}
 				patchesList = append(patchesList, untypedPatches...)
+				// Update the kustomization.yaml with the appended patches list.
 				kMap["patches"] = patchesList
 			} else {
 				kMap["patches"] = opts.Patches
