@@ -1,3 +1,5 @@
+# `argocd app get` Command Reference
+
 ## argocd app get
 
 Get application details

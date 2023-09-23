@@ -1,3 +1,5 @@
+# `argocd proj role create-token` Command Reference
+
 ## argocd proj role create-token
 
 Create a project token

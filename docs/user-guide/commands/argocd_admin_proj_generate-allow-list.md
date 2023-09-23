@@ -1,3 +1,5 @@
+# `argocd admin proj generate-allow-list` Command Reference
+
 ## argocd admin proj generate-allow-list
 
 Generates project allow list from the specified clusterRole file

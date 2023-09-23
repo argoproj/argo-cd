@@ -1,3 +1,5 @@
+# `argocd appset get` Command Reference
+
 ## argocd appset get
 
 Get ApplicationSet details

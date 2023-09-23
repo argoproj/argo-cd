@@ -1,3 +1,5 @@
+# `argocd gpg get` Command Reference
+
 ## argocd gpg get
 
 Get the GPG public key with ID <KEYID> from the server

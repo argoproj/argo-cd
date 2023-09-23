@@ -1,3 +1,5 @@
+# `argocd proj role add-group` Command Reference
+
 ## argocd proj role add-group
 
 Add a group claim to a project role
