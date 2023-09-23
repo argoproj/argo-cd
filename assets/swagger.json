@@ -6393,6 +6393,13 @@
           "type": "string",
           "title": "Namespace sets the namespace that Kustomize adds to all resources"
         },
+        "patches": {
+          "type": "array",
+          "title": "Patches is a list of Kustomize patches",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KustomizePatch"
+          }
+        },
         "replicas": {
           "type": "array",
           "title": "Replicas is a list of Kustomize Replicas override specifications",
@@ -7265,6 +7272,20 @@
         }
       }
     },
+    "v1alpha1KustomizeGvk": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1KustomizeOptions": {
       "type": "object",
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
@@ -7279,6 +7300,26 @@
         }
       }
     },
+    "v1alpha1KustomizePatch": {
+      "type": "object",
+      "properties": {
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "patch": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/definitions/v1alpha1KustomizeSelector"
+        }
+      }
+    },
     "v1alpha1KustomizeReplica": {
       "type": "object",
       "properties": {
@@ -7288,6 +7329,34 @@
         "name": {
           "type": "string",
           "title": "Name of Deployment or StatefulSet"
+        }
+      }
+    },
+    "v1alpha1KustomizeResId": {
+      "type": "object",
+      "properties": {
+        "gvk": {
+          "$ref": "#/definitions/v1alpha1KustomizeGvk"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1KustomizeSelector": {
+      "type": "object",
+      "properties": {
+        "annotationSelector": {
+          "type": "string"
+        },
+        "labelSelector": {
+          "type": "string"
+        },
+        "resId": {
+          "$ref": "#/definitions/v1alpha1KustomizeResId"
         }
       }
     },

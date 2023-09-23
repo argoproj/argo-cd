@@ -503,6 +503,9 @@ message ApplicationSourceKustomize {
 
   // Replicas is a list of Kustomize Replicas override specifications
   repeated KustomizeReplica replicas = 11;
+
+  // Patches is a list of Kustomize patches
+  repeated KustomizePatch patches = 12;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -1055,6 +1058,14 @@ message KnownTypeField {
   optional string type = 2;
 }
 
+message KustomizeGvk {
+  optional string group = 1;
+
+  optional string version = 2;
+
+  optional string kind = 3;
+}
+
 // KustomizeOptions are options for kustomize to use when building manifests
 message KustomizeOptions {
   // BuildOptions is a string of build parameters to use when calling `kustomize build`
@@ -1064,12 +1075,38 @@ message KustomizeOptions {
   optional string binaryPath = 2;
 }
 
+message KustomizePatch {
+  optional string path = 1;
+
+  optional string patch = 2;
+
+  optional KustomizeSelector target = 3;
+
+  map<string, bool> options = 4;
+}
+
 message KustomizeReplica {
   // Name of Deployment or StatefulSet
   optional string name = 1;
 
   // Number of replicas
   optional k8s.io.apimachinery.pkg.util.intstr.IntOrString count = 2;
+}
+
+message KustomizeResId {
+  optional KustomizeGvk gvk = 1;
+
+  optional string name = 2;
+
+  optional string namespace = 3;
+}
+
+message KustomizeSelector {
+  optional KustomizeResId resId = 1;
+
+  optional string annotationSelector = 2;
+
+  optional string labelSelector = 3;
 }
 
 // ListGenerator include items info
