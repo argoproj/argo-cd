@@ -22,6 +22,7 @@ const kustomization2a = "kustomization_yml"
 const kustomization2b = "Kustomization"
 const kustomization3 = "force_common"
 const kustomization4 = "custom_version"
+const kustomization5 = "kustomization_yaml_patches"
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
 	res := tb.TempDir()
@@ -349,4 +350,56 @@ func TestKustomizeCustomVersion(t *testing.T) {
 	content, err := os.ReadFile(envOutputFile)
 	assert.Nil(t, err)
 	assert.Equal(t, "ARGOCD_APP_NAME=argo-cd-tests\n", string(content))
+}
+
+func TestKustomizeBuildPatches(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization5)
+	assert.Nil(t, err)
+	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Patches: []v1alpha1.KustomizePatch{
+			{
+				Patch: `[ { "op": "replace", "path": "/spec/template/spec/containers/0/ports/0/containerPort", "value": 443 },  { "op": "replace", "path": "/spec/template/spec/containers/0/name", "value": "test" }]`,
+				Target: &v1alpha1.KustomizeSelector{
+					KustomizeResId: v1alpha1.KustomizeResId{
+						KustomizeGvk: v1alpha1.KustomizeGvk{
+							Kind: "Deployment",
+						},
+						Name: "nginx-deployment",
+					},
+				},
+			},
+		},
+	}
+	objs, _, err := kustomize.Build(&kustomizeSource, nil, nil)
+	assert.Nil(t, err)
+	obj := objs[0]
+	containers, found, err := unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "containers")
+	assert.Nil(t, err)
+	assert.Equal(t, found, true)
+
+	ports, found, err := unstructured.NestedSlice(
+		containers[0].(map[string]interface{}),
+		"ports",
+	)
+	assert.Equal(t, found, true)
+	assert.Nil(t, err)
+
+	port, found, err := unstructured.NestedInt64(
+		ports[0].(map[string]interface{}),
+		"containerPort",
+	)
+
+	assert.Equal(t, found, true)
+	assert.Nil(t, err)
+	assert.Equal(t, port, int64(443))
+
+	name, found, err := unstructured.NestedString(
+		containers[0].(map[string]interface{}),
+		"name",
+	)
+	assert.Equal(t, found, true)
+	assert.Nil(t, err)
+	assert.Equal(t, name, "test")
 }
