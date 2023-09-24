@@ -10,10 +10,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 	"unicode/utf8"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
@@ -285,6 +287,36 @@ func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.
 	return mapUidToNode, mapParentToChild, parentNode
 }
 
+// func test(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string){
+// 	cacheKey := argo.AppInstanceName(appName, appNs, appNs)
+// 	s := &Server{
+// 		ns:                namespace,
+// 		appclientset:      appclientset,
+// 		appLister:         appLister,
+// 		appInformer:       appInformer,
+// 		appBroadcaster:    appBroadcaster,
+// 		kubeclientset:     kubeclientset,
+// 		cache:             cache,
+// 		db:                db,
+// 		repoClientset:     repoClientset,
+// 		kubectl:           kubectl,
+// 		enf:               enf,
+// 		projectLock:       projectLock,
+// 		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+// 		settingsMgr:       settingsMgr,
+// 		projInformer:      projInformer,
+// 		enabledNamespaces: enabledNamespaces,
+// 	}
+// 	return s.cache.OnAppResourcesTreeChanged(ctx, cacheKey, func() error {
+// 		var tree appv1.ApplicationTree
+// 		err := s.cache.GetAppResourcesTree(cacheKey, &tree)
+// 		if err != nil {
+// 			return fmt.Errorf("error getting app resource tree: %w", err)
+// 		}
+// 		return ws.Send(&tree)
+// 	})
+
+// }
 func printHeader(acdClient argocdclient.Client, app *argoappv1.Application, ctx context.Context, windows *argoappv1.SyncWindows, showOperation bool, showParams bool) {
 	aURL := appURL(ctx, acdClient, app.Name)
 	printAppSummaryTable(app, aURL, windows)
@@ -370,6 +402,8 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					fmt.Println()
 					printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 				}
+			case "test":
+				resourceTreeWatch(appIf, ctx, appName, appNs, "tree=detailed")
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
@@ -381,6 +415,98 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
 	return command
+}
+
+func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string, output string) {
+	mapUidToNode := make(map[string]argoappv1.ResourceNode)
+	mapParentToChild := make(map[string][]string)
+	parentNodes := make(map[string]struct{})
+	mapNodeNameToResourceState := make(map[string]*resourceState)
+	gitResources := make(chan v1alpha1.Application)
+	appResources := make(chan []v1alpha1.ResourceNode)
+	var app *v1alpha1.Application
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		appResourceStream, err := appIf.WatchResourceTree(ctx, &application.ResourcesQuery{Name: &appName, AppNamespace: &appNs, ApplicationName: &appName})
+		if err != nil {
+			log.Fatalf("failed to get Application tree: %v", err)
+		}
+		for {
+			msg, err := appResourceStream.Recv()
+			if err == io.EOF {
+				return
+			}
+			if err != nil {
+				log.Fatalf("appResourceStream read failed: %v", err)
+			}
+			appResources <- msg.Nodes
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		gitResourceStream, err := appIf.Watch(ctx, &application.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
+		if err != nil {
+			log.Fatalf("failed to get git resources: %v", err)
+		}
+		for {
+			msg, err := gitResourceStream.Recv()
+			if err == io.EOF {
+				return
+			}
+			if err != nil {
+				log.Fatalf("gitResourceStream read failed: %v", err)
+			}
+			gitResources <- msg.Application
+		}
+	}()
+
+	for {
+		select {
+		case appTreeNodes := <-appResources:
+			mapUidToNode, mapParentToChild, parentNodes = parentChildInfo(appTreeNodes)
+			printAppResourceStatus(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState, output, app)
+		case gitResourceApp := <-gitResources:
+			app = &gitResourceApp
+			for _, res := range getResourceStates(&gitResourceApp, nil) {
+				mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
+			}
+			printAppResourceStatus(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState, output, app)
+		}
+		wg.Wait()
+	}
+}
+
+func printAppResourceStatus(mapUidToNode map[string]v1alpha1.ResourceNode, mapParentToChild map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState, output string, app *v1alpha1.Application) {
+	print("\033[H\033[2J")
+	print("\033[0;0H")
+	switch output {
+	case "yaml", "json":
+		err := PrintResource(app, output)
+		errors.CheckError(err)
+	case "wide", "":
+		if len(app.Status.Resources) > 0 {
+			fmt.Println()
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			printAppResources(w, app)
+			_ = w.Flush()
+		}
+	case "tree":
+		if len(mapUidToNode) > 0 {
+			fmt.Println()
+			printTreeView(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState)
+		}
+	case "tree=detailed":
+		if len(mapUidToNode) > 0 {
+			fmt.Println()
+			printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState)
+		}
+	default:
+		errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+	}
 }
 
 // NewApplicationLogsCommand returns logs of application pods
@@ -1494,7 +1620,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		timeout   uint
 		selector  string
 		resources []string
-		output    string
+		watcher   bool
 	)
 	var command = &cobra.Command{
 		Use:   "wait [APPNAME.. | -l selector]",
@@ -1556,7 +1682,8 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
 	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
+	command.Flags().BoolVar(&watcher, "watcher", false, "watch provides the dynamic view of app")
+
 	return command
 }
 
