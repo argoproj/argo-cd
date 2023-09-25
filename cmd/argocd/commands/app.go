@@ -287,36 +287,6 @@ func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.
 	return mapUidToNode, mapParentToChild, parentNode
 }
 
-// func test(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string){
-// 	cacheKey := argo.AppInstanceName(appName, appNs, appNs)
-// 	s := &Server{
-// 		ns:                namespace,
-// 		appclientset:      appclientset,
-// 		appLister:         appLister,
-// 		appInformer:       appInformer,
-// 		appBroadcaster:    appBroadcaster,
-// 		kubeclientset:     kubeclientset,
-// 		cache:             cache,
-// 		db:                db,
-// 		repoClientset:     repoClientset,
-// 		kubectl:           kubectl,
-// 		enf:               enf,
-// 		projectLock:       projectLock,
-// 		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-// 		settingsMgr:       settingsMgr,
-// 		projInformer:      projInformer,
-// 		enabledNamespaces: enabledNamespaces,
-// 	}
-// 	return s.cache.OnAppResourcesTreeChanged(ctx, cacheKey, func() error {
-// 		var tree appv1.ApplicationTree
-// 		err := s.cache.GetAppResourcesTree(cacheKey, &tree)
-// 		if err != nil {
-// 			return fmt.Errorf("error getting app resource tree: %w", err)
-// 		}
-// 		return ws.Send(&tree)
-// 	})
-
-// }
 func printHeader(acdClient argocdclient.Client, app *argoappv1.Application, ctx context.Context, windows *argoappv1.SyncWindows, showOperation bool, showParams bool) {
 	aURL := appURL(ctx, acdClient, app.Name)
 	printAppSummaryTable(app, aURL, windows)
