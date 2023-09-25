@@ -2269,8 +2269,6 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 }
 
 func TestIgnoreApplicationDifferences(t *testing.T) {
-	fixture.LoginAs("admin")
-
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,

@@ -24,6 +24,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 )
 
 const (
@@ -166,6 +167,9 @@ func EnsureCleanState(t *testing.T) {
 
 	// create tmp dir
 	FailOnErr(Run("", "mkdir", "-p", TmpDir))
+
+	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
+	fixture.LoginAs("admin")
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
