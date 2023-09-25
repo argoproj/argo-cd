@@ -19239,6 +19239,21 @@ spec:
                 items:
                   type: string
                 type: array
+              ignoreApplicationDifferences:
+                items:
+                  properties:
+                    jqPathExpressions:
+                      items:
+                        type: string
+                      type: array
+                    jsonPointers:
+                      items:
+                        type: string
+                      type: array
+                    name:
+                      type: string
+                  type: object
+                type: array
               preservedFields:
                 properties:
                   annotations:
