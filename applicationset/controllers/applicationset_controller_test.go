@@ -12,6 +12,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -5723,6 +5725,176 @@ func TestOwnsHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ownsHandler = getOwnsHandlerPredicates(tt.args.enableProgressiveSyncs)
 			assert.Equalf(t, tt.want, ownsHandler.UpdateFunc(tt.args.e), "UpdateFunc(%v)", tt.args.e)
+		})
+	}
+}
+
+func Test_applyIgnoreDifferences(t *testing.T) {
+	appMeta := metav1.TypeMeta{
+		APIVersion: v1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
+		Kind:       v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+	}
+	testCases := []struct {
+		name              string
+		ignoreDifferences v1alpha1.ApplicationSetIgnoreDifferences
+		foundApp          string
+		generatedApp      string
+		expectedApp       string
+	}{
+		{
+			name: "empty ignoreDifferences",
+			foundApp: `
+spec: {}`,
+			generatedApp: `
+spec: {}`,
+			expectedApp: `
+spec: {}`,
+		},
+		{
+			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1191138278
+			name: "ignore target revision with jq",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JQPathExpressions: []string{".spec.source.targetRevision"}},
+			},
+			foundApp: `
+spec:
+  source:
+    targetRevision: foo`,
+			generatedApp: `
+spec:
+  source:
+    targetRevision: bar`,
+			expectedApp: `
+spec:
+  source:
+    targetRevision: foo`,
+		},
+		{
+			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1103593714
+			name: "ignore helm parameter with jq",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JQPathExpressions: []string{`.spec.source.helm.parameters | select(.name == "image.tag")`}},
+			},
+			foundApp: `
+spec:
+  source:
+    helm:
+      parameters:
+      - name: image.tag
+        value: test
+      - name: another
+        value: value`,
+			generatedApp: `
+spec:
+  source:
+    helm:
+      parameters:
+      - name: image.tag
+        value: v1.0.0
+      - name: another
+        value: value`,
+			expectedApp: `
+spec:
+  source:
+    helm:
+      parameters:
+      - name: image.tag
+        value: test
+      - name: another
+        value: value`,
+		},
+		{
+			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1191138278
+			name: "ignore auto-sync with jq",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JQPathExpressions: []string{".spec.syncPolicy.automated"}},
+			},
+			foundApp: `
+spec:
+  syncPolicy:
+    retry:
+      limit: 5`,
+			generatedApp: `
+spec:
+  syncPolicy:
+    automated:
+      selfHeal: true
+    retry:
+      limit: 5`,
+			expectedApp: `
+spec:
+  syncPolicy:
+    retry:
+      limit: 5`,
+		},
+		{
+			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1420656537
+			name: "ignore a one-off annotation with jq",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JQPathExpressions: []string{`.metadata.annotations | select(.["foo.bar"] == "baz")`}},
+			},
+			foundApp: `
+metadata:
+  annotations:
+    foo.bar: baz
+    some.other: annotation`,
+			generatedApp: `
+metadata:
+  annotations:
+    some.other: annotation`,
+			expectedApp: `
+metadata:
+  annotations:
+    foo.bar: baz
+    some.other: annotation`,
+		},
+		{
+			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1515672638
+			name: "ignore the source.plugin field with a json pointer",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JSONPointers: []string{"/spec/source/plugin"}},
+			},
+			foundApp: `
+spec:
+  source:
+    plugin:
+      parameters:
+      - name: url
+        string: https://example.com`,
+			generatedApp: `
+spec:
+  source:
+    plugin:
+      parameters:
+      - name: url
+        string: https://example.com/wrong`,
+			expectedApp: `
+spec:
+  source:
+    plugin:
+      parameters:
+      - name: url
+        string: https://example.com`,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			foundApp := v1alpha1.Application{TypeMeta: appMeta}
+			err := yaml.Unmarshal([]byte(tc.foundApp), &foundApp)
+			require.NoError(t, err, tc.foundApp)
+			generatedApp := v1alpha1.Application{TypeMeta: appMeta}
+			err = yaml.Unmarshal([]byte(tc.generatedApp), &generatedApp)
+			require.NoError(t, err, tc.generatedApp)
+			err = applyIgnoreDifferences(tc.ignoreDifferences, &foundApp, generatedApp)
+			require.NoError(t, err)
+			jsonFound, err := json.Marshal(tc.foundApp)
+			require.NoError(t, err)
+			jsonExpected, err := json.Marshal(tc.expectedApp)
+			require.NoError(t, err)
+			assert.Equal(t, string(jsonExpected), string(jsonFound))
 		})
 	}
 }

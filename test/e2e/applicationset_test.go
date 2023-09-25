@@ -19,10 +19,11 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 
+	"github.com/stretchr/testify/assert"
+
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
