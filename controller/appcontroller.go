@@ -142,10 +142,14 @@ func NewApplicationController(
 	persistResourceHealth bool,
 	clusterFilter func(cluster *appv1.Cluster) bool,
 	applicationNamespaces []string,
+	rateLimiterConfig *ratelimiter.AppControllerRateLimiterConfig,
 ) (*ApplicationController, error) {
 	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v", appResyncPeriod, appHardResyncPeriod)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
-	rateLimiterConfig := ratelimiter.GetAppRateLimiterConfig()
+	if rateLimiterConfig == nil {
+		rateLimiterConfig = ratelimiter.GetDefaultAppRateLimiterConfig()
+		log.Info("Using default workqueue rate limiter config")
+	}
 	ctrl := ApplicationController{
 		cache:                         argoCache,
 		namespace:                     namespace,

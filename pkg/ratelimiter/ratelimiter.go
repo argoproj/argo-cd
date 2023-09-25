@@ -5,31 +5,30 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
 	"golang.org/x/time/rate"
 	"k8s.io/client-go/util/workqueue"
 )
 
 type AppControllerRateLimiterConfig struct {
-	BucketSize      int
-	BucketQPS       int
+	BucketSize      int64
+	BucketQPS       int64
 	FailureCoolDown time.Duration
 	BaseDelay       time.Duration
 	MaxDelay        time.Duration
 	BackoffFactor   float64
 }
 
-func GetAppRateLimiterConfig() *AppControllerRateLimiterConfig {
+func GetDefaultAppRateLimiterConfig() *AppControllerRateLimiterConfig {
 	return &AppControllerRateLimiterConfig{
 		// global queue rate limit config
-		int(env.ParseInt64FromEnv("WORKQUEUE_BUCKET_SIZE", 500, 1, math.MaxInt64)),
-		int(env.ParseInt64FromEnv("WORKQUEUE_BUCKET_QPS", 50, 1, math.MaxInt64)),
+		500,
+		50,
 		// individual item rate limit config
 		// when WORKQUEUE_FAILURE_COOLDOWN is 0 per item rate limiting is disabled(default)
-		time.Duration(env.ParseInt64FromEnv("WORKQUEUE_FAILURE_COOLDOWN_NS", 0, 0, (24 * time.Hour).Nanoseconds())),
-		time.Duration(env.ParseInt64FromEnv("WORKQUEUE_BASE_DELAY_NS", time.Millisecond.Nanoseconds(), time.Nanosecond.Nanoseconds(), (24 * time.Hour).Nanoseconds())),
-		time.Duration(env.ParseInt64FromEnv("WORKQUEUE_MAX_DELAY_NS", time.Second.Nanoseconds(), 1*time.Millisecond.Nanoseconds(), (24 * time.Hour).Nanoseconds())),
-		env.ParseFloat64FromEnv("WORKQUEUE_BACKOFF_FACTOR", 1.5, 0, math.MaxFloat64),
+		0,
+		time.Millisecond,
+		time.Second,
+		1.5,
 	}
 }
 
@@ -38,7 +37,7 @@ func GetAppRateLimiterConfig() *AppControllerRateLimiterConfig {
 func NewCustomAppControllerRateLimiter(cfg *AppControllerRateLimiterConfig) workqueue.RateLimiter {
 	return workqueue.NewMaxOfRateLimiter(
 		NewItemExponentialRateLimiterWithAutoReset(cfg.BaseDelay, cfg.MaxDelay, cfg.FailureCoolDown, cfg.BackoffFactor),
-		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(cfg.BucketQPS), cfg.BucketSize)},
+		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(cfg.BucketQPS), int(cfg.BucketSize))},
 	)
 }
 

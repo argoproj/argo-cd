@@ -123,6 +123,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		true,
 		nil,
 		data.applicationNamespaces,
+		nil,
 	)
 	if err != nil {
 		panic(err)
