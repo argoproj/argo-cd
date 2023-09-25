@@ -2337,6 +2337,7 @@ func TestIgnoreApplicationDifferences(t *testing.T) {
 		},
 	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
 		When().
+		LoginAs("admin").
 		AppSet("simple-list-generator", "--sync-policy", "none").
 		And(func() { expectedApp.Spec.SyncPolicy = nil }).
 		Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
