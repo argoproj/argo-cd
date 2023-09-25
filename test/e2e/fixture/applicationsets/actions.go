@@ -509,8 +509,3 @@ func (a *Actions) runCli(args ...string) {
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
 	a.verifyAction()
 }
-
-func (a *Actions) LoginAs(account string) *Actions {
-	fixture.LoginAs(account)
-	return a
-}
