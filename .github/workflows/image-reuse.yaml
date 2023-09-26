@@ -141,6 +141,7 @@ jobs:
           large-packages: false
           docker-images: false
           swap-storage: false
+          tool-cache: false
 
       - name: Build and push container image
         id: image
