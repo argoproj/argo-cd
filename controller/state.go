@@ -453,6 +453,18 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				LastTransitionTime: &now,
 			})
 		}
+
+		// If we reach this path, this means that a namespace has been both defined in Git, as well in the
+		// application's managedNamespaceMetadata. We want to emit a warning in such cases.
+		if isManagedNamespace(targetObj, app) {
+			conditions = append(conditions, v1alpha1.ApplicationCondition{
+				Type:               v1alpha1.ApplicationConditionRepeatedResourceWarning,
+				Message:            fmt.Sprintf("Namespace %s has been defined in both the application's managedNamespaceMetadata as well as in the application source", targetObj.GetName()),
+				LastTransitionTime: &now,
+			})
+
+			failedToLoadObjs = true
+		}
 	}
 	ts.AddCheckpoint("dedup_ms")
 
