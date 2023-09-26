@@ -13,7 +13,6 @@ spec:
       annotations:
         my: annotation
     spec:
-      ttlSecondsAfterFinished: 100
       template:
         metadata:
           labels:
