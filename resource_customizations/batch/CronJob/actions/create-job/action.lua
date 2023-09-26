@@ -47,8 +47,11 @@ ownerRef.uid = obj.metadata.uid
 job.metadata.ownerReferences = {}
 job.metadata.ownerReferences[1] = ownerRef
 
-job.spec = deepCopy(obj.spec.jobTemplate.spec)
+job.spec = {}
 job.spec.suspend = false
+job.spec.template = {}
+job.spec.template.metadata = deepCopy(obj.spec.jobTemplate.spec.template.metadata)
+job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
 
 local impactedResource = {}
 impactedResource.operation = "create"
