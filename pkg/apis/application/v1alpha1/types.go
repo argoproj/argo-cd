@@ -555,7 +555,8 @@ func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 		len(k.CommonAnnotations) == 0 &&
 		k.NamePrefix == "" &&
 		k.Namespace == "" &&
-		k.NameSuffix == ""
+		k.NameSuffix == "" &&
+		len(k.Patches) == 0
 }
 
 // IsZero returns true when the Kustomize options are considered empty
