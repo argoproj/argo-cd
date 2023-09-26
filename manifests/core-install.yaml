@@ -20843,7 +20843,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:7.0.11-alpine
+        image: redis:7.0.13-alpine
         imagePullPolicy: Always
         name: redis
         ports:
