@@ -1774,8 +1774,7 @@ func TestSourceNamespaceCanBeMigratedToManagedNamespaceWithoutBeingPrunedOrOutOf
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(Condition(ApplicationConditionRepeatedResourceWarning, fmt.Sprintf("Namespace %s has been defined in both the application's managedNamespaceMetadata as well as in the application source", DeploymentNamespace()))).
-		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.Equal(t, &ManagedNamespaceMetadata{Labels: map[string]string{"foo": "bar"}}, app.Spec.SyncPolicy.ManagedNamespaceMetadata)
 		}).

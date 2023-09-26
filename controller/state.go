@@ -391,6 +391,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	now := metav1.Now()
 
 	var manifestInfos []*apiclient.ManifestResponse
+	targetNsExists := false
 
 	if len(localManifests) == 0 {
 		// If the length of revisions is not same as the length of sources,
@@ -455,15 +456,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 
 		// If we reach this path, this means that a namespace has been both defined in Git, as well in the
-		// application's managedNamespaceMetadata. We want to emit a warning in such cases.
+		// application's managedNamespaceMetadata. We want to ensure that this manifest is the one being used instead
+		// of what is present in managedNamespaceMetadata.
 		if isManagedNamespace(targetObj, app) {
-			conditions = append(conditions, v1alpha1.ApplicationCondition{
-				Type:               v1alpha1.ApplicationConditionRepeatedResourceWarning,
-				Message:            fmt.Sprintf("Namespace %s has been defined in both the application's managedNamespaceMetadata as well as in the application source", targetObj.GetName()),
-				LastTransitionTime: &now,
-			})
-
-			failedToLoadObjs = true
+			targetNsExists = true
 		}
 	}
 	ts.AddCheckpoint("dedup_ms")
@@ -523,7 +519,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			// entry in source control. In order for the namespace not to risk being pruned, we'll need to generate a
 			// namespace which we can compare the live namespace with. For that, we'll do the same as is done in
 			// gitops-engine, the difference here being that we create a managed namespace which is only used for comparison.
-			if isManagedNamespace(liveObj, app) {
+			//
+			// targetNsExists == true implies that it already exists as a target, so no need to add the namespace to the
+			// targetObjs array.
+			if isManagedNamespace(liveObj, app) && !targetNsExists {
 				nsSpec := &v1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()}}
 				managedNs, err := kubeutil.ToUnstructured(nsSpec)
 
