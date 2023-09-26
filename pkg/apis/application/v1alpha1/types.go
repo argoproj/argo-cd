@@ -961,6 +961,7 @@ type OperationInitiator struct {
 	Username string `json:"username,omitempty" protobuf:"bytes,1,opt,name=username"`
 	// Automated is set to true if operation was initiated automatically by the application controller.
 	Automated bool `json:"automated,omitempty" protobuf:"bytes,2,opt,name=automated"`
+	//
 }
 
 // Operation contains information about a requested or running operation
@@ -1409,9 +1410,9 @@ const (
 )
 
 // ApplicationConditionType represents type of application condition. Type name has following convention:
-// prefix "Error" means error condition
-// prefix "Warning" means warning condition
-// prefix "Info" means informational condition
+// suffix "Error" means error condition
+// suffix "Warning" means warning condition
+// suffix "Info" means informational condition
 type ApplicationConditionType = string
 
 const (

@@ -1219,11 +1219,13 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 
 	// Check whether application is allowed to use project
-	_, err := ctrl.getAppProj(app)
+	proj, err := ctrl.getAppProj(app)
 	if err != nil {
 		state.Phase = synccommon.OperationError
 		state.Message = err.Error()
 	}
+
+	proj.Spec.SyncWindows.Matches(app).CanSync(!state.Operation.InitiatedBy.Automated)
 
 	if state.Phase == synccommon.OperationRunning {
 		// It's possible for an app to be terminated while we were operating on it. We do not want
