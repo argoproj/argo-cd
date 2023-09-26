@@ -1,3 +1,5 @@
+# `argocd` Command Reference
+
 ## argocd
 
 argocd controls a Argo CD server

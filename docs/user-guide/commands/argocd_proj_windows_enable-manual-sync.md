@@ -1,3 +1,5 @@
+# `argocd proj windows enable-manual-sync` Command Reference
+
 ## argocd proj windows enable-manual-sync
 
 Enable manual sync for a sync window

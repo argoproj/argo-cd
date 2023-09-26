@@ -1,3 +1,5 @@
+# `argocd proj role remove-group` Command Reference
+
 ## argocd proj role remove-group
 
 Remove a group claim from a role within a project

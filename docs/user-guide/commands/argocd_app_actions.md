@@ -1,3 +1,5 @@
+# `argocd app actions` Command Reference
+
 ## argocd app actions
 
 Manage Resource actions

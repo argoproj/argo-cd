@@ -1,3 +1,5 @@
+# `argocd gpg add` Command Reference
+
 ## argocd gpg add
 
 Adds a GPG public key to the server's keyring

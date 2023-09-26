@@ -1,4 +1,4 @@
-hs = {}
+local hs = {}
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
     for i, condition in ipairs(obj.status.conditions) do

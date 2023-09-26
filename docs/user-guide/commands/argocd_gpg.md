@@ -1,3 +1,5 @@
+# `argocd gpg` Command Reference
+
 ## argocd gpg
 
 Manage GPG keys used for signature verification

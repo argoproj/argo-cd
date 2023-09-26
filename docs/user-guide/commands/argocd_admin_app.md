@@ -1,3 +1,5 @@
+# `argocd admin app` Command Reference
+
 ## argocd admin app
 
 Manage applications configuration
