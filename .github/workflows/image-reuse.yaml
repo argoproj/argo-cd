@@ -137,6 +137,11 @@ jobs:
 
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@4d9e71b726748f254fe64fa44d273194bd18ec91
+        with:
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+          tool-cache: false
 
       - name: Build and push container image
         id: image
