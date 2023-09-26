@@ -1,3 +1,5 @@
+# `argocd admin settings rbac can` Command Reference
+
 ## argocd admin settings rbac can
 
 Check RBAC permissions for a role or subject

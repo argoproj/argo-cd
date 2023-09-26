@@ -1,3 +1,5 @@
+# `argocd app actions run` Command Reference
+
 ## argocd app actions run
 
 Runs an available action on resource(s)

@@ -1,3 +1,5 @@
+# `argocd proj remove-destination` Command Reference
+
 ## argocd proj remove-destination
 
 Remove project destination

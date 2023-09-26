@@ -1,3 +1,5 @@
+# `argocd app list` Command Reference
+
 ## argocd app list
 
 List applications

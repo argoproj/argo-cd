@@ -2,12 +2,16 @@ package db
 
 import (
 	"context"
+	"math"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -83,6 +87,9 @@ type ArgoDB interface {
 	AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*appv1.GnuPGPublicKey, []string, error)
 	// DeleteGPGPublicKey removes a GPG public key from the configuration
 	DeleteGPGPublicKey(ctx context.Context, keyID string) error
+
+	// GetApplicationControllerReplicas gets the replicas of application controller
+	GetApplicationControllerReplicas() int
 }
 
 type db struct {
@@ -139,4 +146,15 @@ func (db *db) unmarshalFromSecretsStr(secrets map[*SecretMaperValidation]*v1.Sec
 // StripCRLFCharacter strips the trailing CRLF characters
 func StripCRLFCharacter(input string) string {
 	return strings.TrimSpace(input)
+}
+
+// GetApplicationControllerReplicas gets the replicas of application controller
+func (db *db) GetApplicationControllerReplicas() int {
+	// get the replicas from application controller deployment, if the application controller deployment does not exist, check for environment variable
+	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+	appControllerDeployment, _ := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+	if appControllerDeployment != nil {
+		return int(*appControllerDeployment.Spec.Replicas)
+	}
+	return env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 }

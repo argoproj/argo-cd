@@ -259,6 +259,52 @@ func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
 	return true
 }
 
+func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}) {
+
+	mapUidToNode := make(map[string]argoappv1.ResourceNode)
+	mapParentToChild := make(map[string][]string)
+	parentNode := make(map[string]struct{})
+
+	resourceTree, err := appIf.ResourceTree(ctx, &application.ResourcesQuery{Name: &appName, AppNamespace: &appNs, ApplicationName: &appName})
+	errors.CheckError(err)
+
+	for _, node := range resourceTree.Nodes {
+		mapUidToNode[node.UID] = node
+
+		if len(node.ParentRefs) > 0 {
+			_, ok := mapParentToChild[node.ParentRefs[0].UID]
+			if !ok {
+				var temp []string
+				mapParentToChild[node.ParentRefs[0].UID] = temp
+			}
+			mapParentToChild[node.ParentRefs[0].UID] = append(mapParentToChild[node.ParentRefs[0].UID], node.UID)
+		} else {
+			parentNode[node.UID] = struct{}{}
+		}
+	}
+	return mapUidToNode, mapParentToChild, parentNode
+}
+
+func printHeader(acdClient argocdclient.Client, app *argoappv1.Application, ctx context.Context, windows *argoappv1.SyncWindows, showOperation bool, showParams bool) {
+	aURL := appURL(ctx, acdClient, app.Name)
+	printAppSummaryTable(app, aURL, windows)
+
+	if len(app.Status.Conditions) > 0 {
+		fmt.Println()
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		printAppConditions(w, app)
+		_ = w.Flush()
+		fmt.Println()
+	}
+	if showOperation && app.Status.OperationState != nil {
+		fmt.Println()
+		printOperationResult(app.Status.OperationState)
+	}
+	if showParams {
+		printParams(app)
+	}
+}
+
 // NewApplicationGetCommand returns a new instance of an `argocd app get` command
 func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -273,7 +319,6 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		Short: "Get application details",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
-
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -283,11 +328,13 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			defer argoio.Close(conn)
 
 			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
 				Name:         &appName,
 				Refresh:      getRefreshType(refresh, hardRefresh),
 				AppNamespace: &appNs,
 			})
+
 			errors.CheckError(err)
 
 			pConn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
@@ -302,35 +349,33 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				err := PrintResource(app, output)
 				errors.CheckError(err)
 			case "wide", "":
-				aURL := appURL(ctx, acdClient, app.Name)
-				printAppSummaryTable(app, aURL, windows)
-
-				if len(app.Status.Conditions) > 0 {
-					fmt.Println()
-					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-					printAppConditions(w, app)
-					_ = w.Flush()
-					fmt.Println()
-				}
-				if showOperation && app.Status.OperationState != nil {
-					fmt.Println()
-					printOperationResult(app.Status.OperationState)
-				}
-				if showParams {
-					printParams(app)
-				}
+				printHeader(acdClient, app, ctx, windows, showOperation, showParams)
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 					printAppResources(w, app)
 					_ = w.Flush()
 				}
+			case "tree":
+				printHeader(acdClient, app, ctx, windows, showOperation, showParams)
+				mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
+				if len(mapUidToNode) > 0 {
+					fmt.Println()
+					printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
+				}
+			case "tree=detailed":
+				printHeader(acdClient, app, ctx, windows, showOperation, showParams)
+				mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
+				if len(mapUidToNode) > 0 {
+					fmt.Println()
+					printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
+				}
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree")
 	command.Flags().BoolVar(&showOperation, "show-operation", false, "Show application operation")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
@@ -420,12 +465,12 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&kind, "kind", "", "Resource kind")
 	command.Flags().StringVar(&namespace, "namespace", "", "Resource namespace")
 	command.Flags().StringVar(&resourceName, "name", "", "Resource name")
-	command.Flags().BoolVar(&follow, "follow", false, "Specify if the logs should be streamed")
+	command.Flags().BoolVarP(&follow, "follow", "f", false, "Specify if the logs should be streamed")
 	command.Flags().Int64Var(&tail, "tail", 0, "The number of lines from the end of the logs to show")
 	command.Flags().Int64Var(&sinceSeconds, "since-seconds", 0, "A relative time in seconds before the current time from which to show logs")
 	command.Flags().StringVar(&untilTime, "until-time", "", "Show logs until this time")
 	command.Flags().StringVar(&filter, "filter", "", "Show logs contain this string")
-	command.Flags().StringVar(&container, "container", "", "Optional container name")
+	command.Flags().StringVarP(&container, "container", "c", "", "Optional container name")
 	command.Flags().BoolVarP(&previous, "previous", "p", false, "Specify if the previously terminated container logs should be returned")
 
 	return command
@@ -1449,6 +1494,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		timeout   uint
 		selector  string
 		resources []string
+		output    string
 	)
 	var command = &cobra.Command{
 		Use:   "wait [APPNAME.. | -l selector]",
@@ -1497,7 +1543,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			for _, appName := range appNames {
-				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources)
+				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output)
 				errors.CheckError(err)
 			}
 		},
@@ -1510,6 +1556,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
 	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
 	return command
 }
 
@@ -1519,6 +1566,24 @@ func printAppResources(w io.Writer, app *argoappv1.Application) {
 	for _, res := range getResourceStates(app, nil) {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, res.Health, res.Hook, res.Message)
 	}
+}
+
+func printTreeView(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintf(w, "KIND/NAME\tSTATUS\tHEALTH\tMESSAGE\n")
+	for uid := range parentNodes {
+		treeViewAppGet("", nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState, w)
+	}
+	_ = w.Flush()
+}
+
+func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(w, "KIND/NAME\tSTATUS\tHEALTH\tAGE\tMESSAGE\tREASON\n")
+	for uid := range parentNodes {
+		detailedTreeViewAppGet("", nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState, w)
+	}
+	_ = w.Flush()
 }
 
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
@@ -1547,6 +1612,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		diffChanges             bool
 		diffChangesConfirm      bool
 		projects                []string
+		output                  string
 	)
 	var command = &cobra.Command{
 		Use:   "sync [APPNAME... | -l selector | --project project-name]",
@@ -1575,17 +1641,13 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app sync my-app --resource argoproj.io:Rollout:my-namespace/my-rollout`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
-
 			if len(args) == 0 && selector == "" && len(projects) == 0 {
-
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-
 			if len(args) > 1 && selector != "" {
 				log.Fatal("Cannot use selector option when application name(s) passed as argument(s)")
 			}
-
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
@@ -1629,6 +1691,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					if err != nil {
 						log.Fatal(err)
 					}
+
+					fmt.Println("The name of the app is ", appName)
 
 					for _, mfst := range res.Manifests {
 						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
@@ -1789,7 +1853,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 
 				if !async {
-					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources)
+					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output)
 					errors.CheckError(err)
 
 					if !dryRun {
@@ -1830,6 +1894,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&diffChangesConfirm, "assumeYes", false, "Assume yes as answer for all user queries or prompts")
 	command.Flags().BoolVar(&diffChanges, "preview-changes", false, "Preview difference against the target and live state before syncing app and wait for user confirmation")
 	command.Flags().StringArrayVar(&projects, "project", []string{}, "Sync apps that belong to the specified projects. This option may be specified repeatedly.")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
 	return command
 }
 
@@ -2010,12 +2075,26 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	return synced && healthCheckPassed && operational
 }
 
+// resourceParentChild gets the latest state of the app and the latest state of the app's resource tree and then
+// constructs the necessary data structures to print the app as a tree.
+func resourceParentChild(ctx context.Context, acdClient argocdclient.Client, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}, map[string]*resourceState) {
+	_, appIf := acdClient.NewApplicationClientOrDie()
+	mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
+	app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: pointer.String(appName), AppNamespace: pointer.String(appNs)})
+	errors.CheckError(err)
+	mapNodeNameToResourceState := make(map[string]*resourceState)
+	for _, res := range getResourceStates(app, nil) {
+		mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
+	}
+	return mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState
+}
+
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
-// are fulfiled or we reach the timeout. Returns the app once desired conditions have been filled.
+// are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
 // Additionally return the operationState at time of fulfilment (which may be different than returned app).
-func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (*argoappv1.Application, *argoappv1.OperationState, error) {
+func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string) (*argoappv1.Application, *argoappv1.OperationState, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -2047,18 +2126,49 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			printOperationResult(app.Status.OperationState)
 		}
 
-		if len(app.Status.Resources) > 0 {
-			fmt.Println()
-			w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
-			printAppResources(w, app)
-			_ = w.Flush()
+		switch output {
+		case "yaml", "json":
+			err := PrintResource(app, output)
+			errors.CheckError(err)
+		case "wide", "":
+			if len(app.Status.Resources) > 0 {
+				fmt.Println()
+				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+				printAppResources(w, app)
+				_ = w.Flush()
+			}
+		case "tree":
+			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
+			if len(mapUidToNode) > 0 {
+				fmt.Println()
+				printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
+			}
+		case "tree=detailed":
+			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
+			if len(mapUidToNode) > 0 {
+				fmt.Println()
+				printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
+			}
+		default:
+			errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 		}
 		return app
 	}
 
 	if timeout != 0 {
 		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
+			_, appClient := acdClient.NewApplicationClientOrDie()
+			app, err := appClient.Get(ctx, &application.ApplicationQuery{
+				Name:         &appRealName,
+				AppNamespace: &appNs,
+			})
+			errors.CheckError(err)
+			fmt.Println()
+			fmt.Println("This is the state of the app after `wait` timed out:")
+			printFinalStatus(app)
 			cancel()
+			fmt.Println()
+			fmt.Println("The command timed out waiting for the conditions to be met.")
 		})
 	}
 
@@ -2266,13 +2376,13 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 	var (
 		prune   bool
 		timeout uint
+		output  string
 	)
 	var command = &cobra.Command{
 		Use:   "rollback APPNAME [ID]",
 		Short: "Rollback application to a previous deployed version by History ID, omitted will Rollback to the previous version",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
-
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -2306,12 +2416,13 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 			_, _, err = waitOnApplicationStatus(ctx, acdClient, app.QualifiedName(), timeout, watchOpts{
 				operation: true,
-			}, nil)
+			}, nil, output)
 			errors.CheckError(err)
 		},
 	}
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
 	return command
 }
 
