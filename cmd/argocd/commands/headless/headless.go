@@ -142,7 +142,7 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 	}
 	defer io.Close(closer)
 	_, err = versionClient.Version(ctx, &empty.Empty{})
-	if  err != nil {
+	if err != nil {
 		return fmt.Errorf("failed to get version: %w", err)
 	}
 	return nil
