@@ -401,6 +401,11 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 		}
 		for {
 			msg, err := appResourceStream.Recv()
+
+			if ctx.Err() != nil {
+				return
+			}
+
 			if err == io.EOF {
 				done <- true
 				return
@@ -422,6 +427,9 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 		}
 		for {
 			msg, err := gitResourceStream.Recv()
+			if ctx.Err() != nil {
+				return
+			}
 			if err == io.EOF {
 				done <- true
 				return
@@ -430,7 +438,6 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 				done <- true
 				log.Fatalf("gitResourceStream read failed: %v", err)
 			}
-			fmt.Println("Received an update  on git resources")
 			gitResources <- msg.Application
 		}
 	}()
@@ -438,7 +445,6 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("Go routine cancelled")
 			done <- true
 			return
 		case appTreeNodes := <-appResources:
@@ -455,11 +461,8 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 		}
 	}
 	<-done
-	fmt.Println("done channel closed")
 	close(gitResources)
-	fmt.Println("gitResources channel closed")
 	close(appResources)
-	fmt.Println("appResources channel closed")
 	close(done)
 }
 
@@ -2283,13 +2286,19 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				Name:         &appRealName,
 				AppNamespace: &appNs,
 			})
+			finalOperationState := app.Status.OperationState
 			errors.CheckError(err)
-
+			if watchFlag {
+				fmt.Print("\033[2J\033[H\033[3J")
+			}
 			fmt.Println()
 			fmt.Println("This is the state of the app after `wait` timed out:")
-			close(resourceTreeWatchChannel)
+			if !watchFlag {
+				close(resourceTreeWatchChannel)
+			}
 			printFinalStatus(app)
 			cancel()
+			done <- returnedValues{nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)}
 			fmt.Println()
 			fmt.Println("The command timed out waiting for the conditions to be met.")
 		})
@@ -2358,14 +2367,14 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			}
 
 			if selectedResourcesAreReady && (!operationInProgress || !watch.operation) {
-				app = printFinalStatus(app)
 				if !watchFlag {
 					close(resourceTreeWatchChannel)
 				} else {
 					resourceTreeWatchChannel <- true
+					fmt.Print("\033[2J\033[H\033[3J")
 				}
+				app = printFinalStatus(app)
 				done <- returnedValues{app, finalOperationState, nil}
-				//return app, finalOperationState, nil
 			}
 
 			newStates := groupResourceStates(app, selectedResources)
@@ -2378,10 +2387,10 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 							close(resourceTreeWatchChannel)
 						} else {
 							resourceTreeWatchChannel <- true
+							fmt.Print("\033[2J\033[H\033[3J")
 						}
 						_ = printFinalStatus(app)
 						done <- returnedValues{nil, finalOperationState, fmt.Errorf("application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)}
-						//return nil, finalOperationState, fmt.Errorf("application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
 					}
 					doPrint = prevState.Merge(newState)
 				} else {
@@ -2399,14 +2408,6 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			}
 		}
 
-		if !watchFlag {
-			fmt.Println("Printed from last printFinal Start")
-			_ = printFinalStatus(app)
-			fmt.Println("Printed from last printFinal end")
-		}
-
-		done <- returnedValues{nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)}
-		//return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
 	}()
 
 	if watchFlag {
@@ -2415,10 +2416,8 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			resourceTreeWatch(appIf, ctx, appName, appNs, output, resourceTreeWatchChannel)
 		}()
 	}
-
 	val := <-done
 	close(done)
-	close(resourceTreeWatchChannel)
 	return val.app, val.operationState, val.err
 }
 
