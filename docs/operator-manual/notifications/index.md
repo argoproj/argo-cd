@@ -45,3 +45,19 @@ kubectl patch app <my-app> -n argocd -p '{"metadata": {"annotations": {"notifica
 ```
 
 Try syncing an application to get notified when the sync is completed.
+
+## Namespace based configuration
+
+!!! important
+Available since v2.9
+
+A common installation method for Argo CD Notifications is to install it in a dedicated namespace to manage a whole cluster. In this case, the administrator is the only
+person who can configure notifications in that namespace generally. However, in some cases, it is required to allow end-users to configure notifications
+for their Argo CD applications. For example, the end-user can configure notifications for their Argo CD application in the namespace where they have access to and their Argo CD application is running in.
+
+To use this feature all you need to do is create the same configmap named `argo-rollouts-notification-configmap` and possibly
+a secret `argo-rollouts-notification-secret` in the namespace where the Argo CD application lives. When it is configured this way the controller
+will send notifications using both the controller level configuration (the configmap located in the same namespaces as the controller) as well as
+the configmap located in the same namespaces where the rollout object is at.
+
+To enable you need to add a flag to the controller `--self-service-notification-enabled`
