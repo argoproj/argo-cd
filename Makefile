@@ -386,9 +386,9 @@ test: test-tools-image
 .PHONY: test-local
 test-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
+		./hack/test.sh -failfast -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
 	else \
-		./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
+		./hack/test.sh -failfast -coverprofile=coverage.out "$(TEST_MODULE)"; \
 	fi
 
 .PHONY: test-race
@@ -400,9 +400,9 @@ test-race: test-tools-image
 .PHONY: test-race-local
 test-race-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		./hack/test.sh -race -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
+		./hack/test.sh -failfast -race -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
 	else \
-		./hack/test.sh -race -coverprofile=coverage.out "$(TEST_MODULE)"; \
+		./hack/test.sh -failfast -race -coverprofile=coverage.out "$(TEST_MODULE)"; \
 	fi
 
 # Run the E2E test suite. E2E test servers (see start-e2e target) must be
@@ -416,7 +416,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v ./test/e2e
+	DIST_DIR=${DIST_DIR} ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v ./test/e2e
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -556,7 +556,8 @@ install-tools-local: install-test-tools-local install-codegen-tools-local instal
 .PHONY: install-test-tools-local
 install-test-tools-local:
 	./hack/install.sh kustomize
-	./hack/install.sh helm-linux
+
+	./hack/install.sh gotestsum
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local
