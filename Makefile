@@ -386,9 +386,9 @@ test: test-tools-image
 .PHONY: test-local
 test-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		./hack/test.sh -failfast -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
+		DIST_DIR=${DIST_DIR} ./hack/test.sh -failfast -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
 	else \
-		./hack/test.sh -failfast -coverprofile=coverage.out "$(TEST_MODULE)"; \
+		DIST_DIR=${DIST_DIR} ./hack/test.sh -failfast -coverprofile=coverage.out "$(TEST_MODULE)"; \
 	fi
 
 .PHONY: test-race
