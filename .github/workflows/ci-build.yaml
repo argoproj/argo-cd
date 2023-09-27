@@ -361,6 +361,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
+        fail-fast: false
         k3s-version: [v1.27.2, v1.26.0, v1.25.4, v1.24.3]
     needs: 
       - build-go
