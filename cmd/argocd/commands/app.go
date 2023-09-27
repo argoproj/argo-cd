@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"text/tabwriter"
 	"time"
 	"unicode/utf8"
@@ -372,8 +371,6 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					fmt.Println()
 					printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 				}
-			case "test":
-				resourceTreeWatch(appIf, ctx, appName, appNs, "tree=detailed")
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
@@ -387,7 +384,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	return command
 }
 
-func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string, output string) {
+func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string, output string, done chan bool) {
 	mapUidToNode := make(map[string]argoappv1.ResourceNode)
 	mapParentToChild := make(map[string][]string)
 	parentNodes := make(map[string]struct{})
@@ -395,64 +392,81 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 	gitResources := make(chan v1alpha1.Application)
 	appResources := make(chan []v1alpha1.ResourceNode)
 	var app *v1alpha1.Application
-	var wg sync.WaitGroup
-	wg.Add(2)
 
 	go func() {
-		defer wg.Done()
 		appResourceStream, err := appIf.WatchResourceTree(ctx, &application.ResourcesQuery{Name: &appName, AppNamespace: &appNs, ApplicationName: &appName})
 		if err != nil {
+			done <- true
 			log.Fatalf("failed to get Application tree: %v", err)
 		}
 		for {
 			msg, err := appResourceStream.Recv()
 			if err == io.EOF {
+				done <- true
 				return
 			}
 			if err != nil {
+				done <- true
 				log.Fatalf("appResourceStream read failed: %v", err)
 			}
+			fmt.Println("Received an update  on appTree resources")
 			appResources <- msg.Nodes
 		}
 	}()
 
 	go func() {
-		defer wg.Done()
 		gitResourceStream, err := appIf.Watch(ctx, &application.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 		if err != nil {
+			done <- true
 			log.Fatalf("failed to get git resources: %v", err)
 		}
 		for {
 			msg, err := gitResourceStream.Recv()
 			if err == io.EOF {
+				done <- true
 				return
 			}
 			if err != nil {
+				done <- true
 				log.Fatalf("gitResourceStream read failed: %v", err)
 			}
+			fmt.Println("Received an update  on git resources")
 			gitResources <- msg.Application
 		}
 	}()
 
 	for {
 		select {
+		case <-ctx.Done():
+			fmt.Println("Go routine cancelled")
+			done <- true
+			return
 		case appTreeNodes := <-appResources:
 			mapUidToNode, mapParentToChild, parentNodes = parentChildInfo(appTreeNodes)
+			fmt.Println("Printed from tree change")
 			printAppResourceStatus(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState, output, app)
 		case gitResourceApp := <-gitResources:
 			app = &gitResourceApp
 			for _, res := range getResourceStates(&gitResourceApp, nil) {
 				mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
 			}
+			fmt.Println("Printed from git change")
 			printAppResourceStatus(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState, output, app)
 		}
-		wg.Wait()
 	}
+	<-done
+	fmt.Println("done channel closed")
+	close(gitResources)
+	fmt.Println("gitResources channel closed")
+	close(appResources)
+	fmt.Println("appResources channel closed")
+	close(done)
 }
 
 func printAppResourceStatus(mapUidToNode map[string]v1alpha1.ResourceNode, mapParentToChild map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState, output string, app *v1alpha1.Application) {
-	print("\033[H\033[2J")
-	print("\033[0;0H")
+	//fmt.Print("\033[H\033[2J")
+	//fmt.Print("\033[0;0H")
+	fmt.Print("\033[2J\033[H\033[3J")
 	switch output {
 	case "yaml", "json":
 		err := PrintResource(app, output)
@@ -1590,7 +1604,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		timeout   uint
 		selector  string
 		resources []string
-		watcher   bool
+		watchFlag bool
 		output    string
 	)
 	var command = &cobra.Command{
@@ -1640,7 +1654,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			for _, appName := range appNames {
-				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output)
+				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output, watchFlag)
 				errors.CheckError(err)
 			}
 		},
@@ -1653,7 +1667,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
 	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
-	command.Flags().BoolVar(&watcher, "watcher", false, "watch provides the dynamic view of app")
+	command.Flags().BoolVar(&watchFlag, "watchFlag", false, "watchFlag provides the dynamic view of status of appResources")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
 
 	return command
@@ -1952,7 +1966,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 
 				if !async {
-					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output)
+					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output, false)
 					errors.CheckError(err)
 
 					if !dryRun {
@@ -2193,9 +2207,18 @@ const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
 // Additionally return the operationState at time of fulfilment (which may be different than returned app).
-func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string) (*argoappv1.Application, *argoappv1.OperationState, error) {
+func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string, watchFlag bool) (*argoappv1.Application, *argoappv1.OperationState, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	resourceTreeWatchChannel := make(chan bool)
+
+	type returnedValues struct {
+		app            *argoappv1.Application
+		operationState *argoappv1.OperationState
+		err            error
+	}
+
+	done := make(chan returnedValues)
 
 	// refresh controls whether or not we refresh the app before printing the final status.
 	// We only want to do this when an operation is in progress, since operations are the only
@@ -2217,7 +2240,6 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			errors.CheckError(err)
 			_ = conn.Close()
 		}
-
 		fmt.Println()
 		printAppSummaryTable(app, appURL(ctx, acdClient, appName), nil)
 		fmt.Println()
@@ -2262,8 +2284,10 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
+
 			fmt.Println()
 			fmt.Println("This is the state of the app after `wait` timed out:")
+			close(resourceTreeWatchChannel)
 			printFinalStatus(app)
 			cancel()
 			fmt.Println()
@@ -2272,92 +2296,130 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
-
-	prevStates := make(map[string]*resourceState)
-	conn, appClient := acdClient.NewApplicationClientOrDie()
-	defer argoio.Close(conn)
-	app, err := appClient.Get(ctx, &application.ApplicationQuery{
-		Name:         &appRealName,
-		AppNamespace: &appNs,
-	})
-	errors.CheckError(err)
-
-	// printFinalStatus() will refresh and update the app object, potentially causing the app's
-	// status.operationState to be different than the version when we break out of the event loop.
-	// This means the app.status is unreliable for determining the final state of the operation.
-	// finalOperationState captures the operationState as it was seen when we met the conditions of
-	// the wait, so the caller can rely on it to determine the outcome of the operation.
-	// See: https://github.com/argoproj/argo-cd/issues/5592
-	finalOperationState := app.Status.OperationState
-
-	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName, app.ResourceVersion)
-	for appEvent := range appEventCh {
-		app = &appEvent.Application
-
-		finalOperationState = app.Status.OperationState
-		operationInProgress := false
-		// consider the operation is in progress
-		if app.Operation != nil {
-			// if it just got requested
-			operationInProgress = true
-			if !app.Operation.DryRun() {
-				refresh = true
-			}
-		} else if app.Status.OperationState != nil {
-			if app.Status.OperationState.FinishedAt == nil {
-				// if it is not finished yet
-				operationInProgress = true
-			} else if !app.Status.OperationState.Operation.DryRun() && (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)) {
-				// if it is just finished and we need to wait for controller to reconcile app once after syncing
-				operationInProgress = true
-			}
-		}
-
-		var selectedResourcesAreReady bool
-
-		// If selected resources are included, wait only on those resources, otherwise wait on the application as a whole.
-		if len(selectedResources) > 0 {
-			selectedResourcesAreReady = true
-			for _, state := range getResourceStates(app, selectedResources) {
-				resourceIsReady := checkResourceStatus(watch, state.Health, state.Status, appEvent.Application.Operation)
-				if !resourceIsReady {
-					selectedResourcesAreReady = false
-					break
-				}
-			}
-		} else {
-			// Wait on the application as a whole
-			selectedResourcesAreReady = checkResourceStatus(watch, string(app.Status.Health.Status), string(app.Status.Sync.Status), appEvent.Application.Operation)
-		}
-
-		if selectedResourcesAreReady && (!operationInProgress || !watch.operation) {
-			app = printFinalStatus(app)
-			return app, finalOperationState, nil
-		}
-
-		newStates := groupResourceStates(app, selectedResources)
-		for _, newState := range newStates {
-			var doPrint bool
-			stateKey := newState.Key()
-			if prevState, found := prevStates[stateKey]; found {
-				if watch.health && prevState.Health != string(health.HealthStatusUnknown) && prevState.Health != string(health.HealthStatusDegraded) && newState.Health == string(health.HealthStatusDegraded) {
-					_ = printFinalStatus(app)
-					return nil, finalOperationState, fmt.Errorf("application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
-				}
-				doPrint = prevState.Merge(newState)
-			} else {
-				prevStates[stateKey] = newState
-				doPrint = true
-			}
-			if doPrint {
-				_, _ = fmt.Fprintf(w, waitFormatString, prevStates[stateKey].FormatItems()...)
-			}
-		}
-		_ = w.Flush()
+	if !watchFlag {
+		_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
 	}
-	_ = printFinalStatus(app)
-	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
+	go func() {
+		prevStates := make(map[string]*resourceState)
+		conn, appClient := acdClient.NewApplicationClientOrDie()
+		defer argoio.Close(conn)
+		app, err := appClient.Get(ctx, &application.ApplicationQuery{
+			Name:         &appRealName,
+			AppNamespace: &appNs,
+		})
+		errors.CheckError(err)
+
+		// printFinalStatus() will refresh and update the app object, potentially causing the app's
+		// status.operationState to be different than the version when we break out of the event loop.
+		// This means the app.status is unreliable for determining the final state of the operation.
+		// finalOperationState captures the operationState as it was seen when we met the conditions of
+		// the wait, so the caller can rely on it to determine the outcome of the operation.
+		// See: https://github.com/argoproj/argo-cd/issues/5592
+		finalOperationState := app.Status.OperationState
+
+		appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName, app.ResourceVersion)
+		for appEvent := range appEventCh {
+			app = &appEvent.Application
+
+			finalOperationState = app.Status.OperationState
+			operationInProgress := false
+			// consider the operation is in progress
+			if app.Operation != nil {
+				// if it just got requested
+				operationInProgress = true
+				if !app.Operation.DryRun() {
+					refresh = true
+				}
+			} else if app.Status.OperationState != nil {
+				if app.Status.OperationState.FinishedAt == nil {
+					// if it is not finished yet
+					operationInProgress = true
+				} else if !app.Status.OperationState.Operation.DryRun() && (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)) {
+					// if it is just finished and we need to wait for controller to reconcile app once after syncing
+					operationInProgress = true
+				}
+			}
+
+			var selectedResourcesAreReady bool
+
+			// If selected resources are included, wait only on those resources, otherwise wait on the application as a whole.
+			if len(selectedResources) > 0 {
+				selectedResourcesAreReady = true
+				for _, state := range getResourceStates(app, selectedResources) {
+					resourceIsReady := checkResourceStatus(watch, state.Health, state.Status, appEvent.Application.Operation)
+					if !resourceIsReady {
+						selectedResourcesAreReady = false
+						break
+					}
+				}
+			} else {
+				// Wait on the application as a whole
+				selectedResourcesAreReady = checkResourceStatus(watch, string(app.Status.Health.Status), string(app.Status.Sync.Status), appEvent.Application.Operation)
+			}
+
+			if selectedResourcesAreReady && (!operationInProgress || !watch.operation) {
+				app = printFinalStatus(app)
+				if !watchFlag {
+					close(resourceTreeWatchChannel)
+				} else {
+					resourceTreeWatchChannel <- true
+				}
+				done <- returnedValues{app, finalOperationState, nil}
+				//return app, finalOperationState, nil
+			}
+
+			newStates := groupResourceStates(app, selectedResources)
+			for _, newState := range newStates {
+				var doPrint bool
+				stateKey := newState.Key()
+				if prevState, found := prevStates[stateKey]; found {
+					if watch.health && prevState.Health != string(health.HealthStatusUnknown) && prevState.Health != string(health.HealthStatusDegraded) && newState.Health == string(health.HealthStatusDegraded) {
+						if !watchFlag {
+							close(resourceTreeWatchChannel)
+						} else {
+							resourceTreeWatchChannel <- true
+						}
+						_ = printFinalStatus(app)
+						done <- returnedValues{nil, finalOperationState, fmt.Errorf("application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)}
+						//return nil, finalOperationState, fmt.Errorf("application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
+					}
+					doPrint = prevState.Merge(newState)
+				} else {
+					prevStates[stateKey] = newState
+					doPrint = true
+				}
+				if doPrint {
+					if !watchFlag {
+						_, _ = fmt.Fprintf(w, waitFormatString, prevStates[stateKey].FormatItems()...)
+					}
+				}
+			}
+			if !watchFlag {
+				_ = w.Flush()
+			}
+		}
+
+		if !watchFlag {
+			fmt.Println("Printed from last printFinal Start")
+			_ = printFinalStatus(app)
+			fmt.Println("Printed from last printFinal end")
+		}
+
+		done <- returnedValues{nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)}
+		//return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
+	}()
+
+	if watchFlag {
+		go func() {
+			_, appIf := acdClient.NewApplicationClientOrDie()
+			resourceTreeWatch(appIf, ctx, appName, appNs, output, resourceTreeWatchChannel)
+		}()
+	}
+
+	val := <-done
+	close(done)
+	close(resourceTreeWatchChannel)
+	return val.app, val.operationState, val.err
 }
 
 // setParameterOverrides updates an existing or appends a new parameter override in the application
@@ -2515,7 +2577,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 			_, _, err = waitOnApplicationStatus(ctx, acdClient, app.QualifiedName(), timeout, watchOpts{
 				operation: true,
-			}, nil, output)
+			}, nil, output, false)
 			errors.CheckError(err)
 		},
 	}
