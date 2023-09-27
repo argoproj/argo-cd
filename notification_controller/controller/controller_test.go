@@ -119,6 +119,7 @@ func TestInit(t *testing.T) {
 		nil,
 		"my-secret",
 		"my-configmap",
+		false,
 	)
 
 	assert.NotNil(t, nc)
@@ -150,6 +151,7 @@ func TestInitTimeout(t *testing.T) {
 		nil,
 		"my-secret",
 		"my-configmap",
+		false,
 	)
 
 	assert.NotNil(t, nc)
