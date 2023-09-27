@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/glob"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/util/glob"
 
 	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
 
@@ -39,8 +40,8 @@ var (
 	appProjects  = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.AppProjectPlural}
 )
 
-func newAppProjClient(client dynamic.Interface) dynamic.ResourceInterface {
-	resClient := client.Resource(appProjects)
+func newAppProjClient(client dynamic.Interface, namespace string) dynamic.ResourceInterface {
+	resClient := client.Resource(appProjects).Namespace(namespace)
 	return resClient
 }
 
@@ -62,7 +63,7 @@ func NewController(
 ) *notificationController {
 	appClient := client.Resource(applications)
 	appInformer := newInformer(appClient, namespace, applicationNamespaces, appLabelSelector)
-	appProjInformer := newInformer(newAppProjClient(client), namespace, []string{namespace}, "")
+	appProjInformer := newInformer(newAppProjClient(client, namespace), namespace, []string{namespace}, "")
 	secretInformer := k8s.NewSecretInformer(k8sClient, namespace, secretName)
 	configMapInformer := k8s.NewConfigMapInformer(k8sClient, namespace, configMapName)
 	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, secretName, configMapName), namespace, secretInformer, configMapInformer)
@@ -79,7 +80,7 @@ func NewController(
 			if !ok {
 				return false, ""
 			}
-			if namespace != app.GetNamespace() && !glob.MatchStringInList(applicationNamespaces, app.GetNamespace(), false) {
+			if checkAppNotInAdditionalNamespaces(app, namespace, applicationNamespaces) {
 				return true, "app is not in one of the application-namespaces, nor the notification controller namespace"
 			}
 			return !isAppSyncStatusRefreshed(app, log.WithField("app", obj.GetName())), "sync status out of date"
@@ -87,6 +88,11 @@ func NewController(
 		controller.WithMetricsRegistry(registry),
 		controller.WithAlterDestinations(res.alterDestinations))
 	return res
+}
+
+// Check if app is not in the namespace where the controller is in, and also app is not in one of the applicationNamespaces
+func checkAppNotInAdditionalNamespaces(app *unstructured.Unstructured, namespace string, applicationNamespaces []string) bool {
+	return namespace != app.GetNamespace() && !glob.MatchStringInList(applicationNamespaces, app.GetNamespace(), false)
 }
 
 func (c *notificationController) alterDestinations(obj v1.Object, destinations services.Destinations, cfg api.Config) services.Destinations {
@@ -111,7 +117,7 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 				options.LabelSelector = selector
 				appList, err := resClient.List(context.TODO(), options)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("failed to list applications: %w", err)
 				}
 				newItems := []unstructured.Unstructured{}
 				for _, res := range appList.Items {
