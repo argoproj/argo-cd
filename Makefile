@@ -386,9 +386,9 @@ test: test-tools-image
 .PHONY: test-local
 test-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		DIST_DIR=${DIST_DIR} PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -coverprofile=coverage.out; \
+		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -coverprofile=coverage.out; \
 	else \
-		DIST_DIR=${DIST_DIR} PACKAGES="$(TEST_MODULE)" ./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
+		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
 	fi
 
 .PHONY: test-race
@@ -400,9 +400,9 @@ test-race: test-tools-image
 .PHONY: test-race-local
 test-race-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		DIST_DIR=${DIST_DIR} PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -race -coverprofile=coverage.out; \
+		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -race -coverprofile=coverage.out; \
 	else \
-		DIST_DIR=${DIST_DIR} PACKAGES="$(TEST_MODULE)" ./hack/test.sh -race -coverprofile=coverage.out; \
+		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -race -coverprofile=coverage.out; \
 	fi
 
 # Run the E2E test suite. E2E test servers (see start-e2e target) must be
@@ -416,7 +416,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	DIST_DIR=${DIST_DIR} PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v
+	DIST_DIR=${DIST_DIR} RERUN_FAILS=5 PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
