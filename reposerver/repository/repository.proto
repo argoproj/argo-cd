@@ -5,6 +5,7 @@ package repository;
 
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 import "google/protobuf/empty.proto";
+import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 
 // ManifestRequest is a query for manifest generation.
 message ManifestRequest {
@@ -36,6 +37,8 @@ message ManifestRequest {
     repeated string projectSourceRepos = 24;
     // This is used to surface "source not permitted" errors for Helm repositories
     string projectName = 25;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSpec appSpec = 26;
+    k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta appMetadata = 27;
 }
 
 message ManifestRequestWithFiles {
@@ -292,7 +295,7 @@ service RepoServerService {
     // Get the meta-data (author, date, tags, message) for a specific revision of the repo
     rpc GetRevisionMetadata(RepoServerRevisionMetadataRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RevisionMetadata) {
     }
-    
+
     // Get the chart details (author, date, tags, message) for a specific revision of the repo
     rpc GetRevisionChartDetails(RepoServerRevisionChartDetailsRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ChartDetails) {
     }

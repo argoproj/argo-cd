@@ -480,6 +480,8 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			Revision:           revision,
 			AppLabelKey:        appInstanceLabelKey,
 			AppName:            a.InstanceName(s.ns),
+			AppSpec:            &a.Spec,
+			AppMetadata:        &a.ObjectMeta,
 			Namespace:          a.Spec.Destination.Namespace,
 			ApplicationSource:  &source,
 			Repos:              helmRepos,

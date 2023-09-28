@@ -42,6 +42,7 @@ import (
 	helmmocks "github.com/argoproj/argo-cd/v2/util/helm/mocks"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	iomocks "github.com/argoproj/argo-cd/v2/util/io/mocks"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
@@ -1531,10 +1532,26 @@ func Test_newEnv(t *testing.T) {
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: "https://github.com/my-org/my-repo"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SPEC", Value: "\"{\\\"source\\\":{\\\"repoURL\\\":\\\"\\\",\\\"path\\\":\\\"my-path\\\",\\\"targetRevision\\\":\\\"my-target-revision\\\"},\\\"destination\\\":{},\\\"project\\\":\\\"\\\"}\""},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_LABELS", Value: "\"{\\\"name\\\":\\\"my-app-name\\\",\\\"test\\\":\\\"test\\\"}\""},
 	}, newEnv(&apiclient.ManifestRequest{
 		AppName:   "my-app-name",
 		Namespace: "my-namespace",
 		Repo:      &argoappv1.Repository{Repo: "https://github.com/my-org/my-repo"},
+		AppSpec: &argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{
+				Path:           "my-path",
+				TargetRevision: "my-target-revision",
+			},
+		},
+		AppMetadata: &metav1.ObjectMeta{
+			Name:      "my-app-name",
+			Namespace: "my-namespace",
+			Labels: map[string]string{
+				"name": "my-app-name",
+				"test": "test",
+			},
+		},
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path:           "my-path",
 			TargetRevision: "my-target-revision",

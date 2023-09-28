@@ -197,6 +197,8 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			NoRevisionCache:    noRevisionCache,
 			AppLabelKey:        appLabelKey,
 			AppName:            app.InstanceName(m.namespace),
+			AppSpec:            &app.Spec,
+			AppMetadata:        &app.ObjectMeta,
 			Namespace:          app.Spec.Destination.Namespace,
 			ApplicationSource:  &source,
 			KustomizeOptions:   kustomizeOptions,

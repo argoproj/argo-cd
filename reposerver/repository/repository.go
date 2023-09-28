@@ -13,14 +13,14 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
-	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
-
 	"k8s.io/apimachinery/pkg/api/resource"
+	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
@@ -1443,11 +1443,37 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	}, nil
 }
 
+func getEnvLabels(m *metav1.ObjectMeta) string {
+	if m == nil || m.Labels == nil {
+		return ""
+	}
+
+	labelsBytes, _ := json.Marshal(m.Labels)
+	labels := string(labelsBytes)
+
+	return strconv.Quote(labels)
+}
+
+func getEnvSpec(q *v1alpha1.ApplicationSpec) string {
+	if q == nil {
+		return ""
+	}
+
+	specBytes, _ := json.Marshal(q)
+
+	spec := string(specBytes)
+
+	return strconv.Quote(spec)
+}
+
 func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	shortRevision := revision
 	if len(shortRevision) > 7 {
 		shortRevision = shortRevision[:7]
 	}
+	spec := getEnvSpec(q.AppSpec)
+	labels := getEnvLabels(q.AppMetadata)
+
 	return &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
@@ -1456,6 +1482,8 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: q.Repo.Repo},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.ApplicationSource.Path},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SPEC", Value: spec},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_LABELS", Value: labels},
 	}
 }
 

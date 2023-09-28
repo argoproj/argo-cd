@@ -318,7 +318,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
 		Short: "Get application details",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Get basic details about the application "my-app" in wide format
   argocd app get my-app -o wide
 
@@ -342,7 +342,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
   # Get application details and display them in a tree format
   argocd app get my-app --output tree
-  
+
   # Get application details and display them in a detailed tree format
   argocd app get my-app --output tree=detailed
   		`),
@@ -431,7 +431,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var command = &cobra.Command{
 		Use:   "logs APPNAME",
 		Short: "Get logs of application pods",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Get logs of pods associated with the application "my-app"
   argocd app logs my-app
 
@@ -716,7 +716,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var command = &cobra.Command{
 		Use:   "set APPNAME",
 		Short: "Set application parameters",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Set application parameters for the application "my-app"
   argocd app set my-app --parameter key1=value1 --parameter key2=value2
 
@@ -1004,6 +1004,8 @@ func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, proj
 		TrackingMethod:     trackingMethod,
 		ProjectName:        proj.Name,
 		ProjectSourceRepos: proj.Spec.SourceRepos,
+		AppSpec:            &app.Spec,
+		AppMetadata:        &app.ObjectMeta,
 	}, true, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	errors.CheckError(err)
 
