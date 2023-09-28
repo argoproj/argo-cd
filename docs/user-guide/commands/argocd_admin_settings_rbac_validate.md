@@ -8,17 +8,18 @@ Validate RBAC policy
 
 
 Validates an RBAC policy for being syntactically correct. The policy must be
-a local file, and in either CSV or K8s ConfigMap format.
+a local file or a K8s ConfigMap in the provided namespace, and in either CSV or K8s ConfigMap format.
 
 
 ```
-argocd admin settings rbac validate --policy-file=POLICYFILE [flags]
+argocd admin settings rbac validate --policy-file POLICYFILE [--namespace NAMESPACE] [flags]
 ```
 
 ### Options
 
 ```
   -h, --help                 help for validate
+      --namespace string     namespace to get argo rbac configmap from
       --policy-file string   path to the policy file to use
 ```
 
@@ -52,7 +53,6 @@ argocd admin settings rbac validate --policy-file=POLICYFILE [flags]
       --load-cluster-settings           Indicates that config map and secret should be loaded from cluster unless local file path is provided
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
-  -n, --namespace string                If present, the namespace scope for this CLI request
       --password string                 Password for basic authentication to the API server
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
