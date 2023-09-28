@@ -28,7 +28,7 @@ nav:
   - operator-manual/ingress.md
   - High Availability:
     - Overview: operator-manual/high_availability.md
-    - Dynamic Shard Distribution: operator-manual/dynamic-cluster-distribution.md
+    - Dynamic Cluster Distribution: operator-manual/dynamic-cluster-distribution.md
   - User Management:
     - operator-manual/user-management/index.md
     - operator-manual/user-management/auth0.md
