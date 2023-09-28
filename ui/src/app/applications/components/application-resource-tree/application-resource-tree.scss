@@ -71,7 +71,7 @@
         padding-right: 1em;
         margin: 10px;
         box-shadow: 1px 1px 1px $argo-color-gray-4;
-        @include themify($themes) {                  
+        @include themify($themes) {
             background-color: themed('background-2');
             color: themed('text-2');
         }
@@ -81,6 +81,11 @@
 
         .icon {
             font-size: 2em;
+        }
+
+        .icon-background
+        {
+            color: $argo-color-gray-4;
         }
 
         .fa-filter {
@@ -94,7 +99,7 @@
 
         &--orphaned {
             @include themify($themes) {
-                background-color: themed('light-argo-gray-2');
+                background-color: themed('light-argo-gray-2') !important;
             }
         }
 
@@ -110,13 +115,13 @@
             font-size: 0.5em;
             padding: 2px;
             box-shadow: 1px 1px 1px $argo-color-gray-4;
-            @include themify($themes) {                  
+            @include themify($themes) {
                 background-color: themed('background-2');
             }
             margin-top: 9px;
             margin-left: 215px;
         }
-    
+
         &--podgroup--expansion {
             position: absolute;
             flex-shrink: 0px;
@@ -129,9 +134,13 @@
         }
 
         &--pod {
-            @include themify($themes) {                  
+            @include themify($themes) {
                 background-color: themed('pod-cyan') !important;
             }
+        }
+        &--nodegroup{
+            padding-left: 3.5em;
+            padding-top: 25px;
         }
 
         &--lower-section {
@@ -146,7 +155,7 @@
             padding: $padding;
             transition: all 1s linear;
             position: absolute;
-    
+
             &__pod-group {
                 $pod-container-width: $pods-per-row * ($pod-size + (2 * $gutter)) + 4 * $gutter;
                 $pod-container-height: $pods-per-column * ($pod-size + (2 * $gutter)) + 4 * $gutter;
@@ -168,6 +177,7 @@
                         width: 100%;
                         background-color: $argo-color-gray-3;
                         border-radius: 3px;
+                        align-items: center;
                         padding: $gutter * 2;
                         margin-right: -1 * $gutter;
                         margin-bottom: -1 * $gutter;
@@ -235,7 +245,7 @@
                     }
                     &__stat-tooltip {
                         text-align: left;
-        
+
                         i {
                             display: inline-block;
                             height: 1em;
@@ -243,15 +253,15 @@
                             border-radius: 5px;
                         }
                     }
-        
+
                     &__stat-icon-app {
                         background-color: $argo-color-teal-7;
                     }
-        
+
                     &__stat-icon-neighbors {
                         background-color: $argo-color-gray-6;
                     }
-        
+
                     &__stat {
                         &__bar {
                             background-color: $argo-color-gray-4;
@@ -262,22 +272,22 @@
                             margin: 0 $gutter * 2;
                             overflow: hidden;
                             cursor: pointer;
-        
+
                             &--fill {
                                 position: absolute;
                                 background-color: $argo-color-teal-7;
                                 width: 100%;
                                 bottom: 0;
                             }
-        
+
                             &--neighbors {
                                 background-color: $argo-color-gray-6;
                             }
-        
+
                             &:hover > &--fill {
                                 background-color: $argo-color-teal-8;
                             }
-        
+
                             &:hover &--neighbors {
                                 background-color: $argo-color-gray-7;
                             }
@@ -365,6 +375,7 @@
         margin-right: 1px;
     }
 
+
     &__node-kind {
         font-size: 0.7em;
         color: $argo-color-gray-6;
@@ -398,5 +409,11 @@
     &__direction-right {
         direction: rtl;
     }
-    
+    &__direction-center-left {
+        overflow: hidden;
+        padding-top: 15px;
+        padding-left: 15px;
+
+    }
+
 }

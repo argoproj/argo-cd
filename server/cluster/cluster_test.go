@@ -4,24 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/pointer"
-
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	clusterapi "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/test"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
@@ -30,6 +21,16 @@ import (
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/utils/pointer"
 )
 
 func newServerInMemoryCache() *servercache.Cache {
@@ -490,4 +491,116 @@ func getClientset(config map[string]string, ns string, objects ...runtime.Object
 		Data: config,
 	}
 	return fake.NewSimpleClientset(append(objects, &cm, &secret)...)
+}
+
+func TestListCluster(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	fooCluster := v1alpha1.Cluster{
+		Name:       "foo",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	barCluster := v1alpha1.Cluster{
+		Name:       "bar",
+		Server:     "https://192.168.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	bazCluster := v1alpha1.Cluster{
+		Name:       "test/ing",
+		Server:     "https://testing.com",
+		Namespaces: []string{"default", "kube-system"},
+	}
+
+	mockClusterList := v1alpha1.ClusterList{
+		ListMeta: v1.ListMeta{},
+		Items:    []v1alpha1.Cluster{fooCluster, barCluster, bazCluster},
+	}
+
+	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
+
+	s := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	tests := []struct {
+		name    string
+		q       *cluster.ClusterQuery
+		want    *appv1.ClusterList
+		wantErr bool
+	}{
+		{
+			name: "filter by name",
+			q: &clusterapi.ClusterQuery{
+				Name: fooCluster.Name,
+			},
+			want: &v1alpha1.ClusterList{
+				ListMeta: v1.ListMeta{},
+				Items:    []v1alpha1.Cluster{fooCluster},
+			},
+		},
+		{
+			name: "filter by server",
+			q: &clusterapi.ClusterQuery{
+				Server: barCluster.Server,
+			},
+			want: &v1alpha1.ClusterList{
+				ListMeta: v1.ListMeta{},
+				Items:    []v1alpha1.Cluster{barCluster},
+			},
+		},
+		{
+			name: "filter by id - name",
+			q: &clusterapi.ClusterQuery{
+				Id: &clusterapi.ClusterID{
+					Type:  "name",
+					Value: fooCluster.Name,
+				},
+			},
+			want: &v1alpha1.ClusterList{
+				ListMeta: v1.ListMeta{},
+				Items:    []v1alpha1.Cluster{fooCluster},
+			},
+		},
+		{
+			name: "filter by id - name_escaped",
+			q: &clusterapi.ClusterQuery{
+				Id: &clusterapi.ClusterID{
+					Type:  "name_escaped",
+					Value: "test%2fing",
+				},
+			},
+			want: &v1alpha1.ClusterList{
+				ListMeta: v1.ListMeta{},
+				Items:    []v1alpha1.Cluster{bazCluster},
+			},
+		},
+		{
+			name: "filter by id - server",
+			q: &clusterapi.ClusterQuery{
+				Id: &clusterapi.ClusterID{
+					Type:  "server",
+					Value: barCluster.Server,
+				},
+			},
+			want: &v1alpha1.ClusterList{
+				ListMeta: v1.ListMeta{},
+				Items:    []v1alpha1.Cluster{barCluster},
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := s.List(context.Background(), tt.q)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Server.List() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Server.List() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

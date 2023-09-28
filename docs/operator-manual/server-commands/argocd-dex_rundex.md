@@ -1,3 +1,5 @@
+# `argocd-dex rundex` Command Reference
+
 ## argocd-dex rundex
 
 Runs dex generating a config using settings from the Argo CD configmap and secret

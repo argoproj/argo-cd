@@ -137,9 +137,11 @@ setting `resource.customizations.useOpenLibs.<group_kind>`. In the following exa
 
 ```yaml
 data:
-  resource.customizations.useOpenLibs.cert-manager.io_Certificate: "true"
-  resource.customizations.health.cert-manager.io_Certificate:
-    -- Lua standard libraries are enabled for this script
+  resource.customizations: |
+    cert-manager.io/Certificate:
+      health.lua.useOpenLibs: true
+      health.lua: |
+        # Lua standard libraries are enabled for this script
 ```
 
 ### Way 2. Contribute a Custom Health Check

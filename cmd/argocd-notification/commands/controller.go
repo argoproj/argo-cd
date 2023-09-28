@@ -74,26 +74,26 @@ func NewCommand() *cobra.Command {
 
 			restConfig, err := clientConfig.ClientConfig()
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create REST client config: %w", err)
 			}
 			restConfig.UserAgent = fmt.Sprintf("argocd-notifications-controller/%s (%s)", vers.Version, vers.Platform)
 			dynamicClient, err := dynamic.NewForConfig(restConfig)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create dynamic client: %w", err)
 			}
 			k8sClient, err := kubernetes.NewForConfig(restConfig)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create Kubernetes client: %w", err)
 			}
 			if namespace == "" {
 				namespace, _, err = clientConfig.Namespace()
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to determine controller's host namespace: %w", err)
 				}
 			}
 			level, err := log.ParseLevel(logLevel)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to parse log level: %w", err)
 			}
 			log.SetLevel(level)
 
@@ -105,7 +105,7 @@ func NewCommand() *cobra.Command {
 					log.SetFormatter(&log.TextFormatter{ForceColors: true})
 				}
 			default:
-				return fmt.Errorf("Unknown log format '%s'", logFormat)
+				return fmt.Errorf("unknown log format '%s'", logFormat)
 			}
 
 			tlsConfig := apiclient.TLSConfiguration{
@@ -118,14 +118,14 @@ func NewCommand() *cobra.Command {
 					fmt.Sprintf("%s/reposerver/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
 				)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to load repo-server certificate pool: %w", err)
 				}
 				tlsConfig.Certificates = pool
 			}
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, 5, tlsConfig)
 			argocdService, err := service.NewArgoCDService(k8sClient, namespace, repoClientset)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to initialize Argo CD service: %w", err)
 			}
 			defer argocdService.Close()
 
@@ -141,7 +141,7 @@ func NewCommand() *cobra.Command {
 			ctrl := notificationscontroller.NewController(k8sClient, dynamicClient, argocdService, namespace, appLabelSelector, registry, secretName, configMapName)
 			err = ctrl.Init(ctx)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to initialize controller: %w", err)
 			}
 
 			go ctrl.Run(ctx, processorsCount)
@@ -153,8 +153,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&processorsCount, "processors-count", 1, "Processors count.")
 	command.Flags().StringVar(&appLabelSelector, "app-label-selector", "", "App label selector.")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace which controller handles. Current namespace if empty.")
-	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
-	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&logLevel, "loglevel", env.StringFromEnv("ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&logFormat, "logformat", env.StringFromEnv("ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().IntVar(&metricsPort, "metrics-port", defaultMetricsPort, "Metrics port")
 	command.Flags().StringVar(&argocdRepoServer, "argocd-repo-server", common.DefaultRepoServerAddr, "Argo CD repo server address")
 	command.Flags().BoolVar(&argocdRepoServerPlaintext, "argocd-repo-server-plaintext", false, "Use a plaintext client (non-TLS) to connect to repository server")

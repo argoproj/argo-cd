@@ -9,11 +9,11 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/errors"
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -693,4 +693,63 @@ func TestCustomLabel(t *testing.T) {
 	assert.Equal(t, "value", info.Info[0].Value)
 	assert.Equal(t, "other-label", info.Info[1].Name)
 	assert.Equal(t, "value2", info.Info[1].Value)
+}
+
+func TestManifestHash(t *testing.T) {
+	manifest := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: helm-guestbook-pod
+    namespace: default
+    ownerReferences:
+    - apiVersion: extensions/v1beta1
+      kind: ReplicaSet
+      name: helm-guestbook-rs
+    resourceVersion: "123"
+    labels:
+      app: guestbook
+  spec:
+    nodeName: minikube
+    containers:
+    - image: bar
+      resources:
+        requests:
+          memory: 128Mi
+`)
+
+	ignores := []v1alpha1.ResourceIgnoreDifferences{
+		{
+			Group:        "*",
+			Kind:         "*",
+			JSONPointers: []string{"/metadata/resourceVersion"},
+		},
+	}
+
+	data, _ := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: helm-guestbook-pod
+    namespace: default
+    ownerReferences:
+    - apiVersion: extensions/v1beta1
+      kind: ReplicaSet
+      name: helm-guestbook-rs
+    labels:
+      app: guestbook
+  spec:
+    nodeName: minikube
+    containers:
+    - image: bar
+      resources:
+        requests:
+          memory: 128Mi
+`).MarshalJSON()
+
+	expected := hash(data)
+
+	hash, err := generateManifestHash(manifest, ignores, nil)
+	assert.Equal(t, expected, hash)
+	assert.Nil(t, err)
 }

@@ -3,7 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"errors"
-	fmt "fmt"
+	"fmt"
 	"os"
 	"path"
 	"reflect"
@@ -11,14 +11,16 @@ import (
 	"testing"
 	"time"
 
-	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/pointer"
+
+	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -863,9 +865,9 @@ func TestAppSourceEquality(t *testing.T) {
 		},
 	}
 	right := left.DeepCopy()
-	assert.True(t, left.Equals(*right))
+	assert.True(t, left.Equals(right))
 	right.Directory.Recurse = false
-	assert.False(t, left.Equals(*right))
+	assert.False(t, left.Equals(right))
 }
 
 func TestAppDestinationEquality(t *testing.T) {
@@ -1315,6 +1317,96 @@ func TestNewHelmParameter(t *testing.T) {
 	})
 }
 
+func TestNewKustomizeReplica(t *testing.T) {
+	t.Run("Valid", func(t *testing.T) {
+		r, err := NewKustomizeReplica("my-deployment=2")
+		assert.NoError(t, err)
+		assert.Equal(t, &KustomizeReplica{Name: "my-deployment", Count: intstr.Parse("2")}, r)
+	})
+	t.Run("InvalidFormat", func(t *testing.T) {
+		_, err := NewKustomizeReplica("garbage")
+		assert.EqualError(t, err, "expected parameter of the form: name=count. Received: garbage")
+	})
+	t.Run("InvalidCount", func(t *testing.T) {
+		_, err := NewKustomizeReplica("my-deployment=garbage")
+		assert.EqualError(t, err, "expected integer value for count. Received: garbage")
+	})
+}
+
+func TestKustomizeReplica_GetIntCount(t *testing.T) {
+	t.Run("String which can be converted to integer", func(t *testing.T) {
+		kr := KustomizeReplica{
+			Name:  "test",
+			Count: intstr.FromString("2"),
+		}
+		count, err := kr.GetIntCount()
+		assert.NoError(t, err)
+		assert.Equal(t, 2, count)
+	})
+	t.Run("String which cannot be converted to integer", func(t *testing.T) {
+		kr := KustomizeReplica{
+			Name:  "test",
+			Count: intstr.FromString("garbage"),
+		}
+		count, err := kr.GetIntCount()
+		assert.EqualError(t, err, "expected integer value for count. Received: garbage")
+		assert.Equal(t, 0, count)
+	})
+	t.Run("Integer", func(t *testing.T) {
+		kr := KustomizeReplica{
+			Name:  "test",
+			Count: intstr.FromInt(2),
+		}
+		count, err := kr.GetIntCount()
+		assert.NoError(t, err)
+		assert.Equal(t, 2, count)
+	})
+}
+
+func TestApplicationSourceKustomize_MergeReplica(t *testing.T) {
+	r1 := KustomizeReplica{
+		Name:  "my-deployment",
+		Count: intstr.FromInt(2),
+	}
+	r2 := KustomizeReplica{
+		Name:  "my-deployment",
+		Count: intstr.FromInt(4),
+	}
+	t.Run("Add", func(t *testing.T) {
+		k := ApplicationSourceKustomize{Replicas: KustomizeReplicas{}}
+		k.MergeReplica(r1)
+		assert.Equal(t, KustomizeReplicas{r1}, k.Replicas)
+	})
+	t.Run("Replace", func(t *testing.T) {
+		k := ApplicationSourceKustomize{Replicas: KustomizeReplicas{r1}}
+		k.MergeReplica(r2)
+		assert.Equal(t, 1, len(k.Replicas))
+		assert.Equal(t, k.Replicas[0].Name, r2.Name)
+		assert.Equal(t, k.Replicas[0].Count, r2.Count)
+	})
+}
+func TestApplicationSourceKustomize_FindByName(t *testing.T) {
+	r1 := KustomizeReplica{
+		Name:  "my-deployment",
+		Count: intstr.FromInt(2),
+	}
+	r2 := KustomizeReplica{
+		Name:  "my-statefulset",
+		Count: intstr.FromInt(4),
+	}
+	Replicas := KustomizeReplicas{r1, r2}
+	t.Run("Found", func(t *testing.T) {
+		i1 := Replicas.FindByName("my-deployment")
+		i2 := Replicas.FindByName("my-statefulset")
+		assert.Equal(t, 0, i1)
+		assert.Equal(t, 1, i2)
+	})
+	t.Run("Not Found", func(t *testing.T) {
+		i := Replicas.FindByName("not-found")
+		assert.Equal(t, -1, i)
+	})
+}
+
 func TestApplicationSourceHelm_IsZero(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -1346,6 +1438,7 @@ func TestApplicationSourceKustomize_IsZero(t *testing.T) {
 		{"NamePrefix", &ApplicationSourceKustomize{NamePrefix: "foo"}, false},
 		{"NameSuffix", &ApplicationSourceKustomize{NameSuffix: "foo"}, false},
 		{"Images", &ApplicationSourceKustomize{Images: []KustomizeImage{""}}, false},
+		{"Replicas", &ApplicationSourceKustomize{Replicas: []KustomizeReplica{{Name: "", Count: intstr.FromInt(0)}}}, false},
 		{"CommonLabels", &ApplicationSourceKustomize{CommonLabels: map[string]string{"": ""}}, false},
 		{"CommonAnnotations", &ApplicationSourceKustomize{CommonAnnotations: map[string]string{"": ""}}, false},
 	}
@@ -2133,6 +2226,20 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		// then
 		assert.False(t, canSync)
 	})
+	t.Run("will allow auto sync with active-allow and inactive-allow", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveAllowWindow(false).
+			withInactiveAllowWindow(false).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+
+		// then
+		assert.True(t, canSync)
+	})
 	t.Run("will deny manual sync with active-deny", func(t *testing.T) {
 		// given
 		t.Parallel()
@@ -2880,11 +2987,31 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 }
 
 func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
-	src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
-		NameSuffix: "test",
-	}}
+	t.Run("Has NameSuffix", func(t *testing.T) {
+		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+			NameSuffix: "test",
+		}}
 
-	assert.False(t, src.AllowsConcurrentProcessing())
+		assert.False(t, src.AllowsConcurrentProcessing())
+	})
+
+	t.Run("Has CommonAnnotations", func(t *testing.T) {
+		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+			CommonAnnotations: map[string]string{"foo": "bar"},
+		}}
+
+		assert.False(t, src.AllowsConcurrentProcessing())
+	})
+
+	t.Run("Has Patches", func(t *testing.T) {
+		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+			Patches: KustomizePatches{{
+				Path: "test",
+			}},
+		}}
+
+		assert.False(t, src.AllowsConcurrentProcessing())
+	})
 }
 
 func TestUnSetCascadedDeletion(t *testing.T) {
@@ -3039,7 +3166,7 @@ func TestGetCAPath(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	os.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
+	t.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
 	validcert := []string{
 		"https://foo.example.com",
 		"oci://foo.example.com",
@@ -3261,8 +3388,8 @@ func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 func TestApplicationSourcePluginParameters_Environ_array(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
-			Name:  "dependencies",
-			Array: []string{"redis", "minio"},
+			Name:          "dependencies",
+			OptionalArray: &OptionalArray{Array: []string{"redis", "minio"}},
 		},
 	}
 	environ, err := params.Environ()
@@ -3279,9 +3406,11 @@ func TestApplicationSourcePluginParameters_Environ_map(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name: "helm-parameters",
-			Map: map[string]string{
-				"image.repo": "quay.io/argoproj/argo-cd",
-				"image.tag":  "v2.4.0",
+			OptionalMap: &OptionalMap{
+				Map: map[string]string{
+					"image.repo": "quay.io/argoproj/argo-cd",
+					"image.tag":  "v2.4.0",
+				},
 			},
 		},
 	}
@@ -3302,10 +3431,14 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 		{
 			Name:    "some-name",
 			String_: pointer.String("1.2.3"),
-			Array:   []string{"redis", "minio"},
-			Map: map[string]string{
-				"image.repo": "quay.io/argoproj/argo-cd",
-				"image.tag":  "v2.4.0",
+			OptionalArray: &OptionalArray{
+				Array: []string{"redis", "minio"},
+			},
+			OptionalMap: &OptionalMap{
+				Map: map[string]string{
+					"image.repo": "quay.io/argoproj/argo-cd",
+					"image.tag":  "v2.4.0",
+				},
 			},
 		},
 	}
@@ -3398,6 +3531,92 @@ func TestGetSources(t *testing.T) {
 			}
 			sources := testCopy.appSpec.GetSources()
 			assert.Equal(t, testCopy.expectedSources, sources)
+		})
+	}
+}
+
+func TestOptionalArrayEquality(t *testing.T) {
+	// Demonstrate that the JSON unmarshalling of an empty array parameter is an OptionalArray with the array field set
+	// to an empty array.
+	presentButEmpty := `{"array":[]}`
+	param := ApplicationSourcePluginParameter{}
+	err := json.Unmarshal([]byte(presentButEmpty), &param)
+	require.NoError(t, err)
+	jsonPresentButEmpty := param.OptionalArray
+	require.Equal(t, &OptionalArray{Array: []string{}}, jsonPresentButEmpty)
+
+	// We won't simulate the protobuf unmarshalling of an empty array parameter. By experimentation, this is how it's
+	// unmarshalled.
+	protobufPresentButEmpty := &OptionalArray{Array: nil}
+
+	tests := []struct {
+		name     string
+		a        *OptionalArray
+		b        *OptionalArray
+		expected bool
+	}{
+		{"nil and nil", nil, nil, true},
+		{"nil and empty", nil, jsonPresentButEmpty, false},
+		{"nil and empty-containing-nil", nil, protobufPresentButEmpty, false},
+		{"empty-containing-empty and nil", jsonPresentButEmpty, nil, false},
+		{"empty-containing-nil and nil", protobufPresentButEmpty, nil, false},
+		{"empty-containing-empty and empty-containing-empty", jsonPresentButEmpty, jsonPresentButEmpty, true},
+		{"empty-containing-empty and empty-containing-nil", jsonPresentButEmpty, protobufPresentButEmpty, true},
+		{"empty-containing-nil and empty-containing-empty", protobufPresentButEmpty, jsonPresentButEmpty, true},
+		{"empty-containing-nil and empty-containing-nil", protobufPresentButEmpty, protobufPresentButEmpty, true},
+		{"empty-containing-empty and non-empty", jsonPresentButEmpty, &OptionalArray{Array: []string{"a"}}, false},
+		{"non-empty and empty-containing-nil", &OptionalArray{Array: []string{"a"}}, jsonPresentButEmpty, false},
+		{"non-empty and non-empty", &OptionalArray{Array: []string{"a"}}, &OptionalArray{Array: []string{"a"}}, true},
+		{"non-empty and non-empty different", &OptionalArray{Array: []string{"a"}}, &OptionalArray{Array: []string{"b"}}, false},
+	}
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
+		})
+	}
+}
+
+func TestOptionalMapEquality(t *testing.T) {
+	// Demonstrate that the JSON unmarshalling of an empty map parameter is an OptionalMap with the map field set
+	// to an empty map.
+	presentButEmpty := `{"map":{}}`
+	param := ApplicationSourcePluginParameter{}
+	err := json.Unmarshal([]byte(presentButEmpty), &param)
+	require.NoError(t, err)
+	jsonPresentButEmpty := param.OptionalMap
+	require.Equal(t, &OptionalMap{Map: map[string]string{}}, jsonPresentButEmpty)
+
+	// We won't simulate the protobuf unmarshalling of an empty map parameter. By experimentation, this is how it's
+	// unmarshalled.
+	protobufPresentButEmpty := &OptionalMap{Map: nil}
+
+	tests := []struct {
+		name     string
+		a        *OptionalMap
+		b        *OptionalMap
+		expected bool
+	}{
+		{"nil and nil", nil, nil, true},
+		{"nil and empty-containing-empty", nil, jsonPresentButEmpty, false},
+		{"nil and empty-containing-nil", nil, protobufPresentButEmpty, false},
+		{"empty-containing-empty and nil", jsonPresentButEmpty, nil, false},
+		{"empty-containing-nil and nil", protobufPresentButEmpty, nil, false},
+		{"empty-containing-empty and empty-containing-empty", jsonPresentButEmpty, jsonPresentButEmpty, true},
+		{"empty-containing-empty and empty-containing-nil", jsonPresentButEmpty, protobufPresentButEmpty, true},
+		{"empty-containing-empty and non-empty", jsonPresentButEmpty, &OptionalMap{Map: map[string]string{"a": "b"}}, false},
+		{"empty-containing-nil and empty-containing-empty", protobufPresentButEmpty, jsonPresentButEmpty, true},
+		{"empty-containing-nil and empty-containing-nil", protobufPresentButEmpty, protobufPresentButEmpty, true},
+		{"non-empty and empty-containing-empty", &OptionalMap{Map: map[string]string{"a": "b"}}, jsonPresentButEmpty, false},
+		{"non-empty and non-empty", &OptionalMap{Map: map[string]string{"a": "b"}}, &OptionalMap{Map: map[string]string{"a": "b"}}, true},
+		{"non-empty and non-empty different", &OptionalMap{Map: map[string]string{"a": "b"}}, &OptionalMap{Map: map[string]string{"a": "c"}}, false},
+	}
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
 		})
 	}
 }

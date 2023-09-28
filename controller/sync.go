@@ -322,7 +322,29 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	var resState []common.ResourceSyncResult
 	state.Phase, state.Message, resState = syncCtx.GetState()
 	state.SyncResult.Resources = nil
+
+	if app.Spec.SyncPolicy != nil {
+		state.SyncResult.ManagedNamespaceMetadata = app.Spec.SyncPolicy.ManagedNamespaceMetadata
+	}
+
+	var apiVersion []kube.APIResourceInfo
 	for _, res := range resState {
+		augmentedMsg, err := argo.AugmentSyncMsg(res, func() ([]kube.APIResourceInfo, error) {
+			if apiVersion == nil {
+				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get version info from the target cluster %q", app.Spec.Destination.Server)
+				}
+			}
+			return apiVersion, nil
+		})
+
+		if err != nil {
+			log.Errorf("using the original message since: %v", err)
+		} else {
+			res.Message = augmentedMsg
+		}
+
 		state.SyncResult.Resources = append(state.SyncResult.Resources, &v1alpha1.ResourceResult{
 			HookType:  res.HookType,
 			Group:     res.ResourceKey.Group,

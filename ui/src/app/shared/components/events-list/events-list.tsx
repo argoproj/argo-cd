@@ -48,7 +48,7 @@ export const EventsList = (props: {events: models.Event[]}) => {
                         <div className={`argo-table-list__row events-list__event events-list__event--${event.type}`} key={event.metadata.uid}>
                             <div className='row'>
                                 <div className='columns small-2 xxlarge-2'>{event.reason}</div>
-                                <div className='columns small-4 xxlarge-5' style={{whiteSpace: 'normal'}}>
+                                <div className='columns small-4 xxlarge-5' style={{whiteSpace: 'normal', lineHeight: 'normal'}}>
                                     {event.message}
                                 </div>
                                 <div className='columns small-2 xxlarge-1'>{event.count}</div>

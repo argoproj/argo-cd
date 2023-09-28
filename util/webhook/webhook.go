@@ -11,13 +11,14 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/go-playground/webhooks/v6/azuredevops"
+	"github.com/go-playground/webhooks/v6/bitbucket"
+	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
+	"github.com/go-playground/webhooks/v6/github"
+	"github.com/go-playground/webhooks/v6/gitlab"
+	"github.com/go-playground/webhooks/v6/gogs"
 	gogsclient "github.com/gogits/go-gogs-client"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/go-playground/webhooks.v5/bitbucket"
-	bitbucketserver "gopkg.in/go-playground/webhooks.v5/bitbucket-server"
-	"gopkg.in/go-playground/webhooks.v5/github"
-	"gopkg.in/go-playground/webhooks.v5/gitlab"
-	"gopkg.in/go-playground/webhooks.v5/gogs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -27,6 +28,7 @@ import (
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -40,23 +42,29 @@ type settingsSource interface {
 // https://github.com/shadow-maint/shadow/blob/master/libmisc/chkname.c#L36
 const usernameRegex = `[a-zA-Z0-9_\.][a-zA-Z0-9_\.-]{0,30}[a-zA-Z0-9_\.\$-]?`
 
-var _ settingsSource = &settings.SettingsManager{}
+var (
+	_                              settingsSource = &settings.SettingsManager{}
+	errBasicAuthVerificationFailed                = errors.New("basic auth verification failed")
+)
 
 type ArgoCDWebhookHandler struct {
-	repoCache       *cache.Cache
-	serverCache     *servercache.Cache
-	db              db.ArgoDB
-	ns              string
-	appClientset    appclientset.Interface
-	github          *github.Webhook
-	gitlab          *gitlab.Webhook
-	bitbucket       *bitbucket.Webhook
-	bitbucketserver *bitbucketserver.Webhook
-	gogs            *gogs.Webhook
-	settingsSrc     settingsSource
+	repoCache              *cache.Cache
+	serverCache            *servercache.Cache
+	db                     db.ArgoDB
+	ns                     string
+	appNs                  []string
+	appClientset           appclientset.Interface
+	github                 *github.Webhook
+	gitlab                 *gitlab.Webhook
+	bitbucket              *bitbucket.Webhook
+	bitbucketserver        *bitbucketserver.Webhook
+	azuredevops            *azuredevops.Webhook
+	azuredevopsAuthHandler func(r *http.Request) error
+	gogs                   *gogs.Webhook
+	settingsSrc            settingsSource
 }
 
-func NewHandler(namespace string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, applicationNamespaces []string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
@@ -77,19 +85,35 @@ func NewHandler(namespace string, appClientset appclientset.Interface, set *sett
 	if err != nil {
 		log.Warnf("Unable to init the Gogs webhook")
 	}
+	azuredevopsWebhook, err := azuredevops.New()
+	if err != nil {
+		log.Warnf("Unable to init the Azure DevOps webhook")
+	}
+	azuredevopsAuthHandler := func(r *http.Request) error {
+		if set.WebhookAzureDevOpsUsername != "" && set.WebhookAzureDevOpsPassword != "" {
+			username, password, ok := r.BasicAuth()
+			if !ok || username != set.WebhookAzureDevOpsUsername || password != set.WebhookAzureDevOpsPassword {
+				return errBasicAuthVerificationFailed
+			}
+		}
+		return nil
+	}
 
 	acdWebhook := ArgoCDWebhookHandler{
-		ns:              namespace,
-		appClientset:    appClientset,
-		github:          githubWebhook,
-		gitlab:          gitlabWebhook,
-		bitbucket:       bitbucketWebhook,
-		bitbucketserver: bitbucketserverWebhook,
-		gogs:            gogsWebhook,
-		settingsSrc:     settingsSrc,
-		repoCache:       repoCache,
-		serverCache:     serverCache,
-		db:              argoDB,
+		ns:                     namespace,
+		appNs:                  applicationNamespaces,
+		appClientset:           appClientset,
+		github:                 githubWebhook,
+		gitlab:                 gitlabWebhook,
+		bitbucket:              bitbucketWebhook,
+		bitbucketserver:        bitbucketserverWebhook,
+		azuredevops:            azuredevopsWebhook,
+		azuredevopsAuthHandler: azuredevopsAuthHandler,
+		gogs:                   gogsWebhook,
+		settingsSrc:            settingsSrc,
+		repoCache:              repoCache,
+		serverCache:            serverCache,
+		db:                     argoDB,
 	}
 
 	return &acdWebhook
@@ -104,6 +128,14 @@ func parseRevision(ref string) string {
 // the revision, and whether or not this affected origin/HEAD (the default branch of the repository)
 func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
 	switch payload := payloadIf.(type) {
+	case azuredevops.GitPushEvent:
+		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
+		webURLs = append(webURLs, payload.Resource.Repository.RemoteURL)
+		revision = parseRevision(payload.Resource.RefUpdates[0].Name)
+		change.shaAfter = parseRevision(payload.Resource.RefUpdates[0].NewObjectID)
+		change.shaBefore = parseRevision(payload.Resource.RefUpdates[0].OldObjectID)
+		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
+		// unfortunately, Azure DevOps doesn't provide a list of changed files
 	case github.PushPayload:
 		// See: https://developer.github.com/v3/activity/events/types/#pushevent
 		webURLs = append(webURLs, payload.Repository.HTMLURL)
@@ -216,7 +248,14 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	for _, webURL := range webURLs {
 		log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
 	}
-	appIf := a.appClientset.ArgoprojV1alpha1().Applications(a.ns)
+
+	nsFilter := a.ns
+	if len(a.appNs) > 0 {
+		// Retrieve app from all namespaces
+		nsFilter = ""
+	}
+
+	appIf := a.appClientset.ArgoprojV1alpha1().Applications(nsFilter)
 	apps, err := appIf.List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Warnf("Failed to list applications: %v", err)
@@ -234,17 +273,28 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 		return
 	}
 
+	// Skip any application that is neither in the control plane's namespace
+	// nor in the list of enabled namespaces.
+	var filteredApps []v1alpha1.Application
+	for _, app := range apps.Items {
+		if app.Namespace == a.ns || glob.MatchStringInList(a.appNs, app.Namespace, false) {
+			filteredApps = append(filteredApps, app)
+		}
+	}
+
 	for _, webURL := range webURLs {
 		repoRegexp, err := getWebUrlRegex(webURL)
 		if err != nil {
 			log.Warnf("Failed to get repoRegexp: %s", err)
 			continue
 		}
-		for _, app := range apps.Items {
+		for _, app := range filteredApps {
+
 			for _, source := range app.Spec.GetSources() {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
 					if appFilesHaveChanged(&app, changedFiles) {
-						_, err = argo.RefreshApp(appIf, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
+						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
+						_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
 						if err != nil {
 							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
 							continue
@@ -409,6 +459,14 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	switch {
+	case r.Header.Get("X-Vss-Activityid") != "":
+		if err = a.azuredevopsAuthHandler(r); err != nil {
+			if errors.Is(err, errBasicAuthVerificationFailed) {
+				log.WithField(common.SecurityField, common.SecurityHigh).Infof("Azure DevOps webhook basic auth verification failed")
+			}
+		} else {
+			payload, err = a.azuredevops.Parse(r, azuredevops.GitPushEventType)
+		}
 	//Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
 	case r.Header.Get("X-Gogs-Event") != "":
 		payload, err = a.gogs.Parse(r, gogs.PushEvent)
@@ -421,7 +479,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitHub webhook HMAC verification failed")
 		}
 	case r.Header.Get("X-Gitlab-Event") != "":
-		payload, err = a.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents)
+		payload, err = a.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.SystemHookEvents)
 		if errors.Is(err, gitlab.ErrGitLabTokenVerificationFailed) {
 			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab webhook token verification failed")
 		}

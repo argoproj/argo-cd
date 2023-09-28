@@ -3,26 +3,26 @@ package dex
 import (
 	"fmt"
 
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-func GenerateDexConfigYAML(settings *settings.ArgoCDSettings, disableTls bool) ([]byte, error) {
-	if !settings.IsDexConfigured() {
+func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls bool) ([]byte, error) {
+	if !argocdSettings.IsDexConfigured() {
 		return nil, nil
 	}
-	redirectURL, err := settings.RedirectURL()
+	redirectURL, err := argocdSettings.RedirectURL()
 	if err != nil {
 		return nil, fmt.Errorf("failed to infer redirect url from config: %v", err)
 	}
 	var dexCfg map[string]interface{}
-	err = yaml.Unmarshal([]byte(settings.DexConfig), &dexCfg)
+	err = yaml.Unmarshal([]byte(argocdSettings.DexConfig), &dexCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal dex.config from configmap: %v", err)
 	}
-	dexCfg["issuer"] = settings.IssuerURL()
+	dexCfg["issuer"] = argocdSettings.IssuerURL()
 	dexCfg["storage"] = map[string]interface{}{
 		"type": "memory",
 	}
@@ -58,7 +58,7 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings, disableTls bool) (
 	argoCDStaticClient := map[string]interface{}{
 		"id":     common.ArgoCDClientAppID,
 		"name":   common.ArgoCDClientAppName,
-		"secret": settings.DexOAuth2ClientSecret(),
+		"secret": argocdSettings.DexOAuth2ClientSecret(),
 		"redirectURIs": []string{
 			redirectURL,
 		},
@@ -80,7 +80,7 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings, disableTls bool) (
 		dexCfg["staticClients"] = []interface{}{argoCDStaticClient, argoCDCLIStaticClient}
 	}
 
-	dexRedirectURL, err := settings.DexRedirectURL()
+	dexRedirectURL, err := argocdSettings.DexRedirectURL()
 	if err != nil {
 		return nil, err
 	}
@@ -106,44 +106,8 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings, disableTls bool) (
 		connectors[i] = connector
 	}
 	dexCfg["connectors"] = connectors
-	dexCfg = replaceMapSecrets(dexCfg, settings.Secrets)
+	dexCfg = settings.ReplaceMapSecrets(dexCfg, argocdSettings.Secrets)
 	return yaml.Marshal(dexCfg)
-}
-
-// replaceMapSecrets takes a json object and recursively looks for any secret key references in the
-// object and replaces the value with the secret value
-func replaceMapSecrets(obj map[string]interface{}, secretValues map[string]string) map[string]interface{} {
-	newObj := make(map[string]interface{})
-	for k, v := range obj {
-		switch val := v.(type) {
-		case map[string]interface{}:
-			newObj[k] = replaceMapSecrets(val, secretValues)
-		case []interface{}:
-			newObj[k] = replaceListSecrets(val, secretValues)
-		case string:
-			newObj[k] = settings.ReplaceStringSecret(val, secretValues)
-		default:
-			newObj[k] = val
-		}
-	}
-	return newObj
-}
-
-func replaceListSecrets(obj []interface{}, secretValues map[string]string) []interface{} {
-	newObj := make([]interface{}, len(obj))
-	for i, v := range obj {
-		switch val := v.(type) {
-		case map[string]interface{}:
-			newObj[i] = replaceMapSecrets(val, secretValues)
-		case []interface{}:
-			newObj[i] = replaceListSecrets(val, secretValues)
-		case string:
-			newObj[i] = settings.ReplaceStringSecret(val, secretValues)
-		default:
-			newObj[i] = val
-		}
-	}
-	return newObj
 }
 
 // needsRedirectURI returns whether or not the given connector type needs a redirectURI
@@ -151,7 +115,7 @@ func replaceListSecrets(obj []interface{}, secretValues map[string]string) []int
 // https://dexidp.io/docs/connectors/
 func needsRedirectURI(connectorType string) bool {
 	switch connectorType {
-	case "oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud", "openshift":
+	case "oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud", "openshift", "gitea", "google", "oauth":
 		return true
 	}
 	return false

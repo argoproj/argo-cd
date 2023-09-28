@@ -1,0 +1,28 @@
+- k8sOperation: create
+  unstructuredObj:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-00000000000
+      namespace: test-ns
+      labels:
+        my: label
+      annotations:
+        my: annotation
+    spec:
+      template:
+        metadata:
+          labels:
+            pod: label
+          annotations:
+            pod: annotation
+        spec:
+          containers:
+          - name: hello
+            image: busybox:1.28
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          restartPolicy: OnFailure

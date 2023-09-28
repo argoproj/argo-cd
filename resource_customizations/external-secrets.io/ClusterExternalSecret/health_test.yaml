@@ -1,0 +1,21 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: Waiting for ClusterExternalSecret
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'one or more namespaces failed'
+    inputPath: testdata/notready.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'one or more namespaces failed'
+    inputPath: testdata/partiallyready.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'one or more namespaces failed'
+    inputPath: testdata/partiallyready-multiple-conditions.yaml
+  - healthStatus:
+      status: Healthy
+      message: ''
+    inputPath: testdata/healthy.yaml

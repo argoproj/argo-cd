@@ -72,7 +72,13 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
 
     const onConnectionMessage = (e: MessageEvent) => {
         const msg = JSON.parse(e.data);
-        connSubject.next(msg);
+        if (!msg?.Code) {
+            connSubject.next(msg);
+        } else {
+            // Do reconnect due to refresh token event
+            onConnectionClose();
+            setupConnection();
+        }
     };
 
     const onConnectionOpen = () => {
@@ -241,7 +247,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
                                         onClickContainer(group, i, 'exec');
                                     }
                                 }}>
-                                {container.name === containerName && <i className='fa fa-angle-right' />}
+                                {container.name === containerName && <i className='fa fa-angle-right negative-space-arrow' />}
                                 <span title={container.name}>{container.name}</span>
                             </div>
                         ))}
