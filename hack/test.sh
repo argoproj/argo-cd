@@ -15,4 +15,4 @@ fi
 
 mkdir -p $TEST_RESULTS
 
-GODEBUG="tarinsecurepath=0,zipinsecurepath=0" ${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=$TEST_RESULTS/junit.xml --format=testname --rerun-fails=5 -- $TEST_FLAGS $*
+GODEBUG="tarinsecurepath=0,zipinsecurepath=0" ${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=$TEST_RESULTS/junit.xml --format=testname --rerun-fails=5 --packages="$PACKAGES" -- $TEST_FLAGS $*
