@@ -49,7 +49,7 @@ ARGOCD_E2E_DEX_PORT?=5556
 ARGOCD_E2E_YARN_HOST?=localhost
 ARGOCD_E2E_DISABLE_AUTH?=
 
-ARGOCD_E2E_TEST_TIMEOUT?=45m
+ARGOCD_E2E_TEST_TIMEOUT?=60m
 
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
@@ -386,9 +386,9 @@ test: test-tools-image
 .PHONY: test-local
 test-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		DIST_DIR=${DIST_DIR} ./hack/test.sh -failfast -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
+		DIST_DIR=${DIST_DIR} ./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
 	else \
-		DIST_DIR=${DIST_DIR} ./hack/test.sh -failfast -coverprofile=coverage.out "$(TEST_MODULE)"; \
+		DIST_DIR=${DIST_DIR} ./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
 	fi
 
 .PHONY: test-race
@@ -400,9 +400,9 @@ test-race: test-tools-image
 .PHONY: test-race-local
 test-race-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		./hack/test.sh -failfast -race -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
+		./hack/test.sh -race -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
 	else \
-		./hack/test.sh -failfast -race -coverprofile=coverage.out "$(TEST_MODULE)"; \
+		./hack/test.sh -race -coverprofile=coverage.out "$(TEST_MODULE)"; \
 	fi
 
 # Run the E2E test suite. E2E test servers (see start-e2e target) must be
