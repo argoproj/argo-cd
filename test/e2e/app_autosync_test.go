@@ -92,5 +92,49 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		And(func(app *Application) {
 			assert.Len(t, app.Status.Conditions, 0)
 		})
+}
 
+func TestAutoSyncSelfHealRetryAndRefreshEnabled(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		// app should be auto-synced once created
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{
+				Automated: &SyncPolicyAutomated{SelfHeal: true},
+				Retry: &RetryStrategy{
+					Limit:   -1,
+					Refresh: true,
+				},
+			}
+		}).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		// app should be attempted to auto-synced once and marked with error after failed attempt detected
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "add", "path": "/spec/selector/matchLabels/foo", "value": "bar"}, {"op": "add", "path": "/spec/template/metadata/labels/foo", "value": "bar"}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		When().
+		// Trigger refresh again to make sure controller notices previously failed sync attempt before expectation timeout expires
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Condition(ApplicationConditionSyncError, "Failed sync attempt")).
+		When().
+		// SyncError condition should be removed after successful sync
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "remove", "path": "/spec/selector/matchLabels/foo"}, {"op": "remove", "path": "/spec/template/metadata/labels/foo"}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		When().
+		// Trigger refresh twice to make sure controller notices successful attempt and removes condition
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Len(t, app.Status.Conditions, 0)
+		})
 }
