@@ -59,7 +59,7 @@ func NewCommand() *cobra.Command {
 		metricsAplicationLabels  []string
 		kubectlParallelismLimit  int64
 		cacheSource              func() (*appstatecache.Cache, error)
-		redisClient              *redis.Client
+		redisClient              redis.UniversalClient
 		repoServerPlaintext      bool
 		repoServerStrictTLS      bool
 		otlpAddress              string
@@ -204,7 +204,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that applications are allowed to be reconciled from")
 	command.Flags().BoolVar(&persistResourceHealth, "persist-resource-health", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", true), "Enables storing the managed resources health in the Application CRD")
 	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.DefaultShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin] ")
-	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
+	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, func(client redis.UniversalClient) {
 		redisClient = client
 	})
 	return &command

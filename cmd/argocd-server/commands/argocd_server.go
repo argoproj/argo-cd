@@ -42,7 +42,7 @@ var (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		redisClient              *redis.Client
+		redisClient              redis.UniversalClient
 		insecure                 bool
 		listenHost               string
 		listenPort               int
@@ -242,7 +242,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
-	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
+	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client redis.UniversalClient) {
 		redisClient = client
 	})
 	return command

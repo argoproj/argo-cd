@@ -44,7 +44,7 @@ func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisio
 	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration}
 }
 
-func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
+func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client redis.UniversalClient)) func() (*Cache, error) {
 	var repoCacheExpiration time.Duration
 	var revisionCacheExpiration time.Duration
 

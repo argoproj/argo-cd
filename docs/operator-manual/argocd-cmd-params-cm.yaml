@@ -9,12 +9,14 @@ data:
   # Repo server address. (default "argocd-repo-server:8081")
   repo.server: "argocd-repo-server:8081"
 
-  # Redis server hostname and port (e.g. argocd-redis:6379)
+  # Redis server hostname and port (e.g. argocd-redis:6379), Comma separated for redis cluster (e.g. argocd-redis1:6379,argocd-redis2:6379)
   redis.server: "argocd-redis:6379"
   # Enable compression for data sent to Redis with the required compression algorithm. (default 'gzip')
   redis.compression: gzip
   # Redis database
   redis.db:
+  # Enable redis cluster mode
+  redis.clustermode: false
 
   # Open-Telemetry collector address: (e.g. "otel-collector:4317")
   otlp.address:

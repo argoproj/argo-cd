@@ -28,13 +28,14 @@ argocd admin cluster shards [flags]
       --password string                       Password for basic authentication to the API server
       --port-forward-redis                    Automatically port-forward ha proxy redis from current namespace? (default true)
       --proxy-url string                      If provided, this URL will be used to connect via proxy
-      --redis string                          Redis server hostname and port (e.g. argocd-redis:6379). 
+      --redis string                          Redis server hostname and port (e.g. argocd-redis:6379), Comma separated for redis cluster (e.g. argocd-redis1:6379,argocd-redis2:6379). 
       --redis-ca-certificate string           Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string       Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --redis-client-key string               Path to Redis client key (e.g. /etc/certs/redis/client.crt).
       --redis-compress string                 Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none) (default "gzip")
       --redis-insecure-skip-tls-verify        Skip Redis server certificate validation.
       --redis-use-tls                         Use TLS when connecting to Redis. 
+      --redisclustermode                      Redis cluster mode.
       --redisdb int                           Redis database.
       --replicas int                          Application controller replicas count. Inferred from number of running controller pods if not specified
       --request-timeout string                The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")

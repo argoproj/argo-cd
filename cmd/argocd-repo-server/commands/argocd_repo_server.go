@@ -58,7 +58,7 @@ func NewCommand() *cobra.Command {
 		cacheSrc                          func() (*reposervercache.Cache, error)
 		tlsConfigCustomizer               tls.ConfigCustomizer
 		tlsConfigCustomizerSrc            func() (tls.ConfigCustomizer, error)
-		redisClient                       *redis.Client
+		redisClient                       redis.UniversalClient
 		disableTLS                        bool
 		maxCombinedDirectoryManifestsSize string
 		cmpTarExcludedGlobs               []string
@@ -206,7 +206,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&helmManifestMaxExtractedSize, "helm-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of helm manifest archives when extracted")
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
-	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
+	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client redis.UniversalClient) {
 		redisClient = client
 	})
 	return &command
