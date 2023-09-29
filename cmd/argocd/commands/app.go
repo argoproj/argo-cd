@@ -2309,21 +2309,26 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 	gitResources := make(chan v1alpha1.Application)
 	appResources := make(chan []v1alpha1.ResourceNode)
 	var app *v1alpha1.Application
+	var wg sync.WaitGroup
+	wg.Add(2)
 
 	go func() {
 		appResourceStream, err := appIf.WatchResourceTree(ctx, &application.ResourcesQuery{Name: &appName, AppNamespace: &appNs, ApplicationName: &appName})
 		if err != nil {
 			log.Printf("Failed to get Application tree: %v", err)
 			done <- true
+			wg.Done()
 			return
 		}
 		for {
 			select {
 			case <-ctx.Done():
 				closeAppStream(appResourceStream)
+				wg.Done()
 				return
 			case <-done:
 				closeAppStream(appResourceStream)
+				wg.Done()
 				return
 			default:
 				msg, err := appResourceStream.Recv()
@@ -2344,15 +2349,18 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 		gitResourceStream, err := appIf.Watch(ctx, &application.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 		if err != nil {
 			done <- true
+			wg.Done()
 			log.Fatalf("failed to get git resources: %v", err)
 		}
 		for {
 			select {
 			case <-ctx.Done():
 				closeGitStream(gitResourceStream)
+				wg.Done()
 				return
 			case <-done:
 				closeGitStream(gitResourceStream)
+				wg.Done()
 				return
 			default:
 				msg, err := gitResourceStream.Recv()
@@ -2368,6 +2376,7 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 		}
 	}()
 	var once sync.Once
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -2388,6 +2397,7 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 			}
 			printAppResourceStatus(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState, output, app)
 		case <-done:
+			wg.Wait()
 			once.Do(func() {
 				close(gitResources)
 				close(appResources)
@@ -2400,8 +2410,6 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 }
 
 func printAppResourceStatus(mapUidToNode map[string]v1alpha1.ResourceNode, mapParentToChild map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState, output string, app *v1alpha1.Application) {
-	//fmt.Print("\033[H\033[2J")
-	//fmt.Print("\033[0;0H")
 	fmt.Print("\033[2J\033[H\033[3J")
 	switch output {
 	case "yaml", "json":
