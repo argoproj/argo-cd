@@ -2289,6 +2289,18 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
 }
 
+func closeAppStream(appResourceStream application.ApplicationService_WatchResourceTreeClient) {
+	if err := appResourceStream.CloseSend(); err != nil {
+		log.Fatalf("Error while closing the app stream: %v", err)
+	}
+}
+
+func closeGitStream(gitResourceStream application.ApplicationService_WatchClient) {
+	if err := gitResourceStream.CloseSend(); err != nil {
+		log.Fatalf("Error while closing the git stream: %v", err)
+	}
+}
+
 func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string, output string, done chan bool) {
 	mapUidToNode := make(map[string]argoappv1.ResourceNode)
 	mapParentToChild := make(map[string][]string)
@@ -2308,8 +2320,10 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 		for {
 			select {
 			case <-ctx.Done():
+				closeAppStream(appResourceStream)
 				return
 			case <-done:
+				closeAppStream(appResourceStream)
 				return
 			default:
 				msg, err := appResourceStream.Recv()
@@ -2320,6 +2334,7 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 					log.Printf("appResourceStream read failed: %v", err)
 					return
 				}
+				fmt.Println("")
 				appResources <- msg.Nodes
 			}
 		}
@@ -2334,8 +2349,10 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 		for {
 			select {
 			case <-ctx.Done():
+				closeGitStream(gitResourceStream)
 				return
 			case <-done:
+				closeGitStream(gitResourceStream)
 				return
 			default:
 				msg, err := gitResourceStream.Recv()
@@ -2353,6 +2370,14 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 	var once sync.Once
 	for {
 		select {
+		case <-ctx.Done():
+			once.Do(func() {
+				close(gitResources)
+				close(appResources)
+				close(done)
+				fmt.Println("closed all the resources from ctx cancellation")
+			})
+			return
 		case appTreeNodes := <-appResources:
 			mapUidToNode, mapParentToChild, parentNodes = parentChildInfo(appTreeNodes)
 			printAppResourceStatus(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState, output, app)
@@ -2367,6 +2392,7 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 				close(gitResources)
 				close(appResources)
 				close(done)
+				fmt.Println("closed all the resources from done cancellation")
 			})
 			return
 		}
