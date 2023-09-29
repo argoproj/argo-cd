@@ -208,14 +208,18 @@ func NewApplicationController(
 		},
 	})
 
-	factory := informers.NewSharedInformerFactory(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration)
+	factory := informers.NewSharedInformerFactoryWithOptions(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration, informers.WithNamespace(settingsMgr.GetNamespace()))
 	deploymentInformer := factory.Apps().V1().Deployments()
 
 	readinessHealthCheck := func(r *http.Request) error {
 		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 		appControllerDeployment, err := deploymentInformer.Lister().Deployments(settingsMgr.GetNamespace()).Get(applicationControllerName)
-		if !kubeerrors.IsNotFound(err) {
-			return fmt.Errorf("error retrieving Application Controller Deployment: %s", err)
+		if err != nil {
+			if kubeerrors.IsNotFound(err) {
+				appControllerDeployment = nil
+			} else {
+				return fmt.Errorf("error retrieving Application Controller Deployment: %s", err)
+			}
 		}
 		if appControllerDeployment != nil {
 			if appControllerDeployment.Spec.Replicas != nil && int(*appControllerDeployment.Spec.Replicas) <= 0 {
