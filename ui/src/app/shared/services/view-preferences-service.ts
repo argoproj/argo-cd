@@ -1,7 +1,8 @@
 import * as deepMerge from 'deepmerge';
-import {BehaviorSubject, Observable} from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 
-import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
+import { PodGroupType } from '../../applications/components/application-pod-view/pod-view';
+import { isFromAppComponents } from '../../applications/components/utils';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -12,23 +13,56 @@ export enum AppsDetailsViewKey {
     Pods = 'pods'
 }
 
-export interface AppDetailsPreferences {
+export type AppSetsDetailsViewType = 'tree' | 'list';
+
+export enum AppSetsDetailsViewKey {
+    Tree = 'tree',
+    List = 'list',
+}
+
+export interface AbstractAppDetailsPreferences {
     resourceFilter: string[];
-    view: AppsDetailsViewType | string;
+    darkMode: boolean;
+    hideFilters: boolean;
+    groupNodes?: boolean;
+    zoom: number;
+    view: AppsDetailsViewType | AppSetsDetailsViewType | string;
     resourceView: 'manifest' | 'diff' | 'desiredManifest';
     inlineDiff: boolean;
     compactDiff: boolean;
     hideManagedFields?: boolean;
     orphanedResources: boolean;
+}
+
+export interface AppDetailsPreferences extends AbstractAppDetailsPreferences {
+    view: AppsDetailsViewType | string;
     podView: PodViewPreferences;
-    darkMode: boolean;
     followLogs: boolean;
-    hideFilters: boolean;
     wrapLines: boolean;
-    groupNodes?: boolean;
-    zoom: number;
     podGroupCount: number;
 }
+
+export interface AppSetDetailsPreferences extends AbstractAppDetailsPreferences {
+    view: AppSetsDetailsViewType | string;
+}
+
+// export interface AppDetailsPreferences {
+//     resourceFilter: string[];
+//     view: AppsDetailsViewType | string;
+//     resourceView: 'manifest' | 'diff' | 'desiredManifest';
+//     inlineDiff: boolean;
+//     compactDiff: boolean;
+//     hideManagedFields?: boolean;
+//     orphanedResources: boolean;
+//     podView: PodViewPreferences;
+//     darkMode: boolean;
+//     followLogs: boolean;
+//     hideFilters: boolean;
+//     wrapLines: boolean;
+//     groupNodes?: boolean;
+//     zoom: number;
+//     podGroupCount: number;
+// }
 
 export interface PodViewPreferences {
     sortMode: PodGroupType;
@@ -47,7 +81,23 @@ export enum AppsListViewKey {
     Tiles = 'tiles'
 }
 
-export class AppsListPreferences {
+export class AbstractAppsListPreferences {
+    public static clearFilters(pref: AbstractAppsListPreferences) {
+        pref.healthFilter = [];
+        pref.labelsFilter = [];
+        pref.showFavorites = false;
+    }
+
+    public labelsFilter: string[];
+    public healthFilter: string[];
+    public view: AppsListViewType;
+    public hideFilters: boolean;
+    public statusBarView: HealthStatusBarPreferences;
+    public showFavorites: boolean;
+    public favoritesAppList: string[];
+}
+
+export class AppsListPreferences extends AbstractAppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
         return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter].reduce(
             (count, filter) => {
@@ -61,49 +111,69 @@ export class AppsListPreferences {
     }
 
     public static clearFilters(pref: AppsListPreferences) {
+        super.clearFilters(pref);
+
         pref.clustersFilter = [];
-        pref.healthFilter = [];
-        pref.labelsFilter = [];
         pref.namespacesFilter = [];
         pref.projectsFilter = [];
         pref.reposFilter = [];
         pref.syncFilter = [];
         pref.autoSyncFilter = [];
-        pref.showFavorites = false;
     }
 
-    public labelsFilter: string[];
     public projectsFilter: string[];
     public reposFilter: string[];
     public syncFilter: string[];
     public autoSyncFilter: string[];
-    public healthFilter: string[];
     public namespacesFilter: string[];
     public clustersFilter: string[];
-    public view: AppsListViewType;
-    public hideFilters: boolean;
-    public statusBarView: HealthStatusBarPreferences;
-    public showFavorites: boolean;
-    public favoritesAppList: string[];
 }
 
-export interface ViewPreferences {
+export class AppSetsListPreferences extends AbstractAppsListPreferences {
+    public static countEnabledFilters(pref: AppSetsListPreferences) {
+        return [pref.healthFilter, pref.labelsFilter].reduce(
+            (count, filter) => {
+                if (filter && filter.length > 0) {
+                    return count + 1;
+                }
+                return count;
+            },
+            0
+        );
+    }
+
+    public static clearFilters(pref: AppSetsListPreferences) {
+        super.clearFilters(pref);
+    }
+}
+
+export interface AbstractViewPreferences {
     version: number;
-    appDetails: AppDetailsPreferences;
-    appList: AppsListPreferences;
-    pageSizes: {[key: string]: number};
-    sortOptions?: {[key: string]: string};
+    pageSizes: { [key: string]: number };
+    sortOptions?: { [key: string]: string };
     hideBannerContent: string;
     hideSidebar: boolean;
     position: string;
     theme: string;
+    appDetails: AbstractAppDetailsPreferences;
+    appList: AbstractAppsListPreferences;
+}
+
+export interface ViewPreferences extends AbstractViewPreferences {
+    appDetails: AppDetailsPreferences;
+    appList: AppsListPreferences;
+}
+
+export interface AppSetViewPreferences extends AbstractViewPreferences {
+    appDetails: AppSetDetailsPreferences;
+    appList: AppSetsListPreferences;
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
 
 const minVer = 5;
 
-const DEFAULT_PREFERENCES: ViewPreferences = {
+const DEFAULT_PREFERENCES: ViewPreferences | AppSetViewPreferences = isFromAppComponents ? {
     version: 1,
     appDetails: {
         view: 'tree',
@@ -146,10 +216,45 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     hideSidebar: false,
     position: '',
     theme: 'light'
+} : {
+    version: 1,
+    appDetails: {
+        view: 'tree',
+        hideFilters: false,
+        resourceFilter: [],
+        inlineDiff: false,
+        compactDiff: false,
+        hideManagedFields: true,
+        resourceView: 'manifest',
+        orphanedResources: false,
+        darkMode: false,
+        zoom: 1.0,
+    },
+    appList: {
+        view: 'tiles' as AppsListViewType,
+        labelsFilter: new Array<string>(),
+        healthFilter: new Array<string>(),
+        hideFilters: false,
+        showFavorites: false,
+        favoritesAppList: new Array<string>(),
+        statusBarView: {
+            showHealthStatusBar: true
+        }
+    },
+    pageSizes: {},
+    hideBannerContent: '',
+    hideSidebar: false,
+    position: '',
+    theme: 'light'
 };
 
+export function isAppSetViewPreferences(pref: AbstractViewPreferences) {
+    // There must be a more elegant way of determining that
+    return !('followLogs' in pref.appDetails);
+}
+
 export class ViewPreferencesService {
-    private preferencesSubj: BehaviorSubject<ViewPreferences>;
+    private preferencesSubj: BehaviorSubject<AbstractViewPreferences>;
 
     public init() {
         if (!this.preferencesSubj) {
@@ -160,18 +265,18 @@ export class ViewPreferencesService {
         }
     }
 
-    public getPreferences(): Observable<ViewPreferences> {
+    public getPreferences(): Observable<AbstractViewPreferences> {
         return this.preferencesSubj;
     }
 
-    public updatePreferences(change: Partial<ViewPreferences>) {
-        const nextPref = Object.assign({}, this.preferencesSubj.getValue(), change, {version: minVer});
+    public updatePreferences(change: Partial<AbstractViewPreferences>) {
+        const nextPref = Object.assign({}, this.preferencesSubj.getValue(), change, { version: minVer });
         window.localStorage.setItem(VIEW_PREFERENCES_KEY, JSON.stringify(nextPref));
         this.preferencesSubj.next(nextPref);
     }
 
-    private loadPreferences(): ViewPreferences {
-        let preferences: ViewPreferences;
+    private loadPreferences(): AbstractViewPreferences {
+        let preferences: AbstractViewPreferences;
         const preferencesStr = window.localStorage.getItem(VIEW_PREFERENCES_KEY);
         if (preferencesStr) {
             try {

@@ -31,6 +31,7 @@ export const ApplicationResourceList = ({
         return null;
     }
     const parentNode = ((resources || []).length > 0 && (getResNode(tree.nodes, nodeKey(resources[0])) as ResourceNode)?.parentRefs?.[0]) || ({} as ResourceRef);
+    // debugger;
 
     return (
         <div>

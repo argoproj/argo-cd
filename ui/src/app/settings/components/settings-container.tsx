@@ -12,10 +12,12 @@ import {ProjectsList} from './projects-list/projects-list';
 import {ReposList} from './repos-list/repos-list';
 import {SettingsOverview} from './settings-overview/settings-overview';
 import {AppearanceList} from './appearance-list/appearance-list';
+import {ApplicationsList} from '../../applications/components/applications-list/applications-list';
 
 export const SettingsContainer = (props: RouteComponentProps<any>) => (
     <Switch>
         <Route exact={true} path={`${props.match.path}`} component={SettingsOverview} />
+        <Route exact={true} path={`${props.match.path}/applicationsets`} component={ApplicationsList} />        
         <Route exact={true} path={`${props.match.path}/repos`} component={ReposList} />
         <Route exact={true} path={`${props.match.path}/certs`} component={CertsList} />
         <Route exact={true} path={`${props.match.path}/gpgkeys`} component={GpgKeysList} />

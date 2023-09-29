@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {Checkbox} from 'argo-ui/v2';
 import {ApplicationTree, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
-import {AppDetailsPreferences, services} from '../../../shared/services';
+import {AppDetailsPreferences, AppSetDetailsPreferences, services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
 import {Filter, FiltersGroup} from '../filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
@@ -14,9 +14,9 @@ function toOption(label: string) {
     return {label};
 }
 
-export interface FiltersProps {
+export interface AbstractFiltersProps {
     children?: React.ReactNode;
-    pref: AppDetailsPreferences;
+    pref: AppDetailsPreferences | AppSetDetailsPreferences;
     tree: ApplicationTree;
     resourceNodes: models.ResourceStatus[];
     onSetFilter: (items: string[]) => void;
@@ -24,7 +24,15 @@ export interface FiltersProps {
     collapsed?: boolean;
 }
 
-export const Filters = (props: FiltersProps) => {
+export interface FiltersProps extends AbstractFiltersProps{
+    pref: AppDetailsPreferences;
+}
+
+export interface AppSetFiltersProps extends AbstractFiltersProps{
+    pref: AppSetDetailsPreferences;
+}
+
+export const Filters = (props: AbstractFiltersProps) => {
     const ctx = React.useContext(Context);
 
     const {pref, tree, onSetFilter} = props;
