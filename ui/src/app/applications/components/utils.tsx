@@ -1252,3 +1252,17 @@ export function formatCreationTimestamp(creationTimestamp: string) {
 }
 
 export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);
+
+export function getUsrMsgKeyToDisplay(appName: string, msgKey: string, usrMessages: appModels.UserMessages[]) {
+    const usrMsg = usrMessages?.find((msg: appModels.UserMessages) => msg.appName === appName && msg.msgKey === msgKey);
+    if (usrMsg !== undefined) {
+        return {...usrMsg, display: true};
+    } else {
+        return {appName, msgKey, display: false, duration: 1} as appModels.UserMessages;
+    }
+}
+
+export const userMsgsList: {[key: string]: string} = {
+    groupNodes: `Since the number of pods has surpassed the threshold pod count of 15, you will now be switched to the group node view.
+                 If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`
+};

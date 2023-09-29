@@ -31,7 +31,6 @@ import (
 	"github.com/argoproj/pkg/sync"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/handlers"
-	gmux "github.com/gorilla/mux"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -62,7 +61,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-
 	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
@@ -194,6 +192,7 @@ type ArgoCDServer struct {
 	secretInformer    cache.SharedIndexInformer
 	configMapInformer cache.SharedIndexInformer
 	serviceSet        *ArgoCDServiceSet
+	extensionManager  *extension.Manager
 }
 
 type ArgoCDServerOpts struct {
@@ -292,10 +291,16 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	apiFactory := api.NewFactory(settings_notif.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm"), opts.Namespace, secretInformer, configMapInformer)
 
 	dbInstance := db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset)
+	logger := log.NewEntry(log.StandardLogger())
+
+	sg := extension.NewDefaultSettingsGetter(settingsMgr)
+	ag := extension.NewDefaultApplicationGetter(appLister)
+	pg := extension.NewDefaultProjectGetter(projLister, dbInstance)
+	em := extension.NewManager(logger, sg, ag, pg, enf)
 
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:  opts,
-		log:               log.NewEntry(log.StandardLogger()),
+		log:               logger,
 		settings:          settings,
 		sessionMgr:        sessionMgr,
 		settingsMgr:       settingsMgr,
@@ -313,6 +318,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		apiFactory:        apiFactory,
 		secretInformer:    secretInformer,
 		configMapInformer: configMapInformer,
+		extensionManager:  em,
 	}
 
 	err = a.logInClusterWarnings()
@@ -435,8 +441,8 @@ func (a *ArgoCDServer) Listen() (*Listeners, error) {
 	var dOpts []grpc.DialOption
 	dOpts = append(dOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize)))
 	dOpts = append(dOpts, grpc.WithUserAgent(fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)))
-	dOpts = append(dOpts, grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()))
-	dOpts = append(dOpts, grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()))
+	dOpts = append(dOpts, grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()))
+	dOpts = append(dOpts, grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()))
 	if a.useTLS() {
 		// The following sets up the dial Options for grpc-gateway to talk to gRPC server over TLS.
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
@@ -617,6 +623,7 @@ func (a *ArgoCDServer) watchSettings() {
 	prevBitbucketUUID := a.settings.WebhookBitbucketUUID
 	prevBitbucketServerSecret := a.settings.WebhookBitbucketServerSecret
 	prevGogsSecret := a.settings.WebhookGogsSecret
+	prevExtConfig := a.settings.ExtensionConfig
 	var prevCert, prevCertKey string
 	if a.settings.Certificate != nil && !a.ArgoCDServerOpts.Insecure {
 		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
@@ -658,6 +665,16 @@ func (a *ArgoCDServer) watchSettings() {
 		if prevGogsSecret != a.settings.WebhookGogsSecret {
 			log.Infof("gogs secret modified. restarting")
 			break
+		}
+		if prevExtConfig != a.settings.ExtensionConfig {
+			prevExtConfig = a.settings.ExtensionConfig
+			log.Infof("extensions configs modified. Updating proxy registry...")
+			err := a.extensionManager.UpdateExtensionRegistry(a.settings)
+			if err != nil {
+				log.Errorf("error updating extensions configs: %s", err)
+			} else {
+				log.Info("extensions configs updated successfully")
+			}
 		}
 		if !a.ArgoCDServerOpts.Insecure {
 			var newCert, newCertKey string
@@ -950,7 +967,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		Handler: &handlerSwitcher{
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
-				"/api/badge":          badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
+				"/api/badge":          badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace, a.ApplicationNamespaces),
 				common.LogoutEndpoint: logout.NewHandler(a.AppClientset, a.settingsMgr, a.sessionMgr, a.ArgoCDServerOpts.RootPath, a.ArgoCDServerOpts.BaseHRef, a.Namespace),
 			},
 			contentTypeToHandler: map[string]http.Handler{
@@ -975,7 +992,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/api/", handler)
 
-	terminal := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells).
+	terminal := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells, *a.sessionMgr).
 		WithFeatureFlagMiddleware(a.settingsMgr.GetSettings)
 	th := util_session.WithAuthMiddleware(a.DisableAuth, a.sessionMgr, terminal)
 	mux.Handle("/terminal", th)
@@ -988,6 +1005,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		// will be added in mux.
 		registerExtensions(mux, a)
 	}
+
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandler, ctx, gwmux, conn)
@@ -1042,21 +1060,16 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 // in the given mux. If any error is returned while registering
 // extensions handlers, no route will be added in the given mux.
 func registerExtensions(mux *http.ServeMux, a *ArgoCDServer) {
-	sg := extension.NewDefaultSettingsGetter(a.settingsMgr)
-	ag := extension.NewDefaultApplicationGetter(a.appLister)
-	pg := extension.NewDefaultProjectGetter(a.projLister, a.db)
-	em := extension.NewManager(a.log, sg, ag, pg, a.enf)
-	r := gmux.NewRouter()
-	// register an Auth middleware to ensure all requests to
-	// extensions are authenticated first.
-	r.Use(a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth))
+	a.log.Info("Registering extensions...")
+	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
+	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth)
+	// auth middleware ensures that requests to all extensions are authenticated first
+	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), authMiddleware(extHandler))
 
-	err := em.RegisterHandlers(r)
+	err := a.extensionManager.RegisterExtensions()
 	if err != nil {
-		a.log.Errorf("error registering extension handlers: %s", err)
-		return
+		a.log.Errorf("Error registering extensions: %s", err)
 	}
-	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), r)
 }
 
 var extensionsPattern = regexp.MustCompile(`^extension(.*)\.js$`)
@@ -1218,7 +1231,11 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 			http.ServeContent(w, r, "index.html", modTime, io.NewByteReadSeeker(data))
 		} else {
 			if isMainJsBundle(r.URL) {
-				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+				cacheControl := "public, max-age=31536000, immutable"
+				if !fileRequest {
+					cacheControl = "no-cache"
+				}
+				w.Header().Set("Cache-Control", cacheControl)
 			}
 			http.FileServer(server.staticAssets).ServeHTTP(w, r)
 		}

@@ -40,10 +40,7 @@ import (
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-// TODO: load this using Cobra.
-func getSubmoduleEnabled() bool {
-	return env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
-}
+var gitSubmoduleEnabled = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
 
 func NewCommand() *cobra.Command {
 	var (
@@ -66,6 +63,8 @@ func NewCommand() *cobra.Command {
 		maxConcurrentReconciliations int
 		scmRootCAPath                string
 		allowedScmProviders          []string
+		globalPreservedAnnotations   []string
+		globalPreservedLabels        []string
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -156,7 +155,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
-			argoCDService, err := services.NewArgoCDService(argoCDDB, getSubmoduleEnabled(), repoClientset, enableNewGitFileGlobbing)
+			argoCDService, err := services.NewArgoCDService(argoCDDB, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 			errors.CheckError(err)
 
 			terminalGenerators := map[string]generators.Generator{
@@ -203,20 +202,23 @@ func NewCommand() *cobra.Command {
 			}
 
 			if err = (&controllers.ApplicationSetReconciler{
-				Generators:               topLevelGenerators,
-				Client:                   mgr.GetClient(),
-				Scheme:                   mgr.GetScheme(),
-				Recorder:                 mgr.GetEventRecorderFor("applicationset-controller"),
-				Renderer:                 &utils.Render{},
-				Policy:                   policyObj,
-				EnablePolicyOverride:     enablePolicyOverride,
-				ArgoAppClientset:         appSetConfig,
-				KubeClientset:            k8sClient,
-				ArgoDB:                   argoCDDB,
-				ArgoCDNamespace:          namespace,
-				ApplicationSetNamespaces: applicationSetNamespaces,
-				EnableProgressiveSyncs:   enableProgressiveSyncs,
-				SCMRootCAPath:            scmRootCAPath,
+				Generators:                 topLevelGenerators,
+				Client:                     mgr.GetClient(),
+				Scheme:                     mgr.GetScheme(),
+				Recorder:                   mgr.GetEventRecorderFor("applicationset-controller"),
+				Renderer:                   &utils.Render{},
+				Policy:                     policyObj,
+				EnablePolicyOverride:       enablePolicyOverride,
+				ArgoAppClientset:           appSetConfig,
+				KubeClientset:              k8sClient,
+				ArgoDB:                     argoCDDB,
+				ArgoCDNamespace:            namespace,
+				ApplicationSetNamespaces:   applicationSetNamespaces,
+				EnableProgressiveSyncs:     enableProgressiveSyncs,
+				SCMRootCAPath:              scmRootCAPath,
+				GlobalPreservedAnnotations: globalPreservedAnnotations,
+				GlobalPreservedLabels:      globalPreservedLabels,
+				Cache:                      mgr.GetCache(),
 			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
@@ -254,6 +256,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&maxConcurrentReconciliations, "concurrent-reconciliations", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS", 10, 1, 100), "Max concurrent reconciliations limit for the controller")
 	command.Flags().StringVar(&scmRootCAPath, "scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
+	command.Flags().StringSliceVar(&globalPreservedAnnotations, "preserved-annotations", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS", []string{}, ","), "Sets global preserved field values for annotations")
+	command.Flags().StringSliceVar(&globalPreservedLabels, "preserved-labels", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS", []string{}, ","), "Sets global preserved field values for labels")
 	return &command
 }
 
