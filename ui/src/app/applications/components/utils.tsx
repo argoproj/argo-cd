@@ -1287,7 +1287,7 @@ export function isApp(abstractApp: appModels.AbstractApplication): abstractApp i
     return abstractApp.kind === "Application";
 }
 
-export function isFromAppComponents(): boolean {
+export function isInvokedFromApps(): boolean {
     // console.log("*** ctx.history.location.pathname *** " + ctx.history.location.pathname)
     const isInvokedFromApp = false //ctx.history.location.pathname.includes("applicationsets") ? true : false
     return isInvokedFromApp
@@ -1307,7 +1307,7 @@ ctxh: ContextApis & {
 */
 
 export function getRootPath(): string {
-    return isFromAppComponents() ? '/applications' : '/applicationsets'
+    return isInvokedFromApps() ? '/applications' : '/applicationsets'
 }
 
 

@@ -2,7 +2,7 @@ import * as deepMerge from 'deepmerge';
 import {BehaviorSubject, Observable} from 'rxjs';
 
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
-import {isFromAppComponents} from '../../applications/components/utils';
+import {isInvokedFromApps} from '../../applications/components/utils';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -173,7 +173,7 @@ const VIEW_PREFERENCES_KEY = 'view_preferences';
 
 const minVer = 5;
 
-const DEFAULT_PREFERENCES: ViewPreferences | AppSetViewPreferences = isFromAppComponents ? {
+const DEFAULT_PREFERENCES: ViewPreferences | AppSetViewPreferences = isInvokedFromApps ? {
     version: 1,
     appDetails: {
         view: 'tree',

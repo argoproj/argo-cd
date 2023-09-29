@@ -4,7 +4,7 @@ const PieChart = require('react-svg-piechart').default;
 import { COLORS } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import { Application, ApplicationSet, HealthStatusCode, SyncStatusCode } from '../../../shared/models';
-import { ComparisonStatusIcon, HealthStatusIcon, getAppSetHealthStatus, isFromAppComponents } from '../utils';
+import { ComparisonStatusIcon, HealthStatusIcon, getAppSetHealthStatus, isInvokedFromApps } from '../utils';
 
 const healthColors = new Map<models.HealthStatusCode, string>();
 healthColors.set('Unknown', COLORS.health.unknown);
@@ -29,7 +29,7 @@ export const ApplicationsSummary = ({ applications }: { applications: models.Abs
     const health = new Map<string, number>();
 
     // if (isApp(applications[0])) {
-        if (isFromAppComponents()) {
+        if (isInvokedFromApps()) {
         applications.forEach(app => sync.set((app as Application).status.sync.status, (sync.get((app as Application).status.sync.status) || 0) + 1));
         applications.forEach(app => health.set((app as Application).status.health.status, (health.get((app as Application).status.health.status) || 0) + 1));
     }
@@ -37,7 +37,7 @@ export const ApplicationsSummary = ({ applications }: { applications: models.Abs
         applications.forEach(app => health.set(getAppSetHealthStatus((app as ApplicationSet).status), (health.get(getAppSetHealthStatus((app as ApplicationSet).status)) || 0) + 1));
     }
     
-    const attributes = isFromAppComponents() ? ([{
+    const attributes = isInvokedFromApps() ? ([{
         title: 'APPLICATIONS',
         value: applications.length
     },
@@ -69,7 +69,7 @@ export const ApplicationsSummary = ({ applications }: { applications: models.Abs
 
     
 
-    const charts = isFromAppComponents() ? ([
+    const charts = isInvokedFromApps() ? ([
         {
             title: 'Sync',
             data: Array.from(sync.keys()).map(key => ({ title: key, value: sync.get(key), color: syncColors.get(key as models.SyncStatusCode) })),
@@ -123,7 +123,7 @@ export const ApplicationsSummary = ({ applications }: { applications: models.Abs
                                                 <ul>
                                                     {Array.from(chart.legend.keys()).map(key => (
                                                         <li style={{ listStyle: 'none', whiteSpace: 'nowrap' }} key={key}>
-                                                            {isFromAppComponents() && chart.title === 'Health' && <HealthStatusIcon state={{ status: key as HealthStatusCode, message: '' }} noSpin={true} />}
+                                                            {isInvokedFromApps() && chart.title === 'Health' && <HealthStatusIcon state={{ status: key as HealthStatusCode, message: '' }} noSpin={true} />}
                                                             {/* {chart.title === 'Health' && <AppSetHealthStatusIcon state={{conditions : key as ApplicationSetConditionStatus}} noSpin={true} />}  */}
                                                             {chart.title === 'Sync' && <ComparisonStatusIcon status={key as SyncStatusCode} noSpin={true} />}
                                                             {` ${key} (${getLegendValue(key)})`}

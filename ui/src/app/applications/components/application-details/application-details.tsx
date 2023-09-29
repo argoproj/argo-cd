@@ -24,7 +24,7 @@ import { ResourceDetails } from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import { ApplicationResourceList } from './application-resource-list';
 import { AbstractFiltersProps, Filters } from './application-resource-filter';
-import { getAppDefaultSource, urlPattern, helpTip, isApp, isFromAppComponents } from '../utils';
+import { getAppDefaultSource, urlPattern, helpTip, isApp, isInvokedFromApps } from '../utils';
 import { ChartDetails, ResourceStatus } from '../../../shared/models';
 import { ApplicationsDetailsAppDropdown } from './application-details-app-dropdown';
 import { useSidebarTarget } from '../../../sidebar/sidebar';
@@ -152,7 +152,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ ap
     }
 
     private getPageTitle(view: string) {
-        if (isFromAppComponents()) {
+        if (isInvokedFromApps()) {
             const { Tree, Pods, Network, List } = AppsDetailsViewKey;
             switch (view) {
                 case Tree:
@@ -182,8 +182,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ ap
             <ObservableQuery>
                 {q => (
                     <DataLoader
-                        errorRenderer={error => <Page title={isFromAppComponents() ? 'Application Details' : 'ApplicationSet Details'}>{error}</Page>}
-                        loadingRenderer={() => <Page title={isFromAppComponents() ? 'Application Details' : 'Application Set Details'}>Loading...</Page>}
+                        errorRenderer={error => <Page title={isInvokedFromApps() ? 'Application Details' : 'ApplicationSet Details'}>{error}</Page>}
+                        loadingRenderer={() => <Page title={isInvokedFromApps() ? 'Application Details' : 'Application Set Details'}>Loading...</Page>}
                         input={this.props.match.params.name}
                         load={name =>
                             combineLatest([this.loadAppInfo(name, this.appNamespace), services.viewPreferences.getPreferences(), q]).pipe(

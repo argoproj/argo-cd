@@ -5,7 +5,7 @@ import { map, repeat, retry } from 'rxjs/operators';
 import * as models from '../models';
 import { isValidURL } from '../utils';
 import requests from './requests';
-import { getRootPath, isFromAppComponents } from '../../applications/components/utils';
+import { getRootPath, isInvokedFromApps } from '../../applications/components/utils';
 
 interface QueryOptions {
     fields: string[];
@@ -23,7 +23,7 @@ function optionsToSearch(options?: QueryOptions) {
 // const rootPath = !isFromAppSetComponents ? "/applications" : "/applicationsets"
 
 function getQuery(projects: string[], options?: QueryOptions): any {
-    if (isFromAppComponents()) {
+    if (isInvokedFromApps()) {
         return { projects, ...optionsToSearch(options) }
     }
     else {
@@ -37,7 +37,7 @@ export class ApplicationsService {
             .get(getRootPath())
             .query(getQuery(projects, options))
             .then(res => {
-                if (isFromAppComponents()) {
+                if (isInvokedFromApps()) {
                     return res.body as models.ApplicationList
                 }
                 else {
@@ -144,7 +144,7 @@ export class ApplicationsService {
         return requests
             .put(`${getRootPath()}/${app.metadata.name}`)
             .query(query)
-            .send(isFromAppComponents() ? app as models.Application : app as models.ApplicationSet)
+            .send(isInvokedFromApps() ? app as models.Application : app as models.ApplicationSet)
             .then(res => this.parseAppFields(res.body));
     }
 
@@ -158,7 +158,7 @@ export class ApplicationsService {
         }
         return requests
             .post(getRootPath())
-            .send(isFromAppComponents() ? app as models.Application : app as models.ApplicationSet)
+            .send(isInvokedFromApps() ? app as models.Application : app as models.ApplicationSet)
             .then(res => this.parseAppFields(res.body));
     }
 
@@ -197,7 +197,7 @@ export class ApplicationsService {
             search.set('fields', searchOptions.fields);
             search.set('selector', searchOptions.selector);
             search.set('appNamespace', searchOptions.appNamespace);
-            if (isFromAppComponents()) {
+            if (isInvokedFromApps()) {
                 query?.projects?.forEach(project => search.append('projects', project));
             }
         }
@@ -512,7 +512,7 @@ export class ApplicationsService {
     }
 
     private parseAppFields(data: any): models.AbstractApplication {
-        if (isFromAppComponents()) {
+        if (isInvokedFromApps()) {
             data = deepMerge(
                 {
                     apiVersion: 'argoproj.io/v1alpha1',
