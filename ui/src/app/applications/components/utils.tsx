@@ -3,7 +3,7 @@ import {ActionButton} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
-import {FormApi, FormValues, Text} from 'react-form';
+import {FormApi, Text} from 'react-form';
 import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
@@ -13,7 +13,6 @@ import {ResourceTreeNode} from './application-resource-tree/application-resource
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
-import {NumberOfPods} from '../../shared/components/number-of-pods/number-of-pods';
 
 require('./utils.scss');
 
@@ -120,74 +119,6 @@ export async function deleteApplication(appName: string, appNamespace: string, a
         {name: 'argo-icon-warning', color: 'warning'},
         'yellow',
         {propagationPolicy: 'foreground'}
-    );
-    return confirmed;
-}
-
-export async function scalePods(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<boolean> {
-    let confirmed = false;
-    await apis.popup.prompt(
-        'Scale Resources',
-        api => {
-            const numberOfPods = +api.getFormState().values.numberOfPods;
-            const showNumberOfPods = !isNaN(numberOfPods);
-
-            const incrementCounter = () => {
-                const newValue = numberOfPods + 1;
-                api.setValue('numberOfPods', newValue.toString());
-            };
-
-            const decrementCounter = () => {
-                if (+numberOfPods !== 0) {
-                    const newValue = numberOfPods - 1;
-                    api.setValue('numberOfPods', newValue.toString());
-                }
-            };
-
-            return (
-                <div>
-                    <p>Select the desired number of pods</p>
-                    <div className='scale-resource-popup'>
-                        <NumberOfPods numberOfPods={showNumberOfPods ? numberOfPods.toString() : 'N/A'} />
-
-                        <div style={{display: 'flex', alignItems: 'center', margin: '16px', width: '60%'}}>
-                            <div className='columns small-8'>
-                                <FormField formApi={api} field='numberOfPods' component={Text} componentProps={{showErrors: true}} />
-                            </div>
-                            <div style={{display: 'flex', flexDirection: 'column'}}>
-                                <a onClick={incrementCounter}>
-                                    <i className='fa fa-caret-up fa-fw' />
-                                </a>
-                                <a className={classNames({'arrow-button--disabled': numberOfPods < 1})} onClick={decrementCounter} aria-disabled={true}>
-                                    <i className='fa fa-caret-down fa-fw' />
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        },
-        {
-            validate: ({numberOfPods}: FormValues) => ({
-                numberOfPods:
-                    (isNaN(+numberOfPods) || +numberOfPods < 0 || +numberOfPods > 2147483647) && `Number of Pods should be valid number more than 0 and less than 2147483647`
-            }),
-            submit: async ({numberOfPods}: FormValues, _, close) => {
-                try {
-                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, 'scale', [{name: 'scale', value: numberOfPods}]);
-                    confirmed = true;
-                    close();
-                } catch (e) {
-                    apis.notifications.show({
-                        content: <ErrorNotification title='Unable to delete application' e={e} />,
-                        type: NotificationType.Error
-                    });
-                }
-            }
-        },
-        null,
-        null,
-        {numberOfPods: '0'}
     );
     return confirmed;
 }
@@ -475,23 +406,44 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
                         disabled: !!action.disabled,
                         iconClassName: action.iconClass,
                         action: async () => {
-                            try {
-                                const confirmed = await apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
-                                if (confirmed) {
-                                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name, []);
-                                }
-                            } catch (e) {
-                                apis.notifications.show({
-                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                    type: NotificationType.Error
-                                });
-                            }
-                        }
-                    } as MenuItem)
-            );
-        })
-        .catch(() => [] as MenuItem[]);
-}
+                            let confirmed = false;
+                            const title = action.hasParameters ? `Enter input parameters for action: ${action.name}` : `Execute ${action.name} action?`;
+                            await apis.popup.prompt(
+                                title,
+                                api => (
+                                    <div>
+                                        {!action.hasParameters &&
+                                            <div className='argo-form-row'>
+                                            <div> Are you sure you want to execute {action.name} action?</div>
+                                            </div>
+                                        }
+                                        {action.hasParameters &&
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={api} field='inputParameter' component={Text} componentProps={{showErrors: true}} />
+                                            </div>
+                                        }
+                                    </div>
+                                ),
+                                {
+                                    submit: async (vals, _, close) => {
+                                        try {
+                                            const resourceActionParameters = action.hasParameters ? [{name: action.name, value: vals.inputParameter}] : [];
+                                            await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name, resourceActionParameters);
+                                            close();
+                                        } catch (e) {
+                                            apis.notifications.show({
+                                                content: <ErrorNotification title='Unable to delete application' e={e} />,
+                                                type: NotificationType.Error
+                                            });
+                                        }
+                                    }
+                                },
+                                null,
+                                null,
+                                {inputParameter: action.defaultValue}
+                            );
+                            return confirmed;
+                        }}))})};
 
 function getActionItems(
     resource: ResourceTreeNode,
@@ -524,16 +476,6 @@ function getActionItems(
             title: 'Details',
             iconClassName: 'fa fa-fw fa-info-circle',
             action: () => apis.navigation.goto('.', {node: nodeKey(resource)})
-        });
-    }
-
-    if (['Deployment', 'DaemonSet', 'StatefulSet'].includes(resource.kind)) {
-        items.push({
-            iconClassName: 'fa argo-icon-settings',
-            title: 'Scale Pods',
-            action: async () => {
-                return scalePods(resource, application.metadata, apis);
-            }
         });
     }
 

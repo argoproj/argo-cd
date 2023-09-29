@@ -8147,11 +8147,17 @@
       "type": "object",
       "title": "TODO: describe this type\nTODO: describe members of this type",
       "properties": {
+        "defaultValue": {
+          "type": "string"
+        },
         "disabled": {
           "type": "boolean"
         },
         "displayName": {
           "type": "string"
+        },
+        "hasParameters": {
+          "type": "boolean"
         },
         "iconClass": {
           "type": "string"

@@ -782,6 +782,8 @@ export interface ResourceAction {
     disabled: boolean;
     iconClass: string;
     displayName: string;
+    defaultValue: string;
+    hasParameters: boolean;
 }
 
 export interface SyncWindowsState {
