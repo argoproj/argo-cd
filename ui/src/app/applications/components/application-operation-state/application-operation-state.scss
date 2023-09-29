@@ -1,0 +1,19 @@
+.application-operation-state {
+    &__icons_container {
+        position: absolute;
+        left: 0;
+    }
+
+    &__icons_container_padding {
+        left: 15px;
+        position: relative;
+    }
+
+    &__message {
+        white-space: normal;
+        line-height: 16px;
+        display: inline-block;
+        vertical-align: middle;
+    }
+
+}

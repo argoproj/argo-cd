@@ -1,0 +1,221 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/foundation-sites/scss/util/util';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+.applications-list {
+    padding: 1em;
+    @media screen and (max-width: 1024px) {
+        padding: 0;
+    }
+    min-height: 88vh;
+    &__title {
+        font-weight: bolder;
+        font-size: 15px;
+        @include themify($themes) {
+            color: themed('text-1');
+        }
+        padding-top: 0.25em;
+        padding-bottom: 0.5em;
+        margin-left: 1em;
+    }
+
+    &__info {
+        line-height: 24px;
+        margin: 1em 0;
+    }
+
+    &__icons {
+        line-height: 24px;
+    }
+
+    &__empty-state {
+        text-align: center;
+    }
+
+    &__entry {
+        padding-left: 1em;
+        border-left: 5px solid $argo-color-gray-4;
+        padding-right: 1em;
+        color: $argo-color-gray-7;
+
+        // healthy statuses
+        &--health-Healthy {
+            border-left-color: $argo-success-color;
+        }
+
+        // intermediate statuses
+        &--health-Progressing {
+            border-left-color: $argo-running-color;
+        }
+
+        &--health-Suspended {
+            border-left-color: $argo-suspended-color;
+        }
+
+        // failed statuses
+        &--health-Degraded {
+            border-left-color: $argo-failed-color;
+        }
+
+        &--health-Unknown {
+            border-left-color: $argo-color-gray-4;
+        }
+
+        &--health-Missing {
+            border-left-color: $argo-status-warning-color;
+        }
+
+        &--actions {
+            padding-top: 1em;
+        }
+    }
+
+    &__accordion {
+        cursor: pointer;
+        text-align: center;
+        border: none;
+        outline: none;
+        transition: 0.4s;
+        margin-left: 10px;
+    }
+
+    &__view-type {
+        white-space: nowrap;
+        i {
+            cursor: pointer;
+            color: $argo-color-gray-4;
+            margin-right: 1em;
+            &::before {
+                font-size: 1.5em;
+            }
+        }
+        i.selected {
+            cursor: default;
+            color: $argo-color-teal-5;
+        }
+    }
+
+    &__table-icon {
+        display: inline-block;
+        margin-right: 10px;
+        width: 80px;
+    }
+
+    &__table-row {
+        & > .columns:first-child {
+            padding-left: 15px;
+        }
+        margin-left: -30px !important;
+    }
+
+    &__search-wrapper {
+        margin-left: 15px;
+        @include breakpoint(medium down) {
+            flex-basis: 100%;
+            margin-left: 0;
+        }
+        line-height: normal;
+    }
+
+    &__search {
+        border: 1px solid $argo-color-gray-4;
+        @include themify($themes) {
+            background-color: themed('light-argo-gray-2');
+        }
+        border-radius: 7px;
+        position: relative;
+        padding: 0 10px;
+        height: 33px;
+        display: flex;
+        align-items: center;
+        transition: width 200ms;
+        @include breakpoint(large up) {
+            flex-shrink: 1;
+            width: 300px;
+        }
+        i {
+            font-size: 12px;
+            color: $argo-color-gray-6;
+        }
+        .keyboard-hint {
+            border: 1px solid $argo-color-gray-5;
+            color: $argo-color-gray-7;
+            border-radius: 3px;
+            padding: 0 7px;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+            text-align: center;
+        }
+        .select {
+            width: 100%;
+            border-radius: $border-radius;
+        }
+        &:focus-within {
+            border: 1px solid $argo-color-teal-5;
+            @include breakpoint(large up) {
+                width: 500px;
+            }
+            i {
+                color: $argo-color-gray-7;
+            }
+            .keyboard-hint {
+                display: none;
+            }
+        }
+        .argo-field {
+            border: none;
+            font-weight: 500;
+            &::placeholder {
+                color: $argo-color-gray-6;
+            }
+        }
+    }
+
+    &__external-link {
+        position: absolute;
+        top: 1em;
+        right: 1em;
+
+        .large-text-height {
+            line-height: 1.5;
+        }
+    }
+
+    &__external-links-icon-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .filters-group__panel {
+        top: 120px;
+    }
+    @include breakpoint(medium down) {
+        .filters-group__panel {
+            top: 200px;
+        }
+    }
+
+    ul {
+        margin: 0;
+    }
+
+    .chart-group {
+        margin: 0 0.8em;
+    }
+
+    .chart {
+        justify-content: space-evenly;
+    }
+}
+i.menu_icon {
+    vertical-align: middle;
+}
+
+.argo-button {
+    i {
+        @media screen and (max-width: map-get($breakpoints, large)) {
+            margin: 0 auto !important;
+        }
+    }
+}

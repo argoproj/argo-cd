@@ -1,0 +1,10 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/server/settings/oidc";
+
+package github.com.argoproj.argo_cd.server.settings.oidc;
+
+message Claim {
+    bool essential = 1;
+    string value = 2;
+    repeated string values = 3;
+}

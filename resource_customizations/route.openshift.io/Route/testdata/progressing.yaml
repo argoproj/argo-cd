@@ -1,0 +1,43 @@
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  annotations:
+    openshift.io/host.generated: 'true'
+  resourceVersion: '187177'
+  name: openshift-gitops-server
+  namespace: openshift-gitops
+  ownerReferences:
+    - apiVersion: argoproj.io/v1alpha1
+      kind: ArgoCD
+      name: openshift-gitops
+      uid: 09443427-36c8-4680-9a4b-602ae8a45b89
+      controller: true
+      blockOwnerDeletion: true
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/name: openshift-gitops-server
+    app.kubernetes.io/part-of: argocd
+spec:
+  host: >-
+    openshift-gitops-server-openshift-gitops.apps.dev-svc-4.8-083007.devcluster.openshift.com
+  to:
+    kind: Service
+    name: openshift-gitops-server
+    weight: 100
+  port:
+    targetPort: https
+  tls:
+    termination: passthrough
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+status:
+  ingress:
+    - host: >-
+        openshift-gitops-server-openshift-gitops.apps.dev-svc-4.8-083007.devcluster.openshift.com
+      routerName: default
+      conditions:
+        - type: Admitted
+          status: 'Unknown'
+          lastTransitionTime: '2021-08-30T12:13:34Z'
+      wildcardPolicy: None
+      routerCanonicalHostname: router-default.apps.dev-svc-4.8-083007.devcluster.openshift.com

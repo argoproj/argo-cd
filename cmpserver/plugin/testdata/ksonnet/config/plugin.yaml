@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: ksonnet
+spec:
+  version: v1.0
+  init:
+    command: [ks, version]
+  generate:
+    command: [sh, -c, "ks show $ARGOCD_APP_ENV"]
+  discover:
+    find:
+      glob: "**/*/main.jsonnet"

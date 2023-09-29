@@ -1,0 +1,12 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Kafka Cluster"
+  inputPath: testdata/progressing_noStatus.yaml
+- healthStatus:
+    status: Degraded
+    message: "Exceeded timeout of 300000ms while waiting for StatefulSet resource my-cluster-zookeeper in namespace default to be ready"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/healthy.yaml

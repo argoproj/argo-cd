@@ -1,0 +1,149 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/project";
+
+// Project Service
+//
+// Project Service API performs CRUD actions against project resources
+package project;
+
+import "google/api/annotations.proto";
+import "k8s.io/api/core/v1/generated.proto";
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v2/server/application/application.proto";
+
+// ProjectCreateRequest defines project creation parameters.
+message ProjectCreateRequest {
+  github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject project = 1;
+  bool upsert = 2;
+}
+
+// ProjectTokenCreateRequest defines project token deletion parameters.
+message ProjectTokenDeleteRequest {
+    string project = 1;
+    string role = 2;
+    int64 iat = 3;
+    string id = 4;
+}
+
+// ProjectTokenCreateRequest defines project token creation parameters. 
+message ProjectTokenCreateRequest {
+    string project = 1;
+    string description = 2;
+    string role = 3;
+    // expiresIn represents a duration in seconds
+    int64 expiresIn = 4;
+    string id = 5;
+}
+// ProjectTokenResponse wraps the created token or returns an empty string if deleted.
+message ProjectTokenResponse {
+    string token = 1;
+}
+
+
+// ProjectQuery is a query for Project resources
+message ProjectQuery {
+	string name = 1;
+}
+
+message ProjectUpdateRequest {
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject project = 1;
+}
+
+message EmptyResponse {}
+
+message SyncWindowsQuery {
+    string name = 1;
+}
+
+message SyncWindowsResponse {
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.SyncWindow windows = 1;
+}
+
+message GlobalProjectsResponse {
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject items = 1;
+}
+
+message DetailedProjectsResponse {
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject globalProjects = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject project = 2;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repositories = 3;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster clusters = 4;
+}
+
+message ListProjectLinksRequest {
+  string name = 1;
+}
+
+// ProjectService
+service ProjectService {
+
+  // Create a new project token
+  rpc CreateToken(ProjectTokenCreateRequest) returns (ProjectTokenResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/projects/{project}/roles/{role}/token"
+      body: "*"
+    };
+  }
+
+    // Delete a new project token
+  rpc DeleteToken(ProjectTokenDeleteRequest) returns (EmptyResponse) {
+    option (google.api.http).delete = "/api/v1/projects/{project}/roles/{role}/token/{iat}";
+  }
+
+  // Create a new project
+  rpc Create(ProjectCreateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject) {
+    option (google.api.http) = {
+      post: "/api/v1/projects"
+      body: "*"
+    };
+  }
+
+  // List returns list of projects
+  rpc List(ProjectQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProjectList) {
+      option (google.api.http).get = "/api/v1/projects";
+  }
+
+  // GetDetailedProject returns a project that include project, global project and scoped resources by name
+  rpc GetDetailedProject(ProjectQuery) returns (DetailedProjectsResponse) {
+      option (google.api.http).get = "/api/v1/projects/{name}/detailed";
+  }
+
+  // Get returns a project by name
+  rpc Get(ProjectQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject) {
+      option (google.api.http).get = "/api/v1/projects/{name}";
+  }
+
+  // Get returns a virtual project by name
+  rpc GetGlobalProjects(ProjectQuery) returns (GlobalProjectsResponse) {
+      option (google.api.http).get = "/api/v1/projects/{name}/globalprojects";
+  }
+
+  // Update updates a project
+  rpc Update(ProjectUpdateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject) {
+      option (google.api.http) = {
+          put: "/api/v1/projects/{project.metadata.name}"
+          body: "*"
+      };
+  }
+
+  // Delete deletes a project
+  rpc Delete(ProjectQuery) returns (EmptyResponse) {
+      option (google.api.http).delete = "/api/v1/projects/{name}";
+  }
+
+  // ListEvents returns a list of project events
+  rpc ListEvents(ProjectQuery) returns (k8s.io.api.core.v1.EventList) {
+      option (google.api.http).get = "/api/v1/projects/{name}/events";
+  }
+
+  // GetSchedulesState returns true if there are any active sync syncWindows
+  rpc GetSyncWindowsState(SyncWindowsQuery) returns (SyncWindowsResponse) {
+      option (google.api.http).get = "/api/v1/projects/{name}/syncwindows";
+  }
+
+  // ListLinks returns all deep links for the particular project
+  rpc ListLinks(ListProjectLinksRequest) returns (application.LinksResponse) {
+    option (google.api.http).get = "/api/v1/projects/{name}/links";
+  }
+
+}

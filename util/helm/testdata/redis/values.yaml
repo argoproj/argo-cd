@@ -1,0 +1,306 @@
+## Bitnami Redis image version
+## ref: https://hub.docker.com/r/bitnami/redis/tags/
+##
+image:
+  registry: docker.io
+  repository: bitnami/redis
+  tag: 4.0.10-debian-9
+  ## Specify a imagePullPolicy
+  ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+  ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
+  ##
+  pullPolicy: Always
+  ## Optionally specify an array of imagePullSecrets.
+  ## Secrets must be manually created in the namespace.
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+  ##
+  # pullSecrets:
+  #   - myRegistrKeySecretName
+
+
+## Cluster settings
+cluster:
+  enabled: true
+  slaveCount: 1
+
+metrics:
+  enabled: false
+  # resources: {}
+  # podAnnotations: {}
+  service:
+    type: ClusterIP
+    annotations: {}
+  #   prometheus.io/scrape: "true"
+  #   prometheus.io/port: "9121"
+    loadBalancerIP:
+  image:
+    registry: docker.io
+    repository: oliver006/redis_exporter
+    tag: v0.20.2
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ##
+    # pullSecrets:
+    #   - myRegistrKeySecretName
+
+  ## Metrics exporter labels and tolerations for pod assignment
+  # nodeSelector: {"kubernetes.io/arch": "amd64"}
+  # tolerations: []
+
+  ## Metrics exporter pod Annotation and Labels
+  # podLabels: {}
+
+networkPolicy:
+  ## Enable creation of NetworkPolicy resources.
+  ##
+  enabled: false
+
+  ## The Policy model to apply. When set to false, only pods with the correct
+  ## client label will have network access to the port Redis is listening
+  ## on. When true, Redis will accept connections from any source
+  ## (with the correct destination port).
+  ##
+  # allowExternal: true
+
+serviceAccount:
+  # Specifies whether a ServiceAccount should be created
+  create: false
+  # The name of the ServiceAccount to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name:
+
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: false
+
+  role:
+    ## Rules to create. It follows the role specification
+    # rules:
+    #  - apiGroups:
+    #    - extensions
+    #    resources:
+    #      - podsecuritypolicies
+    #    verbs:
+    #      - use
+    #    resourceNames:
+    #      - gce.unprivileged
+    rules: []
+
+## Redis password (both master and slave)
+## Defaults to a random 10-character alphanumeric string if not set and usePassword is true
+## ref: https://github.com/bitnami/bitnami-docker-redis#setting-the-server-password-on-first-run
+##
+usePassword: true
+password:
+## Use existing secret (ignores previous password)
+# existingSecret:
+
+## Persist data to a persistent volume
+persistence: {}
+  ## A manually managed Persistent Volume and Claim
+  ## Requires persistence.enabled: true
+  ## If defined, PVC must be created manually before volume will be bound
+  # existingClaim:
+
+##
+## Redis Master parameters
+##
+master:
+  ## Use password authentication
+  port: 6379
+  ## Redis command arguments
+  ##
+  ## Can be used to specify command line arguments, for example:
+  ##
+  ## args:
+  ##  - "redis-server"
+  ##  - "--maxmemory-policy volatile-ttl"
+  args: []
+  ## Redis additional command line flags
+  ##
+  ## Can be used to specify command line flags, for example:
+  ##
+  ## redisExtraFlags:
+  ##  - "--maxmemory-policy volatile-ttl"
+  ##  - "--repl-backlog-size 1024mb"
+  extraFlags: []
+  ## Comma-separated list of Redis commands to disable
+  ##
+  ## Can be used to disable Redis commands for security reasons.
+  ## ref: https://github.com/bitnami/bitnami-docker-redis#disabling-redis-commands
+  ##
+  disableCommands: "FLUSHDB,FLUSHALL"
+  ## Enable persistence using Persistent Volume Claims
+  ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+  ##
+  ## Redis Master additional pod labels
+  ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+  podLabels: {}
+  ## Redis Master resource requests and limits
+  ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+  # resources:
+  #   requests:
+  #     memory: 256Mi
+  #     cpu: 100m
+  ## Use an alternate scheduler, e.g. "stork".
+  ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+  ##
+  # schedulerName:
+
+
+  ## Redis Master Liveness Probe
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 5
+
+  ## Redis Master Readiness Probe
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 1
+    successThreshold: 1
+    failureThreshold: 5
+  ## Redis Master Node labels and tolerations for pod assignment
+  ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+  ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#taints-and-tolerations-beta-feature
+  # nodeSelector: {"kubernetes.io/arch": "amd64"}
+  # tolerations: []
+  ## Redis Master pod/node affinity/anti-affinity
+  affinity: {}
+  ## Redis Master pod annotations
+  podAnnotations: {}
+  ## Redis Master Service properties
+  service:
+    ##  Redis Master Service type
+    type: ClusterIP
+
+    ## Specify the nodePort value for the LoadBalancer and NodePort service types.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+    ##
+    # nodePort:
+
+    ## Provide any additional annotations which may be required. This can be used to
+    ## set the LoadBalancer service type to internal only.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
+    ##
+    annotations: {}
+    loadBalancerIP:
+  ## Redis Master Pod Security Context
+  securityContext:
+    enabled: true
+    fsGroup: 1001
+    runAsUser: 1001
+  persistence:
+    enabled: true
+
+    ## The path the volume will be mounted at, useful when using different
+    ## Redis images.
+    path: /bitnami/redis/data
+
+    ## The subdirectory of the volume to mount to, useful in dev environments and one PV for multiple services.
+    subPath: ""
+
+    ## redis data Persistent Volume Storage Class
+    ## If defined, storageClassName: <storageClass>
+    ## If set to "-", storageClassName: "", which disables dynamic provisioning
+    ## If undefined (the default) or set to null, no storageClassName spec is
+    ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+    ##   GKE, AWS & OpenStack)
+    ##
+    # storageClass: "-"
+    accessModes:
+    - ReadWriteOnce
+    size: 8Gi
+
+  ## Update strategy, can be set to RollingUpdate or onDelete by default.
+  ## https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#updating-statefulsets
+  statefulset:
+    updateStrategy: OnDelete
+    ## Partition update strategy
+    ## https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
+    # rollingUpdatePartition:
+
+
+##
+## Redis Slave properties
+## Note: serviceType and service are mandatory parameters
+## The rest of the parameters, if undefined, will inherit those declared in Redis Master
+##
+slave:
+  ## Slave Service properties
+  service:
+    ##  Redis Slave Service type
+    type: ClusterIP
+    ## Specify the nodePort value for the LoadBalancer and NodePort service types.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+    ##
+    # nodePort:
+
+    ## Provide any additional annotations which may be required. This can be used to
+    ## set the LoadBalancer service type to internal only.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
+    ##
+    annotations: {}
+    loadBalancerIP:
+
+  ## Redis port
+  # port: 6379
+  ## Redis command arguments
+  # args: []
+  ## Redis extra flags
+  # extraFlags: []
+  ## Comma-separated list of Redis commands to disable
+  # disableCommands: ""
+
+  affinity: {}
+
+  ## Redis slave Liveness Probe
+  # livenessProbe:
+  #   enabled: true
+  #   initialDelaySeconds: 30
+  #   periodSeconds: 10
+  #   timeoutSeconds: 5
+  #   successThreshold: 1
+  #   failureThreshold: 5
+
+  ## Redis slave Readiness Probe
+  # readinessProbe:
+  #   enabled: true
+  #   initialDelaySeconds: 5
+  #   periodSeconds: 10
+  #   timeoutSeconds: 10
+  #   successThreshold: 1
+  #   failureThreshold: 5
+
+  ## Redis slave Resource
+  # resources:
+  #   requests:
+  #     memory: 256Mi
+  #     cpu: 100m
+
+  ## Redis slave labels and tolerations for pod assignment
+  # nodeSelector: {"kubernetes.io/arch": "amd64"}
+  # tolerations: []
+
+  ## Use an alternate scheduler, e.g. "stork".
+  ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+  ##
+  # schedulerName:
+
+  ## Redis slave pod Annotation and Labels
+  # podLabels: {}
+  ## annotations for redis pods
+  # podAnnotations: {}
+
+  ## Redis slave pod Security Context
+  # securityContext:
+  #   enabled: true
+  #   fsGroup: 1001
+  #   runAsUser: 1001

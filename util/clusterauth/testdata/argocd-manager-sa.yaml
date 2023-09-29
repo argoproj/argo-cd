@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  creationTimestamp: "2019-06-13T04:20:26Z"
+  name: argocd-manager
+  namespace: kube-system
+  resourceVersion: "133015"
+  selfLink: /api/v1/namespaces/kube-system/serviceaccounts/argocd-manager
+  uid: 91dd37cf-8d92-11e9-a091-d65f2ae7fa8d
+secrets:
+- name: argocd-manager-token-tj79r

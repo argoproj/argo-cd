@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Reconciling"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "Error Reconciling"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: "Last reconciliation succeeded"
+  inputPath: testdata/healthy.yaml

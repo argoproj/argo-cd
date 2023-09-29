@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  name: experiment-error-template-missing
+  namespace: jesse-test
+spec:
+  analyses:
+  - name: does-not-exist
+    templateName: does-not-exist
+  templates:
+  - name: baseline
+    selector:
+      matchLabels:
+        app: rollouts-demo
+    template:
+      metadata:
+        labels:
+          app: rollouts-demo
+      spec:
+        containers:
+        - image: argoproj/rollouts-demo:blue
+          name: rollouts-demo
+status:
+  analysisRuns:
+  - analysisRun: ""
+    message: 'AnalysisTemplate verification failed for analysis ''does-not-exist'':
+      analysistemplate.argoproj.io "does-not-exist" not found'
+    name: does-not-exist
+    phase: Error
+  availableAt: "2019-10-27T23:13:10Z"
+  conditions:
+  - lastTransitionTime: "2019-10-27T23:13:07Z"
+    lastUpdateTime: "2019-10-28T05:59:33Z"
+    message: Experiment "experiment-error-template-missing" is running.
+    reason: NewReplicaSetAvailable
+    phase: "True"
+    type: Progressing
+  message: 'AnalysisTemplate verification failed for analysis ''does-not-exist'':
+    analysistemplate.argoproj.io "does-not-exist" not found'
+  running: true
+  phase: Error
+  templateStatuses:
+  - availableReplicas: 0
+    lastTransitionTime: "2019-10-28T05:59:33Z"
+    name: baseline
+    readyReplicas: 0
+    replicas: 0
+    phase: Successful
+    updatedReplicas: 0

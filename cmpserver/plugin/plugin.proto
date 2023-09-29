@@ -1,0 +1,74 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/cmpserver/apiclient";
+
+package plugin;
+
+import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
+
+// AppStreamRequest is the request object used to send the application's
+// files over a stream.
+message AppStreamRequest {
+    oneof request {
+        ManifestRequestMetadata metadata = 1;
+        File file = 2;
+    }
+}
+
+// ManifestRequestMetadata defines the metada related to the file being sent
+// to the CMP server.
+message ManifestRequestMetadata {
+    // appName refers to the ArgoCD Application name
+    string appName = 1;
+    // appRelPath points to the application relative path inside the tarball
+    string appRelPath = 2;
+    // checksum is used to verify the integrity of the file
+    string checksum = 3;
+    // size relates to the file size in bytes
+    int64 size = 4;
+    // env is a list with the environment variables needed to generate manifests
+    repeated EnvEntry env = 5;
+}
+
+// EnvEntry represents an entry in the application's environment
+message EnvEntry {
+    // Name is the name of the variable, usually expressed in uppercase
+    string name = 1;
+    // Value is the value of the variable
+    string value = 2;
+}
+
+message ManifestResponse {
+    repeated string manifests = 1;
+    string sourceType = 2;
+}
+
+message RepositoryResponse {
+    bool isSupported = 1;
+    bool isDiscoveryEnabled = 2;
+}
+
+// ParametersAnnouncementResponse contains a list of announcements. This list represents all the parameters which a CMP
+// is able to accept.
+message ParametersAnnouncementResponse {
+    repeated repository.ParameterAnnouncement parameterAnnouncements = 1;
+}
+
+message File {
+    bytes chunk = 1;
+}
+
+// ConfigManagementPlugin Service
+service ConfigManagementPluginService {
+    // GenerateManifests receive a stream containing a tgz archive with all required files necessary
+    // to generate manifests
+    rpc GenerateManifest(stream AppStreamRequest) returns (ManifestResponse) {
+    }
+
+    // MatchRepository returns whether or not the given application is supported by the plugin
+    rpc MatchRepository(stream AppStreamRequest) returns (RepositoryResponse) {
+    }
+
+    // GetParametersAnnouncement gets a list of parameter announcements for the given app
+    rpc GetParametersAnnouncement(stream AppStreamRequest) returns (ParametersAnnouncementResponse) {
+    }
+}

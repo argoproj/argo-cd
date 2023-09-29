@@ -1,0 +1,26 @@
+redis-ha:
+  persistentVolume:
+    enabled: false
+  redis:
+    masterGroupName: argocd
+    config:
+      save: "\"\""
+      bind: "0.0.0.0"
+  haproxy:
+    enabled: true
+    IPv6:
+      enabled: false
+    image:
+      tag: 2.6.14-alpine
+    containerSecurityContext: null
+    timeout:
+      server: 6m
+      client: 6m
+    checkInterval: 3s
+    metrics:
+      enabled: true
+  image:
+    tag: 7.0.11-alpine
+  containerSecurityContext: null
+  sentinel:
+    bind: "0.0.0.0"

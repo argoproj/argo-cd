@@ -1,0 +1,65 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: '2'
+  clusterName: ''
+  creationTimestamp: '2019-05-01T21:55:30Z'
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: guestbook-canary
+    ksonnet.io/component: guestbook-ui
+  name: guestbook-canary
+  namespace: default
+  resourceVersion: '956205'
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/default/rollouts/guestbook-canary
+  uid: d6105ccd-6c5b-11e9-b8d7-025000000001
+spec:
+  minReadySeconds: 10
+  replicas: 5
+  selector:
+    matchLabels:
+      app: guestbook-canary
+  strategy:
+    canary:
+      maxSurge: 1
+      maxUnavailable: 0
+      steps: []
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: guestbook-canary
+    spec:
+      containers:
+        - image: 'gcr.io/heptio-images/ks-guestbook-demo:0.2'
+          name: guestbook-canary
+          ports:
+            - containerPort: 80
+          resources: {}
+status:
+  HPAReplicas: 5
+  availableReplicas: 5
+  blueGreen: {}
+  canary:
+    stableRS: 567dd56d89
+  conditions:
+    - lastTransitionTime: '2019-05-01T22:00:16Z'
+      lastUpdateTime: '2019-05-01T22:00:16Z'
+      message: Rollout has minimum availability
+      reason: AvailableReason
+      status: 'True'
+      type: Available
+    - lastTransitionTime: '2019-05-01T21:55:30Z'
+      lastUpdateTime: '2019-05-01T22:00:16Z'
+      message: ReplicaSet "guestbook-canary-567dd56d89" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: 'True'
+      type: Progressing
+  currentPodHash: 567dd56d89
+  currentStepHash: 6c9545789c
+  observedGeneration: 6886f85bff
+  readyReplicas: 5
+  replicas: 5
+  selector: app=guestbook-canary
+  updatedReplicas: 5

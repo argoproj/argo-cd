@@ -1,0 +1,67 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds";
+
+// Repository Service
+//
+// Repository Service API performs CRUD actions against repository resources 
+package repocreds;
+
+import "google/api/annotations.proto";
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+
+// RepoCredsQuery is a query for RepoCreds resources
+message RepoCredsQuery {
+	// Repo URL for query
+	string url = 1;
+}
+
+message RepoCredsDeleteRequest {
+	string url = 1;
+}
+
+// RepoCredsResponse is a response to most repository credentials requests
+message RepoCredsResponse {}
+
+// RepoCreateRequest is a request for creating repository credentials config
+message RepoCredsCreateRequest {
+	// Repository definition
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds creds = 1;
+	// Whether to create in upsert mode
+	bool upsert = 2;
+}
+
+// RepoCredsUpdateRequest is a request for updating existing repository credentials config
+message RepoCredsUpdateRequest {
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds creds = 1;
+}
+
+// RepoCredsService implements CRUD actions for managing repository credentials config
+service RepoCredsService {
+
+	// ListRepositoryCredentials gets a list of all configured repository credential sets
+	rpc ListRepositoryCredentials(RepoCredsQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCredsList) {
+		option (google.api.http).get = "/api/v1/repocreds";
+	}
+
+	// CreateRepositoryCredentials creates a new repository credential set
+	rpc CreateRepositoryCredentials(RepoCredsCreateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds) {
+		option (google.api.http) = {
+			post: "/api/v1/repocreds"
+			body: "creds"
+		};
+	}
+
+	// UpdateRepositoryCredentials updates a repository credential set
+	rpc UpdateRepositoryCredentials(RepoCredsUpdateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds) {
+		option (google.api.http) = {
+			put: "/api/v1/repocreds/{creds.url}"
+			body: "creds"
+		};
+	}
+
+	// DeleteRepositoryCredentials deletes a repository credential set from the configuration
+	rpc DeleteRepositoryCredentials(RepoCredsDeleteRequest) returns (RepoCredsResponse) {
+		option (google.api.http).delete = "/api/v1/repocreds/{url}";
+	}
+
+}

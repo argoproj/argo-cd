@@ -1,0 +1,55 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clusterdummies.argoproj.io
+  labels:
+    e2e.argoproj.io: "true"
+spec:
+  conversion:
+    strategy: None
+  group: argoproj.io
+  names:
+    kind: ClusterDummy
+    listKind: ClusterDummyList
+    plural: clusterdummies
+    singular: clusterdummy
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            x-kubernetes-map-type: atomic
+            x-kubernetes-preserve-unknown-fields: true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ClusterDummy
+metadata:
+  name: cluster-dummy-crd-instance
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ClusterDummy
+metadata:
+  name: cluster-dummy-crd-instance
+  namespace: default
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ClusterDummy
+metadata:
+  name: cluster-dummy-crd-instance
+  namespace: kube-system

@@ -1,0 +1,50 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.repos-list {
+    &__top-panel {
+        padding: 1em;
+
+        & > .columns:first-child {
+            font-size: 8em;
+            text-align: center;
+        }
+
+        & > .columns:last-child {
+            text-align: center;
+            border-left: 2px solid $argo-color-gray-4;
+
+            & > p {
+                margin-bottom: 0;
+                margin-top: 24px;
+                &:first-of-type {
+                    font-size: 1.25em;
+                }
+            }
+
+            & > button {
+                width: 15em;
+            }
+        }
+    }
+
+    .argo-table-list {
+        .item-clickable {
+            cursor: pointer;
+
+            &:hover {
+                box-shadow: 1px 2px 3px rgba($argo-color-gray-9, 0.1), 0 0 0 1px rgba($argo-color-teal-5, 0.5);
+            }
+        }
+        .argo-dropdown {
+            float: right;
+        }
+    }
+
+    textarea.argo-field {
+        height: 20em;
+        width: 1024em;
+        white-space: pre;
+        overflow-wrap: normal;
+        overflow-x: scroll;
+    }
+}

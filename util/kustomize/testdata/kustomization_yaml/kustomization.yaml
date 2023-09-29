@@ -1,0 +1,3 @@
+resources:
+  - ./deployment.yaml
+  - ./statefulset.yaml

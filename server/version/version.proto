@@ -1,0 +1,37 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/version";
+
+// Version Service
+//
+// Version Service API returns the version of the API server.
+package version;
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+
+// VersionMessage represents version of the Argo CD API server
+message VersionMessage {
+	string Version = 1;
+	string BuildDate = 2;
+	string GitCommit = 3;
+	string GitTag = 4;
+	string GitTreeState = 5;
+	string GoVersion = 6;
+	string Compiler = 7;
+	string Platform = 8;
+	string KustomizeVersion = 10;
+	string HelmVersion = 11;
+	string KubectlVersion = 12;
+	string JsonnetVersion = 13;
+	string ExtraBuildInfo = 14;
+}
+
+// VersionService returns the version of the API server.
+service VersionService {
+	// Version returns version information of the API server
+	rpc Version(google.protobuf.Empty) returns (VersionMessage) {
+		option (google.api.http) = {
+			get: "/api/version"
+		};
+	}
+}

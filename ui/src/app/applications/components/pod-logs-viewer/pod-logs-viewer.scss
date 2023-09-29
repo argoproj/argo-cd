@@ -1,0 +1,241 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.pod-logs-viewer {
+    height: 90%;
+    font-size: 14px;
+    font-family: monospace;
+    background-color: white;
+    padding: 0;
+    color: black;
+
+    &--inverted {
+        background-color: black;
+        color: white;
+    }
+
+    &__settings {
+        display: flex;
+
+        .argo-checkbox,
+        .argo-checkbox input,
+        .argo-checkbox input:focus {
+            outline: none !important;
+            border: none !important;
+            width: 12px;
+            margin-right: 8px;
+            input:checked + span,
+            input + span {
+                border: none;
+                width: 12px !important;
+                background-color: transparent;
+            }
+            .fa {
+                display: none;
+            }
+        }
+
+        margin-bottom: 1em;
+
+        > * {
+            display: flex;
+            align-items: center;
+        }
+
+        .argo-button {
+            margin-right: 5px;
+            border: 1px solid transparent;
+
+            .fa {
+                width: 12px;
+            }
+        }
+    }
+
+    &__filter {
+        display: flex;
+        margin-left: auto;
+        width: 320px;
+
+        .argo-button {
+            display: flex;
+            align-items: center;
+        }
+    }
+
+    &__menu {
+        display: flex;
+        margin-bottom: 1em;
+        padding-left: 10px;
+        .page-info {
+            margin-left: auto;
+            margin-right: auto;
+            padding: 3px 8px;
+            text-overflow: clip;
+            white-space: nowrap;
+        }
+        .nav-container {
+            display: flex;
+            align-self: flex-start;
+            padding: 3px 8px;
+            cursor: pointer;
+            border-radius: 7px;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid black;
+            margin: 0 2px;
+            &:hover {
+                background-color: black;
+                color: white;
+            }
+            &.disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+        }
+        i {
+            margin-left: 5px;
+        }
+
+        &--inverted {
+            i {
+                border-color: white;
+                &:hover {
+                    background-color: white;
+                    color: black;
+                }
+            }
+        }
+    }
+
+    &__line {
+        padding-left: 0.5ch;
+
+        &--selected {
+            background-color: red;
+            box-shadow: -3px 0 0 0 darkred;
+        }
+
+        &__menu {
+            border-radius: 6px;
+            text-align: center;
+            min-width: 25px;
+            opacity: 0;
+            flex-shrink: 0;
+            box-shadow: 0 0 0 1px red inset;
+            &--visible {
+                opacity: 1;
+            }
+            &:hover {
+                color: red;
+            }
+        }
+
+        &__number {
+            text-align: right;
+            min-width: 3ch;
+            margin-right: 2ch;
+            opacity: 0.5;
+            cursor: pointer;
+            &:hover {
+                opacity: 1;
+            }
+        }
+
+        &__pod {
+            padding-left: 5px;
+            padding-right: 5px;
+            span {
+                display: none;
+                text-overflow: ellipsis;
+                overflow: hidden;
+            }
+            width: 3ch;
+            min-width: 3ch;
+        }
+        &__timestamp {
+            padding-left: 5px;
+            padding-right: 5px;
+            span {
+                display: none;
+                text-overflow: ellipsis;
+                overflow: hidden;
+            }
+            width: 3ch;
+            min-width: 3ch;
+        }
+    }
+
+    &--pod-name-visible {
+        .pod-logs-viewer__line__pod {
+            span {
+                display: inherit;
+            }
+            i {
+                display: none;
+            }
+            width: 30ch;
+            min-width: 30ch;
+        }
+    }
+    &--pod-timestamp-visible {
+        .pod-logs-viewer__line__timestamp {
+            span {
+                display: inherit;
+            }
+            i {
+                display: none;
+            }
+            width: 30ch;
+            min-width: 30ch;
+        }
+    }
+
+    &__pod-name-toggle {
+        cursor: pointer;
+        position: fixed;
+        top: 50%;
+        transform: translateY(2em);
+        z-index: 1;
+    }
+}
+
+.copySuccess {
+    // ARGO_SUCCESS_COLOR
+    background-color: #18be94 !important;
+}
+.copyFailure {
+    // ARGO_FAILED_COLOR
+    background-color: #e96d76 !important;
+}
+.copyStandard {
+    background-color: #6d7f8b !important;
+}
+
+.container-item {
+    font-size: 0.9em;
+    color: $argo-color-teal-5;
+}
+
+code {
+    background-color: inherit;
+    border: none;
+    padding: inherit;
+    font-family: inherit;
+    font-weight: inherit;
+    color: inherit;
+}
+
+.ReactVirtualized__Grid__innerScrollContainer {
+    overflow: initial !important;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.noscroll::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.noscroll {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}

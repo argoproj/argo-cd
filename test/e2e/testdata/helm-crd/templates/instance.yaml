@@ -1,0 +1,6 @@
+apiVersion: stable.example.com/v1
+kind: CronTab
+metadata:
+  name: {{ .Release.Name }}-inst
+spec:
+  cronSpec: "* * * * */5"

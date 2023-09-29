@@ -1,0 +1,9 @@
+apiVersion: extensions/v1beta1
+kind: NetworkPolicy
+metadata:
+  name: allow-default
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress

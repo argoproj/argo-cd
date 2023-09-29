@@ -1,0 +1,293 @@
+name: Publish ArgoCD Release
+on:
+  push:
+    tags:
+      - 'v*'
+      - '!v2.4*'
+      - '!v2.5*'
+      - '!v2.6*'
+
+permissions: {}
+
+env:
+  GOLANG_VERSION: '1.21' # Note: go-version must also be set in job argocd-image.with.go-version
+
+jobs:
+  argocd-image:
+    permissions:
+      contents: read
+      id-token: write # for creating OIDC tokens for signing.
+      packages: write # used to push images to `ghcr.io` if used.
+    if: github.repository == 'argoproj/argo-cd'
+    uses: ./.github/workflows/image-reuse.yaml
+    with:
+      quay_image_name: quay.io/argoproj/argocd:${{ github.ref_name }}
+      # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
+      go-version: 1.21
+      platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
+      push: true
+    secrets:
+      quay_username: ${{ secrets.RELEASE_QUAY_USERNAME }}
+      quay_password: ${{ secrets.RELEASE_QUAY_TOKEN }}
+
+  argocd-image-provenance:
+      needs: [argocd-image]
+      permissions:
+        actions: read # for detecting the Github Actions environment.
+        id-token: write # for creating OIDC tokens for signing.
+        packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
+      # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+      if: github.repository == 'argoproj/argo-cd'
+      uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.7.0
+      with:
+        image: quay.io/argoproj/argocd
+        digest: ${{ needs.argocd-image.outputs.image-digest }}
+      secrets:
+        registry-username: ${{ secrets.RELEASE_QUAY_USERNAME }}
+        registry-password: ${{ secrets.RELEASE_QUAY_TOKEN }}
+
+  goreleaser:
+    needs:
+      - argocd-image
+      - argocd-image-provenance
+    permissions:
+      contents: write # used for uploading assets
+    if: github.repository == 'argoproj/argo-cd'
+    runs-on: ubuntu-22.04
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch all tags
+        run: git fetch --force --tags
+
+      - name: Set GORELEASER_PREVIOUS_TAG # Workaround, GoReleaser uses 'git-describe' to determine a previous tag. Our tags are created in realease branches.
+        run: |
+          set -xue
+          if echo ${{ github.ref_name }} | grep -E -- '-rc1+$';then
+            echo "GORELEASER_PREVIOUS_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | tail -n 2 | head -n 1)" >> $GITHUB_ENV
+          else
+            echo "This is not the first release on the branch, Using GoReleaser defaults"
+          fi
+
+      - name: Setup Golang
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+
+      - name: Set environment variables for ldflags
+        id: set_ldflag
+        run: |
+          echo "KUBECTL_VERSION=$(go list -m k8s.io/client-go | head -n 1 | rev | cut -d' ' -f1 | rev)" >> $GITHUB_ENV
+          echo "GIT_TREE_STATE=$(if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)" >> $GITHUB_ENV
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@7ec5c2b0c6cdda6e8bbb49444bc797dd33d74dd8 # v5.0.0
+        id: run-goreleaser
+        with:
+          version: latest
+          args: release --clean --timeout 55m
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KUBECTL_VERSION: ${{ env.KUBECTL_VERSION }} 
+          GIT_TREE_STATE: ${{ env.GIT_TREE_STATE }}
+
+      - name: Generate subject for provenance
+        id: hash
+        env:
+          ARTIFACTS: "${{ steps.run-goreleaser.outputs.artifacts }}"
+        run: |
+          set -euo pipefail
+
+          hashes=$(echo $ARTIFACTS | jq --raw-output '.[] | {name, "digest": (.extra.Digest // .extra.Checksum)} | select(.digest) | {digest} + {name} | join("  ") | sub("^sha256:";"")' | base64 -w0)
+          if test "$hashes" = ""; then # goreleaser < v1.13.0
+            checksum_file=$(echo "$ARTIFACTS" | jq -r '.[] | select (.type=="Checksum") | .path')
+            hashes=$(cat $checksum_file | base64 -w0)
+          fi
+          echo "hashes=$hashes" >> $GITHUB_OUTPUT
+
+  goreleaser-provenance:
+    needs: [goreleaser]
+    permissions:
+      actions: read # for detecting the Github Actions environment
+      id-token: write # Needed for provenance signing and ID
+      contents: write #  Needed for release uploads
+    if: github.repository == 'argoproj/argo-cd'
+    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.7.0
+    with:
+      base64-subjects: "${{ needs.goreleaser.outputs.hashes }}"
+      provenance-name: "argocd-cli.intoto.jsonl"
+      upload-assets: true
+
+  generate-sbom:
+    name: Create SBOM and generate hash
+    needs:
+      - argocd-image
+      - goreleaser
+    permissions:
+      contents: write # Needed for release uploads
+    outputs:
+      hashes: ${{ steps.sbom-hash.outputs.hashes}}
+    if: github.repository == 'argoproj/argo-cd'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Golang
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+
+      - name: Generate SBOM (spdx)
+        id: spdx-builder
+        env:
+          # defines the spdx/spdx-sbom-generator version to use.
+          SPDX_GEN_VERSION: v0.0.13
+          # defines the sigs.k8s.io/bom version to use.
+          SIGS_BOM_VERSION: v0.2.1
+          # comma delimited list of project relative folders to inspect for package
+          # managers (gomod, yarn, npm).
+          PROJECT_FOLDERS: ".,./ui"
+          # full qualified name of the docker image to be inspected
+          DOCKER_IMAGE: quay.io/argoproj/argocd:${{ github.ref_name }}
+        run: |
+          yarn install --cwd ./ui
+          go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
+          go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
+
+          # Generate SPDX for project dependencies analyzing package managers
+          for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
+          do
+            generator -p $folder -o /tmp
+          done
+
+          # Generate SPDX for binaries analyzing the docker image
+          if [[ ! -z $DOCKER_IMAGE ]]; then
+            bom generate -o /tmp/bom-docker-image.spdx -i $DOCKER_IMAGE
+          fi
+
+          cd /tmp && tar -zcf sbom.tar.gz *.spdx
+          
+      - name: Generate SBOM hash
+        shell: bash
+        id: sbom-hash
+        run: |
+          # sha256sum generates sha256 hash for sbom.
+          # base64 -w0 encodes to base64 and outputs on a single line.
+          # sha256sum /tmp/sbom.tar.gz ... | base64 -w0
+          echo "hashes=$(sha256sum /tmp/sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
+      
+      - name: Upload SBOM
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            /tmp/sbom.tar.gz
+  
+  sbom-provenance:
+    needs: [generate-sbom]
+    permissions:
+      actions: read # for detecting the Github Actions environment
+      id-token: write # Needed for provenance signing and ID
+      contents: write #  Needed for release uploads
+    if: github.repository == 'argoproj/argo-cd'
+    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.7.0
+    with:
+      base64-subjects: "${{ needs.generate-sbom.outputs.hashes }}"
+      provenance-name: "argocd-sbom.intoto.jsonl"
+      upload-assets: true
+      
+  post-release:
+    needs:
+      - argocd-image
+      - goreleaser
+      - generate-sbom
+    permissions:
+      contents: write # Needed to push commit to update stable tag
+      pull-requests: write # Needed to create PR for VERSION update.
+    if: github.repository == 'argoproj/argo-cd'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Git author information
+        run: |
+          set -ue
+          git config --global user.email 'ci@argoproj.com'
+          git config --global user.name 'CI'
+
+      - name: Check if tag is the latest version and not a pre-release
+        run: |
+          set -xue
+          # Fetch all tag information
+          git fetch --prune --tags --force
+
+          LATEST_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | tail -n1)
+
+          PRE_RELEASE=false
+          # Check if latest tag is a pre-release
+          if echo $LATEST_TAG | grep -E -- '-rc[0-9]+$';then
+            PRE_RELEASE=true
+          fi
+
+          # Ensure latest tag matches github.ref_name & not a pre-release
+          if [[ $LATEST_TAG == ${{ github.ref_name }} ]] && [[ $PRE_RELEASE != 'true' ]];then
+            echo "TAG_STABLE=true" >> $GITHUB_ENV
+          else
+            echo "TAG_STABLE=false" >> $GITHUB_ENV
+          fi
+
+      - name: Update stable tag to latest version
+        run: |
+          git tag -f stable ${{ github.ref_name }}
+          git push -f origin stable
+        if: ${{ env.TAG_STABLE == 'true' }}
+
+      - name: Check to see if VERSION should be updated on master branch
+        run: |
+          set -xue
+          SOURCE_TAG=${{ github.ref_name }}
+          VERSION_REF="${SOURCE_TAG#*v}"
+          if echo "$VERSION_REF" | grep -E -- '^[0-9]+\.[0-9]+\.0-rc1';then
+            VERSION=$(awk 'BEGIN {FS=OFS="."} {$2++; print}' <<< "${VERSION_REF%-rc1}")
+            echo "Updating VERSION to: $VERSION"
+            echo "UPDATE_VERSION=true" >> $GITHUB_ENV
+            echo "NEW_VERSION=$VERSION" >> $GITHUB_ENV
+          else
+            echo "Not updating VERSION"
+            echo "UPDATE_VERSION=false" >> $GITHUB_ENV
+          fi
+
+      - name: Update VERSION on master branch
+        run: |
+          echo ${{ env.NEW_VERSION }} > VERSION
+        if: ${{ env.UPDATE_VERSION == 'true' }}
+
+      - name: Create PR to update VERSION on master branch
+        uses: peter-evans/create-pull-request@153407881ec5c347639a548ade7d8ad1d6740e38 # v5.0.2
+        with:
+          commit-message: Bump version in master
+          title: "chore: Bump version in master"
+          body: All images built from master should indicate which version we are on track for.
+          signoff: true
+          branch: update-version
+          branch-suffix: random
+          base: master
+        if: ${{ env.UPDATE_VERSION == 'true' }}

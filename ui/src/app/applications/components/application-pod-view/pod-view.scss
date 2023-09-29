@@ -1,0 +1,252 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+$pod-size: 25px;
+$gutter: 3px;
+$pods-per-row: 8;
+$pods-per-column: 4;
+$max-rows: 5;
+$num-stats: 2;
+
+$pod-age-icon-clr: #ffce25;
+
+.circle-icon {
+    color: $pod-age-icon-clr;
+    font-size: 10px;
+}
+
+.pod-view {
+    &__settings {
+        align-items: center;
+        display: flex;
+        margin-bottom: 1em;
+        &__section {
+            margin-left: 10px;
+            padding-right: 10px;
+            border-right: 1px solid $argo-color-gray-4;
+            &:last-child {
+                border-right: none;
+            }
+        }
+    }
+
+    &__nodes-container {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    &__node {
+        $pod-container-width: $pods-per-row * ($pod-size + (2 * $gutter)) + 4 * $gutter;
+        $pod-container-height: $pods-per-column * ($pod-size + (2 * $gutter)) + 4 * $gutter;
+        $padding: 15px;
+        $stat-width: 12px;
+        padding: $padding;
+        margin: 10px;
+        margin-bottom: 14px !important;
+        width: $pod-container-width + 2 * $padding;
+
+        &--large {
+            width: $pod-container-width + (2 * $padding) + ($num-stats * ($stat-width + 2 * $gutter)) + 6 * $gutter;
+        }
+        &__container {
+            display: flex;
+            &--header {
+                align-items: center;
+                margin-bottom: 1em;
+            }
+            &--stats {
+                margin-left: -2 * $gutter;
+                margin-right: 4 * $gutter;
+            }
+        }
+        &__info {
+            margin-top: 1em;
+            display: flex;
+            justify-content: end;
+            div {
+                border-radius: 3px;
+                background-color: $argo-color-gray-3;
+                color: $argo-color-gray-7;
+                margin-right: 5px;
+                padding: 3px 5px;
+            }
+        }
+        &__info--large {
+            margin: 1em 0;
+            padding: 10px;
+            border-radius: 3px;
+            background-color: $argo-color-gray-3;
+            color: $argo-color-gray-6;
+            div {
+                display: flex;
+                & div:last-child {
+                    font-weight: 500;
+                    margin-left: auto;
+                }
+            }
+        }
+        &__label {
+            margin-top: 1em;
+            font-size: 10px;
+            text-align: center;
+        }
+        &__pod-container {
+            flex-direction: column;
+            width: $pod-container-width;
+            margin-top: auto;
+            &__pods {
+                display: flex;
+                flex-wrap: wrap;
+                width: 100%;
+                background-color: $argo-color-gray-3;
+                border-radius: 3px;
+                padding: $gutter * 2;
+                margin-right: -1 * $gutter;
+                margin-bottom: -1 * $gutter;
+            }
+        }
+
+        &__pod {
+            border-radius: 3px;
+            width: $pod-size;
+            height: $pod-size;
+            margin: $gutter;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: $argo-color-gray-5;
+            i.fa {
+                color: white !important;
+            }
+            &--succeeded,
+            &--healthy {
+                background-color: $argo-success-color;
+                &:hover {
+                    background-color: $argo-success-color-dark;
+                }
+            }
+            &--pending,
+            &--suspended {
+                background-color: $argo-status-warning-color;
+                &:hover {
+                    background-color: darken($argo-status-warning-color, 10%);
+                }
+            }
+            &--running,
+            &--progressing {
+                background-color: $argo-running-color;
+                &:hover {
+                    background-color: $argo-running-color-dark;
+                }
+            }
+            &--failed,
+            &--degraded {
+                background-color: $argo-failed-color;
+                border: 2px solid rgba(0, 0, 0, 0.3);
+                &:hover {
+                    background-color: $argo-failed-color-dark;
+                }
+            }
+            &--unknown,
+            &--missing {
+                background-color: $argo-color-gray-5;
+                &:hover {
+                    background-color: $argo-color-gray-6;
+                }
+            }
+            &__new-pod-icon {
+                background: none;
+                color: $pod-age-icon-clr;
+                display: block;
+                left: 20px;
+                margin: 0px;
+                position: absolute;
+                top: -4px;
+                font-size: 10px;
+            }
+            &__stat-tooltip {
+                text-align: left;
+
+                i {
+                    display: inline-block;
+                    height: 1em;
+                    width: 1em;
+                    border-radius: 5px;
+                }
+            }
+
+            &__stat-icon-app {
+                background-color: $argo-color-teal-7;
+            }
+
+            &__stat-icon-neighbors {
+                background-color: $argo-color-gray-6;
+            }
+
+            &__stat {
+                &__bar {
+                    background-color: $argo-color-gray-4;
+                    height: $max-rows * $pod-size;
+                    width: $stat-width;
+                    position: relative;
+                    border-radius: 2px;
+                    margin: 0 $gutter * 2;
+                    overflow: hidden;
+                    cursor: pointer;
+
+                    &--fill {
+                        position: absolute;
+                        background-color: $argo-color-teal-7;
+                        width: 100%;
+                        bottom: 0;
+                    }
+
+                    &--neighbors {
+                        background-color: $argo-color-gray-6;
+                    }
+
+                    &:hover > &--fill {
+                        background-color: $argo-color-teal-8;
+                    }
+
+                    &:hover &--neighbors {
+                        background-color: $argo-color-gray-7;
+                    }
+                }
+            }
+        }
+
+        &__quick-start-actions {
+            display: flex;
+            padding-top: 1em;
+            justify-content: center;
+
+            &.disabled {
+                cursor: default !important;
+                color: $argo-color-gray-3 !important;
+            }
+        }
+    }
+
+    @media screen and (max-width: map-get($breakpoints, large)) {
+        &__nodes-container {
+            justify-content: center;
+        }
+    }
+
+    @media screen and (max-width: map-get($breakpoints, medium)) {
+        &__node {
+            width: 95%;
+            &--large {
+                width: 95%;
+            }
+            &__pod-container {
+                width: 100%;
+            }
+        }
+    }
+}
+
+.tippy-content {
+    text-align: left;
+}

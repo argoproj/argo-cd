@@ -1,0 +1,10 @@
+apiVersion: kubernetes-client.io/v1
+kind: ExternalSecret
+metadata:
+  name: external-secret
+  namespace: external-secret
+spec:
+  backendType: secretsManager
+  data:
+    - key: /external/secret/name
+      name: EXTERNAL_SECRET_NAME

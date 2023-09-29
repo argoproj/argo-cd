@@ -1,0 +1,6 @@
+gpg: CRC error; AF65FD - 3ABB26
+gpg: [don't know]: invalid packet (ctb=78)
+gpg: no signature found
+gpg: the signature could not be verified.
+Please remember that the signature file (.sig or .asc)
+should be the first file given on the command line.

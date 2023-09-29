@@ -1,0 +1,13 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.application-fullscreen-logs {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    height: 100%;
+    padding: 20px 30px;
+    background-color: $argo-color-gray-3;
+}
