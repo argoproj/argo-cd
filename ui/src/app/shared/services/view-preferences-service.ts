@@ -3,6 +3,7 @@ import {BehaviorSubject, Observable} from 'rxjs';
 
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
 import {isInvokedFromApps} from '../../applications/components/utils';
+import {UserMessages} from '../models';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -40,6 +41,7 @@ export interface AppDetailsPreferences extends AbstractAppDetailsPreferences {
     followLogs: boolean;
     wrapLines: boolean;
     podGroupCount: number;
+    userHelpTipMsgs: UserMessages[];
 }
 
 export interface AppSetDetailsPreferences extends AbstractAppDetailsPreferences {
@@ -192,7 +194,8 @@ const DEFAULT_PREFERENCES: ViewPreferences | AppSetViewPreferences = isInvokedFr
         followLogs: false,
         wrapLines: false,
         zoom: 1.0,
-        podGroupCount: 15.0
+        podGroupCount: 15.0,
+        userHelpTipMsgs: []
     },
     appList: {
         view: 'tiles' as AppsListViewType,

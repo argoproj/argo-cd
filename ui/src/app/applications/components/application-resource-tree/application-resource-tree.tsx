@@ -1,4 +1,4 @@
-import { DropDown, DropDownMenu, NotificationType, Tooltip } from 'argo-ui';
+import {DropDown, DropDownMenu, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
@@ -23,7 +23,8 @@ import {
     isYoungerThanXMinutes,
     NodeId,
     nodeKey,
-    PodHealthIcon
+    PodHealthIcon,
+    getUsrMsgKeyToDisplay
 } from '../utils';
 import { NodeUpdateAnimation } from './node-update-animation';
 import { PodGroup } from '../application-pod-view/pod-view';
@@ -60,6 +61,8 @@ export interface AbstractApplicationResourceTreeProps {
     appContext?: AppContext;
     showOrphanedResources: boolean;
     showCompactNodes: boolean;
+    userMsgs: models.UserMessages[];
+    updateUsrHelpTipMsgs: (userMsgs: models.UserMessages) => void;
     setShowCompactNodes: (showCompactNodes: boolean) => void;
     zoom: number;
     // podGroupCount: number;
@@ -937,6 +940,7 @@ export const ApplicationResourceTree = (props: AbstractApplicationResourceTreePr
     const [filters, setFilters] = React.useState(props.filters);
     const [filteredGraph, setFilteredGraph] = React.useState([]);
     const filteredNodes: any[] = [];
+
     React.useEffect(() => {
         if (props.filters !== filters) {
             setFilters(props.filters);
@@ -947,17 +951,14 @@ export const ApplicationResourceTree = (props: AbstractApplicationResourceTreePr
 
     if (isApp(props.app)) {
         const podCount = nodes.filter(node => node.kind === 'Pod').length;
+        const { podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes } = props as ApplicationResourceTreeProps;
         React.useEffect(() => {
-            const { podGroupCount, setShowCompactNodes, appContext } = props as ApplicationResourceTreeProps;
             if (podCount > podGroupCount) {
-                setShowCompactNodes(true);
-                appContext.apis.notifications.show({
-                    content: `Since the number of pods has surpassed the threshold pod count of ${podGroupCount}, you will now be switched to the group node view.
-                 If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`,
-                    type: NotificationType.Success
-                });
-            } else {
-                props.setShowCompactNodes(false);
+                const userMsg = getUsrMsgKeyToDisplay(appNode.name, 'groupNodes', userMsgs);
+                updateUsrHelpTipMsgs(userMsg);
+                if (!userMsg.display) {
+                    setShowCompactNodes(true);
+                }
             }
         }, [podCount]);
     }

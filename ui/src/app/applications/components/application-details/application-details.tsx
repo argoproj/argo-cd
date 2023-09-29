@@ -1,4 +1,4 @@
-import { DropDownMenu, NotificationType, SlidingPanel } from 'argo-ui';
+import { DropDownMenu, NotificationType, SlidingPanel, Tooltip } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -147,7 +147,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ ap
         this.setState({ slidingPanelPage: 0 });
     }
 
-    private toggleCompactView(pref: AbstractAppDetailsPreferences) {
+    private toggleCompactView(appName: string, pref: AbstractAppDetailsPreferences) {
+        if (isInvokedFromApps()) {
+            (pref as AppDetailsPreferences).userHelpTipMsgs = (pref as AppDetailsPreferences).userHelpTipMsgs.map(usrMsg => (usrMsg.appName === appName && usrMsg.msgKey === 'groupNodes' ? { ...usrMsg, display: true } : usrMsg));
+        }
         services.viewPreferences.updatePreferences({ appDetails: { ...pref, groupNodes: !pref.groupNodes } });
     }
 
@@ -244,6 +247,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ ap
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
                             const source = isApp(application) ? getAppDefaultSource((application as models.Application)) : null;
+                            const showToolTip = isApp(application) ? (pref as AppDetailsPreferences)?.userHelpTipMsgs.find(usrMsg => usrMsg.appName === application.metadata.name) : null;
                             const resourceNodes = (): any[] => {
                                 const statusByKey = new Map<string, models.ResourceStatus>();
                                 if (isApp(application)) {
@@ -310,6 +314,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ ap
                             };
                             const setShowCompactNodes = (showCompactView: boolean) => {
                                 services.viewPreferences.updatePreferences({ appDetails: { ...pref, groupNodes: showCompactView } });
+                            };
+                            const updateHelpTipState = (usrHelpTip: models.UserMessages) => {
+                                if (isApp(application)) {
+                                    const existingIndex = (pref as AppDetailsPreferences).userHelpTipMsgs.findIndex(msg => msg.appName === usrHelpTip.appName && msg.msgKey === usrHelpTip.msgKey);
+                                    if (existingIndex !== -1) {
+                                        (pref as AppDetailsPreferences).userHelpTipMsgs[existingIndex] = usrHelpTip;
+                                    } else {
+                                        ((pref as AppDetailsPreferences).userHelpTipMsgs || []).push(usrHelpTip);
+                                    }
+                                }
                             };
                             const toggleNameDirection = () => {
                                 this.setState({ truncateNameOnRight: !this.state.truncateNameOnRight });
@@ -461,13 +475,19 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ ap
                                                             />
                                                         </a>
                                                         {(pref.view === 'tree' || pref.view === 'network') && (
-                                                            <a
-                                                                className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
-                                                                title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
-                                                                onClick={() => this.toggleCompactView(pref)}>
-                                                                <i className={classNames('fa fa-object-group fa-fw')} />
-                                                            </a>
+                                                            <Tooltip
+                                                                content={AppUtils.userMsgsList[showToolTip?.msgKey] || 'Group Nodes'}
+                                                                visible={pref.groupNodes && showToolTip !== undefined && !showToolTip?.display}
+                                                                duration={showToolTip?.duration}>
+                                                                <a
+                                                                    className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
+                                                                    title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
+                                                                    onClick={() => this.toggleCompactView(application.metadata.name, pref)}>
+                                                                    <i className={classNames('fa fa-object-group fa-fw')} />
+                                                                </a>
+                                                            </Tooltip>
                                                         )}
+
                                                         <span className={`separator`} />
                                                         <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
                                                             <i className='fa fa-plus fa-fw' />
@@ -496,6 +516,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ ap
                                                             )
                                                         }
                                                         showCompactNodes={pref.groupNodes}
+                                                        userMsgs={isApp(application) ? (pref as AppDetailsPreferences).userHelpTipMsgs : []}
                                                         tree={tree}
                                                         app={application}
                                                         showOrphanedResources={pref.orphanedResources}
@@ -503,11 +524,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ ap
                                                         onClearFilter={clearFilter}
                                                         onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
                                                         zoom={pref.zoom}
-                                                        // podGroupCount={pref.podGroupCount}
+                                                        // podGroupCount={isApp(application) ? (pref as AppDetailsPreferences).podGroupCount : 0}
                                                         appContext={this.appContext}
                                                         nameDirection={this.state.truncateNameOnRight}
                                                         filters={pref.resourceFilter}
                                                         setTreeFilterGraph={setFilterGraph}
+                                                        updateUsrHelpTipMsgs={updateHelpTipState}
                                                         setShowCompactNodes={setShowCompactNodes}
                                                         setNodeExpansion={(node, isExpanded) => this.setNodeExpansion(node, isExpanded)}
                                                         getNodeExpansion={node => this.getNodeExpansion(node)}
@@ -666,7 +688,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ ap
                                                                             <div className='columns small-9'>{m.description}</div>
                                                                         </div>
                                                                     )}
-                                                                    {m.maintainers.length > 0 && (
+                                                                    {m.maintainers && m.maintainers.length > 0 && (
                                                                         <div className='row white-box__details-row'>
                                                                             <div className='columns small-3'>Maintainers:</div>
                                                                             <div className='columns small-9'>{m.maintainers.join(', ')}</div>

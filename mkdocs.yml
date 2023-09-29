@@ -26,6 +26,9 @@ nav:
   - operator-manual/declarative-setup.md
   - operator-manual/app-any-namespace.md
   - operator-manual/ingress.md
+  - High Availability:
+    - Overview: operator-manual/high_availability.md
+    - Dynamic Cluster Distribution: operator-manual/dynamic-cluster-distribution.md
   - User Management:
     - operator-manual/user-management/index.md
     - operator-manual/user-management/auth0.md
@@ -44,7 +47,6 @@ nav:
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
   - operator-manual/disaster_recovery.md
-  - operator-manual/high_availability.md
   - operator-manual/reconcile.md
   - operator-manual/webhook.md
   - operator-manual/health.md
@@ -69,6 +71,7 @@ nav:
     - operator-manual/notifications/troubleshooting-errors.md
     - Notification Services:
       - operator-manual/notifications/services/alertmanager.md
+      - operator-manual/notifications/services/awssqs.md
       - operator-manual/notifications/services/email.md
       - operator-manual/notifications/services/github.md
       - operator-manual/notifications/services/googlechat.md
