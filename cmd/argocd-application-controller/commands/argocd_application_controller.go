@@ -235,7 +235,7 @@ func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.Se
 	if replicas > 1 {
 		// check for shard mapping using configmap if application-controller is a deployment
 		// else use existing logic to infer shard from pod name if application-controller is a statefulset
-		if appControllerDeployment != nil && enableDynamicClusterDistribution {
+		if enableDynamicClusterDistribution && appControllerDeployment != nil {
 
 			var err error
 			// retry 3 times if we find a conflict while updating shard mapping configMap.
