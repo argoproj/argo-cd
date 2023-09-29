@@ -208,7 +208,7 @@ func NewApplicationController(
 		},
 	})
 
-	factory := informers.NewSharedInformerFactory(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration)
+	factory := informers.NewSharedInformerFactoryWithOptions(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration, informers.WithNamespace(settingsMgr.GetNamespace()))
 	deploymentInformer := factory.Apps().V1().Deployments()
 
 	readinessHealthCheck := func(r *http.Request) error {
