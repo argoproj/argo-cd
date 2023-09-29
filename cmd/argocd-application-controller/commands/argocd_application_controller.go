@@ -219,7 +219,7 @@ func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.Se
 	appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 
 	// if the application controller deployment was not found, the Get() call returns an empty Deployment object. So, set the variable to nil explicitly
-	if kubeerrors.IsNotFound(err) {
+	if err != nil && kubeerrors.IsNotFound(err) {
 		appControllerDeployment = nil
 	}
 
