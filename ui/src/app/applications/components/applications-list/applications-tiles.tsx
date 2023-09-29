@@ -11,7 +11,7 @@ import { getAppDefaultSource, getAppSetHealthStatus, isApp, OperationState } fro
 import { services } from '../../../shared/services';
 
 import './applications-tiles.scss';
-import {  ApplicationSet } from '../../../shared/models';
+import {  Application, ApplicationSet } from '../../../shared/models';
 
 export interface ApplicationTilesProps extends AbstractApplicationTilesProps {
     applications: models.Application[];
@@ -210,10 +210,10 @@ export const ApplicationTiles = (tilesProps: AbstractApplicationTilesProps) => {
                                                                 Status:
                                                             </div>
                                                             <div className='columns small-9' qe-id='applications-tiles-health-status'>
-                                                                {isApp(app) && <AppUtils.HealthStatusIcon state={(app as models.Application).status.health} />} {isApp(app) && (app as models.Application).status.health.status}
-                                                                {!isApp(app) && <AppUtils.AppSetHealthStatusIcon state={(app as models.ApplicationSet).status} />} {!isApp(app) && getAppSetHealthStatus((app as ApplicationSet).status)}
+                                                                {isApp(app) && <AppUtils.HealthStatusIcon state={(app as Application).status.health} />} {isApp(app) && (app as Application).status.health.status}
+                                                                {!isApp(app) && <AppUtils.AppSetHealthStatusIcon state={(app as ApplicationSet).status} />} {!isApp(app) && getAppSetHealthStatus((app as ApplicationSet).status)}
                                                                 &nbsp;
-                                                                {isApp(app) && <AppUtils.ComparisonStatusIcon status={(app as models.Application).status.sync.status} />} {isApp(app) && (app as models.Application).status.sync.status}
+                                                                {isApp(app) && <AppUtils.ComparisonStatusIcon status={(app as Application).status.sync.status} />} {isApp(app) && (app as Application).status.sync.status}
                                                                 &nbsp;
                                                                 {isApp(app) && <OperationState app={app} quiet={true} />}
                                                             </div>
@@ -284,7 +284,7 @@ export const ApplicationTiles = (tilesProps: AbstractApplicationTilesProps) => {
                                                                     Last Sync:
                                                                 </div>
                                                                 <div className='columns small-9'>
-                                                                    {AppUtils.formatCreationTimestamp((app as models.Application).status.operationState.finishedAt || app.status.operationState.startedAt)}
+                                                                    {AppUtils.formatCreationTimestamp((app as Application).status.operationState.finishedAt || app.status.operationState.startedAt)}
                                                                 </div>
                                                             </div>
                                                         )}

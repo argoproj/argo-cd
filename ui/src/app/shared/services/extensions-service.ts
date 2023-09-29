@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as minimatch from 'minimatch';
 
-import {AbstractApplication, Application, ApplicationSet, ApplicationTree, State} from '../models';
+import {Application, ApplicationSet, ApplicationTree, State} from '../models';
 
 const extensions = {
     resourceExtentions: new Array<ResourceTabExtension>(),

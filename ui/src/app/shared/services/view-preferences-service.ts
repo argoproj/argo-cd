@@ -1,8 +1,8 @@
 import * as deepMerge from 'deepmerge';
-import { BehaviorSubject, Observable } from 'rxjs';
+import {BehaviorSubject, Observable} from 'rxjs';
 
-import { PodGroupType } from '../../applications/components/application-pod-view/pod-view';
-import { isFromAppComponents } from '../../applications/components/utils';
+import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
+import {isFromAppComponents} from '../../applications/components/utils';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -17,7 +17,7 @@ export type AppSetsDetailsViewType = 'tree' | 'list';
 
 export enum AppSetsDetailsViewKey {
     Tree = 'tree',
-    List = 'list',
+    List = 'list'
 }
 
 export interface AbstractAppDetailsPreferences {

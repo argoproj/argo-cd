@@ -12,7 +12,7 @@ import { ApplicationsLabels } from './applications-labels';
 import { ApplicationsSource } from './applications-source';
 import { services } from '../../../shared/services';
 import './applications-table.scss';
-import { ApplicationSet } from '../../../shared/models';
+import { Application, ApplicationSet } from '../../../shared/models';
 
 export const ApplicationsTable = (props: {
     applications: models.AbstractApplication[];
@@ -125,16 +125,16 @@ export const ApplicationsTable = (props: {
                                                 <div className='row'>
                                                     <div className='show-for-xxlarge columns small-2'>Destination:</div>
                                                     <div className='columns small-12 xxlarge-10'>
-                                                        <Cluster server={(app as models.Application).spec.destination.server} name={(app as models.Application).spec.destination.name} />/{(app as models.Application).spec.destination.namespace}
+                                                        <Cluster server={(app as Application).spec.destination.server} name={(app as Application).spec.destination.name} />/{(app as Application).spec.destination.namespace}
                                                     </div>
                                                 </div>
                                             </div>
                                             )}
                                             <div className='columns small-2'>
-                                                {isApp(app) && <AppUtils.HealthStatusIcon state={(app as models.Application).status.health} />} {isApp(app) && <span>{(app as models.Application).status.health.status}</span>} {isApp(app) &&  <br />}
-                                                {!isApp(app) && <AppUtils.AppSetHealthStatusIcon state={(app as models.ApplicationSet).status} />} {!isApp(app) && <span>{getAppSetHealthStatus((app as ApplicationSet).status)}</span>} {!isApp(app) &&  <br />}
-                                                {isApp(app) && <AppUtils.ComparisonStatusIcon status={(app as models.Application).status.sync.status} />}
-                                                {isApp(app) && <span>{(app as models.Application).status.sync.status}</span>} {isApp(app) && <OperationState app={(app as models.Application)} quiet={true} />}
+                                                {isApp(app) && <AppUtils.HealthStatusIcon state={(app as Application).status.health} />} {isApp(app) && <span>{(app as Application).status.health.status}</span>} {isApp(app) &&  <br />}
+                                                {!isApp(app) && <AppUtils.AppSetHealthStatusIcon state={(app as ApplicationSet).status} />} {!isApp(app) && <span>{getAppSetHealthStatus((app as ApplicationSet).status)}</span>} {!isApp(app) &&  <br />}
+                                                {isApp(app) && <AppUtils.ComparisonStatusIcon status={(app as Application).status.sync.status} />}
+                                                {isApp(app) && <span>{(app as Application).status.sync.status}</span>} {isApp(app) && <OperationState app={(app as Application)} quiet={true} />}
                                                 <DropDownMenu
                                                     anchor={() => (
                                                         <button className='argo-button argo-button--light argo-button--lg argo-button--short'>

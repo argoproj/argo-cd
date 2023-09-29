@@ -6,7 +6,7 @@ import Moment from 'react-moment';
 import {AppContext} from '../../../shared/context';
 import {EmptyState} from '../../../shared/components';
 import {Application, ApplicationTree, HostResourceInfo, InfoItem, Node, Pod, ResourceName, ResourceNode, ResourceStatus} from '../../../shared/models';
-import {PodViewPreferences, services, ViewPreferences} from '../../../shared/services';
+import {AppDetailsPreferences, PodViewPreferences, services, ViewPreferences} from '../../../shared/services';
 
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ResourceIcon} from '../resource-icon';
@@ -15,6 +15,7 @@ import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, 
 
 import './pod-view.scss';
 import {PodTooltip} from './pod-tooltip';
+import { Observable } from 'rxjs';
 
 interface PodViewProps {
     tree: ApplicationTree;
@@ -48,7 +49,7 @@ export class PodView extends React.Component<PodViewProps> {
 
     public render() {
         return (
-            <DataLoader load={() => services.viewPreferences.getPreferences()}>
+            <DataLoader load={() => services.viewPreferences.getPreferences() as Observable<ViewPreferences>}>
                 {prefs => {
                     const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
                     const groups = this.processTree(podPrefs.sortMode, this.props.tree.hosts || []) || [];
@@ -75,7 +76,7 @@ export class PodView extends React.Component<PodViewProps> {
                                             style={{border: 'none', width: '170px'}}
                                             onClick={() =>
                                                 services.viewPreferences.updatePreferences({
-                                                    appDetails: {...prefs.appDetails, podView: {...podPrefs, hideUnschedulable: !podPrefs.hideUnschedulable}}
+                                                    appDetails: {...prefs.appDetails, podView: {...podPrefs, hideUnschedulable: !podPrefs.hideUnschedulable} } as AppDetailsPreferences
                                                 })
                                             }>
                                             <i className={`fa fa-${podPrefs.hideUnschedulable ? 'eye-slash' : 'eye'}`} style={{width: '15px', marginRight: '5px'}} />
@@ -270,7 +271,7 @@ export class PodView extends React.Component<PodViewProps> {
             ),
             action: () => {
                 this.appContext.apis.navigation.goto('.', {podSortMode: mode});
-                services.viewPreferences.updatePreferences({appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: mode}}});
+                services.viewPreferences.updatePreferences({appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: mode}} as AppDetailsPreferences});
             }
         }));
     }

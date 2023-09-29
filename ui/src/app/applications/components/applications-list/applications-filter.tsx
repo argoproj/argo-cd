@@ -111,20 +111,8 @@ interface ApplicationSetFilterProps extends AbstractAppFilterProps {
     pref: AppSetsListPreferences;
     onChange: (newPrefs: AppSetsListPreferences) => void;
 }
-
-export function isAppSetFilteredApp(abstractFilteredApp: AbstractFilteredApp): abstractFilteredApp is ApplicationSetFilteredApp {
-    // There must be a more elegant way of determining that
-    return !('project' in abstractFilteredApp.spec);
-}
-
-export function isAppSetFilterResult(abstractFilterResult: AbstractFilterResult): abstractFilterResult is ApplicationSetFilterResult {
-    // There must be a more elegant way of determining that
-    return !('sync' in abstractFilterResult);
-}
-
-export function isAppsetFilterProps(abstractAppFilterProps: AbstractAppFilterProps): abstractAppFilterProps is ApplicationSetFilterProps {
-       // There must be a more elegant way of determining that
-       return !('project' in abstractAppFilterProps.apps[0].spec);
+export function isAppFilterProps(abstractAppFilterProps: AbstractAppFilterProps): abstractAppFilterProps is AppFilterProps {
+       return isApp(abstractAppFilterProps.apps[0]);
 }
 
 const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, init?: string[]) => {
@@ -194,9 +182,9 @@ const HealthFilter = (props: AbstractAppFilterProps) => (
     <Filter
         label='HEALTH STATUS'
         selected={props.pref.healthFilter}
-        setSelected={s => !isAppsetFilterProps(props) ? props.onChange({ ...(props as AppFilterProps).pref, healthFilter: s }) : props.onChange({ ...(props as ApplicationSetFilterProps).pref, healthFilter: s })}
-        options= {!isAppsetFilterProps(props) ? getOptions(
-            (props as AppFilterProps).apps,
+        setSelected={s => isAppFilterProps(props) ? props.onChange({ ...props.pref, healthFilter: s }) : props.onChange({ ...(props as ApplicationSetFilterProps).pref, healthFilter: s })}
+        options= {isAppFilterProps(props) ? getOptions(
+            props.apps,
             'health',
             app => app.status.health.status,
             Object.keys(HealthStatuses),
@@ -365,13 +353,13 @@ export const ApplicationsFilter = (props: AbstractAppFilterProps) => {
     return (
         <FiltersGroup content={props.children} collapsed={props.collapsed}>
             <FavoriteFilter {...props } />
-            {!isAppsetFilterProps(props) && <SyncFilter {...props as AppFilterProps}  /> }
+            {isAppFilterProps(props) && <SyncFilter {...props}  /> }
             <HealthFilter {...props} />
             <LabelsFilter {...props} />
-            {!isAppsetFilterProps(props) && <ProjectFilter {...props as AppFilterProps} /> }
-            {!isAppsetFilterProps(props) && <ClusterFilter {...props as AppFilterProps} /> }
-            {!isAppsetFilterProps(props) && <NamespaceFilter {...props as AppFilterProps} /> }
-            {!isAppsetFilterProps(props) && <AutoSyncFilter {...props as AppFilterProps} collapsed={true} /> }
+            {isAppFilterProps(props) && <ProjectFilter {...props} /> }
+            {isAppFilterProps(props) && <ClusterFilter {...props } /> }
+            {isAppFilterProps(props) && <NamespaceFilter {...props } /> }
+            {isAppFilterProps(props) && <AutoSyncFilter {...props } collapsed={true} /> }
         </FiltersGroup>
     );
 };

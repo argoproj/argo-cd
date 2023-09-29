@@ -25,6 +25,7 @@ import { useSidebarTarget } from '../../../sidebar/sidebar';
 import './applications-list.scss';
 import './flex-top-bar.scss';
 import { isApp, isFromAppComponents } from '../utils';
+import { AbstractApplication, Application, ApplicationSet } from '../../../shared/models';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -179,11 +180,11 @@ const ViewPref = ({ children }: { children: (pref: AbstractAppsListPreferences &
     </ObservableQuery>
 );
 
-function filterApps(applications: models.AbstractApplication[], pref: AbstractAppsListPreferences, search: string): { filteredApps: models.AbstractApplication[]; filterResults: AbstractFilteredApp[] } {
+function filterApps(applications: AbstractApplication[], pref: AbstractAppsListPreferences, search: string): { filteredApps: AbstractApplication[]; filterResults: AbstractFilteredApp[] } {
     applications = applications.map(app => {
         let isAppOfAppsPattern = false;
         if (!isFromAppComponents()) { // AppSet behaves like an app of apps
-            isAppOfAppsPattern = true
+            isAppOfAppsPattern = true;
         }
         else { // It is an App and may or may not be app-of-apps pattern
             for (const resource of (app as models.Application).status.resources) {
@@ -195,7 +196,7 @@ function filterApps(applications: models.AbstractApplication[], pref: AbstractAp
         }
         return { ...app, isAppOfAppsPattern };
     });
-    const filterResults = isFromAppComponents() ? getFilterResults(applications as models.Application[], pref as AppsListPreferences) : getFilterResults(applications as models.ApplicationSet[], pref as AppSetsListPreferences);
+    const filterResults = isFromAppComponents() ? getFilterResults(applications as Application[], pref as AppsListPreferences) : getFilterResults(applications as ApplicationSet[], pref as AppSetsListPreferences);
     return {
         filterResults,
         filteredApps: filterResults.filter(
@@ -224,7 +225,7 @@ const SearchBar = (props: { content: string; ctx: ContextApis; apps: models.Abst
     const [isFocused, setFocus] = React.useState(false);
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
-    const placeholderText = isFromAppComponents() ? "Search applications..." : "Search application sets..."
+    const placeholderText = isFromAppComponents() ? 'Search applications...' : 'Search application sets...'
 
     useKeybinding({
         keys: Key.SLASH,
@@ -366,12 +367,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             '.',
 
             {
-                proj: isFromAppComponents() ? (newPref as AppsListPreferences).projectsFilter.join(',') : "",
-                sync: isFromAppComponents() ? (newPref as AppsListPreferences).syncFilter.join(',') : "",
-                autoSync: isFromAppComponents() ? (newPref as AppsListPreferences).autoSyncFilter.join(',') : "",
+                proj: isFromAppComponents() ? (newPref as AppsListPreferences).projectsFilter.join(',') : '',
+                sync: isFromAppComponents() ? (newPref as AppsListPreferences).syncFilter.join(',') : '',
+                autoSync: isFromAppComponents() ? (newPref as AppsListPreferences).autoSyncFilter.join(',') : '',
                 health: newPref.healthFilter.join(','),
-                namespace: isFromAppComponents() ? (newPref as AppsListPreferences).namespacesFilter.join(',') : "",
-                cluster: isFromAppComponents() ? (newPref as AppsListPreferences).clustersFilter.join(',') : "",
+                namespace: isFromAppComponents() ? (newPref as AppsListPreferences).namespacesFilter.join(',') : '',
+                cluster: isFromAppComponents() ? (newPref as AppsListPreferences).clustersFilter.join(',') : '',
                 labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
             },
             { replace: true }
@@ -396,7 +397,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
 
     const sidebarTarget = useSidebarTarget();
 
-    const getEmptyStateText = isFromAppComponents() ? "No matching applications found" : "No matching application sets found"
+    const getEmptyStateText = isFromAppComponents() ? 'No matching applications found' : 'No matching application sets found'
 
     const applicationTilesProps = (ctx: ContextApis, data: models.Application[]): ApplicationTilesProps => {
         return {
@@ -445,7 +446,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     toolbar={isFromAppComponents() ? { breadcrumbs: [{ title: 'Applications', path: '/applications' }] } : { breadcrumbs: [{ title: 'Settings', path: '/settings' }, { title: 'ApplicationSets' }] }}
                                     hideAuth={true}>
                                     <DataLoader
-                                        input={isFromAppComponents() ? (pref as AppsListPreferences & { page: number, search: string }).projectsFilter?.join(',') : ""}
+                                        input={isFromAppComponents() ? (pref as AppsListPreferences & { page: number, search: string }).projectsFilter?.join(',') : ''}
                                         ref={loaderRef}
                                         load={() => AppUtils.handlePageVisibility(() => loadApplications(isFromAppComponents() ? (pref as AppsListPreferences & { page: number, search: string }).projectsFilter : [], query.get('appNamespace')))}
                                         loadingRenderer={() => (
@@ -455,7 +456,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         )}>
                                         {(applications: models.AbstractApplication[]) => {
                                             const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
-                                            const { filteredApps, filterResults } = filterApps(isFromAppComponents() ? applications as models.Application[] : applications as models.ApplicationSet[], isFromAppComponents() ? (pref as AppsListPreferences & { page: number, search: string }) : (pref as AppSetsListPreferences & { page: number, search: string }), pref.search);
+                                            const { filteredApps, filterResults } = filterApps(isFromAppComponents() ? applications as Application[] : applications as ApplicationSet[], isFromAppComponents() ? (pref as AppsListPreferences & { page: number, search: string }) : (pref as AppSetsListPreferences & { page: number, search: string }), pref.search);
                                             return (
                                                 <React.Fragment>
                                                     <FlexTopBar

@@ -1053,7 +1053,7 @@ export function isAppNode(node: appModels.ResourceNode) {
 }
 
 export function getAppOverridesCount(app: appModels.AbstractApplication) {
-    var isApplicationSet = true;
+    let isApplicationSet = true;
     if ("resource" in app.status) {
         isApplicationSet = false;
     }
@@ -1284,12 +1284,12 @@ export function appInstanceName(app: appModels.AbstractApplication): string {
 }
 
 export function isApp(abstractApp: appModels.AbstractApplication): abstractApp is appModels.Application {
-    return abstractApp.kind == "Application";
+    return abstractApp.kind === "Application";
 }
 
 export function isFromAppComponents(): boolean {
     // console.log("*** ctx.history.location.pathname *** " + ctx.history.location.pathname)
-    const isInvokedFromApp = true //ctx.history.location.pathname.includes("applicationsets") ? true : false
+    const isInvokedFromApp = false //ctx.history.location.pathname.includes("applicationsets") ? true : false
     return isInvokedFromApp
 }
 
@@ -1307,7 +1307,7 @@ ctxh: ContextApis & {
 */
 
 export function getRootPath(): string {
-    return isFromAppComponents() ? "/applications" : "/applicationsets"
+    return isFromAppComponents() ? '/applications' : '/applicationsets'
 }
 
 

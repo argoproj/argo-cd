@@ -13,7 +13,7 @@ export interface ApplicationsStatusBarProps {
 }
 
 export const ApplicationsStatusBar = ({ applications }: ApplicationsStatusBarProps) => {
-    let readings: any[] = []
+    const readings: any[] = [];
     if (isFromAppComponents()) {
         readings.push({
             name: 'Healthy',
@@ -63,7 +63,7 @@ export const ApplicationsStatusBar = ({ applications }: ApplicationsStatusBarPro
                 value: applications.filter(app => getAppSetHealthStatus((app as ApplicationSet).status) === 'Unknown').length,
                 color: COLORS.health.unknown
             }
-        )
+        );
     }
 
     // will sort readings by value greatest to lowest, then by name
