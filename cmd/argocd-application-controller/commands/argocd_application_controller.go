@@ -215,6 +215,8 @@ func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.Se
 	var replicas int
 	shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
 
+	dynamicClusterDistributionEnabled := env.ParseBoolFromEnv(common.EnvControllerDynamicShardingEnabled, false)
+
 	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 	appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 
@@ -223,7 +225,7 @@ func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.Se
 		appControllerDeployment = nil
 	}
 
-	if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
+	if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil && dynamicClusterDistributionEnabled {
 		replicas = int(*appControllerDeployment.Spec.Replicas)
 	} else {
 		replicas = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
@@ -233,7 +235,7 @@ func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.Se
 	if replicas > 1 {
 		// check for shard mapping using configmap if application-controller is a deployment
 		// else use existing logic to infer shard from pod name if application-controller is a statefulset
-		if appControllerDeployment != nil {
+		if appControllerDeployment != nil && dynamicClusterDistributionEnabled {
 
 			var err error
 			// retry 3 times if we find a conflict while updating shard mapping configMap.
