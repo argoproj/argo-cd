@@ -898,6 +898,7 @@ func (c *clusterCache) sync() error {
 	})
 
 	if err != nil {
+		c.log.Error(err, "Failed to sync cluster")
 		return fmt.Errorf("failed to sync cluster %s: %v", c.config.Host, err)
 	}
 
