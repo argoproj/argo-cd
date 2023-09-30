@@ -12,6 +12,16 @@ Log out from Argo CD
 argocd logout CONTEXT [flags]
 ```
 
+### Examples
+
+```
+  # Logout from a context
+  argocd logout localhost:8080
+  
+  # Get list of contexts
+  argocd context
+```
+
 ### Options
 
 ```
