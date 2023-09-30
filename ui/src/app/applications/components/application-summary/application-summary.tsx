@@ -15,7 +15,7 @@ import {
     RevisionHelpIcon
 } from '../../../shared/components';
 import {BadgePanel, Spinner} from '../../../shared/components';
-import {Consumer, ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
@@ -30,6 +30,8 @@ import {EditAnnotations} from './edit-annotations';
 
 import './application-summary.scss';
 import {DeepLinks} from '../../../shared/components/deep-links';
+
+const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
 function swap(array: any[], a: number, b: number) {
     array = array.slice();
@@ -589,7 +591,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     </div>
                 )}
             </Consumer>
-            <BadgePanel app={props.app.metadata.name} />
+            <BadgePanel app={props.app.metadata.name} appNamespace={props.app.metadata.namespace} nsEnabled={useAuthSettingsCtx?.appsInAnyNamespaceEnabled} />
             <EditablePanel
                 save={updateApp}
                 values={app}
