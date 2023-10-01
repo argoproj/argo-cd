@@ -46,29 +46,30 @@ const (
 
 func NewCommand() *cobra.Command {
 	var (
-		clientConfig             clientcmd.ClientConfig
-		appResyncPeriod          int64
-		appHardResyncPeriod      int64
-		repoServerAddress        string
-		repoServerTimeoutSeconds int
-		selfHealTimeoutSeconds   int
-		statusProcessors         int
-		operationProcessors      int
-		glogLevel                int
-		metricsPort              int
-		metricsCacheExpiration   time.Duration
-		metricsAplicationLabels  []string
-		kubectlParallelismLimit  int64
-		cacheSource              func() (*appstatecache.Cache, error)
-		redisClient              *redis.Client
-		repoServerPlaintext      bool
-		repoServerStrictTLS      bool
-		otlpAddress              string
-		otlpAttrs                []string
-		applicationNamespaces    []string
-		persistResourceHealth    bool
-		shardingAlgorithm        string
-		workqueueRateLimit       ratelimiter.AppControllerRateLimiterConfig
+		workqueueRateLimit               ratelimiter.AppControllerRateLimiterConfig
+		clientConfig                     clientcmd.ClientConfig
+		appResyncPeriod                  int64
+		appHardResyncPeriod              int64
+		repoServerAddress                string
+		repoServerTimeoutSeconds         int
+		selfHealTimeoutSeconds           int
+		statusProcessors                 int
+		operationProcessors              int
+		glogLevel                        int
+		metricsPort                      int
+		metricsCacheExpiration           time.Duration
+		metricsAplicationLabels          []string
+		kubectlParallelismLimit          int64
+		cacheSource                      func() (*appstatecache.Cache, error)
+		redisClient                      *redis.Client
+		repoServerPlaintext              bool
+		repoServerStrictTLS              bool
+		otlpAddress                      string
+		otlpAttrs                        []string
+		applicationNamespaces            []string
+		persistResourceHealth            bool
+		shardingAlgorithm                string
+		enableDynamicClusterDistribution bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -141,7 +142,7 @@ func NewCommand() *cobra.Command {
 				appController.InvalidateProjectsCache()
 			}))
 			kubectl := kubeutil.NewKubectl()
-			clusterFilter := getClusterFilter(kubeClient, settingsMgr, shardingAlgorithm)
+			clusterFilter := getClusterFilter(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
 			errors.CheckError(err)
 			appController, err = controller.NewApplicationController(
 				namespace,
@@ -216,21 +217,27 @@ func NewCommand() *cobra.Command {
 	command.Flags().DurationVar(&workqueueRateLimit.BaseDelay, "wq-basedelay-ns", time.Duration(env.ParseInt64FromEnv("WORKQUEUE_BASE_DELAY_NS", time.Millisecond.Nanoseconds(), time.Nanosecond.Nanoseconds(), (24*time.Hour).Nanoseconds())), "Set Workqueue Per Item Rate Limiter Base Delay duration in nanoseconds, default 1000000 (1ms)")
 	command.Flags().DurationVar(&workqueueRateLimit.MaxDelay, "wq-maxdelay-ns", time.Duration(env.ParseInt64FromEnv("WORKQUEUE_MAX_DELAY_NS", time.Second.Nanoseconds(), 1*time.Millisecond.Nanoseconds(), (24*time.Hour).Nanoseconds())), "Set Workqueue Per Item Rate Limiter Max Delay duration in nanoseconds, default 1000000000 (1s)")
 	command.Flags().Float64Var(&workqueueRateLimit.BackoffFactor, "wq-backoff-factor", env.ParseFloat64FromEnv("WORKQUEUE_BACKOFF_FACTOR", 1.5, 0, math.MaxFloat64), "Set Workqueue Per Item Rate Limiter Backoff Factor, default is 1.5")
+	command.Flags().BoolVar(&enableDynamicClusterDistribution, "dynamic-cluster-distribution-enabled", env.ParseBoolFromEnv(common.EnvEnableDynamicClusterDistribution, false), "Enables dynamic cluster distribution.")
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})
 	return &command
 }
 
-func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string) sharding.ClusterFilterFunction {
+func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) sharding.ClusterFilterFunction {
 
 	var replicas int
 	shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
 
 	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
-	appControllerDeployment, _ := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+	appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 
-	if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
+	// if the application controller deployment was not found, the Get() call returns an empty Deployment object. So, set the variable to nil explicitly
+	if err != nil && kubeerrors.IsNotFound(err) {
+		appControllerDeployment = nil
+	}
+
+	if enableDynamicClusterDistribution && appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
 		replicas = int(*appControllerDeployment.Spec.Replicas)
 	} else {
 		replicas = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
@@ -240,7 +247,7 @@ func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.Se
 	if replicas > 1 {
 		// check for shard mapping using configmap if application-controller is a deployment
 		// else use existing logic to infer shard from pod name if application-controller is a statefulset
-		if appControllerDeployment != nil {
+		if enableDynamicClusterDistribution && appControllerDeployment != nil {
 
 			var err error
 			// retry 3 times if we find a conflict while updating shard mapping configMap.
