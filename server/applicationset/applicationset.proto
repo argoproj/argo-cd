@@ -29,7 +29,7 @@ message ApplicationSetListQuery {
 
 
 // ApplicationSetEventsQuery is a query for applicationset resource events
-message ApplicationResourceEventsQuery {
+message ApplicationSetResourceEventsQuery {
 	required string name = 1;
 	optional string appsetNamespace = 5;
 }
