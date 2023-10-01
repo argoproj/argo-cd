@@ -28,6 +28,13 @@ message ApplicationSetListQuery {
 }
 
 
+// ApplicationSetEventsQuery is a query for applicationset resource events
+message ApplicationResourceEventsQuery {
+	required string name = 1;
+	optional string appsetNamespace = 5;
+}
+
+
 message ApplicationSetResponse {
 	string project = 1;
 	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet applicationset = 2;
@@ -58,6 +65,11 @@ service ApplicationSetService {
 	//List returns list of applicationset
 	rpc List (ApplicationSetListQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSetList) {
 		option (google.api.http).get = "/api/v1/applicationsets";
+	}
+
+	// ListResourceEvents returns a list of event resources
+	rpc ListResourceEvents(ApplicationSetResourceEventsQuery) returns (k8s.io.api.core.v1.EventList) {
+		option (google.api.http).get = "/api/v1/applicationsets/{name}/events";
 	}
 
 	//Create creates an applicationset

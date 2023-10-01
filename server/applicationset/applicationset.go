@@ -16,6 +16,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -41,6 +42,7 @@ type Server struct {
 	db                db.ArgoDB
 	enf               *rbac.Enforcer
 	cache             *servercache.Cache
+	kubeclientset     kubernetes.Interface
 	appclientset      appclientset.Interface
 	appLister         applisters.ApplicationLister
 	appsetInformer    cache.SharedIndexInformer
@@ -73,6 +75,7 @@ func NewServer(
 		cache:             cache,
 		db:                db,
 		enf:               enf,
+    kubeclientset:     kubeclientset,
 		appclientset:      appclientset,
 		appLister:         appLister,
 		appsetInformer:    appsetInformer,
@@ -280,6 +283,39 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 	s.logAppSetEvent(appset, ctx, argo.EventReasonResourceDeleted, "deleted ApplicationSets")
 	return &applicationset.ApplicationSetResponse{}, nil
 
+}
+
+// ListResourceEvents returns a list of event resources
+func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.ApplicationSetResourceEventsQuery) (*v1.EventList, error) {
+	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
+
+	if !s.isNamespaceEnabled(namespace) {
+		return nil, security.NamespaceNotPermittedError(namespace)
+	}
+
+	a, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(ctx, q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
+	}
+
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
+		return nil, err
+	}
+
+  fieldSelector := fields.SelectorFromSet(map[string]string{
+    "involvedObject.name":      a.Name,
+    "involvedObject.uid":       string(a.UID),
+    "involvedObject.namespace": a.Namespace,
+  }).String()
+
+	log.Infof("Querying for resource events with field selector: %s", fieldSelector)
+	opts := metav1.ListOptions{FieldSelector: fieldSelector}
+  s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace)
+	list, err := s.kubeclientset.CoreV1().Events(namespace).List(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("error listing resource events: %w", err)
+	}
+	return list, nil
 }
 
 func (s *Server) validateAppSet(ctx context.Context, appset *v1alpha1.ApplicationSet) (string, error) {
