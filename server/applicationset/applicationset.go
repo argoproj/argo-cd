@@ -303,14 +303,13 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.Appli
 	}
 
 	fieldSelector := fields.SelectorFromSet(map[string]string{
-		"involvedObject.name":      a.Name,
-		"involvedObject.uid":       string(a.UID),
+		"involvedObject.name": a.Name,
+		//"involvedObject.uid":       string(a.UID),
 		"involvedObject.namespace": a.Namespace,
 	}).String()
 
 	log.Infof("Querying for resource events with field selector: %s", fieldSelector)
 	opts := metav1.ListOptions{FieldSelector: fieldSelector}
-	s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace)
 	list, err := s.kubeclientset.CoreV1().Events(namespace).List(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("error listing resource events: %w", err)
