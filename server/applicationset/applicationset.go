@@ -75,7 +75,7 @@ func NewServer(
 		cache:             cache,
 		db:                db,
 		enf:               enf,
-    kubeclientset:     kubeclientset,
+		kubeclientset:     kubeclientset,
 		appclientset:      appclientset,
 		appLister:         appLister,
 		appsetInformer:    appsetInformer,
@@ -302,15 +302,15 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.Appli
 		return nil, err
 	}
 
-  fieldSelector := fields.SelectorFromSet(map[string]string{
-    "involvedObject.name":      a.Name,
-    "involvedObject.uid":       string(a.UID),
-    "involvedObject.namespace": a.Namespace,
-  }).String()
+	fieldSelector := fields.SelectorFromSet(map[string]string{
+		"involvedObject.name":      a.Name,
+		"involvedObject.uid":       string(a.UID),
+		"involvedObject.namespace": a.Namespace,
+	}).String()
 
 	log.Infof("Querying for resource events with field selector: %s", fieldSelector)
 	opts := metav1.ListOptions{FieldSelector: fieldSelector}
-  s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace)
+	s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace)
 	list, err := s.kubeclientset.CoreV1().Events(namespace).List(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("error listing resource events: %w", err)
