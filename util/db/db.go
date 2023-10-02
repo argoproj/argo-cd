@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -13,6 +14,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	log "github.com/sirupsen/logrus"
 )
 
 // SecretMaperValidation determine whether the secret should be transformed(i.e. trailing CRLF characters trimmed)
@@ -152,7 +154,14 @@ func StripCRLFCharacter(input string) string {
 func (db *db) GetApplicationControllerReplicas() int {
 	// get the replicas from application controller deployment, if the application controller deployment does not exist, check for environment variable
 	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
-	appControllerDeployment, _ := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+	appControllerDeployment, err := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+	if err != nil {
+		// We should just ignore not found errors as Argo CD controller can
+		// run as a StatefulSet or as a Deployment
+		if !kubeerrors.IsNotFound(err) {
+			log.Warnf("error retrieveing Argo CD controller deployment: %s", err)
+		}
+	}
 	if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
 		return int(*appControllerDeployment.Spec.Replicas)
 	}
