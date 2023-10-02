@@ -25,6 +25,13 @@ spec:
     namespace: kubeseal
 ```
 
+!!! note "When using multiple methods"
+    Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [this stackoverflow](https://stackoverflow.com/questions/76739856/what-is-the-precedence-setting-of-various-helm-values-in-an-argocd-application-m) for a more detailed example)
+
+!!! note "When valuesFiles or values is used"
+    The list of parameters seen in the ui is not what is used for resources, rather it is the values/valuesObject merged with parameters (see [this issue](https://github.com/argoproj/argo-cd/issues/9213) incase it has been resolved)
+    As a workaround using parameters instead of values/valuesObject will provide a better overview of what will be used for resources
+
 ## Values Files
 
 Helm has the ability to use a different, or even multiple "values.yaml" files to derive its
