@@ -67,6 +67,7 @@ func TestAppType_Disabled(t *testing.T) {
 	assert.Equal(t, "Directory", appType)
 
 	appType, err = AppType(context.Background(), "./testdata/foo3", "./testdata", enableManifestGeneration, []string{})
+	assert.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 
 	appType, err = AppType(context.Background(), "./testdata/baz2", "./testdata", enableManifestGeneration, []string{})
