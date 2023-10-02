@@ -1,3 +1,5 @@
+# `argocd admin export` Command Reference
+
 ## argocd admin export
 
 Export all Argo CD data to stdout (default) or a file

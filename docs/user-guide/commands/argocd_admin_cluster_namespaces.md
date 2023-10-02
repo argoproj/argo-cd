@@ -1,3 +1,5 @@
+# `argocd admin cluster namespaces` Command Reference
+
 ## argocd admin cluster namespaces
 
 Print information namespaces which Argo CD manages in each cluster.

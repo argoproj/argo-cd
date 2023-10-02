@@ -1,3 +1,5 @@
+# `argocd repo get` Command Reference
+
 ## argocd repo get
 
 Get a configured repository by URL

@@ -1,3 +1,5 @@
+# `argocd repocreds rm` Command Reference
+
 ## argocd repocreds rm
 
 Remove repository credentials

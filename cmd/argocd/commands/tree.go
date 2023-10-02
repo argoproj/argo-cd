@@ -27,11 +27,12 @@ func extractHealthStatusAndReason(node v1alpha1.ResourceNode) (healthStatus heal
 }
 
 func treeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentToChildMap map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState, w *tabwriter.Writer) {
+	healthStatus, _ := extractHealthStatusAndReason(parent)
 	if mapNodeNameToResourceState[parent.Kind+"/"+parent.Name] != nil {
 		value := mapNodeNameToResourceState[parent.Kind+"/"+parent.Name]
 		_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Kind+"/"+value.Name, value.Status, value.Health, value.Message)
 	} else {
-		_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Kind+"/"+parent.Name, "", "", "")
+		_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Kind+"/"+parent.Name, "", healthStatus, "")
 	}
 	chs := parentToChildMap[parent.UID]
 	for i, childUid := range chs {

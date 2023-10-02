@@ -1,3 +1,5 @@
+# `argocd proj remove-signature-key` Command Reference
+
 ## argocd proj remove-signature-key
 
 Remove GnuPG signature key from project
