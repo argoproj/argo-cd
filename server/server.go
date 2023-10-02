@@ -854,7 +854,6 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.KubeClientset,
 		a.enf,
 		a.AppClientset,
-		a.appLister,
 		a.appsetInformer,
 		a.appsetLister,
 		a.projLister,
