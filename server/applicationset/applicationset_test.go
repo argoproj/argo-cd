@@ -2,7 +2,6 @@ package applicationset
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/argoproj/pkg/sync"
@@ -111,8 +110,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
 	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(namespace), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
-	fakeAppsetLister := factory.Argoproj().V1alpha1().ApplicationSets().Lister().ApplicationSets(testNamespace)
-	fmt.Print(fakeAppsetLister)
+
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	f(enforcer)
 	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
@@ -145,7 +143,6 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		kubeclientset,
 		enforcer,
 		fakeAppsClientset,
-		factory.Argoproj().V1alpha1().Applications().Lister(),
 		appInformer,
 		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
 		fakeProjLister,

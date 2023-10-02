@@ -55,7 +55,6 @@ func NewServer(
 	kubeclientset kubernetes.Interface,
 	enf *rbac.Enforcer,
 	appclientset appclientset.Interface,
-	appLister applisters.ApplicationLister,
 	appsetInformer cache.SharedIndexInformer,
 	appsetLister applisters.ApplicationSetLister,
 	projLister applisters.AppProjectNamespaceLister,
