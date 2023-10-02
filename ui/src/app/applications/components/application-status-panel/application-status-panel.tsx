@@ -65,8 +65,6 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
 
     const extensions = services.extensions.getStatusPanelExtensions();
 
-    console.log(`Extensions: ${extensions}`)
-
     const infos = cntByCategory.get('info');
     const warnings = cntByCategory.get('warning');
     const errors = cntByCategory.get('error');

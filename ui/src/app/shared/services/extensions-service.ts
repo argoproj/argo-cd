@@ -22,8 +22,8 @@ function registerAppViewExtension(component: ExtensionComponent, title: string, 
     extensions.appViewExtensions.push({component, title, icon});
 }
 
-function registerStatusPanelExtension(component: ExtensionComponent, title: string, opts?: {helpContent: string, visible: () => boolean}) {
-    extensions.statusPanelExtensions.push({component, title, helpContent: opts?.helpContent, visible: opts?.visible});
+function registerStatusPanelExtension(component: ExtensionComponent) {
+    extensions.statusPanelExtensions.push({component});
 }
 
 let legacyInitialized = false;
@@ -63,9 +63,6 @@ export interface AppViewExtension {
 
 export interface StatusPanelExtension {
     component: StatusPanelExtensionComponent;
-    title: string;
-    helpContent?: string;
-    visible?: () => boolean;
 }
 
 export type ExtensionComponent = React.ComponentType<ExtensionComponentProps>;
@@ -119,6 +116,6 @@ export class ExtensionsService {
         registerResourceExtension,
         registerSystemLevelExtension,
         registerAppViewExtension,
-        registerStatusPanelExtension: registerStatusPanelExtension
+        registerStatusPanelExtension
     };
 })(window);
