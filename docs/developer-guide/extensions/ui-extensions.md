@@ -95,3 +95,28 @@ Below is an example of a simple system level extension:
 
 Since the Argo CD Application is a Kubernetes resource, application tabs can be the same as any other resource tab.
 Make sure to use 'argoproj.io'/'Application' as group/kind and an extension will be used to render the application-level tab.
+
+## Application Status Panel Extensions
+
+The status panel is the bar at the top of the application view where the sync status is displayed. Argo CD allows you to add new items to the status panel of an application. The extension should be registered using the `extensionsAPI.registerStatusPanelExtension` method:
+
+```typescript
+registerStatusPanelExtension(component: ExtensionComponent)
+```
+
+Below is an example of a simple system level extension:
+
+```typescript
+((window) => {
+  const component = () => {
+    return React.createElement(
+      "div",
+      { style: { padding: "10px" } },
+      "Hello World"
+    );
+  };
+  window.extensionsAPI.registerStatusPanelExtension(
+    component,
+  );
+})(window);
+```
