@@ -303,8 +303,8 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.Appli
 	}
 
 	fieldSelector := fields.SelectorFromSet(map[string]string{
-		"involvedObject.name": a.Name,
-		//"involvedObject.uid":       string(a.UID),
+		"involvedObject.name":      a.Name,
+		"involvedObject.uid":       string(a.UID),
 		"involvedObject.namespace": a.Namespace,
 	}).String()
 
