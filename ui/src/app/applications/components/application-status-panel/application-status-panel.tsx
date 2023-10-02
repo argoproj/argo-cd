@@ -205,9 +205,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     </React.Fragment>
                 )}
             </DataLoader>
-            {extensions && extensions.map(ext => (
-                <ext.component application={application} />
-            ))}
+            {extensions && extensions.map(ext => <ext.component key={ext.title} application={application} />)}
         </div>
     );
 };

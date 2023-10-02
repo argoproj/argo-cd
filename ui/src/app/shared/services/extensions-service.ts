@@ -22,8 +22,8 @@ function registerAppViewExtension(component: ExtensionComponent, title: string, 
     extensions.appViewExtensions.push({component, title, icon});
 }
 
-function registerStatusPanelExtension(component: ExtensionComponent) {
-    extensions.statusPanelExtensions.push({component});
+function registerStatusPanelExtension(component: ExtensionComponent, title: string) {
+    extensions.statusPanelExtensions.push({component, title});
 }
 
 let legacyInitialized = false;
@@ -63,6 +63,7 @@ export interface AppViewExtension {
 
 export interface StatusPanelExtension {
     component: StatusPanelExtensionComponent;
+    title: string;
 }
 
 export type ExtensionComponent = React.ComponentType<ExtensionComponentProps>;
