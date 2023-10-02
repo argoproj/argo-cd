@@ -13,6 +13,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	log "github.com/sirupsen/logrus"
 )
 
 // SecretMaperValidation determine whether the secret should be transformed(i.e. trailing CRLF characters trimmed)
@@ -152,9 +153,8 @@ func StripCRLFCharacter(input string) string {
 func (db *db) GetApplicationControllerReplicas() int {
 	// get the replicas from application controller deployment, if the application controller deployment does not exist, check for environment variable
 	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
-	appControllerDeployment, err := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
-
-	if err == nil && appControllerDeployment.Spec.Replicas != nil {
+	appControllerDeployment, _ := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+	if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
 		return int(*appControllerDeployment.Spec.Replicas)
 	}
 	return env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
