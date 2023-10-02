@@ -63,7 +63,8 @@ type ApplicationSetSpec struct {
 	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
 	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,7,opt,name=goTemplateOptions"`
 	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
-	ApplyNestedSelectors bool `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
+	ApplyNestedSelectors         bool                            `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
+	IgnoreApplicationDifferences ApplicationSetIgnoreDifferences `json:"ignoreApplicationDifferences,omitempty" protobuf:"bytes,9,name=ignoreApplicationDifferences"`
 }
 
 type ApplicationPreservedFields struct {
@@ -125,6 +126,39 @@ type ApplicationSetSyncPolicy struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=create-only;create-update;create-delete;sync
 	ApplicationsSync *ApplicationsSyncPolicy `json:"applicationsSync,omitempty" protobuf:"bytes,2,opt,name=applicationsSync,casttype=ApplicationsSyncPolicy"`
+}
+
+// ApplicationSetIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live
+// applications when applying changes from generated applications.
+type ApplicationSetIgnoreDifferences []ApplicationSetResourceIgnoreDifferences
+
+func (a ApplicationSetIgnoreDifferences) ToApplicationIgnoreDifferences() []ResourceIgnoreDifferences {
+	var result []ResourceIgnoreDifferences
+	for _, item := range a {
+		result = append(result, item.ToApplicationResourceIgnoreDifferences())
+	}
+	return result
+}
+
+// ApplicationSetResourceIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live
+// applications when applying changes from generated applications.
+type ApplicationSetResourceIgnoreDifferences struct {
+	// Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.
+	Name string `json:"name,omitempty" protobuf:"bytes,1,name=name"`
+	// JSONPointers is a list of JSON pointers to fields to ignore differences for.
+	JSONPointers []string `json:"jsonPointers,omitempty" protobuf:"bytes,2,name=jsonPointers"`
+	// JQPathExpressions is a list of JQ path expressions to fields to ignore differences for.
+	JQPathExpressions []string `json:"jqPathExpressions,omitempty" protobuf:"bytes,3,name=jqExpressions"`
+}
+
+func (a *ApplicationSetResourceIgnoreDifferences) ToApplicationResourceIgnoreDifferences() ResourceIgnoreDifferences {
+	return ResourceIgnoreDifferences{
+		Kind:              ApplicationSchemaGroupVersionKind.Kind,
+		Group:             ApplicationSchemaGroupVersionKind.Group,
+		Name:              a.Name,
+		JSONPointers:      a.JSONPointers,
+		JQPathExpressions: a.JQPathExpressions,
+	}
 }
 
 // ApplicationSetTemplate represents argocd ApplicationSpec
@@ -195,7 +229,7 @@ type ApplicationSetTerminalGenerator struct {
 	SCMProvider             *SCMProviderGenerator `json:"scmProvider,omitempty" protobuf:"bytes,4,name=scmProvider"`
 	ClusterDecisionResource *DuckTypeGenerator    `json:"clusterDecisionResource,omitempty" protobuf:"bytes,5,name=clusterDecisionResource"`
 	PullRequest             *PullRequestGenerator `json:"pullRequest,omitempty" protobuf:"bytes,6,name=pullRequest"`
-	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=pullRequest"`
+	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=plugin"`
 
 	// Selector allows to post-filter all generator.
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,8,name=selector"`
