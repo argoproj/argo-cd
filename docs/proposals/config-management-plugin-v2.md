@@ -10,7 +10,7 @@ approvers:
   - TBD
 
 creation-date: 2021-03-29
-last-updated: 2021-03-29
+last-updated: 2021-03-30
 ---
 
 # Config Management Plugin Enhancement
