@@ -76,6 +76,7 @@ has appropriate RBAC permissions to change other accounts.
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			// test
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, usrIf := acdClient.NewAccountClientOrDie()
 			defer io.Close(conn)

@@ -13,6 +13,8 @@ creation-date: 2021-03-29
 last-updated: 2021-03-29
 ---
 
+test
+
 # Config Management Plugin Enhancement
 
 We want to enhance config management plugin in order to improve Argo CD operator and end-user experience 
