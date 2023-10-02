@@ -15,7 +15,7 @@ import {
     RevisionHelpIcon
 } from '../../../shared/components';
 import {BadgePanel, Spinner} from '../../../shared/components';
-import {Consumer, ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
@@ -49,6 +49,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
     const [destFormat, setDestFormat] = React.useState(initialState);
     const [changeSync, setChangeSync] = React.useState(false);
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
     const notificationSubscriptions = useEditNotificationSubscriptions(app.metadata.annotations || {});
     const updateApp = notificationSubscriptions.withNotificationSubscriptions(props.updateApp);
@@ -590,6 +591,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 )}
             </Consumer>
             <BadgePanel app={props.app.metadata.name} />
+            <BadgePanel appNamespace={props.app.metadata.namespace} />
+            <BadgePanel nsEnabled={useAuthSettingsCtx?.appsInAnyNamespaceEnabled} />
             <EditablePanel
                 save={updateApp}
                 values={app}
