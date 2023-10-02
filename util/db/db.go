@@ -156,9 +156,11 @@ func (db *db) GetApplicationControllerReplicas() int {
 	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 	appControllerDeployment, err := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 	if err != nil {
-		// We should just ignore not found errors as Argo CD controller can
-		// run as a StatefulSet or as a Deployment
-		if !kubeerrors.IsNotFound(err) {
+		if kubeerrors.IsNotFound(err) {
+			appControllerDeployment = nil
+		} else {
+			// We should just ignore not found errors as Argo CD controller can
+			// run as a StatefulSet or as a Deployment
 			log.Warnf("error retrieveing Argo CD controller deployment: %s", err)
 		}
 	}
