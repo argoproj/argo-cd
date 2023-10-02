@@ -21,6 +21,7 @@ import (
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
+	"github.com/go-playground/webhooks/v6/gitea"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	log "github.com/sirupsen/logrus"
@@ -32,6 +33,7 @@ var (
 
 type WebhookHandler struct {
 	namespace              string
+	gitea                  *gitea.Webhook
 	github                 *github.Webhook
 	gitlab                 *gitlab.Webhook
 	azuredevops            *azuredevops.Webhook
@@ -74,6 +76,10 @@ func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.Setting
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get argocd settings: %v", err)
 	}
+	giteaHandler, err := gitea.New(gitea.Options.Secret(argocdSettings.WebhookGitHubSecret)) // reusing github secret for backward compatibility
+	if err != nil {
+		return nil, fmt.Errorf("Unable to init GitHub webhook: %v", err)
+	}
 	githubHandler, err := github.New(github.Options.Secret(argocdSettings.WebhookGitHubSecret))
 	if err != nil {
 		return nil, fmt.Errorf("Unable to init GitHub webhook: %v", err)
@@ -98,6 +104,7 @@ func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.Setting
 
 	return &WebhookHandler{
 		namespace:              namespace,
+		gitea:                  giteaHandler,
 		github:                 githubHandler,
 		gitlab:                 gitlabHandler,
 		azuredevops:            azuredevopsHandler,
@@ -150,6 +157,9 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	switch {
+	// Gitea needs to be checked before GitHub since it carries both Gitea and (incompatible) GitHub headers
+	case r.Header.Get("X-Gitea-Event") != "":
+		payload, err = h.gitea.Parse(r, gitea.PushEvent, gitea.PullRequestEvent)
 	case r.Header.Get("X-GitHub-Event") != "":
 		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
 	case r.Header.Get("X-Gitlab-Event") != "":
@@ -193,6 +203,10 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 		touchedHead bool
 	)
 	switch payload := payload.(type) {
+	case gitea.PushPayload:
+		webURL = payload.Repo.HTMLURL
+		revision = parseRevision(payload.Ref)
+		touchedHead = payload.Repo.DefaultBranch == revision
 	case github.PushPayload:
 		webURL = payload.Repository.HTMLURL
 		revision = parseRevision(payload.Ref)
@@ -234,6 +248,29 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
 	var info prGeneratorInfo
 	switch payload := payload.(type) {
+	case gitea.PullRequestPayload:
+		// Gitea needs to be checked before GitHub since it carries both Gitea and (incompatible) GitHub headers
+		if !isAllowedGithubPullRequestAction(string(payload.Action)) { // reusing github actions
+			return nil
+		}
+
+		apiURL := payload.Repository.HTMLURL
+		urlObj, err := url.Parse(apiURL)
+		if err != nil {
+			log.Errorf("Failed to parse repoURL '%s'", apiURL)
+			return nil
+		}
+		regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]"
+		apiRegexp, err := regexp.Compile(regexpStr)
+		if err != nil {
+			log.Errorf("Failed to compile regexp for repoURL '%s'", apiURL)
+			return nil
+		}
+		info.Github = &prGeneratorGithubInfo{ // reusing github struct
+			Repo:      payload.Repository.Name,
+			Owner:     payload.Repository.Owner.UserName,
+			APIRegexp: apiRegexp,
+		}
 	case github.PullRequestPayload:
 		if !isAllowedGithubPullRequestAction(payload.Action) {
 			return nil
@@ -411,23 +448,40 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 		return true
 	}
 
-	if gen.Github != nil && info.Github != nil {
-		if gen.Github.Owner != info.Github.Owner {
-			return false
-		}
-		if gen.Github.Repo != info.Github.Repo {
-			return false
-		}
-		api := gen.Github.API
-		if api == "" {
-			api = "https://api.github.com/"
-		}
-		if !info.Github.APIRegexp.MatchString(api) {
-			log.Debugf("%s does not match %s", api, info.Github.APIRegexp.String())
-			return false
-		}
+	if info.Github != nil {
+		if gen.Github != nil {
+			if gen.Github.Owner != info.Github.Owner {
+				return false
+			}
+			if gen.Github.Repo != info.Github.Repo {
+				return false
+			}
+			api := gen.Github.API
+			if api == "" {
+				api = "https://api.github.com/"
+			}
+			if !info.Github.APIRegexp.MatchString(api) {
+				log.Debugf("%s does not match %s", api, info.Github.APIRegexp.String())
+				return false
+			}
 
-		return true
+			return true
+		}
+		if gen.Gitea != nil {
+			if gen.Gitea.Owner != info.Github.Owner {
+				return false
+			}
+			if gen.Gitea.Repo != info.Github.Repo {
+				return false
+			}
+			api := gen.Gitea.API
+			if !info.Github.APIRegexp.MatchString(api) {
+				log.Debugf("%s does not match %s", api, info.Github.APIRegexp.String())
+				return false
+			}
+
+			return true
+		}
 	}
 
 	if gen.AzureDevOps != nil && info.Azuredevops != nil {
