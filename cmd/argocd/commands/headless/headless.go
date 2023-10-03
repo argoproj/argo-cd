@@ -145,17 +145,13 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 	return fmt.Errorf("failed to get version: %w", err)
 }
 
-// MaybeStartLocalServer allows executing command in a headless mode. If we're in core mode, starts the Argo CD API
-// server on the fly and changes provided client options to use started API server port.
-//
-// If the clientOpts enables core mode, but the local config does not have core mode enabled, this function will
-// not start the local server.
-func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType) error {
+// StartLocalServer allows executing command in a headless mode: on the fly starts Argo CD API server and
+// changes provided client options to use started API server port
+func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType) error {
 	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
 	clientConfig := cli.AddKubectlFlagsToSet(flags)
 	startInProcessAPI := clientOpts.Core
 	if !startInProcessAPI {
-		// Core mode is enabled on client options. Check the local config to see if we should start the API server.
 		localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 		if err != nil {
 			return fmt.Errorf("error reading local config: %w", err)
@@ -165,11 +161,9 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 			if err != nil {
 				return fmt.Errorf("error resolving context: %w", err)
 			}
-			// There was a local config file, so determine whether core mode is enabled per the config file.
 			startInProcessAPI = configCtx.Server.Core
 		}
 	}
-	// If we're in core mode, start the API server on the fly.
 	if !startInProcessAPI {
 		return nil
 	}
@@ -257,9 +251,7 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 	ctx := c.Context()
 
 	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
-	// If we're in core mode, start the API server on the fly and configure the client `opts` to use it.
-	// If we're not in core mode, this function call will do nothing.
-	err := MaybeStartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone)
+	err := StartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone)
 	if err != nil {
 		log.Fatal(err)
 	}

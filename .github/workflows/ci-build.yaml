@@ -360,9 +360,8 @@ jobs:
     name: Run end-to-end tests
     runs-on: ubuntu-22.04
     strategy:
-      fail-fast: false
       matrix:
-        k3s-version: [v1.28.2, v1.27.6, v1.26.9, v1.25.14]
+        k3s-version: [v1.27.2, v1.26.0, v1.25.4, v1.24.3]
     needs: 
       - build-go
     env:
