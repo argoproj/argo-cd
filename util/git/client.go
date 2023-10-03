@@ -679,7 +679,7 @@ func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) (
 
 	out, err := m.runCmd("diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to diff %s..%s: %w", err)
 	}
 
 	if out == "" {
