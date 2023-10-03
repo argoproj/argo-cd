@@ -3,29 +3,28 @@
 .pod-logs-viewer {
     height: 90%;
     font-size: 14px;
-    font-family: monospace;
+    line-height: 1.5em;
     background-color: white;
-    padding: 0;
+    padding: 15px;
+    padding-left: 5px;
     color: black;
 
+    
     &--inverted {
         background-color: black;
         color: white;
     }
-
+    
     &__settings {
         display: flex;
-
-        .argo-checkbox,
-        .argo-checkbox input,
-        .argo-checkbox input:focus {
+        
+        .argo-checkbox, .argo-checkbox input, .argo-checkbox input:focus {
             outline: none !important;
             border: none !important;
             width: 12px;
             margin-right: 8px;
-            input:checked + span,
-            input + span {
-                border: none;
+            input:checked + span, input + span {
+                border:  none;
                 width: 12px !important;
                 background-color: transparent;
             }
@@ -35,7 +34,7 @@
         }
 
         margin-bottom: 1em;
-
+        
         > * {
             display: flex;
             align-items: center;
@@ -66,19 +65,13 @@
         display: flex;
         margin-bottom: 1em;
         padding-left: 10px;
-        .page-info {
-            margin-left: auto;
-            margin-right: auto;
-            padding: 3px 8px;
-            text-overflow: clip;
-            white-space: nowrap;
-        }
-        .nav-container {
-            display: flex;
-            align-self: flex-start;
-            padding: 3px 8px;
+        i {
             cursor: pointer;
             border-radius: 7px;
+            $size: 25px;
+            width: $size;
+            height: $size;
+            display: flex;
             align-items: center;
             justify-content: center;
             border: 1px solid black;
@@ -91,9 +84,6 @@
                 opacity: 0.5;
                 cursor: not-allowed;
             }
-        }
-        i {
-            margin-left: 5px;
         }
 
         &--inverted {
@@ -223,19 +213,4 @@ code {
     font-family: inherit;
     font-weight: inherit;
     color: inherit;
-}
-
-.ReactVirtualized__Grid__innerScrollContainer {
-    overflow: initial !important;
-}
-
-/* Hide scrollbar for Chrome, Safari and Opera */
-.noscroll::-webkit-scrollbar {
-    display: none;
-}
-
-/* Hide scrollbar for IE, Edge and Firefox */
-.noscroll {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
 }

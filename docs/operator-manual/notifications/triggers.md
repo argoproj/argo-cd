@@ -28,6 +28,7 @@ The end users just need to subscribe to the trigger and specify the notification
 triggers might include multiple conditions with a different set of templates for each condition. For example, the following trigger
 covers all stages of sync status operation and use a different template for different cases:
 
+
 ```yaml
 apiVersion: v1
 kind: ConfigMap
@@ -64,10 +65,6 @@ data:
     oncePer: app.status.sync.revision
     send: [app-sync-succeeded]
 ```
-
-**Mono Repo Usage**
-
-When one repo is used to sync multiple applications, the `oncePer: app.status.sync.revision` field will trigger a notification for each commit. For mono repos, the better approach will be using `oncePer: app.status.operationState.syncResult.revision` statement. This way a notification will be sent only for a particular Application's revision.
 
 ### oncePer
 

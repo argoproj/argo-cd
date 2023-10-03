@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -14,10 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 )
@@ -132,6 +131,7 @@ func NewImportCommand() *cobra.Command {
 			errors.CheckError(err)
 			config.QPS = 100
 			config.Burst = 50
+			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 			acdClients := newArgoCDClientsets(config, namespace)
@@ -176,12 +176,12 @@ func NewImportCommand() *cobra.Command {
 			applications, err := acdClients.applications.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, app := range applications.Items {
-				pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.ApplicationKind, Name: app.GetName()}] = app
+				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "Application", Name: app.GetName()}] = app
 			}
 			projects, err := acdClients.projects.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, proj := range projects.Items {
-				pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.AppProjectKind, Name: proj.GetName()}] = proj
+				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "AppProject", Name: proj.GetName()}] = proj
 			}
 			applicationSets, err := acdClients.applicationSets.List(ctx, v1.ListOptions{})
 			if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
@@ -191,7 +191,7 @@ func NewImportCommand() *cobra.Command {
 			}
 			if applicationSets != nil {
 				for _, appSet := range applicationSets.Items {
-					pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.ApplicationSetKind, Name: appSet.GetName()}] = appSet
+					pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "ApplicationSet", Name: appSet.GetName()}] = appSet
 				}
 			}
 
@@ -209,11 +209,11 @@ func NewImportCommand() *cobra.Command {
 					dynClient = acdClients.secrets
 				case "ConfigMap":
 					dynClient = acdClients.configMaps
-				case application.AppProjectKind:
+				case "AppProject":
 					dynClient = acdClients.projects
-				case application.ApplicationKind:
+				case "Application":
 					dynClient = acdClients.applications
-				case application.ApplicationSetKind:
+				case "ApplicationSet":
 					dynClient = acdClients.applicationSets
 				}
 				if !exists {
@@ -260,9 +260,9 @@ func NewImportCommand() *cobra.Command {
 					switch key.Kind {
 					case "Secret":
 						dynClient = acdClients.secrets
-					case application.AppProjectKind:
+					case "AppProject":
 						dynClient = acdClients.projects
-					case application.ApplicationKind:
+					case "Application":
 						dynClient = acdClients.applications
 						if !dryRun {
 							if finalizers := liveObj.GetFinalizers(); len(finalizers) > 0 {
@@ -274,7 +274,7 @@ func NewImportCommand() *cobra.Command {
 								}
 							}
 						}
-					case application.ApplicationSetKind:
+					case "ApplicationSet":
 						dynClient = acdClients.applicationSets
 					default:
 						log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
@@ -314,7 +314,7 @@ func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOpe
 		return true
 	}
 	switch liveObj.GetKind() {
-	case application.ApplicationKind:
+	case "Application":
 		return liveObj.Object["operation"] == nil
 	}
 	return true
@@ -353,9 +353,9 @@ func updateLive(bak, live *unstructured.Unstructured, stopOperation bool) *unstr
 	switch live.GetKind() {
 	case "Secret", "ConfigMap":
 		newLive.Object["data"] = bak.Object["data"]
-	case application.AppProjectKind:
+	case "AppProject":
 		newLive.Object["spec"] = bak.Object["spec"]
-	case application.ApplicationKind:
+	case "Application":
 		newLive.Object["spec"] = bak.Object["spec"]
 		if _, ok := bak.Object["status"]; ok {
 			newLive.Object["status"] = bak.Object["status"]

@@ -72,12 +72,6 @@ spec:
       selector:
         matchLabels:
           staging: true
-        # The cluster generator also supports matchExpressions.
-        #matchExpressions:
-        #  - key: staging
-        #    operator: In
-        #    values:
-        #      - "true"
   template:
   # (...)
 ```
@@ -110,12 +104,6 @@ spec:
       selector:
         matchLabels:
           argocd.argoproj.io/secret-type: cluster
-        # The cluster generator also supports matchExpressions.
-        #matchExpressions:
-        #  - key: staging
-        #    operator: In
-        #    values:
-        #      - "true"
 ```
 
 This selector will not match the default local cluster, since the default local cluster does not have a Secret (and thus does not have the `argocd.argoproj.io/secret-type` label on that secret). Any cluster selector that selects on that label will automatically exclude the default local cluster.

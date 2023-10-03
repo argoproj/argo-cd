@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/jeremywohl/flatten"
-
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/jeremywohl/flatten"
 
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -53,7 +52,7 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 		}
 		var params []map[string]interface{}
 		if len(genParams) != 0 {
-			tempInterpolatedGenerator, err := InterpolateGenerator(&requestedGenerator, genParams, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+			tempInterpolatedGenerator, err := InterpolateGenerator(&requestedGenerator, genParams, appSet.Spec.GoTemplate)
 			interpolatedGenerator = &tempInterpolatedGenerator
 			if err != nil {
 				log.WithError(err).WithField("genParams", genParams).
@@ -125,7 +124,7 @@ func GetRelevantGenerators(requestedGenerator *argoprojiov1alpha1.ApplicationSet
 func flattenParameters(in map[string]interface{}) (map[string]string, error) {
 	flat, err := flatten.Flatten(in, "", flatten.DotStyle)
 	if err != nil {
-		return nil, fmt.Errorf("error flatenning parameters: %w", err)
+		return nil, err
 	}
 
 	out := make(map[string]string, len(flat))
@@ -148,26 +147,13 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 
 // InterpolateGenerator allows interpolating the matrix's 2nd child generator with values from the 1st child generator
 // "params" parameter is an array, where each index corresponds to a generator. Each index contains a map w/ that generator's parameters.
-func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (argoprojiov1alpha1.ApplicationSetGenerator, error) {
+func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params map[string]interface{}, useGoTemplate bool) (argoprojiov1alpha1.ApplicationSetGenerator, error) {
 	render := utils.Render{}
-	interpolatedGenerator, err := render.RenderGeneratorParams(requestedGenerator, params, useGoTemplate, goTemplateOptions)
+	interpolatedGenerator, err := render.RenderGeneratorParams(requestedGenerator, params, useGoTemplate)
 	if err != nil {
 		log.WithError(err).WithField("interpolatedGenerator", interpolatedGenerator).Error("error interpolating generator with other generator's parameter")
-		return argoprojiov1alpha1.ApplicationSetGenerator{}, err
+		return *interpolatedGenerator, err
 	}
 
 	return *interpolatedGenerator, nil
-}
-
-// Fixes https://github.com/argoproj/argo-cd/issues/11982 while ensuring backwards compatibility.
-// This is only a short-term solution and should be removed in a future major version.
-func dropDisabledNestedSelectors(generators []argoprojiov1alpha1.ApplicationSetNestedGenerator) bool {
-	var foundSelector bool
-	for i := range generators {
-		if generators[i].Selector != nil {
-			foundSelector = true
-			generators[i].Selector = nil
-		}
-	}
-	return foundSelector
 }

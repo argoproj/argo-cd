@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 )
@@ -113,7 +114,7 @@ func TestCache_GetAppDetails(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
 	value := &apiclient.RepoAppDetailsResponse{}
-	emptyRefSources := map[string]*RefTarget{}
+	emptyRefSources := map[string]*appv1.RefTarget{}
 	err := cache.GetAppDetails("my-revision", &ApplicationSource{}, emptyRefSources, value, "", nil)
 	assert.Equal(t, ErrCacheMiss, err)
 	res := &apiclient.RepoAppDetailsResponse{Type: "my-type"}
@@ -152,7 +153,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 		Revision:  "revision",
 		Manifests: []string{"sample-text"},
 	}
-	appSrc := &ApplicationSource{}
+	appSrc := &appv1.ApplicationSource{}
 	appKey := "key"
 	appValue := "value"
 
