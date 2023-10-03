@@ -104,7 +104,7 @@ The status panel is the bar at the top of the application view where the sync st
 registerStatusPanelExtension(component: ExtensionComponent)
 ```
 
-Below is an example of a simple system level extension:
+Below is an example of a simple extension:
 
 ```typescript
 ((window) => {
