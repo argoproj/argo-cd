@@ -28,6 +28,7 @@ import (
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/security"
@@ -214,19 +215,6 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	return updated, nil
 }
 
-func mergeStringMaps(items ...map[string]string) map[string]string {
-	res := make(map[string]string)
-	for _, m := range items {
-		if m == nil {
-			continue
-		}
-		for k, v := range m {
-			res[k] = v
-		}
-	}
-	return res
-}
-
 func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alpha1.ApplicationSet, ctx context.Context, merge bool) (*v1alpha1.ApplicationSet, error) {
 
 	if appset != nil && appset.Spec.Template.Spec.Project != newAppset.Spec.Template.Spec.Project {
@@ -244,8 +232,8 @@ func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alph
 	for i := 0; i < 10; i++ {
 		appset.Spec = newAppset.Spec
 		if merge {
-			appset.Labels = mergeStringMaps(appset.Labels, newAppset.Labels)
-			appset.Annotations = mergeStringMaps(appset.Annotations, newAppset.Annotations)
+			appset.Labels = collections.MergeStringMaps(appset.Labels, newAppset.Labels)
+			appset.Annotations = collections.MergeStringMaps(appset.Annotations, newAppset.Annotations)
 		} else {
 			appset.Labels = newAppset.Labels
 			appset.Annotations = newAppset.Annotations

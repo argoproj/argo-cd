@@ -38,16 +38,16 @@ With the ApplicationSet v0.1.0 release, one could *only* specify `url` and `clus
 spec:
   generators:
   - list:
-    elements:
-      # v0.1.0 form - requires cluster/url keys:
-      - cluster: engineering-dev
-        url: https://kubernetes.default.svc
-        values:
-          additional: value
-      # v0.2.0+ form - does not require cluster/URL keys
-      # (but they are still supported).
-      - staging: "true"
-        gitRepo: https://kubernetes.default.svc   
+      elements:
+        # v0.1.0 form - requires cluster/url keys:
+        - cluster: engineering-dev
+          url: https://kubernetes.default.svc
+          values:
+            additional: value
+        # v0.2.0+ form - does not require cluster/URL keys
+        # (but they are still supported).
+        - staging: "true"
+          gitRepo: https://kubernetes.default.svc   
 # (...)
 ```
 
@@ -74,7 +74,6 @@ spec:
           files:
           - path: applicationset/examples/list-generator/list-elementsYaml-example.yaml
       - list:
-          elements: []
           elementsYaml: "{{ .key.components | toJson }}"
   template:
     metadata:

@@ -106,6 +106,8 @@ type RepoServerInitConstants struct {
 	AllowOutOfBoundsSymlinks                     bool
 	StreamedManifestMaxExtractedSize             int64
 	StreamedManifestMaxTarSize                   int64
+	HelmManifestMaxExtractedSize                 int64
+	DisableHelmManifestMaxExtractedSize          bool
 }
 
 // NewService returns a new instance of the Manifest service
@@ -345,7 +347,7 @@ func (s *Service) runRepoOperation(
 		if source.Helm != nil {
 			helmPassCredentials = source.Helm.PassCredentials
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 		if err != nil {
 			return err
 		}
@@ -399,9 +401,15 @@ func (s *Service) runRepoOperation(
 			}
 		}
 
-		commitSHA, err := gitClient.CommitSHA()
-		if err != nil {
-			return err
+		var commitSHA string
+		if hasMultipleSources {
+			commitSHA = revision
+		} else {
+			commit, err := gitClient.CommitSHA()
+			if err != nil {
+				return fmt.Errorf("failed to get commit SHA: %w", err)
+			}
+			commitSHA = commit
 		}
 
 		// double-check locking
@@ -2141,17 +2149,17 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	}
 	defer io.Close(conn)
 
-	generateManifestStream, err := cmpClient.GetParametersAnnouncement(ctx, grpc_retry.Disable())
+	parametersAnnouncementStream, err := cmpClient.GetParametersAnnouncement(ctx, grpc_retry.Disable())
 	if err != nil {
-		return fmt.Errorf("error getting generateManifestStream: %w", err)
+		return fmt.Errorf("error getting parametersAnnouncementStream: %w", err)
 	}
 
-	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, tarExcludedGlobs)
+	err = cmp.SendRepoStream(parametersAnnouncementStream.Context(), appPath, repoPath, parametersAnnouncementStream, env, tarExcludedGlobs)
 	if err != nil {
 		return fmt.Errorf("error sending file to cmp-server: %s", err)
 	}
 
-	announcement, err := generateManifestStream.CloseAndRecv()
+	announcement, err := parametersAnnouncementStream.CloseAndRecv()
 	if err != nil {
 		return fmt.Errorf("failed to get parameter anouncement: %w", err)
 	}
@@ -2256,7 +2264,7 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 	if err != nil {
 		return nil, fmt.Errorf("helm client error: %v", err)
 	}
-	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false)
+	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 	if err != nil {
 		return nil, fmt.Errorf("error extracting chart: %v", err)
 	}

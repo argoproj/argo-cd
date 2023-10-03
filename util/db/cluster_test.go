@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -25,6 +27,26 @@ func Test_URIToSecretName(t *testing.T) {
 	name, err := URIToSecretName("cluster", "http://foo")
 	assert.NoError(t, err)
 	assert.Equal(t, "cluster-foo-752281925", name)
+
+	name, err = URIToSecretName("cluster", "http://thelongestdomainnameintheworld.argocd-project.com:3000")
+	assert.NoError(t, err)
+	assert.Equal(t, "cluster-thelongestdomainnameintheworld.argocd-project.com-2721640553", name)
+
+	name, err = URIToSecretName("cluster", "http://[fe80::1ff:fe23:4567:890a]")
+	assert.NoError(t, err)
+	assert.Equal(t, "cluster-fe80--1ff-fe23-4567-890a-3877258831", name)
+
+	name, err = URIToSecretName("cluster", "http://[fe80::1ff:fe23:4567:890a]:8000")
+	assert.NoError(t, err)
+	assert.Equal(t, "cluster-fe80--1ff-fe23-4567-890a-664858999", name)
+
+	name, err = URIToSecretName("cluster", "http://[FE80::1FF:FE23:4567:890A]:8000")
+	assert.NoError(t, err)
+	assert.Equal(t, "cluster-fe80--1ff-fe23-4567-890a-682802007", name)
+
+	name, err = URIToSecretName("cluster", "http://:/abc")
+	assert.NoError(t, err)
+	assert.Equal(t, "cluster--1969338796", name)
 }
 
 func Test_secretToCluster(t *testing.T) {
@@ -56,6 +78,24 @@ func Test_secretToCluster(t *testing.T) {
 	})
 }
 
+func Test_secretToCluster_LastAppliedConfigurationDropped(t *testing.T) {
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "mycluster",
+			Namespace:   fakeNamespace,
+			Annotations: map[string]string{v1.LastAppliedConfigAnnotation: "val2"},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("test"),
+			"server": []byte("http://mycluster"),
+			"config": []byte("{\"username\":\"foo\"}"),
+		},
+	}
+	cluster, err := SecretToCluster(secret)
+	require.NoError(t, err)
+	assert.Len(t, cluster.Annotations, 0)
+}
+
 func TestClusterToSecret(t *testing.T) {
 	cluster := &appv1.Cluster{
 		Server:      "server",
@@ -76,6 +116,21 @@ func TestClusterToSecret(t *testing.T) {
 	assert.Equal(t, []byte("default"), s.Data["namespaces"])
 	assert.Equal(t, cluster.Annotations, s.Annotations)
 	assert.Equal(t, cluster.Labels, s.Labels)
+}
+
+func TestClusterToSecret_LastAppliedConfigurationRejected(t *testing.T) {
+	cluster := &appv1.Cluster{
+		Server:      "server",
+		Annotations: map[string]string{v1.LastAppliedConfigAnnotation: "val2"},
+		Name:        "test",
+		Config:      v1alpha1.ClusterConfig{},
+		Project:     "project",
+		Namespaces:  []string{"default"},
+	}
+	s := &v1.Secret{}
+	err := clusterToSecret(cluster, s)
+	require.Error(t, err)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
 func Test_secretToCluster_NoConfig(t *testing.T) {

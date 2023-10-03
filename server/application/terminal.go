@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	util_session "github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
@@ -37,11 +38,12 @@ type terminalHandler struct {
 	allowedShells     []string
 	namespace         string
 	enabledNamespaces []string
+	sessionManager    util_session.SessionManager
 }
 
 // NewHandler returns a new terminal handler.
 func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces []string, db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache,
-	appResourceTree AppResourceTreeFn, allowedShells []string) *terminalHandler {
+	appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager util_session.SessionManager) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
 		db:                db,
@@ -51,6 +53,7 @@ func NewHandler(appLister applisters.ApplicationLister, namespace string, enable
 		allowedShells:     allowedShells,
 		namespace:         namespace,
 		enabledNamespaces: enabledNamespaces,
+		sessionManager:    sessionManager,
 	}
 }
 
@@ -222,7 +225,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	fieldLog.Info("terminal session starting")
 
-	session, err := newTerminalSession(w, r, nil)
+	session, err := newTerminalSession(w, r, nil, s.sessionManager)
 	if err != nil {
 		http.Error(w, "Failed to start terminal session", http.StatusBadRequest)
 		return
@@ -280,6 +283,11 @@ type TerminalMessage struct {
 	Data      string `json:"data"`
 	Rows      uint16 `json:"rows"`
 	Cols      uint16 `json:"cols"`
+}
+
+// TerminalCommand is the struct for websocket commands,For example you need ask client to reconnect
+type TerminalCommand struct {
+	Code int
 }
 
 // startProcess executes specified commands in the container and connects it up with the ptyHandler (a session)
