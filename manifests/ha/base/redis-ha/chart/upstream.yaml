@@ -686,13 +686,6 @@ data:
       server R1 argocd-redis-ha-announce-1:6379 check inter 3s fall 1 rise 1
       use-server R2 if { srv_is_up(R2) } { nbsrv(check_if_redis_is_master_2) ge 2 }
       server R2 argocd-redis-ha-announce-2:6379 check inter 3s fall 1 rise 1
-    frontend stats
-      mode http
-      bind :9101 
-      http-request use-service prometheus-exporter if { path /metrics }
-      stats enable
-      stats uri /stats
-      stats refresh 10s
   haproxy_init.sh: |
     HAPROXY_CONF=/data/haproxy.cfg
     cp /readonly/haproxy.cfg "$HAPROXY_CONF"
@@ -1022,10 +1015,6 @@ spec:
     port: 6379
     protocol: TCP
     targetPort: redis
-  - name: http-exporter-port
-    port: 9101
-    protocol: TCP
-    targetPort: metrics-port
   selector:
     release: argocd
     app: redis-ha-haproxy
@@ -1058,10 +1047,7 @@ spec:
         release: argocd
         revision: "1"
       annotations:
-        prometheus.io/port: "9101"
-        prometheus.io/scrape: "true"
-        prometheus.io/path: "/metrics"
-        checksum/config: 492a6adabb741e0cee39be9aa5155c41a4456629f862d0006a2d892dbecfbcae
+        checksum/config: 718bbb277da8610063a7c0fd810984577c2e8ab215815a71211dfa6e20f67321
     spec:
       # Needed when using unmodified rbac-setup.yml
       
@@ -1122,8 +1108,6 @@ spec:
         ports:
         - name: redis
           containerPort: 6379
-        - name: metrics-port
-          containerPort: 9101
         resources:
           {}
         volumeMounts:

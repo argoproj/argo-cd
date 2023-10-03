@@ -272,13 +272,12 @@ func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerS
 // * the repository is accessible
 // * the path contains valid manifests
 // * there are parameters of only one app source type
-//
-// The plugins parameter is no longer used. It is kept for compatibility with the old signature until Argo CD v3.0.
 func ValidateRepo(
 	ctx context.Context,
 	app *argoappv1.Application,
 	repoClientset apiclient.Clientset,
 	db db.ArgoDB,
+	plugins []*argoappv1.ConfigManagementPlugin,
 	kubectl kube.Kubectl,
 	proj *argoappv1.AppProject,
 	settingsMgr *settings.SettingsManager,
@@ -344,6 +343,7 @@ func ValidateRepo(
 		db,
 		app.Spec.GetSources(),
 		repoClient,
+		plugins,
 		permittedHelmRepos,
 		helmOptions,
 		cluster,
@@ -365,6 +365,7 @@ func validateRepo(ctx context.Context,
 	db db.ArgoDB,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
+	plugins []*argoappv1.ConfigManagementPlugin,
 	permittedHelmRepos []*argoappv1.Repository,
 	helmOptions *argoappv1.HelmOptions,
 	cluster *argoappv1.Cluster,
@@ -419,9 +420,9 @@ func validateRepo(ctx context.Context,
 		helmOptions,
 		app.Name,
 		app.Spec.Destination,
-		proj,
 		sources,
 		repoClient,
+		plugins,
 		cluster.ServerVersion,
 		APIResourcesToStrings(apiGroups, true),
 		permittedHelmCredentials,
@@ -585,7 +586,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if !permitted {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
+				Message: fmt.Sprintf("application destination {%s %s} is not permitted in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
 			})
 		}
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
@@ -704,9 +705,9 @@ func verifyGenerateManifests(
 	helmOptions *argoappv1.HelmOptions,
 	name string,
 	dest argoappv1.ApplicationDestination,
-	proj *argoappv1.AppProject,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
+	plugins []*argoappv1.ConfigManagementPlugin,
 	kubeVersion string,
 	apiVersions []string,
 	repositoryCredentials []*argoappv1.RepoCreds,
@@ -761,6 +762,7 @@ func verifyGenerateManifests(
 			AppName:            name,
 			Namespace:          dest.Namespace,
 			ApplicationSource:  &source,
+			Plugins:            plugins,
 			KustomizeOptions:   kustomizeOptions,
 			KubeVersion:        kubeVersion,
 			ApiVersions:        apiVersions,
@@ -771,8 +773,6 @@ func verifyGenerateManifests(
 			NoRevisionCache:    true,
 			HasMultipleSources: hasMultipleSources,
 			RefSources:         refSources,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
 		}
 		req.Repo.CopyCredentialsFromRepo(repoRes)
 		req.Repo.CopySettingsFrom(repoRes)
@@ -1015,8 +1015,8 @@ func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
 	return difference, nil
 }
 
-// parseName will
-func parseName(appName string, defaultNs string, delim string) (string, string) {
+// parseAppName will
+func parseAppName(appName string, defaultNs string, delim string) (string, string) {
 	var ns string
 	var name string
 	t := strings.SplitN(appName, delim, 2)
@@ -1033,15 +1033,15 @@ func parseName(appName string, defaultNs string, delim string) (string, string) 
 // ParseAppNamespacedName parses a namespaced name in the format namespace/name
 // and returns the components. If name wasn't namespaced, defaultNs will be
 // returned as namespace component.
-func ParseFromQualifiedName(appName string, defaultNs string) (string, string) {
-	return parseName(appName, defaultNs, "/")
+func ParseAppQualifiedName(appName string, defaultNs string) (string, string) {
+	return parseAppName(appName, defaultNs, "/")
 }
 
-// ParseInstanceName parses a namespaced name in the format namespace_name
+// ParseAppInstanceName parses a namespaced name in the format namespace_name
 // and returns the components. If name wasn't namespaced, defaultNs will be
 // returned as namespace component.
-func ParseInstanceName(appName string, defaultNs string) (string, string) {
-	return parseName(appName, defaultNs, "_")
+func ParseAppInstanceName(appName string, defaultNs string) (string, string) {
+	return parseAppName(appName, defaultNs, "_")
 }
 
 // AppInstanceName returns the value to be used for app instance labels from
@@ -1054,9 +1054,9 @@ func AppInstanceName(appName, appNs, defaultNs string) string {
 	}
 }
 
-// InstanceNameFromQualified returns the value to be used for app
-func InstanceNameFromQualified(name string, defaultNs string) string {
-	appName, appNs := ParseFromQualifiedName(name, defaultNs)
+// AppInstanceNameFromQualified returns the value to be used for app
+func AppInstanceNameFromQualified(name string, defaultNs string) string {
+	appName, appNs := ParseAppQualifiedName(name, defaultNs)
 	return AppInstanceName(appName, appNs, defaultNs)
 }
 

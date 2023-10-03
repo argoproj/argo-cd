@@ -1,7 +1,6 @@
 package env
 
 import (
-	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -22,24 +21,20 @@ func ParseNumFromEnv(env string, defaultValue, min, max int) int {
 	if str == "" {
 		return defaultValue
 	}
-	num, err := strconv.ParseInt(str, 10, 0)
+	num, err := strconv.Atoi(str)
 	if err != nil {
 		log.Warnf("Could not parse '%s' as a number from environment %s", str, env)
 		return defaultValue
 	}
-	if num > math.MaxInt || num < math.MinInt {
-		log.Warnf("Value in %s is %d is outside of the min and max %d allowed values. Using default %d", env, num, min, defaultValue)
-		return defaultValue
-	}
-	if int(num) < min {
+	if num < min {
 		log.Warnf("Value in %s is %d, which is less than minimum %d allowed", env, num, min)
 		return defaultValue
 	}
-	if int(num) > max {
+	if num > max {
 		log.Warnf("Value in %s is %d, which is greater than maximum %d allowed", env, num, max)
 		return defaultValue
 	}
-	return int(num)
+	return num
 }
 
 // Helper function to parse a int64 from an environment variable. Returns a

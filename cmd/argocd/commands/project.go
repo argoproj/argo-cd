@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,10 +10,11 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/yaml"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
@@ -453,7 +453,7 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 			}
 		}
 		fmt.Printf("Group '%s' and kind '%s' is added to %s resources\n", group, kind, listDesc)
-		*list = append(*list, metav1.GroupKind{Group: group, Kind: kind})
+		*list = append(*list, v1.GroupKind{Group: group, Kind: kind})
 		return true
 	} else {
 		index := -1
@@ -819,7 +819,10 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 			projName := args[0]
-			detailedProject := getProject(c, clientOpts, ctx, projName)
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+			detailedProject, err := projIf.GetDetailedProject(ctx, &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
 
 			switch output {
 			case "yaml", "json":
@@ -834,14 +837,6 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	return command
-}
-
-func getProject(c *cobra.Command, clientOpts *argocdclient.ClientOptions, ctx context.Context, projName string) *projectpkg.DetailedProjectsResponse {
-	conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-	defer argoio.Close(conn)
-	detailedProject, err := projIf.GetDetailedProject(ctx, &projectpkg.ProjectQuery{Name: projName})
-	errors.CheckError(err)
-	return detailedProject
 }
 
 func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {

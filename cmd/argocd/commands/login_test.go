@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+//
+
 func Test_userDisplayName_email(t *testing.T) {
 	claims := jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "firstname.lastname@example.com", "groups": []string{"baz"}}
 	actualName := userDisplayName(claims)

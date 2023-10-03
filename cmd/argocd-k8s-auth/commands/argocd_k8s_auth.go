@@ -20,7 +20,6 @@ func NewCommand() *cobra.Command {
 
 	command.AddCommand(newAWSCommand())
 	command.AddCommand(newGCPCommand())
-	command.AddCommand(newAzureCommand())
 
 	return command
 }

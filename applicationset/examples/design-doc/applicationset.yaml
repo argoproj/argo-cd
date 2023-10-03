@@ -8,7 +8,6 @@ metadata:
   name: guestbook
 spec:
   goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
   - clusters: {}
   template:

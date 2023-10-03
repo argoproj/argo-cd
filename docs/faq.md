@@ -139,7 +139,7 @@ See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 ## How often does Argo CD check for changes to my Git or Helm repository ?
 
 The default polling interval is 3 minutes (180 seconds). 
-You can change the setting by updating the `timeout.reconciliation` value in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If there are any Git changes, Argo CD will only update applications with the [auto-sync setting](user-guide/auto_sync.md) enabled. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
+You can change the setting by updating the `timeout.reconciliation` value in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If there are any Git changes, ArgoCD will only update applications with the [auto-sync setting](user-guide/auto_sync.md) enabled. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
 
 
 ## Why Are My Resource Limits `Out Of Sync`?
@@ -194,7 +194,7 @@ argocd ... --insecure
 
 ## I have configured Dex via `dex.config` in `argocd-cm`, it still says Dex is unconfigured. Why?
 
-Most likely you forgot to set the `url` in `argocd-cm` to point to your Argo CD as well. See also
+Most likely you forgot to set the `url` in `argocd-cm` to point to your ArgoCD as well. See also
 [the docs](./operator-manual/user-management/index.md#2-configure-argo-cd-for-sso).
 
 ## Why are `SealedSecret` resources reporting a `Status`?
@@ -208,14 +208,14 @@ fixed CRD if you want this feature to work at all.
 ## <a name="sealed-secret-stuck-progressing"></a>Why are resources of type `SealedSecret` stuck in the `Progressing` state?
 
 The controller of the `SealedSecret` resource may expose the status condition on resource it provisioned. Since
-version `v2.0.0` Argo CD picks up that status condition to derive a health status for the `SealedSecret`.
+version `v2.0.0` ArgoCD picks up that status condition to derive a health status for the `SealedSecret`.
 
 Versions before `v0.15.0` of the `SealedSecret` controller are affected by an issue regarding this status
 conditions updates, which is why this feature is disabled by default in these versions. Status condition updates may be
 enabled by starting the `SealedSecret` controller with the `--update-status` command line parameter or by setting
 the `SEALED_SECRETS_UPDATE_STATUS` environment variable.
 
-To disable Argo CD from checking the status condition on `SealedSecret` resources, add the following resource
+To disable ArgoCD from checking the status condition on `SealedSecret` resources, add the following resource
 customization in your `argocd-cm` ConfigMap via `resource.customizations.health.<group_kind>` key.
 
 ```yaml
