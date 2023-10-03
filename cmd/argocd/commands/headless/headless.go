@@ -145,12 +145,12 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 	return fmt.Errorf("failed to get version: %w", err)
 }
 
-// StartLocalServer allows executing command in a headless mode. If we're in core mode, starts the Argo CD API server on
-// the fly and changes provided client options to use started API server port.
+// MaybeStartLocalServer allows executing command in a headless mode. If we're in core mode, starts the Argo CD API
+// server on the fly and changes provided client options to use started API server port.
 //
 // If the clientOpts enables core mode, but the local config does not have core mode enabled, this function will
 // not start the local server.
-func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType) error {
+func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType) error {
 	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
 	clientConfig := cli.AddKubectlFlagsToSet(flags)
 	startInProcessAPI := clientOpts.Core
@@ -259,7 +259,7 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
 	// If we're in core mode, start the API server on the fly and configure the client `opts` to use it.
 	// If we're not in core mode, this function call will do nothing.
-	err := StartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone)
+	err := MaybeStartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone)
 	if err != nil {
 		log.Fatal(err)
 	}
