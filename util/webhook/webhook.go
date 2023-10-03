@@ -7,7 +7,6 @@ import (
 	"html"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -26,10 +25,10 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/glob"
-	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -292,7 +291,8 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 
 			for _, source := range app.Spec.GetSources() {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
-					if appFilesHaveChanged(&app, changedFiles) {
+					refreshPaths := path.GetAppRefreshPaths(&app)
+					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
 						_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
 						if err != nil {
@@ -362,70 +362,6 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return err
 	}
 	return nil
-}
-
-func getAppRefreshPaths(app *v1alpha1.Application) []string {
-	var paths []string
-	if val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]; ok && val != "" {
-		for _, item := range strings.Split(val, ";") {
-			if item == "" {
-				continue
-			}
-			if filepath.IsAbs(item) {
-				paths = append(paths, item[1:])
-			} else {
-				for _, source := range app.Spec.GetSources() {
-					paths = append(paths, filepath.Clean(filepath.Join(source.Path, item)))
-				}
-			}
-		}
-	}
-	return paths
-}
-
-func appFilesHaveChanged(app *v1alpha1.Application, changedFiles []string) bool {
-	// an empty slice of changed files means that the payload didn't include a list
-	// of changed files and w have to assume that a refresh is required
-	if len(changedFiles) == 0 {
-		return true
-	}
-
-	// Check to see if the app has requested refreshes only on a specific prefix
-	refreshPaths := getAppRefreshPaths(app)
-
-	if len(refreshPaths) == 0 {
-		// Apps without a given refreshed paths always be refreshed, regardless of changed files
-		// this is the "default" behavior
-		return true
-	}
-
-	// At last one changed file must be under refresh path
-	for _, f := range changedFiles {
-		f = ensureAbsPath(f)
-		for _, item := range refreshPaths {
-			item = ensureAbsPath(item)
-			changed := false
-			if f == item {
-				changed = true
-			} else if _, err := security.EnforceToCurrentRoot(item, f); err == nil {
-				changed = true
-			}
-			if changed {
-				log.WithField("application", app.Name).Debugf("Application uses files that have changed")
-				return true
-			}
-		}
-	}
-
-	log.WithField("application", app.Name).Debugf("Application does not use any of the files that have changed")
-	return false
-}
-
-func ensureAbsPath(input string) string {
-	if !filepath.IsAbs(input) {
-		return string(filepath.Separator) + input
-	}
-	return input
 }
 
 func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string, touchedHead bool) bool {

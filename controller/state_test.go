@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	mockrepoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 )
@@ -487,6 +488,36 @@ var defaultProj = argoappv1.AppProject{
 			},
 		},
 	},
+}
+
+// TestCompareAppStateWithManifestGeneratePath tests that it compares revisions when the manifest-generate-path annotation is set.
+func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
+	app := newFakeApp()
+	app.SetAnnotations(map[string]string{argoappv1.AnnotationKeyManifestGeneratePaths: "."})
+	app.Status.Sync = argoappv1.SyncStatus{
+		Revision: "abc123",
+		Status:   argoappv1.SyncStatusCodeSynced,
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{},
+	}
+
+	ctrl := newFakeController(&data)
+	revisions := make([]string, 0)
+	revisions = append(revisions, "abc123")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, false)
+
+	assert.NotNil(t, compRes)
+	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.Equal(t, "abc123", compRes.syncStatus.Revision)
+	ctrl.repoClientset.(*mockrepoclient.Clientset).RepoServerServiceClient.(*mockrepoclient.RepoServerServiceClient).AssertNumberOfCalls(t, "UpdateRevisionForPaths", 1)
 }
 
 func TestSetHealth(t *testing.T) {
