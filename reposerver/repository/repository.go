@@ -1353,7 +1353,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			pluginName = q.ApplicationSource.Plugin.Name
 		}
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
-		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
+		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
 		if err != nil {
 			err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
 		}
@@ -1812,25 +1812,17 @@ func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 	return vm, nil
 }
 
-func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
+func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
 	envVars := env.Environ()
 	envVars = append(envVars, "KUBE_VERSION="+text.SemVer(q.KubeVersion))
 	envVars = append(envVars, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
 
-	return getPluginParamEnvs(envVars, q.ApplicationSource.Plugin, creds)
+	return getPluginParamEnvs(envVars, q.ApplicationSource.Plugin)
 }
 
 // getPluginParamEnvs gets environment variables for plugin parameter announcement generation.
-func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlugin, creds git.Creds) ([]string, error) {
+func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlugin) ([]string, error) {
 	env := envVars
-	if creds != nil {
-		closer, environ, err := creds.Environ()
-		if err != nil {
-			return nil, err
-		}
-		defer func() { _ = closer.Close() }()
-		env = append(env, environ...)
-	}
 
 	parsedEnv := make(v1alpha1.Env, len(env))
 	for i, v := range env {
@@ -1857,9 +1849,9 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	return env, nil
 }
 
-func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, tarDoneCh chan<- bool, tarExcludedGlobs []string) ([]*unstructured.Unstructured, error) {
 	// compute variables.
-	env, err := getPluginEnvs(envVars, q, creds)
+	env, err := getPluginEnvs(envVars, q)
 	if err != nil {
 		return nil, err
 	}
@@ -2101,8 +2093,6 @@ func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apicl
 func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, appPath string, repoPath string, q *apiclient.RepoServerAppDetailsQuery, store git.CredsStore, tarExcludedGlobs []string) error {
 	res.Plugin = &apiclient.PluginAppSpec{}
 
-	creds := q.Repo.GetGitCreds(store)
-
 	envVars := []string{
 		fmt.Sprintf("ARGOCD_APP_NAME=%s", q.AppName),
 		fmt.Sprintf("ARGOCD_APP_SOURCE_REPO_URL=%s", q.Repo.Repo),
@@ -2110,7 +2100,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 		fmt.Sprintf("ARGOCD_APP_SOURCE_TARGET_REVISION=%s", q.Source.TargetRevision),
 	}
 
-	env, err := getPluginParamEnvs(envVars, q.Source.Plugin, creds)
+	env, err := getPluginParamEnvs(envVars, q.Source.Plugin)
 	if err != nil {
 		return fmt.Errorf("failed to get env vars for plugin: %w", err)
 	}
