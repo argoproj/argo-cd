@@ -38,6 +38,7 @@ nav:
     - operator-manual/user-management/keycloak.md
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/google.md
+    - operator-manual/user-management/zitadel.md
     - operator-manual/rbac.md
   - Security:
     - Overview: operator-manual/security.md
