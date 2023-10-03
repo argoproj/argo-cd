@@ -6055,6 +6055,30 @@
         }
       }
     },
+    "v1alpha1ApplicationSetResourceIgnoreDifferences": {
+      "description": "ApplicationSetResourceIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live\napplications when applying changes from generated applications.",
+      "type": "object",
+      "properties": {
+        "jqPathExpressions": {
+          "description": "JQPathExpressions is a list of JQ path expressions to fields to ignore differences for.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "jsonPointers": {
+          "description": "JSONPointers is a list of JSON pointers to fields to ignore differences for.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1ApplicationSetRolloutStep": {
       "type": "object",
       "properties": {
@@ -6101,6 +6125,12 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        },
+        "ignoreApplicationDifferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSetResourceIgnoreDifferences"
           }
         },
         "preservedFields": {
@@ -6392,6 +6422,13 @@
         "namespace": {
           "type": "string",
           "title": "Namespace sets the namespace that Kustomize adds to all resources"
+        },
+        "patches": {
+          "type": "array",
+          "title": "Patches is a list of Kustomize patches",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KustomizePatch"
+          }
         },
         "replicas": {
           "type": "array",
@@ -7265,6 +7302,20 @@
         }
       }
     },
+    "v1alpha1KustomizeGvk": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1KustomizeOptions": {
       "type": "object",
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
@@ -7279,6 +7330,26 @@
         }
       }
     },
+    "v1alpha1KustomizePatch": {
+      "type": "object",
+      "properties": {
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "patch": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/definitions/v1alpha1KustomizeSelector"
+        }
+      }
+    },
     "v1alpha1KustomizeReplica": {
       "type": "object",
       "properties": {
@@ -7288,6 +7359,34 @@
         "name": {
           "type": "string",
           "title": "Name of Deployment or StatefulSet"
+        }
+      }
+    },
+    "v1alpha1KustomizeResId": {
+      "type": "object",
+      "properties": {
+        "gvk": {
+          "$ref": "#/definitions/v1alpha1KustomizeGvk"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1KustomizeSelector": {
+      "type": "object",
+      "properties": {
+        "annotationSelector": {
+          "type": "string"
+        },
+        "labelSelector": {
+          "type": "string"
+        },
+        "resId": {
+          "$ref": "#/definitions/v1alpha1KustomizeResId"
         }
       }
     },
