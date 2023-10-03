@@ -1,3 +1,5 @@
+# `argocd admin cluster namespaces enable-namespaced-mode` Command Reference
+
 ## argocd admin cluster namespaces enable-namespaced-mode
 
 Enable namespaced mode for clusters which name matches to the specified pattern.

@@ -1,3 +1,5 @@
+# `argocd proj allow-namespace-resource` Command Reference
+
 ## argocd proj allow-namespace-resource
 
 Removes a namespaced API resource from the deny list or add a namespaced API resource to the allow list

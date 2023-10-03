@@ -1,3 +1,5 @@
+# `argocd proj add-orphaned-ignore` Command Reference
+
 ## argocd proj add-orphaned-ignore
 
 Add a resource to orphaned ignore list

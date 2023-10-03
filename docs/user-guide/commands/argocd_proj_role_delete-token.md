@@ -1,3 +1,5 @@
+# `argocd proj role delete-token` Command Reference
+
 ## argocd proj role delete-token
 
 Delete a project token

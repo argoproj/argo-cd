@@ -7,6 +7,7 @@ Currently, the following organizations are **officially** using Argo CD:
 
 1. [127Labs](https://127labs.com/)
 1. [3Rein](https://www.3rein.com/)
+1. [4data](https://4data.ch/)
 1. [7shifts](https://www.7shifts.com/)
 1. [Adevinta](https://www.adevinta.com/)
 1. [Adfinis](https://adfinis.com)
@@ -168,6 +169,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Meican](https://meican.com/)
 1. [Meilleurs Agents](https://www.meilleursagents.com/)
 1. [Mercedes-Benz Tech Innovation](https://www.mercedes-benz-techinnovation.com/)
+1. [Mercedes-Benz.io](https://www.mercedes-benz.io/)
 1. [Metanet](http://www.metanet.co.kr/en/)
 1. [MindSpore](https://mindspore.cn)
 1. [Mirantis](https://mirantis.com/)
