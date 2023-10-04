@@ -131,23 +131,23 @@ export const ApplicationsTable = (props: {
                                             </div>
                                             )}
                                             <div className='columns small-2'>
-                                                {isApp(app) && <AppUtils.HealthStatusIcon state={(app as Application).status.health} />} {isApp(app) && <span>{(app as Application).status.health.status}</span>} {isApp(app) &&  <br />}
-                                                {!isApp(app) && <AppUtils.AppSetHealthStatusIcon state={(app as ApplicationSet).status} />} {!isApp(app) && <span>{getAppSetHealthStatus((app as ApplicationSet).status)}</span>} {!isApp(app) &&  <br />}
+                                                {isApp(app) && <AppUtils.HealthStatusIcon state={(app as Application).status.health} />} {isApp(app) && <span>{(app as Application).status.health.status}</span>} {isApp(app) && <br />}
+                                                {!isApp(app) && <AppUtils.AppSetHealthStatusIcon state={(app as ApplicationSet).status} />} {!isApp(app) && <span>{getAppSetHealthStatus((app as ApplicationSet).status)}</span>} {!isApp(app) && <br />}
                                                 {isApp(app) && <AppUtils.ComparisonStatusIcon status={(app as Application).status.sync.status} />}
                                                 {isApp(app) && <span>{(app as Application).status.sync.status}</span>} {isApp(app) && <OperationState app={(app as Application)} quiet={true} />}
-                                                <DropDownMenu
+                                                {isApp(app) && <DropDownMenu
                                                     anchor={() => (
                                                         <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                                             <i className='fa fa-ellipsis-v' />
                                                         </button>
                                                     )}
-                                                    items={isApp(app) ? [
+                                                    items={[
                                                         { title: 'Sync', action: () => props.syncApplication(app.metadata.name, app.metadata.namespace) },
                                                         { title: 'Refresh', action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace) },
                                                         { title: 'Delete', action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace) }
-                                                    ] :
-                                                    [{ title: 'Delete', action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace) }]}
+                                                    ]}
                                                 />
+                                                }
                                             </div>
                                         </div>
                                     </div>

@@ -836,11 +836,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ ap
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='AppSet Details' />,
                 action: () => this.selectNode(fullName)
-            },
-            {
-                iconClassName: 'fa fa-times-circle',
-                title: <ActionMenuItem actionLabel='Delete' />,
-                action: () => this.deleteApplication()
             }
         ];
     }
