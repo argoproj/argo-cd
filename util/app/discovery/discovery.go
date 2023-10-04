@@ -66,28 +66,10 @@ func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManif
 		}
 
 		if (strings.HasSuffix(base, ".yaml") || strings.HasSuffix(base, ".yml")) && IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeDirectory, enableGenerateManifests) {
-			f, err := os.Open(path)
+			err := IsK8sDirectory(apps, dir, path, appPath)
 			if err != nil {
-				log.Errorf("failed to open %s: %v", path, err)
-			}
-			defer f.Close()
-
-			decoder := yaml.NewDecoder(f)
-			obj := make(map[string]interface{})
-			err = decoder.Decode(&obj)
-			if err != nil {
-				log.Errorf("failed to decode %s: %v", path, err)
-			} else {
-				if obj["kind"] != nil && obj["apiVersion"] != nil && obj["metadata"] != nil {
-					// if plain manifest for type Directory is inside 'templates' dir in helm app, we should not consider it as type 'Directory'
-					// ex. if current dir is dir1/templates , dir1 will be checked first for helm app and later, dir1/templates must not be considered
-					parentDir, _ := filepath.Rel(appPath, filepath.Dir(filepath.Dir(path)))
-
-					// helm and kustomize directory discovery must override plain directory discovery
-					if apps[dir] != string(v1alpha1.ApplicationSourceTypeKustomize) && apps[dir] != string(v1alpha1.ApplicationSourceTypeHelm) && apps[parentDir] != string(v1alpha1.ApplicationSourceTypeHelm) {
-						apps[dir] = string(v1alpha1.ApplicationSourceTypeDirectory)
-					}
-				}
+				log.Errorf("error checking if %s is a k8s directory: %v", dir, err)
+				return nil
 			}
 		}
 		return nil
@@ -216,4 +198,36 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 		return nil, nil, false
 	}
 	return conn, cmpClient, true
+}
+
+func IsK8sDirectory(apps map[string]string, dir, path, appPath string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		log.Errorf("failed to open %s: %v", path, err)
+		return err
+	}
+	defer f.Close()
+
+	decoder := yaml.NewDecoder(f)
+	obj := make(map[string]interface{})
+	err = decoder.Decode(&obj)
+	if err != nil {
+		log.Errorf("failed to decode %s: %v", path, err)
+		return err
+	}
+
+	if obj["kind"] != nil && obj["apiVersion"] != nil && obj["metadata"] != nil {
+		// if plain manifest for type Directory is inside 'templates' dir in helm app, we should not consider it as type 'Directory'
+		// ex. if current dir is dir1/templates , dir1 will be checked first for helm app and later, dir1/templates must not be considered
+		parentDir, err := filepath.Rel(appPath, filepath.Dir(filepath.Dir(path)))
+		if err != nil {
+			log.Errorf("failed to get parent dir for %s: %v", path, err)
+			return err
+		}
+		// helm and kustomize directory discovery must override plain directory discovery
+		if apps[dir] != string(v1alpha1.ApplicationSourceTypeKustomize) && apps[dir] != string(v1alpha1.ApplicationSourceTypeHelm) && apps[parentDir] != string(v1alpha1.ApplicationSourceTypeHelm) {
+			apps[dir] = string(v1alpha1.ApplicationSourceTypeDirectory)
+		}
+	}
+	return nil
 }
