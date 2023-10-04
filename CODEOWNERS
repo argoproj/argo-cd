@@ -2,7 +2,8 @@
 ** @argoproj/argocd-approvers
 
 # Docs
-/docs/** /USERS.md @argoproj/argocd-approvers @argoproj/argocd-approvers-docs
+/docs/**  @argoproj/argocd-approvers @argoproj/argocd-approvers-docs
+/USERS.md @argoproj/argocd-approvers @argoproj/argocd-approvers-docs
 
 # CI
 /.github/**       @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
