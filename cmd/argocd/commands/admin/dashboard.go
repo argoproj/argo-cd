@@ -28,7 +28,7 @@ func NewDashboardCommand() *cobra.Command {
 
 			compression, err := cache.CompressionTypeFromString(compressionStr)
 			errors.CheckError(err)
-			errors.CheckError(headless.StartLocalServer(ctx, &argocdclient.ClientOptions{Core: true}, initialize.RetrieveContextIfChanged(cmd.Flag("context")), &port, &address, compression))
+			errors.CheckError(headless.MaybeStartLocalServer(ctx, &argocdclient.ClientOptions{Core: true}, initialize.RetrieveContextIfChanged(cmd.Flag("context")), &port, &address, compression))
 			println(fmt.Sprintf("Argo CD UI is available at http://%s:%d", address, port))
 			<-ctx.Done()
 		},
