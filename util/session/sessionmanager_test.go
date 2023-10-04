@@ -395,6 +395,7 @@ func TestUsername(t *testing.T) {
 		{
 			name: "Should returns username if context is logged in and username is set",
 			args: args{
+				// nolint:staticcheck
 				ctx: context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "name": "baz"}),
 			},
 			want: "baz",
@@ -402,6 +403,7 @@ func TestUsername(t *testing.T) {
 		{
 			name: "Should returns username if context is logged in and env var is set",
 			args: args{
+				// nolint:staticcheck
 				ctx: context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "name": "baz", "preferred_username": "qux"}),
 			},
 			want: "qux",
