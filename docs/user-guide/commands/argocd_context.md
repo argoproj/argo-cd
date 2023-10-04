@@ -8,6 +8,18 @@ Switch between contexts
 argocd context [CONTEXT] [flags]
 ```
 
+### Examples
+
+```
+To switch to Argo CD context : 
+argocd context YOUR_CONTEXT
+
+To delete the Argo CD context : 
+argocd context YOUR_CONTEXT --delete
+
+```
+
+
 ### Options
 
 ```
