@@ -14,8 +14,11 @@ Argo CD administrators can define a certain set of namespaces where `Application
 Some manual steps will need to be performed by the Argo CD administrator in order to enable this feature. 
 
 !!! note
-    This feature is considered beta as of now. Some of the implementation details may change over the course of time until it is promoted to a stable status. We will be happy if early adopters use this feature and provide us with bug reports and feedback.
-    
+    This feature is considered beta as of now. Some of the implementation details may change over the course of time until it is promoted to a stable status. We will be happy if early adopters use this feature and provide us with bug reports and feedback.  
+    One additional advantage of adopting applications in any namespace is to allow end-sers to configure notifications for their Argo CD application in the namespace where Argo CD application is running in. See notifications [namespace based configuration](notifications/index.md#namespace-based-configuration) page for more information.
+
+
+        
 ## Prerequisites
 
 ### Cluster-scoped Argo CD installation

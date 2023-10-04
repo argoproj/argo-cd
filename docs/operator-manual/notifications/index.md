@@ -55,9 +55,52 @@ A common installation method for Argo CD Notifications is to install it in a ded
 person who can configure notifications in that namespace generally. However, in some cases, it is required to allow end-users to configure notifications
 for their Argo CD applications. For example, the end-user can configure notifications for their Argo CD application in the namespace where they have access to and their Argo CD application is running in.
 
-To use this feature all you need to do is create the same configmap named `argo-rollouts-notification-configmap` and possibly
-a secret `argo-rollouts-notification-secret` in the namespace where the Argo CD application lives. When it is configured this way the controller
-will send notifications using both the controller level configuration (the configmap located in the same namespaces as the controller) as well as
-the configmap located in the same namespaces where the rollout object is at.
+This feature is based on applications in any namespace. See [applications in any namespace](../app-any-namespace.md) page for more information.
 
-To enable you need to add a flag to the controller `--self-service-notification-enabled`
+In order to enable this feature, the Argo CD administrator must reconfigure the argocd-notification-controller workloads to add  `--application-namespaces` and `--self-service-notification-enabled` parameters to the container's startup command.
+
+The startup parameters for both can also be conveniently set up and kept in sync by specifying 
+the `application.namespaces` and `notificationscontroller.selfservice.enabled` in the argocd-cmd-params-cm ConfigMap instead of changing the manifests for the respective workloads. For example:
+
+```yaml
+data:
+  application.namespaces: app-team-one, app-team-two
+  notificationscontroller.selfservice.enabled: true
+```
+
+To use this feature, you can deploy configmap named `argocd-notifications-cm` and possibly a secret `argocd-notifications-secret` in the namespace where the Argo CD application lives. 
+
+When it is configured this way the controller will send notifications using both the controller level configuration (the configmap located in the same namespaces as the controller) as well as
+the configuration located in the same namespace where the Argo CD application is at.
+
+Example: Application team wants to receive notifications using PagerDutyV2, when the controller level configuration is only supporting Slack.
+
+Below configuration to use `slack` as notification service is deployed in controller namespace:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+data:
+  service.slack: |
+    token: $slacktoken
+...
+```
+Below configuration to use `pagerDutyV2` as notification service is deployed in application namespace:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+data:
+  service.pagerdutyv2: |
+    serviceKeys:
+...
+```
+An Argo CD application has the following subscriptions.
+```yaml
+    notifications.argoproj.io/subscribe.on-sync-succeeded.pagerdutyv2: <pager duty service id>
+```
+When application sync is successful, notification is sent to `pagerDutyV2`
+
+

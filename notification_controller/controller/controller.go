@@ -79,28 +79,26 @@ func NewController(
 		appProjInformer:   appProjInformer,
 		apiFactory:        apiFactory}
 
+	skipProcessingOpt := controller.WithSkipProcessing(func(obj v1.Object) (bool, string) {
+		app, ok := (obj).(*unstructured.Unstructured)
+		if !ok {
+			return false, ""
+		}
+		return !isAppSyncStatusRefreshed(app, log.WithField("app", obj.GetName())), "sync status out of date"
+	})
+	metricsRegistryOpt := controller.WithMetricsRegistry(registry)
+	alterDestinationsOpt := controller.WithAlterDestinations(res.alterDestinations)
+
 	if !selfServiceNotificationEnabled {
 		res.ctrl = controller.NewController(appClient, appInformer, apiFactory,
-			controller.WithSkipProcessing(func(obj v1.Object) (bool, string) {
-				app, ok := (obj).(*unstructured.Unstructured)
-				if !ok {
-					return false, ""
-				}
-				return !isAppSyncStatusRefreshed(app, log.WithField("app", obj.GetName())), "sync status out of date"
-			}),
-			controller.WithMetricsRegistry(registry),
-			controller.WithAlterDestinations(res.alterDestinations))
+			skipProcessingOpt,
+			metricsRegistryOpt,
+			alterDestinationsOpt)
 	} else {
 		res.ctrl = controller.NewControllerWithNamespaceSupport(appClient, appInformer, apiFactory,
-			controller.WithSkipProcessing(func(obj v1.Object) (bool, string) {
-				app, ok := (obj).(*unstructured.Unstructured)
-				if !ok {
-					return false, ""
-				}
-				return !isAppSyncStatusRefreshed(app, log.WithField("app", obj.GetName())), "sync status out of date"
-			}),
-			controller.WithMetricsRegistry(registry),
-			controller.WithAlterDestinations(res.alterDestinations))
+			skipProcessingOpt,
+			metricsRegistryOpt,
+			alterDestinationsOpt)
 	}
 	return res
 }
