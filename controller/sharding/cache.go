@@ -50,20 +50,20 @@ func NewClusterSharding(db db.ArgoDB, shard, replicas int, shardingAlgorithm str
 }
 
 // IsManagedCluster returns wheter or not the cluster should be processed by a given shard.
-func (sharding *clusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
-	sharding.lock.RLock()
-	defer sharding.lock.RUnlock()
+func (s *clusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 	if c == nil { // nil cluster (in-cluster) is always managed by current clusterShard
 		return true
 	}
 	clusterShard := 0
-	if shard, ok := sharding.shards[c.Server]; ok {
+	if shard, ok := s.shards[c.Server]; ok {
 		clusterShard = shard
 	} else {
 		log.Warnf("The cluster %s has no assigned shard.", c.Server)
 	}
-	log.Debugf("Checking if cluster %s with clusterShard %d should be processed by shard %d", c.Server, clusterShard, sharding.shard)
-	return clusterShard == sharding.shard
+	log.Debugf("Checking if cluster %s with clusterShard %d should be processed by shard %d", c.Server, clusterShard, s.shard)
+	return clusterShard == s.shard
 	// If the clusterShard is never equal to sharding.shard accross all shards, we should check that a shard infered
 	// from hostname with value 0 exists
 }
