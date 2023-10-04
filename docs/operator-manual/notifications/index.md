@@ -1,4 +1,4 @@
-# Overview
+# Notifications Overview
 
 Argo CD Notifications continuously monitors Argo CD applications and provides a flexible way to notify
 users about important changes in the application state. Using a flexible mechanism of

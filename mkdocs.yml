@@ -13,6 +13,7 @@ markdown_extensions:
 - admonition
 - toc:
     permalink: true
+- pymdownx.superfences
 nav:
 - Overview: index.md
 - understand_the_basics.md
