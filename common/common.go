@@ -12,6 +12,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Component names
+const (
+	ApplicationController = "argocd-application-controller"
+)
+
 // Default service addresses and URLS of Argo CD internal services
 const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
@@ -34,6 +39,8 @@ const (
 	// ArgoCDTLSCertsConfigMapName contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDTLSCertsConfigMapName = "argocd-tls-certs-cm"
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
+	// ArgoCDAppControllerShardConfigMapName contains the application controller to shard mapping
+	ArgoCDAppControllerShardConfigMapName = "argocd-app-controller-shard-cm"
 )
 
 // Some default configurables
@@ -109,6 +116,8 @@ const (
 	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
 	RoundRobinShardingAlgorithm = "round-robin"
 	DefaultShardingAlgorithm    = LegacyShardingAlgorithm
+	// AppControllerHeartbeatUpdateRetryCount is the retry count for updating the Shard Mapping to the Shard Mapping ConfigMap used by Application Controller
+	AppControllerHeartbeatUpdateRetryCount = 3
 )
 
 // Dex related constants
@@ -138,6 +147,8 @@ const (
 	// LabelKeyAppInstance is the label key to use to uniquely identify the instance of an application
 	// The Argo CD application name is used as the instance name
 	LabelKeyAppInstance = "app.kubernetes.io/instance"
+	// LabelKeyAppName is the label key to use to uniquely identify the name of the Kubernetes application
+	LabelKeyAppName = "app.kubernetes.io/name"
 	// LabelKeyLegacyApplicationName is the legacy label (v0.10 and below) and is superseded by 'app.kubernetes.io/instance'
 	LabelKeyLegacyApplicationName = "applications.argoproj.io/app-name"
 	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster', 'repository', 'repo-config' or 'repo-creds')
@@ -207,10 +218,14 @@ const (
 	EnvPauseGenerationRequests = "ARGOCD_PAUSE_GEN_REQUESTS"
 	// EnvControllerReplicas is the number of controller replicas
 	EnvControllerReplicas = "ARGOCD_CONTROLLER_REPLICAS"
+	// EnvControllerHeartbeatTime will update the heartbeat for application controller to claim shard
+	EnvControllerHeartbeatTime = "ARGOCD_CONTROLLER_HEARTBEAT_TIME"
 	// EnvControllerShard is the shard number that should be handled by controller
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
 	// EnvControllerShardingAlgorithm is the distribution sharding algorithm to be used: legacy or round-robin
 	EnvControllerShardingAlgorithm = "ARGOCD_CONTROLLER_SHARDING_ALGORITHM"
+	//EnvEnableDynamicClusterDistribution enables dynamic sharding (ALPHA)
+	EnvEnableDynamicClusterDistribution = "ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION"
 	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection
 	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
 	// EnvGithubAppCredsExpirationDuration controls the caching of Github app credentials. This value is in minutes (default: 60)
@@ -233,6 +248,16 @@ const (
 	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
 	// EnvGPGDataPath overrides the location where GPG keyring for signature verification is stored
 	EnvGPGDataPath = "ARGOCD_GPG_DATA_PATH"
+	// EnvServerName is the name of the Argo CD server component, as specified by the value under the LabelKeyAppName label key.
+	EnvServerName = "ARGOCD_SERVER_NAME"
+	// EnvRepoServerName is the name of the Argo CD repo server component, as specified by the value under the LabelKeyAppName label key.
+	EnvRepoServerName = "ARGOCD_REPO_SERVER_NAME"
+	// EnvAppControllerName is the name of the Argo CD application controller component, as specified by the value under the LabelKeyAppName label key.
+	EnvAppControllerName = "ARGOCD_APPLICATION_CONTROLLER_NAME"
+	// EnvRedisName is the name of the Argo CD redis component, as specified by the value under the LabelKeyAppName label key.
+	EnvRedisName = "ARGOCD_REDIS_NAME"
+	// EnvRedisHaProxyName is the name of the Argo CD Redis HA proxy component, as specified by the value under the LabelKeyAppName label key.
+	EnvRedisHaProxyName = "ARGOCD_REDIS_HAPROXY_NAME"
 )
 
 // Config Management Plugin related constants
@@ -266,6 +291,16 @@ const (
 	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
 	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s
 	DefaultGitRetryFactor                    = int64(2)
+)
+
+// Constants represent the pod selector labels of the Argo CD component names. These values are determined by the
+// installation manifests.
+const (
+	DefaultServerName                = "argocd-server"
+	DefaultRepoServerName            = "argocd-repo-server"
+	DefaultApplicationControllerName = "argocd-application-controller"
+	DefaultRedisName                 = "argocd-redis"
+	DefaultRedisHaProxyName          = "argocd-redis-ha-haproxy"
 )
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value

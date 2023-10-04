@@ -123,11 +123,11 @@ func tlsVersionsToStr(versions []uint16) []string {
 func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) (ConfigCustomizer, error) {
 	minVersion, err := getTLSVersionByString(minVersionStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving TLS version by min version %q: %w", minVersionStr, err)
 	}
 	maxVersion, err := getTLSVersionByString(maxVersionStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving TLS version by max version %q: %w", maxVersionStr, err)
 	}
 	if minVersion > maxVersion {
 		return nil, fmt.Errorf("Minimum TLS version %s must not be higher than maximum TLS version %s", minVersionStr, maxVersionStr)
@@ -153,7 +153,7 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 	if tlsCiphersStr != "" {
 		cipherSuites, err = getTLSCipherSuitesByString(tlsCiphersStr)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error retrieving TLS cipher suites: %w", err)
 		}
 	} else {
 		cipherSuites = make([]uint16, 0)

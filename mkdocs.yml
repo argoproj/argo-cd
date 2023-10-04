@@ -26,6 +26,9 @@ nav:
   - operator-manual/declarative-setup.md
   - operator-manual/app-any-namespace.md
   - operator-manual/ingress.md
+  - High Availability:
+    - Overview: operator-manual/high_availability.md
+    - Dynamic Cluster Distribution: operator-manual/dynamic-cluster-distribution.md
   - User Management:
     - operator-manual/user-management/index.md
     - operator-manual/user-management/auth0.md
@@ -35,6 +38,7 @@ nav:
     - operator-manual/user-management/keycloak.md
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/google.md
+    - operator-manual/user-management/zitadel.md
     - operator-manual/rbac.md
   - Security:
     - Overview: operator-manual/security.md
@@ -44,7 +48,6 @@ nav:
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
   - operator-manual/disaster_recovery.md
-  - operator-manual/high_availability.md
   - operator-manual/reconcile.md
   - operator-manual/webhook.md
   - operator-manual/health.md
@@ -69,6 +72,7 @@ nav:
     - operator-manual/notifications/troubleshooting-errors.md
     - Notification Services:
       - operator-manual/notifications/services/alertmanager.md
+      - operator-manual/notifications/services/awssqs.md
       - operator-manual/notifications/services/email.md
       - operator-manual/notifications/services/github.md
       - operator-manual/notifications/services/googlechat.md
@@ -167,6 +171,7 @@ nav:
   - user-guide/selective_sync.md
   - user-guide/sync-waves.md
   - user-guide/sync_windows.md
+  - user-guide/sync-kubectl.md
   - user-guide/skip_reconcile.md
   - Generating Applications with ApplicationSet: user-guide/application-set.md
   - user-guide/ci_automation.md
@@ -176,6 +181,7 @@ nav:
   - user-guide/external-url.md
   - user-guide/extra_info.md
   - Notification subscriptions: user-guide/subscriptions.md
+  - user-guide/annotations-and-labels.md
   - Command Reference: user-guide/commands/argocd.md
   - Application Specification Reference: user-guide/application-specification.md
 - Developer Guide:
