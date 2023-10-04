@@ -73,7 +73,7 @@ func (svc *argoCDService) getKustomizeOptions(source *v1alpha1.ApplicationSource
 	if err != nil {
 		return nil, err
 	}
-	return kustomizeSettings.GetOptions(*source)
+	return kustomizeSettings.GetOptions(*source, svc.settingsMgr.GetKustomizeSetNamespaceEnabled())
 }
 
 func (svc *argoCDService) GetAppDetails(ctx context.Context, appSource *v1alpha1.ApplicationSource) (*shared.AppDetail, error) {

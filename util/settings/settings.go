@@ -113,6 +113,8 @@ type ArgoCDSettings struct {
 	// ExtensionConfig configurations related to ArgoCD proxy extensions. The value
 	// is a yaml string defined in extension.ExtensionConfigs struct.
 	ExtensionConfig string `json:"extensionConfig,omitempty"`
+	// KustomizeSetNamespaceEnabled enable set namespace for kustomize by default
+	KustomizeSetNamespaceEnabled bool `json:"kustomizeSetNamespaceEnabled"`
 }
 
 type GoogleAnalytics struct {
@@ -257,7 +259,7 @@ var (
 	}
 )
 
-func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1alpha1.KustomizeOptions, error) {
+func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource, setNamespace bool) (*v1alpha1.KustomizeOptions, error) {
 	binaryPath := ""
 	buildOptions := ""
 	if source.Kustomize != nil && source.Kustomize.Version != "" {
@@ -279,6 +281,7 @@ func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1a
 	return &v1alpha1.KustomizeOptions{
 		BuildOptions: buildOptions,
 		BinaryPath:   binaryPath,
+		SetNamespace: setNamespace,
 	}, nil
 }
 
@@ -482,6 +485,8 @@ const (
 	// ResourceDeepLinks is the resource deep link key
 	ResourceDeepLinks = "resource.links"
 	extensionConfig   = "extension.config"
+	// kustomizeSetNamespaceEnabledKey is the key to configure if kustomize set namespace should be executed
+	kustomizeSetNamespaceEnabledKey = "kustomize.setNamespace.enabled"
 )
 
 var (
@@ -713,6 +718,19 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 		return common.LabelKeyAppInstance, nil
 	}
 	return label, nil
+}
+
+func (mgr *SettingsManager) GetKustomizeSetNamespaceEnabled() bool {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return true
+	}
+	kustomizeSetNamespaceEnabled := argoCDCM.Data[kustomizeSetNamespaceEnabledKey]
+	if kustomizeSetNamespaceEnabled == "" {
+		// enabled by default because it is a breaking change to disable it
+		return true
+	}
+	return kustomizeSetNamespaceEnabled == "true"
 }
 
 func (mgr *SettingsManager) GetTrackingMethod() (string, error) {
@@ -1406,6 +1424,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	}
 	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
 	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
+
 	execShells := argoCDCM.Data[execShellsKey]
 	if execShells != "" {
 		settings.ExecShells = strings.Split(execShells, ",")

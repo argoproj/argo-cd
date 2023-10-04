@@ -1066,6 +1066,8 @@ message KustomizeOptions {
 
   // BinaryPath holds optional path to kustomize binary
   optional string binaryPath = 2;
+
+  optional bool setNamespace = 3;
 }
 
 message KustomizeReplica {

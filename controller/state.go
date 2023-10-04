@@ -173,7 +173,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 		}
-		kustomizeOptions, err := kustomizeSettings.GetOptions(source)
+		kustomizeOptions, err := kustomizeSettings.GetOptions(source, m.settingsMgr.GetKustomizeSetNamespaceEnabled())
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get Kustomize options for source %d of %d: %w", i+1, len(sources), err)
 		}

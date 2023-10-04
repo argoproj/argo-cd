@@ -124,7 +124,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 	env = append(env, environ...)
 
-	if namespace != "" {
+	if kustomizeOptions != nil && kustomizeOptions.SetNamespace && namespace != "" {
 		cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namespace", "--", namespace)
 		cmd.Dir = k.path
 		_, err := executil.Run(cmd)

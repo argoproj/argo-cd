@@ -7500,6 +7500,9 @@
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
+        },
+        "setNamespace": {
+          "type": "boolean"
         }
       }
     },

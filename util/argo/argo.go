@@ -739,7 +739,7 @@ func verifyGenerateManifests(
 			})
 			continue
 		}
-		kustomizeOptions, err := kustomizeSettings.GetOptions(source)
+		kustomizeOptions, err := kustomizeSettings.GetOptions(source, settingsMgr.GetKustomizeSetNamespaceEnabled())
 		if err != nil {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,

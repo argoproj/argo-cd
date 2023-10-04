@@ -397,7 +397,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, acti
 	if err != nil {
 		return fmt.Errorf("error getting kustomize settings: %w", err)
 	}
-	kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
+	kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource(), s.settingsMgr.GetKustomizeSetNamespaceEnabled())
 	if err != nil {
 		return fmt.Errorf("error getting kustomize settings options: %w", err)
 	}

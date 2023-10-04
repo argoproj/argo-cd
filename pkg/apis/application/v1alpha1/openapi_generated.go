@@ -3793,8 +3793,15 @@ func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceC
 							Format:      "",
 						},
 					},
+					"SetNamespace": {
+						SchemaProps: spec.SchemaProps{
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
+						},
+					},
 				},
-				Required: []string{"BuildOptions", "BinaryPath"},
+				Required: []string{"BuildOptions", "BinaryPath", "SetNamespace"},
 			},
 		},
 	}

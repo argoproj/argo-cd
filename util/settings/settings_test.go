@@ -723,12 +723,12 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 
 	t.Run("VersionDoesNotExist", func(t *testing.T) {
 		_, err := settings.GetOptions(v1alpha1.ApplicationSource{
-			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"}})
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"}}, true)
 		assert.Error(t, err)
 	})
 
 	t.Run("DefaultBuildOptions", func(t *testing.T) {
-		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{})
+		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{}, true)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -738,7 +738,7 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 
 	t.Run("VersionExists", func(t *testing.T) {
 		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
-			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"}})
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"}}, true)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -748,7 +748,7 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 
 	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
 		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
-			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"}})
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"}}, true)
 		if !assert.NoError(t, err) {
 			return
 		}

@@ -330,7 +330,7 @@ func TestValidateRepo(t *testing.T) {
 		GroupKind:            schema.GroupKind{Kind: "Deployment"},
 	}}
 	kubeVersion := "v1.16"
-	kustomizeOptions := &argoappv1.KustomizeOptions{BuildOptions: ""}
+	kustomizeOptions := &argoappv1.KustomizeOptions{BuildOptions: "", SetNamespace: true}
 	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", repoPath)}
 	cluster := &argoappv1.Cluster{Server: "sample server"}
 	app := &argoappv1.Application{
