@@ -30,9 +30,9 @@ func NewGitlabProvider(ctx context.Context, organization string, token string, u
 	}
 	var client *gitlab.Client
 
-	tr := &http.Transport{
-		TLSClientConfig: utils.GetTlsConfig(scmRootCAPath, insecure),
-	}
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure)
+
 	retryClient := retryablehttp.NewClient()
 	retryClient.HTTPClient.Transport = tr
 

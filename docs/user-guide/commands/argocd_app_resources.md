@@ -1,3 +1,5 @@
+# `argocd app resources` Command Reference
+
 ## argocd app resources
 
 List resource of application
@@ -9,8 +11,9 @@ argocd app resources APPNAME [flags]
 ### Options
 
 ```
-  -h, --help       help for resources
-      --orphaned   Lists only orphaned resources
+  -h, --help            help for resources
+      --orphaned        Lists only orphaned resources
+      --output string   Provides the tree view of the resources
 ```
 
 ### Options inherited from parent commands

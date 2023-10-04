@@ -1,3 +1,5 @@
+# `argocd admin cluster kubeconfig` Command Reference
+
 ## argocd admin cluster kubeconfig
 
 Generates kubeconfig for the specified cluster

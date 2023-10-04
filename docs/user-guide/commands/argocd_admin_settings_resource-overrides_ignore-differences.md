@@ -1,3 +1,5 @@
+# `argocd admin settings resource-overrides ignore-differences` Command Reference
+
 ## argocd admin settings resource-overrides ignore-differences
 
 Renders fields excluded from diffing
