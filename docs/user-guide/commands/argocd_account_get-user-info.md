@@ -8,6 +8,16 @@ Get user info
 argocd account get-user-info [flags]
 ```
 
+### Examples
+
+```
+  # Get User information
+  argocd account get-user-info
+  
+  # Get User information in yaml format
+  argocd account get-user-info -o yaml
+```
+
 ### Options
 
 ```
