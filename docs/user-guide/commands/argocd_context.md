@@ -11,14 +11,15 @@ argocd context [CONTEXT] [flags]
 ### Examples
 
 ```
-To switch to Argo CD context : 
-argocd context YOUR_CONTEXT
+# List Argo CD Contexts
+argocd context
 
-To delete the Argo CD context : 
-argocd context YOUR_CONTEXT --delete
+# Switch Argo CD context
+argocd context cd.argoproj.io
 
+# Delete Argo CD context
+argocd context cd.argoproj.io --delete
 ```
-
 
 ### Options
 
