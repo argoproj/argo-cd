@@ -4,4 +4,4 @@ markdown_include==0.6.0
 pygments==2.15.0
 jinja2==3.0.3
 markdown==3.3.7
-pymdown-extensions==10.3
+pymdown-extensions==10.2.1
