@@ -60,7 +60,7 @@ nav:
   - operator-manual/web_based_terminal.md
   - operator-manual/config-management-plugins.md
   - operator-manual/deep_links.md
-  - Notification:
+  - Notifications:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md
     - operator-manual/notifications/templates.md
