@@ -29,13 +29,13 @@ func SanitizeName(name string) string {
 // always return a string, even on marshal error (empty string).
 //
 // This is designed to be called from a template.
-func toYAML(v interface{}) string {
+func toYAML(v interface{}) (string, error) {
 	data, err := yaml.Marshal(v)
 	if err != nil {
 		// Swallow errors inside of a template.
-		return ""
+		return "", err
 	}
-	return strings.TrimSuffix(string(data), "\n")
+	return strings.TrimSuffix(string(data), "\n"), nil
 }
 
 // This has been copied from helm and may be removed as soon as it is retrofited in sprig
@@ -45,13 +45,13 @@ func toYAML(v interface{}) string {
 // YAML documents. Additionally, because its intended use is within templates
 // it tolerates errors. It will insert the returned error message string into
 // m["Error"] in the returned map.
-func fromYAML(str string) map[string]interface{} {
+func fromYAML(str string) (map[string]interface{}, error) {
 	m := map[string]interface{}{}
 
 	if err := yaml.Unmarshal([]byte(str), &m); err != nil {
-		m["Error"] = err.Error()
+		return nil, err
 	}
-	return m
+	return m, nil
 }
 
 // This has been copied from helm and may be removed as soon as it is retrofited in sprig
@@ -61,11 +61,11 @@ func fromYAML(str string) map[string]interface{} {
 // YAML documents. Additionally, because its intended use is within templates
 // it tolerates errors. It will insert the returned error message string as
 // the first and only item in the returned array.
-func fromYAMLArray(str string) []interface{} {
+func fromYAMLArray(str string) ([]interface{}, error) {
 	a := []interface{}{}
 
 	if err := yaml.Unmarshal([]byte(str), &a); err != nil {
-		a = []interface{}{err.Error()}
+		return nil, err
 	}
-	return a
+	return a, nil
 }
