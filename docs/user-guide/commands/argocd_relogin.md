@@ -12,6 +12,16 @@ Refresh an expired authenticate token
 argocd relogin [flags]
 ```
 
+### Examples
+
+```
+  # Reinitiates the login
+		argocd relogin
+	  
+		# If user logged in with - argocd login cd.argoproj.io --sso
+		# The command argocd relogin will Reinitiates SSO login and updates the server context
+```
+
 ### Options
 
 ```
