@@ -1,3 +1,5 @@
+# `argocd proj role list-tokens` Command Reference
+
 ## argocd proj role list-tokens
 
 List tokens for a given role.

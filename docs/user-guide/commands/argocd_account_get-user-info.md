@@ -1,3 +1,5 @@
+# `argocd account get-user-info` Command Reference
+
 ## argocd account get-user-info
 
 Get user info

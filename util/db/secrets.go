@@ -3,12 +3,14 @@ package db
 import (
 	"fmt"
 	"hash/fnv"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
 	"context"
+
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -155,8 +157,24 @@ func URIToSecretName(uriType, uri string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	host := parsedURI.Host
+	if strings.HasPrefix(host, "[") {
+		last := strings.Index(host, "]")
+		if last >= 0 {
+			addr, err := netip.ParseAddr(host[1:last])
+			if err != nil {
+				return "", err
+			}
+			host = strings.ReplaceAll(addr.String(), ":", "-")
+		}
+	} else {
+		last := strings.Index(host, ":")
+		if last >= 0 {
+			host = host[0:last]
+		}
+	}
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(uri))
-	host := strings.ToLower(strings.Split(parsedURI.Host, ":")[0])
+	host = strings.ToLower(host)
 	return fmt.Sprintf("%s-%s-%v", uriType, host, h.Sum32()), nil
 }

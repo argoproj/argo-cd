@@ -1,3 +1,5 @@
+# `argocd proj create` Command Reference
+
 ## argocd proj create
 
 Create a project

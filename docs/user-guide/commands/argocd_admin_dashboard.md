@@ -1,3 +1,5 @@
+# `argocd admin dashboard` Command Reference
+
 ## argocd admin dashboard
 
 Starts Argo CD Web UI locally

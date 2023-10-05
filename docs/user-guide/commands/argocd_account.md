@@ -1,3 +1,5 @@
+# `argocd account` Command Reference
+
 ## argocd account
 
 Manage account settings

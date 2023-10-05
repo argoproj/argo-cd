@@ -1,3 +1,5 @@
+# `argocd app set` Command Reference
+
 ## argocd app set
 
 Set application parameters

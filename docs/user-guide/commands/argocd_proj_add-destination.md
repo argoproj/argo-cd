@@ -1,3 +1,5 @@
+# `argocd proj add-destination` Command Reference
+
 ## argocd proj add-destination
 
 Add project destination

@@ -1,3 +1,5 @@
+# `argocd relogin` Command Reference
+
 ## argocd relogin
 
 Refresh an expired authenticate token
