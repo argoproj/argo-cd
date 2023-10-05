@@ -1221,6 +1221,7 @@ spec:
             drop:
             - ALL
           runAsNonRoot: true
+          runAsUser: 1000
           seccompProfile:
             type: RuntimeDefault
         env:
@@ -1252,6 +1253,7 @@ spec:
             drop:
             - ALL
           runAsNonRoot: true
+          runAsUser: 1000
           seccompProfile:
             type: RuntimeDefault
         livenessProbe:
@@ -1308,6 +1310,7 @@ spec:
             drop:
             - ALL
           runAsNonRoot: true
+          runAsUser: 1000
           seccompProfile:
             type: RuntimeDefault
         livenessProbe:
@@ -1358,6 +1361,7 @@ spec:
             drop:
             - ALL
           runAsNonRoot: true
+          runAsUser: 1000
           seccompProfile:
             type: RuntimeDefault
         env:
