@@ -24,7 +24,7 @@ var (
 		argocd logout --insecure
 
 		# Logout from a Specific Context
-		argocd logout my-argocd-context
+		argocd logout my-argocd-context 
 		`)
 )
 // NewLogoutCommand returns a new instance of `argocd logout` command
