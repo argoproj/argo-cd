@@ -154,7 +154,7 @@ $header: 120px;
         }
     }
 
-    @media screen and (max-width: map-get($breakpoints, xlarge)) {
+    @media screen and (max-width: map-get($breakpoints, xxlarge)) {
         .page__content-wrapper {
             min-height: calc(100vh - 3 * 50px);
         }
