@@ -158,7 +158,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 		Use:   "get-user-info",
 		Short: "Get user info",
 		Example: templates.Examples(`
-			# Get User information
+			# Get User information for the currently logged-in user (see 'argocd login')
 			argocd account get-user-info
 
 			# Get User information in yaml format
