@@ -89,7 +89,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 argocd relogin
 	  
 # If user logged in with - argocd login cd.argoproj.io --sso
-# The command "argocd relogin" will Reinitiates SSO login and updates the server context`,
+# The command - "argocd relogin" will Reinitiates SSO login and updates the server context`,
 	}
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
