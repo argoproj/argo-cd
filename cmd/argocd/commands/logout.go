@@ -10,13 +10,32 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
+var (
+		logoutExample = templates.Examples(`
+		# Basic Logout
+		argocd logout
 
+		# Logout from a Specific Server
+		argocd logout --server https://argocd-server.example.com
+
+		# Logout via Skipping Certificate Validation
+		argocd logout --insecure
+
+		# Logout from a Specific Context
+		argocd logout my-argocd-context
+		`)
+)
 // NewLogoutCommand returns a new instance of `argocd logout` command
 func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "logout CONTEXT",
 		Short: "Log out from Argo CD",
+		Example: templates.Examples(`
+		# Basic Logout from a Specific Context
+		argocd logout my-argocd-context
+		`),
 		Long:  "Log out from Argo CD",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
