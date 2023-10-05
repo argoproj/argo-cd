@@ -19239,6 +19239,21 @@ spec:
                 items:
                   type: string
                 type: array
+              ignoreApplicationDifferences:
+                items:
+                  properties:
+                    jqPathExpressions:
+                      items:
+                        type: string
+                      type: array
+                    jsonPointers:
+                      items:
+                        type: string
+                      type: array
+                    name:
+                      type: string
+                  type: object
+                type: array
               preservedFields:
                 properties:
                   annotations:
@@ -21076,6 +21091,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.allowed.scm.providers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
