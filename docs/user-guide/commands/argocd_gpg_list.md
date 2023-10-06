@@ -7,7 +7,12 @@ List configured GPG public keys
 ```
 argocd gpg list [flags]
 ```
+### Examples
 
+```
+# List all configured GPG public keys
+argocd gpg list
+```
 ### Options
 
 ```

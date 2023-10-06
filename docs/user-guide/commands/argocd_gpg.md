@@ -7,6 +7,16 @@ Manage GPG keys used for signature verification
 ```
 argocd gpg [flags]
 ```
+### Examples
+
+```
+# List GPG keys while impersonating a specific username
+argocd gpg --as my-username 
+
+# List GPG keys while impersonating a specific UID 
+argocd gpg --as-uid <UID-INT> list
+
+```
 
 ### Options
 
