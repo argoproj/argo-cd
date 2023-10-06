@@ -1,5 +1,3 @@
-# `argocd-server version` Command Reference
-
 ## argocd-server version
 
 Print version information

@@ -48,18 +48,6 @@ spec:
                 name: argocd-cmd-params-cm
                 key: reposerver.parallelism.limit
                 optional: true
-          - name: ARGOCD_REPO_SERVER_LISTEN_ADDRESS
-            valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: reposerver.listen.address
-                optional: true
-          - name: ARGOCD_REPO_SERVER_LISTEN_METRICS_ADDRESS
-            valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: reposerver.metrics.listen.address
-                optional: true
           - name: ARGOCD_REPO_SERVER_DISABLE_TLS
             valueFrom:
               configMapKeyRef:

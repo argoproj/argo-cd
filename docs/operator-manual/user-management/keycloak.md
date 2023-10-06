@@ -9,24 +9,19 @@ to determine privileges in Argo.
 ## Creating a new client in Keycloak
 
 First we need to setup a new client. Start by logging into your keycloak server, select the realm you want to use (`master` by default)
-and then go to __Clients__ and click the __Create client__ button at the top.
+and then go to __Clients__ and click the __create__ button top right.
 
 ![Keycloak add client](../../assets/keycloak-add-client.png "Keycloak add client")
 
-Enable the __Client authentication__.
+Configure the client by setting the __Access Type__ to _confidential_ and set the Valid Redirect URIs to the callback url for your ArgoCD
+hostname. It should be https://{hostname}/auth/callback (you can also leave the default less secure https://{hostname}/* ). You can also set the
+__Base URL__ to _/applications_.
 
-![Keycloak add client Step 2](../../assets/keycloak-add-client_2.png "Keycloak add client Step 2")
-
-Configure the client by setting the __Root URL__, __Web origins__, __Admin URL__ to the hostname (https://{hostname}).
-
-Also you can set __Home URL__ to your _/applications_ path and __Valid Post logout redirect URIs__ to "+".
-
-The Valid Redirect URIs should be set to https://{hostname}/auth/callback (you can also set the less secure https://{hostname}/* for testing/development purposes,
-but it's not recommended in production).
+If you want to allow command line access, __Access Type__ must be set to _public_ and you also need to add http://localhost:8085/auth/callback in the list of Valid Redirect URIs. Then users can login using `argocd login {hostname} --sso`.
 
 ![Keycloak configure client](../../assets/keycloak-configure-client.png "Keycloak configure client")
 
-Make sure to click __Save__. There should be a tab called __Credentials__. You can copy the Secret that we'll use in our ArgoCD 
+Make sure to click __Save__. You should now have a new tab called __Credentials__. You can copy the Secret that we'll use in our ArgoCD 
 configuration.
 
 ![Keycloak client secret](../../assets/keycloak-client-secret.png "Keycloak client secret")
@@ -39,17 +34,20 @@ To do this we'll start by creating a new __Client Scope__ called _groups_.
 ![Keycloak add scope](../../assets/keycloak-add-scope.png "Keycloak add scope")
 
 Once you've created the client scope you can now add a Token Mapper which will add the groups claim to the token when the client requests
-the groups scope. In the Tab "Mappers", click on "Configure a new mapper" and choose __Group Membership__.
-Make sure to set the __Name__ as well as the __Token Claim Name__ to _groups_. Also disable the "Full group path".
+the groups scope. Make sure to set the __Name__ as well as the __Token Claim Name__ to _groups_.
 
 ![Keycloak groups mapper](../../assets/keycloak-groups-mapper.png "Keycloak groups mapper")
 
-We can now configure the client to provide the _groups_ scope. Go back to the client we've created earlier and go to the Tab "Client Scopes".
-Click on "Add client scope", choose the _groups_ scope and add it either to the __Default__ or to the __Optional__ Client Scope. If you put it in the Optional
-category you will need to make sure that ArgoCD requests the scope in its OIDC configuration. Since we will always want group information, I recommend
-using the Default category.
+We can now configure the client to provide the _groups_ scope. You can now assign the _groups_ scope either to the __Assigned Default Client Scopes__ 
+or to the __Assigned Optional Client Scopes__. If you put it in the Optional category you will need to make sure that ArgoCD requests the scope in
+it's OIDC configuration. 
 
 ![Keycloak client scope](../../assets/keycloak-client-scope.png "Keycloak client scope")
+
+Since we will always want group information, I recommend using the Default category. Make sure you click __Add selected__
+and that the _groups_ claim is in the correct list on the __right__.
+
+![Keycloak client scope selected](../../assets/keycloak-client-scope-selected.png "Keycloak client scope selected")
 
 Create a group called _ArgoCDAdmins_ and have your current user join the group.
 

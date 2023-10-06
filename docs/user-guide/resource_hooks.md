@@ -69,7 +69,7 @@ The following policies define when the hook will be deleted.
 | `HookFailed` | The hook resource is deleted after the hook failed. |
 | `BeforeHookCreation` | Any existing hook resource is deleted before the new one is created (since v1.3). It is meant to be used with `/metadata/name`. |
 
-Note that if no deletion policy is specified, Argo CD will automatically assume `BeforeHookCreation` rules.
+Note that if no deletion policy is specified, ArgoCD will automatically assume `BeforeHookCreation` rules.
 
 ### Sync Status with Jobs/Workflows with Time to Live (ttl)
 

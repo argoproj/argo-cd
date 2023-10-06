@@ -94,7 +94,7 @@ func (opts *ProjectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
 	return destinations
 }
 
-// GetSignatureKeys TODO: Get configured keys and emit warning when a key is specified that is not configured
+// TODO: Get configured keys and emit warning when a key is specified that is not configured
 func (opts *ProjectOpts) GetSignatureKeys() []v1alpha1.SignatureKey {
 	signatureKeys := make([]v1alpha1.SignatureKey, 0)
 	for _, keyStr := range opts.SignatureKeys {

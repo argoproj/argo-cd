@@ -12,63 +12,11 @@ The following configuration options are available for Kustomize:
 * `namespace` is a kubernetes resources namespace
 * `forceCommonAnnotations` is a boolean value which defines if it's allowed to override existing annotations
 * `commonAnnotationsEnvsubst` is a boolean value which enables env variables substition in annotation  values
-* `patches` is a list of Kustomize patches that supports inline updates
 
 To use Kustomize with an overlay, point your path to the overlay.
 
 !!! tip
     If you're generating resources, you should read up how to ignore those generated resources using the [`IgnoreExtraneous` compare option](compare-options.md).
-
-## Patches
-Patches are a way to kustomize resources using inline configurations in Argo CD applications.  This allows for kustomizing without  kustomization file.  `patches`  follow the same logic as the corresponding Kustomization.  Any patches that target existing Kustomization file will be merged.
-
-The following Kustomization can be done similarly in an Argo CD application.
-```yaml
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-metadata:
-  name: kustomize-inline-example
-namespace: test1
-resources:
-  - https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/guestbook/guestbook-ui-deployment.yaml
-  - https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/guestbook/guestbook-ui-svc.yaml
-patches:
-  - target:
-      kind: Deployment
-      name: guestbook-ui
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/ports/0/containerPort
-        value: 443
-```
-Application will clone the repository, use the specified path, then kustomize using inline patches configuration.
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: kustomize-inline-guestbook
-  namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
-spec:
-  destination:
-    namespace: test1
-    server: https://kubernetes.default.svc
-  project: default
-  source:
-    path: guestbook
-    repoURL: https://github.com/argoproj/argocd-example-apps.git
-    targetRevision: master
-    kustomize:
-      patches:
-        - target:
-            kind: Deployment
-            name: guestbook-ui
-          patch: |-
-            - op: replace
-              path: /spec/template/spec/containers/0/ports/0/containerPort
-              value: 443
-```
 
 ## Private Remote Bases
 

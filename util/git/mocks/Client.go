@@ -92,25 +92,25 @@ func (_m *Client) IsAnnotatedTag(_a0 string) bool {
 	return r0
 }
 
-// LsFiles provides a mock function with given fields: path, enableNewGitFileGlobbing
-func (_m *Client) LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error) {
-	ret := _m.Called(path, enableNewGitFileGlobbing)
+// LsFiles provides a mock function with given fields: path
+func (_m *Client) LsFiles(path string) ([]string, error) {
+	ret := _m.Called(path)
 
 	var r0 []string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, bool) ([]string, error)); ok {
-		return rf(path, enableNewGitFileGlobbing)
+	if rf, ok := ret.Get(0).(func(string) ([]string, error)); ok {
+		return rf(path)
 	}
-	if rf, ok := ret.Get(0).(func(string, bool) []string); ok {
-		r0 = rf(path, enableNewGitFileGlobbing)
+	if rf, ok := ret.Get(0).(func(string) []string); ok {
+		r0 = rf(path)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string, bool) error); ok {
-		r1 = rf(path, enableNewGitFileGlobbing)
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(path)
 	} else {
 		r1 = ret.Error(1)
 	}

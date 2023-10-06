@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -16,7 +17,6 @@ import (
 	"k8s.io/apiserver/pkg/storage/names"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
-	"sigs.k8s.io/yaml"
 )
 
 const (

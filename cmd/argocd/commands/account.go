@@ -11,10 +11,10 @@ import (
 	"time"
 
 	timeutil "github.com/argoproj/pkg/time"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -26,26 +26,12 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
 	sessionutil "github.com/argoproj/argo-cd/v2/util/session"
-	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "account",
 		Short: "Manage account settings",
-		Example: templates.Examples(`
-			# List accounts
-			argocd account list
-
-			# Update the current user's password
-			argocd account update-password
-
-			# Can I sync any app?
-			argocd account can-i sync applications '*'
-
-			# Get User information
-			argocd account get-user-info
-		`),
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -144,9 +130,9 @@ has appropriate RBAC permissions to change other accounts.
 		},
 	}
 
-	command.Flags().StringVar(&currentPassword, "current-password", "", "Password of the currently logged on user")
-	command.Flags().StringVar(&newPassword, "new-password", "", "New password you want to update to")
-	command.Flags().StringVar(&account, "account", "", "An account name that should be updated. Defaults to current user account")
+	command.Flags().StringVar(&currentPassword, "current-password", "", "password of the currently logged on user")
+	command.Flags().StringVar(&newPassword, "new-password", "", "new password you want to update to")
+	command.Flags().StringVar(&account, "account", "", "an account name that should be updated. Defaults to current user account")
 	return command
 }
 
@@ -157,13 +143,6 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	var command = &cobra.Command{
 		Use:   "get-user-info",
 		Short: "Get user info",
-		Example: templates.Examples(`
-			# Get User information for the currently logged-in user (see 'argocd login')
-			argocd account get-user-info
-
-			# Get User information in yaml format
-			argocd account get-user-info -o yaml
-		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

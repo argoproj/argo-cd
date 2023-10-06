@@ -10,10 +10,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"github.com/argoproj/pkg/errors"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -33,7 +33,7 @@ spec:
         volumeMounts:
         - name: config-volume
           mountPath: /etc/config
-          readOnly: false
+          readOnly: false	
         resources:
           requests:
             cpu: 2000m
@@ -158,7 +158,7 @@ spec:
           volumeMounts:
           - name: config-volume
             mountPath: /etc/config
-            readOnly: false
+            readOnly: false	
           resources:
             requests:
               cpu: 2000m

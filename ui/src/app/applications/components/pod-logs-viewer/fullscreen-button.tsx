@@ -18,7 +18,7 @@ export const FullscreenButton = ({
         `/applications/${applicationNamespace}/${applicationName}/${namespace}/${containerName}/logs?` + `podName=${podName}&group=${group}&kind=${kind}&name=${name}`;
     return (
         !fullscreen && (
-            <Link to={fullscreenURL} target='_blank' rel='noopener noreferrer'>
+            <Link to={fullscreenURL} target='_blank'>
                 <Button title='Show logs in fullscreen in a new window' icon='external-link-alt' />
             </Link>
         )

@@ -316,10 +316,10 @@ spec:
     - CreateNamespace=true
 ```
 
-In order for Argo CD to manage the labels and annotations on the namespace, `CreateNamespace=true` needs to be set as a
+In order for ArgoCD to manage the labels and annotations on the namespace, `CreateNamespace=true` needs to be set as a
 sync option, otherwise nothing will happen. If the namespace doesn't already exist, or if it already exists and doesn't
 already have labels and/or annotations set on it, you're good to go. Using `managedNamespaceMetadata` will also set the
-resource tracking label (or annotation) on the namespace, so you can easily track which namespaces are managed by Argo CD.
+resource tracking label (or annotation) on the namespace, so you can easily track which namespaces are managed by ArgoCD.
 
 In the case you do not have any custom annotations or labels but would nonetheless want to have resource tracking set on
 your namespace, that can be done by setting `managedNamespaceMetadata` with an empty `labels` and/or `annotations` map,
@@ -339,7 +339,7 @@ spec:
     - CreateNamespace=true
 ```
 
-In the case where Argo CD is "adopting" an existing namespace which already has metadata set on it, we rely on using
+In the case where ArgoCD is "adopting" an existing namespace which already has metadata set on it, we rely on using
 Server Side Apply in order not to lose metadata which has already been set. The main implication here is that it takes
 a few extra steps to get rid of an already preexisting field.
 
@@ -355,7 +355,7 @@ metadata:
     abc: "123"
 ```
 
-If we want to manage the `foobar` namespace with Argo CD and to then also remove the `foo: bar` annotation, in
+If we want to manage the `foobar` namespace with ArgoCD and to then also remove the `foo: bar` annotation, in
 `managedNamespaceMetadata` we'd need to first rename the `foo` value:
 
 ```yaml
@@ -385,7 +385,7 @@ spec:
       - CreateNamespace=true
 ```
 
-Another thing to keep mind of is that if you have a k8s manifest for the same namespace in your Argo CD application, that
+Another thing to keep mind of is that if you have a k8s manifest for the same namespace in your ArgoCD application, that
 will take precedence and *overwrite whatever values that have been set in `managedNamespaceMetadata`*. In other words, if
 you have an application that sets `managedNamespaceMetadata`
 
