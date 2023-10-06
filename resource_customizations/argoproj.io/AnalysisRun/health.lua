@@ -1,4 +1,4 @@
-local hs = {}
+hs = {}
 
 function messageOrDefault(field, default)
     if field ~= nil then

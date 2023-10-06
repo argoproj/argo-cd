@@ -47,7 +47,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/git"
@@ -233,9 +232,6 @@ func (s *Server) getApplicationEnforceRBACInformer(ctx context.Context, action, 
 func (s *Server) getApplicationEnforceRBACClient(ctx context.Context, action, project, namespace, name, resourceVersion string) (*appv1.Application, error) {
 	namespaceOrDefault := s.appNamespaceOrDefault(namespace)
 	return s.getAppEnforceRBAC(ctx, action, project, namespaceOrDefault, name, func() (*appv1.Application, error) {
-		if !s.isNamespaceEnabled(namespaceOrDefault) {
-			return nil, security.NamespaceNotPermittedError(namespaceOrDefault)
-		}
 		return s.appclientset.ArgoprojV1alpha1().Applications(namespaceOrDefault).Get(ctx, name, metav1.GetOptions{
 			ResourceVersion: resourceVersion,
 		})
@@ -467,11 +463,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return fmt.Errorf("error getting API resources: %w", err)
 		}
 
-		proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
-		if err != nil {
-			return fmt.Errorf("error getting app project: %w", err)
-		}
-
 		manifestInfo, err = client.GenerateManifest(ctx, &apiclient.ManifestRequest{
 			Repo:               repo,
 			Revision:           revision,
@@ -487,8 +478,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			HelmOptions:        helmOptions,
 			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			EnabledSourceTypes: enableGenerateManifests,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
 		})
 		if err != nil {
 			return fmt.Errorf("error generating manifests: %w", err)
@@ -564,12 +553,6 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		}
 
 		source := a.Spec.GetSource()
-
-		proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
-		if err != nil {
-			return fmt.Errorf("error getting app project: %w", err)
-		}
-
 		req := &apiclient.ManifestRequest{
 			Repo:               repo,
 			Revision:           source.TargetRevision,
@@ -585,8 +568,6 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			HelmOptions:        helmOptions,
 			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			EnabledSourceTypes: enableGenerateManifests,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
 		}
 
 		repoStreamClient, err := client.GenerateManifestWithFiles(stream.Context())
@@ -647,7 +628,6 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	} else if len(projects) > 1 {
 		return nil, status.Errorf(codes.InvalidArgument, "multiple projects specified - the get endpoint accepts either zero or one project")
 	}
-
 	// We must use a client Get instead of an informer Get, because it's common to call Get immediately
 	// following a Watch (which is not yet powered by an informer), and the Get must reflect what was
 	// previously seen by the client.
@@ -819,6 +799,19 @@ func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Applica
 	return a, nil
 }
 
+func mergeStringMaps(items ...map[string]string) map[string]string {
+	res := make(map[string]string)
+	for _, m := range items {
+		if m == nil {
+			continue
+		}
+		for k, v := range m {
+			res[k] = v
+		}
+	}
+	return res
+}
+
 var informerSyncTimeout = 2 * time.Second
 
 // waitSync is a helper to wait until the application informer cache is synced after create/update.
@@ -856,8 +849,8 @@ func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ct
 	for i := 0; i < 10; i++ {
 		app.Spec = newApp.Spec
 		if merge {
-			app.Labels = collections.MergeStringMaps(app.Labels, newApp.Labels)
-			app.Annotations = collections.MergeStringMaps(app.Annotations, newApp.Annotations)
+			app.Labels = mergeStringMaps(app.Labels, newApp.Labels)
+			app.Annotations = mergeStringMaps(app.Annotations, newApp.Annotations)
 		} else {
 			app.Labels = newApp.Labels
 			app.Annotations = newApp.Annotations
@@ -1167,7 +1160,6 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	}
 
 	var conditions []appv1.ApplicationCondition
-
 	if validate {
 		conditions := make([]appv1.ApplicationCondition, 0)
 		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
@@ -1692,8 +1684,8 @@ func isTheSelectedOne(currentNode *appv1.ResourceNode, q *application.Applicatio
 	}
 
 	for _, parentResource := range currentNode.ParentRefs {
-		// look up parentResource from resourceNodes
-		// then check if the parent isTheSelectedOne
+		//look up parentResource from resourceNodes
+		//then check if the parent isTheSelectedOne
 		for _, resourceNode := range resourceNodes {
 			if resourceNode.Namespace == parentResource.Namespace &&
 				resourceNode.Name == parentResource.Name &&

@@ -122,7 +122,7 @@ source:
 
 ## Helm Release Name
 
-By default, the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised Argo CD,
+By default, the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD,
 you may want to override that  name, and it is possible with the `release-name` flag on the cli:
 
 ```bash
@@ -138,7 +138,7 @@ source:
 ```
 
 !!! warning "Important notice on overriding the release name"
-    Please note that overriding the Helm release name might cause problems when the chart you are deploying is using the `app.kubernetes.io/instance` label. Argo CD injects this label with the value of the Application name for tracking purposes. So when overriding the release name, the Application name will stop being equal to the release name. Because Argo CD will overwrite the label with the Application name it might cause some selectors on the resources to stop working. In order to avoid this we can configure Argo CD to use another label for tracking in the [ArgoCD configmap argocd-cm.yaml](../operator-manual/argocd-cm.yaml) - check the lines describing `application.instanceLabelKey`.
+    Please note that overriding the Helm release name might cause problems when the chart you are deploying is using the `app.kubernetes.io/instance` label. ArgoCD injects this label with the value of the Application name for tracking purposes. So when overriding the release name, the Application name will stop being equal to the release name. Because ArgoCD will overwrite the label with the Application name it might cause some selectors on the resources to stop working. In order to avoid this we can configure ArgoCD to use another label for tracking in the [ArgoCD configmap argocd-cm.yaml](../operator-manual/argocd-cm.yaml) - check the lines describing `application.instanceLabelKey`.
 
 ## Helm Hooks
 
@@ -168,7 +168,7 @@ Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Ar
 Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl apply`, rather than `kubectl create`. This means that if the hook is named and already exists, it will not change unless you have annotated it with `before-hook-creation`.
 
 !!! warning "Helm hooks + ArgoCD hooks"
-    If you define any Argo CD hooks, _all_ Helm hooks will be ignored.   
+    If you define some Argo CD hooks in addition to the Helm ones, the Helm hooks will be ignored.   
 
 !!! warning "'install' vs 'upgrade' vs 'sync'"
     Argo CD cannot know if it is running a first-time "install" or an "upgrade" - every operation is a "sync'. This means that, by default, apps that have `pre-install` and `pre-upgrade` will have those hooks run at the same time.

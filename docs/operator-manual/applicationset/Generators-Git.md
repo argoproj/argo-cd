@@ -317,7 +317,7 @@ spec:
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-files-discovery).*)
 
-Any `config.json` files found under the `cluster-config` directory will be parameterized based on the `path` wildcard pattern specified. Within each file JSON fields are flattened into key/value pairs, with this ApplicationSet example using the `cluster.address` and `cluster.name` parameters in the template.
+Any `config.json` files found under the `cluster-config` directory will be parameterized based on the `path` wildcard pattern specified. Within each file JSON fields are flattened into key/value pairs, with this ApplicationSet example using the `cluster.address` as `cluster.name` parameters in the template.
 
 As with other generators, clusters *must* already be defined within Argo CD, in order to generate Applications for them.
 
@@ -383,7 +383,7 @@ this delay from polling, the ApplicationSet webhook server can be configured to 
 Git webhook notifications from GitHub and GitLab. The following explains how to configure a Git webhook for GitHub, but the same process should be applicable to other providers.
 
 !!! note
-    The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
+    ApplicationSet exposes the webhook server as a service of type ClusterIP. An Ingress resource needs to be created to expose this service to the webhook source.
 
 ### 1. Create the webhook in the Git provider
 
