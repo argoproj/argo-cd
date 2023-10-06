@@ -20,7 +20,7 @@ argocd relogin [flags]
 argocd relogin
 
 # Reinitiates the logins with sso
-argocd relogin --sso
+argocd relogin --sso 
 
 # Reinitiates the login with password
 "argocd relogin --password YOUR_PASSWORD"
