@@ -32,6 +32,9 @@ func init() {
 	delete(sprigFuncMap, "expandenv")
 	delete(sprigFuncMap, "getHostByName")
 	sprigFuncMap["normalize"] = SanitizeName
+	sprigFuncMap["toYaml"] = toYAML
+	sprigFuncMap["fromYaml"] = fromYAML
+	sprigFuncMap["fromYamlArray"] = fromYAMLArray
 }
 
 type Renderer interface {
@@ -429,23 +432,6 @@ func NormalizeBitbucketBasePath(basePath string) string {
 		return basePath + "/rest"
 	}
 	return basePath
-}
-
-// SanitizeName sanitizes the name in accordance with the below rules
-// 1. contain no more than 253 characters
-// 2. contain only lowercase alphanumeric characters, '-' or '.'
-// 3. start and end with an alphanumeric character
-func SanitizeName(name string) string {
-	invalidDNSNameChars := regexp.MustCompile("[^-a-z0-9.]")
-	maxDNSNameLength := 253
-
-	name = strings.ToLower(name)
-	name = invalidDNSNameChars.ReplaceAllString(name, "-")
-	if len(name) > maxDNSNameLength {
-		name = name[:maxDNSNameLength]
-	}
-
-	return strings.Trim(name, "-.")
 }
 
 func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
