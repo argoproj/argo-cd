@@ -12,8 +12,8 @@ argocd gpg list [flags]
 
 ```
 
-# List all configured GPG public keys
-argocd gpg list
+		# List all configured GPG public keys
+		argocd gpg list
 		
 ```
 

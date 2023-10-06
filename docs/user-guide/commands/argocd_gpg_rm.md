@@ -11,8 +11,9 @@ argocd gpg rm KEYID [flags]
 ### Examples
 
 ```
-# Remove a GPG public key from the server's key using its key ID 
-argocd gpg rm <KEYID>
+
+		# Remove a GPG public key from the server's key using its key ID 
+		argocd gpg rm <KEYID>
 		
 ```
 
