@@ -89,7 +89,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 argocd relogin
 
 # Reinitiates the login with password
-"argocd relogin --password YOUR_PASSWORD"
+argocd relogin --password YOUR_PASSWORD
 
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core
