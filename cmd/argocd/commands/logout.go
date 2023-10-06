@@ -10,6 +10,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 var (
