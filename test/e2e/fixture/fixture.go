@@ -685,7 +685,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	// set-up tmp repo, must have unique name
 	FailOnErr(Run("", "cp", "-Rf", opt.testdata, repoDirectory()))
 	FailOnErr(Run(repoDirectory(), "chmod", "777", "."))
-	FailOnErr(Run(repoDirectory(), "git", "init"))
+	FailOnErr(Run(repoDirectory(), "git", "init", "-b", "master"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
 
@@ -876,7 +876,7 @@ func CreateSubmoduleRepos(repoType string) {
 	// set-up submodule repo
 	FailOnErr(Run("", "cp", "-Rf", "testdata/git-submodule/", submoduleDirectory()))
 	FailOnErr(Run(submoduleDirectory(), "chmod", "777", "."))
-	FailOnErr(Run(submoduleDirectory(), "git", "init"))
+	FailOnErr(Run(submoduleDirectory(), "git", "init", "-b", "master"))
 	FailOnErr(Run(submoduleDirectory(), "git", "add", "."))
 	FailOnErr(Run(submoduleDirectory(), "git", "commit", "-q", "-m", "initial commit"))
 
@@ -888,7 +888,7 @@ func CreateSubmoduleRepos(repoType string) {
 	// set-up submodule parent repo
 	FailOnErr(Run("", "mkdir", submoduleParentDirectory()))
 	FailOnErr(Run(submoduleParentDirectory(), "chmod", "777", "."))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "init"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "init", "-b", "master"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
 	if IsRemote() {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE"), "submodule/test"))
