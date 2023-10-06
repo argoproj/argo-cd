@@ -34,8 +34,7 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 	var command = &cobra.Command{
 		Use:   "logout CONTEXT",
 		Short: "Log out from Argo CD",
-		Example: logoutExample,
-		Long: "Log out from Argo CD",
+		Long:  "Log out from Argo CD",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
