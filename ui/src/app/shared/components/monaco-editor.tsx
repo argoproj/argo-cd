@@ -27,6 +27,7 @@ const MonacoEditorLazy = React.lazy(() =>
     import('monaco-editor').then(monaco => {
         const Component = (props: MonacoProps) => {
             const [height, setHeight] = React.useState(0);
+            const theme = document.getElementById('app').getElementsByClassName('theme-light').length !== 0 ? 'vs' : 'vs-dark';
 
             return (
                 <div
@@ -50,6 +51,7 @@ const MonacoEditorLazy = React.lazy(() =>
                                             vertical: props.vScrollBar ? 'visible' : 'hidden'
                                         }
                                     });
+                                    monaco.editor.setTheme(theme);
 
                                     container.editorApi = editor;
                                 }
