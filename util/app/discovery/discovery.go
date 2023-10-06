@@ -100,7 +100,7 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, plugin
 		// check if the given plugin supports the repo
 		conn, cmpClient, connFound = cmpSupports(ctx, pluginSockFilePath, appPath, repoPath, fmt.Sprintf("%v.sock", pluginName), env, tarExcludedGlobs, true)
 		if !connFound {
-			return nil, nil, fmt.Errorf("couldn't find cmp-server plugin with name %q supporting the given repository", pluginName)
+			return nil, nil, fmt.Errorf("couldn't find cmp-server plugin with name %v supporting the given repository", pluginName)
 		}
 	} else {
 		fileList, err := os.ReadDir(pluginSockFilePath)
@@ -143,13 +143,8 @@ func matchRepositoryCMP(ctx context.Context, appPath, repoPath string, client pl
 }
 
 func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fileName string, env []string, tarExcludedGlobs []string, namedPlugin bool) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, bool) {
-	absPluginSockFilePath, err := filepath.Abs(pluginSockFilePath)
-	if err != nil {
-		log.Errorf("error getting absolute path for plugin socket dir %v, %v", pluginSockFilePath, err)
-		return nil, nil, false
-	}
-	address := filepath.Join(absPluginSockFilePath, fileName)
-	if !files.Inbound(address, absPluginSockFilePath) {
+	address := filepath.Join(pluginSockFilePath, fileName)
+	if !files.Inbound(address, pluginSockFilePath) {
 		log.Errorf("invalid socket file path, %v is outside plugin socket dir %v", fileName, pluginSockFilePath)
 		return nil, nil, false
 	}

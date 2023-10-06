@@ -27,7 +27,7 @@ func TestUserAgent(t *testing.T) {
 	// the data race, it APPEARS to be intentional, but in any case it's nothing we are doing in Argo CD
 	// that is causing this issue.
 
-	s, closer := fakeServer(t)
+	s, closer := fakeServer()
 	defer closer()
 	lns, err := s.Listen()
 	assert.NoError(t, err)
@@ -94,7 +94,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 	// Test default policy "sameorigin" and "frame-ancestors 'self';"
 	{
-		s, closer := fakeServer(t)
+		s, closer := fakeServer()
 		defer closer()
 		lns, err := s.Listen()
 		assert.NoError(t, err)
@@ -111,7 +111,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
@@ -121,7 +121,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 	// Test custom policy for X-Frame-Options and Content-Security-Policy
 	{
-		s, closer := fakeServer(t)
+		s, closer := fakeServer()
 		defer closer()
 		s.XFrameOptions = "deny"
 		s.ContentSecurityPolicy = "frame-ancestors 'none';"
@@ -140,7 +140,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
@@ -150,7 +150,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 	// Test disabled X-Frame-Options and Content-Security-Policy
 	{
-		s, closer := fakeServer(t)
+		s, closer := fakeServer()
 		defer closer()
 		s.XFrameOptions = ""
 		s.ContentSecurityPolicy = ""
@@ -172,7 +172,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
 		resp, err := client.Do(req)
 		assert.NoError(t, err)

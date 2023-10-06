@@ -1,3 +1,3 @@
-local actions = {}
+actions = {}
 actions["restart"] = {}
 return actions

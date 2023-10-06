@@ -29,7 +29,7 @@ func (c *ExtendedClient) GetContents(repo *Repository, path string) (bool, error
 	urlStr += fmt.Sprintf("/repositories/%s/%s/src/%s/%s?format=meta", c.owner, repo.Repository, repo.SHA, path)
 	body := strings.NewReader("")
 
-	req, err := http.NewRequest(http.MethodGet, urlStr, body)
+	req, err := http.NewRequest("GET", urlStr, body)
 	if err != nil {
 		return false, err
 	}

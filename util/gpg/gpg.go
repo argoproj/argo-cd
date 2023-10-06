@@ -48,7 +48,7 @@ var verificationStatusMatch = regexp.MustCompile(`^gpg: ([a-zA-Z]+) signature fr
 // creating the trustdb in a specific argocd-repo-server pod.
 var batchKeyCreateRecipe = `%no-protection
 %transient-key
-Key-Type: RSA
+Key-Type: default
 Key-Length: 2048
 Key-Usage: sign
 Name-Real: Anon Ymous

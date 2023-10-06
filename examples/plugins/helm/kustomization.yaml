@@ -1,4 +1,4 @@
-resources:
+bases:
   - ../../../manifests/base
 
 configMapGenerator:
@@ -11,5 +11,5 @@ configMapGenerator:
 generatorOptions:
   disableNameSuffixHash: true
 
-patches:
-  - path: argocd-repo-server-deployment-patch.yaml
+patchesStrategicMerge:
+  - argocd-repo-server-deployment-patch.yaml

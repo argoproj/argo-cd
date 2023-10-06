@@ -94,7 +94,6 @@ spec:
                 - env-prod
           maxUpdate: 10%    # maxUpdate supports both integer and percentage string values (rounds down, but floored at 1 Application for >0%)
   goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   template:
     metadata:
       name: '{{.cluster}}-guestbook'

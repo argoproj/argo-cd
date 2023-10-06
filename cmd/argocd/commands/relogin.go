@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/coreos/go-oidc"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -24,10 +24,9 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 		ssoPort  int
 	)
 	var command = &cobra.Command{
-		Use:     "relogin",
-		Short:   "Refresh an expired authenticate token",
-		Long:    "Refresh an expired authenticate token",
-		Example: "argocd relogin --password YOUR_PASSWORD",
+		Use:   "relogin",
+		Short: "Refresh an expired authenticate token",
+		Long:  "Refresh an expired authenticate token",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -86,7 +85,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
 		},
 	}
-	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
-	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
+	command.Flags().StringVar(&password, "password", "", "the password of an account to authenticate")
+	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "port to run local OAuth2 login application")
 	return command
 }

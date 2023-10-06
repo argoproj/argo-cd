@@ -4,9 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -392,65 +390,24 @@ func TestCreateServerTLSConfig(t *testing.T) {
 	})
 }
 
-// getCert does the same thing as tls.AppendCertsFromPEM, but throws an error if something goes wrong.
-func getCert(pemCerts []byte) (*x509.Certificate, error) {
-	block, _ := pem.Decode(pemCerts)
-	if block == nil {
-		return nil, errors.New("failed to decode pem block")
-	}
-	if block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
-		return nil, errors.New("encountered something other than a certificate")
-	}
-
-	certBytes := block.Bytes
-	cert, err := x509.ParseCertificate(certBytes)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing certificate: %w", err)
-	}
-	return cert, nil
-}
-
-func getCertFromFile(path string) (*x509.Certificate, error) {
-	certBytes, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("error reading file: %w", err)
-	}
-	return getCert(certBytes)
-}
-
 func TestLoadX509CertPool(t *testing.T) {
 	t.Run("Successfully load single cert", func(t *testing.T) {
 		p, err := LoadX509CertPool("testdata/valid_tls.crt")
 		require.NoError(t, err)
 		require.NotNil(t, p)
-
-		cert, err := getCertFromFile("testdata/valid_tls.crt")
-		require.NoError(t, err)
-		groundTruthPool := x509.NewCertPool()
-		groundTruthPool.AddCert(cert)
-
-		assert.True(t, groundTruthPool.Equal(p))
+		assert.Len(t, p.Subjects(), 1)
 	})
 	t.Run("Successfully load single existing cert from multiple list", func(t *testing.T) {
 		p, err := LoadX509CertPool("testdata/invalid_tls.crt", "testdata/valid_tls.crt")
 		require.NoError(t, err)
 		require.NotNil(t, p)
-
-		cert, err := getCertFromFile("testdata/valid_tls.crt")
-		require.NoError(t, err)
-		groundTruthPool := x509.NewCertPool()
-		groundTruthPool.AddCert(cert)
-
-		assert.True(t, groundTruthPool.Equal(p))
+		assert.Len(t, p.Subjects(), 1)
 	})
 	t.Run("Only non-existing certs in list", func(t *testing.T) {
 		p, err := LoadX509CertPool("testdata/invalid_tls.crt", "testdata/valid_tls2.crt")
 		require.NoError(t, err)
 		require.NotNil(t, p)
-
-		groundTruthPool := x509.NewCertPool()
-
-		assert.True(t, groundTruthPool.Equal(p))
+		assert.Len(t, p.Subjects(), 0)
 	})
 	t.Run("Invalid cert in requested cert list", func(t *testing.T) {
 		p, err := LoadX509CertPool("testdata/empty_tls.crt", "testdata/valid_tls2.crt")

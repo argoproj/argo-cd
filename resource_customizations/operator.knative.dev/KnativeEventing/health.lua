@@ -1,9 +1,9 @@
-local health_status = {}
+health_status = {}
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
-    local numTrue = 0
-    local numFalse = 0
-    local msg = ""
+    numTrue = 0
+    numFalse = 0
+    msg = ""
     for i, condition in pairs(obj.status.conditions) do
       msg = msg .. i .. ": " .. condition.type .. " | " .. condition.status .. "\n"
       if condition.type == "Ready" and condition.status == "True" then

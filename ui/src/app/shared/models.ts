@@ -94,12 +94,6 @@ export interface RevisionMetadata {
     signatureInfo?: string;
 }
 
-export interface ChartDetails {
-    description?: string;
-    maintainers?: string[];
-    home?: string;
-}
-
 export interface SyncOperationResult {
     resources: ResourceResult[];
     revision: string;
@@ -129,8 +123,6 @@ export interface ResourceResult {
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
 export const AnnotationHookKey = 'argocd.argoproj.io/hook';
 export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
-export const AnnotationDefaultView = 'pref.argocd.argoproj.io/default-view';
-export const AnnotationDefaultPodSort = 'pref.argocd.argoproj.io/default-pod-sort';
 
 export interface Application {
     apiVersion?: string;
@@ -202,7 +194,6 @@ export interface ApplicationSource {
 export interface ApplicationSourceHelm {
     valueFiles: string[];
     values?: string;
-    valuesObject?: any;
     parameters: HelmParameter[];
     fileParameters: HelmFileParameter[];
 }
@@ -212,7 +203,6 @@ export interface ApplicationSourceKustomize {
     nameSuffix: string;
     images: string[];
     version: string;
-    namespace: string;
 }
 export interface EnvEntry {
     name: string;
@@ -325,10 +315,6 @@ export interface HealthStatus {
 
 export type State = models.TypeMeta & {metadata: models.ObjectMeta} & {status: any; spec: any};
 
-export type ReadinessGate = {
-    conditionType: string;
-};
-
 export interface ResourceStatus {
     group: string;
     version: string;
@@ -341,7 +327,6 @@ export interface ResourceStatus {
     hook?: boolean;
     requiresPruning?: boolean;
     syncWave?: number;
-    orphaned?: boolean;
 }
 
 export interface ResourceRef {
@@ -531,7 +516,6 @@ export interface Repository {
     enableLfs?: boolean;
     githubAppId?: string;
     forceHttpBasicAuth?: boolean;
-    enableOCI: boolean;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
@@ -622,7 +606,6 @@ export interface HelmAppSpec {
 export interface KustomizeAppSpec {
     path: string;
     images?: string[];
-    namespace?: string;
 }
 
 export interface PluginAppSpec {
@@ -772,8 +755,6 @@ export interface ResourceAction {
     name: string;
     params: ResourceActionParam[];
     disabled: boolean;
-    iconClass: string;
-    displayName: string;
 }
 
 export interface SyncWindowsState {
@@ -954,13 +935,4 @@ export interface LinkInfo {
 
 export interface LinksResponse {
     items: LinkInfo[];
-}
-
-export interface UserMessages {
-    appName: string;
-    msgKey: string;
-    display: boolean;
-    condition?: HealthStatusCode;
-    duration?: number;
-    animation?: string;
 }

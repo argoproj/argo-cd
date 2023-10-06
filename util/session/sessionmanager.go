@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
@@ -539,8 +538,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		// UI can handle expired tokens appropriately.
 		if err != nil {
 			log.Warnf("Failed to verify token: %s", err)
-			tokenExpiredError := &oidc.TokenExpiredError{}
-			if errors.As(err, &tokenExpiredError) {
+			if errors.Is(err, oidcutil.ErrTokenExpired) {
 				claims = jwt.RegisteredClaims{
 					Issuer: "sso",
 				}

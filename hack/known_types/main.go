@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"go/importer"
-	"go/token"
 	"go/types"
 	"os"
 	"strings"
@@ -37,16 +36,15 @@ func newCommand() *cobra.Command {
 			packagePath := args[1]
 			outputPath := args[2]
 
-			if !strings.HasPrefix(packagePath, packagePrefix) {
-				return fmt.Errorf("package must be under %s", packagePrefix)
-			}
-
-			imprt := importer.ForCompiler(token.NewFileSet(), "source", nil)
+			// nolint:staticcheck
+			imprt := importer.For("source", nil)
 			pkg, err := imprt.Import(packagePath)
 			if err != nil {
 				return err
 			}
-
+			if !strings.HasPrefix(packagePath, packagePrefix) {
+				return fmt.Errorf("package must be under %s", packagePrefix)
+			}
 			shortPackagePath := strings.TrimPrefix(packagePath, packagePrefix)
 
 			var mapItems []string
@@ -84,7 +82,7 @@ func init() {%s
 				}
 			}
 
-			return os.WriteFile(outputPath, []byte(res+"\n"), 0644)
+			return os.WriteFile(outputPath, []byte(res), 0644)
 		},
 	}
 	command.Flags().StringVar(&docsOutputPath, "docs", "", "Docs output file path")

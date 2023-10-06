@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -56,7 +57,7 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 	}
 
 	if pod == nil {
-		return -1, fmt.Errorf("cannot find pod with selector: %v - use the --{component}-name flag in this command or set the environmental variable (Refer to https://argo-cd.readthedocs.io/en/stable/user-guide/environment-variables), to change the Argo CD component name in the CLI", podSelectors)
+		return -1, fmt.Errorf("cannot find pod with selector: %v", podSelectors)
 	}
 
 	url := clientSet.CoreV1().RESTClient().Post().
@@ -67,7 +68,7 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 
 	transport, upgrader, err := spdy.RoundTripperFor(config)
 	if err != nil {
-		return -1, fmt.Errorf("could not create round tripper: %w", err)
+		return -1, errors.Wrap(err, "Could not create round tripper")
 	}
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, "POST", url)
 

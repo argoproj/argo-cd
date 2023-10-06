@@ -46,7 +46,7 @@ data:
 
 ## Template
 
-[Notification templates](../templates.md) support specifying subject for email notifications:
+Notification templates support specifying subject for email notifications:
 
 ```yaml
 apiVersion: v1

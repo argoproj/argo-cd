@@ -15,13 +15,12 @@ import (
 	settings "github.com/argoproj/argo-cd/v2/util/notification/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/notifications-engine/pkg/cmd"
 	"github.com/spf13/cobra"
 )
 
 var (
-	applications = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationPlural}
+	applications = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applications"}
 )
 
 func NewNotificationsCommand() *cobra.Command {
@@ -65,7 +64,7 @@ func NewNotificationsCommand() *cobra.Command {
 				log.Fatalf("Failed to initialize Argo CD service: %v", err)
 			}
 		})
-	toolsCommand.PersistentFlags().StringVar(&argocdRepoServer, "argocd-repo-server", common.DefaultRepoServerAddr, "Argo CD repo server address")
+	toolsCommand.PersistentFlags().StringVar(&argocdRepoServer, "argocd-repo-server", "argocd-repo-server:8081", "Argo CD repo server address")
 	toolsCommand.PersistentFlags().BoolVar(&argocdRepoServerPlaintext, "argocd-repo-server-plaintext", false, "Use a plaintext client (non-TLS) to connect to repository server")
 	toolsCommand.PersistentFlags().BoolVar(&argocdRepoServerStrictTLS, "argocd-repo-server-strict-tls", false, "Perform strict validation of TLS certificates when connecting to repo server")
 	return toolsCommand

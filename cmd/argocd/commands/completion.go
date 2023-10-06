@@ -146,7 +146,6 @@ __argocd_custom_func() {
 			;;
 		argocd_cluster_get | \
 		argocd_cluster_rm | \
-		argocd_cluster_set | \
 		argocd_login | \
 		argocd_cluster_add)
 			__argocd_list_servers
@@ -204,20 +203,8 @@ To access completions in your current shell, run
 $ source <(argocd completion bash)
 Alternatively, write it to a file and source in .bash_profile
 
-For zsh, add the following to your ~/.zshrc file:
-source <(argocd completion zsh)
-compdef _argocd argocd
-
-Optionally, also add the following, in case you are getting errors involving compdef & compinit such as command not found: compdef:
-autoload -Uz compinit
-compinit 
-`,
-		Example: `# For bash
-$ source <(argocd completion bash)
-
-# For zsh
-$ argocd completion zsh > _argocd
-$ source _argocd
+For zsh, output to a file in a directory referenced by the $fpath shell
+variable.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) != 1 {

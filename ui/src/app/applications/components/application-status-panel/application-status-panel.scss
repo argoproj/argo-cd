@@ -26,15 +26,14 @@
 
 .application-status-panel {
     font-size: 0.875em;
-    @include themify($themes) {
+    @include themify($themes) {                  
         background-color: themed('background-2');
         color: themed('text-1');
     }
-    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
     flex-wrap: nowrap;
     flex-shrink: 1;
     overflow-x: auto;
-    padding-bottom: 0.5em;
 
     $row-width: 250px;
 
@@ -53,44 +52,38 @@
 
     &__more-button {
         margin-left: auto;
-        font-size: 14px;
+        font-size: 12px;
         line-height: 20px;
-        padding: 0 5px;
-        cursor: pointer;
-        color: $argo-color-gray-6;
+        padding: 0;
     }
 
     &__item {
+        height: 105px;
         margin-top: 5px;
         padding: 5px 20px;
         font-size: 0.8em;
         line-height: 1.2;
-        @include themify($themes) {
-            color: themed('text-1');
+        @include themify($themes) {     
+           color: themed('text-1');
         }
         display: flex;
         flex-direction: column;
-        justify-content: flex-start;
         flex-shrink: 0;
         flex-grow: 0;
 
         &__row {
             display: flex;
             max-width: $row-width;
-            margin-bottom: 0.25em;
             flex-shrink: 1;
             div:first-child {
-                width: 80px;
                 margin-right: 10px;
-                text-align: right;
             }
             div:last-child {
                 font-weight: 500;
-                width: 100%;
+                margin-left: auto;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
-                text-align: left;
             }
 
             @include responsive-widths();
@@ -122,7 +115,7 @@
 
         label {
             display: block;
-            @include themify($themes) {
+            @include themify($themes) {                
                 color: themed('text-1');
             }
             font-size: 13px;
@@ -136,14 +129,12 @@
     &__item-value {
         display: flex;
         align-items: center;
-        margin-bottom: 0.5em;
-        font-weight: 500;
         .fa {
             font-size: 1em;
         }
 
         font-size: 2em;
-        @include themify($themes) {
+        @include themify($themes) {   
             color: themed('text-1');
         }
         &--highlight {
@@ -170,12 +161,15 @@
 
         &__revision {
             font-size: 14px;
-            @include themify($themes) {
+            @include themify($themes) { 
                 color: themed('text-1');
             }
             font-weight: 500;
-            padding-left: 8px;
-            margin-bottom: 2px;
+            margin-left: auto;
+            padding-left: 5px;
+            a {
+                color: $argo-color-teal-6;
+            }
         }
     }
 
