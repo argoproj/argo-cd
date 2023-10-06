@@ -24,10 +24,9 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 		ssoPort  int
 	)
 	var command = &cobra.Command{
-		Use:     "relogin",
-		Short:   "Refresh an expired authenticate token",
-		Long:    "Refresh an expired authenticate token",
-		Example: "argocd relogin --password YOUR_PASSWORD",
+		Use:   "relogin",
+		Short: "Refresh an expired authenticate token",
+		Long:  "Refresh an expired authenticate token",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -86,10 +85,21 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
 		},
 		Example: `  
-# Reinitiates the login
+# Reinitiates the logins with previous contexts
+
+# Reinitiates login with previously logged in method
 argocd relogin
-	  
-# If user logged in with - argocd login cd.argoproj.io --sso
+
+# Reinitiates the logins with sso
+argocd relogin --sso
+
+# Reinitiates the login with password
+"argocd relogin --password YOUR_PASSWORD"
+
+# Configure direct access using Kubernetes API server
+argocd login cd.argoproj.io --core
+
+# If user logged in with - "argocd login cd.argoproj.io --sso"
 # The command - "argocd relogin" will Reinitiates SSO login and updates the server context`,
 	}
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")

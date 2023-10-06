@@ -16,15 +16,22 @@ argocd relogin [flags]
 
 ```
   
-# Reinitiates the login
+# Reinitiates the logins with previous contexts
+
+# Reinitiates login with previously logged in method
 argocd relogin
-	  
-# If user logged in with - argocd login cd.argoproj.io --sso
+
+# Reinitiates the logins with sso
+argocd relogin --sso
+
+# Reinitiates the login with password
+"argocd relogin --password YOUR_PASSWORD"
+
+# Configure direct access using Kubernetes API server
+argocd login cd.argoproj.io --core
+
+# If user logged in with - "argocd login cd.argoproj.io --sso"
 # The command - "argocd relogin" will Reinitiates SSO login and updates the server context
-
-# To Relogin with password
-argocd relogin --password YOUR_PASSWORD
-
 ```
 
 ### Options
