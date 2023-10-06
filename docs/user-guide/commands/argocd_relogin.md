@@ -21,6 +21,10 @@ argocd relogin
 	  
 # If user logged in with - argocd login cd.argoproj.io --sso
 # The command - "argocd relogin" will Reinitiates SSO login and updates the server context
+
+# To Relogin with password
+argocd relogin --password YOUR_PASSWORD
+
 ```
 
 ### Options
