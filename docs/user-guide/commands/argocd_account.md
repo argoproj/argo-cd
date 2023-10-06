@@ -8,22 +8,6 @@ Manage account settings
 argocd account [flags]
 ```
 
-### Examples
-
-```
-  # List accounts
-  argocd account list
-  
-  # Update the current user's password
-  argocd account update-password
-  
-  # Can I sync any app?
-  argocd account can-i sync applications '*'
-  
-  # Get User information
-  argocd account get-user-info
-```
-
 ### Options
 
 ```

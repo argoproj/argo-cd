@@ -12,12 +12,6 @@ Refresh an expired authenticate token
 argocd relogin [flags]
 ```
 
-### Examples
-
-```
-argocd relogin --password YOUR_PASSWORD
-```
-
 ### Options
 
 ```

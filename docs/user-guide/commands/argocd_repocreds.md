@@ -8,19 +8,6 @@ Manage repository connection parameters
 argocd repocreds [flags]
 ```
 
-### Examples
-
-```
-  # Add credentials with user/pass authentication to use for all repositories under the specified URL
-  argocd repocreds add URL --username USERNAME --password PASSWORD
-  
-  # List all the configured repository credentials
-  argocd repocreds list
-  
-  # Remove credentials for the repositories with speficied URL
-  argocd repocreds rm URL
-```
-
 ### Options
 
 ```

@@ -105,7 +105,7 @@ spec:
 * `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 
-As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Generators-SCM-Provider.md#self-signed-tls-certificates).
+As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Add-self-signed-TLS-Certs.md).
 
 ## Gitea
 
