@@ -8,6 +8,13 @@ Generate bcrypt hash for the admin password
 argocd account bcrypt [flags]
 ```
 
+### Examples
+
+```
+# Generate bcrypt hash for the admin password 
+argocd account bcrypt --password YOUR_PASSWORD
+```
+
 ### Options
 
 ```
