@@ -152,8 +152,8 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 		Use:   "rm KEYID",
 		Short: "Removes a GPG public key from the server's keyring",
 		Example: `
-		# Remove a GPG public key from the server's key using its key ID 
-		argocd gpg rm <KEYID>
+# Remove a GPG public key from the server's key using its key ID 
+argocd gpg rm <KEYID>
 		`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
