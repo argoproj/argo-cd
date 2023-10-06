@@ -1,5 +1,5 @@
-The notification template is used to generate the notification content and configured in `argocd-notifications-cm` ConfigMap. The template is leveraging
-[html/template](https://golang.org/pkg/html/template/) golang package and allow to customize notification message.
+The notification template is used to generate the notification content and is configured in the `argocd-notifications-cm` ConfigMap. The template is leveraging
+the [html/template](https://golang.org/pkg/html/template/) golang package and allows customization of the notification message.
 Templates are meant to be reusable and can be referenced by multiple triggers.
 
 The following template is used to notify the user about application sync status.
@@ -19,9 +19,9 @@ data:
 Each template has access to the following fields:
 
 - `app` holds the application object.
-- `context` is user defined string map and might include any string keys and values.
-- `serviceType` holds the notification service type name. The field can be used to conditionally
-render service specific fields.
+- `context` is a user-defined string map and might include any string keys and values.
+- `serviceType` holds the notification service type name (such as "slack" or "email). The field can be used to conditionally
+render service-specific fields.
 - `recipient` holds the recipient name.
 
 ## Defining user-defined `context`
@@ -51,30 +51,30 @@ See corresponding service [documentation](services/overview.md) for more informa
 
 ## Change the timezone
 
-You can change the timezone to show it as follows.
+You can change the timezone to show in notifications as follows.
 
 1. Call time functions.
 
-```
-{{ (call .time.Parse .app.status.operationState.startedAt).Local.Format "2006-01-02T15:04:05Z07:00" }}
-```
+    ```
+    {{ (call .time.Parse .app.status.operationState.startedAt).Local.Format "2006-01-02T15:04:05Z07:00" }}
+    ```
 
-2. Set environment to container.
+2. Set the `TZ` environment variable on the argocd-notifications-controller container.
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: argocd-notifications-controller
-spec:
-(snip)
+    ```yaml
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-notifications-controller
     spec:
-      containers:
-      - name: argocd-notifications-controller
-        env:
-        - name: TZ
-          value: Asia/Tokyo
-```
+      template:
+        spec:
+          containers:
+          - name: argocd-notifications-controller
+            env:
+            - name: TZ
+              value: Asia/Tokyo
+    ```
 
 ## Functions
 

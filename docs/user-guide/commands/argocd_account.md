@@ -8,6 +8,22 @@ Manage account settings
 argocd account [flags]
 ```
 
+### Examples
+
+```
+  # List accounts
+  argocd account list
+  
+  # Update the current user's password
+  argocd account update-password
+  
+  # Can I sync any app?
+  argocd account can-i sync applications '*'
+  
+  # Get User information
+  argocd account get-user-info
+```
+
 ### Options
 
 ```
@@ -64,7 +80,7 @@ argocd account [flags]
 ### SEE ALSO
 
 * [argocd](argocd.md)	 - argocd controls a Argo CD server
-* [argocd account bcrypt](argocd_account_bcrypt.md)	 - Generate bcrypt hash for the admin password
+* [argocd account bcrypt](argocd_account_bcrypt.md)	 - Generate bcrypt hash for any password
 * [argocd account can-i](argocd_account_can-i.md)	 - Can I
 * [argocd account delete-token](argocd_account_delete-token.md)	 - Deletes account token
 * [argocd account generate-token](argocd_account_generate-token.md)	 - Generate account token
