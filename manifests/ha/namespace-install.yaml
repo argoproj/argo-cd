@@ -1725,6 +1725,13 @@ spec:
       containers:
       - command:
         - argocd-notifications
+        env:
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:v2.6.15
         imagePullPolicy: Always
         livenessProbe:
