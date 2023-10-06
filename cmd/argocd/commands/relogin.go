@@ -88,16 +88,13 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 # Reinitiates the login with previous contexts
 argocd relogin
 
-# Reinitiates the logins with sso
-argocd relogin --sso 
-
 # Reinitiates the login with password
 "argocd relogin --password YOUR_PASSWORD"
 
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core
 
-# If user logged in with - "argocd login cd.argoproj.io --sso"
+# If user logged in with - "argocd login cd.argoproj.io" with sso login
 # The command - "argocd relogin" will Reinitiates SSO login and updates the server context`,
 	}
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
