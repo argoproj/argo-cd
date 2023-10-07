@@ -11,17 +11,19 @@ argocd cluster list [flags]
 ### Examples
 
 ```
-  # List Clusters in Default "Wide" Format
-  argocd cluster list
-  
-  # List Cluster via specifing the server
-  argocd cluster list --server http://argocd-server.example.com
-  
-  # List Clusters in JSON Format
-  argocd cluster list -o json --server http://argocd-server.example.com
-  
-  # List Clusters in YAML Format
-  argocd cluster list -o yaml --server http://argocd-server.example.com
+
+# List Clusters in Default "Wide" Format
+argocd cluster list
+
+# List Cluster via specifing the server
+argocd cluster list --server <ARGOCD_SERVER_ADDRESS>
+
+# List Clusters in JSON Format
+argocd cluster list -o json --server <ARGOCD_SERVER_ADDRESS>
+
+# List Clusters in YAML Format
+argocd cluster list -o yaml --server <ARGOCD_SERVER_ADDRESS>
+
 ```
 
 ### Options

@@ -24,24 +24,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/clusterauth"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/templates"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
-var(
-	clusterListExamples = templates.Examples(`
-# List Clusters in Default "Wide" Format
-argocd cluster list
 
-# List Cluster via specifing the server
-argocd cluster list --server http://argocd-server.example.com
-
-# List Clusters in JSON Format
-argocd cluster list -o json --server http://argocd-server.example.com
-
-# List Clusters in YAML Format
-argocd cluster list -o yaml --server http://argocd-server.example.com
-	`)
-)
 const (
 	// type of the cluster ID is 'name'
 	clusterIdTypeName = "name"
@@ -500,7 +485,19 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
-		Example: clusterListExamples,
+		Example: `
+# List Clusters in Default "Wide" Format
+argocd cluster list
+
+# List Cluster via specifing the server
+argocd cluster list --server <ARGOCD_SERVER_ADDRESS>
+
+# List Clusters in JSON Format
+argocd cluster list -o json --server <ARGOCD_SERVER_ADDRESS>
+
+# List Clusters in YAML Format
+argocd cluster list -o yaml --server <ARGOCD_SERVER_ADDRESS>
+`,
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|server")
 	return command
