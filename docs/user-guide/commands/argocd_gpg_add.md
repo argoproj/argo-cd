@@ -12,9 +12,9 @@ argocd gpg add [flags]
 
 ```
 
-		# Add a GPG public key to the server's key
-		argocd gpg add --key <GPG_PUBLIC_KEY>
-    
+# Add a GPG public key to the server's key
+argocd gpg add --key <GPG_PUBLIC_KEY>
+
 ```
 
 ### Options
