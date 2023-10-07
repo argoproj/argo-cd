@@ -32,9 +32,9 @@ var (
 // NewLogoutCommand returns a new instance of `argocd logout` command
 func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "logout CONTEXT",
-		Short: "Log out from Argo CD",
-		Long:  "Log out from Argo CD",
+		Use:     "logout CONTEXT",
+		Short:   "Log out from Argo CD",
+		Long:    "Log out from Argo CD",
 		Example: logoutExample,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
