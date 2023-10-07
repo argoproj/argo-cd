@@ -8,6 +8,21 @@ Manage applications configuration
 argocd admin app [flags]
 ```
 
+### Examples
+
+```
+
+# Compare results of two reconciliations and print diff
+argocd admin app diff-reconcile-results APPNAME [flags]
+
+# Generate declarative config for an application
+argocd admin app generate-spec APPNAME
+
+# Reconcile all applications and stores reconciliation summary in the specified file
+argocd admin app get-reconcile-results APPNAME
+		
+```
+
 ### Options
 
 ```
