@@ -123,7 +123,24 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 		timeZone     string
 	)
 	var command = &cobra.Command{
-		Use:   "add PROJECT",
+		Use: "add PROJECT",
+		Example: `# Add a 1 hour allow sync window
+argocd proj windows add PROJECT \
+    --kind allow \
+    --schedule "0 22 * * *" \
+    --duration 1h \
+    --applications "*"
+
+# Add a deny sync window with the ability to manually sync.
+argocd proj windows add PROJECT \
+    --kind deny \
+    --schedule "30 10 * * *" \
+    --duration 30m \
+    --applications "prod-\\*,website" \
+    --namespaces "default,\\*-prod" \
+    --clusters "prod,staging" \
+    --manual-sync
+	`,
 		Short: "Add a sync window to a project",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -158,7 +175,7 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 	return command
 }
 
-// NewProjectWindowsAddWindowCommand returns a new instance of an `argocd proj windows delete` command
+// NewProjectWindowsDeleteCommand returns a new instance of an `argocd proj windows delete` command
 func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "delete PROJECT ID",
@@ -205,6 +222,10 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 		Use:   "update PROJECT ID",
 		Short: "Update a project sync window",
 		Long:  "Update a project sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
+		Example: `# Change a sync window's schedule
+argocd proj windows update PROJECT ID \
+    --schedule "0 20 * * *"
+`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
