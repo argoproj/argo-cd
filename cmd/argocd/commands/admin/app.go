@@ -160,10 +160,6 @@ func NewDiffReconcileResults() *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "diff-reconcile-results PATH1 PATH2",
 		Short: "Compare results of two reconciliations and print diff.",
-		Example: `
-# Display the reconciliation results for an application named "my-app"
-argocd admin app diff-reconcile-results my-app
-`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
@@ -252,10 +248,6 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	var command = &cobra.Command{
 		Use:   "get-reconcile-results PATH",
 		Short: "Reconcile all applications and stores reconciliation summary in the specified file.",
-		Example: `
-# Reconcile all applications and stores reconciliation summary
-argocd admin app get-reconcile-results APPNAME
-`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

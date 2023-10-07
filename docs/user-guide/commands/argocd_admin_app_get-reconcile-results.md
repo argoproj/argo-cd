@@ -8,15 +8,6 @@ Reconcile all applications and stores reconciliation summary in the specified fi
 argocd admin app get-reconcile-results PATH [flags]
 ```
 
-### Examples
-
-```
-
-# Reconcile all applications and stores reconciliation summary
-argocd admin app get-reconcile-results APPNAME
-
-```
-
 ### Options
 
 ```
