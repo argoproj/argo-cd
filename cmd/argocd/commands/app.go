@@ -319,7 +319,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		Use:   "get APPNAME",
 		Short: "Get application details",
 		Example: templates.Examples(`  
-		# Get basic details about the application "my-app" in wide format
+  # Get basic details about the application "my-app" in wide format
   argocd app get my-app
 
   # Get detailed information about the application "my-app" in YAML format
@@ -342,7 +342,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
   
   # Get application details and display them in a detailed tree format
   argocd app get my-app --output tree=detailed
-  	`),
+  		`),
 
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
