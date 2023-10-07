@@ -485,6 +485,19 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
+		Example: `
+# List Clusters in Default "Wide" Format
+argocd cluster list
+
+# List Cluster via specifing the server
+argocd cluster list --server http://argocd-server.example.com
+
+# List Clusters in JSON Format
+argocd cluster list -o json --server http://argocd-server.example.com
+
+# List Clusters in YAML Format
+argocd cluster list -o yaml --server http://argocd-server.example.com
+`,
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|server")
 	return command
