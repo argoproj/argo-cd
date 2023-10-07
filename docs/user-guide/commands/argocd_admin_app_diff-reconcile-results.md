@@ -8,6 +8,15 @@ Compare results of two reconciliations and print diff.
 argocd admin app diff-reconcile-results PATH1 PATH2 [flags]
 ```
 
+### Examples
+
+```
+
+# Display the reconciliation results for an application named "my-app"
+argocd admin app diff-reconcile-results my-app
+
+```
+
 ### Options
 
 ```
