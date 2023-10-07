@@ -14,7 +14,7 @@ argocd admin app get-reconcile-results PATH [flags]
 
 # Reconcile all applications and stores reconciliation summary
 argocd admin app get-reconcile-results APPNAME
-		
+
 ```
 
 ### Options

@@ -20,7 +20,7 @@ argocd admin app generate-spec APPNAME
 
 # Reconcile all applications and stores reconciliation summary in the specified file
 argocd admin app get-reconcile-results APPNAME
-		
+
 ```
 
 ### Options

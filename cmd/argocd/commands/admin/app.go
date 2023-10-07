@@ -45,9 +45,6 @@ func NewAppCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "app",
 		Short: "Manage applications configuration",
-		Run: func(c *cobra.Command, args []string) {
-			c.HelpFunc()(c, args)
-		},
 		Example: `
 # Compare results of two reconciliations and print diff
 argocd admin app diff-reconcile-results APPNAME [flags]
@@ -57,7 +54,10 @@ argocd admin app generate-spec APPNAME
 
 # Reconcile all applications and stores reconciliation summary in the specified file
 argocd admin app get-reconcile-results APPNAME
-		`,
+`,
+		Run: func(c *cobra.Command, args []string) {
+			c.HelpFunc()(c, args)
+		},
 	}
 
 	command.AddCommand(NewGenAppSpecCommand())
@@ -252,6 +252,10 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	var command = &cobra.Command{
 		Use:   "get-reconcile-results PATH",
 		Short: "Reconcile all applications and stores reconciliation summary in the specified file.",
+		Example: `
+# Reconcile all applications and stores reconciliation summary
+argocd admin app get-reconcile-results APPNAME
+`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -293,10 +297,6 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 
 			errors.CheckError(saveToFile(err, outputFormat, reconcileResults{Applications: result}, outputPath))
 		},
-		Example: `
-# Reconcile all applications and stores reconciliation summary
-argocd admin app get-reconcile-results APPNAME
-		`,
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().StringVar(&repoServerAddress, "repo-server", "", "Repo server address.")
