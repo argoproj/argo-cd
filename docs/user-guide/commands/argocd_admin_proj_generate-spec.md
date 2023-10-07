@@ -19,6 +19,7 @@ argocd admin proj generate-spec PROJECT [flags]
 
   # Generate a YAML configuration for a project named "someproject" and write it back to the input file
   argocd admin projects generate-spec someproject --inline  
+  
 ```
 
 ### Options
