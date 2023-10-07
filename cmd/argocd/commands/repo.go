@@ -254,6 +254,19 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				fmt.Printf("Repository '%s' removed\n", repoURL)
 			}
 		},
+		Example: `
+# Remove a Repository by Repository Name
+argocd repo rm MyRepo
+
+# Remove a Repository by URL
+argocd repo rm https://github.com/yourusername/your-repo.git
+
+# Remove a Repository with an Authentication Token
+argocd repo rm myrepo --auth-token yourtoken
+
+# Remove a Repository with Client Certificate and Key
+argocd repo rm myrepo --client-crt /path/to/client.crt --client-crt-key /path/to/client.key
+`,
 	}
 	return command
 }
