@@ -51,7 +51,7 @@ func (_m *Client) CommitSHA() (string, error) {
 }
 
 // Fetch provides a mock function with given fields: revision
-func (_m *Client) Fetch(revision string) error {
+func (_m *Client) Fetch(revision string, depth uint64) error {
 	ret := _m.Called(revision)
 
 	var r0 error

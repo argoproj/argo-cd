@@ -7974,6 +7974,11 @@
       "type": "object",
       "title": "Repository is a repository holding application configurations",
       "properties": {
+        "cloneDepth": {
+          "description": "CloneDepth specifies the depth used by git when cloning the repository. A value of `0` fetches the whole history.",
+          "type": "string",
+          "format": "uint64"
+        },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },

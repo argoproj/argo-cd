@@ -5619,6 +5619,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"cloneDepth": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CloneDepth specifies the depth used by git when cloning the repository. A value of `0` fetches the whole history.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
 				},
 				Required: []string{"repo"},
 			},
