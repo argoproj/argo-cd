@@ -50,7 +50,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/grpc"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
-	"github.com/argoproj/argo-cd/v2/util/templates"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
@@ -318,7 +317,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
 		Short: "Get application details",
-		Example: templates.Examples(`  
+		Example: `  
   # Get basic details about the application "my-app" in wide format
   argocd app get my-app
 
@@ -342,7 +341,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
   
   # Get application details and display them in a detailed tree format
   argocd app get my-app --output tree=detailed
-  		`),
+  		`,
 
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
