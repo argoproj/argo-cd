@@ -401,6 +401,44 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var command = &cobra.Command{
 		Use:   "logs APPNAME",
 		Short: "Get logs of application pods",
+		Example: templates.Examples(`  
+  # Get logs of pods associated with the application "my-app"
+  argocd app logs my-app
+
+  # Get logs of pods associated with the application "my-app" in a specific resource group
+  argocd app logs my-app --group my-group
+
+  # Get logs of pods associated with the application "my-app" in a specific resource kind
+  argocd app logs my-app --kind my-kind
+
+  # Get logs of pods associated with the application "my-app" in a specific namespace
+  argocd app logs my-app --namespace my-namespace
+
+  # Get logs of pods associated with the application "my-app" for a specific resource name
+  argocd app logs my-app --name my-resource
+
+  # Stream logs in real-time for the application "my-app"
+  argocd app logs my-app -f
+
+  # Get the last N lines of logs for the application "my-app"
+  argocd app logs my-app --tail 100
+
+  # Get logs since a specified number of seconds ago
+  argocd app logs my-app --since-seconds 3600
+
+  # Get logs until a specified time (format: "2023-10-10T15:30:00Z")
+  argocd app logs my-app --until-time "2023-10-10T15:30:00Z"
+
+  # Filter logs to show only those containing a specific string
+  argocd app logs my-app --filter "error"
+
+  # Get logs for a specific container within the pods
+  argocd app logs my-app -c my-container
+
+  # Get previously terminated container logs
+  argocd app logs my-app -p
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
