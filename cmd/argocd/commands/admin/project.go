@@ -47,6 +47,7 @@ func NewGenProjectSpecCommand() *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "generate-spec PROJECT",
 		Short: "Generate declarative config for a project",
+
 		Run: func(c *cobra.Command, args []string) {
 			proj, err := cmdutil.ConstructAppProj(fileURL, args, opts, c)
 			errors.CheckError(err)
