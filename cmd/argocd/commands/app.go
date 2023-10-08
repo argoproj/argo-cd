@@ -50,6 +50,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/grpc"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
