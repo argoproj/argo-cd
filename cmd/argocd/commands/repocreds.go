@@ -252,6 +252,12 @@ func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 
 			# List all the configured repository credentials in json format
 			argocd repocreds list -o json
+
+			# List all the configured repository credentials in yaml format
+			argocd repocreds list -o yaml
+
+			# List all the configured repository credentials in url format
+			argocd repocreds list -o url
 		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
