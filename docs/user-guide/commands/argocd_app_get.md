@@ -34,6 +34,7 @@ argocd app get APPNAME [flags]
   
   # Get application details and display them in a detailed tree format
   argocd app get my-app --output tree=detailed
+  
 ```
 
 ### Options
