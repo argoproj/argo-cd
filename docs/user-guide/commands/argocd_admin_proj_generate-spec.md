@@ -11,29 +11,14 @@ argocd admin proj generate-spec PROJECT [flags]
 ### Examples
 
 ```
-  # Get basic details about the application "my-app" in wide format
-  argocd app get my-app
+  # Generate a YAML configuration for a project named "myproject"
+  argocd admin projects generate-spec myproject
   
-  # Get detailed information about the application "my-app" in YAML format
-  argocd app get my-app -o yaml
+  # Generate a JSON configuration for a project named "anotherproject" and specify an output file
+  argocd admin projects generate-spec anotherproject --output json --file config.json
   
-  # Get application details and include information about the current operation
-  argocd app get my-app --show-operation
-  
-  # Show application parameters and overrides
-  argocd app get my-app --show-params
-  
-  # Refresh application data when retrieving
-  argocd app get my-app --refresh
-  
-  # Perform a hard refresh, including refreshing application data and target manifests cache
-  argocd app get my-app --hard-refresh
-  
-  # Get application details and display them in a tree format
-  argocd app get my-app --output tree
-  
-  # Get application details and display them in a detailed tree format
-  argocd app get my-app --output tree=detailed
+  # Generate a YAML configuration for a project named "someproject" and write it back to the input file
+  argocd admin projects generate-spec someproject --inline
 ```
 
 ### Options

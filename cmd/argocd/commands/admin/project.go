@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/spf13/cobra"
@@ -47,6 +48,16 @@ func NewGenProjectSpecCommand() *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "generate-spec PROJECT",
 		Short: "Generate declarative config for a project",
+		Example: templates.Examples(`  
+  # Generate a YAML configuration for a project named "myproject"
+  argocd admin projects generate-spec myproject
+	  
+  # Generate a JSON configuration for a project named "anotherproject" and specify an output file
+  argocd admin projects generate-spec anotherproject --output json --file config.json
+	  
+  # Generate a YAML configuration for a project named "someproject" and write it back to the input file
+  argocd admin projects generate-spec someproject --inline  
+  		`),
 
 		Run: func(c *cobra.Command, args []string) {
 			proj, err := cmdutil.ConstructAppProj(fileURL, args, opts, c)
