@@ -8,6 +8,16 @@ Add project destination
 argocd proj add-destination PROJECT SERVER/NAME NAMESPACE [flags]
 ```
 
+### Examples
+
+```
+  # Add project destination using a server URL (SERVER) in the specified namespace (NAMESPACE) on the project with name PROJECT
+  argocd proj add-destination PROJECT SERVER NAMESPACE
+  
+  # Add project destination using a server name (NAME) in the specified namespace (NAMESPACE) on the project with name PROJECT
+  argocd proj add-destination PROJECT NAME NAMESPACE --name
+```
+
 ### Options
 
 ```
