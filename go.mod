@@ -286,6 +286,7 @@ require (
 )
 
 replace (
+	github.com/antonmedv/expr => github.com/expr-lang/expr v0.0.0-20230912141041-709c5dd55aa7
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 
