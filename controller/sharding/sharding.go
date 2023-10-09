@@ -75,11 +75,11 @@ func GetClusterFilter(db db.ArgoDB, distributionFunction DistributionFunction, s
 // GetDistributionFunction returns which DistributionFunction should be used based on the passed algorithm and
 // the current datas.
 func GetDistributionFunction(db db.ArgoDB, clusters clusterAccessor, shardingAlgorithm string) DistributionFunction {
-	log.Infof("Using filter function:  %s", shardingAlgorithm)
+	log.Debugf("Using filter function:  %s", shardingAlgorithm)
 	distributionFunction := LegacyDistributionFunction(db)
 	switch shardingAlgorithm {
 	case common.NoShardingAlgorithm:
-		distributionFunction = NoShardingDistributionFunction(0)
+		distributionFunction = NoShardingDistributionFunction()
 	case common.RoundRobinShardingAlgorithm:
 		distributionFunction = RoundRobinDistributionFunction(db, clusters)
 	case common.LegacyShardingAlgorithm:
@@ -161,8 +161,9 @@ func RoundRobinDistributionFunction(db db.ArgoDB, clusters clusterAccessor) Dist
 }
 
 // NoShardingDistributionFunction returns a DistributionFunction that will process all shards
-func NoShardingDistributionFunction(shard int) DistributionFunction {
-	return func(c *v1alpha1.Cluster) int { return shard }
+// the function is created for API compatibility purposes.
+func NoShardingDistributionFunction() DistributionFunction {
+	return func(c *v1alpha1.Cluster) int { return 0 }
 }
 
 // InferShard extracts the shard index based on its hostname.

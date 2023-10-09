@@ -27,20 +27,16 @@ type clusterSharding struct {
 }
 
 func NewClusterSharding(db db.ArgoDB, shard, replicas int, shardingAlgorithm string) ClusterSharding {
-
-	log.Infof("Processing clusters from shard %d", shard)
-	log.Infof("Using filter function:  %s", shardingAlgorithm)
+	log.Debugf("Processing clusters from shard %d: Using filter function:  %s", shard, shardingAlgorithm)
 	clusterSharding := &clusterSharding{
 		shard:    shard,
 		replicas: replicas,
 		shards:   make(map[string]int),
 		clusters: make(map[string]*v1alpha1.Cluster),
 	}
-
-	distributionFunction := NoShardingDistributionFunction(0)
+	distributionFunction := NoShardingDistributionFunction()
 	if replicas > 1 {
-		log.Infof("Processing clusters from shard %d", shard)
-		log.Infof("Using filter function:  %s", shardingAlgorithm)
+		log.Debugf("Processing clusters from shard %d: Using filter function:  %s", shard, shardingAlgorithm)
 		distributionFunction = GetDistributionFunction(db, clusterSharding.getClusterAccessor(), shardingAlgorithm)
 	} else {
 		log.Info("Processing all cluster shards")
