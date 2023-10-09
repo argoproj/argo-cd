@@ -10,10 +10,32 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 	"unicode/utf8"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/controller"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/reposerver/repository"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/manifeststream"
+	"github.com/argoproj/argo-cd/v2/util/text/label"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
@@ -30,27 +52,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/yaml"
-
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/controller"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/reposerver/repository"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/grpc"
-	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/manifeststream"
-	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
@@ -1493,8 +1494,9 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		watch     watchOpts
 		timeout   uint
 		selector  string
-		resources []string
 		output    string
+		watchFlag bool
+		resources []string
 	)
 	var command = &cobra.Command{
 		Use:   "wait [APPNAME.. | -l selector]",
@@ -1543,7 +1545,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			for _, appName := range appNames {
-				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output)
+				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output, watchFlag)
 				errors.CheckError(err)
 			}
 		},
@@ -1555,8 +1557,9 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Wait for apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
 	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
-	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
+	command.Flags().BoolVar(&watchFlag, "watchFlag", false, "watchFlag provides the dynamic view of status of appResources")
+	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
 
@@ -1853,7 +1856,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 
 				if !async {
-					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output)
+					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output, false)
 					errors.CheckError(err)
 
 					if !dryRun {
@@ -2094,7 +2097,7 @@ const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
 // Additionally return the operationState at time of fulfilment (which may be different than returned app).
-func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string) (*argoappv1.Application, *argoappv1.OperationState, error) {
+func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string, watchFlag bool) (*argoappv1.Application, *argoappv1.OperationState, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -2154,6 +2157,14 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		}
 		return app
 	}
+	var resourceTreeWatchChannel chan bool
+	if watchFlag {
+		resourceTreeWatchChannel = make(chan bool)
+		go func() {
+			_, appIf := acdClient.NewApplicationClientOrDie()
+			resourceTreeWatch(appIf, ctx, appName, appNs, output, resourceTreeWatchChannel)
+		}()
+	}
 
 	if timeout != 0 {
 		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
@@ -2163,6 +2174,9 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
+			if watchFlag {
+				fmt.Print("\033[2J\033[H\033[3J")
+			}
 			fmt.Println()
 			fmt.Println("This is the state of the app after `wait` timed out:")
 			printFinalStatus(app)
@@ -2173,7 +2187,9 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
+	if !watchFlag {
+		_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
+	}
 
 	prevStates := make(map[string]*resourceState)
 	conn, appClient := acdClient.NewApplicationClientOrDie()
@@ -2233,6 +2249,10 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		}
 
 		if selectedResourcesAreReady && (!operationInProgress || !watch.operation) {
+			if watchFlag {
+				resourceTreeWatchChannel <- true
+				fmt.Print("\033[2J\033[H\033[3J")
+			}
 			app = printFinalStatus(app)
 			return app, finalOperationState, nil
 		}
@@ -2243,6 +2263,10 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			stateKey := newState.Key()
 			if prevState, found := prevStates[stateKey]; found {
 				if watch.health && prevState.Health != string(health.HealthStatusUnknown) && prevState.Health != string(health.HealthStatusDegraded) && newState.Health == string(health.HealthStatusDegraded) {
+					if watchFlag {
+						resourceTreeWatchChannel <- true
+						fmt.Print("\033[2J\033[H\033[3J")
+					}
 					_ = printFinalStatus(app)
 					return nil, finalOperationState, fmt.Errorf("application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
 				}
@@ -2255,10 +2279,162 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				_, _ = fmt.Fprintf(w, waitFormatString, prevStates[stateKey].FormatItems()...)
 			}
 		}
-		_ = w.Flush()
+		if !watchFlag {
+			_ = w.Flush()
+		}
 	}
+
 	_ = printFinalStatus(app)
+
 	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
+}
+
+func closeAppStream(appResourceStream application.ApplicationService_WatchResourceTreeClient) {
+	if err := appResourceStream.CloseSend(); err != nil {
+		log.Fatalf("Error while closing the app stream: %v", err)
+	}
+}
+
+func closeGitStream(gitResourceStream application.ApplicationService_WatchClient) {
+	if err := gitResourceStream.CloseSend(); err != nil {
+		log.Fatalf("Error while closing the git stream: %v", err)
+	}
+}
+
+func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string, output string, done chan bool) {
+	mapUidToNode := make(map[string]argoappv1.ResourceNode)
+	mapParentToChild := make(map[string][]string)
+	parentNodes := make(map[string]struct{})
+	mapNodeNameToResourceState := make(map[string]*resourceState)
+	gitResources := make(chan v1alpha1.Application)
+	appResources := make(chan []v1alpha1.ResourceNode)
+	var app *v1alpha1.Application
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		appResourceStream, err := appIf.WatchResourceTree(ctx, &application.ResourcesQuery{Name: &appName, AppNamespace: &appNs, ApplicationName: &appName})
+		if err != nil {
+			log.Printf("Failed to get Application tree: %v", err)
+			done <- true
+			wg.Done()
+			return
+		}
+		for {
+			select {
+			case <-ctx.Done():
+				closeAppStream(appResourceStream)
+				wg.Done()
+				return
+			case <-done:
+				closeAppStream(appResourceStream)
+				wg.Done()
+				return
+			default:
+				msg, err := appResourceStream.Recv()
+				if err == io.EOF {
+					return
+				}
+				if err != nil {
+					log.Printf("appResourceStream read failed: %v", err)
+					return
+				}
+				fmt.Println("")
+				appResources <- msg.Nodes
+			}
+		}
+	}()
+
+	go func() {
+		gitResourceStream, err := appIf.Watch(ctx, &application.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
+		if err != nil {
+			done <- true
+			wg.Done()
+			log.Fatalf("failed to get git resources: %v", err)
+		}
+		for {
+			select {
+			case <-ctx.Done():
+				closeGitStream(gitResourceStream)
+				wg.Done()
+				return
+			case <-done:
+				closeGitStream(gitResourceStream)
+				wg.Done()
+				return
+			default:
+				msg, err := gitResourceStream.Recv()
+				if err == io.EOF {
+					return
+				}
+				if err != nil {
+					log.Printf("gitResourceStream read failed: %v", err)
+					return
+				}
+				gitResources <- msg.Application
+			}
+		}
+	}()
+	var once sync.Once
+
+	for {
+		select {
+		case <-ctx.Done():
+			once.Do(func() {
+				close(gitResources)
+				close(appResources)
+				close(done)
+				fmt.Println("closed all the resources from ctx cancellation")
+			})
+			return
+		case appTreeNodes := <-appResources:
+			mapUidToNode, mapParentToChild, parentNodes = parentChildInfo(appTreeNodes)
+			printAppResourceStatus(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState, output, app)
+		case gitResourceApp := <-gitResources:
+			app = &gitResourceApp
+			for _, res := range getResourceStates(&gitResourceApp, nil) {
+				mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
+			}
+			printAppResourceStatus(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState, output, app)
+		case <-done:
+			wg.Wait()
+			once.Do(func() {
+				close(gitResources)
+				close(appResources)
+				close(done)
+				fmt.Println("closed all the resources from done cancellation")
+			})
+			return
+		}
+	}
+}
+
+func printAppResourceStatus(mapUidToNode map[string]v1alpha1.ResourceNode, mapParentToChild map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState, output string, app *v1alpha1.Application) {
+	fmt.Print("\033[2J\033[H\033[3J")
+	switch output {
+	case "yaml", "json":
+		err := PrintResource(app, output)
+		errors.CheckError(err)
+	case "wide", "":
+		if len(app.Status.Resources) > 0 {
+			fmt.Println()
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			printAppResources(w, app)
+			_ = w.Flush()
+		}
+	case "tree":
+		if len(mapUidToNode) > 0 {
+			fmt.Println()
+			printTreeView(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState)
+		}
+	case "tree=detailed":
+		if len(mapUidToNode) > 0 {
+			fmt.Println()
+			printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState)
+		}
+	default:
+		errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+	}
 }
 
 // setParameterOverrides updates an existing or appends a new parameter override in the application
@@ -2416,7 +2592,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 			_, _, err = waitOnApplicationStatus(ctx, acdClient, app.QualifiedName(), timeout, watchOpts{
 				operation: true,
-			}, nil, output)
+			}, nil, output, false)
 			errors.CheckError(err)
 		},
 	}
