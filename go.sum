@@ -702,16 +702,14 @@ github.com/andybalholm/brotli v1.0.4/go.mod h1:fO7iG3H7G2nSZ7m0zPUDn85XEX2GTukHG
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFIImctFaOjnTIavg87rW78vTPkQqLI8=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20210826220005-b48c857c3a0e/go.mod h1:F7bn7fEU90QkQ3tnmaTx3LTKLEDqnwWODIYppRQ5hnY=
-github.com/antonmedv/expr v1.15.2 h1:afFXpDWIC2n3bF+kTZE1JvFo+c34uaM3sTqh8z0xfdU=
-github.com/antonmedv/expr v1.15.2/go.mod h1:0E/6TxnOlRNp81GMzX9QfDPAmHo2Phg00y4JUv1ihsE=
 github.com/apache/arrow/go/v10 v10.0.1/go.mod h1:YvhnlEePVnBS4+0z3fhPfUy7W1Ikj0Ih0vcRo/gZ1M0=
 github.com/apache/arrow/go/v11 v11.0.0/go.mod h1:Eg5OsL5H+e299f7u5ssuXsuHQVEGC4xei5aX110hRiI=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.16.0/go.mod h1:PHK3hniurgQaNMZYaCLEqXKsYK8upmhPbmdP2FXSqgU=
 github.com/appscode/go v0.0.0-20191119085241-0887d8ec2ecc/go.mod h1:OawnOmAL4ZX3YaPdN+8HTNwBveT1jMsqP74moa9XUbE=
-github.com/argoproj/gitops-engine v0.7.1-0.20230906152414-b0fffe419a0f h1:cb2j6HxYJutMBvvQc/Y3EOSL7pcr5pcnP/4MNmYi4xc=
-github.com/argoproj/gitops-engine v0.7.1-0.20230906152414-b0fffe419a0f/go.mod h1:/GMN0JuoJUUpnKlNLp2Wn/mfK8sglFsdPn+eoxSddmg=
+github.com/argoproj/gitops-engine v0.7.1-0.20230929203505-a00ce82f1c17 h1:PD2CJKPakR4u5hDsi6MG8gJUB4oj4Peltm7bGkn0Rfc=
+github.com/argoproj/gitops-engine v0.7.1-0.20230929203505-a00ce82f1c17/go.mod h1:/GMN0JuoJUUpnKlNLp2Wn/mfK8sglFsdPn+eoxSddmg=
 github.com/argoproj/notifications-engine v0.4.1-0.20230905144632-9dcecdc3eebf h1:4wliaBwd6iKvT/5huDTJntaYtTSdwPLs00SOQwDSK6A=
 github.com/argoproj/notifications-engine v0.4.1-0.20230905144632-9dcecdc3eebf/go.mod h1:TuK0BNKo34DIUOyCCGOB9ij+smGCxeCgt9ZB+0fMWno=
 github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1 h1:qsHwwOJ21K2Ao0xPju1sNuqphyMnMYkyB3ZLoLtxWpo=
@@ -945,6 +943,8 @@ github.com/evanphx/json-patch v5.6.0+incompatible h1:jBYDEEiFBPxA0v50tFdvOzQQTCv
 github.com/evanphx/json-patch v5.6.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d h1:105gxyaGwCFad8crR9dcMQWvV9Hvulu6hwUh4tWPJnM=
 github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d/go.mod h1:ZZMPRZwes7CROmyNKgQzC3XPs6L/G2EJLHddWejkmf4=
+github.com/expr-lang/expr v0.0.0-20230912141041-709c5dd55aa7 h1:Sg2XxaymeyqqaLG34aB2mvlX+nii916/Gv1ovWc4jMc=
+github.com/expr-lang/expr v0.0.0-20230912141041-709c5dd55aa7/go.mod h1:0E/6TxnOlRNp81GMzX9QfDPAmHo2Phg00y4JUv1ihsE=
 github.com/facebookgo/ensure v0.0.0-20160127193407-b4ab57deab51/go.mod h1:Yg+htXGokKKdzcwhuNDwVvN+uBxDGXJ7G/VN1d8fa64=
 github.com/facebookgo/stack v0.0.0-20160209184415-751773369052/go.mod h1:UbMTZqLaRiH3MsBH8va0n7s1pQYcu3uTb8G4tygF4Zg=
 github.com/facebookgo/subset v0.0.0-20150612182917-8dac2c3c4870/go.mod h1:5tD+neXqOorC30/tWg0LCSkrqj/AR6gu8yY8/fpw1q0=

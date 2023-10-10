@@ -13,6 +13,7 @@ markdown_extensions:
 - admonition
 - toc:
     permalink: true
+- pymdownx.superfences
 nav:
 - Overview: index.md
 - understand_the_basics.md
@@ -38,6 +39,7 @@ nav:
     - operator-manual/user-management/keycloak.md
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/google.md
+    - operator-manual/user-management/zitadel.md
     - operator-manual/rbac.md
   - Security:
     - Overview: operator-manual/security.md
@@ -58,7 +60,7 @@ nav:
   - operator-manual/web_based_terminal.md
   - operator-manual/config-management-plugins.md
   - operator-manual/deep_links.md
-  - Notification:
+  - Notifications:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md
     - operator-manual/notifications/templates.md
