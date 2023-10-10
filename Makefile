@@ -462,7 +462,6 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES=argocd-e2e-external \
 	ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS=http://127.0.0.1:8341,http://127.0.0.1:8342,http://127.0.0.1:8343,http://127.0.0.1:8344 \
 	ARGOCD_E2E_TEST=true \
-	WORKQUEUE_FAILURE_COOLDOWN_NS=0 \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in by golang embed
