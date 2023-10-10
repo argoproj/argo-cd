@@ -17,6 +17,8 @@ which does not require a restart of the application controller pods.
 
 ## Enabling Dynamic Distribution of Clusters
 
+This feature is disabled by default while it is in alpha. To enable it, you must set the environment `ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION` to true when running the Application Controller.
+
 In order to utilize the feature, the manifests `manifests/ha/base/controller-deployment/` can be applied as a Kustomize 
 overlay. This overlay sets the StatefulSet replicas to `0` and deploys the application controller as a Deployment. The
 dynamic distribution code automatically kicks in when the controller is deployed as a Deployment.
