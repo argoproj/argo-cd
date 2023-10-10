@@ -38,8 +38,8 @@ export const PKCEVerification = (props: RouteComponentProps<any>) => {
     }
 
     return (
-        <div>
-            success. if you are not being redirected automatically please <a href='/applications'>click here</a>
+        <div className='pkce-verify__container'>
+            success. if you are not being redirected automatically please &nbsp;<a href='/applications'>click here</a>
         </div>
     );
 };

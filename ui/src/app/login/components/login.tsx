@@ -1,4 +1,4 @@
-import {FormField} from 'argo-ui';
+import {FormField, NotificationType} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Form, Text} from 'react-form';
@@ -66,7 +66,12 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                                 {...(authSettings?.oidcConfig?.enablePKCEAuthentication
                                     ? {
                                           onClick: async () => {
-                                              pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString());
+                                              pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
+                                                this.appContext.apis.notifications.show({
+                                                    type: NotificationType.Error,
+                                                    content: err?.message || JSON.stringify(err)
+                                                })
+                                              });
                                           }
                                       }
                                     : {href: `auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`})}>
