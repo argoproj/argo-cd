@@ -22,7 +22,7 @@ export const PKCEVerification = (props: RouteComponentProps<any>) => {
     }, [props.location]);
 
     if (loading) {
-        return <div className='pkce-verify__container'>Processing...</div>
+        return <div className='pkce-verify__container'>Processing...</div>;
     }
 
     if (error) {

@@ -4462,6 +4462,9 @@
         "clientID": {
           "type": "string"
         },
+        "enablePKCEAuthentication": {
+          "type": "boolean"
+        },
         "idTokenClaims": {
           "type": "object",
           "additionalProperties": {

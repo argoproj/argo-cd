@@ -63,9 +63,13 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                     {ssoConfigured && (
                         <div className='login__box_saml width-control'>
                             <a
-                                onClick={async () => {
-                                    pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString());
-                                }}>
+                                {...(authSettings?.oidcConfig?.enablePKCEAuthentication
+                                    ? {
+                                          onClick: async () => {
+                                              pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString());
+                                          }
+                                      }
+                                    : {href: `auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`})}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
                                     {(authSettings.oidcConfig && <span>Log in via {authSettings.oidcConfig.name}</span>) ||
                                         (authSettings.dexConfig.connectors.length === 1 && <span>Log in via {authSettings.dexConfig.connectors[0].name}</span>) || (

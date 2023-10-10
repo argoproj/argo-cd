@@ -155,28 +155,30 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		return nil
 	}
 	return &OIDCConfig{
-		Name:                   o.Name,
-		Issuer:                 o.Issuer,
-		ClientID:               o.ClientID,
-		ClientSecret:           o.ClientSecret,
-		CLIClientID:            o.CLIClientID,
-		RequestedScopes:        o.RequestedScopes,
-		RequestedIDTokenClaims: o.RequestedIDTokenClaims,
-		LogoutURL:              o.LogoutURL,
-		RootCA:                 o.RootCA,
+		Name:                     o.Name,
+		Issuer:                   o.Issuer,
+		ClientID:                 o.ClientID,
+		ClientSecret:             o.ClientSecret,
+		CLIClientID:              o.CLIClientID,
+		RequestedScopes:          o.RequestedScopes,
+		RequestedIDTokenClaims:   o.RequestedIDTokenClaims,
+		LogoutURL:                o.LogoutURL,
+		RootCA:                   o.RootCA,
+		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
 	}
 }
 
 type OIDCConfig struct {
-	Name                   string                 `json:"name,omitempty"`
-	Issuer                 string                 `json:"issuer,omitempty"`
-	ClientID               string                 `json:"clientID,omitempty"`
-	ClientSecret           string                 `json:"clientSecret,omitempty"`
-	CLIClientID            string                 `json:"cliClientID,omitempty"`
-	RequestedScopes        []string               `json:"requestedScopes,omitempty"`
-	RequestedIDTokenClaims map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
-	LogoutURL              string                 `json:"logoutURL,omitempty"`
-	RootCA                 string                 `json:"rootCA,omitempty"`
+	Name                     string                 `json:"name,omitempty"`
+	Issuer                   string                 `json:"issuer,omitempty"`
+	ClientID                 string                 `json:"clientID,omitempty"`
+	ClientSecret             string                 `json:"clientSecret,omitempty"`
+	CLIClientID              string                 `json:"cliClientID,omitempty"`
+	RequestedScopes          []string               `json:"requestedScopes,omitempty"`
+	RequestedIDTokenClaims   map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
+	LogoutURL                string                 `json:"logoutURL,omitempty"`
+	RootCA                   string                 `json:"rootCA,omitempty"`
+	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
