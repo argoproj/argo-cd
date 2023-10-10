@@ -6251,6 +6251,8 @@ spec:
                                         type: object
                                       topic:
                                         type: string
+                                      latestProtectedTag:
+                                        type: boolean
                                     required:
                                     - group
                                     type: object
@@ -11278,6 +11280,8 @@ spec:
                                         type: object
                                       topic:
                                         type: string
+                                      latestProtectedTag:
+                                        type: boolean
                                     required:
                                     - group
                                     type: object
@@ -13962,6 +13966,8 @@ spec:
                               type: object
                             topic:
                               type: string
+                            latestProtectedTag:
+                              type: boolean
                           required:
                           - group
                           type: object

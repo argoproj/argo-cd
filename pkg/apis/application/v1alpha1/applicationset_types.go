@@ -496,6 +496,8 @@ type SCMProviderGeneratorGitlab struct {
 	IncludeSharedProjects *bool `json:"includeSharedProjects,omitempty" protobuf:"varint,7,opt,name=includeSharedProjects"`
 	// Filter repos list based on Gitlab Topic.
 	Topic string `json:"topic,omitempty" protobuf:"bytes,8,opt,name=topic"`
+	// Obtain latest protected tag from GitLab project. Default to "false"
+	LatestProtectedTag bool `json:"latestProtectedTag,omitempty" protobuf:"varint,8,opt,name=latestProtectedTag"`
 }
 
 func (s *SCMProviderGeneratorGitlab) WillIncludeSharedProjects() bool {
