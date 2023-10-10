@@ -67,10 +67,10 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                                     ? {
                                           onClick: async () => {
                                               pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
-                                                this.appContext.apis.notifications.show({
-                                                    type: NotificationType.Error,
-                                                    content: err?.message || JSON.stringify(err)
-                                                })
+                                                  this.appContext.apis.notifications.show({
+                                                      type: NotificationType.Error,
+                                                      content: err?.message || JSON.stringify(err)
+                                                  });
                                               });
                                           }
                                       }
