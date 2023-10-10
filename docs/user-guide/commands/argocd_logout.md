@@ -12,6 +12,15 @@ Log out from Argo CD
 argocd logout CONTEXT [flags]
 ```
 
+### Examples
+
+```
+# To log out of argocd
+$ argocd logout
+# This can be helpful for security reasons or when you want to switch between different Argo CD contexts or accounts.
+
+```
+
 ### Options
 
 ```
