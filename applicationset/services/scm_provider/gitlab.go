@@ -195,3 +195,42 @@ func (g *GitlabProvider) listBranches(_ context.Context, repo *Repository) ([]gi
 	}
 	return branches, nil
 }
+
+func GitlabListTags(_ context.Context, repo *Repository, g *GitlabProvider) ([]gitlab.Tag, error) {
+	tags := []gitlab.Tag{}
+	opt := &gitlab.ListTagsOptions{
+		ListOptions: gitlab.ListOptions{PerPage: 100},
+	}
+	for {
+		gitlabTags, resp, err := g.client.Tags.ListTags(repo.RepositoryId, opt)
+		// 404s are not an error here, just a normal false.
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			return []gitlab.Tag{}, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		for _, gitlabTag := range gitlabTags {
+			tags = append(tags, *gitlabTag)
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+	return tags, nil
+}
+
+func GitlabLatestProtectedTag(ctx context.Context, repo *Repository, g *GitlabProvider) (string, error) {
+	tags, err := GitlabListTags(ctx, repo, g)
+	if err != nil {
+		return "", fmt.Errorf("error listing tags for %s/%s: %v", repo.Organization, repo.Repository, err)
+	}
+	for _, tag := range tags {
+		if tag.Protected {
+			return tag.Name, nil
+		}
+	}
+	return "", fmt.Errorf("can not find protected tags for %s/%s: %v", repo.Organization, repo.Repository, err)
+}
