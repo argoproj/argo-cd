@@ -39,6 +39,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 func NewAppCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
