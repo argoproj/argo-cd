@@ -233,7 +233,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if providerConfig.Gitlab != nil && providerConfig.Gitlab.LatestProtectedTag {
 			latestProtectedTag, err := scm_provider.GitlabLatestProtectedTag(ctx, repo, provider.(*scm_provider.GitlabProvider))
 			if err != nil {
-				fmt.Errorf("error getting latest protected tag: %v", err)
+				return nil, fmt.Errorf("error getting latest protected tag: %v", err)
 			} else if len(latestProtectedTag) > 0 {
 				params["latestProtectedTag"] = latestProtectedTag
 			}

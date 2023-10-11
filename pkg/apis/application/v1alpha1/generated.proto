@@ -2095,6 +2095,9 @@ message SCMProviderGeneratorGitlab {
 
   // Filter repos list based on Gitlab Topic.
   optional string topic = 8;
+
+  // Obtain latest protected tag from GitLab project. Default to "false"
+  optional bool latestProtectedTag = 9;
 }
 
 // Utility struct for a reference to a secret key.
