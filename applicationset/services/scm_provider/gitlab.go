@@ -199,9 +199,11 @@ func (g *GitlabProvider) listBranches(_ context.Context, repo *Repository) ([]gi
 func GitlabListTags(_ context.Context, repo *Repository, g *GitlabProvider) ([]gitlab.Tag, error) {
 	tags := []gitlab.Tag{}
 	sortType := "desc"
+	orderBy := "version"
 	opt := &gitlab.ListTagsOptions{
 		ListOptions: gitlab.ListOptions{PerPage: 100},
 		Sort:        &sortType,
+		OrderBy:     &orderBy,
 	}
 	for {
 		gitlabTags, resp, err := g.client.Tags.ListTags(repo.RepositoryId, opt)
