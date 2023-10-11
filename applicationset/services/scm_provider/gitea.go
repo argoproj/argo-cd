@@ -27,13 +27,11 @@ func NewGiteaProvider(ctx context.Context, owner, token, url string, allBranches
 	if insecure {
 		cookieJar, _ := cookiejar.New(nil)
 
-		tr := http.DefaultTransport.(*http.Transport).Clone()
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-
 		httpClient = &http.Client{
-			Jar:       cookieJar,
-			Transport: tr,
-		}
+			Jar: cookieJar,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			}}
 	}
 	client, err := gitea.NewClient(url, gitea.SetToken(token), gitea.SetHTTPClient(httpClient))
 	if err != nil {

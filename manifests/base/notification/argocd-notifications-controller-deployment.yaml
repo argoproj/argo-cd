@@ -35,25 +35,6 @@ spec:
       containers:
         - args:
             - /usr/local/bin/argocd-notifications
-          env:
-            - name: ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT
-              valueFrom:
-                configMapKeyRef:
-                  key: notificationscontroller.log.format
-                  name: argocd-cmd-params-cm
-                  optional: true
-            - name: ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL
-              valueFrom:
-                configMapKeyRef:
-                  key: notificationscontroller.log.level
-                  name: argocd-cmd-params-cm
-                  optional: true
-            - name: ARGOCD_APPLICATION_NAMESPACES
-              valueFrom:
-                configMapKeyRef:
-                  key: application.namespaces
-                  name: argocd-cmd-params-cm
-                  optional: true
           workingDir: /app
           livenessProbe:
             tcpSocket:

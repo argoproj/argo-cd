@@ -1,8 +1,8 @@
-local health_status = {}
+health_status = {}
 if obj.status ~= nil then
   if obj.status.brokersState ~= nil then
-    local counter = 0
-    local brokerReady = 0
+    counter = 0
+    brokerReady = 0
     for i, broker in pairs(obj.status.brokersState) do
         if (brokerReady <= tonumber(i)) then
             brokerReady = tonumber(i)+1

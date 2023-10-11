@@ -3,7 +3,6 @@ import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
 import Moment from 'react-moment';
-import * as moment from 'moment';
 
 import * as models from '../../../shared/models';
 
@@ -22,13 +21,12 @@ import {
     isYoungerThanXMinutes,
     NodeId,
     nodeKey,
-    PodHealthIcon,
-    getUsrMsgKeyToDisplay
+    PodHealthIcon
 } from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
-import './application-resource-tree.scss';
 import {ArrowConnector} from './arrow-connector';
+import './application-resource-tree.scss';
 
 function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
@@ -60,11 +58,7 @@ export interface ApplicationResourceTreeProps {
     appContext?: AppContext;
     showOrphanedResources: boolean;
     showCompactNodes: boolean;
-    userMsgs: models.UserMessages[];
-    updateUsrHelpTipMsgs: (userMsgs: models.UserMessages) => void;
-    setShowCompactNodes: (showCompactNodes: boolean) => void;
     zoom: number;
-    podGroupCount: number;
     filters?: string[];
     setTreeFilterGraph?: (filterGraph: any[]) => void;
     nameDirection: boolean;
@@ -93,6 +87,7 @@ const NODE_TYPES = {
     groupedNodes: 'grouped_nodes',
     podGroup: 'pod_group'
 };
+
 // generate lots of colors with different darkness
 const TRAFFIC_COLORS = [0, 0.25, 0.4, 0.6]
     .map(darken =>
@@ -182,7 +177,7 @@ function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph) {
             nodeIds.forEach((nodeId: string) => {
                 const index = nodes.findIndex(node => nodeId === node.uid || nodeId === nodeKey(node));
                 const graphNode = graph.node(nodeId);
-                if (!graphNode?.podGroup && index > -1) {
+                if (!graphNode.podGroup && index > -1) {
                     groupedNodeIds.push(nodeId);
                 } else {
                     podGroupIds.push(nodeId);
@@ -296,22 +291,10 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
                     <br />
                     <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>
                 </div>
-                <div
-                    className='application-resource-tree__node-title application-resource-tree__direction-center-left'
-                    onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}
-                    title={`Click to see details of ${node.count} collapsed ${node.kind} and doesn't contains any active pods`}>
-                    {node.kind}
-                    <span style={{paddingLeft: '.5em', fontSize: 'small'}}>
-                        {node.kind === 'ReplicaSet' ? (
-                            <i
-                                className='fa-solid fa-cart-flatbed icon-background'
-                                title={`Click to see details of ${node.count} collapsed ${node.kind} and doesn't contains any active pods`}
-                                key={node.uid}
-                            />
-                        ) : (
-                            <i className='fa fa-info-circle icon-background' title={`Click to see details of ${node.count} collapsed ${node.kind}`} key={node.uid} />
-                        )}
-                    </span>
+                <div className='application-resource-tree__node-content-wrap-overflow'>
+                    <a className='application-resource-tree__node-title' onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}>
+                        click to show details of {node.count} collapsed {node.kind}
+                    </a>
                 </div>
             </div>
             {indicators.map(i => (
@@ -424,47 +407,21 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     const margin = 8;
     let topExtra = 0;
     const podGroup = node.podGroup;
-    const podGroupHealthy = [];
-    const podGroupDegraded = [];
-    const podGroupInProgress = [];
-
-    for (const pod of podGroup?.pods || []) {
-        switch (pod.health) {
-            case 'Healthy':
-                podGroupHealthy.push(pod);
-                break;
-            case 'Degraded':
-                podGroupDegraded.push(pod);
-                break;
-            case 'Progressing':
-                podGroupInProgress.push(pod);
-        }
-    }
-
-    const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
-    const numberOfRows = showPodGroupByStatus
-        ? [podGroupHealthy, podGroupDegraded, podGroupInProgress].reduce((total, podGroupByStatus) => total + (podGroupByStatus.filter(pod => pod).length > 0 ? 1 : 0), 0)
-        : Math.ceil(podGroup?.pods.length / 8);
-
     if (podGroup) {
+        const numberOfRows = Math.ceil(podGroup.pods.length / 8);
         topExtra = margin + (POD_NODE_HEIGHT / 2 + 30 * numberOfRows) / 2;
     }
-
     return (
         <div
+            onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
             className={classNames('application-resource-tree__node', {
                 'active': fullName === props.selectedNodeFullName,
                 'application-resource-tree__node--orphaned': node.orphaned
             })}
             title={describeNode(node)}
-            style={{
-                left: node.x,
-                top: node.y - topExtra,
-                width: node.width,
-                height: showPodGroupByStatus ? POD_NODE_HEIGHT + 20 * numberOfRows : node.height
-            }}>
+            style={{left: node.x, top: node.y - topExtra, width: node.width, height: node.height}}>
             <NodeUpdateAnimation resourceVersion={node.resourceVersion} />
-            <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} className={`application-resource-tree__node__top-part`}>
+            <div className={`application-resource-tree__node__top-part`}>
                 <div
                     className={classNames('application-resource-tree__node-kind-icon', {
                         'application-resource-tree__node-kind-icon--big': rootNode
@@ -478,8 +435,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         className={classNames('application-resource-tree__node-title', {
                             'application-resource-tree__direction-right': props.nameDirection,
                             'application-resource-tree__direction-left': !props.nameDirection
-                        })}
-                        onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}>
+                        })}>
                         {node.name}
                     </span>
                     <span
@@ -531,15 +487,11 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         ))}
                     {(node.info || []).length > 4 && (
                         <Tooltip
-                            content={
-                                <>
-                                    {(node.info || []).map(i => (
-                                        <div key={i.name}>
-                                            {i.name}: {i.value}
-                                        </div>
-                                    ))}
-                                </>
-                            }
+                            content={(node.info || []).map(i => (
+                                <div key={i.name}>
+                                    {i.name}: {i.value}
+                                </div>
+                            ))}
                             key={node.uid}>
                             <span className='application-resource-tree__node-label' title='More'>
                                 More
@@ -550,7 +502,6 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                 {props.nodeMenu && (
                     <div className='application-resource-tree__node-menu'>
                         <DropDown
-                            key={node.uid}
                             isMenu={true}
                             anchor={() => (
                                 <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
@@ -563,119 +514,93 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                 )}
             </div>
             <div className='application-resource-tree__node--lower-section'>
-                {[podGroupHealthy, podGroupDegraded, podGroupInProgress].map((pods, index) => {
-                    return (
-                        <div key={index} className={`application-resource-tree__node--lower-section__pod-group`}>
-                            {renderPodGroupByStatus(props, node, pods, showPodGroupByStatus)}
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
-}
-
-function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, pods: models.Pod[], showPodGroupByStatus: boolean) {
-    return (
-        <div className='application-resource-tree__node--lower-section__pod-group__pod-container__pods'>
-            {pods.length !== 0 && showPodGroupByStatus ? (
-                <React.Fragment>
-                    <div className={`pod-view__node__pod pod-view__node__pod--${pods[0].health.toLowerCase()}`}>
-                        <PodHealthIcon state={{status: pods[0].health, message: ''}} key={pods[0].uid} />
-                    </div>
-
-                    <div className='pod-view__node__label--large'>
-                        <a
-                            className='application-resource-tree__node-title'
-                            onClick={() =>
-                                props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupdedNodeIds === 'undefined' ? node.groupdedNodeIds : pods.map(pod => pod.uid))
-                            }>
-                            &nbsp;
-                            <span title={`Click to view the ${pods[0].health.toLowerCase()} pods list`}>
-                                {pods[0].health} {pods.length} pods
-                            </span>
-                        </a>
-                    </div>
-                </React.Fragment>
-            ) : (
-                pods.map(pod => (
-                    <DropDownMenu
-                        key={pod.uid}
-                        anchor={() => (
-                            <Tooltip
-                                content={
-                                    <div>
-                                        {pod.metadata.name}
-                                        <div>Health: {pod.health}</div>
-                                        {pod.createdAt && (
-                                            <span>
-                                                <span>Created: </span>
-                                                <Moment fromNow={true} ago={true}>
-                                                    {pod.createdAt}
-                                                </Moment>
-                                                <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
-                                            </span>
+                {podGroup && (
+                    <div className={`application-resource-tree__node--lower-section__pod-group`} key={podGroup.fullName || podGroup.name}>
+                        <div className='application-resource-tree__node--lower-section__pod-group__pod-container'>
+                            <div className='application-resource-tree__node--lower-section__pod-group__pod-container__pods'>
+                                {podGroup.pods.map(pod => (
+                                    <DropDownMenu
+                                        key={pod.uid}
+                                        anchor={() => (
+                                            <Tooltip
+                                                content={
+                                                    <div>
+                                                        {pod.metadata.name}
+                                                        <div>Health: {pod.health}</div>
+                                                        {pod.createdAt && (
+                                                            <span>
+                                                                <span>Created: </span>
+                                                                <Moment fromNow={true} ago={true}>
+                                                                    {pod.createdAt}
+                                                                </Moment>
+                                                                <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                }
+                                                popperOptions={{
+                                                    modifiers: {
+                                                        preventOverflow: {
+                                                            enabled: true
+                                                        },
+                                                        hide: {
+                                                            enabled: false
+                                                        },
+                                                        flip: {
+                                                            enabled: false
+                                                        }
+                                                    }
+                                                }}
+                                                key={pod.metadata.name}>
+                                                <div style={{position: 'relative'}}>
+                                                    {isYoungerThanXMinutes(pod, 30) && (
+                                                        <i className='fas fa-star application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod__star-icon' />
+                                                    )}
+                                                    <div
+                                                        className={`application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod--${pod.health.toLowerCase()}`}>
+                                                        <PodHealthIcon state={{status: pod.health, message: ''}} />
+                                                    </div>
+                                                </div>
+                                            </Tooltip>
                                         )}
-                                    </div>
-                                }
-                                popperOptions={{
-                                    modifiers: {
-                                        preventOverflow: {
-                                            enabled: true
-                                        },
-                                        hide: {
-                                            enabled: false
-                                        },
-                                        flip: {
-                                            enabled: false
-                                        }
-                                    }
-                                }}
-                                key={pod.metadata.name}>
-                                <div style={{position: 'relative'}}>
-                                    {isYoungerThanXMinutes(pod, 30) && (
-                                        <i className='fas fa-star application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod__star-icon' />
-                                    )}
-                                    <div
-                                        className={`application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod--${pod.health.toLowerCase()}`}>
-                                        <PodHealthIcon state={{status: pod.health, message: ''}} />
-                                    </div>
-                                </div>
-                            </Tooltip>
-                        )}
-                        items={[
-                            {
-                                title: (
-                                    <React.Fragment>
-                                        <i className='fa fa-info-circle' /> Info
-                                    </React.Fragment>
-                                ),
-                                action: () => props.onNodeClick(pod.fullName)
-                            },
-                            {
-                                title: (
-                                    <React.Fragment>
-                                        <i className='fa fa-align-left' /> Logs
-                                    </React.Fragment>
-                                ),
-                                action: () => {
-                                    props.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'}, {replace: true});
-                                }
-                            },
-                            {
-                                title: (
-                                    <React.Fragment>
-                                        <i className='fa fa-times-circle' /> Delete
-                                    </React.Fragment>
-                                ),
-                                action: () => {
-                                    deletePodAction(pod, props.appContext, props.app.metadata.name, props.app.metadata.namespace);
-                                }
-                            }
-                        ]}
-                    />
-                ))
-            )}
+                                        items={[
+                                            {
+                                                title: (
+                                                    <React.Fragment>
+                                                        <i className='fa fa-info-circle' /> Info
+                                                    </React.Fragment>
+                                                ),
+                                                action: () => props.onNodeClick(pod.fullName)
+                                            },
+                                            {
+                                                title: (
+                                                    <React.Fragment>
+                                                        <i className='fa fa-align-left' /> Logs
+                                                    </React.Fragment>
+                                                ),
+                                                action: () => {
+                                                    props.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'}, {replace: true});
+                                                }
+                                            },
+                                            {
+                                                title: (
+                                                    <React.Fragment>
+                                                        <i className='fa fa-times-circle' /> Delete
+                                                    </React.Fragment>
+                                                ),
+                                                action: () => {
+                                                    deletePodAction(pod, props.appContext, props.app.metadata.name, props.app.metadata.namespace);
+                                                }
+                                            }
+                                        ]}
+                                    />
+                                ))}
+                            </div>
+                            <div className='application-resource-tree__node--lower-section__pod-group__label'>PODS</div>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
@@ -684,61 +609,6 @@ function expandCollapse(node: ResourceTreeNode, props: ApplicationResourceTreePr
     const isExpanded = !props.getNodeExpansion(node.uid);
     node.isExpanded = isExpanded;
     props.setNodeExpansion(node.uid, isExpanded);
-}
-
-function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: string}) {
-    if (kind === 'Pod') {
-        const val = `${tag.name}`;
-        if (val === 'Status Reason') {
-            if (`${tag.value}` !== 'ImagePullBackOff')
-                return (
-                    <span className='application-resource-tree__node-label' title={`Status: ${tag.value}`}>
-                        {tag.value}
-                    </span>
-                );
-            else {
-                return (
-                    <span
-                        className='application-resource-tree__node-label'
-                        title='One of the containers may have the incorrect image name/tag, or you may be fetching from the incorrect repository, or the repository requires authentication.'>
-                        {tag.value}
-                    </span>
-                );
-            }
-        } else if (val === 'Containers') {
-            const arr = `${tag.value}`.split('/');
-            const title = `Number of containers in total: ${arr[1]} \nNumber of ready containers: ${arr[0]}`;
-            return (
-                <span className='application-resource-tree__node-label' title={`${title}`}>
-                    {tag.value}
-                </span>
-            );
-        } else if (val === 'Restart Count') {
-            return (
-                <span className='application-resource-tree__node-label' title={`The total number of restarts of the containers: ${tag.value}`}>
-                    {tag.value}
-                </span>
-            );
-        } else if (val === 'Revision') {
-            return (
-                <span className='application-resource-tree__node-label' title={`The revision in which pod present is: ${tag.value}`}>
-                    {tag.value}
-                </span>
-            );
-        } else {
-            return (
-                <span className='application-resource-tree__node-label' title={`${tag.name}: ${tag.value}`}>
-                    {tag.value}
-                </span>
-            );
-        }
-    } else {
-        return (
-            <span className='application-resource-tree__node-label' title={`${tag.name}: ${tag.value}`}>
-                {tag.value}
-            </span>
-        );
-    }
 }
 
 function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node, nodesHavingChildren: Map<string, number>) {
@@ -815,29 +685,25 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
             </div>
             <div className='application-resource-tree__node-labels'>
                 {node.createdAt || rootNode ? (
-                    <span title={`${node.kind} was created ${moment(node.createdAt).fromNow()}`}>
-                        <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
-                            {node.createdAt || props.app.metadata.creationTimestamp}
-                        </Moment>
-                    </span>
+                    <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
+                        {node.createdAt || props.app.metadata.creationTimestamp}
+                    </Moment>
                 ) : null}
                 {(node.info || [])
                     .filter(tag => !tag.name.includes('Node'))
                     .slice(0, 4)
-                    .map((tag, i) => {
-                        return <NodeInfoDetails tag={tag} kind={node.kind} key={i} />;
-                    })}
+                    .map((tag, i) => (
+                        <span className='application-resource-tree__node-label' title={`${tag.name}:${tag.value}`} key={i}>
+                            {tag.value}
+                        </span>
+                    ))}
                 {(node.info || []).length > 4 && (
                     <Tooltip
-                        content={
-                            <>
-                                {(node.info || []).map(i => (
-                                    <div key={i.name}>
-                                        {i.name}: {i.value}
-                                    </div>
-                                ))}
-                            </>
-                        }
+                        content={(node.info || []).map(i => (
+                            <div key={i.name}>
+                                {i.name}: {i.value}
+                            </div>
+                        ))}
                         key={node.uid}>
                         <span className='application-resource-tree__node-label' title='More'>
                             More
@@ -930,7 +796,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const [filters, setFilters] = React.useState(props.filters);
     const [filteredGraph, setFilteredGraph] = React.useState([]);
     const filteredNodes: any[] = [];
-
     React.useEffect(() => {
         if (props.filters !== filters) {
             setFilters(props.filters);
@@ -938,18 +803,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             props.setTreeFilterGraph(filteredGraph);
         }
     }, [props.filters]);
-    const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props;
-    const podCount = nodes.filter(node => node.kind === 'Pod').length;
-
-    React.useEffect(() => {
-        if (podCount > podGroupCount) {
-            const userMsg = getUsrMsgKeyToDisplay(appNode.name, 'groupNodes', userMsgs);
-            updateUsrHelpTipMsgs(userMsg);
-            if (!userMsg.display) {
-                setShowCompactNodes(true);
-            }
-        }
-    }, [podCount]);
 
     function filterGraph(app: models.Application, filteredIndicatorParent: string, graphNodesFilter: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
         const appKey = appNodeKey(app);

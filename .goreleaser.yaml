@@ -114,7 +114,6 @@ changelog:
     exclude:
       - '^test:'
       - '^.*?Bump(\([[:word:]]+\))?.+$'
-      - '^.*?[Bot](\([[:word:]]+\))?.+$'
 
 
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
