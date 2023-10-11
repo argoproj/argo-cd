@@ -32,7 +32,7 @@ data:
 Once the proxy extension is enabled, it can be configured in the main
 Argo CD configmap ([argocd-cm][2]).
 
-The example below demonstrates all possible configurations available
+The example below demonstrate all possible configurations available
 for proxy extensions:
 
 ```yaml
@@ -60,11 +60,9 @@ data:
             server: https://some-cluster
 ```
 
-Note: There is no need to restart Argo CD Server after modifiying the
-`extension.config` entry in Argo CD configmap. Changes will be
-automatically applied. A new proxy registry will be built making
-all new incoming extensions requests (`<argocd-host>/extensions/*`) to
-respect the new configuration.
+If a the configuration is changed, Argo CD Server will need to be
+restarted as the proxy handlers are only registered once during the
+initialization of the server.
 
 Every configuration entry is explained below:
 

@@ -108,26 +108,26 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 			},
 			expected: []map[string]interface{}{
 				{
-					"organization":     "myorg",
-					"repository":       "repo1",
-					"url":              "git@github.com:myorg/repo1.git",
-					"branch":           "main",
+					"organization": "myorg",
+					"repository": "repo1",
+					"url": "git@github.com:myorg/repo1.git",
+					"branch": "main",
 					"branchNormalized": "main",
-					"sha":              "0bc57212c3cbbec69d20b34c507284bd300def5b",
-					"short_sha":        "0bc57212",
-					"short_sha_7":      "0bc5721",
-					"labels":           "prod,staging",
+					"sha": "0bc57212c3cbbec69d20b34c507284bd300def5b",
+					"short_sha": "0bc57212",
+					"short_sha_7": "0bc5721",
+					"labels": "prod,staging",
 				},
 				{
-					"organization":     "myorg",
-					"repository":       "repo2",
-					"url":              "git@github.com:myorg/repo2.git",
-					"branch":           "main",
+					"organization": "myorg",
+					"repository": "repo2",
+					"url": "git@github.com:myorg/repo2.git",
+					"branch": "main",
 					"branchNormalized": "main",
-					"sha":              "59d0",
-					"short_sha":        "59d0",
-					"short_sha_7":      "59d0",
-					"labels":           "",
+					"sha": "59d0",
+					"short_sha": "59d0",
+					"short_sha_7": "59d0",
+					"labels": "",
 				},
 			},
 		},
@@ -174,7 +174,7 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 			mockProvider := &scm_provider.MockProvider{
 				Repos: testCaseCopy.repos,
 			}
-			scmGenerator := &SCMProviderGenerator{overrideProvider: mockProvider, enableSCMProviders: true}
+			scmGenerator := &SCMProviderGenerator{overrideProvider: mockProvider}
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -205,7 +205,7 @@ func TestAllowedSCMProvider(t *testing.T) {
 	cases := []struct {
 		name           string
 		providerConfig *argoprojiov1alpha1.SCMProviderGenerator
-		expectedError  error
+		expectedError  string
 	}{
 		{
 			name: "Error Github",
@@ -214,7 +214,7 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 		{
 			name: "Error Gitlab",
@@ -223,7 +223,7 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 		{
 			name: "Error Gitea",
@@ -232,7 +232,7 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 		{
 			name: "Error Bitbucket",
@@ -241,7 +241,7 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 		{
 			name: "Error AzureDevops",
@@ -250,7 +250,7 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
+			expectedError: "scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 	}
 
@@ -260,16 +260,13 @@ func TestAllowedSCMProvider(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			scmGenerator := &SCMProviderGenerator{
-				allowedSCMProviders: []string{
-					"github.myorg.com",
-					"gitlab.myorg.com",
-					"gitea.myorg.com",
-					"bitbucket.myorg.com",
-					"azuredevops.myorg.com",
-				},
-				enableSCMProviders: true,
-			}
+			scmGenerator := &SCMProviderGenerator{allowedSCMProviders: []string{
+				"github.myorg.com",
+				"gitlab.myorg.com",
+				"gitea.myorg.com",
+				"bitbucket.myorg.com",
+				"azuredevops.myorg.com",
+			}}
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -285,29 +282,7 @@ func TestAllowedSCMProvider(t *testing.T) {
 			_, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
 
 			assert.Error(t, err, "Must return an error")
-			assert.ErrorAs(t, err, testCaseCopy.expectedError)
+			assert.Equal(t, testCaseCopy.expectedError, err.Error())
 		})
 	}
-}
-
-func TestSCMProviderDisabled_SCMGenerator(t *testing.T) {
-	generator := &SCMProviderGenerator{enableSCMProviders: false}
-
-	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "set",
-		},
-		Spec: argoprojiov1alpha1.ApplicationSetSpec{
-			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
-				SCMProvider: &argoprojiov1alpha1.SCMProviderGenerator{
-					Github: &argoprojiov1alpha1.SCMProviderGeneratorGithub{
-						API: "https://myservice.mynamespace.svc.cluster.local",
-					},
-				},
-			}},
-		},
-	}
-
-	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
-	assert.ErrorIs(t, err, ErrSCMProvidersDisabled)
 }

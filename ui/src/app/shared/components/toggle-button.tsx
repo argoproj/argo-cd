@@ -11,8 +11,7 @@ export const ToggleButton = ({
     toggled,
     beat,
     disabled,
-    icon,
-    rotate
+    icon
 }: {
     toggled: boolean;
     beat?: boolean;
@@ -21,13 +20,11 @@ export const ToggleButton = ({
     title: string;
     disabled?: boolean;
     icon: Icon;
-    rotate?: boolean;
 }) => (
     <Button
         title={title}
         onClick={onToggle}
         icon={icon}
-        rotate={rotate}
         disabled={disabled}
         beat={beat}
         style={{
