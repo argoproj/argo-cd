@@ -1324,6 +1324,7 @@ func TestListApps(t *testing.T) {
 		"out-of-bounds-values-file-link":    "Helm",
 		"values-files":                      "Helm",
 		"helm-with-dependencies":            "Helm",
+		"helm-with-dependencies-alias":      "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }
@@ -2742,6 +2743,22 @@ func TestGetHelmRepo_NamedRepos(t *testing.T) {
 
 	assert.Equal(t, len(helmRepos), 1)
 	assert.Equal(t, helmRepos[0].Username, "test")
+	assert.Equal(t, helmRepos[0].Repo, "https://example.com")
+}
+
+func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
+	src := argoappv1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, Repos: []*argoappv1.Repository{{
+		Name:     "custom-repo-alias",
+		Repo:     "https://example.com",
+		Username: "test-alias",
+	}}}
+
+	helmRepos, err := getHelmRepos("./testdata/helm-with-dependencies-alias", q.Repos, q.HelmRepoCreds)
+	assert.Nil(t, err)
+
+	assert.Equal(t, len(helmRepos), 1)
+	assert.Equal(t, helmRepos[0].Username, "test-alias")
 	assert.Equal(t, helmRepos[0].Repo, "https://example.com")
 }
 

@@ -1021,6 +1021,10 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 			repos = append(repos, &v1alpha1.Repository{
 				Name: r.Repository[1:],
 			})
+		} else if strings.HasPrefix(r.Repository, "alias:") {
+			repos = append(repos, &v1alpha1.Repository{
+				Name: strings.TrimPrefix(r.Repository, "alias:"),
+			})
 		} else if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
 				// trimming oci:// prefix since it is currently not supported by Argo CD (OCI repos just have no scheme)
