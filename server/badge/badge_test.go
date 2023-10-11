@@ -6,8 +6,10 @@ import (
 	"image/color"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -17,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -41,7 +44,9 @@ var (
 			"statusbadge.enabled": "true",
 		},
 	}
-	testApp = v1alpha1.Application{
+	currentTime  = time.Now()
+	threeDaysAgo = time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day()-3, currentTime.Hour(), currentTime.Minute(), currentTime.Second(), currentTime.Nanosecond(), time.UTC)
+	testApp      = v1alpha1.Application{
 		ObjectMeta: v1.ObjectMeta{Name: "test-app", Namespace: "default"},
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
@@ -49,6 +54,9 @@ var (
 			OperationState: &v1alpha1.OperationState{
 				SyncResult: &v1alpha1.SyncOperationResult{
 					Revision: "aa29b85",
+				},
+				FinishedAt: &metav1.Time{
+					Time: threeDaysAgo,
 				},
 			},
 		},
@@ -62,6 +70,9 @@ var (
 				SyncResult: &v1alpha1.SyncOperationResult{
 					Revision: "aa29b85",
 				},
+				FinishedAt: &metav1.Time{
+					Time: threeDaysAgo,
+				},
 			},
 		},
 	}
@@ -69,6 +80,10 @@ var (
 		ObjectMeta: v1.ObjectMeta{Name: "test-project", Namespace: "default"},
 		Spec:       v1alpha1.AppProjectSpec{},
 	}
+	leftRectColorPattern  = regexp.MustCompile(`id="leftRect" fill="([^"]*)"`)
+	rightRectColorPattern = regexp.MustCompile(`id="rightRect" fill="([^"]*)"`)
+	leftTextPattern       = regexp.MustCompile(`id="leftText" [^>]*>([^<]*)`)
+	rightTextPattern      = regexp.MustCompile(`id="rightText" [^>]*>([^<]*)`)
 )
 
 func TestHandlerFeatureIsEnabled(t *testing.T) {
@@ -254,7 +269,7 @@ func createApplications(appCombo, projectName []string, namespace string) []*v1a
 func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default", []string{})
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true&lastSyncTime=true", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -267,7 +282,7 @@ func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
 	assert.Equal(t, toRGBString(Green), leftRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
-	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Synced 3 days ago", rightTextPattern.FindStringSubmatch(response)[1])
 	assert.Contains(t, response, "(aa29b85)")
 }
 

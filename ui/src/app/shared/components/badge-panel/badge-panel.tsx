@@ -19,11 +19,11 @@ export const BadgePanel = ({app, project}: {app?: string; project?: string}) => 
         let entityURL = '';
         let alt = '';
         if (app) {
-            badgeURL = `${root}api/badge?name=${app}&revision=true`;
+            badgeURL = `${root}api/badge?name=${app}&revision=true&lastSyncTime=false`;
             entityURL = `${root}applications/${app}`;
             alt = 'App Status';
         } else if (project) {
-            badgeURL = `${root}api/badge?project=${project}&revision=true`;
+            badgeURL = `${root}api/badge?project=${project}&revision=true&lastSyncTime=false`;
             entityURL = `${root}projects/${project}`;
             alt = 'Project Status';
         }

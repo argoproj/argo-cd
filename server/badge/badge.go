@@ -1,17 +1,22 @@
 package badge
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"html/template"
 	"net/http"
-	"regexp"
+	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	healthutil "github.com/argoproj/gitops-engine/pkg/health"
 	"k8s.io/apimachinery/pkg/api/errors"
 	validation "k8s.io/apimachinery/pkg/api/validation"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/andanhm/go-prettytime"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/util/argo"
@@ -33,36 +38,32 @@ type Handler struct {
 	enabledNamespaces []string
 }
 
-var (
-	svgWidthPattern          = regexp.MustCompile(`^<svg width="([^"]*)"`)
-	displayNonePattern       = regexp.MustCompile(`display="none"`)
-	leftRectColorPattern     = regexp.MustCompile(`id="leftRect" fill="([^"]*)"`)
-	rightRectColorPattern    = regexp.MustCompile(`id="rightRect" fill="([^"]*)"`)
-	revisionRectColorPattern = regexp.MustCompile(`id="revisionRect" fill="([^"]*)"`)
-	leftTextPattern          = regexp.MustCompile(`id="leftText" [^>]*>([^<]*)`)
-	rightTextPattern         = regexp.MustCompile(`id="rightText" [^>]*>([^<]*)`)
-	revisionTextPattern      = regexp.MustCompile(`id="revisionText" [^>]*>([^<]*)`)
-)
-
 const (
-	svgWidthWithRevision = 192
+	svgDefaultWidth                     = 131
+	svgLeftRectDefaultWidth             = 76
+	svgRightRectDefaultWidth            = 57
+	svgRightTextDefaultX                = 1035
+	svgRightRectSyncDateDefaultWidth    = 120
+	svgRightTextSyncDateDefaultX        = 1350
+	svgRectSpace                        = 2
+	svgRevisionTextDefaultLastSyncTimeX = 2300
+	svgRevisionTextDefaultX             = 1660
+	svgRevisionRectDefaultWidth         = 62
 )
 
-func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) string {
-	result := ""
-	lastIndex := 0
+type badgeArgs struct {
+	Width          int
+	LeftBgColor    string
+	RightBGColor   string
+	LeftText       string
+	RightText      string
+	RightRectWidth int
+	RightTextX     int
 
-	for _, v := range re.FindAllSubmatchIndex([]byte(str), -1) {
-		groups := []string{}
-		for i := 0; i < len(v); i += 2 {
-			groups = append(groups, str[v[i]:v[i+1]])
-		}
-
-		result += str[lastIndex:v[0]] + groups[0] + repl
-		lastIndex = v[1]
-	}
-
-	return result + str[lastIndex:]
+	RevisionRectDisplay string
+	RevisionText        string
+	RevisionRectX       int
+	RevisionRectTextX   int
 }
 
 // ServeHTTP returns badge with health and sync status for application
@@ -70,8 +71,10 @@ func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) strin
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	health := healthutil.HealthStatusUnknown
 	status := appv1.SyncStatusCodeUnknown
+	syncDate := ""
 	revision := ""
 	revisionEnabled := false
+	lastSyncTimeEnabled := false
 	enabled := false
 	notFound := false
 	if sets, err := h.settingsMgr.GetSettings(); err == nil {
@@ -94,7 +97,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reqNs = h.namespace
 	}
 
-	//Sample url: http://localhost:8080/api/badge?name=123
+	// Sample url: http://localhost:8080/api/badge?name=123
 	if name, ok := r.URL.Query()["name"]; ok && enabled && !notFound {
 		if errs := validation.NameIsDNSLabel(strings.ToLower(name[0]), false); len(errs) == 0 {
 			if app, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).Get(context.Background(), name[0], v1.GetOptions{}); err == nil {
@@ -102,6 +105,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				status = app.Status.Sync.Status
 				if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
 					revision = app.Status.OperationState.SyncResult.Revision
+
+					syncDate = prettytime.Format(app.Status.OperationState.FinishedAt.Time)
 				}
 			} else {
 				if errors.IsNotFound(err) {
@@ -113,7 +118,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	//Sample url: http://localhost:8080/api/badge?project=default
+	// Sample url: http://localhost:8080/api/badge?project=default
 	if projects, ok := r.URL.Query()["project"]; ok && enabled && !notFound {
 		for _, p := range projects {
 			if errs := validation.NameIsDNSLabel(strings.ToLower(p), false); len(p) > 0 && len(errs) != 0 {
@@ -139,7 +144,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	//Sample url: http://localhost:8080/api/badge?name=123&revision=true
+
+	// Sample url: http://localhost:8080/api/badge?name=123&lastSyncTime=true
+	if _, ok := r.URL.Query()["lastSyncTime"]; ok && enabled {
+		lastSyncTime, _ := strconv.ParseBool(r.URL.Query()["lastSyncTime"][0])
+		lastSyncTimeEnabled = lastSyncTime
+	}
+
+	// Sample url: http://localhost:8080/api/badge?name=123&revision=true
 	if revisionParam, ok := r.URL.Query()["revision"]; ok && enabled && strings.EqualFold(revisionParam[0], "true") {
 		revisionEnabled = true
 	}
@@ -166,22 +178,40 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rightText = ""
 	}
 
-	badge := assets.BadgeSVG
-	badge = leftRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="leftRect" fill="%s" $2`, leftColorString))
-	badge = rightRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="rightRect" fill="%s" $2`, rightColorString))
-	badge = replaceFirstGroupSubMatch(leftTextPattern, badge, leftText)
-	badge = replaceFirstGroupSubMatch(rightTextPattern, badge, rightText)
+	badgeArgs := badgeArgs{
+		Width:               svgLeftRectDefaultWidth + svgRightRectDefaultWidth,
+		RevisionRectDisplay: "none",
+		RightTextX:          svgRightTextDefaultX,
+		RightRectWidth:      svgRightRectDefaultWidth,
+		LeftBgColor:         leftColorString,
+		RightBGColor:        rightColorString,
+		LeftText:            leftText,
+		RightText:           rightText,
+	}
+
+	if !notFound && lastSyncTimeEnabled && syncDate != "" {
+		rightText = fmt.Sprintf("%s %s", rightText, syncDate)
+		badgeArgs.Width = svgLeftRectDefaultWidth + svgRightRectSyncDateDefaultWidth
+		badgeArgs.RightRectWidth = svgRightRectSyncDateDefaultWidth
+		badgeArgs.RightTextX = svgRightTextSyncDateDefaultX
+		badgeArgs.RightText = rightText
+	}
 
 	if !notFound && revisionEnabled && revision != "" {
-		// Increase width of SVG and enable display of revision components
-		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, svgWidthWithRevision))
-		badge = displayNonePattern.ReplaceAllString(badge, `display="inline"`)
-		badge = revisionRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="revisionRect" fill="%s" $2`, rightColorString))
 		shortRevision := revision
 		if len(shortRevision) > 7 {
 			shortRevision = shortRevision[:7]
 		}
-		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", shortRevision))
+
+		badgeArgs.RevisionText = fmt.Sprintf("(%s)", shortRevision)
+		badgeArgs.RevisionRectDisplay = "inline"
+		badgeArgs.RevisionRectX = badgeArgs.Width + svgRectSpace
+		if lastSyncTimeEnabled {
+			badgeArgs.RevisionRectTextX = svgRevisionTextDefaultLastSyncTimeX
+		} else {
+			badgeArgs.RevisionRectTextX = svgRevisionTextDefaultX
+		}
+		badgeArgs.Width = badgeArgs.RevisionRectX + svgRevisionRectDefaultWidth
 	}
 
 	w.Header().Set("Content-Type", "image/svg+xml")
@@ -191,6 +221,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	//Allow badges to be fetched via XHR from frontend applications without running into CORS issues
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(badge))
+
+	badge := assets.BadgeSVG
+	config := template.Must(template.New("badge").Parse(badge))
+	var buff bytes.Buffer
+	err := config.ExecuteTemplate(&buff, "badge", badgeArgs)
+	if err != nil {
+		log.Errorf("error executing template for badge creation %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("error executing template for badge creation"))
+	} else {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(buff.Bytes())
+	}
 }
