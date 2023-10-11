@@ -209,7 +209,7 @@ k3d cluster create my-cluster --wait --k3s-arg '--disable=traefik@server:*' --ap
 ```
 
 !!!note
-For k3d versions less than v5.0.0, the example command flags --k3s-arg and '--disable=traefik@server:*' should change to --k3s-server-arg and '--disable=traefik', respectively.
+For k3d versions less than v5.0.0, the example command flags `--k3s-arg` and '--disable=traefik@server:*' should change to --k3s-server-arg and '--disable=traefik', respectively.
 
 ## The development cycle
 
