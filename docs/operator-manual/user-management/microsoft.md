@@ -53,7 +53,7 @@
                     redirectURI: https://my-argo-cd-url/api/dex/callback
                     usernameAttr: email
                     emailAttr: email
-                    groupsAttr: Group
+                    groupsAttr: groups
 
 2. Edit `argocd-rbac-cm` to configure permissions, similar to example below.
       - Use Azure AD `Group IDs` for assigning roles.
