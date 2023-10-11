@@ -8,6 +8,19 @@ Manage applications configuration
 argocd admin app [flags]
 ```
 
+### Examples
+
+```
+  # Generate an application specification.
+  argocd app gen-app-spec
+		
+  # Reconcile the application with the desired state.
+  argocd app reconcile
+		
+  # Compare results of two reconciliations and print the diff.
+  argocd app diff-reconcile-results PATH1 PATH2
+```
+
 ### Options
 
 ```
