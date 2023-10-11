@@ -12,16 +12,16 @@ import (
 	"strings"
 	"time"
 
-	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/ghodss/yaml"
-	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -44,6 +44,25 @@ const (
 	// Example:
 	//     Argocd-Project-Name: "default"
 	HeaderArgoCDProjectName = "Argocd-Project-Name"
+
+	// HeaderArgoCDTargetClusterURL defines the target cluster URL
+	// that the Argo CD application is associated with. This header
+	// will be populated by the extension proxy and passed to the
+	// configured backend service. If this header is passed by
+	// the client, its value will be overriden by the extension
+	// handler.
+	//
+	// Example:
+	//     Argocd-Target-Cluster-URL: "https://kubernetes.default.svc.cluster.local"
+	HeaderArgoCDTargetClusterURL = "Argocd-Target-Cluster-URL"
+
+	// HeaderArgoCDTargetClusterName defines the target cluster name
+	// that the Argo CD application is associated with. This header
+	// will be populated by the extension proxy and passed to the
+	// configured backend service. If this header is passed by
+	// the client, its value will be overriden by the extension
+	// handler.
+	HeaderArgoCDTargetClusterName = "Argocd-Target-Cluster-Name"
 )
 
 // RequestResources defines the authorization scope for
@@ -106,15 +125,15 @@ func getAppName(appHeader string) (string, string, error) {
 // ExtensionConfigs defines the configurations for all extensions
 // retrieved from Argo CD configmap (argocd-cm).
 type ExtensionConfigs struct {
-	Extensions []ExtensionConfig `json:"extensions"`
+	Extensions []ExtensionConfig `yaml:"extensions"`
 }
 
 // ExtensionConfig defines the configuration for one extension.
 type ExtensionConfig struct {
 	// Name defines the endpoint that will be used to register
 	// the extension route. Mandatory field.
-	Name    string        `json:"name"`
-	Backend BackendConfig `json:"backend"`
+	Name    string        `yaml:"name"`
+	Backend BackendConfig `yaml:"backend"`
 }
 
 // BackendConfig defines the backend service configurations that will
@@ -124,27 +143,47 @@ type ExtensionConfig struct {
 // service.
 type BackendConfig struct {
 	ProxyConfig
-	Services []ServiceConfig `json:"services"`
+	Services []ServiceConfig `yaml:"services"`
 }
 
 // ServiceConfig provides the configuration for a backend service.
 type ServiceConfig struct {
 	// URL is the address where the extension backend must be available.
 	// Mandatory field.
-	URL string `json:"url"`
+	URL string `yaml:"url"`
 
 	// Cluster if provided, will have to match the application
 	// destination name to have requests properly forwarded to this
 	// service URL.
-	Cluster *ClusterConfig `json:"cluster,omitempty"`
+	Cluster *ClusterConfig `yaml:"cluster,omitempty"`
+
+	// Headers if provided, the headers list will be added on all
+	// outgoing requests for this service config.
+	Headers []Header `yaml:"headers"`
+}
+
+// Header defines the header to be added in the proxy requests.
+type Header struct {
+	// Name defines the name of the header. It is a mandatory field if
+	// a header is provided.
+	Name string `yaml:"name"`
+	// Value defines the value of the header. The actual value can be
+	// provided as verbatim or as a reference to an Argo CD secret key.
+	// In order to provide it as a reference, it is necessary to prefix
+	// it with a dollar sign.
+	// Example:
+	//   value: '$some.argocd.secret.key'
+	// In the example above, the value will be replaced with the one from
+	// the argocd-secret with key 'some.argocd.secret.key'.
+	Value string `yaml:"value"`
 }
 
 type ClusterConfig struct {
-	// Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API
-	Server string `json:"server"`
+	// Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.
+	Server string `yaml:"server"`
 
-	// Name is an alternate way of specifying the target cluster by its symbolic name
-	Name string `json:"name"`
+	// Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.
+	Name string `yaml:"name"`
 }
 
 // ProxyConfig allows configuring connection behaviour between Argo CD
@@ -153,24 +192,24 @@ type ProxyConfig struct {
 	// ConnectionTimeout is the maximum amount of time a dial to
 	// the extension server will wait for a connect to complete.
 	// Default: 2 seconds
-	ConnectionTimeout time.Duration `json:"connectionTimeout"`
+	ConnectionTimeout time.Duration `yaml:"connectionTimeout"`
 
 	// KeepAlive specifies the interval between keep-alive probes
 	// for an active network connection between the API server and
 	// the extension server.
 	// Default: 15 seconds
-	KeepAlive time.Duration `json:"keepAlive"`
+	KeepAlive time.Duration `yaml:"keepAlive"`
 
 	// IdleConnectionTimeout is the maximum amount of time an idle
 	// (keep-alive) connection between the API server and the extension
 	// server will remain idle before closing itself.
 	// Default: 60 seconds
-	IdleConnectionTimeout time.Duration `json:"idleConnectionTimeout"`
+	IdleConnectionTimeout time.Duration `yaml:"idleConnectionTimeout"`
 
 	// MaxIdleConnections controls the maximum number of idle (keep-alive)
 	// connections between the API server and the extension server.
 	// Default: 30
-	MaxIdleConnections int `json:"maxIdleConnections"`
+	MaxIdleConnections int `yaml:"maxIdleConnections"`
 }
 
 // SettingsGetter defines the contract to retrieve Argo CD Settings.
@@ -260,6 +299,7 @@ type Manager struct {
 	application ApplicationGetter
 	project     ProjectGetter
 	rbac        RbacEnforcer
+	registry    ExtensionRegistry
 }
 
 // NewManager will initialize a new manager.
@@ -272,6 +312,11 @@ func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, pg Proj
 		rbac:        rbac,
 	}
 }
+
+// ExtensionRegistry is an in memory registry that contains contains all
+// proxies for all extensions. The key is the extension name defined in
+// the Argo CD configmap.
+type ExtensionRegistry map[string]ProxyRegistry
 
 // ProxyRegistry is an in memory registry that contains all proxies for a
 // given extension. Different extensions will have independent proxy registries.
@@ -303,11 +348,27 @@ func proxyKey(extName, cName, cServer string) ProxyKey {
 	}
 }
 
-func parseAndValidateConfig(config string) (*ExtensionConfigs, error) {
-	configs := ExtensionConfigs{}
-	err := yaml.Unmarshal([]byte(config), &configs)
+func parseAndValidateConfig(s *settings.ArgoCDSettings) (*ExtensionConfigs, error) {
+	if s.ExtensionConfig == "" {
+		return nil, fmt.Errorf("no extensions configurations found")
+	}
+
+	extConfigMap := map[string]interface{}{}
+	err := yaml.Unmarshal([]byte(s.ExtensionConfig), &extConfigMap)
 	if err != nil {
-		return nil, fmt.Errorf("invalid yaml: %s", err)
+		return nil, fmt.Errorf("invalid extension config: %s", err)
+	}
+
+	parsedExtConfig := settings.ReplaceMapSecrets(extConfigMap, s.Secrets)
+	parsedExtConfigBytes, err := yaml.Marshal(parsedExtConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling parsed extension config: %s", err)
+	}
+
+	configs := ExtensionConfigs{}
+	err = yaml.Unmarshal(parsedExtConfigBytes, &configs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid parsed extension config: %s", err)
 	}
 	err = validateConfigs(&configs)
 	if err != nil {
@@ -331,6 +392,9 @@ func validateConfigs(configs *ExtensionConfigs) error {
 		}
 		exts[ext.Name] = struct{}{}
 		svcTotal := len(ext.Backend.Services)
+		if svcTotal == 0 {
+			return fmt.Errorf("no backend service configured for extension %s", ext.Name)
+		}
 		for _, svc := range ext.Backend.Services {
 			if svc.URL == "" {
 				return fmt.Errorf("extensions.backend.services.url must be configured")
@@ -343,6 +407,16 @@ func validateConfigs(configs *ExtensionConfigs) error {
 					return fmt.Errorf("cluster.name or cluster.server must be defined when cluster is provided in the configuration")
 				}
 			}
+			if len(svc.Headers) > 0 {
+				for _, header := range svc.Headers {
+					if header.Name == "" {
+						return fmt.Errorf("header.name must be defined when providing service headers in the configuration")
+					}
+					if header.Value == "" {
+						return fmt.Errorf("header.value must be defined when providing service headers in the configuration")
+					}
+				}
+			}
 		}
 	}
 	return nil
@@ -350,7 +424,7 @@ func validateConfigs(configs *ExtensionConfigs) error {
 
 // NewProxy will instantiate a new reverse proxy based on the provided
 // targetURL and config.
-func NewProxy(targetURL string, config ProxyConfig) (*httputil.ReverseProxy, error) {
+func NewProxy(targetURL string, headers []Header, config ProxyConfig) (*httputil.ReverseProxy, error) {
 	url, err := url.Parse(targetURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse proxy URL: %s", err)
@@ -362,6 +436,11 @@ func NewProxy(targetURL string, config ProxyConfig) (*httputil.ReverseProxy, err
 			req.URL.Scheme = url.Scheme
 			req.URL.Host = url.Host
 			req.Header.Set("Host", url.Host)
+			req.Header.Del("Authorization")
+			req.Header.Del("Cookie")
+			for _, header := range headers {
+				req.Header.Set(header.Name, header.Value)
+			}
 		},
 	}
 	return proxy, nil
@@ -398,25 +477,47 @@ func applyProxyConfigDefaults(c *ProxyConfig) {
 	}
 }
 
-// RegisterHandlers will retrieve all configured extensions
-// and register the respective http handlers in the given
-// router.
-func (m *Manager) RegisterHandlers(r *mux.Router) error {
-	m.log.Info("Registering extension handlers...")
-	config, err := m.settings.Get()
+// RegisterExtensions will retrieve all extensions configurations
+// and update the extension registry.
+func (m *Manager) RegisterExtensions() error {
+	settings, err := m.settings.Get()
 	if err != nil {
 		return fmt.Errorf("error getting settings: %s", err)
 	}
-
-	if config.ExtensionConfig == "" {
-		return fmt.Errorf("No extensions configurations found")
+	err = m.UpdateExtensionRegistry(settings)
+	if err != nil {
+		return fmt.Errorf("error updating extension registry: %s", err)
 	}
+	return nil
+}
 
-	extConfigs, err := parseAndValidateConfig(config.ExtensionConfig)
+// UpdateExtensionRegistry will first parse and validate the extensions
+// configurations from the given settings. If no errors are found, it will
+// iterate over the given configurations building a new extension registry.
+// At the end, it will update the manager with the newly created registry.
+func (m *Manager) UpdateExtensionRegistry(s *settings.ArgoCDSettings) error {
+	extConfigs, err := parseAndValidateConfig(s)
 	if err != nil {
 		return fmt.Errorf("error parsing extension config: %s", err)
 	}
-	return m.registerExtensions(r, extConfigs)
+	extReg := make(map[string]ProxyRegistry)
+	for _, ext := range extConfigs.Extensions {
+		proxyReg := NewProxyRegistry()
+		singleBackend := len(ext.Backend.Services) == 1
+		for _, service := range ext.Backend.Services {
+			proxy, err := NewProxy(service.URL, service.Headers, ext.Backend.ProxyConfig)
+			if err != nil {
+				return fmt.Errorf("error creating proxy: %s", err)
+			}
+			err = appendProxy(proxyReg, ext.Name, service, proxy, singleBackend)
+			if err != nil {
+				return fmt.Errorf("error appending proxy: %s", err)
+			}
+		}
+		extReg[ext.Name] = proxyReg
+	}
+	m.registry = extReg
+	return nil
 }
 
 // appendProxy will append the given proxy in the given registry. Will use
@@ -458,31 +559,6 @@ func appendProxy(registry ProxyRegistry,
 	return nil
 }
 
-// registerExtensions will iterate over the given extConfigs and register
-// http handlers for every extension. It also registers a list extensions
-// handler under the "/extensions/" endpoint.
-func (m *Manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs) error {
-	extRouter := r.PathPrefix(fmt.Sprintf("%s/", URLPrefix)).Subrouter()
-	for _, ext := range extConfigs.Extensions {
-		registry := NewProxyRegistry()
-		singleBackend := len(ext.Backend.Services) == 1
-		for _, service := range ext.Backend.Services {
-			proxy, err := NewProxy(service.URL, ext.Backend.ProxyConfig)
-			if err != nil {
-				return fmt.Errorf("error creating proxy: %s", err)
-			}
-			err = appendProxy(registry, ext.Name, service, proxy, singleBackend)
-			if err != nil {
-				return fmt.Errorf("error appending proxy: %s", err)
-			}
-		}
-		m.log.Infof("Registering handler for %s/%s...", URLPrefix, ext.Name)
-		extRouter.PathPrefix(fmt.Sprintf("/%s/", ext.Name)).
-			HandlerFunc(m.CallExtension(ext.Name, registry))
-	}
-	return nil
-}
-
 // authorize will enforce rbac rules are satified for the given RequestResources.
 // The following validations are executed:
 //   - enforce the subject has permission to read application/project provided
@@ -496,7 +572,7 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 	if m.rbac == nil {
 		return nil, fmt.Errorf("rbac enforcer not set in extension manager")
 	}
-	appRBACName := security.AppRBACName(rr.ApplicationNamespace, rr.ProjectName, rr.ApplicationNamespace, rr.ApplicationName)
+	appRBACName := security.RBACName(rr.ApplicationNamespace, rr.ProjectName, rr.ApplicationNamespace, rr.ApplicationName)
 	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		return nil, fmt.Errorf("application authorization error: %s", err)
 	}
@@ -557,10 +633,29 @@ func findProxy(registry ProxyRegistry, extName string, dest v1alpha1.Application
 	return nil, fmt.Errorf("no proxy found for extension %q", extName)
 }
 
+// ProxyRegistry returns the proxy registry associated for the given
+// extension name.
+func (m *Manager) ProxyRegistry(name string) (ProxyRegistry, bool) {
+	pReg, found := m.registry[name]
+	return pReg, found
+}
+
 // CallExtension returns a handler func responsible for forwarding requests to the
 // extension service. The request will be sanitized by removing sensitive headers.
-func (m *Manager) CallExtension(extName string, registry ProxyRegistry) func(http.ResponseWriter, *http.Request) {
+func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		segments := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
+		if segments[0] != "extensions" {
+			http.Error(w, fmt.Sprintf("Invalid URL: first segment must be %s", URLPrefix), http.StatusBadRequest)
+			return
+		}
+		extName := segments[1]
+		if extName == "" {
+			http.Error(w, "Invalid URL: extension name must be provided", http.StatusBadRequest)
+			return
+		}
+		extName = strings.ReplaceAll(extName, "\n", "")
+		extName = strings.ReplaceAll(extName, "\r", "")
 		reqResources, err := ValidateHeaders(r)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Invalid headers: %s", err), http.StatusBadRequest)
@@ -573,24 +668,34 @@ func (m *Manager) CallExtension(extName string, registry ProxyRegistry) func(htt
 			return
 		}
 
-		proxy, err := findProxy(registry, extName, app.Spec.Destination)
+		proxyRegistry, ok := m.ProxyRegistry(extName)
+		if !ok {
+			m.log.Warnf("proxy extension warning: attempt to call unregistered extension: %s", extName)
+			http.Error(w, "Extension not found", http.StatusNotFound)
+			return
+		}
+		proxy, err := findProxy(proxyRegistry, extName, app.Spec.Destination)
 		if err != nil {
 			m.log.Errorf("findProxy error: %s", err)
 			http.Error(w, "invalid extension", http.StatusBadRequest)
 			return
 		}
 
-		sanitizeRequest(r, extName)
+		prepareRequest(r, extName, app)
 		m.log.Debugf("proxing request for extension %q", extName)
 		proxy.ServeHTTP(w, r)
 	}
 }
 
-// sanitizeRequest is reponsible for preparing and cleaning the given
+// prepareRequest is reponsible for preparing and cleaning the given
 // request, removing sensitive information before forwarding it to the
 // proxy extension.
-func sanitizeRequest(r *http.Request, extName string) {
+func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application) {
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
-	r.Header.Del("Cookie")
-	r.Header.Del("Authorization")
+	if app.Spec.Destination.Name != "" {
+		r.Header.Set(HeaderArgoCDTargetClusterName, app.Spec.Destination.Name)
+	}
+	if app.Spec.Destination.Server != "" {
+		r.Header.Set(HeaderArgoCDTargetClusterURL, app.Spec.Destination.Server)
+	}
 }

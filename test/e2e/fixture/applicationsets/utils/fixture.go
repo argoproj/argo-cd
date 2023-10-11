@@ -13,8 +13,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
 	"k8s.io/apimachinery/pkg/api/equality"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -24,7 +22,9 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 )
 
 const (
@@ -32,10 +32,13 @@ const (
 	// and in which Application resources should be created.
 	ArgoCDNamespace = "argocd-e2e"
 
-	// ApplicationSetNamespace is the namespace into which temporary resources (such as Deployments/Pods/etc)
+	// ArgoCDExternalNamespace is an external namespace to test additional namespaces
+	ArgoCDExternalNamespace = "argocd-e2e-external"
+
+	// ApplicationsResourcesNamespace is the namespace into which temporary resources (such as Deployments/Pods/etc)
 	// can be deployed, such as using it as the target namespace in an Application resource.
 	// Note: this is NOT the namespace the ApplicationSet controller is deployed to; see ArgoCDNamespace.
-	ApplicationSetNamespace = "applicationset-e2e"
+	ApplicationsResourcesNamespace = "applicationset-e2e"
 
 	TmpDir       = "/tmp/applicationset-e2e"
 	TestingLabel = "e2e.argoproj.io"
@@ -51,10 +54,11 @@ var (
 
 // E2EFixtureK8sClient contains Kubernetes clients initialized from local k8s configuration
 type E2EFixtureK8sClient struct {
-	KubeClientset    kubernetes.Interface
-	DynamicClientset dynamic.Interface
-	AppClientset     appclientset.Interface
-	AppSetClientset  dynamic.ResourceInterface
+	KubeClientset           kubernetes.Interface
+	DynamicClientset        dynamic.Interface
+	AppClientset            appclientset.Interface
+	AppSetClientset         dynamic.ResourceInterface
+	ExternalAppSetClientset dynamic.ResourceInterface
 }
 
 func GetEnvWithDefault(envName, defaultValue string) string {
@@ -74,7 +78,6 @@ func TestNamespace() string {
 // GetE2EFixtureK8sClient initializes the Kubernetes clients (if needed), and returns the most recently initalized value.
 // Note: this requires a local Kubernetes configuration (for example, while running the E2E tests).
 func GetE2EFixtureK8sClient() *E2EFixtureK8sClient {
-
 	// Initialize the Kubernetes clients only on first use
 	clientInitialized.Do(func() {
 
@@ -88,7 +91,7 @@ func GetE2EFixtureK8sClient() *E2EFixtureK8sClient {
 		}
 
 		internalClientVars.AppSetClientset = internalClientVars.DynamicClientset.Resource(v1alpha1.SchemeGroupVersion.WithResource("applicationsets")).Namespace(TestNamespace())
-
+		internalClientVars.ExternalAppSetClientset = internalClientVars.DynamicClientset.Resource(v1alpha1.SchemeGroupVersion.WithResource("applicationsets")).Namespace(ArgoCDExternalNamespace)
 	})
 	return internalClientVars
 }
@@ -103,8 +106,14 @@ func EnsureCleanState(t *testing.T) {
 	policy := v1.DeletePropagationForeground
 
 	// Delete the applicationset-e2e namespace, if it exists
-	err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), ApplicationSetNamespace, v1.DeleteOptions{PropagationPolicy: &policy})
+	err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), ApplicationsResourcesNamespace, v1.DeleteOptions{PropagationPolicy: &policy})
 	if err != nil && !strings.Contains(err.Error(), "not found") { // 'not found' error is expected
+		CheckError(err)
+	}
+
+	// Delete the argocd-e2e-external namespace, if it exists
+	err2 := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), ArgoCDExternalNamespace, v1.DeleteOptions{PropagationPolicy: &policy})
+	if err2 != nil && !strings.Contains(err2.Error(), "not found") { // 'not found' error is expected
 		CheckError(err)
 	}
 
@@ -159,6 +168,9 @@ func EnsureCleanState(t *testing.T) {
 	// create tmp dir
 	FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
+	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
+	fixture.LoginAs("admin")
+
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
 
@@ -199,12 +211,37 @@ func waitForExpectedClusterState() error {
 
 	// Wait up to 120 seconds for namespace to not exist
 	if err := waitForSuccess(func() error {
-		_, err := fixtureClient.KubeClientset.CoreV1().Namespaces().Get(context.Background(), ApplicationSetNamespace, v1.GetOptions{})
+		_, err := fixtureClient.KubeClientset.CoreV1().Namespaces().Get(context.Background(), ApplicationsResourcesNamespace, v1.GetOptions{})
 
 		msg := ""
 
 		if err == nil {
-			msg = fmt.Sprintf("namespace '%s' still exists, after delete", ApplicationSetNamespace)
+			msg = fmt.Sprintf("namespace '%s' still exists, after delete", ApplicationsResourcesNamespace)
+		}
+
+		if msg == "" && err != nil && strings.Contains(err.Error(), "not found") {
+			// Success is an error containing 'applicationset-e2e' not found.
+			return nil
+		}
+
+		if msg == "" {
+			msg = err.Error()
+		}
+
+		return fmt.Errorf(msg)
+
+	}, time.Now().Add(120*time.Second)); err != nil {
+		return err
+	}
+
+	// Wait up to 120 seconds for namespace to not exist
+	if err := waitForSuccess(func() error {
+		_, err := fixtureClient.KubeClientset.CoreV1().Namespaces().Get(context.Background(), ArgoCDExternalNamespace, v1.GetOptions{})
+
+		msg := ""
+
+		if err == nil {
+			msg = fmt.Sprintf("namespace '%s' still exists, after delete", ArgoCDExternalNamespace)
 		}
 
 		if msg == "" && err != nil && strings.Contains(err.Error(), "not found") {

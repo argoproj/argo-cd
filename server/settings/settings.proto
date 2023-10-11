@@ -28,6 +28,7 @@ message Settings {
     Help help = 9;
     repeated Plugin plugins = 10;
     bool userLoginsDisabled = 11;
+    // Deprecated: use sidecar plugins instead.
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ConfigManagementPlugin configManagementPlugins = 12;
     repeated string kustomizeVersions = 13;
     string uiCssURL = 14;

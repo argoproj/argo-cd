@@ -28,14 +28,14 @@ func NewDashboardCommand() *cobra.Command {
 
 			compression, err := cache.CompressionTypeFromString(compressionStr)
 			errors.CheckError(err)
-			errors.CheckError(headless.StartLocalServer(ctx, &argocdclient.ClientOptions{Core: true}, initialize.RetrieveContextIfChanged(cmd.Flag("context")), &port, &address, compression))
+			errors.CheckError(headless.MaybeStartLocalServer(ctx, &argocdclient.ClientOptions{Core: true}, initialize.RetrieveContextIfChanged(cmd.Flag("context")), &port, &address, compression))
 			println(fmt.Sprintf("Argo CD UI is available at http://%s:%d", address, port))
 			<-ctx.Done()
 		},
 	}
 	initialize.InitCommand(cmd)
 	cmd.Flags().IntVar(&port, "port", common.DefaultPortAPIServer, "Listen on given port")
-	cmd.Flags().StringVar(&address, "address", common.DefaultAddressAPIServer, "Listen on given address")
-	cmd.Flags().StringVar(&compressionStr, "redis-compress", env.StringFromEnv("REDIS_COMPRESSION", string(cache.RedisCompressionNone)), "Enable this if the application controller is configured with redis compression enabled. (possible values: none, gzip)")
+	cmd.Flags().StringVar(&address, "address", common.DefaultAddressAdminDashboard, "Listen on given address")
+	cmd.Flags().StringVar(&compressionStr, "redis-compress", env.StringFromEnv("REDIS_COMPRESSION", string(cache.RedisCompressionGZip)), "Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none)")
 	return cmd
 }

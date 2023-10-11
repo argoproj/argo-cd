@@ -9,6 +9,7 @@ import help from './help';
 import login from './login';
 import settings from './settings';
 import {Layout} from './shared/components/layout/layout';
+import {Page} from './shared/components/page/page';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {AuthSettingsCtx, Provider} from './shared/context';
 import {services} from './shared/services';
@@ -176,7 +177,9 @@ export class App extends React.Component<
                     <Helmet>
                         <title>{extension.title} - Argo CD</title>
                     </Helmet>
-                    <extension.component />
+                    <Page title={extension.title}>
+                        <extension.component />
+                    </Page>
                 </>
             );
             extendedRoutes[extension.path] = {

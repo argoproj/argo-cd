@@ -72,8 +72,11 @@ kind: Kustomization
 
 namespace: argocd
 resources:
-- github.com/argoproj/argo-cd/manifests/ha?ref=v2.6.2
+- https://raw.githubusercontent.com/argoproj/argo-cd/v2.7.2/manifests/install.yaml
 ```
+
+For an example of this, see the [kustomization.yaml](https://github.com/argoproj/argoproj-deployments/blob/master/argocd/kustomization.yaml)
+used to deploy the [Argoproj CI/CD infrastructure](https://github.com/argoproj/argoproj-deployments#argoproj-deployments).
 
 ## Helm
 
@@ -82,17 +85,10 @@ The Argo CD can be installed using [Helm](https://helm.sh/). The Helm chart is c
 
 ## Supported versions
 
-Similar to the Kubernetes project, the supported versions of Argo CD at any given point in time are the latest patch releases for the N 
-and N - 1 minor versions.
-These Argo CD versions are supported on the same versions of Kubernetes that are supported by Kubernetes itself (normally the last 3 released versions).
+For detailed information regarding Argo CD's version support policy, please refer to the [Release Process and Cadence documentation](https://argo-cd.readthedocs.io/en/stable/developer-guide/release-process-and-cadence/).
 
-Essentially the Argo CD project follows the same support scheme as Kubernetes but for N, N-1 while Kubernetes supports N, N-1, N-2 versions.
+## Tested versions
 
-For example if the latest minor version of ArgoCD are 2.4.3 and 2.3.5  while supported Kubernetes versions are 1.24, 1.23 and 1.22 then the following combinations are supported:
+The following table shows the versions of Kubernetes that are tested with each version of Argo CD.
 
-* Argo CD 2.4.3 on Kubernetes 1.24
-* Argo CD 2.4.3 on Kubernetes 1.23
-* Argo CD 2.4.3 on Kubernetes 1.22
-* Argo CD 2.3.5 on Kubernetes 1.24
-* Argo CD 2.3.5 on Kubernetes 1.23
-* Argo CD 2.3.5 on Kubernetes 1.22
+{!docs/operator-manual/tested-kubernetes-versions.md!}

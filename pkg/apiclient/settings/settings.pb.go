@@ -84,9 +84,10 @@ type Settings struct {
 	GoogleAnalytics    *GoogleAnalyticsConfig                `protobuf:"bytes,7,opt,name=googleAnalytics,proto3" json:"googleAnalytics,omitempty"`
 	KustomizeOptions   *v1alpha1.KustomizeOptions            `protobuf:"bytes,8,opt,name=kustomizeOptions,proto3" json:"kustomizeOptions,omitempty"`
 	// Help settings
-	Help                      *Help                              `protobuf:"bytes,9,opt,name=help,proto3" json:"help,omitempty"`
-	Plugins                   []*Plugin                          `protobuf:"bytes,10,rep,name=plugins,proto3" json:"plugins,omitempty"`
-	UserLoginsDisabled        bool                               `protobuf:"varint,11,opt,name=userLoginsDisabled,proto3" json:"userLoginsDisabled,omitempty"`
+	Help               *Help     `protobuf:"bytes,9,opt,name=help,proto3" json:"help,omitempty"`
+	Plugins            []*Plugin `protobuf:"bytes,10,rep,name=plugins,proto3" json:"plugins,omitempty"`
+	UserLoginsDisabled bool      `protobuf:"varint,11,opt,name=userLoginsDisabled,proto3" json:"userLoginsDisabled,omitempty"`
+	// Deprecated: use sidecar plugins instead.
 	ConfigManagementPlugins   []*v1alpha1.ConfigManagementPlugin `protobuf:"bytes,12,rep,name=configManagementPlugins,proto3" json:"configManagementPlugins,omitempty"`
 	KustomizeVersions         []string                           `protobuf:"bytes,13,rep,name=kustomizeVersions,proto3" json:"kustomizeVersions,omitempty"`
 	UiCssURL                  string                             `protobuf:"bytes,14,opt,name=uiCssURL,proto3" json:"uiCssURL,omitempty"`

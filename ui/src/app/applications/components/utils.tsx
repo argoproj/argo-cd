@@ -402,8 +402,9 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
             return actions.map(
                 action =>
                     ({
-                        title: action.name,
+                        title: action.displayName ?? action.name,
                         disabled: !!action.disabled,
+                        iconClassName: action.iconClass,
                         action: async () => {
                             try {
                                 const confirmed = await apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
@@ -436,14 +437,14 @@ function getActionItems(
         ...((isRoot && [
             {
                 title: 'Sync',
-                iconClassName: 'fa fa-sync',
+                iconClassName: 'fa fa-fw fa-sync',
                 action: () => showDeploy(nodeKey(resource), null, apis)
             }
         ]) ||
             []),
         {
             title: 'Delete',
-            iconClassName: 'fa fa-times-circle',
+            iconClassName: 'fa fa-fw fa-times-circle',
             action: async () => {
                 return deletePopup(apis, resource, application, appChanged);
             }
@@ -452,7 +453,7 @@ function getActionItems(
     if (!isQuickStart) {
         items.unshift({
             title: 'Details',
-            iconClassName: 'fa fa-info-circle',
+            iconClassName: 'fa fa-fw fa-info-circle',
             action: () => apis.navigation.goto('.', {node: nodeKey(resource)})
         });
     }
@@ -460,7 +461,7 @@ function getActionItems(
     if (findChildPod(resource, tree)) {
         items.push({
             title: 'Logs',
-            iconClassName: 'fa fa-align-left',
+            iconClassName: 'fa fa-fw fa-align-left',
             action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
         });
     }
@@ -477,7 +478,7 @@ function getActionItems(
                 return [
                     {
                         title: 'Exec',
-                        iconClassName: 'fa fa-terminal',
+                        iconClassName: 'fa fa-fw fa-terminal',
                         action: async () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
                     } as MenuItem
                 ];
@@ -495,7 +496,7 @@ function getActionItems(
                 link =>
                     ({
                         title: link.title,
-                        iconClassName: `fa ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                        iconClassName: `fa fa-fw ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
                         action: () => window.open(link.url, '_blank'),
                         tooltip: link.description
                     } as MenuItem)
@@ -946,11 +947,12 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     return {reason, message, netContainerStatuses};
 }
 
-export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingConditions: string[]; failedConditions: string[]} => {
+export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingConditions: string[]; notPassedConditions: string[]} => {
+    // if pod does not have readiness gates then return empty status
     if (!pod.spec?.readinessGates?.length) {
         return {
             nonExistingConditions: [],
-            failedConditions: []
+            notPassedConditions: []
         };
     }
 
@@ -989,7 +991,7 @@ export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingCon
 
     return {
         nonExistingConditions,
-        failedConditions
+        notPassedConditions: failedConditions
     };
 };
 
@@ -1250,3 +1252,17 @@ export function formatCreationTimestamp(creationTimestamp: string) {
 }
 
 export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);
+
+export function getUsrMsgKeyToDisplay(appName: string, msgKey: string, usrMessages: appModels.UserMessages[]) {
+    const usrMsg = usrMessages?.find((msg: appModels.UserMessages) => msg.appName === appName && msg.msgKey === msgKey);
+    if (usrMsg !== undefined) {
+        return {...usrMsg, display: true};
+    } else {
+        return {appName, msgKey, display: false, duration: 1} as appModels.UserMessages;
+    }
+}
+
+export const userMsgsList: {[key: string]: string} = {
+    groupNodes: `Since the number of pods has surpassed the threshold pod count of 15, you will now be switched to the group node view.
+                 If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`
+};

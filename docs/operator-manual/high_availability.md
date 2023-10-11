@@ -28,7 +28,7 @@ or if the repositories have a lot of files. To avoid this problem mount a persis
 * `argocd-repo-server` uses `git ls-remote` to resolve ambiguous revisions such as `HEAD`, a branch or a tag name. This operation happens frequently
 and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` environment variable to retry failed requests.
 
-* `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With Kustomize remote bases, or Helm patch releases, the manifests can change even though the repo has not changed. By reducing the cache time, you can get the changes without waiting for 24h. Use `--repo-cache-expiration duration`, and we'd suggest in low volume environments you try '1h'. Bear in mind that this will negate the benefits of caching if set too low. 
+* `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With Kustomize remote bases, or in case a Helm chart gets changed without bumping its version number, the expected manifests can change even though the repo has not changed. By reducing the cache time, you can get the changes without waiting for 24h. Use `--repo-cache-expiration duration`, and we'd suggest in low volume environments you try '1h'. Bear in mind that this will negate the benefits of caching if set too low.
 
 * `argocd-repo-server` executes config management tools such as `helm` or `kustomize` and enforces a 90 second timeout. This timeout can be changed by using the `ARGOCD_EXEC_TIMEOUT` env variable. The value should be in the Go time duration string format, for example, `2m30s`.
 
@@ -60,9 +60,10 @@ reconciliation. In this case, we advise to use the preferred resource version in
 * The controller polls Git every 3m by default. You can change this duration using the `timeout.reconciliation` setting in the `argocd-cm` ConfigMap. The value of `timeout.reconciliation` is a duration string e.g `60s`, `1m`, `1h` or `1d`.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
-controller replicas. To enable sharding increase the number of replicas in `argocd-application-controller` `StatefulSet`
-and repeat the number of replicas in the `ARGOCD_CONTROLLER_REPLICAS` environment variable. The strategic merge patch below
-demonstrates changes required to configure two controller replicas.
+controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller` `StatefulSet`
+and repeat the number of replicas in the `ARGOCD_CONTROLLER_REPLICAS` environment variable. The strategic merge patch below demonstrates changes required to configure two controller replicas.
+
+* By default, the controller will update the cluster information every 10 seconds. If there is a problem with your cluster network environment that is causing the update time to take a long time, you can try modifying the environment variable `ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT` to increase the timeout (the unit is seconds).
 
 ```yaml
 apiVersion: apps/v1
@@ -79,8 +80,49 @@ spec:
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "2"
 ```
+* In order to manually set the cluster's shard number, specify the optional `shard` property when creating a cluster. If not specified, it will be calculated on the fly by the application controller.
+
+* The shard distribution algorithm of the `argocd-application-controller` can be set by using the `--sharding-method` parameter. Supported sharding methods are : [legacy (default), round-robin]. `legacy` mode uses an `uid` based distribution (non-uniform). `round-robin` uses an equal distribution across all shards. The `--sharding-method` parameter can also be overriden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifiying the same possible values.
+
+!!! warning "Alpha Feature"
+    The `round-robin` shard distribution algorithm  is an experimental feature. Reshuffling is known to occur in certain scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur and may temporarily have negative performance impacts.
+
+* A cluster can be manually assigned and forced to a `shard` by patching the `shard` field in the cluster secret to contain the shard number, e.g.
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  shard: 1
+  name: mycluster.com
+  server: https://mycluster.com
+  config: |
+    {
+      "bearerToken": "<authentication token>",
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }
+    }
+```
 
 * `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` - environment variable that enables collecting RPC performance metrics. Enable it if you need to troubleshoot performance issues. Note: This metric is expensive to both query and store!
+
+* `ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` - environment variable controlling the number of pages the controller
+  buffers in memory when performing a list operation against the K8s api server while syncing the cluster cache. This
+  is useful when the cluster contains a large number of resources and cluster sync times exceed the default etcd
+  compaction interval timeout. In this scenario, when attempting to sync the cluster cache, the application controller
+  may throw an error that the `continue parameter is too old to display a consistent list result`. Setting a higher
+  value for this environment variable configures the controller with a larger buffer in which to store pre-fetched
+  pages which are processed asynchronously, increasing the likelihood that all pages have been pulled before the etcd
+  compaction interval timeout expires. In the most extreme case, operators can set this value such that
+  `ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE * ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` exceeds the largest resource
+  count (grouped by k8s api version, the granule of parallelism for list operations). In this case, all resources will
+  be buffered in memory -- no api server request will be blocked by processing.
 
 **metrics**
 
@@ -113,7 +155,7 @@ spec:
 
 * The `ARGOCD_API_SERVER_REPLICAS` environment variable is used to divide [the limit of concurrent login requests (`ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT`)](./user-management/index.md#failed-logins-rate-limiting) between each replica.
 * The `ARGOCD_GRPC_MAX_SIZE_MB` environment variable allows specifying the max size of the server response message in megabytes.
-The default value is 200. You might need to increase this for an Argo CD instance that manages 3000+ applications.    
+The default value is 200. You might need to increase this for an Argo CD instance that manages 3000+ applications.
 
 ### argocd-dex-server, argocd-redis
 
