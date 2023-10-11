@@ -1,7 +1,5 @@
 module github.com/argoproj/argo-cd/v2
 
-replace github.com/argoproj/notifications-engine => /Users/mayz985/go/src/github.com/argoproj/notifications-engine
-
 go 1.19
 
 require (
@@ -14,7 +12,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.30.4
 	github.com/antonmedv/expr v1.15.2
 	github.com/argoproj/gitops-engine v0.7.1-0.20230929203505-a00ce82f1c17
-	github.com/argoproj/notifications-engine v0.4.1-0.20230905144632-9dcecdc3eebf
+	github.com/argoproj/notifications-engine v0.4.1-0.20231011160156-2d2d1a75dbee
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
 	github.com/aws/aws-sdk-go v1.44.317
 	github.com/bmatcuk/doublestar/v4 v4.6.0
