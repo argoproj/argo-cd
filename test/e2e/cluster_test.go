@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	clusterFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/cluster"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 )
@@ -21,16 +23,38 @@ func TestClusterList(t *testing.T) {
 	SkipIfAlreadyRun(t)
 	defer RecordTestRun(t)
 
+	last := ""
+	expected := fmt.Sprintf(`SERVER                          NAME        VERSION  STATUS      MESSAGE  PROJECT
+https://kubernetes.default.svc  in-cluster  %v     Successful           `, GetVersions().ServerVersion)
+
 	clusterFixture.
 		Given(t).
-		Project(ProjectName).
+		Project(ProjectName)
+
+	// We need an application targeting the cluster, otherwise the test will
+	// fail if run isolated.
+	app.GivenWithSameState(t).
+		Path(guestbookPath).
 		When().
-		List().
-		Then().
-		AndCLIOutput(func(output string, err error) {
-			assert.Equal(t, fmt.Sprintf(`SERVER                          NAME        VERSION  STATUS      MESSAGE  PROJECT
-https://kubernetes.default.svc  in-cluster  %v     Successful           `, GetVersions().ServerVersion), output)
-		})
+		CreateApp()
+
+	tries := 2
+	for i := 0; i <= tries; i += 1 {
+		clusterFixture.GivenWithSameState(t).
+			When().
+			List().
+			Then().
+			AndCLIOutput(func(output string, err error) {
+				last = output
+			})
+		if expected == last {
+			break
+		} else if i < tries {
+			// We retry with a simple backoff
+			time.Sleep(time.Duration(i+1) * time.Second)
+		}
+	}
+	assert.Equal(t, expected, last)
 }
 
 func TestClusterAdd(t *testing.T) {
@@ -130,6 +154,25 @@ func TestClusterListDenied(t *testing.T) {
 		Then().
 		AndCLIOutput(func(output string, err error) {
 			assert.Equal(t, output, "SERVER  NAME  VERSION  STATUS  MESSAGE  PROJECT")
+		})
+}
+
+func TestClusterSet(t *testing.T) {
+	EnsureCleanState(t)
+	defer RecordTestRun(t)
+	clusterFixture.
+		GivenWithSameState(t).
+		Project(ProjectName).
+		Name("in-cluster").
+		Namespaces([]string{"namespace-edit-1", "namespace-edit-2"}).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		SetNamespaces().
+		GetByName("in-cluster").
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "namespace-edit-1"))
+			assert.True(t, strings.Contains(output, "namespace-edit-2"))
 		})
 }
 
@@ -277,7 +320,7 @@ func TestClusterDelete(t *testing.T) {
 
 	_, err = fixture.Run("", "kubectl", "get", "clusterrolebinding", "argocd-manager-role-binding")
 	if err != nil {
-		t.Errorf("Expected no error from not finding clusterrole argocd-manager-role but got:\n%s", err.Error())
+		t.Errorf("Expected no error from not finding clusterrolebinding argocd-manager-role-binding but got:\n%s", err.Error())
 	}
 
 	clstAction.DeleteByName().
@@ -299,6 +342,6 @@ func TestClusterDelete(t *testing.T) {
 
 	output, err = fixture.Run("", "kubectl", "get", "clusterrolebinding", "argocd-manager-role-binding")
 	if err == nil {
-		t.Errorf("Expected error from not finding clusterrole argocd-manager-role but got:\n%s", output)
+		t.Errorf("Expected error from not finding clusterrolebinding argocd-manager-role-binding but got:\n%s", output)
 	}
 }

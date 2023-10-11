@@ -9,7 +9,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/..; pwd)
+# shellcheck disable=SC2128
+PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE}")"/..; pwd)
 PATH="${PROJECT_ROOT}/dist:${PATH}"
 GOPATH=$(go env GOPATH)
 
@@ -51,11 +52,11 @@ else
 fi
 
 go-to-protobuf \
-    --go-header-file=${PROJECT_ROOT}/hack/custom-boilerplate.go.txt \
-    --packages=$(IFS=, ; echo "${PACKAGES[*]}") \
-    --apimachinery-packages=$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}") \
+    --go-header-file="${PROJECT_ROOT}"/hack/custom-boilerplate.go.txt \
+    --packages="$(IFS=, ; echo "${PACKAGES[*]}")" \
+    --apimachinery-packages="$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}")" \
     --proto-import=./vendor \
-    --proto-import=${protoc_include}
+    --proto-import="${protoc_include}"
 
 # Either protoc-gen-go, protoc-gen-gofast, or protoc-gen-gogofast can be used to build
 # server/*/<service>.pb.go from .proto files. golang/protobuf and gogo/protobuf can be used
@@ -73,17 +74,17 @@ MOD_ROOT=${GOPATH}/pkg/mod
 grpc_gateway_version=$(go list -m github.com/grpc-ecosystem/grpc-gateway | awk '{print $NF}' | head -1)
 GOOGLE_PROTO_API_PATH=${MOD_ROOT}/github.com/grpc-ecosystem/grpc-gateway@${grpc_gateway_version}/third_party/googleapis
 GOGO_PROTOBUF_PATH=${PROJECT_ROOT}/vendor/github.com/gogo/protobuf
-PROTO_FILES=$(find $PROJECT_ROOT \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" -or -path '*/cmpserver/*' -and -name "*.proto" \) | sort)
+PROTO_FILES=$(find "$PROJECT_ROOT" \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" -or -path '*/cmpserver/*' -and -name "*.proto" \) | sort)
 for i in ${PROTO_FILES}; do
     protoc \
-        -I${PROJECT_ROOT} \
-        -I${protoc_include} \
+        -I"${PROJECT_ROOT}" \
+        -I"${protoc_include}" \
         -I./vendor \
-        -I$GOPATH/src \
-        -I${GOOGLE_PROTO_API_PATH} \
-        -I${GOGO_PROTOBUF_PATH} \
-        --${GOPROTOBINARY}_out=plugins=grpc:$GOPATH/src \
-        --grpc-gateway_out=logtostderr=true:$GOPATH/src \
+        -I"$GOPATH"/src \
+        -I"${GOOGLE_PROTO_API_PATH}" \
+        -I"${GOGO_PROTOBUF_PATH}" \
+        --${GOPROTOBINARY}_out=plugins=grpc:"$GOPATH"/src \
+        --grpc-gateway_out=logtostderr=true:"$GOPATH"/src \
         --swagger_out=logtostderr=true:. \
         $i
 done
@@ -92,10 +93,9 @@ done
 # collect_swagger gathers swagger files into a subdirectory
 collect_swagger() {
     SWAGGER_ROOT="$1"
-    EXPECTED_COLLISIONS="$2"
     SWAGGER_OUT="${PROJECT_ROOT}/assets/swagger.json"
-    PRIMARY_SWAGGER=`mktemp`
-    COMBINED_SWAGGER=`mktemp`
+    PRIMARY_SWAGGER=$(mktemp)
+    COMBINED_SWAGGER=$(mktemp)
 
     cat <<EOF > "${PRIMARY_SWAGGER}"
 {
@@ -111,8 +111,19 @@ EOF
 
     rm -f "${SWAGGER_OUT}"
 
-    find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin -c "${EXPECTED_COLLISIONS}" "${PRIMARY_SWAGGER}" '{}' \+ > "${COMBINED_SWAGGER}"
-    jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) | del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title)' "${COMBINED_SWAGGER}" > "${SWAGGER_OUT}"
+    find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin --ignore-conflicts "${PRIMARY_SWAGGER}" '{}' \+ > "${COMBINED_SWAGGER}"
+    jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) | del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title) |
+      # The "array" and "map" fields have custom unmarshaling. Modify the swagger to reflect this.
+      .definitions.v1alpha1ApplicationSourcePluginParameter.properties.array = {"description":"Array is the value of an array type parameter.","type":"array","items":{"type":"string"}} |
+      del(.definitions.v1alpha1OptionalArray) |
+      .definitions.v1alpha1ApplicationSourcePluginParameter.properties.map = {"description":"Map is the value of a map type parameter.","type":"object","additionalProperties":{"type":"string"}} |
+      del(.definitions.v1alpha1OptionalMap) |
+      # Output for int64 is incorrect, because it is based on proto definitions, where int64 is a string. In our JSON API, we expect int64 to be an integer. https://github.com/grpc-ecosystem/grpc-gateway/issues/219
+      (.definitions[]?.properties[]? | select(.type == "string" and .format == "int64")) |= (.type = "integer")
+    ' "${COMBINED_SWAGGER}" | \
+    jq '.definitions.v1Time.type = "string" | .definitions.v1Time.format = "date-time" | del(.definitions.v1Time.properties)' | \
+    jq '.definitions.v1alpha1ResourceNode.allOf = [{"$ref": "#/definitions/v1alpha1ResourceRef"}] | del(.definitions.v1alpha1ResourceNode.properties.resourceRef) ' \
+    > "${SWAGGER_OUT}"
 
     /bin/rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
 }
@@ -123,10 +134,9 @@ clean_swagger() {
     find "${SWAGGER_ROOT}" -name '*.swagger.json' -delete
 }
 
-echo "If additional types are added, the number of expected collisions may need to be increased"
-EXPECTED_COLLISION_COUNT=90
-collect_swagger server ${EXPECTED_COLLISION_COUNT}
+collect_swagger server
 clean_swagger server
 clean_swagger reposerver
 clean_swagger controller
 clean_swagger cmpserver
+

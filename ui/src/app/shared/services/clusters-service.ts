@@ -10,7 +10,7 @@ export class ClustersService {
     }
 
     public get(url: string, name: string): Promise<models.Cluster> {
-        const requestUrl = `/clusters/${url ? encodeURIComponent(url) : name}?id.type=${url ? 'url' : 'name'}`;
+        const requestUrl = `/clusters/${url ? encodeURIComponent(url) : encodeURIComponent(name)}?id.type=${url ? 'url' : 'name_escaped'}`;
         return requests.get(requestUrl).then(res => res.body as models.Cluster);
     }
 

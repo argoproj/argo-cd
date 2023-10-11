@@ -47,7 +47,7 @@ data:
   help.download.windows-amd64: "path-or-url-to-download"
 
   # A dex connector configuration (optional). See SSO configuration documentation:
-  # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/sso
+  # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/user-management/index.md#sso
   # https://dexidp.io/docs/connectors/
   dex.config: |
     connectors:
@@ -85,6 +85,7 @@ data:
   # Configuration to customize resource behavior (optional) can be configured via splitted sub keys.
   # Keys are in the form: resource.customizations.ignoreDifferences.<group_kind>, resource.customizations.health.<group_kind>
   # resource.customizations.actions.<group_kind>, resource.customizations.knownTypeFields.<group-kind>
+  # resource.customizations.ignoreResourceUpdates.<group-kind>
   resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
     jsonPointers:
     - /webhooks/0/clientConfig/caBundle
@@ -100,6 +101,33 @@ data:
     - kube-controller-manager
     jsonPointers:
     - /spec/replicas
+
+  # Enable resource.customizations.ignoreResourceUpdates rules. If "false," those rules are not applied, and all updates
+  # to resources are applied to the cluster cache. Default is false.
+  resource.ignoreResourceUpdatesEnabled: "false"
+
+  # Configuration to define customizations ignoring differences during watched resource updates to skip application reconciles.
+  resource.customizations.ignoreResourceUpdates.all: |
+    jsonPointers:
+    - /metadata/resourceVersion
+
+  # Configuration to define customizations ignoring differences during watched resource updates can be configured via splitted sub key.
+  resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
+    jsonPointers:
+    - /status
+
+  # jsonPointers and jqPathExpressions can be specified.
+  resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler: |
+    jqPathExpressions:
+    - '.metadata.annotations."autoscaling.alpha.kubernetes.io/behavior"'
+    - '.metadata.annotations."autoscaling.alpha.kubernetes.io/conditions"'
+    - '.metadata.annotations."autoscaling.alpha.kubernetes.io/metrics"'
+    - '.metadata.annotations."autoscaling.alpha.kubernetes.io/current-metrics"'
+    jsonPointers:
+    - /metadata/annotations/autoscaling.alpha.kubernetes.io~1behavior
+    - /metadata/annotations/autoscaling.alpha.kubernetes.io~1conditions
+    - /metadata/annotations/autoscaling.alpha.kubernetes.io~1metrics
+    - /metadata/annotations/autoscaling.alpha.kubernetes.io~1current-metrics
 
   resource.customizations.health.certmanager.k8s.io-Certificate: |
     hs = {}
@@ -190,6 +218,9 @@ data:
       clusters:
       - "*.local"
 
+  # An optional comma-separated list of metadata.labels to observe in the UI.
+  resource.customLabels: tier
+
   resource.compareoptions: |
     # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
     ignoreAggregatedRoles: true
@@ -199,6 +230,10 @@ data:
     # 'all' - all resources
     # 'none' - disabled
     ignoreResourceStatusField: crd
+
+  # configuration to instruct controller to only watch for resources that it has permissions to list
+  # can be either empty, "normal" or "strict". By default, it is empty i.e. disabled.
+  resource.respectRBAC: "normal"
 
   # Configuration to add a config management plugin.
   configManagementPlugins: |
@@ -302,3 +337,72 @@ data:
   # token verification to pass despite the OIDC provider having an invalid certificate. Only set to "true" if you
   # understand the risks.
   oidc.tls.insecure.skip.verify: "false"
+
+  # Add Deep Links to ArgoCD UI
+  # sample project level links
+  project.links: |
+    - url: https://myaudit-system.com?project={{.metadata.name}}
+      title: Audit
+      description: system audit logs
+      icon.class: "fa-book"
+  # sample application level links
+  application.links: |
+    # pkg.go.dev/text/template is used for evaluating url templates
+    - url: https://mycompany.splunk.com?search={{.spec.destination.namespace}}
+      title: Splunk
+    # conditionally show link e.g. for specific project
+    # github.com/antonmedv/expr is used for evaluation of conditions
+    - url: https://mycompany.splunk.com?search={{.spec.destination.namespace}}
+      title: Splunk
+      if: spec.project == "default"
+    - url: https://{{.metadata.annotations.splunkhost}}?search={{.spec.destination.namespace}}
+      title: Splunk
+      if: metadata.annotations.splunkhost
+  # sample resource level links
+  resource.links: |
+    - url: https://mycompany.splunk.com?search={{.metadata.namespace}}
+      title: Splunk
+      if: kind == "Pod" || kind == "Deployment"
+
+  extension.config: |
+    extensions:
+        # Name defines the endpoint that will be used to register
+        # the extension route.
+        # Mandatory field.
+      - name: some-extension
+        backend:
+          # ConnectionTimeout is the maximum amount of time a dial to
+          # the extension server will wait for a connect to complete.
+          # Optional field. Default: 2 seconds
+          connectionTimeout: 2s
+
+          # KeepAlive specifies the interval between keep-alive probes
+          # for an active network connection between the API server and
+          # the extension server.
+          # Optional field. Default: 15 seconds
+          keepAlive: 15s
+
+          # IdleConnectionTimeout is the maximum amount of time an idle
+          # (keep-alive) connection between the API server and the extension
+          # server will remain idle before closing itself.
+          # Optional field. Default: 60 seconds
+          idleConnectionTimeout: 60s
+
+          # MaxIdleConnections controls the maximum number of idle (keep-alive)
+          # connections between the API server and the extension server.
+          # Optional field. Default: 30
+          maxIdleConnections: 30
+
+          services:
+              # URL is the address where the extension backend must be available.
+              # Mandatory field.
+            - url: http://httpbin.org
+
+              # Cluster if provided, will have to match the application
+              # destination name or the destination server to have requests
+              # properly forwarded to this service URL.
+              # Optional field if only one service is specified.
+              # Mandatory if multiple services are specified.
+              cluster:
+                name: some-cluster
+                server: https://some-cluster

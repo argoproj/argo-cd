@@ -12,7 +12,6 @@ import (
 	"text/tabwriter"
 
 	healthutil "github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -21,6 +20,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -206,7 +206,7 @@ var validatorsByGroup = map[string]settingValidator{
 			}
 			ssoProvider = "Dex"
 		} else if general.OIDCConfigRAW != "" {
-			if _, err := settings.UnmarshalOIDCConfig(general.OIDCConfigRAW); err != nil {
+			if err := settings.ValidateOIDCConfig(general.OIDCConfigRAW); err != nil {
 				return "", fmt.Errorf("invalid oidc.config: %v", err)
 			}
 			ssoProvider = "OIDC"
@@ -233,13 +233,6 @@ var validatorsByGroup = map[string]settingValidator{
 		_, err := manager.GetGoogleAnalytics()
 		return "", err
 	}),
-	"plugins": func(manager *settings.SettingsManager) (string, error) {
-		plugins, err := manager.GetConfigManagementPlugins()
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("%d plugins", len(plugins)), nil
-	},
 	"kustomize": func(manager *settings.SettingsManager) (string, error) {
 		opts, err := manager.GetKustomizeSettings()
 		if err != nil {
@@ -356,6 +349,7 @@ func NewResourceOverridesCommand(cmdCtx commandContext) *cobra.Command {
 		},
 	}
 	command.AddCommand(NewResourceIgnoreDifferencesCommand(cmdCtx))
+	command.AddCommand(NewResourceIgnoreResourceUpdatesCommand(cmdCtx))
 	command.AddCommand(NewResourceActionListCommand(cmdCtx))
 	command.AddCommand(NewResourceActionRunCommand(cmdCtx))
 	command.AddCommand(NewResourceHealthCommand(cmdCtx))
@@ -373,6 +367,31 @@ func executeResourceOverrideCommand(ctx context.Context, cmdCtx commandContext, 
 	errors.CheckError(err)
 
 	overrides, err := settingsManager.GetResourceOverrides()
+	errors.CheckError(err)
+	gvk := res.GroupVersionKind()
+	key := gvk.Kind
+	if gvk.Group != "" {
+		key = fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)
+	}
+	override, hasOverride := overrides[key]
+	if !hasOverride {
+		_, _ = fmt.Printf("No overrides configured for '%s/%s'\n", gvk.Group, gvk.Kind)
+		return
+	}
+	callback(res, override, overrides)
+}
+
+func executeIgnoreResourceUpdatesOverrideCommand(ctx context.Context, cmdCtx commandContext, args []string, callback func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride)) {
+	data, err := os.ReadFile(args[0])
+	errors.CheckError(err)
+
+	res := unstructured.Unstructured{}
+	errors.CheckError(yaml.Unmarshal(data, &res))
+
+	settingsManager, err := cmdCtx.createSettingsManager(ctx)
+	errors.CheckError(err)
+
+	overrides, err := settingsManager.GetIgnoreResourceUpdatesOverrides()
 	errors.CheckError(err)
 	gvk := res.GroupVersionKind()
 	key := gvk.Kind
@@ -426,6 +445,52 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 
 				if reflect.DeepEqual(&res, normalizedRes) {
 					_, _ = fmt.Printf("No fields are ignored by ignoreDifferences settings: \n%s\n", override.IgnoreDifferences)
+					return
+				}
+
+				_, _ = fmt.Printf("Following fields are ignored:\n\n")
+				_ = cli.PrintDiff(res.GetName(), &res, normalizedRes)
+			})
+		},
+	}
+	return command
+}
+
+func NewResourceIgnoreResourceUpdatesCommand(cmdCtx commandContext) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "ignore-resource-updates RESOURCE_YAML_PATH",
+		Short: "Renders fields excluded from resource updates",
+		Long:  "Renders ignored fields using the 'ignoreResourceUpdates' setting specified in the 'resource.customizations' field of 'argocd-cm' ConfigMap",
+		Example: `
+argocd admin settings resource-overrides ignore-resource-updates ./deploy.yaml --argocd-cm-path ./argocd-cm.yaml`,
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) < 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			executeIgnoreResourceUpdatesOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+				gvk := res.GroupVersionKind()
+				if len(override.IgnoreResourceUpdates.JSONPointers) == 0 && len(override.IgnoreResourceUpdates.JQPathExpressions) == 0 {
+					_, _ = fmt.Printf("Ignore resource updates are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
+					return
+				}
+
+				normalizer, err := normalizers.NewIgnoreNormalizer(nil, overrides)
+				errors.CheckError(err)
+
+				normalizedRes := res.DeepCopy()
+				logs := collectLogs(func() {
+					errors.CheckError(normalizer.Normalize(normalizedRes))
+				})
+				if logs != "" {
+					_, _ = fmt.Println(logs)
+				}
+
+				if reflect.DeepEqual(&res, normalizedRes) {
+					_, _ = fmt.Printf("No fields are ignored by ignoreResourceUpdates settings: \n%s\n", override.IgnoreResourceUpdates)
 					return
 				}
 
@@ -503,7 +568,7 @@ argocd admin settings resource-overrides action list /tmp/deploy.yaml --argocd-c
 				})
 
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-				_, _ = fmt.Fprintf(w, "NAME\tENABLED\n")
+				_, _ = fmt.Fprintf(w, "NAME\tDISABLED\n")
 				for _, action := range availableActions {
 					_, _ = fmt.Fprintf(w, "%s\t%s\n", action.Name, strconv.FormatBool(action.Disabled))
 				}
@@ -545,13 +610,26 @@ argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --a
 				modifiedRes, err := luaVM.ExecuteResourceAction(&res, action.ActionLua)
 				errors.CheckError(err)
 
-				if reflect.DeepEqual(&res, modifiedRes) {
-					_, _ = fmt.Printf("No fields had been changed by action: \n%s\n", action.Name)
-					return
+				for _, impactedResource := range modifiedRes {
+					result := impactedResource.UnstructuredObj
+					switch impactedResource.K8SOperation {
+					// No default case since a not supported operation would have failed upon unmarshaling earlier
+					case lua.PatchOperation:
+						if reflect.DeepEqual(&res, modifiedRes) {
+							_, _ = fmt.Printf("No fields had been changed by action: \n%s\n", action.Name)
+							return
+						}
+
+						_, _ = fmt.Printf("Following fields have been changed:\n\n")
+						_ = cli.PrintDiff(res.GetName(), &res, result)
+					case lua.CreateOperation:
+						yamlBytes, err := yaml.Marshal(impactedResource.UnstructuredObj)
+						errors.CheckError(err)
+						fmt.Println("Following resource was created:")
+						fmt.Println(bytes.NewBuffer(yamlBytes).String())
+					}
 				}
 
-				_, _ = fmt.Printf("Following fields have been changed:\n\n")
-				_ = cli.PrintDiff(res.GetName(), &res, modifiedRes)
 			})
 		},
 	}

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	oidc "github.com/coreos/go-oidc"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
@@ -419,7 +419,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 			// introduces random delay to protect from timing-based user enumeration attack
 			delayNanoseconds := verificationDelayNoiseMin.Nanoseconds() +
 				int64(rand.Intn(int(verificationDelayNoiseMax.Nanoseconds()-verificationDelayNoiseMin.Nanoseconds())))
-				// take into account amount of time spent since the request start
+			// take into account amount of time spent since the request start
 			delayNanoseconds = delayNanoseconds - time.Since(start).Nanoseconds()
 			if delayNanoseconds > 0 {
 				mgr.sleep(time.Duration(delayNanoseconds))
@@ -463,6 +463,47 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	return nil
 }
 
+// AuthMiddlewareFunc returns a function that can be used as an
+// authentication middleware for HTTP requests.
+func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return WithAuthMiddleware(disabled, mgr, h)
+	}
+}
+
+// TokenVerifier defines the contract to invoke token
+// verification logic
+type TokenVerifier interface {
+	VerifyToken(token string) (jwt.Claims, string, error)
+}
+
+// WithAuthMiddleware is an HTTP middleware used to ensure incoming
+// requests are authenticated before invoking the target handler. If
+// disabled is true, it will just invoke the next handler in the chain.
+func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !disabled {
+			cookies := r.Cookies()
+			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
+			if err != nil {
+				http.Error(w, "Auth cookie not found", http.StatusBadRequest)
+				return
+			}
+			claims, _, err := authn.VerifyToken(tokenString)
+			if err != nil {
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				return
+			}
+			ctx := r.Context()
+			// Add claims to the context to inspect for RBAC
+			// nolint:staticcheck
+			ctx = context.WithValue(ctx, "claims", claims)
+			r = r.WithContext(ctx)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
@@ -483,31 +524,29 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 			return nil, "", err
 		}
 
-		// Token must be verified for at least one audience
-		// TODO(jannfis): Is this the right way? Shouldn't we know our audience and only validate for the correct one?
-		var idToken *oidc.IDToken
-		for _, aud := range claims.Audience {
-			idToken, err = prov.Verify(aud, tokenString)
-			if err == nil {
-				break
-			}
+		argoSettings, err := mgr.settingsMgr.GetSettings()
+		if err != nil {
+			return nil, "", fmt.Errorf("cannot access settings while verifying the token: %w", err)
 		}
+		if argoSettings == nil {
+			return nil, "", fmt.Errorf("settings are not available while verifying the token")
+		}
+
+		idToken, err := prov.Verify(tokenString, argoSettings)
 
 		// The token verification has failed. If the token has expired, we will
 		// return a dummy claims only containing a value for the issuer, so the
 		// UI can handle expired tokens appropriately.
 		if err != nil {
-			if strings.HasPrefix(err.Error(), "oidc: token is expired") {
+			log.Warnf("Failed to verify token: %s", err)
+			tokenExpiredError := &oidc.TokenExpiredError{}
+			if errors.As(err, &tokenExpiredError) {
 				claims = jwt.RegisteredClaims{
 					Issuer: "sso",
 				}
-				return claims, "", err
+				return claims, "", common.TokenVerificationErr
 			}
-			return nil, "", err
-		}
-
-		if idToken == nil {
-			return nil, "", fmt.Errorf("no audience found in the token")
+			return nil, "", common.TokenVerificationErr
 		}
 
 		var claims jwt.MapClaims

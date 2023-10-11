@@ -1,49 +1,80 @@
 # Release Process And Cadence
 
-Argo CD is being developed using the following process:
+## Release Cycle
 
-* Maintainers commit to work on set of features and enhancements and create GitHub milestone to track the work.
-* We are trying to avoid delaying release and prefer moving the feature into the next release if we cannot complete it on time.
-* The new release is published every **3 months**.
-* Critical bug-fixes are cherry-picked into the release branch and delivered using patch releases as frequently as needed.
+### Schedule
 
-## Release Planning
+These are the upcoming releases dates:
 
-We are using GitHub milestones to perform release planning and tracking. Each release milestone includes two type of issues:
+| Release | Release Planning Meeting | Release Candidate 1   | General Availability | Release Champion                                      | Checklist                                                     |
+|---------|--------------------------|-----------------------|----------------------|-------------------------------------------------------|---------------------------------------------------------------|
+| v2.6    | Monday, Dec. 12, 2022    | Monday, Dec. 19, 2022 | Monday, Feb. 6, 2023 | [William Tam](https://github.com/wtam2018)            | [checklist](https://github.com/argoproj/argo-cd/issues/11563) |
+| v2.7    | Monday, Mar. 6, 2023     | Monday, Mar. 20, 2023 | Monday, May. 1, 2023 | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/12762) |
+| v2.8    | Monday, Jun. 20, 2023    | Monday, Jun. 26, 2023 | Monday, Aug. 7, 2023 | [Keith Chong](https://github.com/keithchong)          | [checklist](https://github.com/argoproj/argo-cd/issues/13742) |
+| v2.9    | Monday, Sep. 4, 2023     | Monday, Sep. 18, 2023 | Monday, Nov. 6, 2023 | [Leonardo Almeida](https://github.com/leoluz)         | [checklist](https://github.com/argoproj/argo-cd/issues/14078) |
+| v2.10   | Monday, Dec. 4, 2023     | Monday, Dec. 18, 2023 | Monday, Feb. 5, 2024 | 
 
-* Issues that maintainers committed to working on. Maintainers decide which features they are committing to work on during the next release based on
-  their availability. Typically issues added offline by each maintainer and finalized during the contributors' meeting. Each such issue should be
-  assigned to maintainer who plans to implement and test it.
-* Nice to have improvements contributed by community contributors. Nice to have issues are typically not critical, smallish enhancements that could
-  be contributed by community contributors. Maintainers are not committing to implement them but committing to review PR from the community.
 
-The milestone should have a clear description of the most important features as well as the expected end date. This should provide clarity to end-users
-about what to expect from the next release and when.
+Actual release dates might differ from the plan by a few days.
 
-In addition to the next milestone, we need to maintain a draft of the upcoming release milestone. 
+### Release Process
 
-## Community Contributions
+#### Minor Releases (e.g. 2.x.0)
 
-We receive a lot of contributions from our awesome community, and we're very grateful for that fact. However, reviewing and testing PRs is a lot of (unplanned) work and therefore, we cannot guarantee that contributions (especially large or complex ones) made by the community receive a timely review within a release's time frame. Maintainers may decide on their own to put work on a PR together with the contributor and in this case, the maintainer will self-assigned the PR and thereby committing to review, eventually merge and later test it on the release scope.
+A minor Argo CD release occurs four times a year, once every three months. Each General Availability (GA) release is
+preceded by several Release Candidates (RCs). The first RC is released three weeks before the scheduled GA date. This
+effectively means that there is a three-week feature freeze.
 
-## Release Testing
+These are the approximate release dates:
 
-We need to make sure that each change, both from maintainers and community contributors, is tested well and have someone who is going to fix last-minute
-bugs. In order to ensure it, each merged pull request must have an assigned maintainer before it gets merged. The assigned maintainer will be working on
-testing the introduced changes and fixing of any introduced bugs.
+* The first Monday of February
+* The first Monday of May
+* The first Monday of August
+* The first Monday of November
 
-We have a code freeze period two weeks before the release until the release branch is created. During code freeze no feature PR should be merged and it is ok
-to merge bug fixes.
+Dates may be shifted slightly to accommodate holidays. Those shifts should be minimal.
 
-Maintainers assigned to a PR that's been merged should drive testing and work on fixing last-minute issues. For tracking purposes after verifying PR the assigned
-the maintainer should label it with a `verified` label.
+#### Patch Releases (e.g. 2.5.x)
 
-## Releasing
+Argo CD patch releases occur on an as-needed basis. Only the three most recent minor versions are eligible for patch
+releases. Versions older than the three most recent minor versions are considered EOL and will not receive bug fixes or
+security updates.
 
-The releasing procedure is described in [releasing](./releasing.md) document. Before closing the release milestone following should be verified:
+#### Minor Release Planning Meeting
 
-- [ ] All merged PRs and verified (verify and remove `needs-verification` label):
-- [ ] Triage issues reported by `yarn audit` and ensure there are no exploitable security issues.
-- [ ] Roadmap is updated based one current release changes
-- [ ] Next release milestone is created
-- [ ] Upcoming release milestone is updated
+Roughly two weeks before the RC date, there will be a meeting to discuss which features are planned for the RC. This meeting is
+for contributors to advocate for certain features. Features which have at least one approver (besides the contributor)
+who can assure they will review/merge by the RC date will be included in the release milestone. All other features will
+be dropped from the milestone (and potentially shifted to the next one).
+
+Since not everyone will be able to attend the meeting, there will be a meeting doc. Contributors can add their feature
+to a table, and Approvers can add their name to the table. Features with a corresponding approver will remain in the
+release milestone.
+
+#### Release Champion
+
+To help manage all the steps involved in a release, we will have a Release Champion. The Release Champion will be
+responsible for a checklist of items for their release. The checklist is an issue template in the Argo CD repository.
+
+The Release Champion can be anyone in the Argo CD community. Some tasks (like cherry-picking bug fixes and cutting
+releases) require [Approver](https://github.com/argoproj/argoproj/blob/master/community/membership.md#community-membership)
+membership. The Release Champion can delegate tasks when necessary and will be responsible for coordinating with the
+Approver.
+
+### Feature Acceptance Criteria
+
+To be eligible for inclusion in a minor release, a new feature must meet the following criteria before the release’s RC
+date.
+
+If it is a large feature that involves significant design decisions, that feature must be described in a Proposal, and
+that Proposal must be reviewed and merged.
+
+The feature PR must include:
+
+* Tests (passing)
+* Documentation
+* If necessary, a note in the Upgrading docs for the planned minor release
+* The PR must be reviewed, approved, and merged by an Approver.
+
+If these criteria are not met by the RC date, the feature will be ineligible for inclusion in the RC series or GA for
+that minor release. It will have to wait for the next minor release.

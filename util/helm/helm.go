@@ -8,12 +8,17 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/util/config"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
+)
+
+const (
+	ResourcePolicyAnnotation = "helm.sh/resource-policy"
+	ResourcePolicyKeep       = "keep"
 )
 
 type HelmRepository struct {
@@ -133,7 +138,7 @@ func Version(shortForm bool) (string, error) {
 func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error) {
 	var values []string
 	// Don't load values.yaml if it's an out-of-bounds link.
-	if _, _, err := pathutil.ResolveFilePath(appPath, repoRoot, "values.yaml", []string{}); err == nil {
+	if _, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
 		out, err := h.cmd.inspectValues(".")
 		if err != nil {
 			return nil, err

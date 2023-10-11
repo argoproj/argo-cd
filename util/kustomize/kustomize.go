@@ -1,6 +1,7 @@
 package kustomize
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -12,9 +13,9 @@ import (
 	"sync"
 
 	"github.com/Masterminds/semver/v3"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -108,8 +109,30 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			// set image node:8.15.0 mysql=mariadb alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
 			args := []string{"edit", "set", "image"}
 			for _, image := range opts.Images {
-				args = append(args, string(image))
+				// this allows using ${ARGOCD_APP_REVISION}
+				envSubstitutedImage := envVars.Envsubst(string(image))
+				args = append(args, envSubstitutedImage)
 			}
+			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if len(opts.Replicas) > 0 {
+			// set replicas my-development=2 my-statefulset=4
+			args := []string{"edit", "set", "replicas"}
+			for _, replica := range opts.Replicas {
+				count, err := replica.GetIntCount()
+				if err != nil {
+					return nil, nil, err
+				}
+				arg := fmt.Sprintf("%s=%d", replica.Name, count)
+				args = append(args, arg)
+			}
+
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
@@ -124,7 +147,11 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if opts.ForceCommonLabels {
 				args = append(args, "--force")
 			}
-			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonLabels)...)...)
+			commonLabels := map[string]string{}
+			for name, value := range opts.CommonLabels {
+				commonLabels[name] = envVars.Envsubst(value)
+			}
+			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonLabels)...)...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -138,11 +165,77 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if opts.ForceCommonAnnotations {
 				args = append(args, "--force")
 			}
-			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonAnnotations)...)...)
+			var commonAnnotations map[string]string
+			if opts.CommonAnnotationsEnvsubst {
+				commonAnnotations = map[string]string{}
+				for name, value := range opts.CommonAnnotations {
+					commonAnnotations[name] = envVars.Envsubst(value)
+				}
+			} else {
+				commonAnnotations = opts.CommonAnnotations
+			}
+			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonAnnotations)...)...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, err
+			}
+		}
+
+		if opts.Namespace != "" {
+			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namespace", "--", opts.Namespace)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if len(opts.Patches) > 0 {
+			kustomizationPath := filepath.Join(k.path, "kustomization.yaml")
+			b, err := os.ReadFile(kustomizationPath)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to load kustomization.yaml: %w", err)
+			}
+			var kustomization interface{}
+			err = yaml.Unmarshal(b, &kustomization)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to unmarshal kustomization.yaml: %w", err)
+			}
+			kMap, ok := kustomization.(map[string]interface{})
+			if !ok {
+				return nil, nil, fmt.Errorf("expected kustomization.yaml to be type map[string]interface{}, but got %T", kMap)
+			}
+			patches, ok := kMap["patches"]
+			if ok {
+				// The kustomization.yaml already had a patches field, so we need to append to it.
+				patchesList, ok := patches.([]interface{})
+				if !ok {
+					return nil, nil, fmt.Errorf("expected 'patches' field in kustomization.yaml to be []interface{}, but got %T", patches)
+				}
+				// Since the patches from the Application manifest are typed, we need to convert them to a type which
+				// can be appended to the existing list.
+				untypedPatches := make([]interface{}, len(opts.Patches))
+				for i := range opts.Patches {
+					untypedPatches[i] = opts.Patches[i]
+				}
+				patchesList = append(patchesList, untypedPatches...)
+				// Update the kustomization.yaml with the appended patches list.
+				kMap["patches"] = patchesList
+			} else {
+				kMap["patches"] = opts.Patches
+			}
+			updatedKustomization, err := yaml.Marshal(kMap)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to marshal kustomization.yaml after adding patches: %w", err)
+			}
+			kustomizationFileInfo, err := os.Stat(kustomizationPath)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to stat kustomization.yaml: %w", err)
+			}
+			err = os.WriteFile(kustomizationPath, updatedKustomization, kustomizationFileInfo.Mode())
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to write kustomization.yaml with updated 'patches' field: %w", err)
 			}
 		}
 	}
@@ -258,7 +351,7 @@ func getSemver() (*semver.Version, error) {
 
 // getSemverSafe returns parsed kustomize version;
 // if version cannot be parsed assumes that "kustomize version" output format changed again
-//  and fallback to latest ( v99.99.99 )
+// and fallback to latest ( v99.99.99 )
 func getSemverSafe() *semver.Version {
 	if semVer == nil {
 		semVerLock.Lock()

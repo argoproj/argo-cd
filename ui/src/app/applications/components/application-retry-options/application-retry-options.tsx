@@ -5,7 +5,7 @@ import {omit} from 'lodash-es';
 import {NumberField} from '../../../shared/components';
 import * as models from '../../../shared/models';
 
-require('./application-retry-options.scss');
+import './application-retry-options.scss';
 
 const durationRegex = /^([\d\.]+[HMS])+$/i;
 const durationRegexError = 'Should be 1h10m10s/10h10m/10m/10s';

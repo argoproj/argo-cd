@@ -166,7 +166,7 @@ the following API base path:
 
 `<argocd-host>/api/v1/extensions/<extension-name>`
 
-With the configuration bellow, the expected behavior is explained in the
+With the configuration below, the expected behavior is explained in the
 following examples:
 
 ```yaml

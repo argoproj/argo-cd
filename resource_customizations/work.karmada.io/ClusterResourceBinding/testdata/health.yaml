@@ -1,0 +1,83 @@
+apiVersion: work.karmada.io/v1alpha2
+kind: ClusterResourceBinding
+metadata:
+  finalizers:
+    - karmada.io/binding-controller
+  generation: 5
+  labels:
+    clusterpropagationpolicy.karmada.io/name: service-testk4j5t
+  name: test-service
+  namespace: default
+  ownerReferences:
+    - apiVersion: v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Service
+      name: test
+      uid: 039b0d1a-05cb-40b4-b43a-438b0de386af
+  resourceVersion: "4106772"
+  uid: 3932ee50-4c2b-4e77-9bfb-45eeb4ec220f
+spec:
+  clusters:
+    - name: member1
+    - name: member2
+    - name: member3
+  replicaRequirements:
+    nodeClaim:
+      tolerations:
+        - effect: NoExecute
+          key: node.kubernetes.io/not-ready
+          operator: Exists
+          tolerationSeconds: 300
+        - effect: NoExecute
+          key: node.kubernetes.io/unreachable
+          operator: Exists
+          tolerationSeconds: 300
+    resourceRequest:
+      cpu: 250m
+      memory: 512Mi
+  replicas: 1
+  resource:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test1
+    namespace: default
+    resourceVersion: "3663243"
+    uid: 58ccb955-4da6-4167-9b65-dddadcef569e
+status:
+  aggregatedStatus:
+    - applied: true
+      clusterName: member1
+      health: Healthy
+      status:
+        availableReplicas: 1
+        readyReplicas: 1
+        replicas: 1
+        updatedReplicas: 1
+    - applied: true
+      clusterName: member2
+      health: Healthy
+      status:
+        replicas: 1
+        unavailableReplicas: 1
+        updatedReplicas: 1
+    - applied: true
+      clusterName: member3
+      health: Healthy
+      status:
+        availableReplicas: 1
+        readyReplicas: 1
+        replicas: 1
+        updatedReplicas: 1
+  conditions:
+    - lastTransitionTime: "2022-11-02T02:49:06Z"
+      message: All works have been successfully applied
+      reason: FullyAppliedSuccess
+      status: "True"
+      type: FullyApplied
+    - lastTransitionTime: "2022-10-28T09:56:31Z"
+      message: Binding has been scheduled
+      reason: BindingScheduled
+      status: "True"
+      type: Scheduled
+  schedulerObservedGeneration: 7

@@ -3,8 +3,11 @@ package pull_request
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/hashicorp/go-retryablehttp"
 	gitlab "github.com/xanzy/go-gitlab"
 )
 
@@ -17,7 +20,7 @@ type GitLabService struct {
 
 var _ PullRequestService = (*GitLabService)(nil)
 
-func NewGitLabService(ctx context.Context, token, url, project string, labels []string, pullRequestState string) (PullRequestService, error) {
+func NewGitLabService(ctx context.Context, token, url, project string, labels []string, pullRequestState string, scmRootCAPath string, insecure bool) (PullRequestService, error) {
 	var clientOptionFns []gitlab.ClientOptionFunc
 
 	// Set a custom Gitlab base URL if one is provided
@@ -28,6 +31,14 @@ func NewGitLabService(ctx context.Context, token, url, project string, labels []
 	if token == "" {
 		token = os.Getenv("GITLAB_TOKEN")
 	}
+
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure)
+
+	retryClient := retryablehttp.NewClient()
+	retryClient.HTTPClient.Transport = tr
+
+	clientOptionFns = append(clientOptionFns, gitlab.WithHTTPClient(retryClient.HTTPClient))
 
 	client, err := gitlab.NewClient(token, clientOptionFns...)
 	if err != nil {
@@ -69,9 +80,11 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 		}
 		for _, mr := range mrs {
 			pullRequests = append(pullRequests, &PullRequest{
-				Number:  mr.IID,
-				Branch:  mr.SourceBranch,
-				HeadSHA: mr.SHA,
+				Number:       mr.IID,
+				Branch:       mr.SourceBranch,
+				TargetBranch: mr.TargetBranch,
+				HeadSHA:      mr.SHA,
+				Labels:       mr.Labels,
 			})
 		}
 		if resp.NextPage == 0 {

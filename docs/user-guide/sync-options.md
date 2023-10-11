@@ -38,8 +38,8 @@ metadata:
     argocd.argoproj.io/sync-options: Validate=false
 ```
 
-If you want to exclude a whole class of objects globally, consider setting `resource.customizations` in [system level configuration](../user-guide/diffing.md#system-level-configuration). 
-    
+If you want to exclude a whole class of objects globally, consider setting `resource.customizations` in [system level configuration](../user-guide/diffing.md#system-level-configuration).
+
 ## Skip Dry Run for new custom resources types
 
 When syncing a custom resource which is not yet known to the cluster, there are generally two options:
@@ -58,11 +58,23 @@ metadata:
 
 The dry run will still be executed if the CRD is already present in the cluster.
 
+## No Resource Deletion
+
+For certain resources you might want to retain them even after your application is deleted, for eg. Persistent Volume Claims.
+In such situations you can stop those resources from being cleaned up during app deletion by using the following annotation:
+
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false
+```
+
 ## Selective Sync
 
-Currently when syncing using auto sync Argo CD applies every object in the application. 
+Currently when syncing using auto sync Argo CD applies every object in the application.
 For applications containing thousands of objects this takes quite a long time and puts undue pressure on the api server.
-Turning on selective sync option which will sync only out-of-sync resources. 
+Turning on selective sync option which will sync only out-of-sync resources.
 
 You can add this option by following ways
 
@@ -77,7 +89,7 @@ spec:
   syncPolicy:
     syncOptions:
     - ApplyOutOfSyncOnly=true
-``` 
+```
 
 2) Set sync option via argocd cli
 
@@ -104,8 +116,8 @@ spec:
 
 ## Prune Last
 
-This feature is to allow the ability for resource pruning to happen as a final, implicit wave of a sync operation, 
-after the other resources have been deployed and become healthy, and after all other waves completed successfully. 
+This feature is to allow the ability for resource pruning to happen as a final, implicit wave of a sync operation,
+after the other resources have been deployed and become healthy, and after all other waves completed successfully.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -141,6 +153,10 @@ spec:
 ```
 
 If the `Replace=true` sync option is set the Argo CD will use `kubectl replace` or `kubectl create` command to apply changes.
+
+!!! warning
+      During the sync process, the resources will be synchronized using the 'kubectl replace/create' command.
+      This sync option has the potential to be destructive and might lead to resources having to be recreated, which could cause an outage for your application.
 
 This can also be configured at individual resource level.
 ```yaml
@@ -236,7 +252,7 @@ spec:
 
 ## Respect ignore difference configs
 
-This sync option is used to enable Argo CD to consider the configurations made in the `spec.ignoreDifferences` attribute also during the sync stage. By default, Argo CD uses the `ignoreDifferences` config just for computing the diff between the live and desired state which defines if the application is synced or not. However during the sync stage, the desired state is applied as-is. The patch is calculated using a 3-way-merge between the live state the desired state and the `last-applied-configuration` annotation. This sometimes leads to an undesired results. This behavior can be changed by setting the `RespectIgnoreDifferences=true` sync option like in the example bellow:
+This sync option is used to enable Argo CD to consider the configurations made in the `spec.ignoreDifferences` attribute also during the sync stage. By default, Argo CD uses the `ignoreDifferences` config just for computing the diff between the live and desired state which defines if the application is synced or not. However during the sync stage, the desired state is applied as-is. The patch is calculated using a 3-way-merge between the live state the desired state and the `last-applied-configuration` annotation. This sometimes leads to an undesired results. This behavior can be changed by setting the `RespectIgnoreDifferences=true` sync option like in the example below:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -262,10 +278,145 @@ The example above shows how an Argo CD Application can be configured so it will 
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  namespace: test
+  namespace: argocd
 spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: some-namespace
   syncPolicy:
     syncOptions:
     - CreateNamespace=true
 ```
-The example above shows how an Argo CD Application can be configured so it will create namespaces for the Application resources if the namespaces don't exist already. Without this either declared in the Application manifest or passed in the cli via `--sync-option CreateNamespace=true`, the Application will fail to sync if the resources' namespaces do not exist.
+
+The example above shows how an Argo CD Application can be configured so it will create the namespace specified in `spec.destination.namespace` if it doesn't exist already. Without this either declared in the Application manifest or passed in the CLI via `--sync-option CreateNamespace=true`, the Application will fail to sync if the namespace doesn't exist.
+
+Note that the namespace to be created must be informed in the `spec.destination.namespace` field of the Application resource. The `metadata.namespace` field in the Application's child manifests must match this value, or can be omitted, so resources are created in the proper destination.
+
+### Namespace Metadata
+
+We can also add labels and annotations to the namespace through `managedNamespaceMetadata`. If we extend the example above
+we could potentially do something like below:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: test
+spec:
+  syncPolicy:
+    managedNamespaceMetadata:
+      labels: # The labels to set on the application namespace
+        any: label
+        you: like
+      annotations: # The annotations to set on the application namespace
+        the: same
+        applies: for
+        annotations: on-the-namespace
+    syncOptions:
+    - CreateNamespace=true
+```
+
+In order for Argo CD to manage the labels and annotations on the namespace, `CreateNamespace=true` needs to be set as a
+sync option, otherwise nothing will happen. If the namespace doesn't already exist, or if it already exists and doesn't
+already have labels and/or annotations set on it, you're good to go. Using `managedNamespaceMetadata` will also set the
+resource tracking label (or annotation) on the namespace, so you can easily track which namespaces are managed by Argo CD.
+
+In the case you do not have any custom annotations or labels but would nonetheless want to have resource tracking set on
+your namespace, that can be done by setting `managedNamespaceMetadata` with an empty `labels` and/or `annotations` map,
+like the example below:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: test
+spec:
+  syncPolicy:
+    managedNamespaceMetadata:
+      labels: # The labels to set on the application namespace
+      annotations: # The annotations to set on the application namespace
+    syncOptions:
+    - CreateNamespace=true
+```
+
+In the case where Argo CD is "adopting" an existing namespace which already has metadata set on it, we rely on using
+Server Side Apply in order not to lose metadata which has already been set. The main implication here is that it takes
+a few extra steps to get rid of an already preexisting field.
+
+Imagine we have a pre-existing namespace as below:
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: foobar
+  annotations:
+    foo: bar
+    abc: "123"
+```
+
+If we want to manage the `foobar` namespace with Argo CD and to then also remove the `foo: bar` annotation, in
+`managedNamespaceMetadata` we'd need to first rename the `foo` value:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    managedNamespaceMetadata:
+      annotations:
+        abc: 123 # adding this is informational with SSA; this would be sticking around in any case until we set a new value
+        foo: remove-me
+    syncOptions:
+      - CreateNamespace=true
+```
+
+Once that has been synced, we're ok to remove `foo`
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    managedNamespaceMetadata:
+      annotations:
+        abc: 123 # adding this is informational with SSA; this would be sticking around in any case until we set a new value
+    syncOptions:
+      - CreateNamespace=true
+```
+
+Another thing to keep mind of is that if you have a k8s manifest for the same namespace in your Argo CD application, that
+will take precedence and *overwrite whatever values that have been set in `managedNamespaceMetadata`*. In other words, if
+you have an application that sets `managedNamespaceMetadata`
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    managedNamespaceMetadata:
+      annotations:
+        abc: 123
+    syncOptions:
+      - CreateNamespace=true
+```
+
+But you also have a k8s manifest with a matching name
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: foobar
+  annotations:
+    foo: bar
+    something: completely-different
+```
+
+The resulting namespace will have its annotations set to
+
+```yaml
+  annotations:
+    foo: bar
+    something: completely-different
+```

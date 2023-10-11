@@ -7,11 +7,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/ghodss/yaml"
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -19,6 +20,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -34,9 +36,15 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
+	testutil "github.com/argoproj/argo-cd/v2/util/test"
 )
 
-func fakeServer() (*ArgoCDServer, func()) {
+type FakeArgoCDServer struct {
+	*ArgoCDServer
+	TmpAssetsDir string
+}
+
+func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
@@ -44,6 +52,7 @@ func fakeServer() (*ArgoCDServer, func()) {
 	redis, closer := test.NewInMemoryRedis()
 	port, err := test.GetFreePort()
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	tmpAssetsDir := t.TempDir()
 
 	if err != nil {
 		panic(err)
@@ -67,11 +76,13 @@ func fakeServer() (*ArgoCDServer, func()) {
 			1*time.Minute,
 			1*time.Minute,
 		),
-		RedisClient:   redis,
-		RepoClientset: mockRepoClient,
+		RedisClient:     redis,
+		RepoClientset:   mockRepoClient,
+		StaticAssetsDir: tmpAssetsDir,
 	}
 	srv := NewServer(context.Background(), argoCDOpts)
-	return srv, closer
+	fakeSrv := &FakeArgoCDServer{srv, tmpAssetsDir}
+	return fakeSrv, closer
 }
 
 func TestEnforceProjectToken(t *testing.T) {
@@ -392,7 +403,7 @@ func TestRevokedToken(t *testing.T) {
 }
 
 func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
-	s, closer := fakeServer()
+	s, closer := fakeServer(t)
 	defer closer()
 	assert.True(t, s.Insecure)
 	assert.Nil(t, s.settings.Certificate)
@@ -517,12 +528,12 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 				t.Fail()
 			}
 		default:
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}
 }
 
-func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool) (argocd *ArgoCDServer, dexURL string) {
+func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool, useDexForSSO bool) (argocd *ArgoCDServer, oidcURL string) {
 	cm := test.NewFakeConfigMap()
 	if anonymousEnabled {
 		cm.Data["users.anonymous.enabled"] = "true"
@@ -533,9 +544,14 @@ func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool) (argoc
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		dexMockHandler(t, ts.URL)(w, r)
 	})
+	oidcServer := ts
+	if !useDexForSSO {
+		oidcServer = testutil.GetOIDCTestServer(t)
+	}
 	if withFakeSSO {
 		cm.Data["url"] = ts.URL
-		cm.Data["dex.config"] = `
+		if useDexForSSO {
+			cm.Data["dex.config"] = `
 connectors:
   # OIDC
   - type: OIDC
@@ -545,6 +561,19 @@ connectors:
     issuer: https://auth.example.gom
     clientID: test-client
     clientSecret: $dex.oidc.clientSecret`
+		} else {
+			oidcConfig := settings_util.OIDCConfig{
+				Name:         "Okta",
+				Issuer:       oidcServer.URL,
+				ClientID:     "argo-cd",
+				ClientSecret: "$oidc.okta.clientSecret",
+			}
+			oidcConfigString, err := yaml.Marshal(oidcConfig)
+			require.NoError(t, err)
+			cm.Data["oidc.config"] = string(oidcConfigString)
+			// Avoid bothering with certs for local tests.
+			cm.Data["oidc.tls.insecure.skip.verify"] = "true"
+		}
 	}
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
@@ -556,27 +585,32 @@ connectors:
 		AppClientset:  appClientSet,
 		RepoClientset: mockRepoClient,
 	}
-	if withFakeSSO {
+	if withFakeSSO && useDexForSSO {
 		argoCDOpts.DexServerAddr = ts.URL
 	}
 	argocd = NewServer(context.Background(), argoCDOpts)
-	return argocd, ts.URL
+	return argocd, oidcServer.URL
 }
 
 func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
+	// Marshaling single strings to strings is typical, so we test for this relatively common behavior.
+	jwt.MarshalSingleStringAsArray = false
+
 	type testData struct {
 		test                  string
 		anonymousEnabled      bool
 		claims                jwt.RegisteredClaims
 		expectedErrorContains string
 		expectedClaims        interface{}
+		useDex                bool
 	}
 	var tests = []testData{
+		// Dex
 		{
 			test:                  "anonymous disabled, no audience",
 			anonymousEnabled:      false,
-			claims:                jwt.RegisteredClaims{},
-			expectedErrorContains: "no audience found in the token",
+			claims:                jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			expectedErrorContains: common.TokenVerificationError,
 			expectedClaims:        nil,
 		},
 		{
@@ -589,30 +623,94 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 		{
 			test:                  "anonymous disabled, unexpired token, admin claim",
 			anonymousEnabled:      false,
-			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
-			expectedErrorContains: "id token signed with unsupported algorithm",
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			expectedErrorContains: common.TokenVerificationError,
 			expectedClaims:        nil,
 		},
 		{
 			test:                  "anonymous enabled, unexpired token, admin claim",
 			anonymousEnabled:      true,
-			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
 			expectedErrorContains: "",
 			expectedClaims:        "",
 		},
 		{
 			test:                  "anonymous disabled, expired token, admin claim",
 			anonymousEnabled:      false,
-			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
-			expectedErrorContains: "token is expired",
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
+			expectedErrorContains: common.TokenVerificationError,
 			expectedClaims:        jwt.RegisteredClaims{Issuer: "sso"},
 		},
 		{
 			test:                  "anonymous enabled, expired token, admin claim",
 			anonymousEnabled:      true,
-			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
 			expectedErrorContains: "",
 			expectedClaims:        "",
+		},
+		{
+			test:                  "anonymous disabled, unexpired token, admin claim, incorrect audience",
+			anonymousEnabled:      false,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"incorrect-audience"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			expectedErrorContains: common.TokenVerificationError,
+			expectedClaims:        nil,
+		},
+		// External OIDC (not bundled Dex)
+		{
+			test:                  "external OIDC: anonymous disabled, no audience",
+			anonymousEnabled:      false,
+			claims:                jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			useDex:                true,
+			expectedErrorContains: common.TokenVerificationError,
+			expectedClaims:        nil,
+		},
+		{
+			test:                  "external OIDC: anonymous enabled, no audience",
+			anonymousEnabled:      true,
+			claims:                jwt.RegisteredClaims{},
+			useDex:                true,
+			expectedErrorContains: "",
+			expectedClaims:        "",
+		},
+		{
+			test:                  "external OIDC: anonymous disabled, unexpired token, admin claim",
+			anonymousEnabled:      false,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			useDex:                true,
+			expectedErrorContains: common.TokenVerificationError,
+			expectedClaims:        nil,
+		},
+		{
+			test:                  "external OIDC: anonymous enabled, unexpired token, admin claim",
+			anonymousEnabled:      true,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			useDex:                true,
+			expectedErrorContains: "",
+			expectedClaims:        "",
+		},
+		{
+			test:                  "external OIDC: anonymous disabled, expired token, admin claim",
+			anonymousEnabled:      false,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
+			useDex:                true,
+			expectedErrorContains: common.TokenVerificationError,
+			expectedClaims:        jwt.RegisteredClaims{Issuer: "sso"},
+		},
+		{
+			test:                  "external OIDC: anonymous enabled, expired token, admin claim",
+			anonymousEnabled:      true,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
+			useDex:                true,
+			expectedErrorContains: "",
+			expectedClaims:        "",
+		},
+		{
+			test:                  "external OIDC: anonymous disabled, unexpired token, admin claim, incorrect audience",
+			anonymousEnabled:      false,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"incorrect-audience"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			useDex:                true,
+			expectedErrorContains: common.TokenVerificationError,
+			expectedClaims:        nil,
 		},
 	}
 
@@ -625,8 +723,13 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			// Must be declared here to avoid race.
 			ctx := context.Background() //nolint:ineffassign,staticcheck
 
-			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, true)
-			testDataCopy.claims.Issuer = fmt.Sprintf("%s/api/dex", dexURL)
+			argocd, oidcURL := getTestServer(t, testDataCopy.anonymousEnabled, true, testDataCopy.useDex)
+
+			if testDataCopy.useDex {
+				testDataCopy.claims.Issuer = fmt.Sprintf("%s/api/dex", oidcURL)
+			} else {
+				testDataCopy.claims.Issuer = oidcURL
+			}
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, testDataCopy.claims)
 			tokenString, err := token.SignedString([]byte("key"))
 			require.NoError(t, err)
@@ -676,7 +779,7 @@ func TestAuthenticate_no_request_metadata(t *testing.T) {
 		t.Run(testDataCopy.test, func(t *testing.T) {
 			t.Parallel()
 
-			argocd, _ := getTestServer(t, testDataCopy.anonymousEnabled, true)
+			argocd, _ := getTestServer(t, testDataCopy.anonymousEnabled, true, true)
 			ctx := context.Background()
 
 			ctx, err := argocd.Authenticate(ctx)
@@ -722,7 +825,7 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 			// Must be declared here to avoid race.
 			ctx := context.Background() //nolint:ineffassign,staticcheck
 
-			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, false)
+			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, false, true)
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{Issuer: fmt.Sprintf("%s/api/dex", dexURL)})
 			tokenString, err := token.SignedString([]byte("key"))
 			require.NoError(t, err)
@@ -795,7 +898,7 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 			test:                 "anonymous disabled, bad auth header",
 			anonymousEnabled:     false,
 			metadata:             metadata.MD{"authorization": []string{"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
-			expectedErrorMessage: "no audience found in the token",
+			expectedErrorMessage: common.TokenVerificationError,
 			expectedClaims:       nil,
 		},
 		{
@@ -809,7 +912,7 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 			test:                 "anonymous disabled, bad auth cookie",
 			anonymousEnabled:     false,
 			metadata:             metadata.MD{"grpcgateway-cookie": []string{"argocd.token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
-			expectedErrorMessage: "no audience found in the token",
+			expectedErrorMessage: common.TokenVerificationError,
 			expectedClaims:       nil,
 		},
 		{
@@ -830,7 +933,7 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 			// Must be declared here to avoid race.
 			ctx := context.Background() //nolint:ineffassign,staticcheck
 
-			argocd, _ := getTestServer(t, testDataCopy.anonymousEnabled, true)
+			argocd, _ := getTestServer(t, testDataCopy.anonymousEnabled, true, true)
 			ctx = metadata.NewIncomingContext(context.Background(), testDataCopy.metadata)
 
 			ctx, err := argocd.Authenticate(ctx)
@@ -1137,6 +1240,72 @@ func TestIsMainJsBundle(t *testing.T) {
 	}
 }
 
+func TestCacheControlHeaders(t *testing.T) {
+	testCases := []struct {
+		name                        string
+		filename                    string
+		createFile                  bool
+		expectedStatus              int
+		expectedCacheControlHeaders []string
+	}{
+		{
+			name:                        "file exists",
+			filename:                    "exists.html",
+			createFile:                  true,
+			expectedStatus:              200,
+			expectedCacheControlHeaders: nil,
+		},
+		{
+			name:                        "file does not exist",
+			filename:                    "missing.html",
+			createFile:                  false,
+			expectedStatus:              404,
+			expectedCacheControlHeaders: nil,
+		},
+		{
+			name:                        "main js bundle exists",
+			filename:                    "main.e4188e5adc97bbfc00c3.js",
+			createFile:                  true,
+			expectedStatus:              200,
+			expectedCacheControlHeaders: []string{"public, max-age=31536000, immutable"},
+		},
+		{
+			name:                        "main js bundle does not exists",
+			filename:                    "main.e4188e5adc97bbfc00c0.js",
+			createFile:                  false,
+			expectedStatus:              404,
+			expectedCacheControlHeaders: []string{"no-cache"},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			argocd, closer := fakeServer(t)
+			defer closer()
+
+			handler := argocd.newStaticAssetsHandler()
+
+			rr := httptest.NewRecorder()
+			req := httptest.NewRequest("", fmt.Sprintf("/%s", testCase.filename), nil)
+
+			fp := filepath.Join(argocd.TmpAssetsDir, testCase.filename)
+
+			if testCase.createFile {
+				tmpFile, err := os.Create(fp)
+				assert.NoError(t, err)
+				err = tmpFile.Close()
+				assert.NoError(t, err)
+			}
+
+			handler(rr, req)
+
+			assert.Equal(t, testCase.expectedStatus, rr.Code)
+
+			cacheControl := rr.Result().Header["Cache-Control"]
+			assert.Equal(t, testCase.expectedCacheControlHeaders, cacheControl)
+		})
+	}
+}
 func TestReplaceBaseHRef(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -1162,7 +1331,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 <body>
     <noscript>
         <p>
-        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
+        Your browser does not support JavaScript. Please enable JavaScript to view the site.
         Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
         </p>
     </noscript>
@@ -1186,7 +1355,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 <body>
     <noscript>
         <p>
-        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
+        Your browser does not support JavaScript. Please enable JavaScript to view the site.
         Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
         </p>
     </noscript>
@@ -1214,7 +1383,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 <body>
     <noscript>
         <p>
-        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
+        Your browser does not support JavaScript. Please enable JavaScript to view the site.
         Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
         </p>
     </noscript>
@@ -1238,7 +1407,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 <body>
     <noscript>
         <p>
-        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
+        Your browser does not support JavaScript. Please enable JavaScript to view the site.
         Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
         </p>
     </noscript>

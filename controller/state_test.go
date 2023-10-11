@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,7 +38,96 @@ func TestCompareAppStateEmpty(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.Len(t, compRes.resources, 0)
+	assert.Len(t, compRes.managedResources, 0)
+	assert.Len(t, app.Status.Conditions, 0)
+}
+
+// TestCompareAppStateNamespaceMetadataDiffers tests comparison when managed namespace metadata differs
+func TestCompareAppStateNamespaceMetadataDiffers(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
+		Labels: map[string]string{
+			"foo": "bar",
+		},
+		Annotations: map[string]string{
+			"foo": "bar",
+		},
+	}
+	app.Status.OperationState = &argoappv1.OperationState{
+		SyncResult: &argoappv1.SyncOperationResult{},
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
+	assert.Len(t, compRes.resources, 0)
+	assert.Len(t, compRes.managedResources, 0)
+	assert.Len(t, app.Status.Conditions, 0)
+}
+
+// TestCompareAppStateNamespaceMetadataIsTheSame tests comparison when managed namespace metadata is the same
+func TestCompareAppStateNamespaceMetadataIsTheSame(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
+		Labels: map[string]string{
+			"foo": "bar",
+		},
+		Annotations: map[string]string{
+			"foo": "bar",
+		},
+	}
+	app.Status.OperationState = &argoappv1.OperationState{
+		SyncResult: &argoappv1.SyncOperationResult{
+			ManagedNamespaceMetadata: &argoappv1.ManagedNamespaceMetadata{
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+				Annotations: map[string]string{
+					"foo": "bar",
+				},
+			},
+		},
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -60,7 +150,11 @@ func TestCompareAppStateMissing(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
@@ -87,7 +181,11 @@ func TestCompareAppStateExtra(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
 	assert.Equal(t, 1, len(compRes.resources))
@@ -113,7 +211,11 @@ func TestCompareAppStateHook(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 0, len(compRes.resources))
@@ -140,7 +242,11 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 1, len(compRes.resources))
@@ -166,7 +272,11 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	}
 	ctrl := newFakeController(&data)
 
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -194,7 +304,11 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -202,6 +316,73 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	assert.Equal(t, 1, len(compRes.managedResources))
 	assert.Equal(t, 0, len(compRes.reconciliationResult.Hooks))
 	assert.Equal(t, 0, len(app.Status.Conditions))
+}
+
+// TestAppRevisions tests that revisions are properly propagated for a single source app
+func TestAppRevisionsSingleSource(t *testing.T) {
+	obj1 := NewPod()
+	obj1.SetNamespace(test.FakeDestNamespace)
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{toJSON(t, obj1)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+
+	app := newFakeApp()
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.NotEmpty(t, compRes.syncStatus.Revision)
+	assert.Len(t, compRes.syncStatus.Revisions, 0)
+}
+
+// TestAppRevisions tests that revisions are properly propagated for a multi source app
+func TestAppRevisionsMultiSource(t *testing.T) {
+	obj1 := NewPod()
+	obj1.SetNamespace(test.FakeDestNamespace)
+	data := fakeData{
+		manifestResponses: []*apiclient.ManifestResponse{
+			{
+				Manifests: []string{toJSON(t, obj1)},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			{
+				Manifests: []string{toJSON(t, obj1)},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "def456",
+			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "ghi789",
+			},
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+
+	app := newFakeMultiSourceApp()
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.Empty(t, compRes.syncStatus.Revision)
+	assert.Len(t, compRes.syncStatus.Revisions, 3)
+	assert.Equal(t, "abc123", compRes.syncStatus.Revisions[0])
+	assert.Equal(t, "def456", compRes.syncStatus.Revisions[1])
+	assert.Equal(t, "ghi789", compRes.syncStatus.Revisions[2])
 }
 
 func toJSON(t *testing.T, obj *unstructured.Unstructured) string {
@@ -237,7 +418,11 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 
 	assert.NotNil(t, compRes)
 	assert.Equal(t, 1, len(app.Status.Conditions))
@@ -245,6 +430,47 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	assert.Equal(t, argoappv1.ApplicationConditionRepeatedResourceWarning, app.Status.Conditions[0].Type)
 	assert.Equal(t, "Resource /Pod/fake-dest-ns/my-pod appeared 2 times among application resources.", app.Status.Conditions[0].Message)
 	assert.Equal(t, 4, len(compRes.resources))
+}
+
+func TestCompareAppStateManagedNamespaceMetadataWithLiveNsDoesNotGetPruned(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy = &argoappv1.SyncPolicy{
+		ManagedNamespaceMetadata: &argoappv1.ManagedNamespaceMetadata{
+			Labels:      nil,
+			Annotations: nil,
+		},
+	}
+
+	ns := NewNamespace()
+	ns.SetName(test.FakeDestNamespace)
+	ns.SetNamespace(test.FakeDestNamespace)
+	ns.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true"})
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(ns): ns,
+		},
+	}
+	ctrl := newFakeController(&data)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, []string{}, app.Spec.Sources, false, false, nil, false)
+
+	assert.NotNil(t, compRes)
+	assert.Equal(t, 0, len(app.Status.Conditions))
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	// Ensure that ns does not get pruned
+	assert.NotNil(t, compRes.reconciliationResult.Target[0])
+	assert.Equal(t, compRes.reconciliationResult.Target[0].GetName(), ns.GetName())
+	assert.Equal(t, compRes.reconciliationResult.Target[0].GetAnnotations(), ns.GetAnnotations())
+	assert.Equal(t, compRes.reconciliationResult.Target[0].GetLabels(), ns.GetLabels())
+	assert.Len(t, compRes.resources, 1)
+	assert.Len(t, compRes.managedResources, 1)
 }
 
 var defaultProj = argoappv1.AppProject{
@@ -288,7 +514,11 @@ func TestSetHealth(t *testing.T) {
 		},
 	})
 
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
 }
@@ -320,7 +550,11 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 		},
 	})
 
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
 }
@@ -390,7 +624,11 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 		},
 	})
 
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 
 	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus.Status)
 	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
@@ -437,7 +675,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 		app.Spec.RevisionHistoryLimit = &i
 	}
 	addHistory := func() {
-		err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, metav1.Time{})
+		err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, []string{}, []argoappv1.ApplicationSource{}, false, metav1.Time{})
 		assert.NoError(t, err)
 	}
 	addHistory()
@@ -473,7 +711,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	assert.Len(t, app.Status.History, 9)
 
 	metav1NowTime := metav1.NewTime(time.Now())
-	err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, metav1NowTime)
+	err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, []string{}, []argoappv1.ApplicationSource{}, false, metav1NowTime)
 	assert.NoError(t, err)
 	assert.Equal(t, app.Status.History.LastRevisionHistory().DeployStartedAt, &metav1NowTime)
 }
@@ -510,9 +748,8 @@ var signedProj = argoappv1.AppProject{
 }
 
 func TestSignedResponseNoSignatureRequired(t *testing.T) {
-	oldval := os.Getenv("ARGOCD_GPG_ENABLED")
-	os.Setenv("ARGOCD_GPG_ENABLED", "true")
-	defer os.Setenv("ARGOCD_GPG_ENABLED", oldval)
+	t.Setenv("ARGOCD_GPG_ENABLED", "true")
+
 	// We have a good signature response, but project does not require signed commits
 	{
 		app := newFakeApp()
@@ -527,7 +764,11 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+		sources := make([]argoappv1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "")
+		compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -549,7 +790,11 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+		sources := make([]argoappv1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "")
+		compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -560,9 +805,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 }
 
 func TestSignedResponseSignatureRequired(t *testing.T) {
-	oldval := os.Getenv("ARGOCD_GPG_ENABLED")
-	os.Setenv("ARGOCD_GPG_ENABLED", "true")
-	defer os.Setenv("ARGOCD_GPG_ENABLED", oldval)
+	t.Setenv("ARGOCD_GPG_ENABLED", "true")
 
 	// We have a good signature response, valid key, and signing is required - sync!
 	{
@@ -578,7 +821,11 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "", app.Spec.Source, false, false, nil)
+		sources := make([]argoappv1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "")
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -600,7 +847,11 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, false, nil)
+		sources := make([]argoappv1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "abc123")
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -622,7 +873,11 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, false, nil)
+		sources := make([]argoappv1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "abc123")
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -644,7 +899,11 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, false, nil)
+		sources := make([]argoappv1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "abc123")
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -669,7 +928,11 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		ctrl := newFakeController(&data)
 		testProj := signedProj
 		testProj.Spec.SignatureKeys[0].KeyID = "4AEE18F83AFDEB24"
-		compRes := ctrl.appStateManager.CompareAppState(app, &testProj, "abc123", app.Spec.Source, false, false, nil)
+		sources := make([]argoappv1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "abc123")
+		compRes := ctrl.appStateManager.CompareAppState(app, &testProj, revisions, sources, false, false, nil, false)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -694,7 +957,11 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		// it doesn't matter for our test whether local manifests are valid
 		localManifests := []string{"foobar"}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, false, localManifests)
+		sources := make([]argoappv1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "abc123")
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
@@ -704,7 +971,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		assert.Contains(t, app.Status.Conditions[0].Message, "Cannot use local manifests")
 	}
 
-	os.Setenv("ARGOCD_GPG_ENABLED", "false")
+	t.Setenv("ARGOCD_GPG_ENABLED", "false")
 	// We have a bad signature response and signing would be required, but GPG subsystem is disabled - sync
 	{
 		app := newFakeApp()
@@ -719,7 +986,11 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, false, nil)
+		sources := make([]argoappv1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "abc123")
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -728,7 +999,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		assert.Len(t, app.Status.Conditions, 0)
 	}
 
-	// Signature required and local manifests supplied and GPG subystem is disabled - sync
+	// Signature required and local manifests supplied and GPG subsystem is disabled - sync
 	{
 		app := newFakeApp()
 		data := fakeData{
@@ -744,7 +1015,11 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		// it doesn't matter for our test whether local manifests are valid
 		localManifests := []string{""}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, false, localManifests)
+		sources := make([]argoappv1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "abc123")
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -752,7 +1027,6 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		assert.Len(t, compRes.managedResources, 0)
 		assert.Len(t, app.Status.Conditions, 0)
 	}
-
 }
 
 func TestComparisonResult_GetHealthStatus(t *testing.T) {
@@ -852,6 +1126,19 @@ func TestIsLiveResourceManaged(t *testing.T) {
 			},
 		},
 	})
+	managedWrongAPIGroup := kube.MustToUnstructured(&networkingv1.Ingress{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.k8s.io/v1",
+			Kind:       "Ingress",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "some-ingress",
+			Namespace: "default",
+			Annotations: map[string]string{
+				common.AnnotationKeyAppInstance: "guestbook:extensions/Ingress:default/some-ingress",
+			},
+		},
+	})
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
@@ -870,30 +1157,69 @@ func TestIsLiveResourceManaged(t *testing.T) {
 	})
 
 	manager := ctrl.appStateManager.(*appStateManager)
+	appName := "guestbook"
 
-	// Managed resource w/ annotations
-	assert.True(t, manager.isSelfReferencedObj(managedObj, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.True(t, manager.isSelfReferencedObj(managedObj, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	t.Run("will return true if trackingid matches the resource", func(t *testing.T) {
+		// given
+		t.Parallel()
+		configObj := managedObj.DeepCopy()
 
-	// Managed resource w/ label
-	assert.True(t, manager.isSelfReferencedObj(managedObjWithLabel, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(managedObj, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.True(t, manager.isSelfReferencedObj(managedObj, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
+	t.Run("will return true if tracked with label", func(t *testing.T) {
+		// given
+		t.Parallel()
+		configObj := managedObjWithLabel.DeepCopy()
 
-	// Wrong resource name
-	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(managedObjWithLabel, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+	})
+	t.Run("will handle if trackingId has wrong resource name and config is nil", func(t *testing.T) {
+		// given
+		t.Parallel()
 
-	// Wrong resource group
-	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongName, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongName, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
+	t.Run("will handle if trackingId has wrong resource group and config is nil", func(t *testing.T) {
+		// given
+		t.Parallel()
 
-	// Wrong resource kind
-	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
+	t.Run("will handle if trackingId has wrong kind and config is nil", func(t *testing.T) {
+		// given
+		t.Parallel()
 
-	// Wrong resource namespace
-	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotationAndLabel))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
+	t.Run("will handle if trackingId has wrong namespace and config is nil", func(t *testing.T) {
+		// given
+		t.Parallel()
 
-	// Nil resource
-	assert.True(t, manager.isSelfReferencedObj(nil, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotationAndLabel))
+	})
+	t.Run("will return true if live is nil", func(t *testing.T) {
+		t.Parallel()
+		assert.True(t, manager.isSelfReferencedObj(nil, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
+
+	t.Run("will handle upgrade in desired state APIGroup", func(t *testing.T) {
+		// given
+		t.Parallel()
+		config := managedWrongAPIGroup.DeepCopy()
+		delete(config.GetAnnotations(), common.AnnotationKeyAppInstance)
+
+		// then
+		assert.True(t, manager.isSelfReferencedObj(managedWrongAPIGroup, config, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
 }

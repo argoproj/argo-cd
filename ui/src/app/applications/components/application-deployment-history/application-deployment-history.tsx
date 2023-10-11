@@ -6,8 +6,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {RevisionMetadataRows} from './revision-metadata-rows';
-
-require('./application-deployment-history.scss');
+import './application-deployment-history.scss';
 
 export const ApplicationDeploymentHistory = ({
     app,
@@ -33,13 +32,13 @@ export const ApplicationDeploymentHistory = ({
                 <div className='row application-deployment-history__item' key={info.deployedAt} onClick={() => selectDeployment(index)}>
                     <div className='columns small-3'>
                         <div>
-                            <i className='fa fa-clock' /> Deployed At:
+                            <i className='fa fa-clock' /> <span className='show-for-large'>Deployed At:</span>
                             <br />
                             <Timestamp date={info.deployedAt} />
                         </div>
                         <div>
                             <br />
-                            <i className='fa fa-hourglass-half' /> Time to deploy:
+                            <i className='fa fa-hourglass-half' /> <span className='show-for-large'>Time to deploy:</span>
                             <br />
                             {(info.deployStartedAt && <Duration durationMs={moment(info.deployedAt).diff(moment(info.deployStartedAt)) / 1000} />) || 'Unknown'}
                         </div>

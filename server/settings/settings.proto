@@ -28,6 +28,7 @@ message Settings {
     Help help = 9;
     repeated Plugin plugins = 10;
     bool userLoginsDisabled = 11;
+    // Deprecated: use sidecar plugins instead.
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ConfigManagementPlugin configManagementPlugins = 12;
     repeated string kustomizeVersions = 13;
     string uiCssURL = 14;
@@ -40,11 +41,16 @@ message Settings {
     string statusBadgeRootUrl = 21;
     bool execEnabled = 22;
     string controllerNamespace = 23;
+    bool appsInAnyNamespaceEnabled = 24;
 }
 
 message GoogleAnalyticsConfig {
     string trackingID = 1;
     bool anonymizeUsers = 2;
+}
+
+message SettingsPluginsResponse {
+    repeated Plugin plugins = 1;
 }
 
 // Help settings
@@ -62,7 +68,6 @@ message Plugin {
     // the name of the plugin, e.g. "kasane"
     string name = 1;
 }
-
 
 message DexConfig {
     repeated Connector connectors = 1;
@@ -87,7 +92,11 @@ service SettingsService {
 
     // Get returns Argo CD settings
     rpc Get(SettingsQuery) returns (Settings) {
-		option (google.api.http).get = "/api/v1/settings";
-	}
+        option (google.api.http).get = "/api/v1/settings";
+    }
 
+    // Get returns Argo CD plugins
+    rpc GetPlugins(SettingsQuery) returns (SettingsPluginsResponse) {
+        option (google.api.http).get = "/api/v1/settings/plugins";
+    }
 }
