@@ -354,7 +354,7 @@ func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *apiv1
 	} else {
 		err = e.syncUpdate(cm, onUpdated)
 		if err != nil {
-			return err
+			return fmt.Errorf("error syncing update: %w", err) 
 		}
 	}
 	e.runInformer(ctx, onUpdated)
@@ -433,7 +433,7 @@ func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.Conf
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
 	policyCSV := PolicyCSV(cm.Data)
 	if err := onUpdated(cm); err != nil {
-		return err
+		return fmt.Errorf("error on updating the enforcer: %w", err) 
 	}
 	return e.SetUserPolicy(policyCSV)
 }
@@ -477,7 +477,7 @@ func (a *argocdAdapter) LoadPolicy(model model.Model) error {
 	for _, policyStr := range []string{a.builtinPolicy, a.userDefinedPolicy, a.runtimePolicy} {
 		for _, line := range strings.Split(policyStr, "\n") {
 			if err := loadPolicyLine(strings.TrimSpace(line), model); err != nil {
-				return err
+				return fmt.Errorf("error loading the policy line: %w", err) 
 			}
 		}
 	}
@@ -495,7 +495,7 @@ func loadPolicyLine(line string, model model.Model) error {
 	reader.TrimLeadingSpace = true
 	tokens, err := reader.Read()
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading the policy line: %w", err) 
 	}
 
 	tokenLen := len(tokens)

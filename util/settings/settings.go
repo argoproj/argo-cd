@@ -595,13 +595,13 @@ func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, err
 func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) error {
 	err := mgr.ensureSynced(false)
 	if err != nil {
-		return err
+		return fmt.Errorf("error syncing the secret: %w", err)
 	}
 	argoCDSecret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
 	createSecret := false
 	if err != nil {
 		if !apierr.IsNotFound(err) {
-			return err
+			return fmt.Errorf("error getting the secret: %w", err)
 		}
 		argoCDSecret = &apiv1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -631,7 +631,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) err
 		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(context.Background(), updatedSecret, metav1.UpdateOptions{})
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("error updating the secret: %w", err) 
 	}
 
 	return mgr.ResyncInformers()
@@ -642,7 +642,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) erro
 	createCM := false
 	if err != nil {
 		if !apierr.IsNotFound(err) {
-			return err
+			return fmt.Errorf("error getting the config map: %w", err)
 		}
 		argoCDCM = &apiv1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -670,7 +670,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) erro
 	}
 
 	if err != nil {
-		return err
+		return fmt.Errorf("error updating the config map: %w", err) 
 	}
 
 	mgr.invalidateCache()

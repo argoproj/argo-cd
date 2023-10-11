@@ -133,11 +133,11 @@ func (mgr *SettingsManager) UpdateAccount(name string, callback func(account *Ac
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		account, err := mgr.GetAccount(name)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting the account: %w", err) 
 		}
 		err = callback(account)
 		if err != nil {
-			return err
+			return fmt.Errorf("error while running the callback: %w", err) 
 		}
 		return mgr.saveAccount(name, *account)
 	})
@@ -185,7 +185,7 @@ func updateAccountSecret(secret *v1.Secret, key string, val string, defVal strin
 func saveAccount(secret *v1.Secret, cm *v1.ConfigMap, name string, account Account) error {
 	tokens, err := json.Marshal(account.Tokens)
 	if err != nil {
-		return err
+		return fmt.Errorf("error marhsalling: %w", err) 
 	}
 	if name == common.ArgoCDAdminUsername {
 		updateAccountSecret(secret, settingAdminPasswordHashKey, account.PasswordHash, "")

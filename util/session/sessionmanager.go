@@ -443,7 +443,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 		// hash cycle to keep response time consistent (if the function were
 		// to continue and not return here)
 		_, _ = passwordutil.HashPassword("for_consistent_response_time")
-		return err
+		return fmt.Errorf("error while getting the account: %w", err) 
 	}
 
 	valid, _ := passwordutil.VerifyPassword(password, account.PasswordHash)

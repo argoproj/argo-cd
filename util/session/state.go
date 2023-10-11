@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"fmt"
 
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
@@ -114,7 +115,7 @@ func (storage *userStateStorage) RevokeToken(ctx context.Context, id string, exp
 	storage.revokedTokens[id] = true
 	storage.lock.Unlock()
 	if err := storage.redis.Set(ctx, revokedTokenPrefix+id, "", expiringAt).Err(); err != nil {
-		return err
+		return fmt.Errorf("error setting the revoke token: %w", err) 
 	}
 	return storage.redis.Publish(ctx, newRevokedTokenKey, id).Err()
 }
