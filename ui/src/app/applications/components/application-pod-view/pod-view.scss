@@ -250,3 +250,7 @@ $pod-age-icon-clr: #ffce25;
 .tippy-content {
     text-align: left;
 }
+
+.tippy-popper {
+    z-index: 1 !important;
+}
