@@ -320,7 +320,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		Short: "Get application details",
 		Example: templates.Examples(`  
   # Get basic details about the application "my-app" in wide format
-  argocd app get my-app
+  argocd app get my-app -o wide
 
   # Get detailed information about the application "my-app" in YAML format
   argocd app get my-app -o yaml

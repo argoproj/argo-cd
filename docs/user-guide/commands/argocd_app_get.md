@@ -12,10 +12,13 @@ argocd app get APPNAME [flags]
 
 ```
   # Get basic details about the application "my-app" in wide format
-  argocd app get my-app
+  argocd app get my-app -o wide
   
   # Get detailed information about the application "my-app" in YAML format
   argocd app get my-app -o yaml
+  
+  # Get details of the application "my-app" in JSON format
+  argocd get my-app -o json
   
   # Get application details and include information about the current operation
   argocd app get my-app --show-operation
