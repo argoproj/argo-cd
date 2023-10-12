@@ -121,7 +121,7 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(q addRateLimitingI
 func nestedGeneratorsHaveClusterGenerator(generators []argoprojiov1alpha1.ApplicationSetNestedGenerator) (bool, error) {
 	for _, generator := range generators {
 		if ok, err := nestedGeneratorHasClusterGenerator(generator); ok || err != nil {
-			return ok, err
+			return ok, fmt.Errorf("error iterating over nested generators: %w", err)
 		}
 	}
 	return false, nil
