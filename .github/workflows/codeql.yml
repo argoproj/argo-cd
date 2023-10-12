@@ -9,11 +9,6 @@ on:
   pull_request:
   schedule:
     - cron: '0 19 * * 0'
-
-env:
-  # Golang version to use across CI steps
-  GOLANG_VERSION: '1.21'
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -35,7 +30,10 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
-      
+    - name: Install Go
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: go.mod
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@8aff97f12c99086bdb92ff62ae06dbbcdf07941b # v2.1.33
