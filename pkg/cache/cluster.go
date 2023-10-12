@@ -300,10 +300,11 @@ func (c *clusterCache) GetServerVersion() string {
 }
 
 // GetAPIResources returns information about observed API resources
+// This method is called frequently during reconciliation to pass API resource info to `helm template`
+// NOTE: we do not provide any consistency guarantees about the returned list. The list might be
+// updated in place (anytime new CRDs are introduced or removed). If necessary, a separate method
+// would need to be introduced to return a copy of the list so it can be iterated consistently.
 func (c *clusterCache) GetAPIResources() []kube.APIResourceInfo {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-
 	return c.apiResources
 }
 
