@@ -10,6 +10,10 @@ on:
   schedule:
     - cron: '0 19 * * 0'
 
+env:
+  # Golang version to use across CI steps
+  GOLANG_VERSION: '1.21'
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
