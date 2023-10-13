@@ -565,20 +565,63 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	}
 
 	shutdownFunc := func() {
-		log.Info("server graceful shutdown initiated...")
+		log.Info("graceful shutingdown servers...")
 		sCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
-		httpS.Shutdown(sCtx)
-		httpsS.Shutdown(sCtx)
-		grpcS.GracefulStop()
-		tlsm.Close()
+		var wg gosync.WaitGroup
+		go func() {
+			wg.Add(1)
+			err := httpS.Shutdown(sCtx)
+			if err != nil {
+				log.Errorf("Error shutting down http server: %s", err)
+			}
+		}()
+		go func() {
+			wg.Add(1)
+			err := httpsS.Shutdown(sCtx)
+			if err != nil {
+				log.Errorf("Error shutting down https server: %s", err)
+			}
+		}()
+		go func() {
+			wg.Add(1)
+			grpcS.GracefulStop()
+		}()
+		go func() {
+			wg.Add(1)
+			err := metricsServ.Shutdown(sCtx)
+			if err != nil {
+				log.Errorf("Error shutting down metrics server: %s", err)
+			}
+		}()
+		go func() {
+			wg.Add(1)
+			tlsm.Close()
+		}()
+		go func() {
+			wg.Add(1)
+			tcpm.Close()
+		}()
+		c := make(chan struct{})
+		// This goroutine will wait for all servers to conclude the shutdown
+		go func() {
+			defer close(c)
+			wg.Wait()
+		}()
+
+		select {
+		case <-c:
+			log.Info("All servers were gracefully shutdown. Exiting...")
+		case <-sCtx.Done():
+			log.Warn("Graceful shutdown timeout. Exiting...")
+		}
 	}
 	a.Shutdown = shutdownFunc
 
 	a.stopCh = make(chan os.Signal, 1)
 	signal.Notify(a.stopCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	signal := <-a.stopCh
-	log.Infof("server received signal %s", signal.String())
+	log.Infof("API Server received signal: %s", signal.String())
 	a.Shutdown()
 }
 
@@ -589,14 +632,13 @@ func (a *ArgoCDServer) Initialized() bool {
 // checkServeErr checks the error from a .Serve() call to decide if it was a graceful shutdown
 func (a *ArgoCDServer) checkServeErr(name string, err error) {
 	if err != nil {
-		if a.stopCh == nil {
-			// a nil stopCh indicates a graceful shutdown
-			log.Infof("graceful shutdown %s: %v", name, err)
+		if err == http.ErrServerClosed {
+			log.Infof("Graceful shutdown of %s initiated", name)
 		} else {
-			log.Fatalf("%s: %v", name, err)
+			log.Errorf("Error received from server %s: %v", name, err)
 		}
 	} else {
-		log.Infof("graceful shutdown %s", name)
+		log.Infof("Graceful shutdown of %s initiated", name)
 	}
 }
 
