@@ -459,7 +459,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             <Tooltip
                                                                 content={AppUtils.userMsgsList[showToolTip?.msgKey] || 'Group Nodes'}
                                                                 visible={pref.groupNodes && showToolTip !== undefined && !showToolTip?.display}
-                                                                duration={showToolTip?.duration}>
+                                                                duration={showToolTip?.duration}
+                                                                zIndex={1}>
                                                                 <a
                                                                     className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
                                                                     title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
