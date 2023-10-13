@@ -16,4 +16,9 @@
         vertical-align: middle;
     }
 
+    &__table-row-line-break {
+        overflow-wrap: anywhere;
+        white-space: normal !important;
+    }
+
 }
