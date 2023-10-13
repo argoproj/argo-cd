@@ -344,7 +344,7 @@ If you are actively developing a sidecar-installed CMP, keep a few things in min
 | -- | -- |
 | `no matches for kind "ConfigManagementPlugin" in version "argoproj.io/v1alpha1"` | The `ConfigManagementPlugin` CRD was deprecated in Argo CD 2.4 and removed in 2.8. This error means you've tried to put the configuration for your plugin directly into Kubernetes as a CRD. Refer to this [section of documentation](#write-the-plugin-configuration-file) for how to write the plugin configuration file and place it properly in the sidecar. |
 
-## Plugin tar stream exclusions
+## Plugin tar stream exclusions or inclusions
 
 In order to increase the speed of manifest generation, certain files and folders can be excluded from being sent to your
 plugin. We recommend excluding your `.git` folder if it isn't necessary. Use Go's
@@ -355,6 +355,16 @@ You can set it one of three ways:
 1. The `--plugin-tar-exclude` argument on the repo server.
 2. The `reposerver.plugin.tar.exclusions` key if you are using `argocd-cmd-params-cm`
 3. Directly setting `ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS` environment variable on the repo server.
+
+In addition, if you're using a monorepo mixed with code and GitOps resources, you probably want to only include files 
+involved in manifests generation in the tar archive. Use Go's [filepatch.Match](https://pkg.go.dev/path/filepath#Match) syntax to include
+desired files. For example, `*.y*ml` to include `.yaml` or `.yml` files.
+
+You can set it one of three ways:
+
+1. The `--plugin-tar-include` argument on the repo server.
+2. The `reposerver.plugin.tar.inclusions` key if you are using `argocd-cmd-params-cm`
+3. Directly setting `ARGOCD_REPO_SERVER_PLUGIN_TAR_INCLUSIONS` environment variable on the repo server.
 
 For option 1, the flag can be repeated multiple times. For option 2 and 3, you can specify multiple globs by separating
 them with semicolons.

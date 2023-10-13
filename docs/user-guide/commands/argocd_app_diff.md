@@ -24,7 +24,7 @@ argocd app diff APPNAME [flags]
   -h, --help                                              help for diff
       --ignore-normalizer-jq-execution-timeout duration   Set ignore normalizer JQ execution timeout (default 1s)
       --local string                                      Compare live app to a local manifests
-      --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path. (default [*.yaml,*.yml,*.json])
+      --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. It does support glob patterns (default [**/*.yaml,**/*.yml,**/*.json])
       --local-repo-root string                            Path to the repository root. Used together with --local allows setting the repository root (default "/")
       --refresh                                           Refresh application data when retrieving
       --revision string                                   Compare live app to a particular revision

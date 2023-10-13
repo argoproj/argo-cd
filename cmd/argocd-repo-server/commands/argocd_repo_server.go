@@ -64,6 +64,7 @@ func NewCommand() *cobra.Command {
 		disableTLS                        bool
 		maxCombinedDirectoryManifestsSize string
 		cmpTarExcludedGlobs               []string
+		cmpTarIncludedGlobs               []string
 		allowOutOfBoundsSymlinks          bool
 		streamedManifestMaxTarSize        string
 		streamedManifestMaxExtractedSize  string
@@ -126,6 +127,7 @@ func NewCommand() *cobra.Command {
 				SubmoduleEnabled:                             gitSubmoduleEnabled,
 				MaxCombinedDirectoryManifestsSize:            maxCombinedDirectoryManifestsQuantity,
 				CMPTarExcludedGlobs:                          cmpTarExcludedGlobs,
+				CMPTarIncludedGlobs:                          cmpTarIncludedGlobs,
 				AllowOutOfBoundsSymlinks:                     allowOutOfBoundsSymlinks,
 				StreamedManifestMaxExtractedSize:             streamedManifestMaxExtractedSizeQuantity.ToDec().Value(),
 				StreamedManifestMaxTarSize:                   streamedManifestMaxTarSizeQuantity.ToDec().Value(),
@@ -211,6 +213,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS on the gRPC endpoint")
 	command.Flags().StringVar(&maxCombinedDirectoryManifestsSize, "max-combined-directory-manifests-size", env.StringFromEnv("ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE", "10M"), "Max combined size of manifest files in a directory-type Application")
 	command.Flags().StringArrayVar(&cmpTarExcludedGlobs, "plugin-tar-exclude", env.StringsFromEnv("ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS", []string{}, ";"), "Globs to filter when sending tarballs to plugins.")
+	command.Flags().StringArrayVar(&cmpTarIncludedGlobs, "plugin-tar-include", env.StringsFromEnv("ARGOCD_REPO_SERVER_PLUGIN_TAR_INCLUSIONS", []string{}, ";"), "Globs to include files when sending tarballs to plugins.")
 	command.Flags().BoolVar(&allowOutOfBoundsSymlinks, "allow-oob-symlinks", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS", false), "Allow out-of-bounds symlinks in repositories (not recommended)")
 	command.Flags().StringVar(&streamedManifestMaxTarSize, "streamed-manifest-max-tar-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE", "100M"), "Maximum size of streamed manifest archives")
 	command.Flags().StringVar(&streamedManifestMaxExtractedSize, "streamed-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of streamed manifest archives when extracted")
