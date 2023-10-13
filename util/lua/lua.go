@@ -65,8 +65,8 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 	defer l.Close()
 	// Opens table library to allow access to functions to manipulate tables
 	for _, pair := range []struct {
-		n string
 		f lua.LGFunction
+		n string
 	}{
 		{lua.LoadLibName, lua.OpenPackage},
 		{lua.BaseLibName, lua.OpenBase},

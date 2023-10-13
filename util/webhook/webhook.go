@@ -48,12 +48,11 @@ var (
 )
 
 type ArgoCDWebhookHandler struct {
+	db                     db.ArgoDB
+	appClientset           appclientset.Interface
+	settingsSrc            settingsSource
 	repoCache              *cache.Cache
 	serverCache            *servercache.Cache
-	db                     db.ArgoDB
-	ns                     string
-	appNs                  []string
-	appClientset           appclientset.Interface
 	github                 *github.Webhook
 	gitlab                 *gitlab.Webhook
 	bitbucket              *bitbucket.Webhook
@@ -61,7 +60,8 @@ type ArgoCDWebhookHandler struct {
 	azuredevops            *azuredevops.Webhook
 	azuredevopsAuthHandler func(r *http.Request) error
 	gogs                   *gogs.Webhook
-	settingsSrc            settingsSource
+	ns                     string
+	appNs                  []string
 }
 
 func NewHandler(namespace string, applicationNamespaces []string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {

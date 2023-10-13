@@ -30,8 +30,8 @@ var DefaultSSHKeyExchangeAlgorithms = SupportedSSHKeyExchangeAlgorithms
 // inherits from PublicKeys, but provides the possibility to override
 // some client options.
 type PublicKeysWithOptions struct {
-	KexAlgorithms []string
 	gitssh.PublicKeys
+	KexAlgorithms []string
 }
 
 // Name returns the name of the auth method

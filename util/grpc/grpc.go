@@ -112,8 +112,8 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 }
 
 type TLSTestResult struct {
-	TLS         bool
 	InsecureErr error
+	TLS         bool
 }
 
 func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {

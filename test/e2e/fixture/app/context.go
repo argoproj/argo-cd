@@ -16,35 +16,35 @@ import (
 
 // this implements the "given" part of given/when/then
 type Context struct {
-	t           *testing.T
-	path        string
-	chart       string
-	repoURLType fixture.RepoURLType
-	// seconds
-	timeout                int
+	t                      *testing.T
+	path                   string
+	chart                  string
+	repoURLType            fixture.RepoURLType
 	name                   string
 	appNamespace           string
 	destServer             string
 	destName               string
 	env                    string
-	parameters             []string
 	namePrefix             string
 	nameSuffix             string
 	resource               string
-	prune                  bool
 	configManagementPlugin string
-	async                  bool
 	localPath              string
 	project                string
 	revision               string
-	force                  bool
-	applyOutOfSyncOnly     bool
-	directoryRecurse       bool
-	replace                bool
-	helmPassCredentials    bool
-	helmSkipCrds           bool
 	trackingMethod         v1alpha1.TrackingMethod
+	parameters             []string
 	sources                []v1alpha1.ApplicationSource
+	// seconds
+	timeout             int
+	prune               bool
+	async               bool
+	force               bool
+	applyOutOfSyncOnly  bool
+	directoryRecurse    bool
+	replace             bool
+	helmPassCredentials bool
+	helmSkipCrds        bool
 }
 
 type ContextArgs struct {

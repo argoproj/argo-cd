@@ -75,22 +75,22 @@ var (
 // ApplicationSetReconciler reconciles a ApplicationSet object
 type ApplicationSetReconciler struct {
 	client.Client
-	Scheme               *runtime.Scheme
-	Recorder             record.EventRecorder
-	Generators           map[string]generators.Generator
-	ArgoDB               db.ArgoDB
-	ArgoAppClientset     appclientset.Interface
-	KubeClientset        kubernetes.Interface
-	Policy               argov1alpha1.ApplicationsSyncPolicy
-	EnablePolicyOverride bool
+	Recorder         record.EventRecorder
+	ArgoDB           db.ArgoDB
+	ArgoAppClientset appclientset.Interface
+	KubeClientset    kubernetes.Interface
 	utils.Renderer
+	Cache                      cache.Cache
+	Scheme                     *runtime.Scheme
+	Generators                 map[string]generators.Generator
+	Policy                     argov1alpha1.ApplicationsSyncPolicy
 	ArgoCDNamespace            string
-	ApplicationSetNamespaces   []string
-	EnableProgressiveSyncs     bool
 	SCMRootCAPath              string
+	ApplicationSetNamespaces   []string
 	GlobalPreservedAnnotations []string
 	GlobalPreservedLabels      []string
-	Cache                      cache.Cache
+	EnablePolicyOverride       bool
+	EnableProgressiveSyncs     bool
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete

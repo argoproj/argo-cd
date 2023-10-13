@@ -34,20 +34,20 @@ const (
 )
 
 type ClusterLinksData struct {
-	// Server is the API server URL of the Kubernetes cluster
-	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
-	// Name of the cluster. If omitted, will use the server address
-	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
-	// Holds list of namespaces which are accessible in that cluster. Cluster level resources will be ignored if namespace list is not empty.
-	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,6,opt,name=namespaces"`
 	// Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
 	Shard *int64 `json:"shard,omitempty" protobuf:"bytes,9,opt,name=shard"`
-	// Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity
-	Project string `json:"project,omitempty" protobuf:"bytes,11,opt,name=project"`
 	// Labels for cluster secret metadata
 	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,12,opt,name=labels"`
 	// Annotations for cluster secret metadata
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
+	// Server is the API server URL of the Kubernetes cluster
+	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
+	// Name of the cluster. If omitted, will use the server address
+	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
+	// Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity
+	Project string `json:"project,omitempty" protobuf:"bytes,11,opt,name=project"`
+	// Holds list of namespaces which are accessible in that cluster. Cluster level resources will be ignored if namespace list is not empty.
+	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,6,opt,name=namespaces"`
 }
 
 func SanitizeCluster(cluster *v1alpha1.Cluster) (*unstructured.Unstructured, error) {

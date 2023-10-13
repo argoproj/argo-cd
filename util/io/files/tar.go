@@ -13,10 +13,10 @@ import (
 )
 
 type tgz struct {
+	tarWriter    *tar.Writer
 	srcPath      string
 	inclusions   []string
 	exclusions   []string
-	tarWriter    *tar.Writer
 	filesWritten int
 }
 

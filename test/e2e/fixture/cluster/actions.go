@@ -22,9 +22,9 @@ import (
 // none of the func implement error checks, and that is complete intended, you should check for errors
 // using the Then()
 type Actions struct {
+	lastError    error
 	context      *Context
 	lastOutput   string
-	lastError    error
 	ignoreErrors bool
 }
 

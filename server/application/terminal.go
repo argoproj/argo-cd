@@ -35,10 +35,10 @@ type terminalHandler struct {
 	enf               *rbac.Enforcer
 	cache             *servercache.Cache
 	appResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
-	allowedShells     []string
-	namespace         string
-	enabledNamespaces []string
 	sessionManager    util_session.SessionManager
+	namespace         string
+	allowedShells     []string
+	enabledNamespaces []string
 }
 
 // NewHandler returns a new terminal handler.

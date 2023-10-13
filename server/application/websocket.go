@@ -34,11 +34,11 @@ type terminalSession struct {
 	wsConn         *websocket.Conn
 	sizeChan       chan remotecommand.TerminalSize
 	doneChan       chan struct{}
-	tty            bool
+	token          *string
+	sessionManager util_session.SessionManager
 	readLock       sync.Mutex
 	writeLock      sync.Mutex
-	sessionManager util_session.SessionManager
-	token          *string
+	tty            bool
 }
 
 // getToken get auth token from web socket request

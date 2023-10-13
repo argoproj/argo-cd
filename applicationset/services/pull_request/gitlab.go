@@ -14,8 +14,8 @@ import (
 type GitLabService struct {
 	client           *gitlab.Client
 	project          string
-	labels           []string
 	pullRequestState string
+	labels           []string
 }
 
 var _ PullRequestService = (*GitLabService)(nil)

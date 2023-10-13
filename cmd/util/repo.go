@@ -8,21 +8,21 @@ import (
 )
 
 type RepoOptions struct {
-	Repo                           appsv1.Repository
-	Upsert                         bool
 	SshPrivateKeyPath              string
-	InsecureIgnoreHostKey          bool
-	InsecureSkipServerVerification bool
 	TlsClientCertPath              string
 	TlsClientCertKeyPath           string
-	EnableLfs                      bool
-	EnableOci                      bool
-	GithubAppId                    int64
-	GithubAppInstallationId        int64
 	GithubAppPrivateKeyPath        string
 	GitHubAppEnterpriseBaseURL     string
 	Proxy                          string
 	GCPServiceAccountKeyPath       string
+	Repo                           appsv1.Repository
+	GithubAppId                    int64
+	GithubAppInstallationId        int64
+	Upsert                         bool
+	InsecureIgnoreHostKey          bool
+	InsecureSkipServerVerification bool
+	EnableLfs                      bool
+	EnableOci                      bool
 	ForceHttpBasicAuth             bool
 }
 

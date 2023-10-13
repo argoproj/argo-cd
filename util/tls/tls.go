@@ -45,20 +45,20 @@ var (
 )
 
 type CertOptions struct {
-	// Hostnames and IPs to generate a certificate for
-	Hosts []string
-	// Name of organization in certificate
-	Organization string
 	// Creation date
 	ValidFrom time.Time
-	// Duration that certificate is valid for
-	ValidFor time.Duration
-	// whether this cert should be its own Certificate Authority
-	IsCA bool
-	// Size of RSA key to generate. Ignored if --ecdsa-curve is set
-	RSABits int
+	// Name of organization in certificate
+	Organization string
 	// ECDSA curve to use to generate a key. Valid values are P224, P256 (recommended), P384, P521
 	ECDSACurve string
+	// Hostnames and IPs to generate a certificate for
+	Hosts []string
+	// Duration that certificate is valid for
+	ValidFor time.Duration
+	// Size of RSA key to generate. Ignored if --ecdsa-curve is set
+	RSABits int
+	// whether this cert should be its own Certificate Authority
+	IsCA bool
 }
 
 type ConfigCustomizer = func(*tls.Config)

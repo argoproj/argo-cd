@@ -153,9 +153,9 @@ func getCommandArgsToLog(cmd *exec.Cmd) string {
 }
 
 type CmdError struct {
+	Cause  error
 	Args   string
 	Stderr string
-	Cause  error
 }
 
 func (ce *CmdError) Error() string {

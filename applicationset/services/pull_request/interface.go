@@ -6,8 +6,6 @@ import (
 )
 
 type PullRequest struct {
-	// Number is a number that will be the ID of the pull request.
-	Number int
 	// Branch is the name of the branch from which the pull request originated.
 	Branch string
 	// TargetBranch is the name of the target branch of the pull request.
@@ -16,6 +14,8 @@ type PullRequest struct {
 	HeadSHA string
 	// Labels of the pull request.
 	Labels []string
+	// Number is a number that will be the ID of the pull request.
+	Number int
 }
 
 type PullRequestService interface {

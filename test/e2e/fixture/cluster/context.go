@@ -10,15 +10,15 @@ import (
 
 // this implements the "given" part of given/when/then
 type Context struct {
-	t *testing.T
-	// seconds
-	timeout     int
+	t           *testing.T
 	name        string
 	project     string
 	server      string
-	upsert      bool
-	namespaces  []string
 	bearerToken string
+	namespaces  []string
+	// seconds
+	timeout int
+	upsert  bool
 }
 
 func Given(t *testing.T) *Context {

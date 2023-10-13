@@ -43,8 +43,8 @@ func (np *baseNormalizerPatch) GetName() string {
 }
 
 type jsonPatchNormalizerPatch struct {
-	baseNormalizerPatch
 	patch *jsonpatch.Patch
+	baseNormalizerPatch
 }
 
 func (np *jsonPatchNormalizerPatch) Apply(data []byte) ([]byte, error) {
@@ -56,8 +56,8 @@ func (np *jsonPatchNormalizerPatch) Apply(data []byte) ([]byte, error) {
 }
 
 type jqNormalizerPatch struct {
-	baseNormalizerPatch
 	code *gojq.Code
+	baseNormalizerPatch
 }
 
 func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {

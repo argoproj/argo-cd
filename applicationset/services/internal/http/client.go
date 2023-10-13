@@ -17,6 +17,9 @@ const (
 )
 
 type Client struct {
+
+	// Client is an HTTP client used to communicate with the API.
+	client *http.Client
 	// URL is the URL used for API requests.
 	baseURL string
 
@@ -25,15 +28,12 @@ type Client struct {
 
 	// Token is used to make authenticated API calls.
 	token string
-
-	// Client is an HTTP client used to communicate with the API.
-	client *http.Client
 }
 
 type ErrorResponse struct {
-	Body     []byte
 	Response *http.Response
 	Message  string
+	Body     []byte
 }
 
 func NewClient(baseURL string, options ...ClientOptionFunc) (*Client, error) {

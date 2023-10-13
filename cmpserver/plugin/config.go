@@ -48,8 +48,8 @@ type Command struct {
 
 // Find holds find command or glob pattern
 type Find struct {
-	Command
 	Glob string `json:"glob"`
+	Command
 }
 
 // Parameters holds static and dynamic configurations

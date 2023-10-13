@@ -14,9 +14,9 @@ type DestinationOpts struct {
 }
 
 type ApplicationOpts struct {
-	Samples         int             `yaml:"samples"`
 	SourceOpts      SourceOpts      `yaml:"source"`
 	DestinationOpts DestinationOpts `yaml:"destination"`
+	Samples         int             `yaml:"samples"`
 }
 
 type RepositoryOpts struct {
@@ -28,21 +28,21 @@ type ProjectOpts struct {
 }
 
 type ClusterOpts struct {
-	Samples              int    `yaml:"samples"`
 	NamespacePrefix      string `yaml:"namespacePrefix"`
 	ValuesFilePath       string `yaml:"valuesFilePath"`
 	DestinationNamespace string `yaml:"destinationNamespace"`
 	ClusterNamePrefix    string `yaml:"clusterNamePrefix"`
+	Samples              int    `yaml:"samples"`
 	Concurrency          int    `yaml:"parallel"`
 }
 
 type GenerateOpts struct {
 	ApplicationOpts ApplicationOpts `yaml:"application"`
-	ClusterOpts     ClusterOpts     `yaml:"cluster"`
-	RepositoryOpts  RepositoryOpts  `yaml:"repository"`
-	ProjectOpts     ProjectOpts     `yaml:"project"`
 	GithubToken     string
-	Namespace       string `yaml:"namespace"`
+	Namespace       string         `yaml:"namespace"`
+	ClusterOpts     ClusterOpts    `yaml:"cluster"`
+	RepositoryOpts  RepositoryOpts `yaml:"repository"`
+	ProjectOpts     ProjectOpts    `yaml:"project"`
 }
 
 func setDefaults(opts *GenerateOpts) {

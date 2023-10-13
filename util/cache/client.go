@@ -9,8 +9,8 @@ import (
 var ErrCacheMiss = errors.New("cache: key is missing")
 
 type Item struct {
-	Key    string
 	Object interface{}
+	Key    string
 	// Expiration is the cache expiration time.
 	Expiration time.Duration
 }

@@ -50,14 +50,14 @@ func (r *resourceInfoProviderStub) IsNamespaced(_ schema.GroupKind) (bool, error
 type managedResource struct {
 	Target          *unstructured.Unstructured
 	Live            *unstructured.Unstructured
-	Diff            diff.DiffResult
 	Group           string
 	Version         string
 	Kind            string
 	Namespace       string
 	Name            string
-	Hook            bool
 	ResourceVersion string
+	Diff            diff.DiffResult
+	Hook            bool
 }
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
@@ -68,18 +68,18 @@ type AppStateManager interface {
 
 // comparisonResult holds the state of an application after the reconciliation
 type comparisonResult struct {
-	syncStatus           *v1alpha1.SyncStatus
-	healthStatus         *v1alpha1.HealthStatus
+	diffConfig   argodiff.DiffConfig
+	syncStatus   *v1alpha1.SyncStatus
+	healthStatus *v1alpha1.HealthStatus
+	// timings maps phases of comparison to the duration it took to complete (for statistical purposes)
+	timings              map[string]time.Duration
+	diffResultList       *diff.DiffResultList
+	appSourceType        v1alpha1.ApplicationSourceType
+	reconciliationResult sync.ReconciliationResult
 	resources            []v1alpha1.ResourceStatus
 	managedResources     []managedResource
-	reconciliationResult sync.ReconciliationResult
-	diffConfig           argodiff.DiffConfig
-	appSourceType        v1alpha1.ApplicationSourceType
 	// appSourceTypes stores the SourceType for each application source under sources field
 	appSourceTypes []v1alpha1.ApplicationSourceType
-	// timings maps phases of comparison to the duration it took to complete (for statistical purposes)
-	timings        map[string]time.Duration
-	diffResultList *diff.DiffResultList
 }
 
 func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
@@ -92,18 +92,18 @@ func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
 
 // appStateManager allows to compare applications to git
 type appStateManager struct {
-	metricsServer         *metrics.MetricsServer
 	db                    db.ArgoDB
-	settingsMgr           *settings.SettingsManager
 	appclientset          appclientset.Interface
 	projInformer          cache.SharedIndexInformer
 	kubectl               kubeutil.Kubectl
 	repoClientset         apiclient.Clientset
 	liveStateCache        statecache.LiveStateCache
+	resourceTracking      argo.ResourceTracking
+	metricsServer         *metrics.MetricsServer
+	settingsMgr           *settings.SettingsManager
 	cache                 *appstatecache.Cache
 	namespace             string
 	statusRefreshTimeout  time.Duration
-	resourceTracking      argo.ResourceTracking
 	persistResourceHealth bool
 }
 

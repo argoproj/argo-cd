@@ -28,11 +28,11 @@ var _ Generator = (*ClusterGenerator)(nil)
 // ClusterGenerator generates Applications for some or all clusters registered with ArgoCD.
 type ClusterGenerator struct {
 	client.Client
-	ctx       context.Context
-	clientset kubernetes.Interface
-	// namespace is the Argo CD namespace
-	namespace       string
+	ctx             context.Context
+	clientset       kubernetes.Interface
 	settingsManager *settings.SettingsManager
+	// namespace is the Argo CD namespace
+	namespace string
 }
 
 var render = &utils.Render{}

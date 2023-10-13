@@ -129,8 +129,8 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 
 // ClusterEvent contains information about cluster event
 type ClusterEvent struct {
-	Type    watch.EventType
 	Cluster *appv1.Cluster
+	Type    watch.EventType
 }
 
 func (db *db) WatchClusters(ctx context.Context,

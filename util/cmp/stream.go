@@ -63,8 +63,8 @@ func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir str
 type SenderOption func(*senderOption)
 
 type senderOption struct {
-	chunkSize   int
 	tarDoneChan chan<- bool
+	chunkSize   int
 }
 
 func newSenderOption(opts ...SenderOption) *senderOption {

@@ -44,9 +44,9 @@ type ClusterFilterFunction func(c *v1alpha1.Cluster) bool
 // shardApplicationControllerMapping stores the mapping of Shard Number to Application Controller in ConfigMap.
 // It also stores the heartbeat of last synced time of the application controller.
 type shardApplicationControllerMapping struct {
-	ShardNumber    int
-	ControllerName string
 	HeartbeatTime  metav1.Time
+	ControllerName string
+	ShardNumber    int
 }
 
 // GetClusterFilter returns a ClusterFilterFunction which is a function taking a cluster as a parameter

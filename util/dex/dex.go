@@ -27,10 +27,10 @@ func decorateDirector(director func(req *http.Request), target *url.URL) func(re
 }
 
 type DexTLSConfig struct {
-	DisableTLS       bool
-	StrictValidation bool
 	RootCAs          *x509.CertPool
 	Certificate      []byte
+	DisableTLS       bool
+	StrictValidation bool
 }
 
 func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {

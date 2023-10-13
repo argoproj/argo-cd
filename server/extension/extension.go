@@ -142,8 +142,8 @@ type ExtensionConfig struct {
 // external clusters. In this case, each cluster may have its own backend
 // service.
 type BackendConfig struct {
-	ProxyConfig
 	Services []ServiceConfig `yaml:"services"`
+	ProxyConfig
 }
 
 // ServiceConfig provides the configuration for a backend service.

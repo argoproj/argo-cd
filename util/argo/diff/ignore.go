@@ -10,8 +10,8 @@ import (
 // IgnoreDiffConfig holds the ignore difference configurations defined in argo-cm
 // as well as in the Application resource.
 type IgnoreDiffConfig struct {
-	ignores   []v1alpha1.ResourceIgnoreDifferences
 	overrides map[string]v1alpha1.ResourceOverride
+	ignores   []v1alpha1.ResourceIgnoreDifferences
 }
 
 // IgnoreDifference holds the configurations to be used while ignoring differences

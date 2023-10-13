@@ -16,8 +16,8 @@ type BitbucketCloudService struct {
 }
 
 type BitbucketCloudPullRequest struct {
-	ID     int                             `json:"id"`
 	Source BitbucketCloudPullRequestSource `json:"source"`
+	ID     int                             `json:"id"`
 }
 
 type BitbucketCloudPullRequestSource struct {
@@ -34,12 +34,12 @@ type BitbucketCloudPullRequestSourceCommit struct {
 }
 
 type PullRequestResponse struct {
-	Page     int32         `json:"page"`
-	Size     int32         `json:"size"`
-	Pagelen  int32         `json:"pagelen"`
 	Next     string        `json:"next"`
 	Previous string        `json:"previous"`
 	Items    []PullRequest `json:"values"`
+	Page     int32         `json:"page"`
+	Size     int32         `json:"size"`
+	Pagelen  int32         `json:"pagelen"`
 }
 
 var _ PullRequestService = (*BitbucketCloudService)(nil)

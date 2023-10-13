@@ -114,20 +114,20 @@ var _ GenericHTTPSCreds = HTTPSCreds{}
 
 // HTTPS creds implementation
 type HTTPSCreds struct {
+	// temporal credentials store
+	store CredsStore
 	// Username for authentication
 	username string
 	// Password for authentication
 	password string
-	// Whether to ignore invalid server certificates
-	insecure bool
 	// Client certificate to use
 	clientCertData string
 	// Client certificate key to use
 	clientCertKey string
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
-	// temporal credentials store
-	store CredsStore
+	// Whether to ignore invalid server certificates
+	insecure bool
 	// whether to force usage of basic auth
 	forceBasicAuth bool
 }
@@ -237,10 +237,10 @@ func (c HTTPSCreds) GetClientCertKey() string {
 
 // SSH implementation
 type SSHCreds struct {
+	store         CredsStore
 	sshPrivateKey string
 	caPath        string
 	insecure      bool
-	store         CredsStore
 }
 
 func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore) SSHCreds {
@@ -309,16 +309,16 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 
 // GitHubAppCreds to authenticate as GitHub application
 type GitHubAppCreds struct {
-	appID          int64
-	appInstallId   int64
+	store          CredsStore
 	privateKey     string
 	baseURL        string
 	repoURL        string
 	clientCertData string
 	clientCertKey  string
-	insecure       bool
 	proxy          string
-	store          CredsStore
+	appID          int64
+	appInstallId   int64
+	insecure       bool
 }
 
 // NewGitHubAppCreds provide github app credentials

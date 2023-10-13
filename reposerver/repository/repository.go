@@ -79,34 +79,34 @@ var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined m
 // Service implements ManifestService interface
 type Service struct {
 	gitCredsStore             git.CredsStore
-	rootDir                   string
 	gitRepoPaths              io.TempPaths
 	chartPaths                io.TempPaths
+	resourceTracking          argo.ResourceTracking
 	gitRepoInitializer        func(rootPath string) goio.Closer
 	repoLock                  *repositoryLock
 	cache                     *cache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
-	resourceTracking          argo.ResourceTracking
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client
-	initConstants             RepoServerInitConstants
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
-	now func() time.Time
+	now           func() time.Time
+	rootDir       string
+	initConstants RepoServerInitConstants
 }
 
 type RepoServerInitConstants struct {
+	MaxCombinedDirectoryManifestsSize            resource.Quantity
+	CMPTarExcludedGlobs                          []string
 	ParallelismLimit                             int64
 	PauseGenerationAfterFailedGenerationAttempts int
 	PauseGenerationOnFailureForMinutes           int
 	PauseGenerationOnFailureForRequests          int
-	SubmoduleEnabled                             bool
-	MaxCombinedDirectoryManifestsSize            resource.Quantity
-	CMPTarExcludedGlobs                          []string
-	AllowOutOfBoundsSymlinks                     bool
 	StreamedManifestMaxExtractedSize             int64
 	StreamedManifestMaxTarSize                   int64
 	HelmManifestMaxExtractedSize                 int64
+	SubmoduleEnabled                             bool
+	AllowOutOfBoundsSymlinks                     bool
 	DisableHelmManifestMaxExtractedSize          bool
 }
 
@@ -1750,8 +1750,8 @@ func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath, repoRo
 }
 
 type potentiallyValidManifest struct {
-	path     string
 	fileInfo os.FileInfo
+	path     string
 }
 
 // getPotentiallyValidManifests ensures that 1) there are no errors while checking for potential manifest files in the given dir

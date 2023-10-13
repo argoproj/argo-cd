@@ -144,18 +144,18 @@ type DiffConfig interface {
 
 // diffConfig defines the configurations used while applying diffs.
 type diffConfig struct {
-	ignores               []v1alpha1.ResourceIgnoreDifferences
 	overrides             map[string]v1alpha1.ResourceOverride
+	stateCache            *appstatecache.Cache
+	logger                *logr.Logger
+	gvkParser             *k8smanagedfields.GvkParser
 	appLabelKey           string
 	trackingMethod        string
 	appName               string
-	noCache               bool
-	stateCache            *appstatecache.Cache
-	ignoreAggregatedRoles bool
-	logger                *logr.Logger
-	gvkParser             *k8smanagedfields.GvkParser
-	structuredMergeDiff   bool
 	manager               string
+	ignores               []v1alpha1.ResourceIgnoreDifferences
+	noCache               bool
+	ignoreAggregatedRoles bool
+	structuredMergeDiff   bool
 }
 
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {

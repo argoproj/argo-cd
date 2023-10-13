@@ -18,8 +18,8 @@ import (
 )
 
 type Repo struct {
-	Id  int    `json:"id"`
 	Url string `json:"html_url"`
+	Id  int    `json:"id"`
 }
 
 type RepoGenerator struct {

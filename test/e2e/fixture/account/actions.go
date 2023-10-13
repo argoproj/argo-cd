@@ -9,10 +9,10 @@ import (
 // none of the func implement error checks, and that is complete intended, you should check for errors
 // using the Then()
 type Actions struct {
-	context      *Context
-	ignoreErrors bool
-	lastOutput   string
 	lastError    error
+	context      *Context
+	lastOutput   string
+	ignoreErrors bool
 }
 
 func (a *Actions) prepareCanIGetLogsArgs() []string {

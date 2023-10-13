@@ -17,18 +17,18 @@ import (
 )
 
 type legacyTemplate struct {
+	services.Notification
 	Name  string `json:"name,omitempty"`
 	Title string `json:"subject,omitempty"`
 	Body  string `json:"body,omitempty"`
-	services.Notification
 }
 
 type legacyTrigger struct {
+	Enabled     *bool  `json:"enabled,omitempty"`
 	Name        string `json:"name,omitempty"`
 	Condition   string `json:"condition,omitempty"`
 	Description string `json:"description,omitempty"`
 	Template    string `json:"template,omitempty"`
-	Enabled     *bool  `json:"enabled,omitempty"`
 }
 
 type legacyConfig struct {

@@ -55,16 +55,16 @@ func (a *ApplicationSet) RBACName(defaultNS string) string {
 
 // ApplicationSetSpec represents a class of application set state.
 type ApplicationSetSpec struct {
-	GoTemplate        bool                        `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
-	Generators        []ApplicationSetGenerator   `json:"generators" protobuf:"bytes,2,name=generators"`
-	Template          ApplicationSetTemplate      `json:"template" protobuf:"bytes,3,name=template"`
-	SyncPolicy        *ApplicationSetSyncPolicy   `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
-	Strategy          *ApplicationSetStrategy     `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
-	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
-	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,7,opt,name=goTemplateOptions"`
-	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
-	ApplyNestedSelectors         bool                            `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
+	SyncPolicy                   *ApplicationSetSyncPolicy       `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
+	Strategy                     *ApplicationSetStrategy         `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
+	PreservedFields              *ApplicationPreservedFields     `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
+	Template                     ApplicationSetTemplate          `json:"template" protobuf:"bytes,3,name=template"`
+	Generators                   []ApplicationSetGenerator       `json:"generators" protobuf:"bytes,2,name=generators"`
+	GoTemplateOptions            []string                        `json:"goTemplateOptions,omitempty" protobuf:"bytes,7,opt,name=goTemplateOptions"`
 	IgnoreApplicationDifferences ApplicationSetIgnoreDifferences `json:"ignoreApplicationDifferences,omitempty" protobuf:"bytes,9,name=ignoreApplicationDifferences"`
+	GoTemplate                   bool                            `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
+	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+	ApplyNestedSelectors bool `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
 }
 
 type ApplicationPreservedFields struct {
@@ -74,17 +74,17 @@ type ApplicationPreservedFields struct {
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
 type ApplicationSetStrategy struct {
-	Type        string                         `json:"type,omitempty" protobuf:"bytes,1,opt,name=type"`
 	RollingSync *ApplicationSetRolloutStrategy `json:"rollingSync,omitempty" protobuf:"bytes,2,opt,name=rollingSync"`
 	// RollingUpdate *ApplicationSetRolloutStrategy `json:"rollingUpdate,omitempty" protobuf:"bytes,3,opt,name=rollingUpdate"`
+	Type string `json:"type,omitempty" protobuf:"bytes,1,opt,name=type"`
 }
 type ApplicationSetRolloutStrategy struct {
 	Steps []ApplicationSetRolloutStep `json:"steps,omitempty" protobuf:"bytes,1,opt,name=steps"`
 }
 
 type ApplicationSetRolloutStep struct {
-	MatchExpressions []ApplicationMatchExpression `json:"matchExpressions,omitempty" protobuf:"bytes,1,opt,name=matchExpressions"`
 	MaxUpdate        *intstr.IntOrString          `json:"maxUpdate,omitempty" protobuf:"bytes,2,opt,name=maxUpdate"`
+	MatchExpressions []ApplicationMatchExpression `json:"matchExpressions,omitempty" protobuf:"bytes,1,opt,name=matchExpressions"`
 }
 
 type ApplicationMatchExpression struct {
@@ -120,12 +120,12 @@ func (s ApplicationsSyncPolicy) AllowDelete() bool {
 // ApplicationSetSyncPolicy configures how generated Applications will relate to their
 // ApplicationSet.
 type ApplicationSetSyncPolicy struct {
-	// PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.
-	PreserveResourcesOnDeletion bool `json:"preserveResourcesOnDeletion,omitempty" protobuf:"bytes,1,name=syncPolicy"`
 	// ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, create-delete, sync
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=create-only;create-update;create-delete;sync
 	ApplicationsSync *ApplicationsSyncPolicy `json:"applicationsSync,omitempty" protobuf:"bytes,2,opt,name=applicationsSync,casttype=ApplicationsSyncPolicy"`
+	// PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.
+	PreserveResourcesOnDeletion bool `json:"preserveResourcesOnDeletion,omitempty" protobuf:"bytes,1,name=syncPolicy"`
 }
 
 // ApplicationSetIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live
@@ -259,9 +259,9 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 
 // ListGenerator include items info
 type ListGenerator struct {
-	Elements     []apiextensionsv1.JSON `json:"elements" protobuf:"bytes,1,name=elements"`
-	Template     ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
 	ElementsYaml string                 `json:"elementsYaml,omitempty" protobuf:"bytes,3,opt,name=elementsYaml"`
+	Template     ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
+	Elements     []apiextensionsv1.JSON `json:"elements" protobuf:"bytes,1,name=elements"`
 }
 
 // MatrixGenerator generates the cartesian product of two sets of parameters. The parameters are defined by two nested
@@ -363,43 +363,45 @@ func (g NestedMergeGenerator) ToMergeGenerator() *MergeGenerator {
 
 // ClusterGenerator defines a generator to match against clusters registered with ArgoCD.
 type ClusterGenerator struct {
+
+	// Values contains key/value pairs which are passed directly as parameters to the template
+	Values   map[string]string      `json:"values,omitempty" protobuf:"bytes,3,name=values"`
+	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
+
 	// Selector defines a label selector to match against all clusters registered with ArgoCD.
 	// Clusters today are stored as Kubernetes Secrets, thus the Secret labels will be used
 	// for matching the selector.
-	Selector metav1.LabelSelector   `json:"selector,omitempty" protobuf:"bytes,1,name=selector"`
-	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
-
-	// Values contains key/value pairs which are passed directly as parameters to the template
-	Values map[string]string `json:"values,omitempty" protobuf:"bytes,3,name=values"`
+	Selector metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,1,name=selector"`
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.
 type DuckTypeGenerator struct {
+	RequeueAfterSeconds *int64 `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,3,name=requeueAfterSeconds"`
+	// Values contains key/value pairs which are passed directly as parameters to the template
+	Values map[string]string `json:"values,omitempty" protobuf:"bytes,6,name=values"`
 	// ConfigMapRef is a ConfigMap with the duck type definitions needed to retrieve the data
 	//              this includes apiVersion(group/version), kind, matchKey and validation settings
 	// Name is the resource name of the kind, group and version, defined in the ConfigMapRef
 	// RequeueAfterSeconds is how long before the duckType will be rechecked for a change
-	ConfigMapRef        string               `json:"configMapRef" protobuf:"bytes,1,name=configMapRef"`
-	Name                string               `json:"name,omitempty" protobuf:"bytes,2,name=name"`
-	RequeueAfterSeconds *int64               `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,3,name=requeueAfterSeconds"`
-	LabelSelector       metav1.LabelSelector `json:"labelSelector,omitempty" protobuf:"bytes,4,name=labelSelector"`
+	ConfigMapRef string `json:"configMapRef" protobuf:"bytes,1,name=configMapRef"`
+	Name         string `json:"name,omitempty" protobuf:"bytes,2,name=name"`
 
-	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,5,name=template"`
-	// Values contains key/value pairs which are passed directly as parameters to the template
-	Values map[string]string `json:"values,omitempty" protobuf:"bytes,6,name=values"`
+	Template      ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,5,name=template"`
+	LabelSelector metav1.LabelSelector   `json:"labelSelector,omitempty" protobuf:"bytes,4,name=labelSelector"`
 }
 
 type GitGenerator struct {
-	RepoURL             string                      `json:"repoURL" protobuf:"bytes,1,name=repoURL"`
-	Directories         []GitDirectoryGeneratorItem `json:"directories,omitempty" protobuf:"bytes,2,name=directories"`
-	Files               []GitFileGeneratorItem      `json:"files,omitempty" protobuf:"bytes,3,name=files"`
-	Revision            string                      `json:"revision" protobuf:"bytes,4,name=revision"`
-	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
-	PathParamPrefix     string                      `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
+	RequeueAfterSeconds *int64 `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
-	Values map[string]string `json:"values,omitempty" protobuf:"bytes,8,name=values"`
+	Values          map[string]string `json:"values,omitempty" protobuf:"bytes,8,name=values"`
+	RepoURL         string            `json:"repoURL" protobuf:"bytes,1,name=repoURL"`
+	Revision        string            `json:"revision" protobuf:"bytes,4,name=revision"`
+	PathParamPrefix string            `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
+
+	Template    ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
+	Directories []GitDirectoryGeneratorItem `json:"directories,omitempty" protobuf:"bytes,2,name=directories"`
+	Files       []GitFileGeneratorItem      `json:"files,omitempty" protobuf:"bytes,3,name=files"`
 }
 
 type GitDirectoryGeneratorItem struct {
@@ -420,19 +422,20 @@ type SCMProviderGenerator struct {
 	BitbucketServer *SCMProviderGeneratorBitbucketServer `json:"bitbucketServer,omitempty" protobuf:"bytes,4,opt,name=bitbucketServer"`
 	Gitea           *SCMProviderGeneratorGitea           `json:"gitea,omitempty" protobuf:"bytes,5,opt,name=gitea"`
 	AzureDevOps     *SCMProviderGeneratorAzureDevOps     `json:"azureDevOps,omitempty" protobuf:"bytes,6,opt,name=azureDevOps"`
-	// Filters for which repos should be considered.
-	Filters []SCMProviderGeneratorFilter `json:"filters,omitempty" protobuf:"bytes,7,rep,name=filters"`
-	// Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers
-	// necessarily support all protocols.
-	CloneProtocol string `json:"cloneProtocol,omitempty" protobuf:"bytes,8,opt,name=cloneProtocol"`
 	// Standard parameters.
-	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,9,opt,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,10,opt,name=template"`
+	RequeueAfterSeconds *int64 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,9,opt,name=requeueAfterSeconds"`
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values        map[string]string                  `json:"values,omitempty" protobuf:"bytes,11,name=values"`
 	AWSCodeCommit *SCMProviderGeneratorAWSCodeCommit `json:"awsCodeCommit,omitempty" protobuf:"bytes,12,opt,name=awsCodeCommit"`
 	// If you add a new SCM provider, update CustomApiUrl below.
+	// Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers
+	// necessarily support all protocols.
+	CloneProtocol string                 `json:"cloneProtocol,omitempty" protobuf:"bytes,8,opt,name=cloneProtocol"`
+	Template      ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,10,opt,name=template"`
+
+	// Filters for which repos should be considered.
+	Filters []SCMProviderGeneratorFilter `json:"filters,omitempty" protobuf:"bytes,7,rep,name=filters"`
 }
 
 func (g *SCMProviderGenerator) CustomApiUrl() string {
@@ -452,12 +455,12 @@ func (g *SCMProviderGenerator) CustomApiUrl() string {
 
 // SCMProviderGeneratorGitea defines a connection info specific to Gitea.
 type SCMProviderGeneratorGitea struct {
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,3,opt,name=tokenRef"`
 	// Gitea organization or user to scan. Required.
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
 	// The Gitea URL to talk to. For example https://gitea.mydomain.com/.
 	API string `json:"api" protobuf:"bytes,2,opt,name=api"`
-	// Authentication token reference.
-	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,3,opt,name=tokenRef"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
 	// Allow self-signed TLS / Certificates; default: false
@@ -480,22 +483,22 @@ type SCMProviderGeneratorGithub struct {
 
 // SCMProviderGeneratorGitlab defines connection info specific to Gitlab.
 type SCMProviderGeneratorGitlab struct {
-	// Gitlab group to scan. Required.  You can use either the project id (recommended) or the full namespaced path.
-	Group string `json:"group" protobuf:"bytes,1,opt,name=group"`
-	// Recurse through subgroups (true) or scan only the base group (false).  Defaults to "false"
-	IncludeSubgroups bool `json:"includeSubgroups,omitempty" protobuf:"varint,2,opt,name=includeSubgroups"`
-	// The Gitlab API URL to talk to.
-	API string `json:"api,omitempty" protobuf:"bytes,3,opt,name=api"`
 	// Authentication token reference.
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`
+	// When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to "true"
+	IncludeSharedProjects *bool `json:"includeSharedProjects,omitempty" protobuf:"varint,7,opt,name=includeSharedProjects"`
+	// Gitlab group to scan. Required.  You can use either the project id (recommended) or the full namespaced path.
+	Group string `json:"group" protobuf:"bytes,1,opt,name=group"`
+	// The Gitlab API URL to talk to.
+	API string `json:"api,omitempty" protobuf:"bytes,3,opt,name=api"`
+	// Filter repos list based on Gitlab Topic.
+	Topic string `json:"topic,omitempty" protobuf:"bytes,8,opt,name=topic"`
+	// Recurse through subgroups (true) or scan only the base group (false).  Defaults to "false"
+	IncludeSubgroups bool `json:"includeSubgroups,omitempty" protobuf:"varint,2,opt,name=includeSubgroups"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,5,opt,name=allBranches"`
 	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
-	// When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to "true"
-	IncludeSharedProjects *bool `json:"includeSharedProjects,omitempty" protobuf:"varint,7,opt,name=includeSharedProjects"`
-	// Filter repos list based on Gitlab Topic.
-	Topic string `json:"topic,omitempty" protobuf:"bytes,8,opt,name=topic"`
 }
 
 func (s *SCMProviderGeneratorGitlab) WillIncludeSharedProjects() bool {
@@ -504,38 +507,38 @@ func (s *SCMProviderGeneratorGitlab) WillIncludeSharedProjects() bool {
 
 // SCMProviderGeneratorBitbucket defines connection info specific to Bitbucket Cloud (API version 2).
 type SCMProviderGeneratorBitbucket struct {
+	// The app password to use for the user.  Required. See: https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/
+	AppPasswordRef *SecretRef `json:"appPasswordRef" protobuf:"bytes,3,opt,name=appPasswordRef"`
 	// Bitbucket workspace to scan. Required.
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
 	// Bitbucket user to use when authenticating.  Should have a "member" role to be able to read all repositories and branches.  Required
 	User string `json:"user" protobuf:"bytes,2,opt,name=user"`
-	// The app password to use for the user.  Required. See: https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/
-	AppPasswordRef *SecretRef `json:"appPasswordRef" protobuf:"bytes,3,opt,name=appPasswordRef"`
 	// Scan all branches instead of just the main branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
 }
 
 // SCMProviderGeneratorBitbucketServer defines connection info specific to Bitbucket Server.
 type SCMProviderGeneratorBitbucketServer struct {
+	// Credentials for Basic auth
+	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,3,opt,name=basicAuth"`
 	// Project to scan. Required.
 	Project string `json:"project" protobuf:"bytes,1,opt,name=project"`
 	// The Bitbucket Server REST API URL to talk to. Required.
 	API string `json:"api" protobuf:"bytes,2,opt,name=api"`
-	// Credentials for Basic auth
-	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,3,opt,name=basicAuth"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
 }
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
 type SCMProviderGeneratorAzureDevOps struct {
+	// The Personal Access Token (PAT) to use when connecting. Required.
+	AccessTokenRef *SecretRef `json:"accessTokenRef" protobuf:"bytes,8,opt,name=accessTokenRef"`
 	// Azure Devops organization. Required. E.g. "my-organization".
 	Organization string `json:"organization" protobuf:"bytes,5,opt,name=organization"`
 	// The URL to Azure DevOps. If blank, use https://dev.azure.com.
 	API string `json:"api,omitempty" protobuf:"bytes,6,opt,name=api"`
 	// Azure Devops team project. Required. E.g. "my-team".
 	TeamProject string `json:"teamProject" protobuf:"bytes,7,opt,name=teamProject"`
-	// The Personal Access Token (PAT) to use when connecting. Required.
-	AccessTokenRef *SecretRef `json:"accessTokenRef" protobuf:"bytes,8,opt,name=accessTokenRef"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,9,opt,name=allBranches"`
 }
@@ -547,14 +550,14 @@ type TagFilter struct {
 
 // SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.
 type SCMProviderGeneratorAWSCodeCommit struct {
-	// TagFilters provides the tag filter(s) for repo discovery
-	TagFilters []*TagFilter `json:"tagFilters,omitempty" protobuf:"bytes,1,opt,name=tagFilters"`
 	// Role provides the AWS IAM role to assume, for cross-account repo discovery
 	// if not provided, AppSet controller will use its pod/node identity to discover.
 	Role string `json:"role,omitempty" protobuf:"bytes,2,opt,name=role"`
 	// Region provides the AWS region to discover repos.
 	// if not provided, AppSet controller will infer the current region from environment.
 	Region string `json:"region,omitempty" protobuf:"bytes,3,opt,name=region"`
+	// TagFilters provides the tag filter(s) for repo discovery
+	TagFilters []*TagFilter `json:"tagFilters,omitempty" protobuf:"bytes,1,opt,name=tagFilters"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
 }
@@ -565,14 +568,14 @@ type SCMProviderGeneratorAWSCodeCommit struct {
 type SCMProviderGeneratorFilter struct {
 	// A regex for repo names.
 	RepositoryMatch *string `json:"repositoryMatch,omitempty" protobuf:"bytes,1,opt,name=repositoryMatch"`
-	// An array of paths, all of which must exist.
-	PathsExist []string `json:"pathsExist,omitempty" protobuf:"bytes,2,rep,name=pathsExist"`
-	// An array of paths, all of which must not exist.
-	PathsDoNotExist []string `json:"pathsDoNotExist,omitempty" protobuf:"bytes,3,rep,name=pathsDoNotExist"`
 	// A regex which must match at least one label.
 	LabelMatch *string `json:"labelMatch,omitempty" protobuf:"bytes,4,opt,name=labelMatch"`
 	// A regex which must match the branch name.
 	BranchMatch *string `json:"branchMatch,omitempty" protobuf:"bytes,5,opt,name=branchMatch"`
+	// An array of paths, all of which must exist.
+	PathsExist []string `json:"pathsExist,omitempty" protobuf:"bytes,2,rep,name=pathsExist"`
+	// An array of paths, all of which must not exist.
+	PathsDoNotExist []string `json:"pathsDoNotExist,omitempty" protobuf:"bytes,3,rep,name=pathsDoNotExist"`
 }
 
 // PullRequestGenerator defines a generator that scrapes a PullRequest API to find candidate pull requests.
@@ -582,15 +585,15 @@ type PullRequestGenerator struct {
 	GitLab          *PullRequestGeneratorGitLab          `json:"gitlab,omitempty" protobuf:"bytes,2,opt,name=gitlab"`
 	Gitea           *PullRequestGeneratorGitea           `json:"gitea,omitempty" protobuf:"bytes,3,opt,name=gitea"`
 	BitbucketServer *PullRequestGeneratorBitbucketServer `json:"bitbucketServer,omitempty" protobuf:"bytes,4,opt,name=bitbucketServer"`
-	// Filters for which pull requests should be considered.
-	Filters []PullRequestGeneratorFilter `json:"filters,omitempty" protobuf:"bytes,5,rep,name=filters"`
 	// Standard parameters.
 	RequeueAfterSeconds *int64                         `json:"requeueAfterSeconds,omitempty" protobuf:"varint,6,opt,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate         `json:"template,omitempty" protobuf:"bytes,7,opt,name=template"`
 	Bitbucket           *PullRequestGeneratorBitbucket `json:"bitbucket,omitempty" protobuf:"bytes,8,opt,name=bitbucket"`
 	// Additional provider to use and config for it.
 	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,9,opt,name=azuredevops"`
 	// If you add a new SCM provider, update CustomApiUrl below.
+	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,7,opt,name=template"`
+	// Filters for which pull requests should be considered.
+	Filters []PullRequestGeneratorFilter `json:"filters,omitempty" protobuf:"bytes,5,rep,name=filters"`
 }
 
 func (p *PullRequestGenerator) CustomApiUrl() string {
@@ -617,14 +620,14 @@ func (p *PullRequestGenerator) CustomApiUrl() string {
 
 // PullRequestGeneratorGitea defines connection info specific to Gitea.
 type PullRequestGeneratorGitea struct {
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`
 	// Gitea org or user to scan. Required.
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
 	// Gitea repo name to scan. Required.
 	Repo string `json:"repo" protobuf:"bytes,2,opt,name=repo"`
 	// The Gitea API URL to talk to. Required
 	API string `json:"api" protobuf:"bytes,3,opt,name=api"`
-	// Authentication token reference.
-	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`
 	// Allow insecure tls, for self-signed certificates; default: false.
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
 }
@@ -663,44 +666,44 @@ type PullRequestGeneratorGithub struct {
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
 type PullRequestGeneratorGitLab struct {
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,3,opt,name=tokenRef"`
 	// GitLab project to scan. Required.
 	Project string `json:"project" protobuf:"bytes,1,opt,name=project"`
 	// The GitLab API URL to talk to. If blank, uses https://gitlab.com/.
 	API string `json:"api,omitempty" protobuf:"bytes,2,opt,name=api"`
-	// Authentication token reference.
-	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,3,opt,name=tokenRef"`
-	// Labels is used to filter the MRs that you want to target
-	Labels []string `json:"labels,omitempty" protobuf:"bytes,4,rep,name=labels"`
 	// PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
+	// Labels is used to filter the MRs that you want to target
+	Labels []string `json:"labels,omitempty" protobuf:"bytes,4,rep,name=labels"`
 	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
 }
 
 // PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
 type PullRequestGeneratorBitbucketServer struct {
+	// Credentials for Basic auth
+	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
 	// Project to scan. Required.
 	Project string `json:"project" protobuf:"bytes,1,opt,name=project"`
 	// Repo name to scan. Required.
 	Repo string `json:"repo" protobuf:"bytes,2,opt,name=repo"`
 	// The Bitbucket REST API URL to talk to e.g. https://bitbucket.org/rest Required.
 	API string `json:"api" protobuf:"bytes,3,opt,name=api"`
-	// Credentials for Basic auth
-	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
 }
 
 // PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
 type PullRequestGeneratorBitbucket struct {
+	// Credentials for Basic auth
+	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
+	// Credentials for AppToken (Bearer auth)
+	BearerToken *BearerTokenBitbucketCloud `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
 	// Workspace to scan. Required.
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
 	// Repo name to scan. Required.
 	Repo string `json:"repo" protobuf:"bytes,2,opt,name=repo"`
 	// The Bitbucket REST API URL to talk to. If blank, uses https://api.bitbucket.org/2.0.
 	API string `json:"api,omitempty" protobuf:"bytes,3,opt,name=api"`
-	// Credentials for Basic auth
-	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
-	// Credentials for AppToken (Bearer auth)
-	BearerToken *BearerTokenBitbucketCloud `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
 }
 
 // BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.
@@ -711,10 +714,10 @@ type BearerTokenBitbucketCloud struct {
 
 // BasicAuthBitbucketServer defines the username/(password or personal access token) for Basic auth.
 type BasicAuthBitbucketServer struct {
-	// Username for Basic auth
-	Username string `json:"username" protobuf:"bytes,1,opt,name=username"`
 	// Password (or personal access token) reference.
 	PasswordRef *SecretRef `json:"passwordRef" protobuf:"bytes,2,opt,name=passwordRef"`
+	// Username for Basic auth
+	Username string `json:"username" protobuf:"bytes,1,opt,name=username"`
 }
 
 // PullRequestGeneratorFilter is a single pull request filter.
@@ -740,15 +743,15 @@ type PluginInput struct {
 
 // PluginGenerator defines connection info specific to Plugin.
 type PluginGenerator struct {
-	ConfigMapRef PluginConfigMapRef `json:"configMapRef" protobuf:"bytes,1,name=configMapRef"`
-	Input        PluginInput        `json:"input,omitempty" protobuf:"bytes,2,name=input"`
+	Input PluginInput `json:"input,omitempty" protobuf:"bytes,2,name=input"`
 	// RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.
-	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,3,opt,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,4,name=template"`
+	RequeueAfterSeconds *int64 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,3,opt,name=requeueAfterSeconds"`
 
 	// Values contains key/value pairs which are passed directly as parameters to the template. These values will not be
 	// sent as parameters to the plugin.
-	Values map[string]string `json:"values,omitempty" protobuf:"bytes,5,name=values"`
+	Values       map[string]string      `json:"values,omitempty" protobuf:"bytes,5,name=values"`
+	ConfigMapRef PluginConfigMapRef     `json:"configMapRef" protobuf:"bytes,1,name=configMapRef"`
+	Template     ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,4,name=template"`
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet

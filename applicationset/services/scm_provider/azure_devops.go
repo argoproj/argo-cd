@@ -44,10 +44,10 @@ func (factory *devopsFactoryImpl) GetClient(ctx context.Context) (azureGit.Clien
 // See https://docs.microsoft.com/en-us/rest/api/azure/devops
 
 type AzureDevOpsProvider struct {
+	clientFactory AzureDevOpsClientFactory
 	organization  string
 	teamProject   string
 	accessToken   string
-	clientFactory AzureDevOpsClientFactory
 	allBranches   bool
 }
 

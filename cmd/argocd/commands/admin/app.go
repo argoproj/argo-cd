@@ -183,9 +183,9 @@ func toUnstructured(val interface{}) (*unstructured.Unstructured, error) {
 }
 
 type diffPair struct {
-	name   string
 	first  *unstructured.Unstructured
 	second *unstructured.Unstructured
+	name   string
 }
 
 func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {

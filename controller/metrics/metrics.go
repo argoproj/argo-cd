@@ -36,8 +36,8 @@ type MetricsServer struct {
 	reconcileHistogram      *prometheus.HistogramVec
 	redisRequestHistogram   *prometheus.HistogramVec
 	registry                *prometheus.Registry
-	hostname                string
 	cron                    *cron.Cron
+	hostname                string
 }
 
 const (

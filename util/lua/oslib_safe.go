@@ -132,13 +132,13 @@ func strftime(t time.Time, cfmt string) string {
 }
 
 type flagScanner struct {
-	flag       byte
 	start      string
 	end        string
-	buf        []byte
 	str        string
+	buf        []byte
 	Length     int
 	Pos        int
+	flag       byte
 	HasFlag    bool
 	ChangeFlag bool
 }

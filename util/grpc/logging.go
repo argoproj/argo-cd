@@ -54,8 +54,8 @@ func (j *jsonpbMarshalleble) MarshalJSON() ([]byte, error) {
 type loggingServerStream struct {
 	grpc.ServerStream
 	entry     *logrus.Entry
-	logClaims bool
 	info      string
+	logClaims bool
 }
 
 func (l *loggingServerStream) SendMsg(m interface{}) error {

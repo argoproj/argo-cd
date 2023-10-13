@@ -147,10 +147,7 @@ type NodeInfo struct {
 }
 
 type ResourceInfo struct {
-	Info    []appv1.InfoItem
-	AppName string
-	Images  []string
-	Health  *health.HealthStatus
+	Health *health.HealthStatus
 	// NetworkingInfo are available only for known types involved into networking: Ingress, Service, Pod
 	NetworkingInfo *appv1.ResourceNetworkingInfo
 	// PodInfo is available for pods only
@@ -158,7 +155,11 @@ type ResourceInfo struct {
 	// NodeInfo is available for nodes only
 	NodeInfo *NodeInfo
 
+	AppName string
+
 	manifestHash string
+	Info         []appv1.InfoItem
+	Images       []string
 }
 
 func NewLiveStateCache(
@@ -185,11 +186,12 @@ func NewLiveStateCache(
 }
 
 type cacheSettings struct {
-	clusterSettings     clustercache.Settings
-	appInstanceLabelKey string
-	trackingMethod      appv1.TrackingMethod
+	clusterSettings clustercache.Settings
 	// resourceOverrides provides a list of ignored differences to ignore watched resource updates
 	resourceOverrides map[string]appv1.ResourceOverride
+
+	appInstanceLabelKey string
+	trackingMethod      appv1.TrackingMethod
 
 	// ignoreResourceUpdates is a flag to enable resource-ignore rules.
 	ignoreResourceUpdatesEnabled bool

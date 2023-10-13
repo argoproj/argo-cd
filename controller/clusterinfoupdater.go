@@ -31,6 +31,7 @@ var (
 )
 
 type clusterInfoUpdater struct {
+	lastUpdated   time.Time
 	infoSource    metrics.HasClustersInfo
 	db            db.ArgoDB
 	appLister     v1alpha1.ApplicationNamespaceLister
@@ -38,7 +39,6 @@ type clusterInfoUpdater struct {
 	clusterFilter func(cluster *appv1.Cluster) bool
 	projGetter    func(app *appv1.Application) (*appv1.AppProject, error)
 	namespace     string
-	lastUpdated   time.Time
 }
 
 func NewClusterInfoUpdater(

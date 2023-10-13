@@ -44,24 +44,22 @@ import (
 
 // ArgoCDSettings holds in-memory runtime configuration options.
 type ArgoCDSettings struct {
+	// Certificate holds the certificate/private key for the Argo CD API server.
+	// If nil, will run insecure without TLS.
+	Certificate *tls.Certificate `json:"-"`
+	// Secrets holds all secrets in argocd-secret as a map[string]string
+	Secrets map[string]string `json:"secrets,omitempty"`
+	// BinaryUrls contains the URLs for downloading argocd binaries
+	BinaryUrls map[string]string `json:"binaryUrls,omitempty"`
 	// URL is the externally facing URL users will visit to reach Argo CD.
 	// The value here is used when configuring SSO. Omitting this value will disable SSO.
 	URL string `json:"url,omitempty"`
-	// Indicates if status badge is enabled or not.
-	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Indicates if status badge custom root URL should be used.
 	StatusBadgeRootUrl string `json:"statusBadgeRootUrl,omitempty"`
 	// DexConfig contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
 	// OIDCConfigRAW holds OIDC configuration as a raw string
 	OIDCConfigRAW string `json:"oidcConfig,omitempty"`
-	// ServerSignature holds the key used to generate JWT tokens.
-	ServerSignature []byte `json:"serverSignature,omitempty"`
-	// Certificate holds the certificate/private key for the Argo CD API server.
-	// If nil, will run insecure without TLS.
-	Certificate *tls.Certificate `json:"-"`
-	// CertificateIsExternal indicates whether Certificate was loaded from external secret
-	CertificateIsExternal bool `json:"-"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitHub webhook events
 	WebhookGitHubSecret string `json:"webhookGitHubSecret,omitempty"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitLab webhook events
@@ -76,38 +74,43 @@ type ArgoCDSettings struct {
 	WebhookAzureDevOpsUsername string `json:"webhookAzureDevOpsUsername,omitempty"`
 	// WebhookAzureDevOpsPassword holds the password for authenticating Azure DevOps webhook events
 	WebhookAzureDevOpsPassword string `json:"webhookAzureDevOpsPassword,omitempty"`
-	// Secrets holds all secrets in argocd-secret as a map[string]string
-	Secrets map[string]string `json:"secrets,omitempty"`
 	// KustomizeBuildOptions is a string of kustomize build parameters
 	KustomizeBuildOptions string `json:"kustomizeBuildOptions,omitempty"`
-	// Indicates if anonymous user is enabled or not
-	AnonymousUserEnabled bool `json:"anonymousUserEnabled,omitempty"`
-	// Specifies token expiration duration
-	UserSessionDuration time.Duration `json:"userSessionDuration,omitempty"`
 	// UiCssURL local or remote path to user-defined CSS to customize ArgoCD UI
 	UiCssURL string `json:"uiCssURL,omitempty"`
 	// Content of UI Banner
 	UiBannerContent string `json:"uiBannerContent,omitempty"`
 	// URL for UI Banner
 	UiBannerURL string `json:"uiBannerURL,omitempty"`
-	// Make Banner permanent and not closeable
-	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"`
 	// Position of UI Banner
 	UiBannerPosition string `json:"uiBannerPosition,omitempty"`
 	// PasswordPattern for password regular expression
 	PasswordPattern string `json:"passwordPattern,omitempty"`
-	// BinaryUrls contains the URLs for downloading argocd binaries
-	BinaryUrls map[string]string `json:"binaryUrls,omitempty"`
+	// TrackingMethod defines the resource tracking method to be used
+	TrackingMethod string `json:"application.resourceTrackingMethod,omitempty"`
+	// ExtensionConfig configurations related to ArgoCD proxy extensions. The value
+	// is a yaml string defined in extension.ExtensionConfigs struct.
+	ExtensionConfig string `json:"extensionConfig,omitempty"`
+	// ServerSignature holds the key used to generate JWT tokens.
+	ServerSignature []byte `json:"serverSignature,omitempty"`
+	// ExecShells restricts which shells are allowed for `exec` and in which order they are tried
+	ExecShells []string `json:"execShells"`
+	// Specifies token expiration duration
+	UserSessionDuration time.Duration `json:"userSessionDuration,omitempty"`
+	// Indicates if status badge is enabled or not.
+	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
+	// CertificateIsExternal indicates whether Certificate was loaded from external secret
+	CertificateIsExternal bool `json:"-"`
+	// Indicates if anonymous user is enabled or not
+	AnonymousUserEnabled bool `json:"anonymousUserEnabled,omitempty"`
+	// Make Banner permanent and not closeable
+	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"`
 	// InClusterEnabled indicates whether to allow in-cluster server address
 	InClusterEnabled bool `json:"inClusterEnabled"`
 	// ServerRBACLogEnforceEnable temporary var indicates whether rbac will be enforced on logs
 	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
 	// ExecEnabled indicates whether the UI exec feature is enabled
 	ExecEnabled bool `json:"execEnabled"`
-	// ExecShells restricts which shells are allowed for `exec` and in which order they are tried
-	ExecShells []string `json:"execShells"`
-	// TrackingMethod defines the resource tracking method to be used
-	TrackingMethod string `json:"application.resourceTrackingMethod,omitempty"`
 	// OIDCTLSInsecureSkipVerify determines whether certificate verification is skipped when verifying tokens with the
 	// configured OIDC provider (either external or the bundled Dex instance). Setting this to `true` will cause JWT
 	// token verification to pass despite the OIDC provider having an invalid certificate. Only set to `true` if you
@@ -115,9 +118,6 @@ type ArgoCDSettings struct {
 	OIDCTLSInsecureSkipVerify bool `json:"oidcTLSInsecureSkipVerify"`
 	// AppsInAnyNamespaceEnabled indicates whether applications are allowed to be created in any namespace
 	AppsInAnyNamespaceEnabled bool `json:"appsInAnyNamespaceEnabled"`
-	// ExtensionConfig configurations related to ArgoCD proxy extensions. The value
-	// is a yaml string defined in extension.ExtensionConfigs struct.
-	ExtensionConfig string `json:"extensionConfig,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -132,12 +132,12 @@ type GlobalProjectSettings struct {
 
 // Help settings
 type Help struct {
+	// the URLs for downloading argocd binaries
+	BinaryURLs map[string]string `json:"binaryUrl,omitempty"`
 	// the URL for getting chat help, this will typically be your Slack channel for support
 	ChatURL string `json:"chatUrl,omitempty"`
 	// the text for getting chat help, defaults to "Chat now!"
 	ChatText string `json:"chatText,omitempty"`
-	// the URLs for downloading argocd binaries
-	BinaryURLs map[string]string `json:"binaryUrl,omitempty"`
 }
 
 // oidcConfig is the same as the public OIDCConfig, except the public one excludes the AllowedAudiences and the
@@ -145,9 +145,9 @@ type Help struct {
 // AllowedAudiences should be accessed via ArgoCDSettings.OAuth2AllowedAudiences.
 // SkipAudienceCheckWhenTokenHasNoAudience should be accessed via ArgoCDSettings.SkipAudienceCheckWhenTokenHasNoAudience.
 type oidcConfig struct {
+	SkipAudienceCheckWhenTokenHasNoAudience *bool `json:"skipAudienceCheckWhenTokenHasNoAudience,omitempty"`
 	OIDCConfig
-	AllowedAudiences                        []string `json:"allowedAudiences,omitempty"`
-	SkipAudienceCheckWhenTokenHasNoAudience *bool    `json:"skipAudienceCheckWhenTokenHasNoAudience,omitempty"`
+	AllowedAudiences []string `json:"allowedAudiences,omitempty"`
 }
 
 func (o *oidcConfig) toExported() *OIDCConfig {
@@ -168,25 +168,25 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 }
 
 type OIDCConfig struct {
+	RequestedIDTokenClaims map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
 	Name                   string                 `json:"name,omitempty"`
 	Issuer                 string                 `json:"issuer,omitempty"`
 	ClientID               string                 `json:"clientID,omitempty"`
 	ClientSecret           string                 `json:"clientSecret,omitempty"`
 	CLIClientID            string                 `json:"cliClientID,omitempty"`
-	RequestedScopes        []string               `json:"requestedScopes,omitempty"`
-	RequestedIDTokenClaims map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
 	LogoutURL              string                 `json:"logoutURL,omitempty"`
 	RootCA                 string                 `json:"rootCA,omitempty"`
+	RequestedScopes        []string               `json:"requestedScopes,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
 type HelmRepoCredentials struct {
-	URL            string                   `json:"url,omitempty"`
-	Name           string                   `json:"name,omitempty"`
 	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
 	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
 	CertSecret     *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
 	KeySecret      *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
+	URL            string                   `json:"url,omitempty"`
+	Name           string                   `json:"name,omitempty"`
 }
 
 // KustomizeVersion holds information about additional Kustomize version
@@ -289,50 +289,48 @@ func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1a
 
 // Credentials for accessing a Git repository
 type Repository struct {
+	// Name of the secret storing the username used to access the repo
+	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
+	// Name of the secret storing the password used to access the repo
+	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	// Name of the secret storing the SSH private key used to access the repo. Git only
+	SSHPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
+	// Name of the secret storing the TLS client cert data
+	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
+	// Name of the secret storing the TLS client cert's key data
+	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
+	// Github App Private Key PEM data
+	GithubAppPrivateKeySecret *apiv1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
+	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// The URL to the repository
 	URL string `json:"url,omitempty"`
 	// the type of the repo, "git" or "helm", assumed to be "git" if empty or absent
 	Type string `json:"type,omitempty"`
 	// helm only
 	Name string `json:"name,omitempty"`
-	// Name of the secret storing the username used to access the repo
-	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
-	// Name of the secret storing the password used to access the repo
-	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	// Name of the secret storing the SSH private key used to access the repo. Git only
-	SSHPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
+	// Github App Enterprise base url if empty will default to https://api.github.com
+	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
+	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
+	Proxy string `json:"proxy,omitempty"`
+	// Github App ID of the app used to access the repo
+	GithubAppId int64 `json:"githubAppID,omitempty"`
+	// Github App Installation ID of the installed GitHub App
+	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty"`
 	// Whether to connect the repository in an insecure way (deprecated)
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty"`
 	// Whether to connect the repository in an insecure way
 	Insecure bool `json:"insecure,omitempty"`
 	// Whether the repo is git-lfs enabled. Git only.
 	EnableLFS bool `json:"enableLfs,omitempty"`
-	// Name of the secret storing the TLS client cert data
-	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
-	// Name of the secret storing the TLS client cert's key data
-	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
 	// Whether the repo is helm-oci enabled. Git only.
 	EnableOci bool `json:"enableOci,omitempty"`
-	// Github App Private Key PEM data
-	GithubAppPrivateKeySecret *apiv1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
-	// Github App ID of the app used to access the repo
-	GithubAppId int64 `json:"githubAppID,omitempty"`
-	// Github App Installation ID of the installed GitHub App
-	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty"`
-	// Github App Enterprise base url if empty will default to https://api.github.com
-	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
-	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
-	Proxy string `json:"proxy,omitempty"`
-	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
-	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
 }
 
 // Credential template for accessing repositories
 type RepositoryCredentials struct {
-	// The URL pattern the repository URL has to match
-	URL string `json:"url,omitempty"`
 	// Name of the secret storing the username used to access the repo
 	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
 	// Name of the secret storing the password used to access the repo
@@ -345,34 +343,36 @@ type RepositoryCredentials struct {
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
 	// Github App Private Key PEM data
 	GithubAppPrivateKeySecret *apiv1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
+	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
+	// The URL pattern the repository URL has to match
+	URL string `json:"url,omitempty"`
+	// Github App Enterprise base url if empty will default to https://api.github.com
+	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
+	// the type of the repositoryCredentials, "git" or "helm", assumed to be "git" if empty or absent
+	Type string `json:"type,omitempty"`
 	// Github App ID of the app used to access the repo
 	GithubAppId int64 `json:"githubAppID,omitempty"`
 	// Github App Installation ID of the installed GitHub App
 	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty"`
-	// Github App Enterprise base url if empty will default to https://api.github.com
-	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 	// EnableOCI specifies whether helm-oci support should be enabled for this repo
 	EnableOCI bool `json:"enableOCI,omitempty"`
-	// the type of the repositoryCredentials, "git" or "helm", assumed to be "git" if empty or absent
-	Type string `json:"type,omitempty"`
-	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
-	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
 }
 
 // DeepLink structure
 type DeepLink struct {
-	// URL that the deep link will redirect to
-	URL string `json:"url"`
-	// Title that will be displayed in the UI corresponding to that link
-	Title string `json:"title"`
 	// Description (optional) a description for what the deep link is about
 	Description *string `json:"description,omitempty"`
 	// IconClass (optional) a font-awesome icon class to be used when displaying the links in dropdown menus.
 	IconClass *string `json:"icon.class,omitempty"`
 	// Condition (optional) a conditional statement depending on which the deep link shall be rendered
 	Condition *string `json:"if,omitempty"`
+	// URL that the deep link will redirect to
+	URL string `json:"url"`
+	// Title that will be displayed in the UI corresponding to that link
+	Title string `json:"title"`
 }
 
 const (
@@ -512,15 +512,15 @@ type SettingsManager struct {
 	secrets         v1listers.SecretLister
 	secretsInformer cache.SharedIndexInformer
 	configmaps      v1listers.ConfigMapLister
-	namespace       string
-	// subscribers is a list of subscribers to settings updates
-	subscribers []chan<- *ArgoCDSettings
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
 	mutex                 *sync.Mutex
 	initContextCancel     func()
-	reposCache            []Repository
-	repoCredsCache        []RepositoryCredentials
 	reposOrClusterChanged func()
+	namespace             string
+	// subscribers is a list of subscribers to settings updates
+	subscribers    []chan<- *ArgoCDSettings
+	reposCache     []Repository
+	repoCredsCache []RepositoryCredentials
 }
 
 type incompleteSettingsError struct {
@@ -539,10 +539,11 @@ const (
 )
 
 type ArgoCDDiffOptions struct {
-	IgnoreAggregatedRoles bool `json:"ignoreAggregatedRoles,omitempty"`
 
 	// If set to true then differences caused by status are ignored.
 	IgnoreResourceStatusField IgnoreStatus `json:"ignoreResourceStatusField,omitempty"`
+
+	IgnoreAggregatedRoles bool `json:"ignoreAggregatedRoles,omitempty"`
 
 	// If set to true then ignoreDifferences are applied to ignore application refresh on resource updates.
 	IgnoreDifferencesOnResourceUpdates bool `json:"ignoreDifferencesOnResourceUpdates,omitempty"`

@@ -11,8 +11,8 @@ import (
 
 type BitBucketCloudProvider struct {
 	client      *ExtendedClient
-	allBranches bool
 	owner       string
+	allBranches bool
 }
 
 type ExtendedClient struct {

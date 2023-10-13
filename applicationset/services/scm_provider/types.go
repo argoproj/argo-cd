@@ -7,13 +7,13 @@ import (
 
 // An abstract repository from an API provider.
 type Repository struct {
+	RepositoryId interface{}
 	Organization string
 	Repository   string
 	URL          string
 	Branch       string
 	SHA          string
 	Labels       []string
-	RepositoryId interface{}
 }
 
 type SCMProviderService interface {
@@ -25,10 +25,10 @@ type SCMProviderService interface {
 // A compiled version of SCMProviderGeneratorFilter for performance.
 type Filter struct {
 	RepositoryMatch *regexp.Regexp
-	PathsExist      []string
-	PathsDoNotExist []string
 	LabelMatch      *regexp.Regexp
 	BranchMatch     *regexp.Regexp
+	PathsExist      []string
+	PathsDoNotExist []string
 	FilterType      FilterType
 }
 

@@ -95,9 +95,9 @@ type ArgoDB interface {
 }
 
 type db struct {
-	ns            string
 	kubeclientset kubernetes.Interface
 	settingsMgr   *settings.SettingsManager
+	ns            string
 }
 
 // NewDB returns a new instance of the argo database

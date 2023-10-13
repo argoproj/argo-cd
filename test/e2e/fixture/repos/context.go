@@ -13,10 +13,10 @@ type Context struct {
 	t           *testing.T
 	path        string
 	repoURLType fixture.RepoURLType
+	name        string
+	project     string
 	// seconds
 	timeout int
-	name    string
-	project string
 }
 
 func Given(t *testing.T, sameState bool) *Context {

@@ -22,9 +22,9 @@ const (
 )
 
 type HelmRepository struct {
+	Name string
+	Repo string
 	Creds
-	Name      string
-	Repo      string
 	EnableOci bool
 }
 

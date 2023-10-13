@@ -31,19 +31,19 @@ var (
 )
 
 type WebhookHandler struct {
-	namespace              string
+	client                 client.Client
 	github                 *github.Webhook
 	gitlab                 *gitlab.Webhook
 	azuredevops            *azuredevops.Webhook
 	azuredevopsAuthHandler func(r *http.Request) error
-	client                 client.Client
 	generators             map[string]generators.Generator
+	namespace              string
 }
 
 type gitGeneratorInfo struct {
+	RepoRegexp  *regexp.Regexp
 	Revision    string
 	TouchedHead bool
-	RepoRegexp  *regexp.Regexp
 }
 
 type prGeneratorInfo struct {
@@ -58,9 +58,9 @@ type prGeneratorAzuredevopsInfo struct {
 }
 
 type prGeneratorGithubInfo struct {
+	APIRegexp *regexp.Regexp
 	Repo      string
 	Owner     string
-	APIRegexp *regexp.Regexp
 }
 
 type prGeneratorGitlabInfo struct {

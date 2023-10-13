@@ -30,12 +30,12 @@ import (
 
 // ArgoCDCMPServer is the config management plugin server implementation
 type ArgoCDCMPServer struct {
+	sig           os.Signal
 	log           *log.Entry
-	opts          []grpc.ServerOption
-	initConstants plugin.CMPServerInitConstants
 	stopCh        chan os.Signal
 	doneCh        chan interface{}
-	sig           os.Signal
+	opts          []grpc.ServerOption
+	initConstants plugin.CMPServerInitConstants
 }
 
 // NewServer returns a new instance of the Argo CD config management plugin server

@@ -28,26 +28,28 @@ type RepoCreds struct {
 	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,6,opt,name=tlsClientCertKey"`
 	// GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app
 	GithubAppPrivateKey string `json:"githubAppPrivateKey,omitempty" protobuf:"bytes,7,opt,name=githubAppPrivateKey"`
-	// GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication
-	GithubAppId int64 `json:"githubAppID,omitempty" protobuf:"bytes,8,opt,name=githubAppID"`
-	// GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication
-	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,9,opt,name=githubAppInstallationID"`
 	// GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,10,opt,name=githubAppEnterpriseBaseUrl"`
-	// EnableOCI specifies whether helm-oci support should be enabled for this repo
-	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,11,opt,name=enableOCI"`
 	// Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
 	Type string `json:"type,omitempty" protobuf:"bytes,12,opt,name=type"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,13,opt,name=gcpServiceAccountKey"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server
 	Proxy string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
+	// GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication
+	GithubAppId int64 `json:"githubAppID,omitempty" protobuf:"bytes,8,opt,name=githubAppID"`
+	// GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication
+	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,9,opt,name=githubAppInstallationID"`
+	// EnableOCI specifies whether helm-oci support should be enabled for this repo
+	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,11,opt,name=enableOCI"`
 	// ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,20,opt,name=forceHttpBasicAuth"`
 }
 
 // Repository is a repository holding application configurations
 type Repository struct {
+	// ConnectionState contains information about the current state of connection to the repository server
+	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
 	// Repo contains the URL to the remote repository
 	Repo string `json:"repo" protobuf:"bytes,1,opt,name=repo"`
 	// Username contains the user name used for authenticating at the remote repository
@@ -56,15 +58,6 @@ type Repository struct {
 	Password string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
 	// SSHPrivateKey contains the PEM data for authenticating at the repo server. Only used with Git repos.
 	SSHPrivateKey string `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
-	// ConnectionState contains information about the current state of connection to the repository server
-	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
-	// InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
-	// Used only for Git repos
-	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
-	// Insecure specifies whether the connection to the repository ignores any errors when verifying TLS certificates or SSH host keys
-	Insecure bool `json:"insecure,omitempty" protobuf:"bytes,7,opt,name=insecure"`
-	// EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.
-	EnableLFS bool `json:"enableLfs,omitempty" protobuf:"bytes,8,opt,name=enableLfs"`
 	// TLSClientCertData contains a certificate in PEM format for authenticating at the repo server
 	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,9,opt,name=tlsClientCertData"`
 	// TLSClientCertKey contains a private key in PEM format for authenticating at the repo server
@@ -73,16 +66,8 @@ type Repository struct {
 	Type string `json:"type,omitempty" protobuf:"bytes,11,opt,name=type"`
 	// Name specifies a name to be used for this repo. Only used with Helm repos
 	Name string `json:"name,omitempty" protobuf:"bytes,12,opt,name=name"`
-	// Whether credentials were inherited from a credential set
-	InheritedCreds bool `json:"inheritedCreds,omitempty" protobuf:"bytes,13,opt,name=inheritedCreds"`
-	// EnableOCI specifies whether helm-oci support should be enabled for this repo
-	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,14,opt,name=enableOCI"`
 	// Github App Private Key PEM data
 	GithubAppPrivateKey string `json:"githubAppPrivateKey,omitempty" protobuf:"bytes,15,opt,name=githubAppPrivateKey"`
-	// GithubAppId specifies the ID of the GitHub app used to access the repo
-	GithubAppId int64 `json:"githubAppID,omitempty" protobuf:"bytes,16,opt,name=githubAppID"`
-	// GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo
-	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,17,opt,name=githubAppInstallationID"`
 	// GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,18,opt,name=githubAppEnterpriseBaseUrl"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
@@ -91,6 +76,21 @@ type Repository struct {
 	Project string `json:"project,omitempty" protobuf:"bytes,20,opt,name=project"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,21,opt,name=gcpServiceAccountKey"`
+	// GithubAppId specifies the ID of the GitHub app used to access the repo
+	GithubAppId int64 `json:"githubAppID,omitempty" protobuf:"bytes,16,opt,name=githubAppID"`
+	// GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo
+	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,17,opt,name=githubAppInstallationID"`
+	// InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
+	// Used only for Git repos
+	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
+	// Insecure specifies whether the connection to the repository ignores any errors when verifying TLS certificates or SSH host keys
+	Insecure bool `json:"insecure,omitempty" protobuf:"bytes,7,opt,name=insecure"`
+	// EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.
+	EnableLFS bool `json:"enableLfs,omitempty" protobuf:"bytes,8,opt,name=enableLfs"`
+	// Whether credentials were inherited from a credential set
+	InheritedCreds bool `json:"inheritedCreds,omitempty" protobuf:"bytes,13,opt,name=inheritedCreds"`
+	// EnableOCI specifies whether helm-oci support should be enabled for this repo
+	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,14,opt,name=enableOCI"`
 	// ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,22,opt,name=forceHttpBasicAuth"`
 }
@@ -309,10 +309,10 @@ type RepositoryCertificate struct {
 	CertType string `json:"certType" protobuf:"bytes,2,opt,name=certType"`
 	// CertSubType specifies the sub type of the cert, i.e. "ssh-rsa"
 	CertSubType string `json:"certSubType" protobuf:"bytes,3,opt,name=certSubType"`
-	// CertData contains the actual certificate data, dependent on the certificate type
-	CertData []byte `json:"certData" protobuf:"bytes,4,opt,name=certData"`
 	// CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)
 	CertInfo string `json:"certInfo" protobuf:"bytes,5,opt,name=certInfo"`
+	// CertData contains the actual certificate data, dependent on the certificate type
+	CertData []byte `json:"certData" protobuf:"bytes,4,opt,name=certData"`
 }
 
 // RepositoryCertificateList is a collection of RepositoryCertificates

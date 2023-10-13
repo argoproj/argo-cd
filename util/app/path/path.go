@@ -31,8 +31,8 @@ func Path(root, path string) (string, error) {
 }
 
 type OutOfBoundsSymlinkError struct {
-	File string
 	Err  error
+	File string
 }
 
 func (e *OutOfBoundsSymlinkError) Error() string {

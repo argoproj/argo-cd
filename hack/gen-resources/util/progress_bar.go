@@ -6,11 +6,11 @@ import (
 
 // Bar ...
 type Bar struct {
+	rate    string // the actual progress bar to be printed
+	graph   string // the fill value for progress bar
 	percent int64  // progress percentage
 	cur     int64  // current progress
 	total   int64  // total value for progress
-	rate    string // the actual progress bar to be printed
-	graph   string // the fill value for progress bar
 }
 
 func (bar *Bar) NewOption(start, total int64) {

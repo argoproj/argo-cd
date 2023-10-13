@@ -43,13 +43,13 @@ func cleanupChartLockFile(chartPath string) (func(), error) {
 
 // HelmVer contains Helm version specific settings such as helm binary and command names
 type HelmVer struct {
+	getPostTemplateCallback      func(chartPath string) (func(), error)
 	binaryName                   string
-	initSupported                bool
 	templateNameArg              string
 	showCommand                  string
 	pullCommand                  string
+	initSupported                bool
 	kubeVersionSupported         bool
-	getPostTemplateCallback      func(chartPath string) (func(), error)
 	includeCrds                  bool
 	insecureSkipVerifySupported  bool
 	helmPassCredentialsSupported bool

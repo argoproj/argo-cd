@@ -50,11 +50,11 @@ type Token struct {
 
 // Account holds local account information
 type Account struct {
-	PasswordHash  string
 	PasswordMtime *time.Time
-	Enabled       bool
+	PasswordHash  string
 	Capabilities  []AccountCapability
 	Tokens        []Token
+	Enabled       bool
 }
 
 // FormatPasswordMtime return the formatted password modify time or empty string of password modify time is nil.

@@ -15,10 +15,10 @@ import (
 type GitlabProvider struct {
 	client                *gitlab.Client
 	organization          string
+	topic                 string
 	allBranches           bool
 	includeSubgroups      bool
 	includeSharedProjects bool
-	topic                 string
 }
 
 var _ SCMProviderService = &GitlabProvider{}

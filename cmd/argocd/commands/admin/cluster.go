@@ -63,10 +63,10 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 
 type ClusterWithInfo struct {
 	argoappv1.Cluster
-	// Shard holds controller shard number that handles the cluster
-	Shard int
 	// Namespaces holds list of namespaces managed by Argo CD in the cluster
 	Namespaces []string
+	// Shard holds controller shard number that handles the cluster
+	Shard int
 }
 
 func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClient *versioned.Clientset, replicas int, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int, redisName string, redisHaProxyName string) ([]ClusterWithInfo, error) {

@@ -20,8 +20,8 @@ type RepositoryDB interface {
 type argoCDService struct {
 	repositoriesDB         RepositoryDB
 	storecreds             git.CredsStore
-	submoduleEnabled       bool
 	repoServerClientSet    apiclient.Clientset
+	submoduleEnabled       bool
 	newFileGlobbingEnabled bool
 }
 

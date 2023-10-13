@@ -10,13 +10,13 @@ import (
 
 // this implements the "given" part of given/when/then
 type Context struct {
-	t *testing.T
-	// seconds
-	timeout          int
+	t                *testing.T
 	name             string
 	destination      string
 	repos            []string
 	sourceNamespaces []string
+	// seconds
+	timeout int
 }
 
 func Given(t *testing.T) *Context {

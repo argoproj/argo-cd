@@ -13,8 +13,8 @@ func NewRepositoryLock() *repositoryLock {
 }
 
 type repositoryLock struct {
-	lock       sync.Mutex
 	stateByKey map[string]*repositoryState
+	lock       sync.Mutex
 }
 
 // Lock acquires lock unless lock is already acquired with the same commit and allowConcurrent is set to true
@@ -77,9 +77,9 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 }
 
 type repositoryState struct {
+	initCloser      io.Closer
 	cond            *sync.Cond
 	revision        string
-	initCloser      io.Closer
 	processCount    int
 	allowConcurrent bool
 }

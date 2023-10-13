@@ -40,10 +40,10 @@ import (
 var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
 
 type RevisionMetadata struct {
-	Author  string
 	Date    time.Time
-	Tags    []string
+	Author  string
 	Message string
+	Tags    []string
 }
 
 // this should match reposerver/repository/repository.proto/RefsList
@@ -84,22 +84,23 @@ type EventHandlers struct {
 type nativeGitClient struct {
 	EventHandlers
 
+	// Authenticator credentials for private repositories
+	creds Creds
+	// gitRefCache knows how to cache git refs
+	gitRefCache gitRefCache
+
 	// URL of the repository
 	repoURL string
 	// Root path of repository
 	root string
-	// Authenticator credentials for private repositories
-	creds Creds
+	// HTTP/HTTPS proxy used to access repository
+	proxy string
 	// Whether to connect insecurely to repository, e.g. don't verify certificate
 	insecure bool
 	// Whether the repository is LFS enabled
 	enableLfs bool
-	// gitRefCache knows how to cache git refs
-	gitRefCache gitRefCache
 	// indicates if client allowed to load refs from cache
 	loadRefFromCache bool
-	// HTTP/HTTPS proxy used to access repository
-	proxy string
 }
 
 type runOpts struct {

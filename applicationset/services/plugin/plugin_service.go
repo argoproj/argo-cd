@@ -11,11 +11,11 @@ import (
 
 // ServiceRequest is the request object sent to the plugin service.
 type ServiceRequest struct {
+	// Input is the map of parameters set in the ApplicationSet spec for this generator.
+	Input v1alpha1.PluginInput `json:"input"`
 	// ApplicationSetName is the appSetName of the ApplicationSet for which we're requesting parameters. Useful for logging in
 	// the plugin service.
 	ApplicationSetName string `json:"applicationSetName"`
-	// Input is the map of parameters set in the ApplicationSet spec for this generator.
-	Input v1alpha1.PluginInput `json:"input"`
 }
 
 type Output struct {

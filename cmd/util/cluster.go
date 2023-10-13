@@ -140,23 +140,23 @@ func GetKubePublicEndpoint(client kubernetes.Interface) (string, error) {
 }
 
 type ClusterOptions struct {
-	InCluster               bool
-	Upsert                  bool
+	ExecProviderEnv         map[string]string
 	ServiceAccount          string
 	AwsRoleArn              string
 	AwsClusterName          string
 	SystemNamespace         string
-	Namespaces              []string
-	ClusterResources        bool
 	Name                    string
 	Project                 string
-	Shard                   int64
 	ExecProviderCommand     string
-	ExecProviderArgs        []string
-	ExecProviderEnv         map[string]string
 	ExecProviderAPIVersion  string
 	ExecProviderInstallHint string
 	ClusterEndpoint         string
+	Namespaces              []string
+	ExecProviderArgs        []string
+	Shard                   int64
+	InCluster               bool
+	Upsert                  bool
+	ClusterResources        bool
 }
 
 // InClusterEndpoint returns true if ArgoCD should reference the in-cluster

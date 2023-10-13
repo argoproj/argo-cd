@@ -32,8 +32,8 @@ type Broadcaster interface {
 }
 
 type broadcasterHandler struct {
-	lock        sync.Mutex
 	subscribers []*subscriber
+	lock        sync.Mutex
 }
 
 func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {

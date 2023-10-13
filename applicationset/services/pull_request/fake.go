@@ -5,8 +5,8 @@ import (
 )
 
 type FakeService struct {
-	listPullReuests []*PullRequest
 	listError       error
+	listPullReuests []*PullRequest
 }
 
 var _ PullRequestService = (*FakeService)(nil)

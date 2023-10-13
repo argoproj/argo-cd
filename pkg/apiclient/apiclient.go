@@ -107,9 +107,8 @@ type Client interface {
 
 // ClientOptions hold address, security, and other settings for the API client.
 type ClientOptions struct {
+	KubeOverrides        *clientcmd.ConfigOverrides
 	ServerAddr           string
-	PlainText            bool
-	Insecure             bool
 	CertFile             string
 	ClientCertFile       string
 	ClientCertKeyFile    string
@@ -117,39 +116,41 @@ type ClientOptions struct {
 	ConfigPath           string
 	Context              string
 	UserAgent            string
-	GRPCWeb              bool
 	GRPCWebRootPath      string
-	Core                 bool
-	PortForward          bool
 	PortForwardNamespace string
-	Headers              []string
-	HttpRetryMax         int
-	KubeOverrides        *clientcmd.ConfigOverrides
 	AppControllerName    string
 	ServerName           string
 	RedisHaProxyName     string
 	RedisName            string
 	RepoServerName       string
+	Headers              []string
+	HttpRetryMax         int
+	PlainText            bool
+	Insecure             bool
+	GRPCWeb              bool
+	Core                 bool
+	PortForward          bool
 }
 
 type client struct {
+	proxyListener net.Listener
+	ClientCert    *tls.Certificate
+
+	proxyMutex      *sync.Mutex
+	proxyServer     *grpc.Server
+	httpClient      *http.Client
 	ServerAddr      string
-	PlainText       bool
-	Insecure        bool
-	CertPEMData     []byte
-	ClientCert      *tls.Certificate
 	AuthToken       string
 	RefreshToken    string
 	UserAgent       string
-	GRPCWeb         bool
 	GRPCWebRootPath string
+	CertPEMData     []byte
 	Headers         []string
 
-	proxyMutex      *sync.Mutex
-	proxyListener   net.Listener
-	proxyServer     *grpc.Server
 	proxyUsersCount int
-	httpClient      *http.Client
+	PlainText       bool
+	Insecure        bool
+	GRPCWeb         bool
 }
 
 // NewClient creates a new API client from a set of config options.

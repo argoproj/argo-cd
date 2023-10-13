@@ -10,8 +10,8 @@ import (
 )
 
 type Entry struct {
-	Version string
 	Created time.Time
+	Version string
 }
 
 type Index struct {

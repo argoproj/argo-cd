@@ -26,12 +26,12 @@ const (
 
 // TLSConfiguration describes parameters for TLS configuration to be used by a repo server API client
 type TLSConfiguration struct {
+	// List of certificates to validate the peer against (if StrictCerts is true)
+	Certificates *x509.CertPool
 	// Whether to disable TLS for connections
 	DisableTLS bool
 	// Whether to enforce strict validation of TLS certificates
 	StrictValidation bool
-	// List of certificates to validate the peer against (if StrictCerts is true)
-	Certificates *x509.CertPool
 }
 
 // Clientset represents repository server api clients
@@ -40,9 +40,9 @@ type Clientset interface {
 }
 
 type clientSet struct {
+	tlsConfig      TLSConfiguration
 	address        string
 	timeoutSeconds int
-	tlsConfig      TLSConfiguration
 }
 
 func (c *clientSet) NewRepoServerClient() (io.Closer, RepoServerServiceClient, error) {

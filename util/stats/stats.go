@@ -23,8 +23,8 @@ type TimingStats struct {
 }
 
 type tsCheckpoint struct {
-	name string
 	time time.Time
+	name string
 }
 
 func NewTimingStats() *TimingStats {

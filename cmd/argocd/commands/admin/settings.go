@@ -32,10 +32,10 @@ import (
 )
 
 type settingsOpts struct {
+	clientConfig        clientcmd.ClientConfig
 	argocdCMPath        string
 	argocdSecretPath    string
 	loadClusterSettings bool
-	clientConfig        clientcmd.ClientConfig
 }
 
 type commandContext interface {

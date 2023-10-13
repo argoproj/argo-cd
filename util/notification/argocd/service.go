@@ -41,10 +41,10 @@ func NewArgoCDService(clientset kubernetes.Interface, namespace string, repoClie
 
 type argoCDService struct {
 	clientset        kubernetes.Interface
-	namespace        string
-	settingsMgr      *settings.SettingsManager
 	repoServerClient apiclient.RepoServerServiceClient
+	settingsMgr      *settings.SettingsManager
 	dispose          func()
+	namespace        string
 }
 
 func (svc *argoCDService) GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string) (*shared.CommitMetadata, error) {

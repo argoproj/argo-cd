@@ -24,9 +24,9 @@ type Cmd struct {
 	HelmVer
 	helmHome  string
 	WorkDir   string
+	proxy     string
 	IsLocal   bool
 	IsHelmOci bool
-	proxy     string
 }
 
 func NewCmd(workDir string, version string, proxy string) (*Cmd, error) {

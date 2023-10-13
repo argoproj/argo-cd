@@ -45,10 +45,10 @@ func NewRedisCache(client *redis.Client, expiration time.Duration, compressionTy
 var _ CacheClient = &redisCache{}
 
 type redisCache struct {
-	expiration           time.Duration
 	client               *redis.Client
 	cache                *rediscache.Cache
 	redisCompressionType RedisCompressionType
+	expiration           time.Duration
 }
 
 func (r *redisCache) getKey(key string) string {

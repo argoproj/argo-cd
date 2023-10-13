@@ -39,14 +39,14 @@ import (
 )
 
 type forwardCacheClient struct {
+	client           cache.CacheClient
+	err              error
 	namespace        string
 	context          string
-	init             sync.Once
-	client           cache.CacheClient
 	compression      cache.RedisCompressionType
-	err              error
 	redisHaProxyName string
 	redisName        string
+	init             sync.Once
 }
 
 func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error) error {
@@ -103,12 +103,12 @@ func (c *forwardCacheClient) NotifyUpdated(key string) error {
 }
 
 type forwardRepoClientset struct {
-	namespace      string
-	context        string
-	init           sync.Once
 	repoClientset  repoapiclient.Clientset
 	err            error
+	namespace      string
+	context        string
 	repoServerName string
+	init           sync.Once
 }
 
 func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.RepoServerServiceClient, error) {

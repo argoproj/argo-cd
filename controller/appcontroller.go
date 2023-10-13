@@ -96,12 +96,9 @@ func (a CompareWith) Pointer() *CompareWith {
 
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
-	cache                *appstatecache.Cache
-	namespace            string
 	kubeClientset        kubernetes.Interface
 	kubectl              kube.Kubectl
 	applicationClientset appclientset.Interface
-	auditLogger          *argo.AuditLogger
 	// queue contains app namespace/name
 	appRefreshQueue workqueue.RateLimitingInterface
 	// queue contains app namespace/name/comparisonType and used to request app refresh with the predefined comparison type
@@ -114,11 +111,10 @@ type ApplicationController struct {
 	deploymentInformer            informerv1.DeploymentInformer
 	appStateManager               AppStateManager
 	stateCache                    statecache.LiveStateCache
-	statusRefreshTimeout          time.Duration
-	statusHardRefreshTimeout      time.Duration
-	selfHealTimeout               time.Duration
 	repoClientset                 apiclient.Clientset
 	db                            db.ArgoDB
+	cache                         *appstatecache.Cache
+	auditLogger                   *argo.AuditLogger
 	settingsMgr                   *settings_util.SettingsManager
 	refreshRequestedApps          map[string]CompareWith
 	refreshRequestedAppsMutex     *sync.Mutex
@@ -126,7 +122,11 @@ type ApplicationController struct {
 	kubectlSemaphore              *semaphore.Weighted
 	clusterFilter                 func(cluster *appv1.Cluster) bool
 	projByNameCache               sync.Map
+	namespace                     string
 	applicationNamespaces         []string
+	statusRefreshTimeout          time.Duration
+	statusHardRefreshTimeout      time.Duration
+	selfHealTimeout               time.Duration
 }
 
 // NewApplicationController creates new instance of ApplicationController.
@@ -307,11 +307,12 @@ func (ctrl *ApplicationController) newAppProjCache(name string) *appProjCache {
 }
 
 type appProjCache struct {
-	name string
 	ctrl *ApplicationController
 
-	lock    sync.Mutex
 	appProj *appv1.AppProject
+	name    string
+
+	lock sync.Mutex
 }
 
 // GetAppProject gets an AppProject from the cache. If the AppProject is not

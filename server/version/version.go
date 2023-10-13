@@ -15,11 +15,11 @@ import (
 )
 
 type Server struct {
+	authenticator    settings.Authenticator
+	disableAuth      func() (bool, error)
 	kustomizeVersion string
 	helmVersion      string
 	jsonnetVersion   string
-	authenticator    settings.Authenticator
-	disableAuth      func() (bool, error)
 }
 
 func NewServer(authenticator settings.Authenticator, disableAuth func() (bool, error)) *Server {

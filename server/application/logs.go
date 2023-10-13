@@ -10,10 +10,10 @@ import (
 )
 
 type logEntry struct {
-	line      string
 	timeStamp time.Time
-	podName   string
 	err       error
+	line      string
+	podName   string
 }
 
 // parseLogsStream converts given ReadCloser into channel that emits log entries

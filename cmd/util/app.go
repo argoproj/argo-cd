@@ -33,31 +33,27 @@ type AppOptions struct {
 	chart                           string
 	env                             string
 	revision                        string
-	revisionHistoryLimit            int
 	destName                        string
 	destServer                      string
 	destNamespace                   string
-	Parameters                      []string
-	valuesFiles                     []string
-	ignoreMissingValueFiles         bool
 	values                          string
 	releaseName                     string
+	helmVersion                     string
+	project                         string
+	syncPolicy                      string
+	namePrefix                      string
+	nameSuffix                      string
+	configManagementPlugin          string
+	kustomizeVersion                string
+	kustomizeNamespace              string
+	directoryExclude                string
+	directoryInclude                string
+	Parameters                      []string
+	valuesFiles                     []string
 	helmSets                        []string
 	helmSetStrings                  []string
 	helmSetFiles                    []string
-	helmVersion                     string
-	helmPassCredentials             bool
-	helmSkipCrds                    bool
-	project                         string
-	syncPolicy                      string
 	syncOptions                     []string
-	autoPrune                       bool
-	selfHeal                        bool
-	allowEmpty                      bool
-	namePrefix                      string
-	nameSuffix                      string
-	directoryRecurse                bool
-	configManagementPlugin          string
 	jsonnetTlaStr                   []string
 	jsonnetTlaCode                  []string
 	jsonnetExtVarStr                []string
@@ -65,20 +61,24 @@ type AppOptions struct {
 	jsonnetLibs                     []string
 	kustomizeImages                 []string
 	kustomizeReplicas               []string
-	kustomizeVersion                string
 	kustomizeCommonLabels           []string
 	kustomizeCommonAnnotations      []string
-	kustomizeForceCommonLabels      bool
-	kustomizeForceCommonAnnotations bool
-	kustomizeNamespace              string
 	pluginEnvs                      []string
-	Validate                        bool
-	directoryExclude                string
-	directoryInclude                string
+	revisionHistoryLimit            int
 	retryLimit                      int64
 	retryBackoffDuration            time.Duration
 	retryBackoffMaxDuration         time.Duration
 	retryBackoffFactor              int64
+	ignoreMissingValueFiles         bool
+	helmPassCredentials             bool
+	helmSkipCrds                    bool
+	autoPrune                       bool
+	selfHeal                        bool
+	allowEmpty                      bool
+	directoryRecurse                bool
+	kustomizeForceCommonLabels      bool
+	kustomizeForceCommonAnnotations bool
+	Validate                        bool
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -333,16 +333,16 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 }
 
 type kustomizeOpts struct {
-	namePrefix             string
-	nameSuffix             string
-	images                 []string
-	replicas               []string
-	version                string
 	commonLabels           map[string]string
 	commonAnnotations      map[string]string
+	namePrefix             string
+	nameSuffix             string
+	version                string
+	namespace              string
+	images                 []string
+	replicas               []string
 	forceCommonLabels      bool
 	forceCommonAnnotations bool
-	namespace              string
 }
 
 func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
@@ -404,14 +404,14 @@ func setPluginOptEnvs(src *argoappv1.ApplicationSource, envs []string) {
 }
 
 type helmOpts struct {
-	valueFiles              []string
-	ignoreMissingValueFiles bool
 	values                  string
 	releaseName             string
 	version                 string
+	valueFiles              []string
 	helmSets                []string
 	helmSetStrings          []string
 	helmSetFiles            []string
+	ignoreMissingValueFiles bool
 	passCredentials         bool
 	skipCrds                bool
 }

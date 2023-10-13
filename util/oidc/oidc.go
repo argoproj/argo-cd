@@ -49,6 +49,12 @@ type ClaimsRequest struct {
 }
 
 type ClientApp struct {
+	// provider is the OIDC provider
+	provider Provider
+	// client is the HTTP client which is used to query the IDp
+	client *http.Client
+	// settings holds Argo CD settings
+	settings *settings.ArgoCDSettings
 	// OAuth2 client ID of this application (e.g. argo-cd)
 	clientID string
 	// OAuth2 client secret of this application
@@ -59,17 +65,11 @@ type ClientApp struct {
 	issuerURL string
 	// The URL endpoint at which the ArgoCD server is accessed.
 	baseHRef string
-	// client is the HTTP client which is used to query the IDp
-	client *http.Client
+	// encryptionKey holds server encryption key
+	encryptionKey []byte
 	// secureCookie indicates if the cookie should be set with the Secure flag, meaning it should
 	// only ever be sent over HTTPS. This value is inferred by the scheme of the redirectURI.
 	secureCookie bool
-	// settings holds Argo CD settings
-	settings *settings.ArgoCDSettings
-	// encryptionKey holds server encryption key
-	encryptionKey []byte
-	// provider is the OIDC provider
-	provider Provider
 }
 
 func GetScopesOrDefault(scopes []string) []string {

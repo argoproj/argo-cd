@@ -741,17 +741,17 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 // unsetOpts describe what to unset in an Application.
 type unsetOpts struct {
-	namePrefix              bool
-	nameSuffix              bool
-	kustomizeVersion        bool
-	kustomizeNamespace      bool
 	kustomizeImages         []string
 	kustomizeReplicas       []string
 	parameters              []string
 	valuesFiles             []string
+	pluginEnvs              []string
+	namePrefix              bool
+	nameSuffix              bool
+	kustomizeVersion        bool
+	kustomizeNamespace      bool
 	valuesLiteral           bool
 	ignoreMissingValueFiles bool
-	pluginEnvs              []string
 	passCredentials         bool
 }
 
@@ -1012,9 +1012,9 @@ func groupObjsByKey(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 }
 
 type objKeyLiveTarget struct {
-	key    kube.ResourceKey
 	live   *unstructured.Unstructured
 	target *unstructured.Unstructured
+	key    kube.ResourceKey
 }
 
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
@@ -1112,12 +1112,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // DifferenceOption struct to store diff options
 type DifferenceOption struct {
-	local         string
-	localRepoRoot string
-	revision      string
 	cluster       *argoappv1.Cluster
 	res           *repoapiclient.ManifestResponse
 	serversideRes *repoapiclient.ManifestResponse
+	local         string
+	localRepoRoot string
+	revision      string
 }
 
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false

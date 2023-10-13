@@ -22,8 +22,8 @@ type Server interface {
 }
 
 type server struct {
-	lock  sync.Mutex
 	creds map[string]Creds
+	lock  sync.Mutex
 }
 
 // NewServer returns a new server

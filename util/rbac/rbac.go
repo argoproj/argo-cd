@@ -60,18 +60,18 @@ type CasbinEnforcer interface {
 // * supports a user-defined policy
 // * supports a custom JWT claims enforce function
 type Enforcer struct {
-	lock               sync.Mutex
+	clientset          kubernetes.Interface
 	enforcerCache      *gocache.Cache
 	adapter            *argocdAdapter
-	enableLog          bool
-	enabled            bool
-	clientset          kubernetes.Interface
-	namespace          string
-	configmap          string
 	claimsEnforcerFunc ClaimsEnforcerFunc
 	model              model.Model
+	namespace          string
+	configmap          string
 	defaultRole        string
 	matchMode          string
+	lock               sync.Mutex
+	enableLog          bool
+	enabled            bool
 }
 
 // cachedEnforcer holds the Casbin enforcer instances and optional custom project policy

@@ -6,8 +6,8 @@ import (
 )
 
 type subDirFs struct {
-	dir string
 	fs  fs.FS
+	dir string
 }
 
 func (s subDirFs) Open(name string) (fs.File, error) {

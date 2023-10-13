@@ -19,8 +19,8 @@ import (
 var knownTypes = map[string]func() interface{}{}
 
 type knownTypeField struct {
-	fieldPath  []string
 	newFieldFn func() interface{}
+	fieldPath  []string
 }
 
 type knownTypesNormalizer struct {

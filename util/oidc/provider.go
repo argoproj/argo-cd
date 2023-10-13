@@ -31,9 +31,9 @@ type Provider interface {
 }
 
 type providerImpl struct {
-	issuerURL      string
 	client         *http.Client
 	goOIDCProvider *gooidc.Provider
+	issuerURL      string
 }
 
 var _ Provider = &providerImpl{}

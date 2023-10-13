@@ -18,14 +18,14 @@ type CommitMetadata struct {
 }
 
 type AppDetail struct {
-	// AppDetail Type
-	Type string
 	// Helm details
 	Helm *CustomHelmAppSpec
 	// Kustomize details
 	Kustomize *apiclient.KustomizeAppSpec
 	// Directory details
 	Directory *apiclient.DirectoryAppSpec
+	// AppDetail Type
+	Type string
 }
 
 type CustomHelmAppSpec apiclient.HelmAppSpec

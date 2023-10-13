@@ -27,8 +27,8 @@ type DuckTypeGenerator struct {
 	ctx             context.Context
 	dynClient       dynamic.Interface
 	clientset       kubernetes.Interface
-	namespace       string // namespace is the Argo CD namespace
 	settingsManager *settings.SettingsManager
+	namespace       string // namespace is the Argo CD namespace
 }
 
 func NewDuckTypeGenerator(ctx context.Context, dynClient dynamic.Interface, clientset kubernetes.Interface, namespace string) Generator {

@@ -43,17 +43,17 @@ const (
 
 // Server provides a Project service
 type Server struct {
-	ns            string
-	enf           *rbac.Enforcer
-	policyEnf     *rbacpolicy.RBACPolicyEnforcer
 	appclientset  appclientset.Interface
 	kubeclientset kubernetes.Interface
-	auditLogger   *argo.AuditLogger
 	projectLock   sync.KeyLock
-	sessionMgr    *session.SessionManager
 	projInformer  cache.SharedIndexInformer
-	settingsMgr   *settings.SettingsManager
 	db            db.ArgoDB
+	enf           *rbac.Enforcer
+	policyEnf     *rbacpolicy.RBACPolicyEnforcer
+	auditLogger   *argo.AuditLogger
+	sessionMgr    *session.SessionManager
+	settingsMgr   *settings.SettingsManager
+	ns            string
 }
 
 // NewServer returns a new instance of the Project service

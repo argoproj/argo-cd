@@ -164,7 +164,20 @@ func init() {
 
 // ArgoCDServer is the API server for Argo CD
 type ArgoCDServer struct {
-	ArgoCDServerOpts
+	projInformer   cache.SharedIndexInformer
+	projLister     applisters.AppProjectNamespaceLister
+	appInformer    cache.SharedIndexInformer
+	appLister      applisters.ApplicationLister
+	appsetInformer cache.SharedIndexInformer
+	appsetLister   applisters.ApplicationSetNamespaceLister
+	db             db.ArgoDB
+
+	userStateStorage  util_session.UserStateStorage
+	indexDataErr      error
+	staticAssets      http.FileSystem
+	apiFactory        api.Factory
+	secretInformer    cache.SharedIndexInformer
+	configMapInformer cache.SharedIndexInformer
 
 	ssoClientApp   *oidc.ClientApp
 	settings       *settings_util.ArgoCDSettings
@@ -172,52 +185,41 @@ type ArgoCDServer struct {
 	sessionMgr     *util_session.SessionManager
 	settingsMgr    *settings_util.SettingsManager
 	enf            *rbac.Enforcer
-	projInformer   cache.SharedIndexInformer
-	projLister     applisters.AppProjectNamespaceLister
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
-	appInformer    cache.SharedIndexInformer
-	appLister      applisters.ApplicationLister
-	appsetInformer cache.SharedIndexInformer
-	appsetLister   applisters.ApplicationSetNamespaceLister
-	db             db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
-	stopCh            chan struct{}
-	userStateStorage  util_session.UserStateStorage
-	indexDataInit     gosync.Once
-	indexData         []byte
-	indexDataErr      error
-	staticAssets      http.FileSystem
-	apiFactory        api.Factory
-	secretInformer    cache.SharedIndexInformer
-	configMapInformer cache.SharedIndexInformer
-	serviceSet        *ArgoCDServiceSet
-	extensionManager  *extension.Manager
+	stopCh           chan struct{}
+	serviceSet       *ArgoCDServiceSet
+	extensionManager *extension.Manager
+	indexData        []byte
+	ArgoCDServerOpts
+
+	indexDataInit gosync.Once
 }
 
 type ArgoCDServerOpts struct {
-	DisableAuth           bool
-	EnableGZip            bool
-	Insecure              bool
-	StaticAssetsDir       string
-	ListenPort            int
-	ListenHost            string
-	MetricsPort           int
-	MetricsHost           string
-	Namespace             string
-	DexServerAddr         string
-	DexTLSConfig          *dexutil.DexTLSConfig
-	BaseHRef              string
-	RootPath              string
 	KubeClientset         kubernetes.Interface
 	AppClientset          appclientset.Interface
 	RepoClientset         repoapiclient.Clientset
+	DexTLSConfig          *dexutil.DexTLSConfig
 	Cache                 *servercache.Cache
 	RedisClient           *redis.Client
 	TLSConfigCustomizer   tlsutil.ConfigCustomizer
+	StaticAssetsDir       string
+	ListenHost            string
+	MetricsHost           string
+	Namespace             string
+	DexServerAddr         string
+	BaseHRef              string
+	RootPath              string
 	XFrameOptions         string
 	ContentSecurityPolicy string
 	ApplicationNamespaces []string
+	ListenPort            int
+	MetricsPort           int
+	DisableAuth           bool
+	EnableGZip            bool
+	Insecure              bool
 	EnableProxyExtension  bool
 }
 

@@ -36,10 +36,10 @@ type AppProjectList struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=appprojects,shortName=appproj;appprojs
 type AppProject struct {
+	Status            AppProjectStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
-	Spec              AppProjectSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
-	Status            AppProjectStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+	Spec              AppProjectSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 }
 
 // AppProjectStatus contains status information for AppProject CRs

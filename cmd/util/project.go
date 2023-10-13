@@ -26,12 +26,13 @@ type ProjectOpts struct {
 	SignatureKeys    []string
 	SourceNamespaces []string
 
-	orphanedResourcesEnabled   bool
-	orphanedResourcesWarn      bool
 	allowedClusterResources    []string
 	deniedClusterResources     []string
 	allowedNamespacedResources []string
 	deniedNamespacedResources  []string
+
+	orphanedResourcesEnabled bool
+	orphanedResourcesWarn    bool
 }
 
 func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {

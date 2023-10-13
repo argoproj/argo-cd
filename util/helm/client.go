@@ -95,12 +95,12 @@ var _ Client = &nativeHelmChart{}
 
 type nativeHelmChart struct {
 	chartCachePaths argoio.TempPaths
-	repoURL         string
-	creds           Creds
 	repoLock        sync.KeyLock
-	enableOci       bool
 	indexCache      indexCache
+	repoURL         string
 	proxy           string
+	creds           Creds
+	enableOci       bool
 }
 
 func fileExist(filePath string) (bool, error) {
