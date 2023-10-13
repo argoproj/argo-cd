@@ -63,8 +63,8 @@ func NewCommand() *cobra.Command {
 		repoServerPlaintext              bool
 		repoServerStrictTLS              bool
 		otlpAddress                      string
-		otlpAttrs                        []string
-    otlpHeaders                      map[string]string
+		otlpInsecure                     bool
+		otlpHeaders                      map[string]string
 		otlpAttrs                        []string
 		applicationNamespaces            []string
 		persistResourceHealth            bool
