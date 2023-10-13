@@ -574,39 +574,58 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		sCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		var wg gosync.WaitGroup
+
+		// Shutdown http server
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
+			defer wg.Done()
 			err := httpS.Shutdown(sCtx)
 			if err != nil {
 				log.Errorf("Error shutting down http server: %s", err)
 			}
 		}()
+
+		// Shutdown https server
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
+			defer wg.Done()
 			err := httpsS.Shutdown(sCtx)
 			if err != nil {
 				log.Errorf("Error shutting down https server: %s", err)
 			}
 		}()
+
+		// Shutdown gRPC server
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
+			defer wg.Done()
 			grpcS.GracefulStop()
 		}()
+
+		// Shutdown metrics server
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
+			defer wg.Done()
 			err := metricsServ.Shutdown(sCtx)
 			if err != nil {
 				log.Errorf("Error shutting down metrics server: %s", err)
 			}
 		}()
+
+		// Shutdown tls server
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
+			defer wg.Done()
 			tlsm.Close()
 		}()
+
+		// Shutdown tcp server
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
+			defer wg.Done()
 			tcpm.Close()
 		}()
+
 		c := make(chan struct{})
 		// This goroutine will wait for all servers to conclude the shutdown
 		// process
