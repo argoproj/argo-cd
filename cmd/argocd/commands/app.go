@@ -50,6 +50,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/grpc"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
@@ -358,14 +359,14 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				}
 			case "tree":
 				printHeader(acdClient, app, ctx, windows, showOperation, showParams)
-				mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(acdClient, ctx, appName, appNs, app)
+				mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
 				if len(mapUidToNode) > 0 {
 					fmt.Println()
 					printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 				}
 			case "tree=detailed":
 				printHeader(acdClient, app, ctx, windows, showOperation, showParams)
-				mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(acdClient, ctx, appName, appNs, app)
+				mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
 				if len(mapUidToNode) > 0 {
 					fmt.Println()
 					printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
@@ -401,6 +402,44 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var command = &cobra.Command{
 		Use:   "logs APPNAME",
 		Short: "Get logs of application pods",
+		Example: templates.Examples(`  
+  # Get logs of pods associated with the application "my-app"
+  argocd app logs my-app
+
+  # Get logs of pods associated with the application "my-app" in a specific resource group
+  argocd app logs my-app --group my-group
+
+  # Get logs of pods associated with the application "my-app" in a specific resource kind
+  argocd app logs my-app --kind my-kind
+
+  # Get logs of pods associated with the application "my-app" in a specific namespace
+  argocd app logs my-app --namespace my-namespace
+
+  # Get logs of pods associated with the application "my-app" for a specific resource name
+  argocd app logs my-app --name my-resource
+
+  # Stream logs in real-time for the application "my-app"
+  argocd app logs my-app -f
+
+  # Get the last N lines of logs for the application "my-app"
+  argocd app logs my-app --tail 100
+
+  # Get logs since a specified number of seconds ago
+  argocd app logs my-app --since-seconds 3600
+
+  # Get logs until a specified time (format: "2023-10-10T15:30:00Z")
+  argocd app logs my-app --until-time "2023-10-10T15:30:00Z"
+
+  # Filter logs to show only those containing a specific string
+  argocd app logs my-app --filter "error"
+
+  # Get logs for a specific container within the pods
+  argocd app logs my-app -c my-container
+
+  # Get previously terminated container logs
+  argocd app logs my-app -p
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -648,6 +687,23 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var command = &cobra.Command{
 		Use:   "set APPNAME",
 		Short: "Set application parameters",
+		Example: templates.Examples(`  
+  # Set application parameters for the application "my-app"
+  argocd app set my-app --parameter key1=value1 --parameter key2=value2
+
+  # Set and validate application parameters for "my-app"
+  argocd app set my-app --parameter key1=value1 --parameter key2=value2 --validate
+
+  # Set and override application parameters with JSON or YAML file
+  argocd app set my-app --from-file path/to/parameters.json
+
+  # Set and override application parameters with a parameter file
+  argocd app set my-app --parameter-file path/to/parameter-file.yaml
+
+  # Set application parameters and specify the namespace
+  argocd app set my-app --parameter key1=value1 --parameter key2=value2 --namespace my-namespace
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -2074,9 +2130,14 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	operational := !watch.operation || operationStatus == nil
 	return synced && healthCheckPassed && operational
 }
-func resourceParentChild(acdClient argocdclient.Client, ctx context.Context, appName string, appNs string, app *argoappv1.Application) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}, map[string]*resourceState) {
+
+// resourceParentChild gets the latest state of the app and the latest state of the app's resource tree and then
+// constructs the necessary data structures to print the app as a tree.
+func resourceParentChild(ctx context.Context, acdClient argocdclient.Client, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}, map[string]*resourceState) {
 	_, appIf := acdClient.NewApplicationClientOrDie()
 	mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
+	app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: pointer.String(appName), AppNamespace: pointer.String(appNs)})
+	errors.CheckError(err)
 	mapNodeNameToResourceState := make(map[string]*resourceState)
 	for _, res := range getResourceStates(app, nil) {
 		mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
@@ -2087,7 +2148,7 @@ func resourceParentChild(acdClient argocdclient.Client, ctx context.Context, app
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
-// are fulfiled or we reach the timeout. Returns the app once desired conditions have been filled.
+// are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
 // Additionally return the operationState at time of fulfilment (which may be different than returned app).
 func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string) (*argoappv1.Application, *argoappv1.OperationState, error) {
 	ctx, cancel := context.WithCancel(ctx)
@@ -2133,13 +2194,13 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				_ = w.Flush()
 			}
 		case "tree":
-			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(acdClient, ctx, appName, appNs, app)
+			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
 			if len(mapUidToNode) > 0 {
 				fmt.Println()
 				printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 			}
 		case "tree=detailed":
-			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(acdClient, ctx, appName, appNs, app)
+			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
 			if len(mapUidToNode) > 0 {
 				fmt.Println()
 				printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
@@ -2163,9 +2224,8 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			printFinalStatus(app)
 			cancel()
 			fmt.Println()
-			fmt.Println("The command timed out waiting for the conditions to be met")
+			fmt.Println("The command timed out waiting for the conditions to be met.")
 		})
-
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)

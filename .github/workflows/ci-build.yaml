@@ -265,7 +265,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       - name: Setup NodeJS
-        uses: actions/setup-node@bea5baf987ba7aa777a8a0b4ace377a21c45c381 # v3.8.0
+        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
         with:
           node-version: '20.7.0'
       - name: Restore node dependency cache
@@ -360,8 +360,9 @@ jobs:
     name: Run end-to-end tests
     runs-on: ubuntu-22.04
     strategy:
+      fail-fast: false
       matrix:
-        k3s-version: [v1.27.2, v1.26.0, v1.25.4, v1.24.3]
+        k3s-version: [v1.28.2, v1.27.6, v1.26.9, v1.25.14]
     needs: 
       - build-go
     env:
