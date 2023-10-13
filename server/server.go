@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -20,6 +21,7 @@ import (
 	go_runtime "runtime"
 	"strings"
 	gosync "sync"
+	"syscall"
 	"time"
 
 	// nolint:staticcheck
@@ -181,8 +183,9 @@ type ArgoCDServer struct {
 	appsetLister   applisters.ApplicationSetNamespaceLister
 	db             db.ArgoDB
 
-	// stopCh is the channel which when closed, will shutdown the Argo CD server
-	stopCh            chan struct{}
+	// stopCh is the channel which when closed, will gracefully
+	//shutdown the Argo CD server
+	stopCh            chan os.Signal
 	userStateStorage  util_session.UserStateStorage
 	indexDataInit     gosync.Once
 	indexData         []byte
@@ -193,6 +196,7 @@ type ArgoCDServer struct {
 	configMapInformer cache.SharedIndexInformer
 	serviceSet        *ArgoCDServiceSet
 	extensionManager  *extension.Manager
+	Shutdown          func()
 }
 
 type ArgoCDServerOpts struct {
@@ -560,8 +564,22 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
 
-	a.stopCh = make(chan struct{})
-	<-a.stopCh
+	shutdownFunc := func() {
+		log.Info("server graceful shutdown initiated...")
+		sCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		httpS.Shutdown(sCtx)
+		httpsS.Shutdown(sCtx)
+		grpcS.GracefulStop()
+		tlsm.Close()
+	}
+	a.Shutdown = shutdownFunc
+
+	a.stopCh = make(chan os.Signal, 1)
+	signal.Notify(a.stopCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	signal := <-a.stopCh
+	log.Infof("server received signal %s", signal.String())
+	a.Shutdown()
 }
 
 func (a *ArgoCDServer) Initialized() bool {
@@ -579,16 +597,6 @@ func (a *ArgoCDServer) checkServeErr(name string, err error) {
 		}
 	} else {
 		log.Infof("graceful shutdown %s", name)
-	}
-}
-
-// Shutdown stops the Argo CD server
-func (a *ArgoCDServer) Shutdown() {
-	log.Info("Shut down requested")
-	stopCh := a.stopCh
-	a.stopCh = nil
-	if stopCh != nil {
-		close(stopCh)
 	}
 }
 
