@@ -1,34 +1,38 @@
 local health_status = {}
 if obj.status ~= nil then
-  if obj.status.brokersState ~= nil then
+  local brokersState = obj.status.brokersState
+  if brokersState ~= nil then
     local counter = 0
     local brokerReady = 0
-    for i, broker in pairs(obj.status.brokersState) do
-        if (brokerReady <= tonumber(i)) then
-            brokerReady = tonumber(i)+1
-        else
-            brokerReady = brokerReady
-        end
-        if broker.configurationState == "ConfigInSync" and broker.gracefulActionState.cruiseControlState == "GracefulUpscaleSucceeded" then
+    for i, broker in ipairs(brokersState) do
+      local brokerIndex = tonumber(i) - 1
+      if (brokerReady <= brokerIndex) then
+        brokerReady = brokerIndex+1
+      else
+        brokerReady = brokerReady
+      end
+      if broker.configurationState == "ConfigInSync" then
+        local cruiseControlState = broker.gracefulActionState.cruiseControlState
+        if cruiseControlState == "GracefulUpscaleSucceeded" or cruiseControlState == "GracefulDownscaleSucceeded" then
           counter = counter + 1
         end
-        if broker.configurationState == "ConfigInSync" and broker.gracefulActionState.cruiseControlState == "GracefulDownscaleSucceeded" then
-          counter = counter + 1
-        end
+      end
     end
     if counter == brokerReady then
-      if obj.status.cruiseControlTopicStatus == "CruiseControlTopicReady" and obj.status.state == "ClusterRunning" then
+      local statusState = obj.status.state
+      local cruiseControlTopicStatus = obj.status.cruiseControlTopicStatus
+      if cruiseControlTopicStatus == "CruiseControlTopicReady" and statusState == "ClusterRunning" then
         health_status.message = "Kafka Brokers, CruiseControl and cluster are in Healthy State."
         health_status.status = "Healthy"
         return health_status
       end
-      if obj.status.cruiseControlTopicStatus == "CruiseControlTopicNotReady" or obj.status.cruiseControlTopicStatus == nil then
-        if obj.status.state == "ClusterReconciling" then
+      if cruiseControlTopicStatus == "CruiseControlTopicNotReady" or cruiseControlTopicStatus == nil then
+        if statusState == "ClusterReconciling" then
           health_status.message = "Kafka Cluster is Reconciling."
           health_status.status = "Progressing"
           return health_status
         end
-        if obj.status.state == "ClusterRollingUpgrading" then
+        if statusState == "ClusterRollingUpgrading" then
           health_status.message = "Kafka Cluster is Rolling Upgrading."
           health_status.status = "Progressing"
           return health_status
