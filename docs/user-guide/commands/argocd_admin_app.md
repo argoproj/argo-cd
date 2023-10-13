@@ -13,7 +13,7 @@ argocd admin app [flags]
 ```
   # Generate an application specification.
   argocd app gen-app-spec
-  
+
   # Reconcile the application with the desired state.
   argocd app reconcile
   
