@@ -432,6 +432,7 @@ type SCMProviderGenerator struct {
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values        map[string]string                  `json:"values,omitempty" protobuf:"bytes,11,name=values"`
 	AWSCodeCommit *SCMProviderGeneratorAWSCodeCommit `json:"awsCodeCommit,omitempty" protobuf:"bytes,12,opt,name=awsCodeCommit"`
+	RepositoryID  string                             `json:"repositoryId,omitempty" protobuf:"bytes,13,opt,name=repositoryId"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
