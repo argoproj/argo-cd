@@ -170,7 +170,9 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                             <div className='application-operation-state__icons_container'>
                                                 {resource.hookType && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                                             </div>
-                                        <span className='application-operation-state__table-row-line-break' title={getKind(resource)}>{getKind(resource)}</span>
+                                            <span className='application-operation-state__table-row-line-break' title={getKind(resource)}>
+                                                {getKind(resource)}
+                                            </span>
                                         </div>
                                         <div className='columns large-1 show-for-large' title={resource.namespace}>
                                             {resource.namespace}
