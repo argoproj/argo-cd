@@ -55,7 +55,7 @@ func NewAppCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		
   # Compare results of two reconciliations and print the diff.
   argocd app diff-reconcile-results PATH1 PATH2
-  		`),
+  		`), 
 
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
