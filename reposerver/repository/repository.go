@@ -103,6 +103,7 @@ type RepoServerInitConstants struct {
 	SubmoduleEnabled                             bool
 	MaxCombinedDirectoryManifestsSize            resource.Quantity
 	CMPTarExcludedGlobs                          []string
+	CMPTarIncludedGlobs                          []string
 	AllowOutOfBoundsSymlinks                     bool
 	StreamedManifestMaxExtractedSize             int64
 	StreamedManifestMaxTarSize                   int64
@@ -220,7 +221,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	}
 
 	defer io.Close(closer)
-	apps, err := discovery.Discover(ctx, gitClient.Root(), gitClient.Root(), q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs)
+	apps, err := discovery.Discover(ctx, gitClient.Root(), gitClient.Root(), q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs, s.initConstants.CMPTarIncludedGlobs)
 	if err != nil {
 		return nil, fmt.Errorf("error discovering applications: %w", err)
 	}
@@ -794,7 +795,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPTarIncludedGlobs(s.initConstants.CMPTarIncludedGlobs))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1337,6 +1338,7 @@ type GenerateManifestOpt func(*generateManifestOpt)
 type generateManifestOpt struct {
 	cmpTarDoneCh        chan<- bool
 	cmpTarExcludedGlobs []string
+	cmpTarIncludedGlobs []string
 }
 
 func newGenerateManifestOpt(opts ...GenerateManifestOpt) *generateManifestOpt {
@@ -1364,6 +1366,14 @@ func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 	}
 }
 
+// WithCMPTarIncludedGlobs defines globs for files to include when streaming the tarball
+// to a CMP sidecar.
+func WithCMPTarIncludedGlobs(includedGlobs []string) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.cmpTarIncludedGlobs = includedGlobs
+	}
+}
+
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
 func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
@@ -1371,7 +1381,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	resourceTracking := argo.NewResourceTracking()
 
-	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, repoRoot, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs)
+	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, repoRoot, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs, opt.cmpTarIncludedGlobs)
 	if err != nil {
 		return nil, fmt.Errorf("error getting app source type: %w", err)
 	}
@@ -1397,7 +1407,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			pluginName = q.ApplicationSource.Plugin.Name
 		}
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
-		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
+		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpTarIncludedGlobs)
 		if err != nil {
 			err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
 		}
@@ -1534,7 +1544,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 }
 
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
-func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, appPath, repoPath, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string) (v1alpha1.ApplicationSourceType, error) {
+func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, appPath, repoPath, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs, tarIncludedGlobs []string) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, appPath, appName)
 	if err != nil {
 		return "", fmt.Errorf("error while parsing source parameters: %v", err)
@@ -1551,7 +1561,7 @@ func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, a
 		}
 		return *appSourceType, nil
 	}
-	appType, err := discovery.AppType(ctx, appPath, repoPath, enableGenerateManifests, tarExcludedGlobs)
+	appType, err := discovery.AppType(ctx, appPath, repoPath, enableGenerateManifests, tarExcludedGlobs, tarIncludedGlobs)
 	if err != nil {
 		return "", fmt.Errorf("error getting app source type: %v", err)
 	}
@@ -1898,7 +1908,7 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	return env, nil
 }
 
-func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, tarDoneCh chan<- bool, tarExcludedGlobs []string) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, tarDoneCh chan<- bool, tarExcludedGlobs, tarIncludedGlobs []string) ([]*unstructured.Unstructured, error) {
 	// compute variables.
 	env, err := getPluginEnvs(envVars, q)
 	if err != nil {
@@ -1906,14 +1916,14 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	}
 
 	// detect config management plugin server
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, repoPath, pluginName, env, tarExcludedGlobs)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, repoPath, pluginName, env, tarExcludedGlobs, tarIncludedGlobs)
 	if err != nil {
 		return nil, err
 	}
 	defer io.Close(conn)
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
+	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh, tarExcludedGlobs, tarIncludedGlobs)
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %s", err)
 	}
@@ -1936,7 +1946,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 // generateManifestsCMP will send the appPath files to the cmp-server over a gRPC stream.
 // The cmp-server will generate the manifests. Returns a response object with the generated
 // manifests.
-func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
+func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs, tarIncludedGlobs []string) (*pluginclient.ManifestResponse, error) {
 	generateManifestStream, err := cmpClient.GenerateManifest(ctx, grpc_retry.Disable())
 	if err != nil {
 		return nil, fmt.Errorf("error getting generateManifestStream: %w", err)
@@ -1945,7 +1955,7 @@ func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []s
 		cmp.WithTarDoneChan(tarDoneCh),
 	}
 
-	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, tarExcludedGlobs, opts...)
+	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, tarExcludedGlobs, tarIncludedGlobs, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error sending file to cmp-server: %s", err)
 	}
@@ -1963,7 +1973,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			return err
 		}
 
-		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, repoRoot, q.AppName, q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs)
+		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, repoRoot, q.AppName, q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs, s.initConstants.CMPTarIncludedGlobs)
 		if err != nil {
 			return err
 		}
@@ -1980,7 +1990,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypePlugin:
-			if err := populatePluginAppDetails(ctx, res, opContext.appPath, repoRoot, q, s.gitCredsStore, s.initConstants.CMPTarExcludedGlobs); err != nil {
+			if err := populatePluginAppDetails(ctx, res, opContext.appPath, repoRoot, q, s.gitCredsStore, s.initConstants.CMPTarExcludedGlobs, s.initConstants.CMPTarIncludedGlobs); err != nil {
 				return fmt.Errorf("failed to populate plugin app details: %w", err)
 			}
 		}
@@ -2139,7 +2149,7 @@ func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apicl
 	return nil
 }
 
-func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, appPath string, repoPath string, q *apiclient.RepoServerAppDetailsQuery, store git.CredsStore, tarExcludedGlobs []string) error {
+func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, appPath string, repoPath string, q *apiclient.RepoServerAppDetailsQuery, store git.CredsStore, tarExcludedGlobs, tarIncludedGlobs []string) error {
 	res.Plugin = &apiclient.PluginAppSpec{}
 
 	envVars := []string{
@@ -2159,7 +2169,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 		pluginName = q.Source.Plugin.Name
 	}
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, repoPath, pluginName, env, tarExcludedGlobs)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, repoPath, pluginName, env, tarExcludedGlobs, tarIncludedGlobs)
 	if err != nil {
 		return fmt.Errorf("failed to detect CMP for app: %w", err)
 	}
@@ -2170,7 +2180,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 		return fmt.Errorf("error getting parametersAnnouncementStream: %w", err)
 	}
 
-	err = cmp.SendRepoStream(parametersAnnouncementStream.Context(), appPath, repoPath, parametersAnnouncementStream, env, tarExcludedGlobs)
+	err = cmp.SendRepoStream(parametersAnnouncementStream.Context(), appPath, repoPath, parametersAnnouncementStream, env, tarExcludedGlobs, tarIncludedGlobs)
 	if err != nil {
 		return fmt.Errorf("error sending file to cmp-server: %s", err)
 	}

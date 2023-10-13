@@ -1136,7 +1136,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
-	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
+	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"**/*.yaml", "**/*.yml", "**/*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. It does support glob patterns")
 	return command
 }
 
