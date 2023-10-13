@@ -208,7 +208,8 @@ you should edit your `~/.kube/config` and modify the `server` option to point to
 k3d cluster create my-cluster --wait --k3s-arg '--disable=traefik@server:*' --api-port $IP:6550 -p 443:443@loadbalancer
 ```
 
-Starting from k3d v5.0.0 the example command flags `--k3s-server-arg` and `'--disable=traefik'` would have to be changed to `--k3s-arg` and `'--disable=traefik@server:*'`, respectively. 
+!!!note
+For k3d versions less than v5.0.0, the example command flags `--k3s-arg` and `'--disable=traefik@server:*'` should change to `--k3s-server-arg` and `'--disable=traefik'`, respectively.
 
 ## The development cycle
 
