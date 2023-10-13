@@ -44,7 +44,7 @@ func TestPrintApplicationSetTable(t *testing.T) {
 						Git: &v1alpha1.GitGenerator{
 							RepoURL:  "https://github.com/argoproj/argo-cd.git",
 							Revision: "head",
-							Directories: []v1alpha1.GitDirectoryGeneratorItem{
+							Directories: []v1alpha1.GitGeneratorItem{
 								{
 									Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
 								},
@@ -79,7 +79,7 @@ func TestPrintApplicationSetTable(t *testing.T) {
 						Git: &v1alpha1.GitGenerator{
 							RepoURL:  "https://github.com/argoproj/argo-cd.git",
 							Revision: "head",
-							Directories: []v1alpha1.GitDirectoryGeneratorItem{
+							Directories: []v1alpha1.GitGeneratorItem{
 								{
 									Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
 								},
@@ -122,7 +122,7 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 					Git: &v1alpha1.GitGenerator{
 						RepoURL:  "https://github.com/argoproj/argo-cd.git",
 						Revision: "head",
-						Directories: []v1alpha1.GitDirectoryGeneratorItem{
+						Directories: []v1alpha1.GitGeneratorItem{
 							{
 								Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
 							},

@@ -71,9 +71,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DuckTypeGenerator":                       schema_pkg_apis_application_v1alpha1_DuckTypeGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.EnvEntry":                                schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ExecProviderConfig":                      schema_pkg_apis_application_v1alpha1_ExecProviderConfig(ref),
-		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitDirectoryGeneratorItem":               schema_pkg_apis_application_v1alpha1_GitDirectoryGeneratorItem(ref),
-		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitFileGeneratorItem":                    schema_pkg_apis_application_v1alpha1_GitFileGeneratorItem(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGenerator":                            schema_pkg_apis_application_v1alpha1_GitGenerator(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGeneratorItem":                        schema_pkg_apis_application_v1alpha1_GitGeneratorItem(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GnuPGPublicKey":                          schema_pkg_apis_application_v1alpha1_GnuPGPublicKey(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GnuPGPublicKeyList":                      schema_pkg_apis_application_v1alpha1_GnuPGPublicKeyList(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HealthStatus":                            schema_pkg_apis_application_v1alpha1_HealthStatus(ref),
@@ -3251,52 +3250,6 @@ func schema_pkg_apis_application_v1alpha1_ExecProviderConfig(ref common.Referenc
 	}
 }
 
-func schema_pkg_apis_application_v1alpha1_GitDirectoryGeneratorItem(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"path": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"exclude": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-				},
-				Required: []string{"path"},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_application_v1alpha1_GitFileGeneratorItem(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"path": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-				},
-				Required: []string{"path"},
-			},
-		},
-	}
-}
-
 func schema_pkg_apis_application_v1alpha1_GitGenerator(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3317,7 +3270,7 @@ func schema_pkg_apis_application_v1alpha1_GitGenerator(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitDirectoryGeneratorItem"),
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGeneratorItem"),
 									},
 								},
 							},
@@ -3330,7 +3283,7 @@ func schema_pkg_apis_application_v1alpha1_GitGenerator(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitFileGeneratorItem"),
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGeneratorItem"),
 									},
 								},
 							},
@@ -3382,7 +3335,33 @@ func schema_pkg_apis_application_v1alpha1_GitGenerator(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitDirectoryGeneratorItem", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitFileGeneratorItem"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGeneratorItem"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_GitGeneratorItem(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"exclude": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"path"},
+			},
+		},
 	}
 }
 

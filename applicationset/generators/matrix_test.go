@@ -27,7 +27,7 @@ func TestMatrixGenerate(t *testing.T) {
 	gitGenerator := &argoprojiov1alpha1.GitGenerator{
 		RepoURL:     "RepoURL",
 		Revision:    "Revision",
-		Directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+		Directories: []argoprojiov1alpha1.GitGeneratorItem{{Path: "*"}},
 	}
 
 	listGenerator := &argoprojiov1alpha1.ListGenerator{
@@ -200,7 +200,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 	gitGenerator := &argoprojiov1alpha1.GitGenerator{
 		RepoURL:     "RepoURL",
 		Revision:    "Revision",
-		Directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+		Directories: []argoprojiov1alpha1.GitGeneratorItem{{Path: "*"}},
 	}
 
 	listGenerator := &argoprojiov1alpha1.ListGenerator{
@@ -417,7 +417,7 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 	gitGenerator := &argoprojiov1alpha1.GitGenerator{
 		RepoURL:     "RepoURL",
 		Revision:    "Revision",
-		Directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+		Directories: []argoprojiov1alpha1.GitGeneratorItem{{Path: "*"}},
 	}
 
 	listGenerator := &argoprojiov1alpha1.ListGenerator{
@@ -558,7 +558,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 	interpolatedGitGenerator := &argoprojiov1alpha1.GitGenerator{
 		RepoURL:  "RepoURL",
 		Revision: "Revision",
-		Files: []argoprojiov1alpha1.GitFileGeneratorItem{
+		Files: []argoprojiov1alpha1.GitGeneratorItem{
 			{Path: "examples/git-generator-files-discovery/cluster-config/dev/config.json"},
 			{Path: "examples/git-generator-files-discovery/cluster-config/prod/config.json"},
 		},
@@ -707,7 +707,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 	interpolatedGitGenerator := &argoprojiov1alpha1.GitGenerator{
 		RepoURL:  "RepoURL",
 		Revision: "Revision",
-		Files: []argoprojiov1alpha1.GitFileGeneratorItem{
+		Files: []argoprojiov1alpha1.GitGeneratorItem{
 			{Path: "examples/git-generator-files-discovery/cluster-config/dev/config.json"},
 			{Path: "examples/git-generator-files-discovery/cluster-config/prod/config.json"},
 		},
@@ -897,7 +897,7 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 	gitGenerator := &argoprojiov1alpha1.GitGenerator{
 		RepoURL:  "RepoURL",
 		Revision: "Revision",
-		Files: []argoprojiov1alpha1.GitFileGeneratorItem{
+		Files: []argoprojiov1alpha1.GitGeneratorItem{
 			{Path: "config.yaml"},
 		},
 	}
@@ -1102,7 +1102,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 
 	gitGeneratorSpec := &argoprojiov1alpha1.GitGenerator{
 		RepoURL: "https://git.example.com",
-		Files: []argoprojiov1alpha1.GitFileGeneratorItem{
+		Files: []argoprojiov1alpha1.GitGeneratorItem{
 			{Path: "some/path.json"},
 		},
 	}

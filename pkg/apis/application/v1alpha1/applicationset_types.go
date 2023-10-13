@@ -390,25 +390,21 @@ type DuckTypeGenerator struct {
 }
 
 type GitGenerator struct {
-	RepoURL             string                      `json:"repoURL" protobuf:"bytes,1,name=repoURL"`
-	Directories         []GitDirectoryGeneratorItem `json:"directories,omitempty" protobuf:"bytes,2,name=directories"`
-	Files               []GitFileGeneratorItem      `json:"files,omitempty" protobuf:"bytes,3,name=files"`
-	Revision            string                      `json:"revision" protobuf:"bytes,4,name=revision"`
-	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
-	PathParamPrefix     string                      `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
+	RepoURL             string                 `json:"repoURL" protobuf:"bytes,1,name=repoURL"`
+	Directories         []GitGeneratorItem     `json:"directories,omitempty" protobuf:"bytes,2,name=directories"`
+	Files               []GitGeneratorItem     `json:"files,omitempty" protobuf:"bytes,3,name=files"`
+	Revision            string                 `json:"revision" protobuf:"bytes,4,name=revision"`
+	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
+	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,6,name=template"`
+	PathParamPrefix     string                 `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,8,name=values"`
 }
 
-type GitDirectoryGeneratorItem struct {
+type GitGeneratorItem struct {
 	Path    string `json:"path" protobuf:"bytes,1,name=path"`
 	Exclude bool   `json:"exclude,omitempty" protobuf:"bytes,2,name=exclude"`
-}
-
-type GitFileGeneratorItem struct {
-	Path string `json:"path" protobuf:"bytes,1,name=path"`
 }
 
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.

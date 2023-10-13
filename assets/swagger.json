@@ -7032,38 +7032,19 @@
         }
       }
     },
-    "v1alpha1GitDirectoryGeneratorItem": {
-      "type": "object",
-      "properties": {
-        "exclude": {
-          "type": "boolean"
-        },
-        "path": {
-          "type": "string"
-        }
-      }
-    },
-    "v1alpha1GitFileGeneratorItem": {
-      "type": "object",
-      "properties": {
-        "path": {
-          "type": "string"
-        }
-      }
-    },
     "v1alpha1GitGenerator": {
       "type": "object",
       "properties": {
         "directories": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1GitDirectoryGeneratorItem"
+            "$ref": "#/definitions/v1alpha1GitGeneratorItem"
           }
         },
         "files": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1GitFileGeneratorItem"
+            "$ref": "#/definitions/v1alpha1GitGeneratorItem"
           }
         },
         "pathParamPrefix": {
@@ -7088,6 +7069,17 @@
           "additionalProperties": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1GitGeneratorItem": {
+      "type": "object",
+      "properties": {
+        "exclude": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": "string"
         }
       }
     },

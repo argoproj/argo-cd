@@ -337,6 +337,46 @@ The filename can always be accessed using `{{path.filename}}`.
 
 **Note**: The default behavior of the Git file generator is very greedy. Please see [Git File Generator Globbing](./Generators-Git-File-Globbing.md) for more information.
 
+### Exclude files
+
+The Git file generator also supports an `exclude` option in order to exclude files/folders in the repository from being scanned by the ApplicationSet controller:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/argoproj/argo-cd.git
+        revision: HEAD
+        files:
+          - path: "applicationset/examples/git-generator-files-discovery/cluster-config/**/config.json"
+          - path: "applicationset/examples/git-generator-files-discovery/cluster-config/*/dev/config.json"
+            exclude: true
+  template:
+    metadata:
+      name: '{{.cluster.name}}-guestbook'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argo-cd.git
+        targetRevision: HEAD
+        path: "applicationset/examples/git-generator-files-discovery/apps/guestbook"
+      destination:
+        server: https://kubernetes.default.svc
+        #server: '{{.cluster.address}}'
+        namespace: guestbook
+```
+(*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-files-discovery/excludes).*)
+
+This example excludes the config.json file in the `dev` directory from the list of files scanned for this `ApplicationSet` resource.
+
+File exclude paths are matched using [doublestar.Match](https://github.com/bmatcuk/doublestar/blob/master/match.go#L8)
+
 ### Pass additional key-value pairs via `values` field
 
 You may pass additional, arbitrary string key-value pairs via the `values` field of the git files generator. Values added via the `values` field are added as `values.(field)`.

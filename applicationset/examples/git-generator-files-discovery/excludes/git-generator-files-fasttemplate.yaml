@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  generators:
+    - git:
+        repoURL: https://github.com/argoproj/argo-cd.git
+        revision: HEAD
+        files:
+        - path: "applicationset/examples/git-generator-files-discovery/cluster-config/**/config.json"
+        - path: "applicationset/examples/git-generator-files-discovery/cluster-config/*/dev/config.json"
+          exclude: true
+  template:
+    metadata:
+      name: '{{cluster.name}}-guestbook'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argo-cd.git
+        targetRevision: HEAD
+        path: "applicationset/examples/git-generator-files-discovery/apps/guestbook"
+      destination:
+        server: https://kubernetes.default.svc
+        #server: '{{cluster.address}}'
+        namespace: guestbook

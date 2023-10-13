@@ -912,22 +912,12 @@ message ExecProviderConfig {
   optional string installHint = 5;
 }
 
-message GitDirectoryGeneratorItem {
-  optional string path = 1;
-
-  optional bool exclude = 2;
-}
-
-message GitFileGeneratorItem {
-  optional string path = 1;
-}
-
 message GitGenerator {
   optional string repoURL = 1;
 
-  repeated GitDirectoryGeneratorItem directories = 2;
+  repeated GitGeneratorItem directories = 2;
 
-  repeated GitFileGeneratorItem files = 3;
+  repeated GitGeneratorItem files = 3;
 
   optional string revision = 4;
 
@@ -939,6 +929,12 @@ message GitGenerator {
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 8;
+}
+
+message GitGeneratorItem {
+  optional string path = 1;
+
+  optional bool exclude = 2;
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key

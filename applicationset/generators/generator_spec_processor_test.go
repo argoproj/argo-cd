@@ -423,16 +423,16 @@ func TestInterpolateGenerator(t *testing.T) {
 	assert.Equal(t, "p1", interpolatedGenerator.Clusters.Selector.MatchLabels["path-zero"])
 	assert.Equal(t, "p1/p2/app3", interpolatedGenerator.Clusters.Selector.MatchLabels["path-full"])
 
-	fileNamePath := argov1alpha1.GitFileGeneratorItem{
+	fileNamePath := argov1alpha1.GitGeneratorItem{
 		Path: "{{name}}",
 	}
-	fileServerPath := argov1alpha1.GitFileGeneratorItem{
+	fileServerPath := argov1alpha1.GitGeneratorItem{
 		Path: "{{server}}",
 	}
 
 	requestedGenerator = &argov1alpha1.ApplicationSetGenerator{
 		Git: &argov1alpha1.GitGenerator{
-			Files:    append([]argov1alpha1.GitFileGeneratorItem{}, fileNamePath, fileServerPath),
+			Files:    append([]argov1alpha1.GitGeneratorItem{}, fileNamePath, fileServerPath),
 			Template: argov1alpha1.ApplicationSetTemplate{},
 		},
 	}
@@ -477,16 +477,16 @@ func TestInterpolateGenerator_go(t *testing.T) {
 	assert.Equal(t, "p1", interpolatedGenerator.Clusters.Selector.MatchLabels["path-zero"])
 	assert.Equal(t, "p1/p2/app3", interpolatedGenerator.Clusters.Selector.MatchLabels["path-full"])
 
-	fileNamePath := argov1alpha1.GitFileGeneratorItem{
+	fileNamePath := argov1alpha1.GitGeneratorItem{
 		Path: "{{.name}}",
 	}
-	fileServerPath := argov1alpha1.GitFileGeneratorItem{
+	fileServerPath := argov1alpha1.GitGeneratorItem{
 		Path: "{{.server}}",
 	}
 
 	requestedGenerator = &argov1alpha1.ApplicationSetGenerator{
 		Git: &argov1alpha1.GitGenerator{
-			Files:    append([]argov1alpha1.GitFileGeneratorItem{}, fileNamePath, fileServerPath),
+			Files:    append([]argov1alpha1.GitGeneratorItem{}, fileNamePath, fileServerPath),
 			Template: argov1alpha1.ApplicationSetTemplate{},
 		},
 	}
@@ -530,7 +530,7 @@ func TestInterpolateGeneratorError(t *testing.T) {
 		{name: "Error templating", args: args{
 			requestedGenerator: &argov1alpha1.ApplicationSetGenerator{Git: &argov1alpha1.GitGenerator{
 				RepoURL:  "foo",
-				Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "bar/"}},
+				Files:    []argov1alpha1.GitGeneratorItem{{Path: "bar/"}},
 				Revision: "main",
 				Values: map[string]string{
 					"git_test":  "{{ toPrettyJson . }}",
