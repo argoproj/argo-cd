@@ -1602,7 +1602,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 
 	logStream := mergeLogStreams(streams, time.Millisecond*100)
 	sentCount := int64(0)
-	done := make(chan error)
+	done := make(chan error, 2)
 	go func() {
 		for entry := range logStream {
 			if entry.err != nil {
