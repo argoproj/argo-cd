@@ -302,6 +302,10 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	pg := extension.NewDefaultProjectGetter(projLister, dbInstance)
 	em := extension.NewManager(logger, sg, ag, pg, enf)
 
+	noopShutdown := func() {
+		log.Error("API Server Shutdown function called but server is not started yet.")
+	}
+
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:  opts,
 		log:               logger,
@@ -323,6 +327,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		secretInformer:    secretInformer,
 		configMapInformer: configMapInformer,
 		extensionManager:  em,
+		Shutdown:          noopShutdown,
 	}
 
 	err = a.logInClusterWarnings()
@@ -565,7 +570,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	}
 
 	shutdownFunc := func() {
-		log.Info("graceful shutingdown servers...")
+		log.Info("API Server shutdown initiated. Shutting down servers...")
 		sCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		var wg gosync.WaitGroup
@@ -604,6 +609,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		}()
 		c := make(chan struct{})
 		// This goroutine will wait for all servers to conclude the shutdown
+		// process
 		go func() {
 			defer close(c)
 			wg.Wait()
