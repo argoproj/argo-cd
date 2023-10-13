@@ -16,6 +16,7 @@ if [ -z $INSTALL_OS ]; then
 fi
 
 # As of writing, there an issue blocking release of darwin and windows arm64 Kustomize versions past 5.0.3
+# If Kustomize starts releasing again for these environments, this code block should be removed.
 # https://github.com/kubernetes-sigs/kustomize/issues/5220
 if [[ "$INSTALL_OS" == "darwin" || $INSTALL_OS == "windows" && "$ARCHITECTURE" == "arm64" ]]; then
   KUSTOMIZE_VERSION="5.0.1"
