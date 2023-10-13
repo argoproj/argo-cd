@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="29 known vulnerabilities found in 105 vulnerable dependency paths.">
+  <meta name="description" content="33 known vulnerabilities found in 125 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">September 17th 2023, 12:22:58 am (UTC+00:00)</p>
+                <p class="timestamp">October 8th 2023, 12:24:51 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>29</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>105 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>33</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>125 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2065</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -636,6 +636,99 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Out-of-bounds Write</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            glibc/libc-bin
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v2.7.14 and glibc/libc-bin@2.35-0ubuntu3.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc-bin@2.35-0ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc6@2.35-0ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>glibc</code> package and not the <code>glibc</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
+        <p>A buffer overflow was discovered in the GNU C Library&#39;s dynamic loader ld.so while processing the GLIBC_TUNABLES environment variable. This issue could allow a local attacker to use maliciously crafted GLIBC_TUNABLES environment variables when launching binaries with SUID permission to execute code with elevated privileges.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>glibc</code> to version 2.35-0ubuntu3.4 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-4911">ADVISORY</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2023-4911">secalert@redhat.com</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2238352">secalert@redhat.com</a></li>
+        <li><a href="https://www.qualys.com/2023/10/03/cve-2023-4911/looney-tunables-local-privilege-escalation-glibc-ld-so.txt">secalert@redhat.com</a></li>
+        <li><a href="https://www.qualys.com/cve-2023-4911/">secalert@redhat.com</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/10/03/2">secalert@redhat.com</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/10/03/3">secalert@redhat.com</a></li>
+        <li><a href="https://www.debian.org/security/2023/dsa-5514">secalert@redhat.com</a></li>
+        <li><a href="https://security.gentoo.org/glsa/202310-03">secalert@redhat.com</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/4DBUQRRPB47TC3NJOUIBVWUGFHBJAFDL/">secalert@redhat.com</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/NDAQWHTSVOCOZ5K6KPIWKRT3JX4RTZUR/">secalert@redhat.com</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/DFG4P76UHHZEWQ26FWBXG76N2QLKKPZA/">secalert@redhat.com</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/10/05/1">secalert@redhat.com</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2023:5453">secalert@redhat.com</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2023:5454">secalert@redhat.com</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2023:5455">secalert@redhat.com</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2023:5476">secalert@redhat.com</a></li>
+        <li><a href="http://seclists.org/fulldisclosure/2023/Oct/11">secalert@redhat.com</a></li>
+        <li><a href="http://packetstormsecurity.com/files/174986/glibc-ld.so-Local-Privilege-Escalation.html">secalert@redhat.com</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-GLIBC-5927362">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Directory Traversal</h2>
             <div class="card__section">
         
@@ -782,7 +875,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>xz-utils</code> package and not the <code>xz-utils</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
-        <p>An issue discovered in XZ 5.2.5 allows attackers to cause a denial of service via decompression of a crafted file. NOTE: the software maintainers are unable to reproduce this as of 2023-09-12 because the example crafted file is temporarily offline.</p>
+        <p>** DISPUTED ** An issue discovered in XZ 5.2.5 allows attackers to cause a denial of service via decompression of a crafted file. NOTE: the vendor disputes the claims of &#34;endless output&#34; and &#34;denial of service&#34; because decompression of the 17,486 bytes always results in 114,881,179 bytes, which is often a reasonable size increase.</p>
         <h2 id="remediation">Remediation</h2>
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>xz-utils</code>.</p>
         <h2 id="references">References</h2>
@@ -794,6 +887,7 @@
         <li><a href="https://bugzilla.suse.com/show_bug.cgi?id=1214590">cve@mitre.org</a></li>
         <li><a href="https://github.com/tukaani-project/xz/issues/61">cve@mitre.org</a></li>
         <li><a href="https://security-tracker.debian.org/tracker/CVE-2020-22916">cve@mitre.org</a></li>
+        <li><a href="http://web.archive.org/web/20230918084612/https://github.com/snappyJack/CVE-request-XZ-5.2.5-has-denial-of-service-vulnerability">cve@mitre.org</a></li>
         </ul>
         
               <hr/>
@@ -920,6 +1014,357 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-PERL-5854824">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2023-43785</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            libx11/libx11-data
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v2.7.14 and libx11/libx11-data@2:1.7.5-1ubuntu0.2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-data@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-data@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libxext/libxext6@2:1.3.4-1build1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libxmu/libxmuu1@2:1.1.3-3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        xauth@1:1.1-1build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>libx11</code> to version 2:1.7.5-1ubuntu0.3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-43785">ADVISORY</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-LIBX11-5927337">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2023-43786</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            libx11/libx11-data
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v2.7.14 and libx11/libx11-data@2:1.7.5-1ubuntu0.2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-data@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-data@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libxext/libxext6@2:1.3.4-1build1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libxmu/libxmuu1@2:1.1.3-3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        xauth@1:1.1-1build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>libx11</code> to version 2:1.7.5-1ubuntu0.3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-43786">ADVISORY</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-LIBX11-5927424">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2023-43787</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            libx11/libx11-data
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v2.7.14 and libx11/libx11-data@2:1.7.5-1ubuntu0.2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-data@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-data@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libxext/libxext6@2:1.3.4-1build1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libxmu/libxmuu1@2:1.1.3-3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        xauth@1:1.1-1build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libx11/libx11-6@2:1.7.5-1ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>libx11</code> to version 2:1.7.5-1ubuntu0.3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-43787">ADVISORY</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-LIBX11-5927448">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
