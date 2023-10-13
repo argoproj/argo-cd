@@ -1593,6 +1593,81 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 	}
 }
 
+func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	for _, c := range []struct {
+		// name is human-readable test name
+		name string
+	}{
+		{
+			name: "ownerReferences cleared",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			appSet := v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "name",
+					Namespace:  "namespace",
+					Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "project",
+						},
+					},
+				},
+			}
+
+			app := v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app1",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "project",
+					Source:  &v1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
+					Destination: v1alpha1.ApplicationDestination{
+						Namespace: "namespace",
+						Server:    "https://kubernetes.default.svc",
+					},
+				},
+			}
+
+			err := controllerutil.SetControllerReference(&appSet, &app, scheme)
+			assert.NoError(t, err, "Unexpected error")
+
+			initObjs := []crtclient.Object{&app, &appSet}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+
+			r := ApplicationSetReconciler{
+				Client:        client,
+				Scheme:        scheme,
+				Recorder:      record.NewFakeRecorder(10),
+				KubeClientset: nil,
+				Cache:         &fakeCache{},
+			}
+
+			err = r.removeOwnerReferencesOnDeleteAppSet(context.Background(), appSet)
+			assert.NoError(t, err, "Unexpected error")
+
+			retrievedApp := v1alpha1.Application{}
+			err = client.Get(context.Background(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
+			assert.NoError(t, err, "Unexpected error")
+
+			ownerReferencesRemoved := len(retrievedApp.OwnerReferences) == 0
+			assert.True(t, ownerReferencesRemoved)
+		})
+	}
+}
+
 func TestCreateApplications(t *testing.T) {
 
 	scheme := runtime.NewScheme()
