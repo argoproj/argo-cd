@@ -2447,6 +2447,9 @@ func TestNamespacedDisableManifestGeneration(t *testing.T) {
 			assert.Equal(t, app.Status.SourceType, ApplicationSourceTypeKustomize)
 		}).
 		When().
+		And(func(app *Application) {
+			time.Sleep(3 * time.Second)
+		}).
 		And(func() {
 			SetEnableManifestGeneration(map[ApplicationSourceType]bool{
 				ApplicationSourceTypeKustomize: false,
