@@ -71,10 +71,34 @@ func TestHookDiffWithResourceHook(t *testing.T) {
 		CreateApp().
 		Then().
 		And(func(_ *Application) {
-			output, err := RunCli("app", "diff", Name(), "--include-resource-hook", "--local", "testdata/hook")
+			output, err := RunCli("app", "diff", Name(), "--include-resource-hook", "--revision", "HEAD")
 			assert.Error(t, err)
 			assert.Contains(t, output, "name: pod")
 			assert.Contains(t, output, "name: hook")
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// Then, we patch the manifest to see diff.
+		When().
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["false"]}]`).
+		Refresh(RefreshTypeHard).
+		Then().
+		// Expected diff is following:
+		// ===== /Pod argocd-e2e--test-hook-diff-with-resource-hook-ycsky/hook ======
+		// 83c83
+		// <     - "true"
+		// ---
+		// >     - "false"
+		And(func(_ *Application) {
+			output, err := RunCli("app", "diff", Name(), "--include-resource-hook", "--revision", "HEAD")
+			assert.Error(t, err)
+			fmt.Println(output)
+			assert.Contains(t, output, "hook")
+			assert.Contains(t, output, "true")
+			assert.Contains(t, output, "false")
 		})
 }
 

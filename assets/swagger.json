@@ -472,6 +472,12 @@
             "type": "string",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "If the response returns resource hooks.",
+            "name": "includeResourceHook",
+            "in": "query"
           }
         ],
         "responses": {
@@ -537,6 +543,12 @@
           {
             "type": "string",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "If the response returns resource hooks.",
+            "name": "includeResourceHook",
             "in": "query"
           }
         ],
@@ -3937,6 +3949,12 @@
           {
             "type": "string",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "If the response returns resource hooks.",
+            "name": "includeResourceHook",
             "in": "query"
           }
         ],

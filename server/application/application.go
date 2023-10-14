@@ -1476,10 +1476,16 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 	if err != nil {
 		return nil, fmt.Errorf("error getting cached app managed resources: %w", err)
 	}
+
+	includeResourceHook := false
+	if q.IncludeResourceHook != nil {
+		includeResourceHook = *q.IncludeResourceHook
+	}
+
 	res := &application.ManagedResourcesResponse{}
 	for i := range items {
 		item := items[i]
-		if !item.Hook && isMatchingResource(q, kube.ResourceKey{Name: item.Name, Namespace: item.Namespace, Kind: item.Kind, Group: item.Group}) {
+		if !(item.Hook && !includeResourceHook) && isMatchingResource(q, kube.ResourceKey{Name: item.Name, Namespace: item.Namespace, Kind: item.Kind, Group: item.Group}) {
 			res.Items = append(res.Items, item)
 		}
 	}

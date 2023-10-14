@@ -1053,7 +1053,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			})
 			errors.CheckError(err)
 
-			resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
+			resources, err := appIf.ManagedResources(ctx,
+				&application.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs, IncludeResourceHook: &includeResourceHook})
 			errors.CheckError(err)
 			conn, settingsIf := clientset.NewSettingsClientOrDie()
 			defer argoio.Close(conn)
@@ -1070,7 +1071,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 				diffOption.res = res
 				diffOption.revision = revision
+				diffOption.includeResourceHook = includeResourceHook
 			} else if local != "" {
+				diffOption.includeResourceHook = includeResourceHook
 				if serverSideGenerate {
 					client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
 					errors.CheckError(err)
@@ -1166,7 +1169,8 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 	}
 
 	for _, item := range items {
-		if item.target != nil && hook.IsHook(item.target) || item.live != nil && hook.IsHook(item.live) {
+		if (item.target != nil && hook.IsHook(item.target) && !diffOptions.includeResourceHook) ||
+			(item.live != nil && hook.IsHook(item.live) && !diffOptions.includeResourceHook) {
 			continue
 		}
 		overrides := make(map[string]argoappv1.ResourceOverride)
@@ -1240,6 +1244,7 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 		}
 		items = append(items, objKeyLiveTarget{key, nil, local})
 	}
+
 	return items
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -363,6 +364,19 @@ func Test_groupObjsByKey(t *testing.T) {
 				},
 			},
 		},
+		{
+			Object: map[string]interface{}{
+				"apiVersion": "batch/v1",
+				"kind":       "Job",
+				"metadata": map[string]interface{}{
+					"name":      "job-hook",
+					"namespace": "default",
+					"annotations": map[string]interface{}{
+						common.AnnotationKeyHook: "PreSync",
+					},
+				},
+			},
+		},
 	}
 	liveObjs := []*unstructured.Unstructured{
 		{
@@ -386,13 +400,25 @@ func Test_groupObjsByKey(t *testing.T) {
 		},
 	}
 
-	expected := map[kube.ResourceKey]*unstructured.Unstructured{
-		{Group: "", Kind: "Pod", Namespace: "default", Name: "pod-name"}:                                                       localObjs[0],
-		{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition", Namespace: "", Name: "certificates.cert-manager.io"}: localObjs[1],
-	}
+	t.Run("Exclude hooks", func(t *testing.T) {
+		expected := map[kube.ResourceKey]*unstructured.Unstructured{
+			{Group: "", Kind: "Pod", Namespace: "default", Name: "pod-name"}:                                                       localObjs[0],
+			{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition", Namespace: "", Name: "certificates.cert-manager.io"}: localObjs[1],
+		}
+		objByKey := groupObjsByKey(localObjs, liveObjs, "default", false)
+		assert.Equal(t, expected, objByKey)
+	})
 
-	objByKey := groupObjsByKey(localObjs, liveObjs, "default", false)
-	assert.Equal(t, expected, objByKey)
+	t.Run("with includeResourceHooks=true", func(t *testing.T) {
+		// Test with incudeResourceHook=true
+		expected := map[kube.ResourceKey]*unstructured.Unstructured{
+			{Group: "", Kind: "Pod", Namespace: "default", Name: "pod-name"}:                                                       localObjs[0],
+			{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition", Namespace: "", Name: "certificates.cert-manager.io"}: localObjs[1],
+			{Group: "batch", Kind: "Job", Namespace: "", Name: "job-hook"}:                                                         localObjs[2],
+		}
+		objByKey := groupObjsByKey(localObjs, liveObjs, "default", true)
+		assert.Equal(t, expected, objByKey)
+	})
 }
 
 func TestFormatSyncPolicy(t *testing.T) {
