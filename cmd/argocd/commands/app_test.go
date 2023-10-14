@@ -391,7 +391,7 @@ func Test_groupObjsByKey(t *testing.T) {
 		{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition", Namespace: "", Name: "certificates.cert-manager.io"}: localObjs[1],
 	}
 
-	objByKey := groupObjsByKey(localObjs, liveObjs, "default")
+	objByKey := groupObjsByKey(localObjs, liveObjs, "default", false)
 	assert.Equal(t, expected, objByKey)
 }
 
