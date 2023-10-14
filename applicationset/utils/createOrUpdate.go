@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +34,7 @@ import (
 // The MutateFn is called regardless of creating or updating an object.
 //
 // It returns the executed operation and an error.
-func CreateOrUpdate(ctx context.Context, c client.Client, ignoreAppDifferences argov1alpha1.ApplicationSetIgnoreDifferences, obj *argov1alpha1.Application, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
+func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ignoreAppDifferences argov1alpha1.ApplicationSetIgnoreDifferences, obj *argov1alpha1.Application, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
 
 	key := client.ObjectKeyFromObject(obj)
 	if err := c.Get(ctx, key, obj); err != nil {
@@ -56,7 +57,8 @@ func CreateOrUpdate(ctx context.Context, c client.Client, ignoreAppDifferences a
 		return controllerutil.OperationResultNone, err
 	}
 
-	// Normalize both the live state and the desired state to account for ignored differences.
+	// Normalize both the live state and the desired state to account for ignored differences. Since they're both
+	// normalized, ignored differences will not appear in the patch.
 	err := applyIgnoreDifferences(ignoreAppDifferences, normalizedLive, obj)
 	if err != nil {
 		return controllerutil.OperationResultNone, fmt.Errorf("failed to apply ignore differences: %w", err)
@@ -91,10 +93,28 @@ func CreateOrUpdate(ctx context.Context, c client.Client, ignoreAppDifferences a
 		return controllerutil.OperationResultNone, nil
 	}
 
-	if err := c.Patch(ctx, obj, client.MergeFrom(normalizedLive)); err != nil {
+	patch := client.MergeFrom(normalizedLive)
+	if log.IsLevelEnabled(log.DebugLevel) {
+		LogPatch(logCtx, patch, obj)
+	}
+	if err := c.Patch(ctx, obj, patch); err != nil {
 		return controllerutil.OperationResultNone, err
 	}
 	return controllerutil.OperationResultUpdated, nil
+}
+
+func LogPatch(logCtx *log.Entry, patch client.Patch, obj *argov1alpha1.Application) {
+	patchBytes, err := patch.Data(obj)
+	if err != nil {
+		logCtx.Errorf("failed to generate patch: %v", err)
+	}
+	// Get the patch as a plain object so it is easier to work with in json logs.
+	var patchObj map[string]interface{}
+	err = json.Unmarshal(patchBytes, &patchObj)
+	if err != nil {
+		logCtx.Errorf("failed to unmarshal patch: %v", err)
+	}
+	logCtx.WithField("patch", patchObj).Debug("patching application")
 }
 
 // mutate wraps a MutateFn and applies validation to its result

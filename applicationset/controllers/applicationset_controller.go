@@ -621,7 +621,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			},
 		}
 
-		action, err := utils.CreateOrUpdate(ctx, r.Client, applicationSet.Spec.IgnoreApplicationDifferences, found, func() error {
+		action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, applicationSet.Spec.IgnoreApplicationDifferences, found, func() error {
 			// Copy only the Application/ObjectMeta fields that are significant, from the generatedApp
 			found.Spec = generatedApp.Spec
 
@@ -852,7 +852,11 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 		if len(newFinalizers) != len(app.Finalizers) {
 			updated := app.DeepCopy()
 			updated.Finalizers = newFinalizers
-			if err := r.Client.Patch(ctx, updated, client.MergeFrom(app)); err != nil {
+			patch := client.MergeFrom(app)
+			if log.IsLevelEnabled(log.DebugLevel) {
+				utils.LogPatch(appLog, patch, updated)
+			}
+			if err := r.Client.Patch(ctx, updated, patch); err != nil {
 				return fmt.Errorf("error updating finalizers: %w", err)
 			}
 			r.updateCache(ctx, updated, appLog)
