@@ -1,0 +1,9 @@
+dependencies:
+- name: mongodb
+  repository: https://charts.bitnami.com/bitnami
+  version: 7.8.10
+- name: eventstore
+  repository: https://eventstore.github.io/EventStore.Charts
+  version: 0.2.5
+digest: sha256:94b7537c078de2547173e28289cbae155893cd797aa9296f6c78ba922d6a1e8a
+generated: "2022-05-19T11:55:59.559189-04:00"

@@ -1,60 +1,65 @@
-FROM redis:6.2.1 as redis
+FROM docker.io/library/redis:7.0.11@sha256:f50031a49f41e493087fb95f96fdb3523bb25dcf6a3f0b07c588ad3cdbe1d0aa as redis
 
-FROM node:12.18.4 as node
+# There are libraries we will want to copy from here in the final stage of the
+# build, but the COPY directive does not have a way to determine system
+# architecture, so we create a symlink here to facilitate copying.
+RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu 
 
-FROM golang:1.16.0 as golang
+# Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
+FROM docker.io/library/node:20.7.0@sha256:f08c20b9f9c55dd47b1841793f0ee480c5395aa165cd02edfd68b068ed64bfb5 as node
 
-FROM registry:2.7.1 as registry
+FROM docker.io/library/golang:1.21.3@sha256:02d7116222536a5cf0fcf631f90b507758b669648e0f20186d2dc94a9b419a9b as golang
 
-FROM ubuntu:20.10
+FROM docker.io/library/registry:2.8@sha256:41f413c22d6156587e2a51f3e80c09808b8c70e82be149b82b5e0196a88d49b4 as registry
+
+FROM docker.io/bitnami/kubectl:1.27@sha256:670fe3f50d45c0511bb0f2af018e2fc082ac8cdfaea02dba4e32866296036926 as kubectl
+
+FROM docker.io/library/ubuntu:22.04@sha256:0bced47fffa3361afa981854fcabcd4577cd43cebbb808cea2b1f33a3dd7f508
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
-        ca-certificates \
-        curl \
-        openssh-server \
-        nginx \
-        fcgiwrap \
-        git \
-        git-lfs \
-        gpg \
-        make \
-        wget \
-        gcc \
-        sudo \
-        zip && \
-        apt-get clean && \
-        rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    ca-certificates \
+    curl \
+    openssh-server \
+    nginx \
+    fcgiwrap \
+    git \
+    git-lfs \
+    gpg \
+    jq \
+    make \
+    wget \
+    gcc \
+    g++ \
+    sudo \
+    tini \
+    zip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY --from=golang /usr/local/go /usr/local/go
 
-ENV PATH /go/bin:/usr/local/go/bin:$PATH
+COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
+
+ENV PATH /dist:/go/bin:/usr/local/go/bin:/go/src/github.com/argoproj/argo-cd/dist:$PATH
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 
 # Install build and test dependencies
-ADD ./hack/tool-versions.sh .
-ADD ./hack/install.sh .
-ADD ./hack/installers installers
+COPY hack/install.sh hack/tool-versions.sh go.* ./
+COPY hack/installers installers
 
-RUN ./install.sh dep-linux && \
-    ./install.sh packr-linux && \
-    ./install.sh ksonnet-linux && \
-    ./install.sh helm2-linux && \
-    ./install.sh helm-linux && \
-    ./install.sh kubectl-linux && \
-    ./install.sh kustomize-linux && \
+RUN ./install.sh helm-linux && \
+    ./install.sh kustomize && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \
     ./install.sh lint-tools && \
-    go get github.com/mattn/goreman && \
-    go get github.com/kisielk/godepgraph && \
-    go get github.com/jstemmer/go-junit-report && \
+    go install github.com/mattn/goreman@latest && \
+    go install github.com/kisielk/godepgraph@latest && \
+    go install github.com/jstemmer/go-junit-report@latest && \
     rm -rf /tmp/dl && \
     rm -rf /tmp/helm && \
-    rm -rf /tmp/helm2 && \
-    rm -rf /tmp/ks_* && \
-    rm -rf /tmp/packr
+    rm -rf /tmp/ks_*
 
 # These are required for running end-to-end tests
 COPY ./test/fixture/testrepos/id_rsa.pub /root/.ssh/authorized_keys
@@ -65,6 +70,14 @@ COPY ./test/fixture/testrepos/ssh_host_*_key* /etc/ssh/
 # Copy redis binaries to the image
 COPY --from=redis /usr/local/bin/* /usr/local/bin/
 
+# Copy redis dependencies/shared libraries
+# Ubuntu 22.04+ has moved to OpenSSL3 and no longer provides these libraries
+COPY --from=redis /usr/lib/linux-gnu/libssl.so.1.1 /usr/lib/linux-gnu/
+COPY --from=redis /usr/lib/linux-gnu/libcrypto.so.1.1 /usr/lib/linux-gnu/
+RUN mv /usr/lib/linux-gnu/libssl.so.1.1 /usr/lib/$(uname -m)-linux-gnu/ && \
+    mv /usr/lib/linux-gnu/libcrypto.so.1.1 /usr/lib/$(uname -m)-linux-gnu/ && \
+    rm -rf /usr/lib/linux-gnu/
+
 # Copy registry binaries to the image
 COPY --from=registry /bin/registry /usr/local/bin/
 COPY --from=registry /etc/docker/registry/config.yml /etc/docker/registry/config.yml
@@ -72,36 +85,34 @@ COPY --from=registry /etc/docker/registry/config.yml /etc/docker/registry/config
 # Copy node binaries
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=node /usr/local/bin/node /usr/local/bin
-COPY --from=node /opt/yarn-v1.22.4 /opt/yarn-v1.22.4
+COPY --from=node /opt/yarn-v1.22.19 /opt/yarn-v1.22.19
 
 # Entrypoint is required for container's user management
-COPY ./test/container/uid_entrypoint.sh /usr/local/bin
+COPY ./test/container/entrypoint.sh /usr/local/bin
 
 ARG UID
 
 # Prepare user configuration & build environments
 RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
-    HELM_HOME=/home/user/.helm helm2 init --client-only && \
+    mkdir -p /home/user/.kube && \
+    mkdir -p /home/user/.cache && \
+    chown -R user /home/user && \
+    chgrp -R user /home/user && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
     HOME=/home/user git config --global user.email "noreply@example.com" && \
-    mkdir -p /go/pkg && chmod 777 /go/pkg && \
-    mkdir -p /home/user/.kube && chmod 777 /home/user/.kube && \
+    mkdir -p /go/pkg && \
     mkdir -p /var/run/sshd && \
     mkdir -p /root/.ssh && \
     mkdir -p /go && \
-    chmod -R 777 /go && \
     chown root /etc/ssh/ssh_host_*_key* && \
     chmod 0600 /etc/ssh/ssh_host_*_key && \
-    mkdir -p /tmp/go-build-cache && chmod -R 777 /tmp/go-build-cache && \
-    mkdir -p /home/user/.cache && chmod 777 /home/user/.cache && \
-    chown -R user /home/user && \
-    chgrp -R user /home/user && \
-    chmod -R 777 /usr/local/go && \
+    mkdir -p /tmp/go-build-cache && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
-    ln -s /opt/yarn-v1.22.4/bin/yarn /usr/local/bin/yarn && \
-    ln -s /opt/yarn-v1.22.4/bin/yarnpkg /usr/local/bin/yarnpkg
+    ln -s /opt/yarn-v1.22.19/bin/yarn /usr/local/bin/yarn && \
+    ln -s /opt/yarn-v1.22.19/bin/yarnpkg /usr/local/bin/yarnpkg && \
+    mkdir -p /var/lib/registry
 
-ENTRYPOINT ["/usr/local/bin/uid_entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

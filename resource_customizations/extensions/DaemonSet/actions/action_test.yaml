@@ -1,4 +1,0 @@
-actionTests:
-- action: restart
-  inputPath: testdata/daemonset.yaml
-  expectedOutputPath: testdata/daemonset-restarted.yaml

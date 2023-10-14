@@ -6,9 +6,7 @@ option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository";
 // Repository Service API performs CRUD actions against repository resources
 package repository;
 
-import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
-import "k8s.io/api/core/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
 
@@ -16,6 +14,8 @@ import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
 message RepoAppsQuery {
 	string repo = 1;
 	string revision = 2;
+	string appName = 3;
+	string appProject = 4;
 }
 
 
@@ -29,6 +29,7 @@ message AppInfo {
 message RepoAppDetailsQuery {
 	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource source = 1;
 	string appName = 2;
+	string appProject = 3;
 }
 
 // RepoAppsResponse contains applications of specified repository
@@ -74,6 +75,14 @@ message RepoAccessQuery {
 	int64 githubAppInstallationID = 14;
 	// Github App Enterprise base url if empty will default to https://api.github.com
 	string githubAppEnterpriseBaseUrl = 15;
+	// HTTP/HTTPS proxy to access the repository
+	string proxy = 16;
+	// Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
+	string project = 17;
+	// Google Cloud Platform service account key
+	string gcpServiceAccountKey = 18;
+	// Whether to force HTTP basic auth
+	bool forceHttpBasicAuth = 19;
 }
 
 message RepoResponse {}
@@ -115,7 +124,7 @@ service RepositoryService {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/refs";
 	}
 
-	// ListApps returns list of apps in the repe
+	// ListApps returns list of apps in the repo
 	rpc ListApps(RepoAppsQuery) returns (RepoAppsResponse) {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/apps";
 	}

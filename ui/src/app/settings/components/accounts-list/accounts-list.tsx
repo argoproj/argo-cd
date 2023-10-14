@@ -29,7 +29,7 @@ export const AccountsList = () => {
                                         <div className='row'>
                                             <div className='columns small-3'>{account.name}</div>
                                             <div className='columns small-3'>{(account.enabled && 'true') || 'false'}</div>
-                                            <div className='columns small-6'>{account.capabilities.join(', ')}</div>
+                                            <div className='columns small-6'>{account.capabilities && account.capabilities.join(', ')}</div>
                                         </div>
                                     </div>
                                 ))}

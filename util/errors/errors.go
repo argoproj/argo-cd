@@ -26,13 +26,6 @@ func CheckError(err error) {
 	}
 }
 
-// CheckErrorWithCode is a convenience function to exit if an error is non-nil and exit if it was
-func CheckErrorWithCode(err error, exitcode int) {
-	if err != nil {
-		Fatal(exitcode, err)
-	}
-}
-
 // FailOnErr panics if there is an error. It returns the first value so you can use it if you cast it:
 // text := FailOrErr(Foo)).(string)
 func FailOnErr(v interface{}, err error) interface{} {

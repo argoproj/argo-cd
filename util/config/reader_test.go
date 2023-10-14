@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -21,7 +20,7 @@ func TestUnmarshalLocalFile(t *testing.T) {
 	)
 	sentinel := fmt.Sprintf("---\nfield1: %q\nfield2: %d", field1, field2)
 
-	file, err := ioutil.TempFile(os.TempDir(), "")
+	file, err := os.CreateTemp(os.TempDir(), "")
 	if err != nil {
 		panic(err)
 	}
@@ -37,6 +36,27 @@ func TestUnmarshalLocalFile(t *testing.T) {
 		Field2 int
 	}
 	err = UnmarshalLocalFile(file.Name(), &testStruct)
+	if err != nil {
+		t.Errorf("Could not unmarshal test data: %s", err)
+	}
+
+	if testStruct.Field1 != field1 || testStruct.Field2 != field2 {
+		t.Errorf("Test data did not match! Expected {%s %d} but got: %v", field1, field2, testStruct)
+	}
+}
+
+func TestUnmarshal(t *testing.T) {
+	const (
+		field1 = "Hello, world!"
+		field2 = 42
+	)
+	sentinel := fmt.Sprintf("---\nfield1: %q\nfield2: %d", field1, field2)
+
+	var testStruct struct {
+		Field1 string
+		Field2 int
+	}
+	err := Unmarshal([]byte(sentinel), &testStruct)
 	if err != nil {
 		t.Errorf("Could not unmarshal test data: %s", err)
 	}

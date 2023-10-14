@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	appv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,7 +67,7 @@ func TestCreateRepository(t *testing.T) {
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 	assert.Equal(t, string(secret.Data[username]), "test-username")
 	assert.Equal(t, string(secret.Data[password]), "test-password")
-	assert.Nil(t, secret.Data[sshPrivateKey])
+	assert.Empty(t, secret.Data[sshPrivateKey])
 }
 
 func TestCreateRepoCredentials(t *testing.T) {
@@ -87,7 +88,7 @@ func TestCreateRepoCredentials(t *testing.T) {
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 	assert.Equal(t, string(secret.Data[username]), "test-username")
 	assert.Equal(t, string(secret.Data[password]), "test-password")
-	assert.Nil(t, secret.Data[sshPrivateKey])
+	assert.Empty(t, secret.Data[sshPrivateKey])
 
 	created, err := db.CreateRepository(context.Background(), &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argo-cd",
@@ -381,6 +382,15 @@ func TestRepositorySecretsTrim(t *testing.T) {
   sshPrivateKeySecret:
     name: managed-secret
     key: sshPrivateKey
+  tlsClientCertDataSecret:
+    name: managed-secret
+    key: tlsClientCertData
+  tlsClientCertKeySecret:
+    name: managed-secret
+    key: tlsClientCertKey
+  githubAppPrivateKeySecret:
+    name: managed-secret
+    key: githubAppPrivateKey
 `}
 	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -391,9 +401,12 @@ func TestRepositorySecretsTrim(t *testing.T) {
 			},
 		},
 		Data: map[string][]byte{
-			username:      []byte("test-username\n\n"),
-			password:      []byte("test-password\r\r"),
-			sshPrivateKey: []byte("test-ssh-private-key\n\r"),
+			username:            []byte("test-username\n\n"),
+			password:            []byte("test-password\r\r"),
+			sshPrivateKey:       []byte("test-ssh-private-key\n\r"),
+			tlsClientCertData:   []byte("test-tls-client-cert-data\n\r"),
+			tlsClientCertKey:    []byte("test-tls-client-cert-key\n\r"),
+			githubAppPrivateKey: []byte("test-github-app-private-key\n\r"),
 		},
 	})
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
@@ -415,6 +428,18 @@ func TestRepositorySecretsTrim(t *testing.T) {
 		{
 			"test-ssh-private-key",
 			repo.SSHPrivateKey,
+		},
+		{
+			"test-tls-client-cert-data",
+			repo.TLSClientCertData,
+		},
+		{
+			"test-tls-client-cert-key",
+			repo.TLSClientCertKey,
+		},
+		{
+			"test-github-app-private-key",
+			repo.GithubAppPrivateKey,
 		},
 	}
 	for _, tt := range teststruct {
@@ -668,4 +693,84 @@ func TestHelmRepositorySecretsTrim(t *testing.T) {
 	for _, tt := range teststruct {
 		assert.Equal(t, tt.expectedSecret, tt.retrievedSecret)
 	}
+}
+
+func TestGetClusterServersByName(t *testing.T) {
+	clientset := getClientset(nil, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cluster-secret",
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("my-cluster-name"),
+			"server": []byte("https://my-cluster-server"),
+			"config": []byte("{}"),
+		},
+	})
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	servers, err := db.GetClusterServersByName(context.Background(), "my-cluster-name")
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []string{"https://my-cluster-server"}, servers)
+}
+
+func TestGetClusterServersByName_InClusterNotConfigured(t *testing.T) {
+	clientset := getClientset(nil)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	servers, err := db.GetClusterServersByName(context.Background(), "in-cluster")
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []string{v1alpha1.KubernetesInternalAPIServerAddr}, servers)
+}
+
+func TestGetClusterServersByName_InClusterConfigured(t *testing.T) {
+	clientset := getClientset(nil, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cluster-secret",
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("in-cluster-renamed"),
+			"server": []byte(v1alpha1.KubernetesInternalAPIServerAddr),
+			"config": []byte("{}"),
+		},
+	})
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	servers, err := db.GetClusterServersByName(context.Background(), "in-cluster-renamed")
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []string{v1alpha1.KubernetesInternalAPIServerAddr}, servers)
+}
+
+func TestGetApplicationControllerReplicas(t *testing.T) {
+	clientset := getClientset(nil)
+	expectedReplicas := int32(2)
+	t.Setenv(common.EnvControllerReplicas, "2")
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	replicas := db.GetApplicationControllerReplicas()
+	assert.Equal(t, int(expectedReplicas), replicas)
+
+	expectedReplicas = int32(3)
+	clientset = getClientset(nil, &appv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ApplicationController,
+			Namespace: testNamespace,
+		},
+		Spec: appv1.DeploymentSpec{
+			Replicas: &expectedReplicas,
+		},
+	})
+	t.Setenv(common.EnvControllerReplicas, "2")
+	db = NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	replicas = db.GetApplicationControllerReplicas()
+	assert.Equal(t, int(expectedReplicas), replicas)
 }

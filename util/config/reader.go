@@ -3,15 +3,15 @@ package config
 import (
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os"
 
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 // UnmarshalReader is used to read manifests from stdin
 func UnmarshalReader(reader io.Reader, obj interface{}) error {
-	data, err := ioutil.ReadAll(reader)
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return err
 	}
@@ -30,13 +30,7 @@ func unmarshalObject(data []byte, obj interface{}) error {
 	if err != nil {
 		return err
 	}
-
-	err = json.Unmarshal(jsonData, &obj)
-	if err != nil {
-		return err
-	}
-
-	return err
+	return json.Unmarshal(jsonData, &obj)
 }
 
 // MarshalLocalYAMLFile writes JSON or YAML to a file on disk.
@@ -44,7 +38,7 @@ func unmarshalObject(data []byte, obj interface{}) error {
 func MarshalLocalYAMLFile(path string, obj interface{}) error {
 	yamlData, err := yaml.Marshal(obj)
 	if err == nil {
-		err = ioutil.WriteFile(path, yamlData, 0600)
+		err = os.WriteFile(path, yamlData, 0600)
 	}
 	return err
 }
@@ -52,11 +46,15 @@ func MarshalLocalYAMLFile(path string, obj interface{}) error {
 // UnmarshalLocalFile retrieves JSON or YAML from a file on disk.
 // The caller is responsible for checking error return values.
 func UnmarshalLocalFile(path string, obj interface{}) error {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err == nil {
 		err = unmarshalObject(data, obj)
 	}
 	return err
+}
+
+func Unmarshal(data []byte, obj interface{}) error {
+	return unmarshalObject(data, obj)
 }
 
 // UnmarshalRemoteFile retrieves JSON or YAML through a GET request.
@@ -78,7 +76,7 @@ func ReadRemoteFile(url string) ([]byte, error) {
 		defer func() {
 			_ = resp.Body.Close()
 		}()
-		data, err = ioutil.ReadAll(resp.Body)
+		data, err = io.ReadAll(resp.Body)
 	}
 	return data, err
 }

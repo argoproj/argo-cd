@@ -13,7 +13,7 @@ related features in [Security](./operator-manual/security.md) section.
 ## Overview of past and current issues
 
 The following table gives a general overview about past and present issues known
-to the ArgoCD project. See in the [Known Issues](#known-issues-and-workarounds)
+to the Argo CD project. See in the [Known Issues](#known-issues-and-workarounds)
 section if there is a work-around available if you cannot update or if there is
 no fix yet.
 
@@ -25,7 +25,7 @@ no fix yet.
 |2020-04-08|[CVE-2020-11576](https://nvd.nist.gov/vuln/detail/CVE-2020-11576)|User Enumeration|Medium|v1.5.0|v1.5.1|
 |2020-04-08|[CVE-2020-8826](https://nvd.nist.gov/vuln/detail/CVE-2020-8826)|Session-fixation|High|all|n/a|
 |2020-04-08|[CVE-2020-8827](https://nvd.nist.gov/vuln/detail/CVE-2020-8827)|Insufficient anti-automation/anti-brute force|High|all <= 1.5.3|v1.5.3|
-|2020-04-08|[CVE-2020-8828](https://nvd.nist.gov/vuln/detail/CVE-2020-8828)|Insecure default administrative password|High|all|n/a|
+|2020-04-08|[CVE-2020-8828](https://nvd.nist.gov/vuln/detail/CVE-2020-8828)|Insecure default administrative password|High|all <= 1.8.0|1.8.0|
 |2020-04-08|[CVE-2018-21034](https://nvd.nist.gov/vuln/detail/CVE-2018-21034)|Sensitive Information Disclosure|Medium|all <= v1.5.0|v1.5.0|
 
 ## Known Issues And Workarounds
@@ -45,7 +45,7 @@ Most of the issues are related to the built-in user management implementation.
 **Details:**
 
 PyYAML library susceptible to arbitrary code execution when it processes untrusted YAML files.
-We do not believe ArgoCD is affected by this vulnerability, because the impact of CVE-2020-1747 and CVE-2020-14343 is limited to usage of awscli.
+We do not believe Argo CD is affected by this vulnerability, because the impact of CVE-2020-1747 and CVE-2020-14343 is limited to usage of awscli.
 The `awscli` only used for AWS IAM authentication, and the endpoint is the AWS API.
 
 ### CVE-2020-5260 - Possible Git credential leak
@@ -58,13 +58,13 @@ The `awscli` only used for AWS IAM authentication, and the endpoint is the AWS A
 
 **Details:**
 
-ArgoCD relies on Git for many of its operations. The Git project released a
+Argo CD relies on Git for many of its operations. The Git project released a
 [security advisory](https://github.com/git/git/security/advisories/GHSA-qm7j-c969-7j4q)
 on 2020-04-14, describing a serious vulnerability in Git which can lead to credential
 leakage through credential helpers by feeding malicious URLs to the `git clone`
 operation.
 
-We do not believe ArgoCD is affected by this vulnerability, because ArgoCD does neither
+We do not believe Argo CD is affected by this vulnerability, because ArgoCD does neither
 make use of Git credential helpers nor does it use `git clone` for repository operations.
 However, we do not know whether our users might have configured Git credential helpers on
 their own and chose to release new images which contain the bug fix for Git.
@@ -105,7 +105,7 @@ Upgrade to ArgoCD v1.5.1 or higher. As a workaround, disable local users and use
 
 |Risk|Reported by|Fix version|Workaround|
 |----|-----------|-----------|----------|
-|High|[Matt Hamilton](https://github.com/Eriner) of [https://soluble.ai](https://soluble.ai)|n/a|Yes|
+|High|[Matt Hamilton](https://github.com/Eriner) of [https://soluble.ai](https://soluble.ai)|1.8.0|Yes|
 
 **Details:**
 

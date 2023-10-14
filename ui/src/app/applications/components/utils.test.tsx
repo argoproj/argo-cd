@@ -40,6 +40,12 @@ test('getOperationType.Sync.Operation', () => {
     expect(state).toBe('Sync');
 });
 
+test('getOperationType.DeleteAndRecentSync', () => {
+    const state = getOperationType({metadata: {deletionTimestamp: '123'}, status: {operationState: {operation: {sync: {}}}}} as Application);
+
+    expect(state).toBe('Delete');
+});
+
 test('getOperationType.Sync.Status', () => {
     const state = getOperationType({metadata: {}, status: {operationState: {operation: {sync: {}}}}} as Application);
 

@@ -19,11 +19,11 @@ message VersionMessage {
 	string GoVersion = 6;
 	string Compiler = 7;
 	string Platform = 8;
-	string KsonnetVersion = 9;
 	string KustomizeVersion = 10;
 	string HelmVersion = 11;
 	string KubectlVersion = 12;
 	string JsonnetVersion = 13;
+	string ExtraBuildInfo = 14;
 }
 
 // VersionService returns the version of the API server.

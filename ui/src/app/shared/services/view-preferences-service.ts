@@ -1,25 +1,53 @@
+import * as deepMerge from 'deepmerge';
 import {BehaviorSubject, Observable} from 'rxjs';
+
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
+import {UserMessages} from '../models';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
+export enum AppsDetailsViewKey {
+    Tree = 'tree',
+    Network = 'network',
+    List = 'list',
+    Pods = 'pods'
+}
+
 export interface AppDetailsPreferences {
     resourceFilter: string[];
-    view: AppsDetailsViewType;
+    view: AppsDetailsViewType | string;
     resourceView: 'manifest' | 'diff' | 'desiredManifest';
     inlineDiff: boolean;
     compactDiff: boolean;
+    hideManagedFields?: boolean;
     orphanedResources: boolean;
     podView: PodViewPreferences;
     darkMode: boolean;
     followLogs: boolean;
+    hideFilters: boolean;
+    wrapLines: boolean;
+    groupNodes?: boolean;
+    zoom: number;
+    podGroupCount: number;
+    userHelpTipMsgs: UserMessages[];
 }
 
 export interface PodViewPreferences {
     sortMode: PodGroupType;
+    hideUnschedulable: boolean;
+}
+
+export interface HealthStatusBarPreferences {
+    showHealthStatusBar: boolean;
 }
 
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
+
+export enum AppsListViewKey {
+    List = 'list',
+    Summary = 'summary',
+    Tiles = 'tiles'
+}
 
 export class AppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
@@ -42,16 +70,23 @@ export class AppsListPreferences {
         pref.projectsFilter = [];
         pref.reposFilter = [];
         pref.syncFilter = [];
+        pref.autoSyncFilter = [];
+        pref.showFavorites = false;
     }
 
     public labelsFilter: string[];
     public projectsFilter: string[];
     public reposFilter: string[];
     public syncFilter: string[];
+    public autoSyncFilter: string[];
     public healthFilter: string[];
     public namespacesFilter: string[];
     public clustersFilter: string[];
     public view: AppsListViewType;
+    public hideFilters: boolean;
+    public statusBarView: HealthStatusBarPreferences;
+    public showFavorites: boolean;
+    public favoritesAppList: string[];
 }
 
 export interface ViewPreferences {
@@ -59,7 +94,11 @@ export interface ViewPreferences {
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
     pageSizes: {[key: string]: number};
+    sortOptions?: {[key: string]: string};
     hideBannerContent: string;
+    hideSidebar: boolean;
+    position: string;
+    theme: string;
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -70,16 +109,23 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     version: 1,
     appDetails: {
         view: 'tree',
-        resourceFilter: ['kind:Deployment', 'kind:Service', 'kind:Pod', 'kind:StatefulSet', 'kind:Ingress', 'kind:ConfigMap', 'kind:Job', 'kind:DaemonSet', 'kind:Workflow'],
+        hideFilters: false,
+        resourceFilter: [],
         inlineDiff: false,
         compactDiff: false,
+        hideManagedFields: true,
         resourceView: 'manifest',
         orphanedResources: false,
         podView: {
-            sortMode: 'node'
+            sortMode: 'node',
+            hideUnschedulable: true
         },
         darkMode: false,
-        followLogs: false
+        followLogs: false,
+        wrapLines: false,
+        zoom: 1.0,
+        podGroupCount: 15.0,
+        userHelpTipMsgs: []
     },
     appList: {
         view: 'tiles' as AppsListViewType,
@@ -89,10 +135,20 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         clustersFilter: new Array<string>(),
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
-        healthFilter: new Array<string>()
+        autoSyncFilter: new Array<string>(),
+        healthFilter: new Array<string>(),
+        hideFilters: false,
+        showFavorites: false,
+        favoritesAppList: new Array<string>(),
+        statusBarView: {
+            showHealthStatusBar: true
+        }
     },
     pageSizes: {},
-    hideBannerContent: ''
+    hideBannerContent: '',
+    hideSidebar: false,
+    position: '',
+    theme: 'light'
 };
 
 export class ViewPreferencesService {
@@ -132,6 +188,6 @@ export class ViewPreferencesService {
         } else {
             preferences = DEFAULT_PREFERENCES;
         }
-        return Object.assign({}, DEFAULT_PREFERENCES, preferences);
+        return deepMerge(DEFAULT_PREFERENCES, preferences);
     }
 }

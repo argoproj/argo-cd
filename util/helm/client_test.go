@@ -1,23 +1,46 @@
 package helm
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"math"
 	"os"
+	"strings"
 	"testing"
-	"time"
+
+	"net/http"
+	"net/http/httptest"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
+type fakeIndexCache struct {
+	data []byte
+}
+
+func (f *fakeIndexCache) SetHelmIndex(_ string, indexData []byte) error {
+	f.data = indexData
+	return nil
+}
+
+func (f *fakeIndexCache) GetHelmIndex(_ string, indexData *[]byte) error {
+	*indexData = f.data
+	return nil
+}
+
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
-		client := NewClient("", Creds{}, false)
+		client := NewClient("", Creds{}, false, "")
 		_, err := client.GetIndex(false)
 		assert.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false)
+		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
 		index, err := client.GetIndex(false)
 		assert.NoError(t, err)
 		assert.NotNil(t, index)
@@ -26,30 +49,46 @@ func TestIndex(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", Creds{
 			Username: "my-password",
 			Password: "my-username",
-		}, false)
+		}, false, "")
 		index, err := client.GetIndex(false)
 		assert.NoError(t, err)
 		assert.NotNil(t, index)
 	})
 
 	t.Run("Cached", func(t *testing.T) {
-		var prev time.Duration
-		indexDuration, prev = time.Minute, indexDuration
-		defer func() {
-			indexDuration = prev
-		}()
+		fakeIndex := Index{Entries: map[string]Entries{"fake": {}}}
+		data := bytes.Buffer{}
+		err := yaml.NewEncoder(&data).Encode(fakeIndex)
+		require.NoError(t, err)
 
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false)
+		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
 		index, err := client.GetIndex(false)
+
 		assert.NoError(t, err)
-		assert.NotNil(t, index)
+		assert.Equal(t, fakeIndex, *index)
 	})
 
 }
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false)
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1")
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	assert.NoError(t, err)
+	defer io.Close(closer)
+	info, err := os.Stat(path)
+	assert.NoError(t, err)
+	assert.True(t, info.IsDir())
+}
+
+func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
+	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false)
+	assert.Error(t, err, "error while iterating on tar reader: unexpected EOF")
+}
+
+func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{InsecureSkipVerify: true}, false, "")
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
 	assert.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
@@ -93,4 +132,68 @@ func TestIsHelmOciRepo(t *testing.T) {
 	assert.True(t, IsHelmOciRepo("demo.goharbor.io:8080"))
 	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io"))
 	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io:8080"))
+}
+
+func TestGetIndexURL(t *testing.T) {
+	urlTemplate := `https://gitlab.com/projects/%s/packages/helm/stable`
+	t.Run("URL without escaped characters", func(t *testing.T) {
+		rawURL := fmt.Sprintf(urlTemplate, "232323982")
+		want := rawURL + "/index.yaml"
+		got, err := getIndexURL(rawURL)
+		assert.Equal(t, want, got)
+		assert.NoError(t, err)
+	})
+	t.Run("URL with escaped characters", func(t *testing.T) {
+		rawURL := fmt.Sprintf(urlTemplate, "mygroup%2Fmyproject")
+		want := rawURL + "/index.yaml"
+		got, err := getIndexURL(rawURL)
+		assert.Equal(t, want, got)
+		assert.NoError(t, err)
+	})
+	t.Run("URL with invalid escaped characters", func(t *testing.T) {
+		rawURL := fmt.Sprintf(urlTemplate, "mygroup%**myproject")
+		got, err := getIndexURL(rawURL)
+		assert.Equal(t, "", got)
+		assert.Error(t, err)
+	})
+}
+
+func TestGetTagsFromUrl(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("called %s", r.URL.Path)
+		responseTags := TagsList{}
+		w.Header().Set("Content-Type", "application/json")
+		if !strings.Contains(r.URL.String(), "token") {
+			w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
+			responseTags.Tags = []string{"first"}
+		} else {
+			responseTags.Tags = []string{
+				"second",
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0_build",
+				"2.8.0-prerelease_build",
+				"2.8.0-prerelease.1_build.1234",
+			}
+		}
+		w.WriteHeader(http.StatusOK)
+		err := json.NewEncoder(w).Encode(responseTags)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}))
+
+	client := NewClient(server.URL, Creds{InsecureSkipVerify: true}, true, "")
+
+	tags, err := client.GetTags("mychart", true)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, tags.Tags, []string{
+		"first",
+		"second",
+		"2.8.0",
+		"2.8.0-prerelease",
+		"2.8.0+build",
+		"2.8.0-prerelease+build",
+		"2.8.0-prerelease.1+build.1234",
+	})
 }

@@ -1,5 +1,6 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
+@import 'node_modules/argo-ui/src/styles/theme';
 
 .help-tip {
     color: $argo-color-gray-4;
@@ -25,12 +26,15 @@
 
 .application-status-panel {
     font-size: 0.875em;
-    color: $argo-color-gray-7;
-    background-color: white;
-    box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
+    @include themify($themes) {
+        background-color: themed('background-2');
+        color: themed('text-1');
+    }
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
     flex-wrap: nowrap;
     flex-shrink: 1;
     overflow-x: auto;
+    padding-bottom: 0.5em;
 
     $row-width: 250px;
 
@@ -49,36 +53,44 @@
 
     &__more-button {
         margin-left: auto;
-        font-size: 12px;
+        font-size: 14px;
         line-height: 20px;
-        padding: 0;
+        padding: 0 5px;
+        cursor: pointer;
+        color: $argo-color-gray-6;
     }
 
     &__item {
-        height: 105px;
         margin-top: 5px;
         padding: 5px 20px;
         font-size: 0.8em;
         line-height: 1.2;
-        color: $argo-color-gray-7;
+        @include themify($themes) {
+            color: themed('text-1');
+        }
         display: flex;
         flex-direction: column;
+        justify-content: flex-start;
         flex-shrink: 0;
         flex-grow: 0;
 
         &__row {
             display: flex;
             max-width: $row-width;
+            margin-bottom: 0.25em;
             flex-shrink: 1;
             div:first-child {
+                width: 80px;
                 margin-right: 10px;
+                text-align: right;
             }
             div:last-child {
                 font-weight: 500;
-                margin-left: auto;
+                width: 100%;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
+                text-align: left;
             }
 
             @include responsive-widths();
@@ -99,7 +111,7 @@
         }
         & {
             a.warning {
-                color: $argo-failed-color-light;
+                color: $argo-status-warning-color;
             }
         }
         & {
@@ -110,7 +122,9 @@
 
         label {
             display: block;
-            color: $argo-color-gray-7;
+            @include themify($themes) {
+                color: themed('text-1');
+            }
             font-size: 13px;
             margin-right: 10px;
         }
@@ -122,13 +136,16 @@
     &__item-value {
         display: flex;
         align-items: center;
+        margin-bottom: 0.5em;
+        font-weight: 500;
         .fa {
             font-size: 1em;
         }
 
         font-size: 2em;
-        color: $argo-color-gray-7;
-
+        @include themify($themes) {
+            color: themed('text-1');
+        }
         &--highlight {
             color: $argo-color-teal-6;
         }
@@ -153,13 +170,12 @@
 
         &__revision {
             font-size: 14px;
-            color: $argo-color-gray-7;
-            font-weight: 500;
-            margin-left: auto;
-            padding-left: 5px;
-            a {
-                color: $argo-color-teal-6;
+            @include themify($themes) {
+                color: themed('text-1');
             }
+            font-weight: 500;
+            padding-left: 8px;
+            margin-bottom: 2px;
         }
     }
 

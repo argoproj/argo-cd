@@ -15,9 +15,11 @@ spec:
   - '*'
 
   # Only permit applications to deploy to the guestbook namespace in the same cluster
+  # Destination clusters can be identified by 'server', 'name', or both.
   destinations:
   - namespace: guestbook
     server: https://kubernetes.default.svc
+    name: in-cluster
 
   # Deny all cluster-scoped resources from being created, except for Namespace
   clusterResourceWhitelist:
@@ -64,3 +66,33 @@ spec:
     # anywhere by Argo CD. It can be prematurely revoked by removing the entry from this list.
     jwtTokens:
     - iat: 1535390316
+
+  # Sync windows restrict when Applications may be synced. https://argo-cd.readthedocs.io/en/stable/user-guide/sync_windows/
+  syncWindows:
+  - kind: allow
+    schedule: '10 1 * * *'
+    duration: 1h
+    applications:
+      - '*-prod'
+    manualSync: true
+  - kind: deny
+    schedule: '0 22 * * *'
+    duration: 1h
+    namespaces:
+      - default
+  - kind: allow
+    schedule: '0 23 * * *'
+    duration: 1h
+    clusters:
+      - in-cluster
+      - cluster1
+
+  # By default, apps may sync to any cluster specified under the `destinations` field, even if they are not
+  # scoped to this project. Set the following field to `true` to restrict apps in this cluster to only clusters
+  # scoped to this project.
+  permitOnlyProjectScopedClusters: false
+
+  # When using Applications-in-any-namespace, this field determines which namespaces this AppProject permits
+  # Applications to reside in. Details: https://argo-cd.readthedocs.io/en/stable/operator-manual/app-any-namespace/
+  sourceNamespaces:
+  - "argocd-apps-*"

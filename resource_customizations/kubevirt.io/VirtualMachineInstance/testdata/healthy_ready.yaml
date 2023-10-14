@@ -1,0 +1,104 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachineInstance
+metadata:
+  annotations:
+    kubevirt.io/latest-observed-api-version: v1
+    kubevirt.io/storage-observed-api-version: v1alpha3
+  creationTimestamp: "2021-09-14T23:39:01Z"
+  finalizers:
+  - kubevirt.io/virtualMachineControllerFinalize
+  - foregroundDeleteVirtualMachine
+  generation: 8
+  labels:
+    kubevirt.io/domain: testvm
+    kubevirt.io/nodeName: minikube
+    kubevirt.io/size: small
+  name: testvm
+  namespace: default
+  ownerReferences:
+  - apiVersion: kubevirt.io/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: VirtualMachine
+    name: testvm
+    uid: 40e44180-3dfb-4813-ace6-9f2d2c76c326
+  resourceVersion: "602262"
+  uid: 18648b62-36b6-4b86-bd16-a288aa132203
+spec:
+  domain:
+    cpu:
+      cores: 1
+      sockets: 1
+      threads: 1
+    devices:
+      disks:
+      - disk:
+          bus: virtio
+        name: containerdisk
+      - disk:
+          bus: virtio
+        name: cloudinitdisk
+      interfaces:
+      - masquerade: {}
+        name: default
+    features:
+      acpi:
+        enabled: true
+    firmware:
+      uuid: 5a9fc181-957e-5c32-9e5a-2de5e9673531
+    machine:
+      type: q35
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64M
+  networks:
+  - name: default
+    pod: {}
+  volumes:
+  - containerDisk:
+      image: quay.io/kubevirt/cirros-container-disk-demo
+      imagePullPolicy: Always
+    name: containerdisk
+  - cloudInitNoCloud:
+      userDataBase64: SGkuXG4=
+    name: cloudinitdisk
+status:
+  activePods:
+    6f699622-20ba-4be2-b84c-aea8141b65b2: minikube
+  conditions:
+  - lastProbeTime: null
+    lastTransitionTime: "2021-09-14T23:39:06Z"
+    status: "True"
+    type: Ready
+  - lastProbeTime: null
+    lastTransitionTime: null
+    status: "True"
+    type: LiveMigratable
+  guestOSInfo: {}
+  interfaces:
+  - ipAddress: 172.17.0.11
+    ipAddresses:
+    - 172.17.0.11
+    mac: 52:54:00:b1:18:f3
+    name: default
+  launcherContainerImageVersion: quay.io/kubevirt/virt-launcher:v0.45.0
+  migrationMethod: BlockMigration
+  nodeName: minikube
+  phase: Running
+  phaseTransitionTimestamps:
+  - phase: Pending
+    phaseTransitionTimestamp: "2021-09-14T23:39:01Z"
+  - phase: Scheduling
+    phaseTransitionTimestamp: "2021-09-14T23:39:01Z"
+  - phase: Scheduled
+    phaseTransitionTimestamp: "2021-09-14T23:39:06Z"
+  - phase: Running
+    phaseTransitionTimestamp: "2021-09-14T23:39:08Z"
+  qosClass: Burstable
+  virtualMachineRevisionName: revision-start-vm-40e44180-3dfb-4813-ace6-9f2d2c76c326-6
+  volumeStatus:
+  - name: cloudinitdisk
+    target: vdb
+  - name: containerdisk
+    target: vda

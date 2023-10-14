@@ -2,16 +2,15 @@ package kube
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
+	"os"
 	"testing"
-
-	"github.com/ghodss/yaml"
 
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 )
@@ -109,7 +108,7 @@ func TestSetLegacyLabels(t *testing.T) {
 }
 
 func TestSetLegacyJobLabel(t *testing.T) {
-	yamlBytes, err := ioutil.ReadFile("testdata/job.yaml")
+	yamlBytes, err := os.ReadFile("testdata/job.yaml")
 	assert.Nil(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
@@ -135,7 +134,7 @@ func TestSetLegacyJobLabel(t *testing.T) {
 }
 
 func TestSetSvcLabel(t *testing.T) {
-	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
@@ -161,4 +160,113 @@ func TestIsValidResourceName(t *testing.T) {
 	assert.True(t, IsValidResourceName("guestbook-ui1"))
 	assert.False(t, IsValidResourceName("Guestbook-ui"))
 	assert.False(t, IsValidResourceName("-guestbook-ui"))
+}
+
+func TestSetAppInstanceAnnotation(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
+	assert.Nil(t, err)
+
+	manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
+	assert.Nil(t, err)
+	log.Println(string(manifestBytes))
+
+	var s apiv1.Service
+	err = json.Unmarshal(manifestBytes, &s)
+	assert.Nil(t, err)
+
+	log.Println(s.Name)
+	log.Println(s.ObjectMeta)
+	assert.Equal(t, "my-app", s.ObjectMeta.Annotations[common.LabelKeyAppInstance])
+}
+
+func TestSetAppInstanceAnnotationWithInvalidData(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
+	assert.Error(t, err)
+	assert.Equal(t, "failed to get annotations from target object /v1, Kind=Service /my-service: .metadata.annotations accessor error: contains non-string key in the map: <nil> is of the type <nil>, expected string", err.Error())
+}
+
+func TestGetAppInstanceAnnotation(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
+	assert.Nil(t, err)
+
+	annotation, err := GetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance)
+	assert.Nil(t, err)
+	assert.Equal(t, "my-app", annotation)
+}
+
+func TestGetAppInstanceAnnotationWithInvalidData(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+
+	_, err = GetAppInstanceAnnotation(&obj, "valid-annotation")
+	assert.Error(t, err)
+	assert.Equal(t, "failed to get annotations from target object /v1, Kind=Service /my-service: .metadata.annotations accessor error: contains non-string key in the map: <nil> is of the type <nil>, expected string", err.Error())
+}
+
+func TestGetAppInstanceLabel(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	err = SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
+	assert.Nil(t, err)
+	label, err := GetAppInstanceLabel(&obj, common.LabelKeyAppInstance)
+	assert.Nil(t, err)
+	assert.Equal(t, "my-app", label)
+}
+
+func TestGetAppInstanceLabelWithInvalidData(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	_, err = GetAppInstanceLabel(&obj, "valid-label")
+	assert.Error(t, err)
+	assert.Equal(t, "failed to get labels for /v1, Kind=Service /my-service: .metadata.labels accessor error: contains non-string key in the map: <nil> is of the type <nil>, expected string", err.Error())
+}
+
+func TestRemoveLabel(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	obj.SetLabels(map[string]string{"test": "value"})
+
+	err = RemoveLabel(&obj, "test")
+	assert.Nil(t, err)
+
+	assert.Nil(t, obj.GetLabels())
+}
+
+func TestRemoveLabelWithInvalidData(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+
+	err = RemoveLabel(&obj, "valid-label")
+	assert.Error(t, err)
+	assert.Equal(t, "failed to get labels for /v1, Kind=Service /my-service: .metadata.labels accessor error: contains non-string key in the map: <nil> is of the type <nil>, expected string", err.Error())
 }

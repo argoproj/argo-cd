@@ -1,13 +1,14 @@
 import {Checkbox, DataLoader} from 'argo-ui';
 import * as jsYaml from 'js-yaml';
 import * as React from 'react';
-import {Diff, Hunk, parseDiff} from 'react-diff-view';
+import {parseDiff} from 'react-diff-view';
 import 'react-diff-view/style/index.css';
 import {diffLines, formatLines} from 'unidiff';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {IndividualDiffSection} from './individual-diff-section';
 
-require('./application-resources-diff.scss');
+import './application-resources-diff.scss';
 
 export interface ApplicationResourcesDiffProps {
     states: models.ResourceDiff[];
@@ -23,7 +24,7 @@ export const ApplicationResourcesDiff = (props: ApplicationResourcesDiffProps) =
                         b: state.predictedLiveState ? jsYaml.safeDump(state.predictedLiveState, {indent: 2}) : '',
                         hook: state.hook,
                         // doubles as sort order
-                        name: (state.group || '') + '/' + state.kind + '/' + state.namespace + '/' + state.name
+                        name: (state.group || '') + '/' + state.kind + '/' + (state.namespace ? state.namespace + '/' : '') + state.name
                     };
                 })
                 .filter(i => !i.hook)
@@ -69,17 +70,12 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.
                                 })
                             }
                         />
-                        <label htmlFor='inlineDiff'>Inline Diff</label>
+                        <label htmlFor='inlineDiff'>Inline diff</label>
                     </div>
                     {files
                         .sort((a: any, b: any) => a.newPath.localeCompare(b.newPath))
                         .map((file: any) => (
-                            <div key={file.newPath} className={whiteBox + ' application-component-diff__diff'}>
-                                {showPath && <p className='application-resources-diff__diff__title'>{file.newPath}</p>}
-                                <Diff viewType={viewType} diffType={file.type} hunks={file.hunks}>
-                                    {(hunks: any) => hunks.map((hunk: any) => <Hunk key={hunk.content} hunk={hunk} />)}
-                                </Diff>
-                            </div>
+                            <IndividualDiffSection key={file.newPath} file={file} showPath={showPath} whiteBox={whiteBox} viewType={viewType} />
                         ))}
                 </div>
             );

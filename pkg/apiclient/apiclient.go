@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net"
 	"net/http"
@@ -16,9 +15,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/protobuf/ptypes/empty"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	"github.com/hashicorp/go-retryablehttp"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
@@ -31,9 +33,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
+	notificationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
@@ -41,9 +45,10 @@ import (
 	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
 	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
+	http_util "github.com/argoproj/argo-cd/v2/util/http"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
@@ -82,7 +87,11 @@ type Client interface {
 	NewGPGKeyClient() (io.Closer, gpgkeypkg.GPGKeyServiceClient, error)
 	NewGPGKeyClientOrDie() (io.Closer, gpgkeypkg.GPGKeyServiceClient)
 	NewApplicationClient() (io.Closer, applicationpkg.ApplicationServiceClient, error)
+	NewApplicationSetClient() (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error)
 	NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient)
+	NewApplicationSetClientOrDie() (io.Closer, applicationsetpkg.ApplicationSetServiceClient)
+	NewNotificationClient() (io.Closer, notificationpkg.NotificationServiceClient, error)
+	NewNotificationClientOrDie() (io.Closer, notificationpkg.NotificationServiceClient)
 	NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient, error)
 	NewSessionClientOrDie() (io.Closer, sessionpkg.SessionServiceClient)
 	NewSettingsClient() (io.Closer, settingspkg.SettingsServiceClient, error)
@@ -93,7 +102,7 @@ type Client interface {
 	NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient)
 	NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error)
 	NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient)
-	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent
+	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent
 }
 
 // ClientOptions hold address, security, and other settings for the API client.
@@ -110,10 +119,17 @@ type ClientOptions struct {
 	UserAgent            string
 	GRPCWeb              bool
 	GRPCWebRootPath      string
+	Core                 bool
 	PortForward          bool
 	PortForwardNamespace string
 	Headers              []string
+	HttpRetryMax         int
 	KubeOverrides        *clientcmd.ConfigOverrides
+	AppControllerName    string
+	ServerName           string
+	RedisHaProxyName     string
+	RedisName            string
+	RepoServerName       string
 }
 
 type client struct {
@@ -133,6 +149,7 @@ type client struct {
 	proxyListener   net.Listener
 	proxyServer     *grpc.Server
 	proxyUsersCount int
+	httpClient      *http.Client
 }
 
 // NewClient creates a new API client from a set of config options.
@@ -189,14 +206,13 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.UserAgent = fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)
 	}
 	// Override server address if specified in env or CLI flag
-	if serverFromEnv := os.Getenv(EnvArgoCDServer); serverFromEnv != "" {
-		c.ServerAddr = serverFromEnv
-	}
+	c.ServerAddr = env.StringFromEnv(EnvArgoCDServer, c.ServerAddr)
 	if opts.PortForward || opts.PortForwardNamespace != "" {
 		if opts.KubeOverrides == nil {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
 		}
-		port, err := kube.PortForward("app.kubernetes.io/name=argocd-server", 8080, opts.PortForwardNamespace, opts.KubeOverrides)
+		serverPodLabelSelector := common.LabelKeyAppName + "=" + opts.ServerName
+		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, serverPodLabelSelector)
 		if err != nil {
 			return nil, err
 		}
@@ -210,20 +226,14 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if c.ServerAddr == "" {
 		return nil, errors.New("Argo CD server address unspecified")
 	}
-	if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
-		// If port is unspecified, assume the most likely port
-		c.ServerAddr += ":443"
-	}
 	// Override auth-token if specified in env variable or CLI flag
-	if authFromEnv := os.Getenv(EnvArgoCDAuthToken); authFromEnv != "" {
-		c.AuthToken = authFromEnv
-	}
+	c.AuthToken = env.StringFromEnv(EnvArgoCDAuthToken, c.AuthToken)
 	if opts.AuthToken != "" {
-		c.AuthToken = opts.AuthToken
+		c.AuthToken = strings.TrimSpace(opts.AuthToken)
 	}
 	// Override certificate data if specified from CLI flag
 	if opts.CertFile != "" {
-		b, err := ioutil.ReadFile(opts.CertFile)
+		b, err := os.ReadFile(opts.CertFile)
 		if err != nil {
 			return nil, err
 		}
@@ -252,13 +262,36 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if opts.GRPCWebRootPath != "" {
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
 	}
-	if !c.GRPCWeb {
-		//test if we need to set it to true
-		//if a call to grpc failed, then try again with GRPCWeb
-		conn, versionIf := c.NewVersionClientOrDie()
-		defer argoio.Close(conn)
 
-		_, err := versionIf.Version(context.Background(), &empty.Empty{})
+	if opts.HttpRetryMax > 0 {
+		retryClient := retryablehttp.NewClient()
+		retryClient.RetryMax = opts.HttpRetryMax
+		c.httpClient = retryClient.StandardClient()
+	} else {
+		c.httpClient = &http.Client{}
+	}
+
+	if !c.PlainText {
+		tlsConfig, err := c.tlsConfig()
+		if err != nil {
+			return nil, err
+		}
+		c.httpClient.Transport = &http.Transport{
+			TLSClientConfig: tlsConfig,
+		}
+	}
+	if !c.GRPCWeb {
+		if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
+			// If port is unspecified, assume the most likely port
+			c.ServerAddr += ":443"
+		}
+		// test if we need to set it to true
+		// if a call to grpc failed, then try again with GRPCWeb
+		conn, versionIf, err := c.NewVersionClient()
+		if err == nil {
+			defer argoio.Close(conn)
+			_, err = versionIf.Version(context.Background(), &empty.Empty{})
+		}
 		if err != nil {
 			c.GRPCWeb = true
 			conn, versionIf := c.NewVersionClientOrDie()
@@ -329,16 +362,29 @@ func (c *client) HTTPClient() (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	headers, err := parseHeaders(c.Headers)
+	if err != nil {
+		return nil, err
+	}
+
+	if c.UserAgent != "" {
+		headers.Set("User-Agent", c.UserAgent)
+	}
+
 	return &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
+		Transport: &http_util.TransportWithHeader{
+			RoundTripper: &http.Transport{
+				TLSClientConfig: tlsConfig,
+				Proxy:           http.ProxyFromEnvironment,
+				Dial: (&net.Dialer{
+					Timeout:   30 * time.Second,
+					KeepAlive: 30 * time.Second,
+				}).Dial,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+			},
+			Header: headers,
 		},
 	}, nil
 }
@@ -353,15 +399,13 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 	if err != nil {
 		return err
 	}
-	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-	}
-	var claims jwt.StandardClaims
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	var claims jwt.RegisteredClaims
 	_, _, err = parser.ParseUnverified(configCtx.User.AuthToken, &claims)
 	if err != nil {
 		return err
 	}
-	if claims.Valid(parser.ValidationHelper) == nil {
+	if claims.Valid() == nil {
 		// token is still valid
 		return nil
 	}
@@ -471,17 +515,28 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	endpointCredentials := jwtCredentials{
 		Token: c.AuthToken,
 	}
+	retryOpts := []grpc_retry.CallOption{
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
+	}
 	var dialOpts []grpc.DialOption
 	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(endpointCredentials))
 	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)))
+	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)))
+	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(grpc_retry.UnaryClientInterceptor(retryOpts...))))
+	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()))
+	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()))
 
 	ctx := context.Background()
 
-	for _, kv := range c.Headers {
-		if len(strings.Split(kv, ":"))%2 == 1 {
-			return nil, nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
+	headers, err := parseHeaders(c.Headers)
+	if err != nil {
+		return nil, nil, err
+	}
+	for k, vs := range headers {
+		for _, v := range vs {
+			ctx = metadata.AppendToOutgoingContext(ctx, k, v)
 		}
-		ctx = metadata.AppendToOutgoingContext(ctx, strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
 	}
 
 	if c.UserAgent != "" {
@@ -622,8 +677,42 @@ func (c *client) NewApplicationClient() (io.Closer, applicationpkg.ApplicationSe
 	return closer, appIf, nil
 }
 
+func (c *client) NewApplicationSetClient() (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error) {
+	conn, closer, err := c.newConn()
+	if err != nil {
+		return nil, nil, err
+	}
+	appIf := applicationsetpkg.NewApplicationSetServiceClient(conn)
+	return closer, appIf, nil
+}
+
 func (c *client) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
-	conn, repoIf, err := c.NewApplicationClient()
+	conn, appIf, err := c.NewApplicationClient()
+	if err != nil {
+		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+	}
+	return conn, appIf
+}
+
+func (c *client) NewNotificationClient() (io.Closer, notificationpkg.NotificationServiceClient, error) {
+	conn, closer, err := c.newConn()
+	if err != nil {
+		return nil, nil, err
+	}
+	notifIf := notificationpkg.NewNotificationServiceClient(conn)
+	return closer, notifIf, nil
+}
+
+func (c *client) NewNotificationClientOrDie() (io.Closer, notificationpkg.NotificationServiceClient) {
+	conn, notifIf, err := c.NewNotificationClient()
+	if err != nil {
+		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+	}
+	return conn, notifIf
+}
+
+func (c *client) NewApplicationSetClientOrDie() (io.Closer, applicationsetpkg.ApplicationSetServiceClient) {
+	conn, repoIf, err := c.NewApplicationSetClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
@@ -717,16 +806,21 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 
 // WatchApplicationWithRetry returns a channel of watch events for an application, retrying the
 // watch upon errors. Closes the returned channel when the context is cancelled.
-func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent {
-	appEventsCh := make(chan *argoappv1.ApplicationWatchEvent)
+func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
 	cancelled := false
+	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	go func() {
 		defer close(appEventsCh)
 		for !cancelled {
 			conn, appIf, err := c.NewApplicationClient()
 			if err == nil {
 				var wc applicationpkg.ApplicationService_WatchClient
-				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{Name: &appName, ResourceVersion: revision})
+				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{
+					Name:            &appName,
+					AppNamespace:    &appNs,
+					ResourceVersion: &revision,
+				})
 				if err == nil {
 					for {
 						var appEvent *v1alpha1.ApplicationWatchEvent
@@ -764,4 +858,17 @@ func isCanceledContextErr(err error) bool {
 		}
 	}
 	return false
+}
+
+func parseHeaders(headerStrings []string) (http.Header, error) {
+	headers := http.Header{}
+	for _, kv := range headerStrings {
+		i := strings.IndexByte(kv, ':')
+		// zero means meaningless empty header name
+		if i <= 0 {
+			return nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
+		}
+		headers.Add(kv[0:i], kv[i+1:])
+	}
+	return headers, nil
 }

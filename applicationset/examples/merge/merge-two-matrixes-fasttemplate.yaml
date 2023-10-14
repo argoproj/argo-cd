@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: merge-two-matrixes
+spec:
+  generators:
+    - merge:
+        mergeKeys:
+          - server
+          - environment
+        generators:
+          - matrix:
+              generators:
+                - clusters:
+                    values:
+                      replicaCount: '2'
+                - list:
+                    elements:
+                      - environment: staging
+                        namespace: guestbook-non-prod
+                      - environment: prod
+                        namespace: guestbook
+          - list:
+              elements:
+                - server: https://kubernetes.default.svc
+                  environment: staging
+                  values.replicaCount: '1'
+  template:
+    metadata:
+      name: '{{name}}-guestbook-{{environment}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps/
+        targetRevision: HEAD
+        path: helm-guestbook
+        helm:
+          parameters:
+            - name: replicaCount
+              value: '{{values.replicaCount}}'
+      destination:
+        server: '{{server}}'
+        namespace: '{{namespace}}'

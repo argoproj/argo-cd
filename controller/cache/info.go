@@ -1,11 +1,16 @@
 package cache
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/cespare/xxhash/v2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -13,39 +18,44 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/resource"
 )
 
-func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLabels []string) {
 	gvk := un.GroupVersionKind()
 	revision := resource.GetRevision(un)
 	if revision > 0 {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("Rev:%v", revision)})
+	}
+	if len(customLabels) > 0 {
+		if labels := un.GetLabels(); labels != nil {
+			for _, customLabel := range customLabels {
+				if value, ok := labels[customLabel]; ok {
+					res.Info = append(res.Info, v1alpha1.InfoItem{Name: customLabel, Value: value})
+				}
+			}
+		}
 	}
 	switch gvk.Group {
 	case "":
 		switch gvk.Kind {
 		case kube.PodKind:
 			populatePodInfo(un, res)
-			return
 		case kube.ServiceKind:
 			populateServiceInfo(un, res)
-			return
 		case "Node":
 			populateHostNodeInfo(un, res)
-			return
 		}
 	case "extensions", "networking.k8s.io":
 		switch gvk.Kind {
 		case kube.IngressKind:
 			populateIngressInfo(un, res)
-			return
 		}
 	case "networking.istio.io":
 		switch gvk.Kind {
 		case "VirtualService":
 			populateIstioVirtualServiceInfo(un, res)
-			return
 		}
 	}
 
@@ -86,16 +96,36 @@ func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
 }
 
+func getServiceName(backend map[string]interface{}, gvk schema.GroupVersionKind) (string, error) {
+	switch gvk.Group {
+	case "extensions":
+		return fmt.Sprintf("%s", backend["serviceName"]), nil
+	case "networking.k8s.io":
+		switch gvk.Version {
+		case "v1beta1":
+			return fmt.Sprintf("%s", backend["serviceName"]), nil
+		case "v1":
+			if service, ok, err := unstructured.NestedMap(backend, "service"); ok && err == nil {
+				return fmt.Sprintf("%s", service["name"]), nil
+			}
+		}
+	}
+	return "", errors.New("unable to resolve string")
+}
+
 func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	ingress := getIngress(un)
 	targetsMap := make(map[v1alpha1.ResourceRef]bool)
+	gvk := un.GroupVersionKind()
 	if backend, ok, err := unstructured.NestedMap(un.Object, "spec", "backend"); ok && err == nil {
-		targetsMap[v1alpha1.ResourceRef{
-			Group:     "",
-			Kind:      kube.ServiceKind,
-			Namespace: un.GetNamespace(),
-			Name:      fmt.Sprintf("%s", backend["serviceName"]),
-		}] = true
+		if serviceName, err := getServiceName(backend, gvk); err == nil {
+			targetsMap[v1alpha1.ResourceRef{
+				Group:     "",
+				Kind:      kube.ServiceKind,
+				Namespace: un.GetNamespace(),
+				Name:      serviceName,
+			}] = true
+		}
 	}
 	urlsSet := make(map[string]bool)
 	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "rules"); ok && err == nil {
@@ -123,13 +153,15 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 					continue
 				}
 
-				if serviceName, ok, err := unstructured.NestedString(path, "backend", "serviceName"); ok && err == nil {
-					targetsMap[v1alpha1.ResourceRef{
-						Group:     "",
-						Kind:      kube.ServiceKind,
-						Namespace: un.GetNamespace(),
-						Name:      serviceName,
-					}] = true
+				if backend, ok, err := unstructured.NestedMap(path, "backend"); ok && err == nil {
+					if serviceName, err := getServiceName(backend, gvk); err == nil {
+						targetsMap[v1alpha1.ResourceRef{
+							Group:     "",
+							Kind:      kube.ServiceKind,
+							Namespace: un.GetNamespace(),
+							Name:      serviceName,
+						}] = true
+					}
 				}
 
 				if host == nil || host == "" {
@@ -146,6 +178,17 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 						tlshost := tlsline["host"]
 						if tlshost == host {
 							stringPort = "https"
+							continue
+						}
+						if hosts := tlsline["hosts"]; hosts != nil {
+							tlshosts, ok := tlsline["hosts"].(map[string]interface{})
+							if ok {
+								for j := range tlshosts {
+									if tlshosts[j] == host {
+										stringPort = "https"
+									}
+								}
+							}
 						}
 					}
 				}
@@ -324,7 +367,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 
 	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
-	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req}
+	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req, Phase: pod.Status.Phase}
 
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
@@ -345,4 +388,28 @@ func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		Capacity:   node.Status.Capacity,
 		SystemInfo: node.Status.NodeInfo,
 	}
+}
+
+func generateManifestHash(un *unstructured.Unstructured, ignores []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) (string, error) {
+	normalizer, err := normalizers.NewIgnoreNormalizer(ignores, overrides)
+	if err != nil {
+		return "", fmt.Errorf("error creating normalizer: %w", err)
+	}
+
+	resource := un.DeepCopy()
+	err = normalizer.Normalize(resource)
+	if err != nil {
+		return "", fmt.Errorf("error normalizing resource: %w", err)
+	}
+
+	data, err := resource.MarshalJSON()
+	if err != nil {
+		return "", fmt.Errorf("error marshaling resource: %w", err)
+	}
+	hash := hash(data)
+	return hash, nil
+}
+
+func hash(data []byte) string {
+	return strconv.FormatUint(xxhash.Sum64(data), 16)
 }

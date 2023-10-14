@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -32,7 +33,7 @@ func TestKustomize2AppSource(t *testing.T) {
 		NamePrefix("k2-").
 		NameSuffix("-deploy1").
 		When().
-		Create().
+		CreateApp().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
@@ -69,7 +70,7 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 	Given(t).
 		Path("kustomize-cm-gen").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -120,7 +121,7 @@ func TestKustomizeSSHRemoteBase(t *testing.T) {
 		RepoURLType(fixture.RepoURLTypeSSH).
 		Path(fixture.LocalOrRemotePath("ssh-kustomize-base")).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -140,17 +141,18 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/does-not-exist.yaml: no such file or directory"))
 }
 
+// Flag --load_restrictor is no longer supported in Kustomize 4
 func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
-				"-n", fixture.ArgoCDNamespace,
-				"-p", `{ "data": { "kustomize.buildOptions": "--load_restrictor none" } }`))
+				"-n", fixture.TestNamespace(),
+				"-p", `{ "data": { "kustomize.buildOptions": "--load-restrictor LoadRestrictionsNone" } }`))
 		}).
 		When().
 		PatchFile("kustomization.yaml", `[{"op": "replace", "path": "/resources/1", "value": "../guestbook_local/guestbook-ui-svc.yaml"}]`).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -159,7 +161,7 @@ func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 		Given().
 		And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
-				"-n", fixture.ArgoCDNamespace,
+				"-n", fixture.TestNamespace(),
 				"-p", `{ "data": { "kustomize.buildOptions": "" } }`))
 		})
 }
@@ -169,13 +171,52 @@ func TestKustomizeImages(t *testing.T) {
 	Given(t).
 		Path("kustomize").
 		When().
-		Create().
+		CreateApp().
 		// pass two flags to check the multi flag logic works
 		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
+			assert.Contains(t, app.Spec.GetSource().Kustomize.Images, KustomizeImage("alpine:bar"))
 		})
+}
+
+// make sure we we can invoke the CLI to replace replicas and actual deployment is set to correct value
+func TestKustomizeReplicas2AppSource(t *testing.T) {
+	deploymentName := "guestbook-ui"
+	deploymentReplicas := 2
+	checkReplicasFor := func(kind string) func(app *Application) {
+		return func(app *Application) {
+			name := deploymentName
+			replicas, err := fixture.Run(
+				"", "kubectl", "-n="+fixture.DeploymentNamespace(),
+				"get", kind, name,
+				"-ojsonpath={.spec.replicas}")
+			assert.NoError(t, err)
+			assert.Equal(t, strconv.Itoa(deploymentReplicas), replicas, "wrong value of replicas %s %s", kind, name)
+		}
+	}
+
+	Given(t).
+		Path("guestbook").
+		When().
+		CreateApp().
+		AppSet("--kustomize-replica", deploymentName+"=2").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, deploymentName, app.Spec.Source.Kustomize.Replicas[0].Name)
+		}).
+		And(func(app *Application) {
+			assert.Equal(t, deploymentReplicas, int(app.Spec.Source.Kustomize.Replicas[0].Count.IntVal))
+		}). // check Kustomize CLI
+		Expect(Success("")).
+		When().
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(checkReplicasFor("Deployment"))
 }
 
 // make sure we we can invoke the CLI to set namesuffix
@@ -183,11 +224,11 @@ func TestKustomizeNameSuffix(t *testing.T) {
 	Given(t).
 		Path("kustomize").
 		When().
-		Create().
+		CreateApp().
 		AppSet("--namesuffix", "-suf").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
+			assert.Contains(t, app.Spec.GetSource().Kustomize.NameSuffix, "-suf")
 		})
 }
 
@@ -196,27 +237,51 @@ func TestKustomizeUnsetOverride(t *testing.T) {
 	Given(t).
 		Path("kustomize").
 		When().
-		Create().
+		CreateApp().
 		AppSet("--namesuffix", "-suf").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
+			assert.Contains(t, app.Spec.GetSource().Kustomize.NameSuffix, "-suf")
 		}).
 		When().
 		AppUnSet("--namesuffix").
 		Then().
 		And(func(app *Application) {
-			assert.Nil(t, app.Spec.Source.Kustomize)
+			assert.Nil(t, app.Spec.GetSource().Kustomize)
 		}).
 		When().
 		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
+			assert.Contains(t, app.Spec.GetSource().Kustomize.Images, KustomizeImage("alpine:bar"))
 		}).
 		When().
 		//AppUnSet("--kustomize-image=alpine").
 		AppUnSet("--kustomize-image", "alpine", "--kustomize-image", "alpine").
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.GetSource().Kustomize)
+		})
+}
+
+// make sure we we can invoke the CLI to set and unset Deployment
+func TestKustomizeUnsetOverrideDeployment(t *testing.T) {
+	deploymentName := "guestbook-ui"
+	deploymentReplicas := int32(2)
+	Given(t).
+		Path("guestbook").
+		When(). // Replicas
+		CreateApp().
+		AppSet("--kustomize-replica", deploymentName+"=2").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, deploymentName, app.Spec.Source.Kustomize.Replicas[0].Name)
+		}).
+		And(func(app *Application) {
+			assert.Equal(t, deploymentReplicas, app.Spec.Source.Kustomize.Replicas[0].Count.IntVal)
+		}).
+		When().
+		AppUnSet("--kustomize-replica", deploymentName).
 		Then().
 		And(func(app *Application) {
 			assert.Nil(t, app.Spec.Source.Kustomize)

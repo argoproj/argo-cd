@@ -34,8 +34,6 @@ export ARGOCD_E2E_SKIP_GPG=${ARGOCD_E2E_SKIP_GPG:-false}
 export ARGOCD_E2E_SKIP_OPENSHIFT=${ARGOCD_E2E_SKIP_OPENSHIFT:-false}
 # Skip Helm tests
 export ARGOCD_E2E_SKIP_HELM=${ARGOCD_E2E_SKIP_HELM:-false}
-# Skip Helm v2 related tests
-export ARGOCD_E2E_SKIP_HELM2=${ARGOCD_E2E_SKIP_HELM2:-false}
 # Skip Ksonnet tests
 export ARGOCD_E2E_SKIP_KSONNET=${ARGOCD_E2E_SKIP_KSONNET:-false}
 

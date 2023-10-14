@@ -10,9 +10,10 @@ import (
 
 var (
 	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion                = schema.GroupVersion{Group: application.Group, Version: "v1alpha1"}
-	ApplicationSchemaGroupVersionKind = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind}
-	AppProjectSchemaGroupVersionKind  = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.AppProjectKind}
+	SchemeGroupVersion                   = schema.GroupVersion{Group: application.Group, Version: "v1alpha1"}
+	ApplicationSchemaGroupVersionKind    = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind}
+	AppProjectSchemaGroupVersionKind     = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.AppProjectKind}
+	ApplicationSetSchemaGroupVersionKind = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationSetKind}
 )
 
 // Resource takes an unqualified resource and returns a Group-qualified GroupResource.
@@ -32,6 +33,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ApplicationList{},
 		&AppProject{},
 		&AppProjectList{},
+		&ApplicationSet{},
+		&ApplicationSetList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

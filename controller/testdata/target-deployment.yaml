@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: 'guestbook:apps/Deployment:default/kustomize-guestbook-ui'
+    iksm-version: '1.0'
+  name: kustomize-guestbook-ui
+  namespace: default
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: guestbook-ui
+  template:
+    metadata:
+      labels:
+        app: guestbook-ui
+    spec:
+      containers:
+        - env:
+            - name: SOME_ENV_VAR
+              value: some_value
+          image: 'gcr.io/heptio-images/ks-guestbook-demo:0.1'
+          name: guestbook-ui
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 100Mi

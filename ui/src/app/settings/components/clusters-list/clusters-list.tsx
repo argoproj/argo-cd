@@ -1,4 +1,5 @@
-import {DropDownMenu} from 'argo-ui';
+import {DropDownMenu, ErrorNotification, NotificationType} from 'argo-ui';
+import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {RouteComponentProps} from 'react-router-dom';
 import {clusterName, ConnectionStateIcon, DataLoader, EmptyState, Page} from '../../../shared/components';
@@ -36,9 +37,16 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                                         onClick={() => ctx.navigation.goto(`./${encodeURIComponent(cluster.server)}`)}>
                                                         <div className='row'>
                                                             <div className='columns small-3'>
-                                                                <i className='icon argo-icon-hosts' /> {clusterName(cluster.name)}
+                                                                <i className='icon argo-icon-hosts' />
+                                                                <Tooltip content={clusterName(cluster.name)}>
+                                                                    <span>{clusterName(cluster.name)}</span>
+                                                                </Tooltip>
                                                             </div>
-                                                            <div className='columns small-5'>{cluster.server}</div>
+                                                            <div className='columns small-5'>
+                                                                <Tooltip content={cluster.server}>
+                                                                    <span>{cluster.server}</span>
+                                                                </Tooltip>
+                                                            </div>
                                                             <div className='columns small-2'>{cluster.info.serverVersion}</div>
                                                             <div className='columns small-2'>
                                                                 <ConnectionStateIcon state={cluster.info.connectionState} /> {cluster.info.connectionState.status}
@@ -51,13 +59,27 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                                                     items={[
                                                                         {
                                                                             title: 'Delete',
-                                                                            action: () =>
-                                                                                services.clusters.delete(cluster.server).finally(() => {
-                                                                                    ctx.navigation.goto('.', {new: null});
-                                                                                    if (clustersLoaderRef.current) {
-                                                                                        clustersLoaderRef.current.reload();
+                                                                            action: async () => {
+                                                                                const confirmed = await ctx.popup.confirm(
+                                                                                    'Delete cluster?',
+                                                                                    `Are you sure you want to delete cluster: ${cluster.name}`
+                                                                                );
+                                                                                if (confirmed) {
+                                                                                    try {
+                                                                                        await services.clusters.delete(cluster.server).finally(() => {
+                                                                                            ctx.navigation.goto('.', {new: null}, {replace: true});
+                                                                                            if (clustersLoaderRef.current) {
+                                                                                                clustersLoaderRef.current.reload();
+                                                                                            }
+                                                                                        });
+                                                                                    } catch (e) {
+                                                                                        ctx.notifications.show({
+                                                                                            content: <ErrorNotification title='Unable to delete cluster' e={e} />,
+                                                                                            type: NotificationType.Error
+                                                                                        });
                                                                                     }
-                                                                                })
+                                                                                }
+                                                                            }
                                                                         }
                                                                     ]}
                                                                 />

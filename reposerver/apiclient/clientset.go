@@ -3,6 +3,7 @@ package apiclient
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"time"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -10,10 +11,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 
 	argogrpc "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
+
+//go:generate go run github.com/vektra/mockery/v2@v2.15.0 --name=RepoServerServiceClient
 
 const (
 	// MaxGRPCMessageSize contains max grpc message size
@@ -44,7 +48,7 @@ type clientSet struct {
 func (c *clientSet) NewRepoServerClient() (io.Closer, RepoServerServiceClient, error) {
 	conn, err := NewConnection(c.address, c.timeoutSeconds, &c.tlsConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to open a new connection to repo server: %w", err)
 	}
 	return conn, NewRepoServerServiceClient(conn), nil
 }
@@ -62,6 +66,8 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
 		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
+		grpc.WithUnaryInterceptor(argogrpc.OTELUnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(argogrpc.OTELStreamClientInterceptor()),
 	}
 
 	tlsC := &tls.Config{}
@@ -73,7 +79,7 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 		}
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsC)))
 	} else {
-		opts = append(opts, grpc.WithInsecure())
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
 	conn, err := grpc.Dial(address, opts...)

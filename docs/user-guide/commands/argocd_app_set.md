@@ -1,9 +1,30 @@
+# `argocd app set` Command Reference
+
 ## argocd app set
 
 Set application parameters
 
 ```
 argocd app set APPNAME [flags]
+```
+
+### Examples
+
+```
+  # Set application parameters for the application "my-app"
+  argocd app set my-app --parameter key1=value1 --parameter key2=value2
+  
+  # Set and validate application parameters for "my-app"
+  argocd app set my-app --parameter key1=value1 --parameter key2=value2 --validate
+  
+  # Set and override application parameters with JSON or YAML file
+  argocd app set my-app --from-file path/to/parameters.json
+  
+  # Set and override application parameters with a parameter file
+  argocd app set my-app --parameter-file path/to/parameter-file.yaml
+  
+  # Set application parameters and specify the namespace
+  argocd app set my-app --parameter key1=value1 --parameter key2=value2 --namespace my-namespace
 ```
 
 ### Options
@@ -13,18 +34,21 @@ argocd app set APPNAME [flags]
       --auto-prune                                 Set automatic pruning when sync is automated
       --config-management-plugin string            Config management plugin name
       --dest-name string                           K8s cluster Name (e.g. minikube)
-      --dest-namespace string                      K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)
+      --dest-namespace string                      K8s target namespace
       --dest-server string                         K8s cluster URL (e.g. https://kubernetes.default.svc)
       --directory-exclude string                   Set glob expression used to exclude files from application source path
       --directory-include string                   Set glob expression used to include files from application source path
       --directory-recurse                          Recurse directory
       --env string                                 Application environment to monitor
       --helm-chart string                          Helm Chart name
+      --helm-pass-credentials                      Pass credentials to all domain
       --helm-set stringArray                       Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)
       --helm-set-file stringArray                  Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)
       --helm-set-string stringArray                Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)
+      --helm-skip-crds                             Skip helm crd installation step
       --helm-version string                        Helm version
   -h, --help                                       help for set
+      --ignore-missing-value-files                 Ignore locally missing valueFiles when setting helm template --values
       --jsonnet-ext-var-code stringArray           Jsonnet ext var
       --jsonnet-ext-var-str stringArray            Jsonnet string ext var
       --jsonnet-libs stringArray                   Additional jsonnet libs (prefixed by repoRoot)
@@ -32,7 +56,11 @@ argocd app set APPNAME [flags]
       --jsonnet-tla-str stringArray                Jsonnet top level string arguments
       --kustomize-common-annotation stringArray    Set common labels in Kustomize
       --kustomize-common-label stringArray         Set common labels in Kustomize
+      --kustomize-force-common-annotation          Force common annotations in Kustomize
+      --kustomize-force-common-label               Force common labels in Kustomize
       --kustomize-image stringArray                Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)
+      --kustomize-namespace string                 Kustomize namespace
+      --kustomize-replica stringArray              Kustomize replicas (e.g. --kustomize-replica my-development=2 --kustomize-replica my-statefulset=4)
       --kustomize-version string                   Kustomize version
       --nameprefix string                          Kustomize nameprefix
       --namesuffix string                          Kustomize namesuffix
@@ -62,18 +90,26 @@ argocd app set APPNAME [flags]
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
+      --controller-name string          Name of the Argo CD Application controller; set this or the ARGOCD_APPLICATION_CONTROLLER_NAME environment variable when the controller's name label differs from the default, for example when installing via the Helm chart (default "argocd-application-controller")
+      --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
+      --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
+      --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
+      --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
+      --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")
       --server string                   Argo CD server address
       --server-crt string               Server certificate file
+      --server-name string              Name of the Argo CD API server; set this or the ARGOCD_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-server")
 ```
 
 ### SEE ALSO

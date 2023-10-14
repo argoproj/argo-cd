@@ -2,11 +2,14 @@ package helm
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,19 +22,18 @@ import (
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
+	"oras.land/oras-go/v2/registry/remote"
+	"oras.land/oras-go/v2/registry/remote/auth"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/cache"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
 var (
-	globalLock    = sync.NewKeyLock()
-	indexDuration = env.ParseDurationFromEnv(common.EnvHelmIndexCacheDuration, 0, 0, time.Hour*24)
-	indexCache    = cache.NewInMemoryCache(indexDuration)
-	indexLock     = sync.NewKeyLock()
+	globalLock = sync.NewKeyLock()
+	indexLock  = sync.NewKeyLock()
 )
 
 type Creds struct {
@@ -43,33 +45,62 @@ type Creds struct {
 	InsecureSkipVerify bool
 }
 
+type indexCache interface {
+	SetHelmIndex(repo string, indexData []byte) error
+	GetHelmIndex(repo string, indexData *[]byte) error
+}
+
 type Client interface {
 	CleanChartCache(chart string, version string) error
-	ExtractChart(chart string, version string) (string, io.Closer, error)
+	ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
 	GetIndex(noCache bool) (*Index, error)
+	GetTags(chart string, noCache bool) (*TagsList, error)
 	TestHelmOCI() (bool, error)
 }
 
-func NewClient(repoURL string, creds Creds, enableOci bool) Client {
-	return NewClientWithLock(repoURL, creds, globalLock, enableOci)
-}
+type ClientOpts func(c *nativeHelmChart)
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool) Client {
-	return &nativeHelmChart{
-		repoURL:   repoURL,
-		creds:     creds,
-		repoPath:  filepath.Join(os.TempDir(), strings.Replace(repoURL, "/", "_", -1)),
-		repoLock:  repoLock,
-		enableOci: enableOci,
+func WithIndexCache(indexCache indexCache) ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.indexCache = indexCache
 	}
 }
 
+func WithChartPaths(chartPaths argoio.TempPaths) ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.chartCachePaths = chartPaths
+	}
+}
+
+func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, opts ...ClientOpts) Client {
+	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, opts...)
+}
+
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, opts ...ClientOpts) Client {
+	c := &nativeHelmChart{
+		repoURL:         repoURL,
+		creds:           creds,
+		repoLock:        repoLock,
+		enableOci:       enableOci,
+		proxy:           proxy,
+		chartCachePaths: argoio.NewRandomizedTempPaths(os.TempDir()),
+	}
+	for i := range opts {
+		opts[i](c)
+	}
+	return c
+}
+
+var _ Client = &nativeHelmChart{}
+
 type nativeHelmChart struct {
-	repoPath  string
-	repoURL   string
-	creds     Creds
-	repoLock  sync.KeyLock
-	enableOci bool
+	chartCachePaths argoio.TempPaths
+	repoURL         string
+	creds           Creds
+	repoLock        sync.KeyLock
+	enableOci       bool
+	indexCache      indexCache
+	proxy           string
 }
 
 func fileExist(filePath string) (bool, error) {
@@ -83,29 +114,31 @@ func fileExist(filePath string) (bool, error) {
 	return true, nil
 }
 
-func (c *nativeHelmChart) ensureHelmChartRepoPath() error {
-	c.repoLock.Lock(c.repoPath)
-	defer c.repoLock.Unlock(c.repoPath)
-
-	err := os.Mkdir(c.repoPath, 0700)
-	if err != nil && !os.IsExist(err) {
+func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
+	cachePath, err := c.getCachedChartPath(chart, version)
+	if err != nil {
 		return err
 	}
-	return nil
+	return os.RemoveAll(cachePath)
 }
 
-func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
-	return os.RemoveAll(c.getCachedChartPath(chart, version))
-}
-
-func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, io.Closer, error) {
-	err := c.ensureHelmChartRepoPath()
-	if err != nil {
-		return "", nil, err
+func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) error {
+	if disableManifestMaxExtractedSize {
+		cmd := exec.Command("tar", "-zxvf", cachedChartPath)
+		cmd.Dir = tempDir
+		_, err := executil.Run(cmd)
+		return err
 	}
+	reader, err := os.Open(cachedChartPath)
+	if err != nil {
+		return err
+	}
+	return files.Untgz(tempDir, reader, manifestMaxExtractedSize, false)
+}
 
+func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
-	helmCmd, err := NewCmdWithVersion(c.repoPath, HelmV3, c.enableOci)
+	helmCmd, err := NewCmdWithVersion("", HelmV3, c.enableOci, c.proxy)
 
 	if err != nil {
 		return "", nil, err
@@ -118,12 +151,15 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, io
 	}
 
 	// throw away temp directory that stores extracted chart and should be deleted as soon as no longer needed by returned closer
-	tempDir, err := ioutil.TempDir("", "helm")
+	tempDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
 		return "", nil, err
 	}
 
-	cachedChartPath := c.getCachedChartPath(chart, version)
+	cachedChartPath, err := c.getCachedChartPath(chart, version)
+	if err != nil {
+		return "", nil, err
+	}
 
 	c.repoLock.Lock(cachedChartPath)
 	defer c.repoLock.Unlock(cachedChartPath)
@@ -136,7 +172,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, io
 
 	if !exists {
 		// create empty temp directory to extract chart from the registry
-		tempDest, err := ioutil.TempDir("", "helm")
+		tempDest, err := files.CreateTempDir(os.TempDir())
 		if err != nil {
 			return "", nil, err
 		}
@@ -144,65 +180,49 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, io
 
 		if c.enableOci {
 			if c.creds.Password != "" && c.creds.Username != "" {
-				_, err = helmCmd.Login(c.repoURL, c.creds)
+				_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
 				if err != nil {
 					return "", nil, err
 				}
 
 				defer func() {
-					_, _ = helmCmd.Logout(c.repoURL, c.creds)
+					_, _ = helmCmd.RegistryLogout(c.repoURL, c.creds)
 				}()
 			}
 
-			// 'helm chart pull' ensures that chart is downloaded into local repository cache
-			_, err = helmCmd.ChartPull(c.repoURL, chart, version)
-			if err != nil {
-				return "", nil, err
-			}
-
-			// 'helm chart export' copies cached chart into temp directory
-			_, err = helmCmd.ChartExport(c.repoURL, chart, version, tempDest)
-			if err != nil {
-				return "", nil, err
-			}
-
-			// use downloaded chart content to produce tar file in expected cache location
-			cmd := exec.Command("tar", "-zcvf", cachedChartPath, normalizeChartName(chart))
-			cmd.Dir = tempDest
-			_, err = executil.Run(cmd)
+			// 'helm pull' ensures that chart is downloaded into temp directory
+			_, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest, c.creds)
 			if err != nil {
 				return "", nil, err
 			}
 		} else {
-			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds)
-			if err != nil {
-				return "", nil, err
-			}
-
-			// 'helm fetch' file downloads chart into the tgz file and we move that to where we want it
-			infos, err := ioutil.ReadDir(tempDest)
-			if err != nil {
-				return "", nil, err
-			}
-			if len(infos) != 1 {
-				return "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
-			}
-			err = os.Rename(filepath.Join(tempDest, infos[0].Name()), cachedChartPath)
+			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds, passCredentials)
 			if err != nil {
 				return "", nil, err
 			}
 		}
 
+		// 'helm pull/fetch' file downloads chart into the tgz file and we move that to where we want it
+		infos, err := os.ReadDir(tempDest)
+		if err != nil {
+			return "", nil, err
+		}
+		if len(infos) != 1 {
+			return "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
+		}
+
+		err = os.Rename(filepath.Join(tempDest, infos[0].Name()), cachedChartPath)
+		if err != nil {
+			return "", nil, err
+		}
 	}
 
-	cmd := exec.Command("tar", "-zxvf", cachedChartPath)
-	cmd.Dir = tempDir
-	_, err = executil.Run(cmd)
+	err = untarChart(tempDir, cachedChartPath, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	if err != nil {
 		_ = os.RemoveAll(tempDir)
 		return "", nil, err
 	}
-	return path.Join(tempDir, normalizeChartName(chart)), io.NewCloser(func() error {
+	return path.Join(tempDir, normalizeChartName(chart)), argoio.NewCloser(func() error {
 		return os.RemoveAll(tempDir)
 	}), nil
 }
@@ -212,9 +232,8 @@ func (c *nativeHelmChart) GetIndex(noCache bool) (*Index, error) {
 	defer indexLock.Unlock(c.repoURL)
 
 	var data []byte
-	useCache := !noCache && indexDuration > 0
-	if useCache {
-		if err := indexCache.Get(c.repoURL, &data); err != nil && err != cache.ErrCacheMiss {
+	if !noCache && c.indexCache != nil {
+		if err := c.indexCache.GetHelmIndex(c.repoURL, &data); err != nil && err != cache.ErrCacheMiss {
 			log.Warnf("Failed to load index cache for repo: %s: %v", c.repoURL, err)
 		}
 	}
@@ -228,8 +247,10 @@ func (c *nativeHelmChart) GetIndex(noCache bool) (*Index, error) {
 		}
 		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
 
-		if err := indexCache.Set(&cache.Item{Key: c.repoURL, Object: data}); err != nil {
-			log.Warnf("Failed to store index cache for repo: %s: %v", c.repoURL, err)
+		if c.indexCache != nil {
+			if err := c.indexCache.SetHelmIndex(c.repoURL, data); err != nil {
+				log.Warnf("Failed to store index cache for repo: %s: %v", c.repoURL, err)
+			}
 		}
 	}
 
@@ -245,13 +266,13 @@ func (c *nativeHelmChart) GetIndex(noCache bool) (*Index, error) {
 func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	start := time.Now()
 
-	tmpDir, err := ioutil.TempDir("", "helm")
+	tmpDir, err := os.MkdirTemp("", "helm")
 	if err != nil {
 		return false, err
 	}
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
-	helmCmd, err := NewCmdWithVersion(tmpDir, HelmV3, c.enableOci)
+	helmCmd, err := NewCmdWithVersion(tmpDir, HelmV3, c.enableOci, c.proxy)
 	if err != nil {
 		return false, err
 	}
@@ -260,12 +281,12 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	// Looks like there is no good way to test access to OCI repo if credentials are not provided
 	// just assume it is accessible
 	if c.creds.Username != "" && c.creds.Password != "" {
-		_, err = helmCmd.Login(c.repoURL, c.creds)
+		_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
 		if err != nil {
 			return false, err
 		}
 		defer func() {
-			_, _ = helmCmd.Logout(c.repoURL, c.creds)
+			_, _ = helmCmd.RegistryLogout(c.repoURL, c.creds)
 		}()
 
 		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to test helm oci repository")
@@ -274,13 +295,12 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 }
 
 func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
-	repoURL, err := url.Parse(c.repoURL)
+	indexURL, err := getIndexURL(c.repoURL)
 	if err != nil {
 		return nil, err
 	}
-	repoURL.Path = path.Join(repoURL.Path, "index.yaml")
 
-	req, err := http.NewRequest("GET", repoURL.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, indexURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -293,9 +313,11 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	tr := &http.Transport{
-		Proxy:           http.ProxyFromEnvironment,
-		TLSClientConfig: tlsConf,
+		Proxy:             proxy.GetCallback(c.proxy),
+		TLSClientConfig:   tlsConf,
+		DisableKeepAlives: true,
 	}
 	client := http.Client{Transport: tr}
 	resp, err := client.Do(req)
@@ -304,17 +326,17 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return nil, errors.New("failed to get index: " + resp.Status)
 	}
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
 	tlsConfig := &tls.Config{InsecureSkipVerify: creds.InsecureSkipVerify}
 
 	if creds.CAPath != "" {
-		caData, err := ioutil.ReadFile(creds.CAPath)
+		caData, err := os.ReadFile(creds.CAPath)
 		if err != nil {
 			return nil, err
 		}
@@ -349,8 +371,12 @@ func normalizeChartName(chart string) string {
 	return nc
 }
 
-func (c *nativeHelmChart) getCachedChartPath(chart string, version string) string {
-	return path.Join(c.repoPath, fmt.Sprintf("%s-%s.tgz", strings.ReplaceAll(chart, "/", "_"), version))
+func (c *nativeHelmChart) getCachedChartPath(chart string, version string) (string, error) {
+	keyData, err := json.Marshal(map[string]string{"url": c.repoURL, "chart": chart, "version": version})
+	if err != nil {
+		return "", err
+	}
+	return c.chartCachePaths.GetPath(string(keyData))
 }
 
 // Ensures that given OCI registries URL does not have protocol
@@ -361,4 +387,85 @@ func IsHelmOciRepo(repoURL string) bool {
 	parsed, err := url.Parse(repoURL)
 	// the URL parser treat hostname as either path or opaque if scheme is not specified, so hostname must be empty
 	return err == nil && parsed.Host == ""
+}
+
+func getIndexURL(rawURL string) (string, error) {
+	indexFile := "index.yaml"
+	repoURL, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+	repoURL.Path = path.Join(repoURL.Path, indexFile)
+	repoURL.RawPath = path.Join(repoURL.RawPath, indexFile)
+	return repoURL.String(), nil
+}
+
+func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error) {
+	tagsURL := strings.Replace(fmt.Sprintf("%s/%s", c.repoURL, chart), "https://", "", 1)
+	indexLock.Lock(tagsURL)
+	defer indexLock.Unlock(tagsURL)
+
+	var data []byte
+	if !noCache && c.indexCache != nil {
+		if err := c.indexCache.GetHelmIndex(tagsURL, &data); err != nil && err != cache.ErrCacheMiss {
+			log.Warnf("Failed to load index cache for repo: %s: %v", tagsURL, err)
+		}
+	}
+
+	tags := &TagsList{}
+	if len(data) == 0 {
+		start := time.Now()
+		repo, err := remote.NewRepository(tagsURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize repository: %v", err)
+		}
+		tlsConf, err := newTLSConfig(c.creds)
+		if err != nil {
+			return nil, fmt.Errorf("failed setup tlsConfig: %v", err)
+		}
+		client := &http.Client{Transport: &http.Transport{
+			Proxy:             proxy.GetCallback(c.proxy),
+			TLSClientConfig:   tlsConf,
+			DisableKeepAlives: true,
+		}}
+		repo.Client = &auth.Client{
+			Client: client,
+			Cache:  nil,
+			Credential: auth.StaticCredential(c.repoURL, auth.Credential{
+				Username: c.creds.Username,
+				Password: c.creds.Password,
+			}),
+		}
+
+		ctx := context.Background()
+		err = repo.Tags(ctx, "", func(tagsResult []string) error {
+			for _, tag := range tagsResult {
+				// By convention: Change underscore (_) back to plus (+) to get valid SemVer
+				convertedTag := strings.ReplaceAll(tag, "_", "+")
+				tags.Tags = append(tags.Tags, convertedTag)
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tags: %v", err)
+		}
+		log.WithFields(
+			log.Fields{"seconds": time.Since(start).Seconds(), "chart": chart, "repo": c.repoURL},
+		).Info("took to get tags")
+
+		if c.indexCache != nil {
+			if err := c.indexCache.SetHelmIndex(tagsURL, data); err != nil {
+				log.Warnf("Failed to store tags list cache for repo: %s: %v", tagsURL, err)
+			}
+		}
+	} else {
+		err := json.Unmarshal(data, tags)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode tags: %v", err)
+		}
+	}
+
+	return tags, nil
 }

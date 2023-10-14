@@ -2,19 +2,14 @@
 
 ## Developing And Testing
 
-The web site is build using `mkdocs` and `mkdocs-material`. 
+The website is build using `mkdocs` and `mkdocs-material`. 
 
 To test:
 
 ```bash
 make serve-docs
 ```
-
-Check for broken external links:
-
-```bash
-make lint-docs
-```
+Once running, you can view your locally built documentation at [http://0.0.0.0:8000/](http://0.0.0.0:8000/). 
 
 ## Deploying
 

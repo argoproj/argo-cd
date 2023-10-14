@@ -1,0 +1,3 @@
+- when: app.status.operationState != nil and app.status.operationState.phase in ['Running']
+  description: Application is being synced
+  send: [app-sync-running]
