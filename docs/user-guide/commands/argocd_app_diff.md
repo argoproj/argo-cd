@@ -21,7 +21,6 @@ argocd app diff APPNAME [flags]
       --hard-refresh                Refresh application data as well as target manifests cache
   -h, --help                        help for diff
       --local string                Compare live app to a local manifests
-      --include-resource-hook    Display the diff of resource hooks. Used together with --local or --revision
       --local-include stringArray   Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path. (default [*.yaml,*.yml,*.json])
       --local-repo-root string      Path to the repository root. Used together with --local allows setting the repository root (default "/")
       --refresh                     Refresh application data when retrieving

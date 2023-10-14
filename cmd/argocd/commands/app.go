@@ -1020,15 +1020,14 @@ type objKeyLiveTarget struct {
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		refresh             bool
-		hardRefresh         bool
-		exitCode            bool
-		includeResourceHook bool
-		local               string
-		revision            string
-		localRepoRoot       string
-		serverSideGenerate  bool
-		localIncludes       []string
+		refresh            bool
+		hardRefresh        bool
+		exitCode           bool
+		local              string
+		revision           string
+		localRepoRoot      string
+		serverSideGenerate bool
+		localIncludes      []string
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
