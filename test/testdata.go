@@ -4,9 +4,8 @@ import (
 	"context"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/go-redis/redis/v8"
-
 	"github.com/argoproj/gitops-engine/pkg/utils/testing"
+	"github.com/redis/go-redis/v9"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -86,6 +85,22 @@ func NewDeployment() *unstructured.Unstructured {
 	return testing.Unstructured(DeploymentManifest)
 }
 
+var ConfigMapManifest = `
+{	
+  "apiVersion": "v1",
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "my-configmap",
+  },
+  "data": {
+    "config.yaml": "auth: token\nconfig:field"
+  }
+}`
+
+func NewConfigMap() *unstructured.Unstructured {
+	return testing.Unstructured(ConfigMapManifest)
+}
+
 func NewFakeConfigMap() *apiv1.ConfigMap {
 	cm := apiv1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -148,7 +163,7 @@ func NewFakeProjListerFromInterface(appProjects appclient.AppProjectInterface) a
 
 func NewFakeProjLister(objects ...runtime.Object) applister.AppProjectNamespaceLister {
 	fakeAppClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewFilteredSharedInformerFactory(fakeAppClientset, 0, "", func(options *metav1.ListOptions) {})
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	cancel := StartInformer(projInformer)
 	defer cancel()

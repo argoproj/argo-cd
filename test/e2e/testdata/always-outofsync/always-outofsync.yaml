@@ -12,4 +12,4 @@ subjects:
 roleRef:
   apiGroup: ""
   kind: Role
-  name: doesnt-matter
+  name: does-not-matter

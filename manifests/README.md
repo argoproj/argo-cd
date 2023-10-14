@@ -6,7 +6,7 @@ Four sets of installation manifests are provided:
 
 * [install.yaml](install.yaml) - Standard Argo CD installation with cluster-admin access. Use this
   manifest set if you plan to use Argo CD to deploy applications in the same cluster that Argo CD runs
-  in (i.e. kubernetes.svc.default). Will still be able to deploy to external clusters with inputted
+  in (i.e. kubernetes.default.svc). Will still be able to deploy to external clusters with inputted
   credentials.
 
 * [namespace-install.yaml](namespace-install.yaml) - Installation of Argo CD which requires only
@@ -14,7 +14,7 @@ Four sets of installation manifests are provided:
   need Argo CD to deploy applications in the same cluster that Argo CD runs in, and will rely solely
   on inputted cluster credentials. An example of using this set of manifests is if you run several
   Argo CD instances for different teams, where each instance will be deploying applications to
-  external clusters. Will still be possible to deploy to the same cluster (kubernetes.svc.default)
+  external clusters. Will still be possible to deploy to the same cluster (kubernetes.default.svc)
   with inputted credentials (i.e. `argocd cluster add <CONTEXT> --in-cluster --namespace <YOUR NAMESPACE>`).
 
   > Note: Argo CD CRDs are not included into [namespace-install.yaml](namespace-install.yaml).

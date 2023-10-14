@@ -6,17 +6,18 @@ import {RevisionHelpIcon, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
+import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
+import {SetFinalizerOnApplication} from './set-finalizer-on-application';
+import './application-create-panel.scss';
+import {getAppDefaultSource} from '../utils';
 
 const jsonMergePatch = require('json-merge-patch');
-
-require('./application-create-panel.scss');
 
 const appTypes = new Array<{field: string; type: models.AppSourceType}>(
     {type: 'Helm', field: 'helm'},
     {type: 'Kustomize', field: 'kustomize'},
-    {type: 'Ksonnet', field: 'ksonnet'},
     {type: 'Directory', field: 'directory'},
     {type: 'Plugin', field: 'plugin'}
 );
@@ -38,6 +39,7 @@ const DEFAULT_APP: Partial<models.Application> = {
             repoURL: '',
             targetRevision: 'HEAD'
         },
+        sources: [],
         project: ''
     }
 };
@@ -79,16 +81,17 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
 });
 
 function normalizeAppSource(app: models.Application, type: string): boolean {
-    const repoType = (app.spec.source.hasOwnProperty('chart') && 'helm') || 'git';
+    const source = getAppDefaultSource(app);
+    const repoType = (source.hasOwnProperty('chart') && 'helm') || 'git';
     if (repoType !== type) {
         if (type === 'git') {
-            app.spec.source.path = app.spec.source.chart;
-            delete app.spec.source.chart;
-            app.spec.source.targetRevision = 'HEAD';
+            source.path = source.chart;
+            delete source.chart;
+            source.targetRevision = 'HEAD';
         } else {
-            app.spec.source.chart = app.spec.source.path;
-            delete app.spec.source.path;
-            app.spec.source.targetRevision = '';
+            source.chart = source.path;
+            delete source.path;
+            source.targetRevision = '';
         }
         return true;
     }
@@ -104,15 +107,25 @@ export const ApplicationCreatePanel = (props: {
     const [yamlMode, setYamlMode] = React.useState(false);
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
     const [destFormat, setDestFormat] = React.useState('URL');
+    const [retry, setRetry] = React.useState(false);
+    const app = deepMerge(DEFAULT_APP, props.app || {});
+
+    React.useEffect(() => {
+        if (app?.spec?.destination?.name && app.spec.destination.name !== '') {
+            setDestFormat('NAME');
+        } else {
+            setDestFormat('URL');
+        }
+    }, []);
 
     function normalizeTypeFields(formApi: FormApi, type: models.AppSourceType) {
-        const app = formApi.getFormState().values;
+        const appToNormalize = formApi.getFormState().values;
         for (const item of appTypes) {
             if (item.type !== type) {
-                delete app.spec.source[item.field];
+                delete appToNormalize.spec.source[item.field];
             }
         }
-        formApi.setAllValues(app);
+        formApi.setAllValues(appToNormalize);
     }
 
     return (
@@ -128,7 +141,6 @@ export const ApplicationCreatePanel = (props: {
                 }>
                 {({projects, clusters, reposInfo}) => {
                     const repos = reposInfo.map(info => info.repo).sort();
-                    const app = deepMerge(DEFAULT_APP, props.app || {});
                     const repoInfo = reposInfo.find(info => info.repo === app.spec.source.repoURL);
                     if (repoInfo) {
                         normalizeAppSource(app, repoInfo.type || 'git');
@@ -150,8 +162,8 @@ export const ApplicationCreatePanel = (props: {
                             )) || (
                                 <Form
                                     validateError={(a: models.Application) => ({
-                                        'metadata.name': !a.metadata.name && 'Application name is required',
-                                        'spec.project': !a.spec.project && 'Project name is required',
+                                        'metadata.name': !a.metadata.name && 'Application Name is required',
+                                        'spec.project': !a.spec.project && 'Project Name is required',
                                         'spec.source.repoURL': !a.spec.source.repoURL && 'Repository URL is required',
                                         'spec.source.targetRevision': !a.spec.source.targetRevision && a.spec.source.hasOwnProperty('chart') && 'Version is required',
                                         'spec.source.path': !a.spec.source.path && !a.spec.source.chart && 'Path is required',
@@ -203,11 +215,14 @@ export const ApplicationCreatePanel = (props: {
                                                 <div className='argo-form-row'>
                                                     <FormField
                                                         formApi={api}
-                                                        label='Project'
+                                                        label='Project Name'
                                                         qeId='application-create-field-project'
                                                         field='spec.project'
                                                         component={AutocompleteField}
-                                                        componentProps={{items: projects}}
+                                                        componentProps={{
+                                                            items: projects,
+                                                            filterSuggestions: true
+                                                        }}
                                                     />
                                                 </div>
                                                 <div className='argo-form-row'>
@@ -219,8 +234,18 @@ export const ApplicationCreatePanel = (props: {
                                                     />
                                                 </div>
                                                 <div className='argo-form-row'>
+                                                    <FormField formApi={api} field='metadata.finalizers' component={SetFinalizerOnApplication} />
+                                                </div>
+                                                <div className='argo-form-row'>
                                                     <label>Sync Options</label>
                                                     <FormField formApi={api} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
+                                                    <ApplicationRetryOptions
+                                                        formApi={api}
+                                                        field='spec.syncPolicy.retry'
+                                                        retry={retry || (api.getFormState().values.spec.syncPolicy && api.getFormState().values.spec.syncPolicy.retry)}
+                                                        setRetry={setRetry}
+                                                        initValues={api.getFormState().values.spec.syncPolicy ? api.getFormState().values.spec.syncPolicy.retry : null}
+                                                    />
                                                 </div>
                                             </div>
                                         );
@@ -279,7 +304,7 @@ export const ApplicationCreatePanel = (props: {
                                                                 load={async src =>
                                                                     (src.repoURL &&
                                                                         services.repos
-                                                                            .apps(src.repoURL, src.revision)
+                                                                            .apps(src.repoURL, src.revision, app.metadata.name, app.spec.project)
                                                                             .then(apps => Array.from(new Set(apps.map(item => item.path))).sort())
                                                                             .catch(() => new Array<string>())) ||
                                                                     new Array<string>()
@@ -419,7 +444,7 @@ export const ApplicationCreatePanel = (props: {
                                                 }}
                                                 load={async src => {
                                                     if (src.repoURL && src.targetRevision && (src.path || src.chart)) {
-                                                        return services.repos.appDetails(src, src.appName).catch(() => ({
+                                                        return services.repos.appDetails(src, src.appName, app.spec.project).catch(() => ({
                                                             type: 'Directory',
                                                             details: {}
                                                         }));
@@ -443,9 +468,6 @@ export const ApplicationCreatePanel = (props: {
                                                                 break;
                                                             case 'Kustomize':
                                                                 details = {type, path: details.path, kustomize: {path: ''}};
-                                                                break;
-                                                            case 'Ksonnet':
-                                                                details = {type, path: details.path, ksonnet: {name: '', path: '', environments: {}, parameters: []}};
                                                                 break;
                                                             case 'Plugin':
                                                                 details = {type, path: details.path, plugin: {name: '', env: []}};

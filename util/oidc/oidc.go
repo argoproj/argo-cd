@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -13,19 +14,21 @@ import (
 	"strings"
 	"time"
 
-	gooidc "github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go/v4"
+	gooidc "github.com/coreos/go-oidc/v3/oidc"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/crypto"
 	"github.com/argoproj/argo-cd/v2/util/dex"
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/rand"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
+
+var InvalidRedirectURLError = fmt.Errorf("invalid return URL")
 
 const (
 	GrantTypeAuthorizationCode = "authorization_code"
@@ -43,16 +46,6 @@ type OIDCConfiguration struct {
 
 type ClaimsRequest struct {
 	IDToken map[string]*oidc.Claim `json:"id_token"`
-}
-
-type OIDCState struct {
-	// ReturnURL is the URL in which to redirect a user back to after completing an OAuth2 login
-	ReturnURL string `json:"returnURL"`
-}
-
-type OIDCStateStorage interface {
-	GetOIDCState(key string) (*OIDCState, error)
-	SetOIDCState(key string, state *OIDCState) error
 }
 
 type ClientApp struct {
@@ -73,11 +66,10 @@ type ClientApp struct {
 	secureCookie bool
 	// settings holds Argo CD settings
 	settings *settings.ArgoCDSettings
+	// encryptionKey holds server encryption key
+	encryptionKey []byte
 	// provider is the OIDC provider
 	provider Provider
-	// cache holds temporary nonce tokens to which hold application state values
-	// See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
-	cache OIDCStateStorage
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -89,42 +81,48 @@ func GetScopesOrDefault(scopes []string) []string {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings, cache OIDCStateStorage, dexServerAddr, baseHRef string) (*ClientApp, error) {
+func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, baseHRef string) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
 	}
+	encryptionKey, err := settings.GetServerEncryptionKey()
+	if err != nil {
+		return nil, err
+	}
 	a := ClientApp{
-		clientID:     settings.OAuth2ClientID(),
-		clientSecret: settings.OAuth2ClientSecret(),
-		redirectURI:  redirectURL,
-		issuerURL:    settings.IssuerURL(),
-		baseHRef:     baseHRef,
-		cache:        cache,
+		clientID:      settings.OAuth2ClientID(),
+		clientSecret:  settings.OAuth2ClientSecret(),
+		redirectURI:   redirectURL,
+		issuerURL:     settings.IssuerURL(),
+		baseHRef:      baseHRef,
+		encryptionKey: encryptionKey,
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
 	if err != nil {
 		return nil, fmt.Errorf("parse redirect-uri: %v", err)
 	}
-	tlsConfig := settings.TLSConfig()
-	if tlsConfig != nil {
-		tlsConfig.InsecureSkipVerify = true
+
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		Dial: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
 	}
 	a.client = &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
+		Transport: transport,
 	}
+
 	if settings.DexConfig != "" && settings.OIDCConfigRAW == "" {
-		a.client.Transport = dex.NewDexRewriteURLRoundTripper(dexServerAddr, a.client.Transport)
+		transport.TLSClientConfig = dex.TLSConfig(dexTlsConfig)
+		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTlsConfig)
+		a.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, a.client.Transport)
+	} else {
+		transport.TLSClientConfig = settings.OIDCTLSConfig()
 	}
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		a.client.Transport = httputil.DebugTransport{T: a.client.Transport}
@@ -152,31 +150,73 @@ func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
 }
 
 // generateAppState creates an app state nonce
-func (a *ClientApp) generateAppState(returnURL string) string {
-	randStr := rand.RandString(10)
+func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (string, error) {
+	// According to the spec (https://www.rfc-editor.org/rfc/rfc6749#section-10.10), this must be guessable with
+	// probability <= 2^(-128). The following call generates one of 52^24 random strings, ~= 2^136 possibilities.
+	randStr, err := rand.String(24)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate app state: %w", err)
+	}
 	if returnURL == "" {
 		returnURL = a.baseHRef
 	}
-	err := a.cache.SetOIDCState(randStr, &OIDCState{ReturnURL: returnURL})
-	if err != nil {
-		// This should never happen with the in-memory cache
-		log.Errorf("Failed to set app state: %v", err)
+	cookieValue := fmt.Sprintf("%s:%s", randStr, returnURL)
+	if encrypted, err := crypto.Encrypt([]byte(cookieValue), a.encryptionKey); err != nil {
+		return "", err
+	} else {
+		cookieValue = hex.EncodeToString(encrypted)
 	}
-	return randStr
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     common.StateCookieName,
+		Value:    cookieValue,
+		Expires:  time.Now().Add(common.StateCookieMaxAge),
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   a.secureCookie,
+	})
+	return randStr, nil
 }
 
-func (a *ClientApp) verifyAppState(state string) (*OIDCState, error) {
-	res, err := a.cache.GetOIDCState(state)
+func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state string) (string, error) {
+	c, err := r.Cookie(common.StateCookieName)
 	if err != nil {
-		if err == appstatecache.ErrCacheMiss {
-			return nil, fmt.Errorf("unknown app state %s", state)
-		} else {
-			return nil, fmt.Errorf("failed to verify app state %s: %v", state, err)
-		}
+		return "", err
 	}
-
-	_ = a.cache.SetOIDCState(state, nil)
-	return res, nil
+	val, err := hex.DecodeString(c.Value)
+	if err != nil {
+		return "", err
+	}
+	val, err = crypto.Decrypt(val, a.encryptionKey)
+	if err != nil {
+		return "", err
+	}
+	cookieVal := string(val)
+	redirectURL := a.baseHRef
+	parts := strings.SplitN(cookieVal, ":", 2)
+	if len(parts) == 2 && parts[1] != "" {
+		if !isValidRedirectURL(parts[1], []string{a.settings.URL, a.baseHRef}) {
+			sanitizedUrl := parts[1]
+			if len(sanitizedUrl) > 100 {
+				sanitizedUrl = sanitizedUrl[:100]
+			}
+			log.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedUrl)
+			return "", fmt.Errorf("failed to verify app state: %w", InvalidRedirectURLError)
+		}
+		redirectURL = parts[1]
+	}
+	if parts[0] != state {
+		return "", fmt.Errorf("invalid state in '%s' cookie", common.AuthCookieName)
+	}
+	// set empty cookie to clear it
+	http.SetCookie(w, &http.Cookie{
+		Name:     common.StateCookieName,
+		Value:    "",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   a.secureCookie,
+	})
+	return redirectURL, nil
 }
 
 // isValidRedirectURL checks whether the given redirectURL matches on of the
@@ -197,7 +237,7 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 	if r.Path == "" {
 		r.Path = "/"
 	}
-	// Prevent CLRF in the redirectURL
+	// Prevent CRLF in the redirectURL
 	if strings.ContainsAny(r.Path, "\r\n") {
 		return false
 	}
@@ -246,19 +286,29 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	returnURL := r.FormValue("return_url")
-	// Check if return_url is valid, otherwise abort processing (see #2707)
+	// Check if return_url is valid, otherwise abort processing (see https://github.com/argoproj/argo-cd/pull/4780)
 	if !isValidRedirectURL(returnURL, []string{a.settings.URL}) {
-		http.Error(w, "Invalid return_url", http.StatusBadRequest)
+		http.Error(w, "Invalid redirect URL: the protocol and host (including port) must match and the path must be within allowed URLs if provided", http.StatusBadRequest)
 		return
 	}
-	stateNonce := a.generateAppState(returnURL)
+	stateNonce, err := a.generateAppState(returnURL, w)
+	if err != nil {
+		log.Errorf("Failed to initiate login flow: %v", err)
+		http.Error(w, "Failed to initiate login flow", http.StatusInternalServerError)
+		return
+	}
 	grantType := InferGrantType(oidcConf)
 	var url string
 	switch grantType {
 	case GrantTypeAuthorizationCode:
 		url = oauth2Config.AuthCodeURL(stateNonce, opts...)
 	case GrantTypeImplicit:
-		url = ImplicitFlowURL(oauth2Config, stateNonce, opts...)
+		url, err = ImplicitFlowURL(oauth2Config, stateNonce, opts...)
+		if err != nil {
+			log.Errorf("Failed to initiate implicit login flow: %v", err)
+			http.Error(w, "Failed to initiate implicit login flow", http.StatusInternalServerError)
+			return
+		}
 	default:
 		http.Error(w, fmt.Sprintf("Unsupported grant type: %v", grantType), http.StatusInternalServerError)
 		return
@@ -284,10 +334,10 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.FormValue("state")
 	if code == "" {
 		// If code was not given, it implies implicit flow
-		a.handleImplicitFlow(w, state)
+		a.handleImplicitFlow(r, w, state)
 		return
 	}
-	appState, err := a.verifyAppState(state)
+	returnURL, err := a.verifyAppState(r, w, state)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -303,9 +353,12 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no id_token in token response", http.StatusInternalServerError)
 		return
 	}
-	idToken, err := a.provider.Verify(a.clientID, idTokenRAW)
+
+	idToken, err := a.provider.Verify(idTokenRAW, a.settings)
+
 	if err != nil {
-		http.Error(w, fmt.Sprintf("invalid session token: %v", err), http.StatusInternalServerError)
+		log.Warnf("Failed to verify token: %s", err)
+		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
 		return
 	}
 	path := "/"
@@ -342,7 +395,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
 		renderToken(w, a.redirectURI, idTokenRAW, token.RefreshToken, claimsJSON)
 	} else {
-		http.Redirect(w, r, appState.ReturnURL, http.StatusSeeOther)
+		http.Redirect(w, r, returnURL, http.StatusSeeOther)
 	}
 }
 
@@ -369,7 +422,7 @@ if (state != "" && returnURL == "") {
 // state nonce for verification, as well as looking up the return URL. Once verified, the client
 // stores the id_token from the fragment as a cookie. Finally it performs the final redirect back to
 // the return URL.
-func (a *ClientApp) handleImplicitFlow(w http.ResponseWriter, state string) {
+func (a *ClientApp) handleImplicitFlow(r *http.Request, w http.ResponseWriter, state string) {
 	type implicitFlowValues struct {
 		CookieName string
 		ReturnURL  string
@@ -378,22 +431,26 @@ func (a *ClientApp) handleImplicitFlow(w http.ResponseWriter, state string) {
 		CookieName: common.AuthCookieName,
 	}
 	if state != "" {
-		appState, err := a.verifyAppState(state)
+		returnURL, err := a.verifyAppState(r, w, state)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		vals.ReturnURL = appState.ReturnURL
+		vals.ReturnURL = returnURL
 	}
 	renderTemplate(w, implicitFlowTmpl, vals)
 }
 
 // ImplicitFlowURL is an adaptation of oauth2.Config::AuthCodeURL() which returns a URL
 // appropriate for an OAuth2 implicit login flow (as opposed to authorization code flow).
-func ImplicitFlowURL(c *oauth2.Config, state string, opts ...oauth2.AuthCodeOption) string {
+func ImplicitFlowURL(c *oauth2.Config, state string, opts ...oauth2.AuthCodeOption) (string, error) {
 	opts = append(opts, oauth2.SetAuthURLParam("response_type", "id_token"))
-	opts = append(opts, oauth2.SetAuthURLParam("nonce", rand.RandString(10)))
-	return c.AuthCodeURL(state, opts...)
+	randString, err := rand.String(24)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate nonce for implicit flow URL: %w", err)
+	}
+	opts = append(opts, oauth2.SetAuthURLParam("nonce", randString))
+	return c.AuthCodeURL(state, opts...), nil
 }
 
 // OfflineAccess returns whether or not 'offline_access' is a supported scope

@@ -3,17 +3,20 @@ import * as React from 'react';
 import {Timestamp} from '../../../shared/components/timestamp';
 import {services} from '../../../shared/services';
 
-export const RevisionMetadataPanel = (props: {appName: string; type: string; revision: string}) => {
+export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string}) => {
     if (props.type === 'helm') {
         return <React.Fragment />;
     }
     return (
-        <DataLoader load={() => services.applications.revisionMetadata(props.appName, props.revision)} errorRenderer={() => <div />}>
+        <DataLoader load={() => services.applications.revisionMetadata(props.appName, props.appNamespace, props.revision)} errorRenderer={() => <div />}>
             {m => (
                 <Tooltip
                     popperOptions={{
                         modifiers: {
                             preventOverflow: {
+                                enabled: false
+                            },
+                            hide: {
                                 enabled: false
                             },
                             flip: {
@@ -51,7 +54,7 @@ export const RevisionMetadataPanel = (props: {appName: string; type: string; rev
                         )}
                         <div className='application-status-panel__item__row'>
                             <div>Comment:</div>
-                            <div>{m.message.split('\n')[0].slice(0, 64)}</div>
+                            <div>{m.message?.split('\n')[0].slice(0, 64)}</div>
                         </div>
                     </div>
                 </Tooltip>

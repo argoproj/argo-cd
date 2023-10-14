@@ -26,10 +26,10 @@ func lockQuickly(action func() (io.Closer, error)) (io.Closer, bool) {
 	}
 }
 
-func numberOfInits(initializedTimes *int) func() error {
-	return func() error {
+func numberOfInits(initializedTimes *int) func() (io.Closer, error) {
+	return func() (io.Closer, error) {
 		*initializedTimes++
-		return nil
+		return util.NopCloser, nil
 	}
 }
 
@@ -120,8 +120,8 @@ func TestLock_FailedInitialization(t *testing.T) {
 	lock := NewRepositoryLock()
 
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, func() error {
-			return errors.New("failed")
+		return lock.Lock("myRepo", "1", true, func() (io.Closer, error) {
+			return util.NopCloser, errors.New("failed")
 		})
 	})
 
@@ -132,8 +132,8 @@ func TestLock_FailedInitialization(t *testing.T) {
 	assert.Nil(t, closer1)
 
 	closer2, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, func() error {
-			return nil
+		return lock.Lock("myRepo", "1", true, func() (io.Closer, error) {
+			return util.NopCloser, nil
 		})
 	})
 

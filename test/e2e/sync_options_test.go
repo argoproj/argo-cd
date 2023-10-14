@@ -21,7 +21,7 @@ func TestSyncOptionsValidateFalse(t *testing.T) {
 	Given(t).
 		Path("sync-options-validate-false").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded))
@@ -41,7 +41,7 @@ func TestSyncOptionsValidateTrue(t *testing.T) {
 		Path("sync-options-validate-false").
 		When().
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		PatchFile("invalid-cm.yaml", `[{"op": "remove", "path": "/metadata/annotations"}]`).
 		Sync().
 		Then().
@@ -78,6 +78,29 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestSyncWithApplyOutOfSyncOnly(t *testing.T) {
+	var ns string
+	Given(t).
+		Path(guestbookPath).
+		ApplyOutOfSyncOnly().
+		When().
+		CreateFromFile(func(app *Application) {
+			ns = app.Spec.Destination.Namespace
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		// Only one resource should be in sync result
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced}))
 }
 
 func TestSyncWithSkipHook(t *testing.T) {

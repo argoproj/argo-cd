@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "An install plan for a subscription is pending installation"
+  inputPath: testdata/install_plan_pending.yaml
+- healthStatus:
+    status: Degraded
+    message: "1: CatalogSourcesUnhealthy | True\n"
+  inputPath: testdata/catalog_sources_unhealthy.yaml
+- healthStatus:
+    status: Healthy
+    message: "1: CatalogSourcesUnhealthy | False\n2: InstallPlanMissing | True\n"
+  inputPath: testdata/install_plan_missing.yaml
+- healthStatus:
+    status: Degraded
+    message: "1: CatalogSourcesUnhealthy | False\n2: InstallPlanFailed | True\n"
+  inputPath: testdata/install_plan_failed.yaml
+- healthStatus:
+    status: Degraded
+    message: "1: CatalogSourcesUnhealthy | True\n2: ResolutionFailed | True\n"
+  inputPath: testdata/resolution_failed.yaml
+- healthStatus:
+    status: Healthy
+    message: "1: CatalogSourcesUnhealthy | False\n"
+  inputPath: testdata/healthy.yaml

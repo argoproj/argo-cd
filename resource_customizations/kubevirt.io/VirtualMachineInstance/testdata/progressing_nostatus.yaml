@@ -1,0 +1,45 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachineInstance
+metadata:
+  labels:
+    kubevirt.io/domain: fedora-gitops1
+  name: fedora-testvm
+  namespace: default
+spec:
+  domain:
+    cpu:
+      cores: 1
+      sockets: 1
+      threads: 1
+    devices:
+      disks:
+      - disk:
+          bus: virtio
+        name: fedora
+      interfaces:
+      - macAddress: 02:d6:2b:00:00:02
+        masquerade: {}
+        name: default
+      networkInterfaceMultiqueue: true
+      rng: {}
+    features:
+      acpi:
+        enabled: true
+    firmware:
+      uuid: 15c031fd-7655-53c8-96d1-25810660149a
+    machine:
+      type: pc-q35-rhel8.4.0
+    resources:
+      requests:
+        cpu: 100m
+        memory: 2Gi
+  evictionStrategy: LiveMigrate
+  networks:
+  - name: default
+    pod: {}
+  terminationGracePeriodSeconds: 180
+  volumes:
+  - dataVolume:
+      name: fedora
+    name: fedora
+status: {}

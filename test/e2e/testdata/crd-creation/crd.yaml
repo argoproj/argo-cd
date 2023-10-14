@@ -1,24 +1,69 @@
 ---
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: dummies.argoproj.io
 spec:
+  conversion:
+    strategy: None
   group: argoproj.io
-  version: v1alpha1
-  scope: Namespaced
   names:
     kind: Dummy
+    listKind: DummyList
     plural: dummies
+    singular: dummy
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            properties:
+              cpu:
+                type: string
+              memory:
+                type: string
 ---
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: clusterdummies.argoproj.io
 spec:
+  conversion:
+    strategy: None
   group: argoproj.io
-  version: v1alpha1
-  scope: Cluster
   names:
     kind: ClusterDummy
+    listKind: ClusterDummyList
     plural: clusterdummies
+    singular: clusterdummy
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            x-kubernetes-map-type: atomic
+            x-kubernetes-preserve-unknown-fields: true

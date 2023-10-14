@@ -10,7 +10,7 @@
         }
 
         &--warning {
-            border-left-color: $argo-failed-color-light;
+            border-left-color: $argo-status-warning-color;
         }
 
         &--info {
@@ -19,6 +19,12 @@
 
         .columns {
             white-space: normal;
+        }
+
+        .row {
+            line-height: 2;
+            padding-top: 15px;
+            padding-bottom: 15px;
         }
     }
 }

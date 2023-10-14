@@ -2,12 +2,13 @@ import {ErrorNotification, NotificationType} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {Form, FormApi} from 'react-form';
-
+import {helpTip} from '../../../applications/components/utils';
 import {Consumer} from '../../context';
 import {Spinner} from '../spinner';
 
 export interface EditablePanelItem {
     title: string;
+    customTitle?: string | React.ReactNode;
     key?: string;
     before?: React.ReactNode;
     view: string | React.ReactNode;
@@ -19,12 +20,13 @@ export interface EditablePanelProps<T> {
     title?: string | React.ReactNode;
     values: T;
     validate?: (values: T) => any;
-    save?: (input: T) => Promise<any>;
+    save?: (input: T, query: {validate?: boolean}) => Promise<any>;
     items: EditablePanelItem[];
     onModeSwitch?: () => any;
     noReadonlyMode?: boolean;
     view?: string | React.ReactNode;
     edit?: (formApi: FormApi) => React.ReactNode;
+    hasMultipleSources?: boolean;
 }
 
 interface EditablePanelState {
@@ -64,7 +66,10 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                                 this.setState({edit: true});
                                                 this.onModeSwitch();
                                             }}
+                                            disabled={this.props.hasMultipleSources}
                                             className='argo-button argo-button--base'>
+                                            {this.props.hasMultipleSources &&
+                                                helpTip('Parameters are not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')}{' '}
                                             Edit
                                         </button>
                                     )}
@@ -93,28 +98,30 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                             {(!this.state.edit && (
                                 <React.Fragment>
                                     {this.props.view}
-                                    {this.props.items.map(item => (
-                                        <React.Fragment key={item.key || item.title}>
-                                            {item.before}
-                                            <div className='row white-box__details-row'>
-                                                <div className='columns small-3'>{item.title}</div>
-                                                <div className='columns small-9'>{item.view}</div>
-                                            </div>
-                                        </React.Fragment>
-                                    ))}
+                                    {this.props.items
+                                        .filter(item => item.view)
+                                        .map(item => (
+                                            <React.Fragment key={item.key || item.title}>
+                                                {item.before}
+                                                <div className='row white-box__details-row'>
+                                                    <div className='columns small-3'>{item.customTitle || item.title}</div>
+                                                    <div className='columns small-9'>{item.view}</div>
+                                                </div>
+                                            </React.Fragment>
+                                        ))}
                                 </React.Fragment>
                             )) || (
                                 <Form
                                     getApi={api => (this.formApi = api)}
                                     formDidUpdate={async form => {
                                         if (this.props.noReadonlyMode && this.props.save) {
-                                            await this.props.save(form.values as any);
+                                            await this.props.save(form.values as any, {});
                                         }
                                     }}
                                     onSubmit={async input => {
                                         try {
                                             this.setState({saving: true});
-                                            await this.props.save(input as any);
+                                            await this.props.save(input as any, {});
                                             this.setState({edit: false, saving: false});
                                             this.onModeSwitch();
                                         } catch (e) {
@@ -135,7 +142,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                                 <React.Fragment key={item.key || item.title}>
                                                     {item.before}
                                                     <div className='row white-box__details-row'>
-                                                        <div className='columns small-3'>{(item.titleEdit && item.titleEdit(api)) || item.title}</div>
+                                                        <div className='columns small-3'>{(item.titleEdit && item.titleEdit(api)) || item.customTitle || item.title}</div>
                                                         <div className='columns small-9'>{(item.edit && item.edit(api)) || item.view}</div>
                                                     </div>
                                                 </React.Fragment>

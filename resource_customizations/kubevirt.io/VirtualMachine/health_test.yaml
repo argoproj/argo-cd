@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "No status available"
+  inputPath: testdata/progressing_nostatus.yaml
+- healthStatus:
+    status: Healthy
+    message: "Running"
+  inputPath: testdata/healthy_ready.yaml  
+- healthStatus:
+    status: Suspended
+    message: "Stopped"
+  inputPath: testdata/suspended_stopped.yaml
+- healthStatus:
+    status: Progressing
+    message: "Starting"
+  inputPath: testdata/progressing_starting.yaml
+- healthStatus:
+    status: Suspended
+    message: "Paused"
+  inputPath: testdata/suspended_paused.yaml

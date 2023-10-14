@@ -1,13 +1,18 @@
 #!/bin/sh
-# The checksum of this file is used as cache key in our integration toolchain
-# 
-helm2_version=2.17.0
-helm3_version=3.5.1
-jq_version=1.6
-ksonnet_version=0.13.1
+###############################################################################
+# This file defines the versions of the tools that are installed in the CI
+# toolchain and the Docker image.
+#
+# Updating a tool's version here is not enough, you will need to create a
+# checksum file in ./hack/installers/checksums matching the name of the
+# downloaded binary with a ".sha256" suffix appended, containing the proper
+# SHA256 sum of the binary.
+#
+# Use ./hack/installers/checksums/add-helm-checksums.sh and
+# add-kustomize-checksums.sh to help download checksums.
+###############################################################################
+helm3_version=3.13.1
 kubectl_version=1.17.8
 kubectx_version=0.6.3
-kustomize3_version=3.9.4
-packr_version=1.21.9
-protoc_version=3.7.1
-swagger_version=0.19.0
+kustomize5_version=5.1.1
+protoc_version=3.17.3

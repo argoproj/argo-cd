@@ -38,8 +38,8 @@ func (noopCodec) Unmarshal(data []byte, v interface{}) error {
 	return nil
 }
 
-func (noopCodec) String() string {
-	return "bytes"
+func (noopCodec) Name() string {
+	return "proto"
 }
 
 func toFrame(msg []byte) []byte {
@@ -77,18 +77,7 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	}
 	req.Header.Set("content-type", "application/grpc-web+proto")
 
-	client := &http.Client{}
-	if !c.PlainText {
-		tlsConfig, err := c.tlsConfig()
-		if err != nil {
-			return nil, err
-		}
-		client.Transport = &http.Transport{
-			TLSClientConfig: tlsConfig,
-		}
-	}
-
-	resp, err := client.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +86,7 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	}
 	var code codes.Code
 	if statusStr := resp.Header.Get("Grpc-Status"); statusStr != "" {
-		statusInt, err := strconv.Atoi(statusStr)
+		statusInt, err := strconv.ParseUint(statusStr, 10, 32)
 		if err != nil {
 			code = codes.Unknown
 		} else {
@@ -111,21 +100,25 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 }
 
 func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
-	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", os.TempDir(), rand.RandString(16))
+	randSuffix, err := rand.String(16)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate random socket filename: %w", err)
+	}
+	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", os.TempDir(), randSuffix)
 	ln, err := net.Listen("unix", serverAddr)
 
 	if err != nil {
 		return nil, nil, err
 	}
 	proxySrv := grpc.NewServer(
-		grpc.CustomCodec(&noopCodec{}),
+		grpc.ForceServerCodec(&noopCodec{}),
 		grpc.UnknownServiceHandler(func(srv interface{}, stream grpc.ServerStream) error {
 			fullMethodName, ok := grpc.MethodFromServerStream(stream)
 			if !ok {
 				return fmt.Errorf("Unable to get method name from stream context.")
 			}
 			msg := make([]byte, 0)
-			err = stream.RecvMsg(&msg)
+			err := stream.RecvMsg(&msg)
 			if err != nil {
 				return err
 			}
@@ -149,10 +142,11 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				argoio.Close(resp.Body)
 			}()
 			defer argoio.Close(resp.Body)
+			c.httpClient.CloseIdleConnections()
 
 			for {
 				header := make([]byte, frameHeaderLength)
-				if _, err := resp.Body.Read(header); err != nil {
+				if _, err := io.ReadAtLeast(resp.Body, header, frameHeaderLength); err != nil {
 					if err == io.EOF {
 						err = io.ErrUnexpectedEOF
 					}

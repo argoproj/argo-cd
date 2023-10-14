@@ -4,6 +4,10 @@ tests:
     message: "1: InstallSucceeded | True\n2: Ready | Unknown\n"
   inputPath: testdata/progressing.yaml
 - healthStatus:
+    status: Progressing
+    message: "1: InstallSucceeded | True\n2: Ready | False\n"
+  inputPath: testdata/progressing_ready_false.yaml
+- healthStatus:
     status: Degraded
     message: "1: InstallSucceeded | True\n2: Ready | randomstatus\n"
   inputPath: testdata/degraded.yaml

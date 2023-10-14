@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: extensions-deployment
@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: extensions-deployment
-          image: "gcr.io/heptio-images/ks-guestbook-demo:0.2"
+          image: quay.io/argoprojlabs/argocd-e2e-container:0.1
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

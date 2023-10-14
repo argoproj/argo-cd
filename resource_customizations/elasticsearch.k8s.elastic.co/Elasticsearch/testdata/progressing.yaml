@@ -1,0 +1,22 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: quickstart
+spec:
+  version: 7.12.0
+  nodeSets:
+  # 3 dedicated master nodes
+  - name: master
+    count: 3
+    config:
+      node.roles: ["master"]
+      node.remote_cluster_client: false
+  # 2 ingest-data nodes
+  - name: ingest-data
+    count: 2
+    config:
+      node.roles: ["data", "ingest"]
+status:
+  availableNodes: 3
+  health: green
+  phase: Ready
