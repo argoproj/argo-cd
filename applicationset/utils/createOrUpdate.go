@@ -163,6 +163,9 @@ func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.Applica
 	}
 	foundNormalized := &argov1alpha1.Application{}
 	err = json.Unmarshal(foundJsonNormalized, &foundNormalized)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal normalized app to json: %w", err)
+	}
 	if len(result.Targets) != 1 {
 		return fmt.Errorf("expected 1 normalized application, got %d", len(result.Targets))
 	}
