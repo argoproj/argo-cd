@@ -1,17 +1,20 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	appcontroller "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
+	applicationset "github.com/argoproj/argo-cd/v2/cmd/argocd-applicationset-controller/commands"
+	cmpserver "github.com/argoproj/argo-cd/v2/cmd/argocd-cmp-server/commands"
 	dex "github.com/argoproj/argo-cd/v2/cmd/argocd-dex/commands"
+	gitaskpass "github.com/argoproj/argo-cd/v2/cmd/argocd-git-ask-pass/commands"
+	k8sauth "github.com/argoproj/argo-cd/v2/cmd/argocd-k8s-auth/commands"
+	notification "github.com/argoproj/argo-cd/v2/cmd/argocd-notification/commands"
 	reposerver "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"
 	apiserver "github.com/argoproj/argo-cd/v2/cmd/argocd-server/commands"
-	util "github.com/argoproj/argo-cd/v2/cmd/argocd-util/commands"
 	cli "github.com/argoproj/argo-cd/v2/cmd/argocd/commands"
 )
 
@@ -29,36 +32,29 @@ func main() {
 	switch binaryName {
 	case "argocd", "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe":
 		command = cli.NewCommand()
-	case "argocd-util", "argocd-util-linux-amd64", "argocd-util-darwin-amd64", "argocd-util-windows-amd64.exe":
-		command = util.NewCommand()
 	case "argocd-server":
 		command = apiserver.NewCommand()
 	case "argocd-application-controller":
 		command = appcontroller.NewCommand()
 	case "argocd-repo-server":
 		command = reposerver.NewCommand()
+	case "argocd-cmp-server":
+		command = cmpserver.NewCommand()
 	case "argocd-dex":
 		command = dex.NewCommand()
+	case "argocd-notifications":
+		command = notification.NewCommand()
+	case "argocd-git-ask-pass":
+		command = gitaskpass.NewCommand()
+	case "argocd-applicationset-controller":
+		command = applicationset.NewCommand()
+	case "argocd-k8s-auth":
+		command = k8sauth.NewCommand()
 	default:
-		if len(os.Args[1:]) > 0 {
-			// trying to guess between argocd and argocd-util by matching sub command
-			for _, cmd := range []*cobra.Command{cli.NewCommand(), util.NewCommand()} {
-				if _, _, err := cmd.Find(os.Args[1:]); err == nil {
-					command = cmd
-					break
-				}
-			}
-		}
-
-		if command == nil {
-			fmt.Printf("Unknown binary name '%s'.Use '%s' environment variable to specify required binary name "+
-				"(possible values 'argocd' or 'argocd-util').\n", binaryName, binaryNameEnv)
-			os.Exit(1)
-		}
+		command = cli.NewCommand()
 	}
 
 	if err := command.Execute(); err != nil {
-		fmt.Println(err)
 		os.Exit(1)
 	}
 }

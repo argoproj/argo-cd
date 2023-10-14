@@ -195,7 +195,7 @@ argocd proj add-signature-key myproj 4AEE18F83AFDEB23
 
 #### Removing a key ID from the list of allowed keys
 
-Similarily, you can remove a key ID from the list of allowed GnuPG keys for a
+Similarly, you can remove a key ID from the list of allowed GnuPG keys for a
 project using the `argocd proj remove-signature-key` command, i.e. to remove
 the key added above from project `myproj`, use the command:
 

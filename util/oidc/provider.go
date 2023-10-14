@@ -2,13 +2,17 @@ package oidc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
-	gooidc "github.com/coreos/go-oidc"
+	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
+
+	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // Provider is a wrapper around go-oidc provider to also provide the following features:
@@ -23,7 +27,7 @@ type Provider interface {
 
 	ParseConfig() (*OIDCConfiguration, error)
 
-	Verify(clientID, tokenString string) (*gooidc.IDToken, error)
+	Verify(tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error)
 }
 
 type providerImpl struct {
@@ -31,6 +35,8 @@ type providerImpl struct {
 	client         *http.Client
 	goOIDCProvider *gooidc.Provider
 }
+
+var _ Provider = &providerImpl{}
 
 // NewOIDCProvider initializes an OIDC provider
 func NewOIDCProvider(issuerURL string, client *http.Client) Provider {
@@ -67,13 +73,68 @@ func (p *providerImpl) newGoOIDCProvider() (*gooidc.Provider, error) {
 	return prov, nil
 }
 
-func (p *providerImpl) Verify(clientID, tokenString string) (*gooidc.IDToken, error) {
+func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error) {
+	// According to the JWT spec, the aud claim is optional. The spec also says (emphasis mine):
+	//
+	//   If the principal processing the claim does not identify itself with a value in the "aud" claim _when this
+	//   claim is present_, then the JWT MUST be rejected.
+	//
+	//     - https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3
+	//
+	// If the claim is not present, we can skip the audience claim check (called the "ClientID check" in go-oidc's
+	// terminology).
+	//
+	// The OIDC spec says that the aud claim is required (https://openid.net/specs/openid-connect-core-1_0.html#IDToken).
+	// But we cannot assume that all OIDC providers will follow the spec. For Argo CD <2.6.0, we will default to
+	// allowing the aud claim to be optional. In Argo CD >=2.6.0, we will default to requiring the aud claim to be
+	// present and give users the skipAudienceCheckWhenTokenHasNoAudience setting to revert the behavior if necessary.
+	//
+	// At this point, we have not verified that the token has not been altered. All code paths below MUST VERIFY
+	// THE TOKEN SIGNATURE to confirm that an attacker did not maliciously remove the "aud" claim.
+	unverifiedHasAudClaim, err := security.UnverifiedHasAudClaim(tokenString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine whether the token has an aud claim: %w", err)
+	}
+
+	var idToken *gooidc.IDToken
+	if !unverifiedHasAudClaim {
+		idToken, err = p.verify("", tokenString, argoSettings.SkipAudienceCheckWhenTokenHasNoAudience())
+	} else {
+		allowedAudiences := argoSettings.OAuth2AllowedAudiences()
+		if len(allowedAudiences) == 0 {
+			return nil, errors.New("token has an audience claim, but no allowed audiences are configured")
+		}
+		// Token must be verified for at least one allowed audience
+		for _, aud := range allowedAudiences {
+			idToken, err = p.verify(aud, tokenString, false)
+			tokenExpiredError := &gooidc.TokenExpiredError{}
+			if errors.As(err, &tokenExpiredError) {
+				// If the token is expired, we won't bother checking other audiences. It's important to return a
+				// TokenExpiredError instead of an error related to an incorrect audience, because the caller may
+				// have specific behavior to handle expired tokens.
+				break
+			}
+			if err == nil {
+				break
+			}
+		}
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify token: %w", err)
+	}
+
+	return idToken, nil
+}
+
+func (p *providerImpl) verify(clientID, tokenString string, skipClientIDCheck bool) (*gooidc.IDToken, error) {
 	ctx := context.Background()
 	prov, err := p.provider()
 	if err != nil {
 		return nil, err
 	}
-	verifier := prov.Verifier(&gooidc.Config{ClientID: clientID})
+	config := &gooidc.Config{ClientID: clientID, SkipClientIDCheck: skipClientIDCheck}
+	verifier := prov.Verifier(config)
 	idToken, err := verifier.Verify(ctx, tokenString)
 	if err != nil {
 		// HACK: if we failed token verification, it's possible the reason was because dex
@@ -91,7 +152,7 @@ func (p *providerImpl) Verify(clientID, tokenString string) (*gooidc.IDToken, er
 			// return original error if we fail to re-initialize OIDC
 			return nil, err
 		}
-		verifier = newProvider.Verifier(&gooidc.Config{ClientID: clientID})
+		verifier = newProvider.Verifier(config)
 		idToken, err = verifier.Verify(ctx, tokenString)
 		if err != nil {
 			return nil, err

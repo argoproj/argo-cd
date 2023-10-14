@@ -9,5 +9,21 @@ tests:
   inputPath: testdata/degraded.yaml
 - healthStatus:
     status: Healthy
-    message: "SparkApplication is in RunningState"
+    message: "SparkApplication is Running"
   inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Healthy
+    message: "SparkApplication is Running"
+  inputPath: testdata/healthy_dynamic_alloc.yaml
+- healthStatus:
+    status: Healthy
+    message: "SparkApplication is Running"
+  inputPath: testdata/healthy_dynamic_alloc_dstream.yaml
+- healthStatus:
+    status: Healthy
+    message: "SparkApplication is Running"
+  inputPath: testdata/healthy_dynamic_alloc_operator_api.yaml
+- healthStatus:
+    status: Healthy
+    message: "SparkApplication is Running"
+  inputPath: testdata/healthy_dynamic_alloc_without_spec_config.yaml

@@ -3,17 +3,13 @@
 ####################################################################################################
 FROM argocd-base
 COPY argocd /usr/local/bin/
-COPY argocd-darwin-amd64 /usr/local/bin/
-COPY argocd-windows-amd64.exe /usr/local/bin/
 
 USER root
-RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server
-RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server
-RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller
-RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex
-RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-util
-RUN ln -s /usr/local/bin/argocd-darwin-amd64 /usr/local/bin/argocd-util-darwin-amd64
-RUN ln -s /usr/local/bin/argocd-windows-amd64.exe /usr/local/bin/argocd-util-windows-amd64.exe
-USER 999
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-notifications && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-applicationset-controller
 
-COPY --from=argocd-ui ./src/dist/app /shared/app
+USER 999

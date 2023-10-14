@@ -3,8 +3,17 @@ kind: Kustomization
 
 resources:
 - chart/upstream.yaml
+- argocd-redis-ha-proxy-network-policy.yaml
+- argocd-redis-ha-server-network-policy.yaml
 
-patchesJson6902:
+patches:
+- target:
+    version: v1
+    group: ""
+    kind: ConfigMap
+    name: argocd-redis-ha-health-configmap
+    namespace: argocd
+  path: overlays/remove-namespace.yaml
 - target:
     version: v1
     group: ""
@@ -109,6 +118,12 @@ patchesJson6902:
     version: v1
     group: ""
     kind: ConfigMap
+    name: argocd-redis-ha-health-configmap
+  path: overlays/modify-labels.yaml
+- target:
+    version: v1
+    group: ""
+    kind: ConfigMap
     name: argocd-redis-ha-configmap
   path: overlays/modify-labels.yaml
 - target:
@@ -156,8 +171,20 @@ patchesJson6902:
 - target:
     group: rbac.authorization.k8s.io
     version: v1
+    kind: Role
+    name: argocd-redis-ha-haproxy
+  path: overlays/modify-labels.yaml
+- target:
+    group: rbac.authorization.k8s.io
+    version: v1
     kind: RoleBinding
     name: argocd-redis-ha
+  path: overlays/modify-labels.yaml
+- target:
+    group: rbac.authorization.k8s.io
+    version: v1
+    kind: RoleBinding
+    name: argocd-redis-ha-haproxy
   path: overlays/modify-labels.yaml
 - target:
     version: v1
@@ -254,3 +281,16 @@ patchesJson6902:
     name: argocd-redis-ha-haproxy
   path: overlays/haproxy-service-selector.yaml
 
+# add container-level security contexts
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: argocd-redis-ha-haproxy
+  path: overlays/deployment-containers-securityContext.yaml
+- target:
+    group: apps
+    version: v1
+    kind: StatefulSet
+    name: argocd-redis-ha-server
+  path: overlays/statefulset-containers-securityContext.yaml

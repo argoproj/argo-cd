@@ -11,7 +11,7 @@ Git repository via file url: `file:///tmp/argocd-e2e***`.
 1. Start the e2e version `make start-e2e` 
 1. Run the tests: `make test-e2e`
 
-You can observe the tests by using the UI [http://localhost:4000/applications](http://localhost:4000/applications).
+You can observe the tests by using the UI [http://localhost:8080/applications](http://localhost:8080/applications) with username `"admin"` and password `"password"`.
 
 ## Configuration of E2E Tests execution
 
@@ -33,7 +33,7 @@ Some effort has been made to balance test isolation with speed. Tests are isolat
 * A random 5 character ID.
 * A unique Git repository containing the `testdata` in `/tmp/argocd-e2e/${id}`.
 * A namespace `argocd-e2e-ns-${id}`.
-* An primary name for the app `argocd-e2e-${id}`.
+* A primary name for the app `argocd-e2e-${id}`.
 
 ## Troubleshooting
 

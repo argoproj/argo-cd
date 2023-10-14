@@ -15,4 +15,4 @@ You can use the CA certificate to sign more certificates, if you need additional
 certificates for testing.
 
 Needless to say, but should be mentioned anyway: Do not use these certs for 
-anything else except ArgoCD tests.
+anything else except Argo CD tests.

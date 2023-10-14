@@ -20,21 +20,42 @@ spec:
       - name: copyutil
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
-        command: [cp, -n, /usr/local/bin/argocd, /shared/argocd-dex]
+        command: [/bin/cp, -n, /usr/local/bin/argocd, /shared/argocd-dex]
         volumeMounts:
         - mountPath: /shared
           name: static-files
         - mountPath: /tmp
           name: dexconfig
-      containers:
-      - name: dex
-        image: ghcr.io/dexidp/dex:v2.27.0
-        imagePullPolicy: Always
-        command: [/shared/argocd-dex, rundex]
         securityContext:
+          capabilities:
+            drop:
+            - ALL
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+      containers:
+      - name: dex
+        image: ghcr.io/dexidp/dex:v2.37.0
+        imagePullPolicy: Always
+        command: [/shared/argocd-dex, rundex]
+        env:
+          - name: ARGOCD_DEX_SERVER_DISABLE_TLS
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: dexserver.disable.tls
+                optional: true
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         ports:
         - containerPort: 5556
         - containerPort: 5557
@@ -44,11 +65,24 @@ spec:
           name: static-files
         - mountPath: /tmp
           name: dexconfig
+        - mountPath: /tls
+          name: argocd-dex-server-tls
       volumes:
       - emptyDir: {}
         name: static-files
       - emptyDir: {}
         name: dexconfig
+      - name: argocd-dex-server-tls
+        secret:
+          secretName: argocd-dex-server-tls
+          optional: true
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

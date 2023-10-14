@@ -692,7 +692,7 @@ func RegisterAccountServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 }
 
 var (
-	pattern_AccountService_CanI_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5, 1, 0, 4, 1, 5, 6}, []string{"api", "v1", "account", "can-i", "resource", "action", "subresource"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_AccountService_CanI_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5, 3, 0, 4, 1, 5, 6}, []string{"api", "v1", "account", "can-i", "resource", "action", "subresource"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_AccountService_UpdatePassword_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "account", "password"}, "", runtime.AssumeColonVerbOpt(true)))
 

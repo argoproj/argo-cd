@@ -6,7 +6,6 @@ option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/session";
 // Session Service API performs CRUD actions against session resources
 package session;
 
-import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 
 // SessionCreateRequest is for logging in.

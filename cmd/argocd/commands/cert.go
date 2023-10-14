@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"crypto/x509"
 	"fmt"
 	"os"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -64,7 +64,9 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Use:   "add-tls SERVERNAME",
 		Short: "Add TLS certificate data for connecting to repository server SERVERNAME",
 		Run: func(c *cobra.Command, args []string) {
-			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
+			ctx := c.Context()
+
+			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
 			defer io.Close(conn)
 
 			if len(args) != 1 {
@@ -115,7 +117,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					CertType:   "https",
 					CertData:   []byte(strings.Join(certificateArray, "\n")),
 				})
-				certificates, err := certIf.CreateCertificate(context.Background(), &certificatepkg.RepositoryCertificateCreateRequest{
+				certificates, err := certIf.CreateCertificate(ctx, &certificatepkg.RepositoryCertificateCreateRequest{
 					Certificates: &appsv1.RepositoryCertificateList{
 						Items: certificateList,
 					},
@@ -128,12 +130,12 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 		},
 	}
-	command.Flags().StringVar(&fromFile, "from", "", "read TLS certificate data from file (default is to read from stdin)")
+	command.Flags().StringVar(&fromFile, "from", "", "Read TLS certificate data from file (default is to read from stdin)")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Replace existing TLS certificate if certificate is different in input")
 	return command
 }
 
-// NewCertAddCommand returns a new instance of an `argocd cert add` command
+// NewCertAddSSHCommand returns a new instance of an `argocd cert add` command
 func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		fromFile     string
@@ -146,8 +148,9 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Use:   "add-ssh --batch",
 		Short: "Add SSH known host entries for repository servers",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
 
-			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
+			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
 			defer io.Close(conn)
 
 			var sshKnownHostsLists []string
@@ -190,7 +193,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 
 			certList := &appsv1.RepositoryCertificateList{Items: certificates}
-			response, err := certIf.CreateCertificate(context.Background(), &certificatepkg.RepositoryCertificateCreateRequest{
+			response, err := certIf.CreateCertificate(ctx, &certificatepkg.RepositoryCertificateCreateRequest{
 				Certificates: certList,
 				Upsert:       upsert,
 			})
@@ -215,11 +218,13 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Use:   "rm REPOSERVER",
 		Short: "Remove certificate of TYPE for REPOSERVER",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) < 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
+			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
 			defer io.Close(conn)
 			hostNamePattern := args[0]
 
@@ -236,7 +241,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				CertType:        certType,
 				CertSubType:     certSubType,
 			}
-			removed, err := certIf.DeleteCertificate(context.Background(), &certQuery)
+			removed, err := certIf.DeleteCertificate(ctx, &certQuery)
 			errors.CheckError(err)
 			if len(removed.Items) > 0 {
 				for _, cert := range removed.Items {
@@ -264,6 +269,8 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:   "list",
 		Short: "List configured certificates",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if certType != "" {
 				switch certType {
 				case "ssh":
@@ -274,9 +281,9 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 			}
 
-			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
+			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
 			defer io.Close(conn)
-			certificates, err := certIf.ListCertificates(context.Background(), &certificatepkg.RepositoryCertificateQuery{HostNamePattern: hostNamePattern, CertType: certType})
+			certificates, err := certIf.ListCertificates(ctx, &certificatepkg.RepositoryCertificateQuery{HostNamePattern: hostNamePattern, CertType: certType})
 			errors.CheckError(err)
 
 			switch output {
@@ -293,9 +300,9 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	}
 
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
-	command.Flags().StringVar(&sortOrder, "sort", "", "set display sort order for output format wide. One of: hostname|type")
-	command.Flags().StringVar(&certType, "cert-type", "", "only list certificates of given type, valid: 'ssh','https'")
-	command.Flags().StringVar(&hostNamePattern, "hostname-pattern", "", "only list certificates for hosts matching given glob-pattern")
+	command.Flags().StringVar(&sortOrder, "sort", "", "Set display sort order for output format wide. One of: hostname|type")
+	command.Flags().StringVar(&certType, "cert-type", "", "Only list certificates of given type, valid: 'ssh','https'")
+	command.Flags().StringVar(&hostNamePattern, "hostname-pattern", "", "Only list certificates for hosts matching given glob-pattern")
 	return command
 }
 

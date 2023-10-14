@@ -5,7 +5,6 @@ RUN ./install.sh codegen-go-tools
 RUN ./install.sh lint-tools
 
 RUN mkdir -p /home/user && chmod 777 /home/user
-RUN HELM_HOME=/home/user/.helm helm2 init --client-only
 
 RUN git config --system user.name "ArgoCD Test User"
 RUN git config --system user.email "noreply@example.com"

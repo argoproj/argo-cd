@@ -8,10 +8,19 @@ redis-ha:
       bind: "0.0.0.0"
   haproxy:
     enabled: true
+    IPv6:
+      enabled: false
     image:
-      tag: 2.0.20-alpine
+      tag: 2.6.14-alpine
+    containerSecurityContext: null
+    timeout:
+      server: 6m
+      client: 6m
+    checkInterval: 3s
+    metrics:
+      enabled: true
   image:
-    tag: 6.2.1-alpine
+    tag: 7.0.11-alpine
+  containerSecurityContext: null
   sentinel:
-    config:
-      replaceme: "0.0.0.0"
+    bind: "0.0.0.0"

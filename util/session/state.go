@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
 	util "github.com/argoproj/argo-cd/v2/util/io"
@@ -24,6 +24,8 @@ type userStateStorage struct {
 	lock           sync.RWMutex
 	resyncDuration time.Duration
 }
+
+var _ UserStateStorage = &userStateStorage{}
 
 func NewUserStateStorage(redis *redis.Client) *userStateStorage {
 	return &userStateStorage{
@@ -67,9 +69,11 @@ func (storage *userStateStorage) watchRevokedTokens(ctx context.Context) {
 }
 
 func (storage *userStateStorage) loadRevokedTokensSafe() {
-	for err := storage.loadRevokedTokens(); err != nil; {
+	err := storage.loadRevokedTokens()
+	for err != nil {
 		log.Warnf("Failed to resync revoked tokens. retrying again in 1 minute: %v", err)
 		time.Sleep(time.Minute)
+		err = storage.loadRevokedTokens()
 	}
 }
 

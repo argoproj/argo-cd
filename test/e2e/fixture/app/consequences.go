@@ -17,6 +17,7 @@ import (
 type Consequences struct {
 	context *Context
 	actions *Actions
+	timeout int
 }
 
 func (c *Consequences) Expect(e Expectation) *Consequences {
@@ -24,7 +25,7 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 	c.context.t.Helper()
 	var message string
 	var state state
-	timeout := time.Duration(15) * time.Second
+	timeout := time.Duration(c.timeout) * time.Second
 	for start := time.Now(); time.Since(start) < timeout; time.Sleep(3 * time.Second) {
 		state, message = e(c)
 		switch state {
@@ -47,6 +48,12 @@ func (c *Consequences) And(block func(app *Application)) *Consequences {
 	return c
 }
 
+func (c *Consequences) AndAction(block func()) *Consequences {
+	c.context.t.Helper()
+	block()
+	return c
+}
+
 func (c *Consequences) Given() *Context {
 	return c.context
 }
@@ -62,7 +69,7 @@ func (c *Consequences) app() *Application {
 }
 
 func (c *Consequences) get() (*Application, error) {
-	return fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(context.Background(), c.context.name, v1.GetOptions{})
+	return fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.AppNamespace()).Get(context.Background(), c.context.AppName(), v1.GetOptions{})
 }
 
 func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
@@ -77,4 +84,10 @@ func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
 			Message: "not found",
 		},
 	}
+}
+
+func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Consequences {
+	c.context.t.Helper()
+	block(c.actions.lastOutput, c.actions.lastError)
+	return c
 }

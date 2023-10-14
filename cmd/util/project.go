@@ -20,10 +20,11 @@ import (
 )
 
 type ProjectOpts struct {
-	Description   string
-	destinations  []string
-	Sources       []string
-	SignatureKeys []string
+	Description      string
+	destinations     []string
+	Sources          []string
+	SignatureKeys    []string
+	SourceNamespaces []string
 
 	orphanedResourcesEnabled   bool
 	orphanedResourcesWarn      bool
@@ -45,6 +46,7 @@ func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
 	command.Flags().StringArrayVar(&opts.deniedClusterResources, "deny-cluster-resource", []string{}, "List of denied cluster level resources")
 	command.Flags().StringArrayVar(&opts.allowedNamespacedResources, "allow-namespaced-resource", []string{}, "List of allowed namespaced resources")
 	command.Flags().StringArrayVar(&opts.deniedNamespacedResources, "deny-namespaced-resource", []string{}, "List of denied namespaced resources")
+	command.Flags().StringSliceVar(&opts.SourceNamespaces, "source-namespaces", []string{}, "List of source namespaces for applications")
 
 }
 
@@ -92,7 +94,7 @@ func (opts *ProjectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
 	return destinations
 }
 
-// TODO: Get configured keys and emit warning when a key is specified that is not configured
+// GetSignatureKeys TODO: Get configured keys and emit warning when a key is specified that is not configured
 func (opts *ProjectOpts) GetSignatureKeys() []v1alpha1.SignatureKey {
 	signatureKeys := make([]v1alpha1.SignatureKey, 0)
 	for _, keyStr := range opts.SignatureKeys {
@@ -102,6 +104,10 @@ func (opts *ProjectOpts) GetSignatureKeys() []v1alpha1.SignatureKey {
 		signatureKeys = append(signatureKeys, v1alpha1.SignatureKey{KeyID: gpg.KeyID(keyStr)})
 	}
 	return signatureKeys
+}
+
+func (opts *ProjectOpts) GetSourceNamespaces() []string {
+	return opts.SourceNamespaces
 }
 
 func GetOrphanedResourcesSettings(flagSet *pflag.FlagSet, opts ProjectOpts) *v1alpha1.OrphanedResourcesMonitorSettings {
@@ -132,7 +138,10 @@ func readProjFromURI(fileURL string, proj *v1alpha1.AppProject) error {
 	} else {
 		err = config.UnmarshalRemoteFile(fileURL, &proj)
 	}
-	return err
+	if err != nil {
+		return fmt.Errorf("error reading proj from uri: %w", err)
+	}
+	return nil
 }
 
 func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, projOpts *ProjectOpts) int {
@@ -156,6 +165,8 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 			spec.NamespaceResourceWhitelist = projOpts.GetAllowedNamespacedResources()
 		case "deny-namespaced-resource":
 			spec.NamespaceResourceBlacklist = projOpts.GetDeniedNamespacedResources()
+		case "source-namespaces":
+			spec.SourceNamespaces = projOpts.GetSourceNamespaces()
 		}
 	})
 	if flags.Changed("orphaned-resources") || flags.Changed("orphaned-resources-warn") {
@@ -197,6 +208,5 @@ func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.
 		proj.Name = args[0]
 	}
 	SetProjSpecOptions(c.Flags(), &proj.Spec, &opts)
-
 	return &proj, nil
 }

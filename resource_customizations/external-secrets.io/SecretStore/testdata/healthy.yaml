@@ -1,0 +1,29 @@
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata:
+  name: vault
+spec:
+  provider:
+    vault:
+      auth:
+        kubernetes:
+          mountPath: foobar
+          role: vault
+          secretRef:
+            key: token
+            name: vault
+      caBundle: foobar
+      namespace: pki
+      path: secret
+      server: https://foo.bar
+      version: v2
+  retrySettings:
+    maxRetries: 5
+    retryInterval: 10s
+status:
+  conditions:
+  - lastTransitionTime: "2022-10-06T15:48:42Z"
+    message: store validated
+    reason: Valid
+    status: "True"
+    type: Ready

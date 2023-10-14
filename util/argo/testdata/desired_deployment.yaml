@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: guestbook
+  name: kustomize-guestbook-ui
+  namespace: default
+spec:
+  replicas: 3
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: guestbook-ui
+  template:
+    metadata:
+      labels:
+        app: guestbook-ui
+    spec:
+      containers:
+        - image: 'gcr.io/heptio-images/ks-guestbook-demo:0.1'
+          name: guestbook-ui
+          ports:
+            - containerPort: 80

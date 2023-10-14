@@ -88,3 +88,4 @@ which is controlled by `--self-heal-timeout-seconds` flag of `argocd-application
   and parameters had failed.
 
 * Rollback cannot be performed against an application with automated sync enabled.
+* The automatic sync interval is determined by [the `timeout.reconciliation` value in the `argocd-cm` ConfigMap](../faq.md#how-often-does-argo-cd-check-for-changes-to-my-git-or-helm-repository), which defaults to `180s` (3 minutes).

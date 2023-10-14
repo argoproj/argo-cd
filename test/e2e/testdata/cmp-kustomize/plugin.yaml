@@ -1,0 +1,10 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: cmp-kustomize
+spec:
+  version: v1.0
+  generate:
+    command: [kustomize, build, .]
+  discover:
+    fileName: "kustomization.yaml"

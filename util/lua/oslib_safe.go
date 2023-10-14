@@ -1,7 +1,7 @@
 package lua
 
-// oslib_safe contains a subset of the lua os library. For security reasons, we do not expose
-// the entirety of lua os library to custom actions, such as ones which can exit, read files, etc.
+// oslib_safe contains a subset of the lua OS library. For security reasons, we do not expose
+// the entirety of lua OS library to custom actions, such as ones which can exit, read files, etc.
 // Only the safe functions like os.time(), os.date() are exposed. Implementation was copied from
 // github.com/yuin/gopher-lua.
 

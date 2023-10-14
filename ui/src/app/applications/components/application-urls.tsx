@@ -1,7 +1,16 @@
 import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
+import {isValidURL} from '../../shared/utils';
 
-class ExternalLink {
+export class InvalidExternalLinkError extends Error {
+    constructor(message: string) {
+        super(message);
+        Object.setPrototypeOf(this, InvalidExternalLinkError.prototype);
+        this.name = 'InvalidExternalLinkError';
+    }
+}
+
+export class ExternalLink {
     public title: string;
     public ref: string;
 
@@ -14,13 +23,21 @@ class ExternalLink {
             this.title = url;
             this.ref = url;
         }
+        if (!isValidURL(this.ref)) {
+            throw new InvalidExternalLinkError('Invalid URL');
+        }
     }
 }
 
 export const ApplicationURLs = ({urls}: {urls: string[]}) => {
     const externalLinks: ExternalLink[] = [];
     for (const url of urls || []) {
-        externalLinks.push(new ExternalLink(url));
+        try {
+            const externalLink = new ExternalLink(url);
+            externalLinks.push(externalLink);
+        } catch (InvalidExternalLinkError) {
+            continue;
+        }
     }
 
     // sorted alphabetically & links with titles first
@@ -37,7 +54,7 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
 
     return (
         ((externalLinks || []).length > 0 && (
-            <span>
+            <div className='applications-list__external-links-icon-container'>
                 <a
                     title={externalLinks[0].title}
                     onClick={e => {
@@ -55,7 +72,7 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
                         />
                     )}
                 </a>
-            </span>
+            </div>
         )) ||
         null
     );

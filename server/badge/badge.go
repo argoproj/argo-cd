@@ -5,28 +5,32 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 
 	healthutil "github.com/argoproj/gitops-engine/pkg/health"
 	"k8s.io/apimachinery/pkg/api/errors"
+	validation "k8s.io/apimachinery/pkg/api/validation"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/assets"
+	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-//NewHandler creates handler serving to do api/badge endpoint
-func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, namespace string) http.Handler {
-	return &Handler{appClientset: appClientset, namespace: namespace, settingsMgr: settingsMrg}
+// NewHandler creates handler serving to do api/badge endpoint
+func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, namespace string, enabledNamespaces []string) http.Handler {
+	return &Handler{appClientset: appClientset, namespace: namespace, settingsMgr: settingsMrg, enabledNamespaces: enabledNamespaces}
 }
 
-//Handler used to get application in order to access health/sync
+// Handler used to get application in order to access health/sync
 type Handler struct {
-	namespace    string
-	appClientset versioned.Interface
-	settingsMgr  *settings.SettingsManager
+	namespace         string
+	appClientset      versioned.Interface
+	settingsMgr       *settings.SettingsManager
+	enabledNamespaces []string
 }
 
 var (
@@ -61,8 +65,8 @@ func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) strin
 	return result + str[lastIndex:]
 }
 
-//ServeHTTP returns badge with health and sync status for application
-//(or an error badge if wrong query or application name is given)
+// ServeHTTP returns badge with health and sync status for application
+// (or an error badge if wrong query or application name is given)
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	health := healthutil.HealthStatusUnknown
 	status := appv1.SyncStatusCodeUnknown
@@ -74,21 +78,50 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		enabled = sets.StatusBadgeEnabled
 	}
 
-	//Sample url: http://localhost:8080/api/badge?name=123
-	if name, ok := r.URL.Query()["name"]; ok && enabled {
-		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).Get(context.Background(), name[0], v1.GetOptions{}); err == nil {
-			health = app.Status.Health.Status
-			status = app.Status.Sync.Status
-			if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
-				revision = app.Status.OperationState.SyncResult.Revision
+	reqNs := ""
+	if ns, ok := r.URL.Query()["namespace"]; ok && enabled {
+		if errs := validation.NameIsDNSSubdomain(strings.ToLower(ns[0]), false); len(errs) == 0 {
+			if security.IsNamespaceEnabled(ns[0], h.namespace, h.enabledNamespaces) {
+				reqNs = ns[0]
+			} else {
+				notFound = true
 			}
-		} else if errors.IsNotFound(err) {
-			notFound = true
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	} else {
+		reqNs = h.namespace
+	}
+
+	//Sample url: http://localhost:8080/api/badge?name=123
+	if name, ok := r.URL.Query()["name"]; ok && enabled && !notFound {
+		if errs := validation.NameIsDNSLabel(strings.ToLower(name[0]), false); len(errs) == 0 {
+			if app, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).Get(context.Background(), name[0], v1.GetOptions{}); err == nil {
+				health = app.Status.Health.Status
+				status = app.Status.Sync.Status
+				if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
+					revision = app.Status.OperationState.SyncResult.Revision
+				}
+			} else {
+				if errors.IsNotFound(err) {
+					notFound = true
+				}
+			}
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 	}
 	//Sample url: http://localhost:8080/api/badge?project=default
-	if projects, ok := r.URL.Query()["project"]; ok && enabled {
-		if apps, err := h.appClientset.ArgoprojV1alpha1().Applications(h.namespace).List(context.Background(), v1.ListOptions{}); err == nil {
+	if projects, ok := r.URL.Query()["project"]; ok && enabled && !notFound {
+		for _, p := range projects {
+			if errs := validation.NameIsDNSLabel(strings.ToLower(p), false); len(p) > 0 && len(errs) != 0 {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		}
+		if apps, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).List(context.Background(), v1.ListOptions{}); err == nil {
 			applicationSet := argo.FilterByProjects(apps.Items, projects)
 			for _, a := range applicationSet {
 				if a.Status.Sync.Status != appv1.SyncStatusCodeSynced {
@@ -107,7 +140,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	//Sample url: http://localhost:8080/api/badge?name=123&revision=true
-	if _, ok := r.URL.Query()["revision"]; ok && enabled {
+	if revisionParam, ok := r.URL.Query()["revision"]; ok && enabled && strings.EqualFold(revisionParam[0], "true") {
 		revisionEnabled = true
 	}
 

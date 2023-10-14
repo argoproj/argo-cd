@@ -66,6 +66,10 @@ export class ProjectsService {
         return requests.get(`/projects/${name}`).then(res => res.body as models.Project);
     }
 
+    public getDetailed(name: string): Promise<models.DetailedProjectsResponse> {
+        return requests.get(`/projects/${name}/detailed`).then(res => res.body as models.DetailedProjectsResponse);
+    }
+
     public getGlobalProjects(name: string): Promise<models.Project[]> {
         return requests.get(`/projects/${name}/globalprojects`).then(res => res.body.items as models.Project[]);
     }
@@ -167,5 +171,12 @@ export class ProjectsService {
             .get(`/projects/${projectName}/events`)
             .send()
             .then(res => (res.body as models.EventList).items || []);
+    }
+
+    public getLinks(projectName: string): Promise<models.LinksResponse> {
+        return requests
+            .get(`/projects/${projectName}/links`)
+            .send()
+            .then(res => res.body as models.LinksResponse);
     }
 }

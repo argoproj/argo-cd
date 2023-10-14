@@ -11,7 +11,7 @@ is detected.
 
 ## Helm
 
-For Helm, all versions are [Semantic Versions](https://semver.org/). As a result, you can either version ranges:
+Helm chart versions are [Semantic Versions](https://semver.org/). As a result, you can use any of the following version ranges:
 
 | Use Case | How | Examples |
 |-|-|-|
@@ -19,6 +19,7 @@ For Helm, all versions are [Semantic Versions](https://semver.org/). As a result
 | Track patches (e.g. in pre-production) | Use a range | `1.2.*` or `>=1.2.0 <1.3.0` |
 | Track minor releases (e.g. in QA) | Use a range | `1.*` or `>=1.0.0 <2.0.0` |
 | Use the latest (e.g. in local development) | Use star range |  `*` or `>=0.0.0` |
+| Use the latest including pre-releases | Use star range with `-0` suffix |  `*-0` or `>=0.0.0-0` |
 
 [Read about version ranges](https://www.telerik.com/blogs/the-mystical-magical-semver-ranges-used-by-npm-bower)
 

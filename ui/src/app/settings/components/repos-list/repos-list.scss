@@ -28,6 +28,13 @@
     }
 
     .argo-table-list {
+        .item-clickable {
+            cursor: pointer;
+
+            &:hover {
+                box-shadow: 1px 2px 3px rgba($argo-color-gray-9, 0.1), 0 0 0 1px rgba($argo-color-teal-5, 0.5);
+            }
+        }
         .argo-dropdown {
             float: right;
         }

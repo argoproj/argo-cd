@@ -2,5 +2,5 @@ image:
   file: .gitpod.Dockerfile
 
 tasks:
-  - init: make mod-download-local dep-ui-local && GO111MODULE=off go get github.com/mattn/goreman
+  - init: make mod-download-local dep-ui-local && GO111MODULE=off go install github.com/mattn/goreman@latest
     command: make start-test-k8s
