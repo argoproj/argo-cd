@@ -68,7 +68,7 @@ func TestHookDiffWithResourceHook(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().
-		Create().
+		CreateApp().
 		Then().
 		And(func(_ *Application) {
 			output, err := RunCli("app", "diff", Name(), "--include-resource-hook", "--local", "testdata/hook")
