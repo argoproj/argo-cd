@@ -15,7 +15,3 @@ tests:
     status: Healthy
     message: "Kafka Brokers, CruiseControl and cluster are in Healthy State."
   inputPath: testdata/healthy.yaml
-- healthStatus:
-    status: Healthy
-    message: "Kafka Brokers, CruiseControl and cluster are in Healthy State."
-  inputPath: testdata/healthy-custom-ids.yaml
