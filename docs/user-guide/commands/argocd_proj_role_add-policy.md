@@ -8,6 +8,13 @@ Add a policy to a project role
 argocd proj role add-policy PROJECT ROLE-NAME [flags]
 ```
 
+### Examples
+
+```
+  # Add a policy to a project role.
+  argocd proj role add-policy PROJECT ROLE-NAME --action=ACTION --object=OBJECT --permission=PERMISSION
+```
+
 ### Options
 
 ```

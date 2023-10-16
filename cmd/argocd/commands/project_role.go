@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/jwt"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 const (
@@ -56,6 +57,11 @@ func NewProjectRoleAddPolicyCommand(clientOpts *argocdclient.ClientOptions) *cob
 	var command = &cobra.Command{
 		Use:   "add-policy PROJECT ROLE-NAME",
 		Short: "Add a policy to a project role",
+		Example: templates.Examples(`  
+  # Add a policy to a project role.
+  argocd proj role add-policy PROJECT ROLE-NAME --action=ACTION --object=OBJECT --permission=PERMISSION
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
