@@ -6,7 +6,7 @@ resources:
 - argocd-redis-ha-proxy-network-policy.yaml
 - argocd-redis-ha-server-network-policy.yaml
 
-patches:
+patchesJson6902:
 - target:
     version: v1
     group: ""

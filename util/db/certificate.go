@@ -52,9 +52,10 @@ type CertificateListSelector struct {
 // the certificates, and only returns the metadata including CertInfo field.
 //
 // The CertInfo field in the returned entries will contain the following data:
-//   - For SSH keys, the SHA256 fingerprint of the key as string, prepended by
-//     the string "SHA256:"
-//   - For TLS certs, the Subject of the X509 cert as a string in DN notation
+// - For SSH keys, the SHA256 fingerprint of the key as string, prepended by
+//   the string "SHA256:"
+// - For TLS certs, the Subject of the X509 cert as a string in DN notation
+//
 func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appsv1.RepositoryCertificateList, error) {
 
 	// selector may be given as nil, but we need at least an empty data structure

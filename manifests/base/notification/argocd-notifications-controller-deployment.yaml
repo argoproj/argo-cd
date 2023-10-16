@@ -1,10 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  labels:
-    app.kubernetes.io/component: notifications-controller
-    app.kubernetes.io/name: argocd-notifications-controller
-    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-controller
 spec:
   strategy:
@@ -33,27 +29,8 @@ spec:
             - key: ca.crt
               path: ca.crt
       containers:
-        - args:
-            - /usr/local/bin/argocd-notifications
-          env:
-            - name: ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT
-              valueFrom:
-                configMapKeyRef:
-                  key: notificationscontroller.log.format
-                  name: argocd-cmd-params-cm
-                  optional: true
-            - name: ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL
-              valueFrom:
-                configMapKeyRef:
-                  key: notificationscontroller.log.level
-                  name: argocd-cmd-params-cm
-                  optional: true
-            - name: ARGOCD_APPLICATION_NAMESPACES
-              valueFrom:
-                configMapKeyRef:
-                  key: application.namespaces
-                  name: argocd-cmd-params-cm
-                  optional: true
+        - command:
+            - argocd-notifications
           workingDir: /app
           livenessProbe:
             tcpSocket:

@@ -21,11 +21,7 @@ func StartGPGWatcher(sourcePath string) error {
 	if err != nil {
 		return err
 	}
-	defer func(watcher *fsnotify.Watcher) {
-		if err = watcher.Close(); err != nil {
-			log.Errorf("Error closing watcher: %v", err)
-		}
-	}(watcher)
+	defer watcher.Close()
 
 	done := make(chan bool)
 	go func() {
@@ -35,10 +31,10 @@ func StartGPGWatcher(sourcePath string) error {
 				if !ok {
 					return
 				}
-				if event.Has(fsnotify.Create) || event.Has(fsnotify.Remove) {
+				if event.Op&fsnotify.Create == fsnotify.Create || event.Op&fsnotify.Remove == fsnotify.Remove {
 					// In case our watched path is re-created (i.e. during e2e tests), we need to watch again
 					// For more robustness, we retry re-creating the watcher up to maxRecreateRetries
-					if event.Name == sourcePath && event.Has(fsnotify.Remove) {
+					if event.Name == sourcePath && event.Op&fsnotify.Remove == fsnotify.Remove {
 						log.Warnf("Re-creating watcher on %s", sourcePath)
 						attempt := 0
 						for {

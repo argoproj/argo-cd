@@ -83,7 +83,7 @@ export const ApplicationsTable = (props: {
                                                                     />
                                                                 </button>
                                                             </Tooltip>
-                                                            <ApplicationURLs urls={app.status.summary.externalURLs} />
+                                                            <ApplicationURLs urls={AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)} />
                                                         </div>
                                                     </div>
                                                     <div className='show-for-xxlarge columns small-4'>Project:</div>

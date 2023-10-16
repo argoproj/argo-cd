@@ -29,19 +29,6 @@ func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		},
-		Example: `
-# Add git repository connection parameters
-argocd repo add git@git.example.com:repos/repo
-
-# Get a Configured Repository by URL
-argocd repo get https://github.com/yourusername/your-repo.git
-
-# List Configured Repositories
-argocd repo list
-
-# Remove Repository Credentials
-argocd repo rm https://github.com/yourusername/your-repo.git
-`,
 	}
 
 	command.AddCommand(NewRepoAddCommand(clientOpts))
@@ -322,7 +309,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
-	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status , must be one of: 'hard'")
+	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status")
 	return command
 }
 
@@ -373,6 +360,6 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
-	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status , must be one of: 'hard'")
+	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status")
 	return command
 }
