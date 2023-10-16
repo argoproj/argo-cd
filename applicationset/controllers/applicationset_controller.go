@@ -697,8 +697,16 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			continue
 		}
 		r.updateCache(ctx, found, appLog)
-		r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, fmt.Sprint(action), "%s Application %q", action, generatedApp.Name)
-		appLog.Logf(log.InfoLevel, "%s Application", action)
+
+		if action != controllerutil.OperationResultNone {
+			// Don't pollute etcd with "unchanged Application" events
+			r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, fmt.Sprint(action), "%s Application %q", action, generatedApp.Name)
+			appLog.Logf(log.InfoLevel, "%s Application", action)
+		} else {
+			// "unchanged Application" can be inferred by Reconcile Complete with no action being listed
+			// Or enable debug logging
+			appLog.Logf(log.DebugLevel, "%s Application", action)
+		}
 	}
 	return firstError
 }
