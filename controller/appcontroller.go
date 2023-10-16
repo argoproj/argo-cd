@@ -1192,7 +1192,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			state.Message = err.Error()
 			// Keeping operation in progress if the sync is denied by an active sync window
 		} else if proj.Spec.SyncWindows.Matches(app).CanSync(!state.Operation.InitiatedBy.Automated) && !terminating { // Skip sync during sync window deny
-			logCtx.Infof("Sync window prevented sync for application %s . Skipping.")
+			logCtx.Infof("Sync window prevented sync for application %s . Skipping.", app.Name)
 			return
 			// Failed  operation with retry strategy might have be in-progress and has completion time
 		} else if state.FinishedAt != nil && !terminating {
