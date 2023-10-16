@@ -120,7 +120,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	}
 	fakeClient := fake.NewSimpleClientset()
 	settingsMgr := argosettings.NewSettingsManager(context.TODO(), fakeClient, "argocd")
-	externalLockRef := sync.RWMutex{}
+	liveStateCacheLock := sync.RWMutex{}
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
@@ -132,11 +132,14 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		settingsMgr: settingsMgr,
 		// Set the lock here so we can reference it later
 		// nolint We need to overwrite here to have access to the lock
-		lock: externalLockRef,
+		lock: liveStateCacheLock,
 	}
 	channel := make(chan string)
 	// Mocked lock held by the gitops-engine cluster cache
-	mockMutex := sync.RWMutex{}
+	gitopsEngineClusterCacheLock := sync.Mutex{}
+	// Ensure completion of both EnsureSynced and Invalidate
+	ensureSyncedCompleted := sync.Mutex{}
+	invalidateCompleted := sync.Mutex{}
 	// Locks to force trigger condition during test
 	// Condition order:
 	//   EnsuredSynced -> Locks gitops-engine
@@ -144,40 +147,39 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	//   EnsureSynced via sync, newResource, populateResourceInfoHandler -> attempts to Lock liveStateCache
 	//   handleDeleteEvent via cluster.Invalidate -> attempts to Lock gitops-engine
 	handleDeleteWasCalled := sync.Mutex{}
-	engineHoldsLock := sync.Mutex{}
+	engineHoldsEngineLock := sync.Mutex{}
+	ensureSyncedCompleted.Lock()
+	invalidateCompleted.Lock()
 	handleDeleteWasCalled.Lock()
-	engineHoldsLock.Lock()
+	engineHoldsEngineLock.Lock()
+
 	gitopsEngineClusterCache.On("EnsureSynced").Run(func(args mock.Arguments) {
-		// Held by EnsureSync calling into sync and watchEvents
-		mockMutex.Lock()
-		defer mockMutex.Unlock()
-		// Continue Execution of timer func
-		engineHoldsLock.Unlock()
-		// Wait for handleDeleteEvent to be called triggering the lock
-		// on the liveStateCache
+		gitopsEngineClusterCacheLock.Lock()
+		t.Log("EnsureSynced: Engine has engine lock")
+		engineHoldsEngineLock.Unlock()
+		defer gitopsEngineClusterCacheLock.Unlock()
+		// Wait until handleDeleteEvent holds the liveStateCache lock
 		handleDeleteWasCalled.Lock()
-		t.Logf("handleDelete was called, EnsureSynced continuing...")
-		handleDeleteWasCalled.Unlock()
-		// Try and obtain the lock on the liveStateCache
-		alreadyFailed := !externalLockRef.TryLock()
-		if alreadyFailed {
-			channel <- "DEADLOCKED -- EnsureSynced could not obtain lock on liveStateCache"
-			return
-		}
-		externalLockRef.Lock()
-		t.Logf("EnsureSynce was able to lock liveStateCache")
-		externalLockRef.Unlock()
+		// Try and obtain the liveStateCache lock
+		clustersCache.lock.Lock()
+		t.Log("EnsureSynced: Engine has LiveStateCache lock")
+		clustersCache.lock.Unlock()
+		ensureSyncedCompleted.Unlock()
 	}).Return(nil).Once()
+
 	gitopsEngineClusterCache.On("Invalidate").Run(func(args mock.Arguments) {
-		// If deadlock is fixed should be able to acquire lock here
-		alreadyFailed := !mockMutex.TryLock()
-		if alreadyFailed {
-			channel <- "DEADLOCKED -- Invalidate could not obtain lock on gitops-engine"
-			return
-		}
-		mockMutex.Lock()
-		t.Logf("Invalidate was able to lock gitops-engine cache")
-		mockMutex.Unlock()
+		// Allow EnsureSynced to continue now that we're in the deadlock condition
+		handleDeleteWasCalled.Unlock()
+		// Wait until gitops engine holds the gitops lock
+		// This prevents timing issues if we reach this point before EnsureSynced has obtained the lock
+		engineHoldsEngineLock.Lock()
+		t.Log("Invalidate: Engine has engine lock")
+		engineHoldsEngineLock.Unlock()
+		// Lock engine lock
+		gitopsEngineClusterCacheLock.Lock()
+		t.Log("Invalidate: Invalidate has engine lock")
+		gitopsEngineClusterCacheLock.Unlock()
+		invalidateCompleted.Unlock()
 	}).Return()
 	go func() {
 		// Start the gitops-engine lock holds
@@ -187,14 +189,14 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 				assert.Fail(t, err.Error())
 			}
 		}()
-		// Wait for EnsureSynced to grab the lock for gitops-engine
-		engineHoldsLock.Lock()
-		t.Log("EnsureSynced has obtained lock on gitops-engine")
-		engineHoldsLock.Unlock()
 		// Run in background
 		go clustersCache.handleDeleteEvent(testCluster.Server)
 		// Allow execution to continue on clusters cache call to trigger lock
-		handleDeleteWasCalled.Unlock()
+		ensureSyncedCompleted.Lock()
+		invalidateCompleted.Lock()
+		t.Log("Competing functions were able to obtain locks")
+		invalidateCompleted.Unlock()
+		ensureSyncedCompleted.Unlock()
 		channel <- "PASSED"
 	}()
 	select {
