@@ -234,7 +234,7 @@
           },
           {
             "type": "string",
-            "description": "forces application reconciliation if set to true.",
+            "description": "forces application reconciliation if set to 'hard'.",
             "name": "refresh",
             "in": "query"
           },
@@ -573,7 +573,7 @@
           },
           {
             "type": "string",
-            "description": "forces application reconciliation if set to true.",
+            "description": "forces application reconciliation if set to 'hard'.",
             "name": "refresh",
             "in": "query"
           },
@@ -3816,7 +3816,7 @@
           },
           {
             "type": "string",
-            "description": "forces application reconciliation if set to true.",
+            "description": "forces application reconciliation if set to 'hard'.",
             "name": "refresh",
             "in": "query"
           },
@@ -6055,6 +6055,30 @@
         }
       }
     },
+    "v1alpha1ApplicationSetResourceIgnoreDifferences": {
+      "description": "ApplicationSetResourceIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live\napplications when applying changes from generated applications.",
+      "type": "object",
+      "properties": {
+        "jqPathExpressions": {
+          "description": "JQPathExpressions is a list of JQ path expressions to fields to ignore differences for.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "jsonPointers": {
+          "description": "JSONPointers is a list of JSON pointers to fields to ignore differences for.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1ApplicationSetRolloutStep": {
       "type": "object",
       "properties": {
@@ -6101,6 +6125,12 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        },
+        "ignoreApplicationDifferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSetResourceIgnoreDifferences"
           }
         },
         "preservedFields": {

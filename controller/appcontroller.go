@@ -55,6 +55,8 @@ import (
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	"github.com/argoproj/argo-cd/v2/util/env"
 
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -62,7 +64,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -208,14 +209,18 @@ func NewApplicationController(
 		},
 	})
 
-	factory := informers.NewSharedInformerFactory(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration)
+	factory := informers.NewSharedInformerFactoryWithOptions(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration, informers.WithNamespace(settingsMgr.GetNamespace()))
 	deploymentInformer := factory.Apps().V1().Deployments()
 
 	readinessHealthCheck := func(r *http.Request) error {
 		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 		appControllerDeployment, err := deploymentInformer.Lister().Deployments(settingsMgr.GetNamespace()).Get(applicationControllerName)
-		if !kubeerrors.IsNotFound(err) {
-			return fmt.Errorf("error retrieving Application Controller Deployment: %s", err)
+		if err != nil {
+			if kubeerrors.IsNotFound(err) {
+				appControllerDeployment = nil
+			} else {
+				return fmt.Errorf("error retrieving Application Controller Deployment: %s", err)
+			}
 		}
 		if appControllerDeployment != nil {
 			if appControllerDeployment.Spec.Replicas != nil && int(*appControllerDeployment.Spec.Replicas) <= 0 {
@@ -1398,20 +1403,22 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return
 	}
 	app := origApp.DeepCopy()
-	logCtx := log.WithFields(log.Fields{"application": app.QualifiedName()})
+	logCtx := log.WithFields(log.Fields{
+		"application":    app.QualifiedName(),
+		"level":          comparisonLevel,
+		"dest-server":    origApp.Spec.Destination.Server,
+		"dest-name":      origApp.Spec.Destination.Name,
+		"dest-namespace": origApp.Spec.Destination.Namespace,
+	})
 
 	startTime := time.Now()
 	defer func() {
 		reconcileDuration := time.Since(startTime)
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
 		logCtx.WithFields(log.Fields{
-			"time_ms":        reconcileDuration.Milliseconds(),
-			"patch_ms":       patchMs.Milliseconds(),
-			"setop_ms":       setOpMs.Milliseconds(),
-			"level":          comparisonLevel,
-			"dest-server":    origApp.Spec.Destination.Server,
-			"dest-name":      origApp.Spec.Destination.Name,
-			"dest-namespace": origApp.Spec.Destination.Namespace,
+			"time_ms":  reconcileDuration.Milliseconds(),
+			"patch_ms": patchMs.Milliseconds(),
+			"setop_ms": setOpMs.Milliseconds(),
 		}).Info("Reconciliation completed")
 	}()
 
