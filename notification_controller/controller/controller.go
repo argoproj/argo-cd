@@ -86,6 +86,9 @@ func NewController(
 		if !ok {
 			return false, ""
 		}
+		if checkAppNotInAdditionalNamespaces(app, namespace, applicationNamespaces) {
+			return true, "app is not in one of the application-namespaces, nor the notification controller namespace"
+		}
 		return !isAppSyncStatusRefreshed(app, log.WithField("app", obj.GetName())), "sync status out of date"
 	})
 	metricsRegistryOpt := controller.WithMetricsRegistry(registry)
