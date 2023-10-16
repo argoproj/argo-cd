@@ -163,13 +163,15 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if r.EnableProgressiveSyncs {
 		if applicationSetInfo.Spec.Strategy == nil && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
+			// If appset used progressive sync but stopped, clean up the progressive sync application statuses
 			log.Infof("Removing %v unnecessary AppStatus entries from ApplicationSet %v", len(applicationSetInfo.Status.ApplicationStatus), applicationSetInfo.Name)
 
 			err := r.setAppSetApplicationStatus(ctx, &applicationSetInfo, []argov1alpha1.ApplicationSetApplicationStatus{})
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to clear previous AppSet application statuses for %v: %w", applicationSetInfo.Name, err)
 			}
-		} else {
+		} else if applicationSetInfo.Spec.Strategy != nil {
+			// appset uses progressive sync
 			applications, err := r.getCurrentApplications(ctx, applicationSetInfo)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
