@@ -1320,7 +1320,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 
 	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-		_, err = appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+		patchedApp, err := appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierr.IsNotFound(err) {
@@ -1331,6 +1331,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			logCtx.Warnf("error patching application with operation state: %v", err)
 			return fmt.Errorf("error patching application with operation state: %w", err)
 		}
+		ctrl.writeBackToInformer(patchedApp)
 		return nil
 	})
 
@@ -1356,6 +1357,18 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "), "")
 		ctrl.metricsServer.IncSync(app, state)
 	}
+}
+
+// writeBackToInformer writes a just recently updated Rollout back into the informer cache.
+// This prevents the situation where the controller operates on a stale rollout and repeats work
+func (ctrl *ApplicationController) writeBackToInformer(app *appv1.Application) {
+	logCtx := log.WithFields(log.Fields{"application": app.Name, "appNamespace": app.Namespace, "project": app.Spec.Project, "informer-writeBack": true})
+	err := ctrl.appInformer.GetStore().Update(app)
+	if err != nil {
+		logCtx.Errorf("failed to update informer store: %v", err)
+		return
+	}
+	logCtx.Info("persisted to informer")
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
@@ -1632,11 +1645,12 @@ func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Applica
 		logCtx.Errorf("error constructing app spec patch: %v", err)
 	} else if modified {
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-		_, err = appClient.Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+		patchedApp, err := appClient.Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			logCtx.Errorf("Error persisting normalized application spec: %v", err)
 		} else {
 			logCtx.Infof("Normalized app spec: %s", string(patch))
+			ctrl.writeBackToInformer(patchedApp)
 		}
 	}
 }
@@ -1677,10 +1691,11 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		patchMs = time.Since(start)
 	}()
 	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
-	_, err = appClient.Patch(context.Background(), orig.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	patchedApp, err := appClient.Patch(context.Background(), orig.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		logCtx.Warnf("Error updating application: %v", err)
 	} else {
+		ctrl.writeBackToInformer(patchedApp)
 		logCtx.Infof("Update successful")
 	}
 	return patchMs
@@ -1787,11 +1802,13 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 	start := time.Now()
-	_, err := argo.SetAppOperation(appIf, app.Name, &op)
+	updatedApp, err := argo.SetAppOperation(appIf, app.Name, &op)
 	setOpTime := time.Since(start)
 	if err != nil {
 		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, setOpTime
+	} else {
+		ctrl.writeBackToInformer(updatedApp)
 	}
 	message := fmt.Sprintf("Initiated automated sync to '%s'", desiredCommitSHA)
 	ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message, "")
