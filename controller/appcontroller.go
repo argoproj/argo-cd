@@ -1359,8 +1359,8 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 	}
 }
 
-// writeBackToInformer writes a just recently updated Rollout back into the informer cache.
-// This prevents the situation where the controller operates on a stale rollout and repeats work
+// writeBackToInformer writes a just recently updated Apps back into the informer cache.
+// This prevents the situation where the controller operates on a stale appsgit and repeats work
 func (ctrl *ApplicationController) writeBackToInformer(app *appv1.Application) {
 	logCtx := log.WithFields(log.Fields{"application": app.Name, "appNamespace": app.Namespace, "project": app.Spec.Project, "informer-writeBack": true})
 	err := ctrl.appInformer.GetStore().Update(app)
