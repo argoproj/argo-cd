@@ -8,6 +8,13 @@ Remove a policy from a role within a project
 argocd proj role remove-policy PROJECT ROLE-NAME [flags]
 ```
 
+### Examples
+
+```
+  # Remove a policy from the "my-project" project and the "my-role" role.
+  argocd proj role remove-policy PROJECT ROLE-NAME --action=ACTION --object=OBJECT --permission=PERMISSION
+```
+
 ### Options
 
 ```

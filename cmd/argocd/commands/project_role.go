@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/jwt"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 const (
@@ -93,6 +94,11 @@ func NewProjectRoleRemovePolicyCommand(clientOpts *argocdclient.ClientOptions) *
 	var command = &cobra.Command{
 		Use:   "remove-policy PROJECT ROLE-NAME",
 		Short: "Remove a policy from a role within a project",
+		Example: templates.Examples(`  
+  # Remove a policy from the "my-project" project and the "my-role" role.
+  argocd proj role remove-policy PROJECT ROLE-NAME --action=ACTION --object=OBJECT --permission=PERMISSION
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
