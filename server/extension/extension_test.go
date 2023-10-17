@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -139,7 +138,7 @@ func TestValidateHeaders(t *testing.T) {
 	})
 }
 
-func TestRegisterHandlers(t *testing.T) {
+func TestRegisterExtensions(t *testing.T) {
 	type fixture struct {
 		settingsGetterMock *mocks.SettingsGetter
 		manager            *extension.Manager
@@ -157,34 +156,29 @@ func TestRegisterHandlers(t *testing.T) {
 			manager:            m,
 		}
 	}
-	t.Run("will register handlers successfully", func(t *testing.T) {
+	t.Run("will register extensions successfully", func(t *testing.T) {
 		// given
 		t.Parallel()
 		f := setup()
-		router := mux.NewRouter()
 		settings := &settings.ArgoCDSettings{
 			ExtensionConfig: getExtensionConfigString(),
 		}
 		f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
-		expectedRegexRoutes := []string{
-			"^/extensions/",
-			"^/extensions/external-backend/",
-			"^/extensions/some-backend/",
-			"^/extensions/$"}
+		expectedProxyRegistries := []string{
+			"external-backend",
+			"some-backend"}
 
 		// when
-		err := f.manager.RegisterHandlers(router)
+		err := f.manager.RegisterExtensions()
 
 		// then
 		require.NoError(t, err)
-		walkFn := func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-			pathRegex, err := route.GetPathRegexp()
-			require.NoError(t, err)
-			assert.Contains(t, expectedRegexRoutes, pathRegex)
-			return nil
+		for _, expectedProxyRegistry := range expectedProxyRegistries {
+			proxyRegistry, found := f.manager.ProxyRegistry(expectedProxyRegistry)
+			assert.True(t, found)
+			assert.NotNil(t, proxyRegistry)
 		}
-		err = router.Walk(walkFn)
-		assert.NoError(t, err)
+
 	})
 	t.Run("will return error if extension config is invalid", func(t *testing.T) {
 		// given
@@ -201,6 +195,10 @@ func TestRegisterHandlers(t *testing.T) {
 			{
 				name:       "no name",
 				configYaml: getExtensionConfigNoName(),
+			},
+			{
+				name:       "no service",
+				configYaml: getExtensionConfigNoService(),
 			},
 			{
 				name:       "no URL",
@@ -227,14 +225,13 @@ func TestRegisterHandlers(t *testing.T) {
 				// given
 				t.Parallel()
 				f := setup()
-				router := mux.NewRouter()
 				settings := &settings.ArgoCDSettings{
 					ExtensionConfig: tc.configYaml,
 				}
 				f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
 
 				// when
-				err := f.manager.RegisterHandlers(router)
+				err := f.manager.RegisterExtensions()
 
 				// then
 				assert.Error(t, err)
@@ -243,9 +240,9 @@ func TestRegisterHandlers(t *testing.T) {
 	})
 }
 
-func TestExtensionsHandler(t *testing.T) {
+func TestCallExtension(t *testing.T) {
 	type fixture struct {
-		router             *mux.Router
+		mux                *http.ServeMux
 		appGetterMock      *mocks.ApplicationGetter
 		settingsGetterMock *mocks.SettingsGetter
 		rbacMock           *mocks.RbacEnforcer
@@ -264,10 +261,12 @@ func TestExtensionsHandler(t *testing.T) {
 		logEntry := logger.WithContext(context.Background())
 		m := extension.NewManager(logEntry, settMock, appMock, projMock, rbacMock)
 
-		router := mux.NewRouter()
+		mux := http.NewServeMux()
+		extHandler := http.HandlerFunc(m.CallExtension())
+		mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), extHandler)
 
 		return &fixture{
-			router:             router,
+			mux:                mux,
 			appGetterMock:      appMock,
 			settingsGetterMock: settMock,
 			rbacMock:           rbacMock,
@@ -356,11 +355,11 @@ func TestExtensionsHandler(t *testing.T) {
 
 	startTestServer := func(t *testing.T, f *fixture) *httptest.Server {
 		t.Helper()
-		err := f.manager.RegisterHandlers(f.router)
+		err := f.manager.RegisterExtensions()
 		if err != nil {
 			t.Fatalf("error starting test server: %s", err)
 		}
-		return httptest.NewServer(f.router)
+		return httptest.NewServer(f.mux)
 	}
 
 	startBackendTestSrv := func(response string) *httptest.Server {
@@ -383,23 +382,6 @@ func TestExtensionsHandler(t *testing.T) {
 		return r
 	}
 
-	t.Run("proxy will return 404 if no extension endpoint is registered", func(t *testing.T) {
-		// given
-		t.Parallel()
-		f := setup()
-		withExtensionConfig(getExtensionConfigString(), f)
-		ts := startTestServer(t, f)
-		defer ts.Close()
-		nonRegisteredEndpoint := "non-registered"
-
-		// when
-		resp, err := http.Get(fmt.Sprintf("%s/extensions/%s/", ts.URL, nonRegisteredEndpoint))
-
-		// then
-		require.NoError(t, err)
-		require.NotNil(t, resp)
-		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
-	})
 	t.Run("will call extension backend successfully", func(t *testing.T) {
 		// given
 		t.Parallel()
@@ -438,6 +420,29 @@ func TestExtensionsHandler(t *testing.T) {
 		assert.Equal(t, backendResponse, actual)
 		assert.Equal(t, clusterURL, resp.Header.Get(extension.HeaderArgoCDTargetClusterURL))
 		assert.Equal(t, "Bearer some-bearer-token", resp.Header.Get("Authorization"))
+	})
+	t.Run("proxy will return 404 if extension endpoint not registered", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup()
+		withExtensionConfig(getExtensionConfigString(), f)
+		withRbac(f, true, true)
+		cluster1Name := "cluster1"
+		f.appGetterMock.On("Get", "namespace", "app-name").Return(getApp(cluster1Name, "", defaultProjectName), nil)
+		withProject(getProjectWithDestinations("project-name", []string{cluster1Name}, []string{"some-url"}), f)
+
+		ts := startTestServer(t, f)
+		defer ts.Close()
+		nonRegistered := "non-registered"
+		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, nonRegistered))
+
+		// when
+		resp, err := http.DefaultClient.Do(r)
+
+		// then
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 	})
 	t.Run("will route requests with 2 backends for the same extension successfully", func(t *testing.T) {
 		// given
@@ -651,6 +656,29 @@ func TestExtensionsHandler(t *testing.T) {
 		actual := strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, "invalid extension", actual)
 	})
+	t.Run("will return 400 if no extension name is provided", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup()
+		allowApp := true
+		allowExtension := true
+		extName := "some-extension"
+		differentProject := "differentProject"
+		withRbac(f, allowApp, allowExtension)
+		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
+		ts := startTestServer(t, f)
+		defer ts.Close()
+		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/", ts.URL))
+		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(getApp("", "", differentProject), nil)
+
+		// when
+		resp, err := http.DefaultClient.Do(r)
+
+		// then
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
 }
 
 func getExtensionConfig(name, url string) string {
@@ -697,6 +725,10 @@ func getExtensionConfigString() string {
 extensions:
 - name: external-backend
   backend:
+    connectionTimeout: 10s
+    keepAlive: 11s
+    idleConnectionTimeout: 12s
+    maxIdleConnections: 30
     services:
     - url: https://httpbin.org
       headers:
@@ -709,6 +741,13 @@ extensions:
 `
 }
 
+func getExtensionConfigNoService() string {
+	return `
+extensions:
+- backend:
+    connectionTimeout: 2s
+`
+}
 func getExtensionConfigNoName() string {
 	return `
 extensions:

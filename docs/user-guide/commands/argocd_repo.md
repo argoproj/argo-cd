@@ -1,9 +1,29 @@
+# `argocd repo` Command Reference
+
 ## argocd repo
 
 Manage repository connection parameters
 
 ```
 argocd repo [flags]
+```
+
+### Examples
+
+```
+
+# Add git repository connection parameters
+argocd repo add git@git.example.com:repos/repo
+
+# Get a Configured Repository by URL
+argocd repo get https://github.com/yourusername/your-repo.git
+
+# List Configured Repositories
+argocd repo list
+
+# Remove Repository Credentials
+argocd repo rm https://github.com/yourusername/your-repo.git
+
 ```
 
 ### Options

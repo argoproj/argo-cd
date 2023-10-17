@@ -1,9 +1,27 @@
+# `argocd proj` Command Reference
+
 ## argocd proj
 
 Manage projects
 
 ```
 argocd proj [flags]
+```
+
+### Examples
+
+```
+  # List all available projects
+  argocd proj list
+  
+  # Create a new project with name PROJECT
+  argocd proj create PROJECT
+  
+  # Delete the project with name PROJECT
+  argocd proj delete PROJECT
+  
+  # Edit the information on project with name PROJECT
+  argocd proj edit PROJECT
 ```
 
 ### Options

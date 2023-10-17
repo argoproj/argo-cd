@@ -79,6 +79,29 @@ spec:
     applicationsSync: create-update
 ```
 
+### Ignore certain changes to Applications
+
+The ApplicationSet spec includes an `ignoreApplicationDifferences` field, which allows you to specify which fields of 
+the ApplicationSet should be ignored when comparing Applications.
+
+The field supports multiple ignore rules. Each ignore rule may specify a list of either `jsonPointers` or 
+`jqPathExpressions` to ignore.
+
+You may optionally also specify a `name` to apply the ignore rule to a specific Application, or omit the `name` to apply
+the ignore rule to all Applications.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+spec:
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/source/targetRevision
+    - name: some-app
+      jqExpressions:
+        - .spec.source.helm.values
+```
+
 ### Prevent an `Application`'s child resources from being deleted, when the parent Application is deleted
 
 By default, when an `Application` resource is deleted by the ApplicationSet controller, all of the child resources of the Application will be deleted as well (such as, all of the Application's `Deployments`, `Services`, etc).
@@ -160,24 +183,26 @@ cd applicationset/manifests
 kubectl apply -n argocd -f install.yaml
 ```
 
-## Preserving changes made to an Applications annotations
+## Preserving changes made to an Applications annotations and labels
 
 It is common practice in Kubernetes to store state in annotations, operators will often make use of this. To allow for this, it is possible to configure a list of annotations that the ApplicationSet should preserve when reconciling.
 
-For example, imagine that we have an Application created from an ApplicationSet, but a custom annotation has since been added (to the Application) that does not exist in the `ApplicationSet` resource:
+For example, imagine that we have an Application created from an ApplicationSet, but a custom annotation and label has since been added (to the Application) that does not exist in the `ApplicationSet` resource:
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  # This annotation and label exists only on this Application, and not in 
+  # the parent ApplicationSet template:
   annotations: 
-    # This annotation exists only on this Application, and not in 
-    # the parent ApplicationSet template:
     my-custom-annotation: some-value
+  labels:
+    my-custom-label: some-value
 spec:
   # (...)
 ```
 
-To preserve this annotation we can use the `preservedFields` property of the `ApplicationSet` like so:
+To preserve this annotation and label we can use the `preservedFields` property of the `ApplicationSet` like so:
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -185,54 +210,13 @@ spec:
   # (...)
   preservedFields:
     annotations: ["my-custom-annotation"]
+    labels: ["my-custom-label"]
 ```
 
-The ApplicationSet controller will leave this annotation as-is when reconciling, even though it is not an annotation defined in the metadata of the ApplicationSet itself.
+The ApplicationSet controller will leave this annotation and label as-is when reconciling, even though it is not defined in the metadata of the ApplicationSet itself.
 
 By default, the Argo CD notifications and the Argo CD refresh type annotations are also preserved.
 
-## Limitations: what isn't supported as of the current release
-
-Here is a list of commonly requested resource modification features which are not supported as of the current release. This lack of support is *not* necessarily by design; rather these behaviours are documented here to provide clear, concise descriptions of the current state of the feature.
-
-### Limitation: No support for manual edits to individual Applications
-
-There is currently no way to allow modification of a single child Application of an ApplicationSet, for example, if you wanted to make manual edits to a single Application for debugging/testing purposes.
-
-For example:
-
-- Imagine that you have an ApplicationSet that created Applications `app1`, `app2`, and `app3`.
-- You now want to edit `app3` with `kubectl edit application/app3`, to update one of the `app3`'s fields.
-- However, as soon as you make edits to `app3` (or any of the individual Applications), they will be immediately reverted by the ApplicationSet reconciler back to the `template`-ized version (by design).
-
-As of this writing, there is [an issue open](https://github.com/argoproj/applicationset/issues/186) for discussion of this behaviour.
-
-
-### Limitation: ApplicationSet controller will not selectively ignore changes to individual fields
-
-Currently, you can only instruct the ApplicationSet controller to ignore changes to Application annotations.
-
-For example, imagine that we have an Application created from an ApplicationSet, but a user has attempted to add a custom annotation (to the Application) that does not exist in the `ApplicationSet` resource:
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  labels: 
-    # This label exists only on this Application, and not in 
-    # the parent ApplicationSet template:
-    my-custom-label: some-value
-spec:
-  # (...)
-```
-
-As above, the `ApplicationSet` resource does not have a `my-custom-label: some-value` label in the `.spec.template.labels` for the Application.
-
-Since this field is not in the ApplicationSet template, as soon as a user adds this custom annotation, it will be immediately reverted (removed) by the ApplicationSet controller.
-
-There is currently no support for disabling or customizing this behaviour.
-
-To some extent this is by design:  the main principle of ApplicationSets is that we maintain a 1-to-many relationship between the ApplicationSet and the Applications that it owns, such that all the Applications necessarily conform to a strict template.
-
-This provides the advantages of the 'cattle not pets' philosophy of microservice/cloud native application resource management, wherein you don't need to worry about individual Applications differing from each other in subtle ways: they will all necessarily be reconciled to be consistent with the parent template.
-
-BUT, support exists for preserving changes to Application annotations as documented [above](#preserving-changes-made-to-an-applications-annotations).
+!!!note
+  One can also set global preserved fields for the controller by passing a comma separated list of annotations and labels to 
+  `ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS` and `ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS` respectively.

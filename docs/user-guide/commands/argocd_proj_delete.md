@@ -1,9 +1,18 @@
+# `argocd proj delete` Command Reference
+
 ## argocd proj delete
 
 Delete project
 
 ```
 argocd proj delete PROJECT [flags]
+```
+
+### Examples
+
+```
+  # Delete the project with name PROJECT
+  argocd proj delete PROJECT
 ```
 
 ### Options
