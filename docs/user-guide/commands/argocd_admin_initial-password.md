@@ -1,3 +1,5 @@
+# `argocd admin initial-password` Command Reference
+
 ## argocd admin initial-password
 
 Prints initial password to log in to Argo CD for the first time

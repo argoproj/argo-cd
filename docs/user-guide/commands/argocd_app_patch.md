@@ -1,3 +1,5 @@
+# `argocd app patch` Command Reference
+
 ## argocd app patch
 
 Patch application

@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="3 known vulnerabilities found in 27 vulnerable dependency paths.">
+  <meta name="description" content="4 known vulnerabilities found in 32 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">August 13th 2023, 12:14:26 am (UTC+00:00)</p>
+                <p class="timestamp">October 15th 2023, 12:15:30 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>3</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>27 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>4</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>32 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>18</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -485,6 +485,114 @@
       </section>
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
+            <h2 class="card__title">Out-of-bounds Write</h2>
+            <div class="card__section">
+        
+                <div class="label label--critical">
+                    <span class="label__text">critical severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.18
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            busybox/busybox
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|redis@7.0.11-alpine and busybox/busybox@1.36.1-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout@3.4.3-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout@3.4.3-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>busybox</code> package and not the <code>busybox</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
+        <p>There is a stack overflow vulnerability in ash.c:6030 in busybox before 1.35. In the environment of Internet of Vehicles, this vulnerability can be executed from command to arbitrary code execution.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.18</code> <code>busybox</code> to version 1.36.1-r1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://bugs.busybox.net/show_bug.cgi?id=15216">cve@mitre.org</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-BUSYBOX-5890990">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Improper Authentication</h2>
             <div class="card__section">
@@ -797,7 +905,7 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine:3.18</code>.</em>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
         <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
         <p>Issue summary: Checking excessively long DH keys or parameters may be very slow.</p>
         <p>Impact summary: Applications that use the functions DH_check(), DH_check_ex()
@@ -835,6 +943,7 @@
         <li><a href="http://www.openwall.com/lists/oss-security/2023/07/19/6">openssl-security@openssl.org</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2023/07/31/1">openssl-security@openssl.org</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20230803-0011/">openssl-security@openssl.org</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2023/08/msg00019.html">openssl-security@openssl.org</a></li>
         </ul>
         
               <hr/>
@@ -981,7 +1090,7 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine:3.18</code>.</em>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
         <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
         <p>Issue summary: Checking excessively long DH keys or parameters may be very slow.</p>
         <p>Impact summary: Applications that use the functions DH_check(), DH_check_ex()
@@ -1014,6 +1123,10 @@
         <li><a href="https://www.openssl.org/news/secadv/20230731.txt">openssl-security@openssl.org</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2023/07/31/1">openssl-security@openssl.org</a></li>
         <li><a href="http://seclists.org/fulldisclosure/2023/Jul/43">openssl-security@openssl.org</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2023/08/msg00019.html">openssl-security@openssl.org</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20230818-0014/">openssl-security@openssl.org</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/09/22/9">openssl-security@openssl.org</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/09/22/11">openssl-security@openssl.org</a></li>
         </ul>
         
               <hr/>

@@ -1,3 +1,5 @@
+# `argocd app history` Command Reference
+
 ## argocd app history
 
 Show application deployment history

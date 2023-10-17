@@ -1,3 +1,5 @@
+# `argocd cluster` Command Reference
+
 ## argocd cluster
 
 Manage cluster credentials

@@ -1,9 +1,21 @@
+# `argocd proj set` Command Reference
+
 ## argocd proj set
 
 Set project parameters
 
 ```
 argocd proj set PROJECT [flags]
+```
+
+### Examples
+
+```
+  # Set project parameters with some allowed cluster resources [RES1,RES2,...] for project with name PROJECT
+  argocd proj set PROJECT --allow-cluster-resource [RES1,RES2,...]
+  
+  # Set project parameters with some denied namespaced resources [RES1,RES2,...] for project with name PROJECT
+  argocd proj set PROJECT ---deny-namespaced-resource [RES1,RES2,...]
 ```
 
 ### Options

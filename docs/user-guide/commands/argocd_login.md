@@ -1,3 +1,5 @@
+# `argocd login` Command Reference
+
 ## argocd login
 
 Log in to Argo CD

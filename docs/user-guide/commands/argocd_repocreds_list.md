@@ -1,9 +1,21 @@
+# `argocd repocreds list` Command Reference
+
 ## argocd repocreds list
 
 List configured repository credentials
 
 ```
 argocd repocreds list [flags]
+```
+
+### Examples
+
+```
+  # List all the configured repository credentials
+  argocd repocreds list
+  
+  # List all the configured repository credentials in json format
+  argocd repocreds list -o json
 ```
 
 ### Options

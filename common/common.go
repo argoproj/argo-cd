@@ -12,6 +12,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Component names
+const (
+	ApplicationController = "argocd-application-controller"
+)
+
 // Default service addresses and URLS of Argo CD internal services
 const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
@@ -34,6 +39,8 @@ const (
 	// ArgoCDTLSCertsConfigMapName contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDTLSCertsConfigMapName = "argocd-tls-certs-cm"
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
+	// ArgoCDAppControllerShardConfigMapName contains the application controller to shard mapping
+	ArgoCDAppControllerShardConfigMapName = "argocd-app-controller-shard-cm"
 )
 
 // Some default configurables
@@ -109,6 +116,8 @@ const (
 	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
 	RoundRobinShardingAlgorithm = "round-robin"
 	DefaultShardingAlgorithm    = LegacyShardingAlgorithm
+	// AppControllerHeartbeatUpdateRetryCount is the retry count for updating the Shard Mapping to the Shard Mapping ConfigMap used by Application Controller
+	AppControllerHeartbeatUpdateRetryCount = 3
 )
 
 // Dex related constants
@@ -209,10 +218,14 @@ const (
 	EnvPauseGenerationRequests = "ARGOCD_PAUSE_GEN_REQUESTS"
 	// EnvControllerReplicas is the number of controller replicas
 	EnvControllerReplicas = "ARGOCD_CONTROLLER_REPLICAS"
+	// EnvControllerHeartbeatTime will update the heartbeat for application controller to claim shard
+	EnvControllerHeartbeatTime = "ARGOCD_CONTROLLER_HEARTBEAT_TIME"
 	// EnvControllerShard is the shard number that should be handled by controller
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
 	// EnvControllerShardingAlgorithm is the distribution sharding algorithm to be used: legacy or round-robin
 	EnvControllerShardingAlgorithm = "ARGOCD_CONTROLLER_SHARDING_ALGORITHM"
+	//EnvEnableDynamicClusterDistribution enables dynamic sharding (ALPHA)
+	EnvEnableDynamicClusterDistribution = "ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION"
 	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection
 	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
 	// EnvGithubAppCredsExpirationDuration controls the caching of Github app credentials. This value is in minutes (default: 60)

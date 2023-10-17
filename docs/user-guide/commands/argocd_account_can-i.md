@@ -1,3 +1,5 @@
+# `argocd account can-i` Command Reference
+
 ## argocd account can-i
 
 Can I
