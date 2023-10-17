@@ -7,6 +7,7 @@ Manage clusters configuration
 ```
 argocd admin cluster [flags]
 ```
+
 ### Examples
 
 ```
