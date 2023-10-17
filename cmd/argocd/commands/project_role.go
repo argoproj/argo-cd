@@ -181,7 +181,7 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
   # Delete a project role from the "my-project" project with the name "my-role".
   argocd proj role delete my-project my-role
   		`),
-		
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
