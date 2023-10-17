@@ -954,9 +954,9 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if !patched {
 			patched = true
-			return true, nil, errors.New("fake error")
+			return true, &v1alpha1.Application{}, errors.New("fake error")
 		}
-		return true, nil, nil
+		return true, &v1alpha1.Application{}, nil
 	})
 	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
