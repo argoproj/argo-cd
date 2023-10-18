@@ -8,6 +8,13 @@ Delete a project token
 argocd proj role delete-token PROJECT ROLE-NAME ISSUED-AT [flags]
 ```
 
+### Examples
+
+```
+  # This command will delete the token associated with the specified project argocd, role some_role_name, and issued timestamp some_issued_at.
+  argocd delete-token argocd some_role_name some_issued_at
+```
+
 ### Options
 
 ```

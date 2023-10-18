@@ -348,6 +348,11 @@ func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 		Use:     "delete-token PROJECT ROLE-NAME ISSUED-AT",
 		Short:   "Delete a project token",
 		Aliases: []string{"token-delete", "remove-token"},
+		Example: templates.Examples(`  
+  # This command will delete the token associated with the specified project argocd, role some_role_name, and issued timestamp some_issued_at.
+  argocd delete-token argocd some_role_name some_issued_at
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
