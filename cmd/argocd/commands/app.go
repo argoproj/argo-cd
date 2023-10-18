@@ -318,6 +318,35 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
 		Short: "Get application details",
+		Example: templates.Examples(`  
+  # Get basic details about the application "my-app" in wide format
+  argocd app get my-app -o wide
+
+  # Get detailed information about the application "my-app" in YAML format
+  argocd app get my-app -o yaml
+
+  # Get details of the application "my-app" in JSON format
+  argocd get my-app -o json
+
+  # Get application details and include information about the current operation
+  argocd app get my-app --show-operation
+
+  # Show application parameters and overrides
+  argocd app get my-app --show-params
+
+  # Refresh application data when retrieving
+  argocd app get my-app --refresh
+
+  # Perform a hard refresh, including refreshing application data and target manifests cache
+  argocd app get my-app --hard-refresh
+
+  # Get application details and display them in a tree format
+  argocd app get my-app --output tree
+  
+  # Get application details and display them in a detailed tree format
+  argocd app get my-app --output tree=detailed
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 			if len(args) == 0 {
