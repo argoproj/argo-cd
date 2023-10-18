@@ -297,6 +297,14 @@ func NewProjectRoleListTokensCommand(clientOpts *argocdclient.ClientOptions) *co
 		Use:     "list-tokens PROJECT ROLE-NAME",
 		Short:   "List tokens for a given role.",
 		Aliases: []string{"list-token", "token-list"},
+		Example: templates.Examples(`  
+  # This command will list the JWT tokens associated with the specified project argocd and role some_role_name.
+  argocd list-tokens argocd some_role_name
+ 
+  # This command will list the tokens with Unix timestamps for issued and expiration times.
+  your_cli_tool list-tokens --unixtime argocd some_role_name
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
