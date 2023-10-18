@@ -20,6 +20,7 @@ argocd admin cluster namespaces enable-namespaced-mode PATTERN [flags]
       --cluster string                 The name of the kubeconfig cluster to use
       --cluster-resources              Indicates if cluster level resources should be managed.
       --context string                 The name of the kubeconfig context to use
+      --disable-compression            If true, opt-out of response compression for all requests to the server
       --dry-run                        Print what will be performed (default true)
   -h, --help                           help for enable-namespaced-mode
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure

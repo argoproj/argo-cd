@@ -28,6 +28,7 @@ argocd-application-controller [flags]
       --cluster string                         The name of the kubeconfig cluster to use
       --context string                         The name of the kubeconfig context to use
       --default-cache-expiration duration      Cache expiration default (default 24h0m0s)
+      --disable-compression                    If true, opt-out of response compression for all requests to the server
       --dynamic-cluster-distribution-enabled   Enables dynamic cluster distribution.
       --gloglevel int                          Set the glog logging level
   -h, --help                                   help for argocd-application-controller
