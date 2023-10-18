@@ -14,6 +14,7 @@ import (
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 // NewGPGCommand returns a new instance of an `argocd repo` command
@@ -42,6 +43,17 @@ func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List configured GPG public keys",
+		Example: templates.Examples(`  
+  # List all configured GPG public keys in wide format (default).
+  argocd gpg list
+		
+  # List all configured GPG public keys in JSON format.
+  argocd gpg list -o json
+		
+  # List all configured GPG public keys in YAML format.
+  argocd gpg list -o yaml
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
