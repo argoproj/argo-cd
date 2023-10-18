@@ -238,8 +238,8 @@ func NewCommand() *cobra.Command {
 
 func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) sharding.ClusterSharding {
 	var replicasCount int
-	shardNumber := env.ParseNumFromEnv(common.EnvControllerShard, 0, -math.MaxInt32, math.MaxInt32)
-
+	// StatefulSet mode and Deployment mode uses different default values for shard number.
+	defaultShardNumberValue := 0
 	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 	appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 
@@ -250,14 +250,15 @@ func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.
 
 	if enableDynamicClusterDistribution && appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
 		replicasCount = int(*appControllerDeployment.Spec.Replicas)
+		defaultShardNumberValue = -1
 	} else {
 		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	}
+	shardNumber := env.ParseNumFromEnv(common.EnvControllerShard, defaultShardNumberValue, -math.MaxInt32, math.MaxInt32)
 	if replicasCount > 1 {
 		// check for shard mapping using configmap if application-controller is a deployment
 		// else use existing logic to infer shard from pod name if application-controller is a statefulset
 		if enableDynamicClusterDistribution && appControllerDeployment != nil {
-
 			var err error
 			// retry 3 times if we find a conflict while updating shard mapping configMap.
 			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
