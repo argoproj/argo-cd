@@ -43,7 +43,7 @@ func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List configured GPG public keys",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # List all configured GPG public keys in wide format (default).
   argocd gpg list
 		
