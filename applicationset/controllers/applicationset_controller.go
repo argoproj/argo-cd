@@ -544,22 +544,24 @@ func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {
 	}
 }
 
-func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProgressiveSyncs bool, maxConcurrentReconciliations int) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &argov1alpha1.Application{}, ".metadata.controller", func(rawObj client.Object) []string {
-		// grab the job object, extract the owner...
-		app := rawObj.(*argov1alpha1.Application)
-		owner := metav1.GetControllerOf(app)
-		if owner == nil {
-			return nil
-		}
-		// ...make sure it's a application set...
-		if owner.APIVersion != argov1alpha1.SchemeGroupVersion.String() || owner.Kind != "ApplicationSet" {
-			return nil
-		}
+func appControllerIndexer(rawObj client.Object) []string {
+	// grab the job object, extract the owner...
+	app := rawObj.(*argov1alpha1.Application)
+	owner := metav1.GetControllerOf(app)
+	if owner == nil {
+		return nil
+	}
+	// ...make sure it's a application set...
+	if owner.APIVersion != argov1alpha1.SchemeGroupVersion.String() || owner.Kind != "ApplicationSet" {
+		return nil
+	}
 
-		// ...and if so, return it
-		return []string{owner.Name}
-	}); err != nil {
+	// ...and if so, return it
+	return []string{owner.Name}
+}
+
+func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProgressiveSyncs bool, maxConcurrentReconciliations int) error {
+	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &argov1alpha1.Application{}, ".metadata.controller", appControllerIndexer); err != nil {
 		return fmt.Errorf("error setting up with manager: %w", err)
 	}
 
