@@ -181,7 +181,8 @@ func NewApplicationController(
 	appInformer, appLister := ctrl.newApplicationInformerAndLister()
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, indexers)
-	projInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	var err error
+	_, err = projInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
 				ctrl.projectRefreshQueue.Add(key)
@@ -208,6 +209,9 @@ func NewApplicationController(
 			}
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	factory := informers.NewSharedInformerFactoryWithOptions(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration, informers.WithNamespace(settingsMgr.GetNamespace()))
 	deploymentInformer := factory.Apps().V1().Deployments()
@@ -235,7 +239,7 @@ func NewApplicationController(
 	}
 
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
-	var err error
+
 	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, readinessHealthCheck, metricsApplicationLabels)
 	if err != nil {
 		return nil, err
@@ -1569,7 +1573,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		} else if hardExpired || softExpired {
 			// The commented line below mysteriously crashes if app.Status.ReconciledAt is nil
 			// reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
-			//TODO: find existing Golang bug or create a new one
+			// TODO: find existing Golang bug or create a new one
 			reconciledAtStr := "never"
 			if app.Status.ReconciledAt != nil {
 				reconciledAtStr = app.Status.ReconciledAt.String()
@@ -1979,7 +1983,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		},
 	)
 	lister := applisters.NewApplicationLister(informer.GetIndexer())
-	informer.AddEventHandler(
+	_, err := informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				if !ctrl.canProcessApp(obj) {
@@ -2023,6 +2027,9 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			},
 		},
 	)
+	if err != nil {
+		return nil, nil
+	}
 	return informer, lister
 }
 

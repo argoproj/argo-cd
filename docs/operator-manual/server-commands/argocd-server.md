@@ -34,6 +34,7 @@ argocd-server [flags]
       --dex-server-plaintext                          Use a plaintext client (non-TLS) to connect to dex server
       --dex-server-strict-tls                         Perform strict validation of TLS certificates when connecting to dex server
       --disable-auth                                  Disable client authentication
+      --disable-compression                           If true, opt-out of response compression for all requests to the server
       --enable-gzip                                   Enable GZIP compression (default true)
       --enable-proxy-extension                        Enable Proxy Extension feature
       --gloglevel int                                 Set the glog logging level
