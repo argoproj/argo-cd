@@ -110,7 +110,7 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "add",
 		Short: "Adds a GPG public key to the server's keyring",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Add a GPG public key to the server's keyring from a file.
   argocd gpg add --from /path/to/keyfile
   		`),
