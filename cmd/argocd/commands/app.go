@@ -524,8 +524,8 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					} else {
 						return
 					}
-				} //Done with receive message
-			} //Done with retry
+				} // Done with receive message
+			} // Done with retry
 		},
 	}
 
@@ -889,7 +889,7 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 			for i, item := range source.Kustomize.Images {
 				if argoappv1.KustomizeImage(kustomizeImage).Match(item) {
 					updated = true
-					//remove i
+					// remove i
 					a := source.Kustomize.Images
 					copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
 					a[len(a)-1] = ""     // Erase last element (write zero value).
@@ -1904,7 +1904,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						Backoff: &argoappv1.Backoff{
 							Duration:    retryBackoffDuration.String(),
 							MaxDuration: retryBackoffMaxDuration.String(),
-							Factor:      pointer.Int64Ptr(retryBackoffFactor),
+							Factor:      pointer.Int64(retryBackoffFactor),
 						},
 					}
 				}
@@ -2143,7 +2143,7 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	} else if watch.degraded && watch.health {
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusDegraded)
-		//below are good
+		// below are good
 	} else if watch.suspended && watch.health {
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusSuspended)
