@@ -110,8 +110,8 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 
 // getParamSetsByMergeKey converts the given list of parameter sets to a map of parameter sets where the key is the
 // unique key of the parameter set as determined by the given mergeKeys. If any two parameter sets share the same merge
-// key, getParamSetsByMergeKey will throw NonUniqueParamSets.
-func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]interface{}, allowDuplicates bool) (map[string][]map[string]interface{}, error) {
+// key, getParamSetsByMergeKey will throw NonUniqueParamSets, if allowDuplicateMergeKey is false
+func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]interface{}, allowDuplicateMergeKey bool) (map[string][]map[string]interface{}, error) {
 	if len(mergeKeys) < 1 {
 		return nil, ErrNoMergeKeys
 	}
@@ -132,7 +132,7 @@ func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]interface
 			return nil, fmt.Errorf("error marshalling param set key json: %w", err)
 		}
 		paramSetKeyString := string(paramSetKeyJson)
-		if !allowDuplicates {
+		if !allowDuplicateMergeKey {
 			if _, exists := paramSetsByMergeKey[paramSetKeyString]; exists {
 				return nil, fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, paramSetKeyString)
 			}
