@@ -743,10 +743,9 @@ func (r *ApplicationSetReconciler) createInCluster(ctx context.Context, logCtx *
 	return r.createOrUpdateInCluster(ctx, logCtx, applicationSet, createApps)
 }
 
-func (r *ApplicationSetReconciler) getCurrentApplications(_ context.Context, applicationSet argov1alpha1.ApplicationSet) ([]argov1alpha1.Application, error) {
-	// TODO: Should this use the context param?
+func (r *ApplicationSetReconciler) getCurrentApplications(ctx context.Context, applicationSet argov1alpha1.ApplicationSet) ([]argov1alpha1.Application, error) {
 	var current argov1alpha1.ApplicationList
-	err := r.Client.List(context.Background(), &current, client.MatchingFields{".metadata.controller": applicationSet.Name}, client.InNamespace(applicationSet.Namespace))
+	err := r.Client.List(ctx, &current, client.MatchingFields{".metadata.controller": applicationSet.Name}, client.InNamespace(applicationSet.Namespace))
 
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving applications: %w", err)
