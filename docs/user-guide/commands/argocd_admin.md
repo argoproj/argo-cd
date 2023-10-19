@@ -7,6 +7,7 @@ Contains a set of commands useful for Argo CD administrators and requires direct
 ```
 argocd admin [flags]
 ```
+
 ### Examples
 
 ```
@@ -92,6 +93,7 @@ $ argocd admin notification delete my-notification
 $ argocd admin initial-password reset
 
 ```
+
 ### Options
 
 ```
