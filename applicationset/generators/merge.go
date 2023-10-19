@@ -98,8 +98,8 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 
 	mergedParamSets := make([]map[string]interface{}, len(paramSetsFromGenerators[0]))
 	var i = 0
-	for _, mergedParamSet := range baseParamSetsByMergeKey {
-		for _, paramSet := range mergedParamSet {
+	for _, mergedParamSetList := range baseParamSetsByMergeKey {
+		for _, mergedParamSet := range mergedParamSetList {
 			mergedParamSets[i] = mergedParamSet
 			i += 1
 		}
@@ -111,7 +111,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 // getParamSetsByMergeKey converts the given list of parameter sets to a map of parameter sets where the key is the
 // unique key of the parameter set as determined by the given mergeKeys. If any two parameter sets share the same merge
 // key, getParamSetsByMergeKey will throw NonUniqueParamSets.
-func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]interface{}, allowDuplicates bool) (map[string]map[string]interface{}, error) {
+func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]interface{}, allowDuplicates bool) (map[string][]map[string]interface{}, error) {
 	if len(mergeKeys) < 1 {
 		return nil, ErrNoMergeKeys
 	}
