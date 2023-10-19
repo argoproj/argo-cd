@@ -228,92 +228,18 @@ p, role:, certificates, get, .*, allow`
 	})
 }
 
+func TestNewRBACCanCommand(t *testing.T) {
+	command := NewRBACCanCommand()
+
+	require.NotNil(t, command)
+	assert.Equal(t, "can", command.Name())
+	assert.Equal(t, "Check RBAC permissions for a role or subject", command.Short)
+}
+
 func TestNewRBACValidateCommand(t *testing.T) {
-
-	// sample kubeconfig
-	rawConfig := &clientcmdapi.Config{
-		APIVersion: "v1",
-		Kind:       "Config",
-		Clusters: map[string]*clientcmdapi.Cluster{
-			"my-cluster": {
-				Server:                   "https://example.com",
-				CertificateAuthorityData: []byte("CAData"),
-			},
-		},
-		Contexts: map[string]*clientcmdapi.Context{
-			"my-context": {
-				Cluster:   "my-cluster",
-				Namespace: "my-namespace",
-			},
-		},
-		CurrentContext: "my-context",
-	}
-
-	clientConfig := clientcmd.NewDefaultClientConfig(*rawConfig, &clientcmd.ConfigOverrides{})
-
-	fakeClientConfig := NewFakeClientConfig(clientConfig)
-
-	command := NewRBACValidateCommand(fakeClientConfig)
+	command := NewRBACValidateCommand()
 
 	require.NotNil(t, command)
 	assert.Equal(t, "validate", command.Name())
 	assert.Equal(t, "Validate RBAC policy", command.Short)
 }
-
-// func TestNewRBACValidateCommand_ValidatePolicyFromNamespace(t *testing.T) {
-// 	tmpDir := t.TempDir()
-
-// 	policyContent := `
-// p, role:user, clusters, get, .+, allow
-// p, role:user, applications, get, .*, allow
-// `
-// 	policyFile := filepath.Join(tmpDir, "policy.csv")
-// 	file, err := os.Create(policyFile)
-// 	require.NoError(t, err)
-// 	defer file.Close()
-
-// 	_, err = file.WriteString(policyContent)
-// 	require.NoError(t, err)
-
-// 	kubeconfig := &clientcmdapi.Config{
-// 		APIVersion: "v1",
-// 		Kind:       "Config",
-// 		Clusters: map[string]*clientcmdapi.Cluster{
-// 			"my-cluster": {
-// 				Server:                   "https://example.com",
-// 				CertificateAuthorityData: []byte("CAData"),
-// 			},
-// 		},
-// 		Contexts: map[string]*clientcmdapi.Context{
-// 			"my-context": {
-// 				Cluster:   "my-cluster",
-// 				Namespace: "my-namespace",
-// 			},
-// 		},
-// 		CurrentContext: "my-context",
-// 	}
-
-// 	fakeClientConfig := NewFakeClientConfig(clientcmd.NewNonInteractiveClientConfig(*kubeconfig, "my-context", &clientcmd.ConfigOverrides{}, nil))
-
-// 	originalStdout := os.Stdout
-// 	r, w, _ := os.Pipe()
-// 	os.Stdout = w
-// 	// redirect output to buf
-// 	output := &bytes.Buffer{}
-// 	defer func() {
-// 		os.Stdout = originalStdout
-// 	}()
-// 	go func() {
-// 		io.Copy(output, r)
-// 	}()
-
-// 	// test policy retrieval from namespace cm
-// 	t.Run("Policy from ConfigMap", func(t *testing.T) {
-// 		command := NewRBACValidateCommand(fakeClientConfig)
-// 		command.SetArgs([]string{"--namespace=my-namespace"})
-// 		err := command.Execute()
-// 		assert.NoError(t, err)
-// 		w.Close()
-// 		assert.Contains(t, output.String(), "Policy is valid.")
-// 	})
-// }
