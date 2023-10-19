@@ -236,7 +236,7 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) sharding.ClusterSharding {
+func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) sharding.ClusterShardingCache {
 	var replicasCount int
 	// StatefulSet mode and Deployment mode uses different default values for shard number.
 	defaultShardNumberValue := 0

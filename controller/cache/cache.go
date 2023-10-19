@@ -169,7 +169,7 @@ func NewLiveStateCache(
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
-	clusterSharding sharding.ClusterSharding,
+	clusterSharding sharding.ClusterShardingCache,
 	resourceTracking argo.ResourceTracking) LiveStateCache {
 
 	return &liveStateCache{
@@ -203,7 +203,7 @@ type liveStateCache struct {
 	kubectl          kube.Kubectl
 	settingsMgr      *settings.SettingsManager
 	metricsServer    *metrics.MetricsServer
-	clusterSharding  sharding.ClusterSharding
+	clusterSharding  sharding.ClusterShardingCache
 	resourceTracking argo.ResourceTracking
 
 	clusters      map[string]clustercache.ClusterCache

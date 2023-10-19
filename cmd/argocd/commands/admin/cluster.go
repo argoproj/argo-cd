@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/util/argo"
@@ -86,9 +87,9 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 	if err != nil {
 		return nil, err
 	}
-	clusterSharding := sharding.NewClusterSharding(argoDB, shard, replicas, shardingAlgorithm)
-	clusterSharding.Init(clustersList)
-	clusterShards := clusterSharding.GetDistribution()
+	clusterShardingCache := sharding.NewClusterSharding(argoDB, shard, replicas, shardingAlgorithm)
+	clusterShardingCache.Init(clustersList)
+	clusterShards := clusterShardingCache.GetDistribution()
 
 	var cache *appstatecache.Cache
 	if portForwardRedis {
@@ -126,8 +127,15 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 		apps[i] = app
 	}
 	clusters := make([]ClusterWithInfo, len(clustersList.Items))
+
 	batchSize := 10
 	batchesCount := int(math.Ceil(float64(len(clusters)) / float64(batchSize)))
+	clusterSharding := &sharding.ClusterSharding{
+		Shard:    shard,
+		Replicas: replicas,
+		Shards:   make(map[string]int),
+		Clusters: make(map[string]*v1alpha1.Cluster),
+	}
 	for batchNum := 0; batchNum < batchesCount; batchNum++ {
 		batchStart := batchSize * batchNum
 		batchEnd := batchSize * (batchNum + 1)
@@ -136,9 +144,10 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 		}
 		batch := clustersList.Items[batchStart:batchEnd]
 		_ = kube.RunAllAsync(len(batch), func(i int) error {
+			clusterShard := 0
 			cluster := batch[i]
 			if replicas > 0 {
-				distributionFunction := sharding.GetDistributionFunction(argoDB, common.DefaultShardingAlgorithm)
+				distributionFunction := sharding.GetDistributionFunction(argoDB, clusterSharding.GetClusterAccessor(), common.DefaultShardingAlgorithm)
 				distributionFunction(&cluster)
 				clusterShard := clusterShards[cluster.Server]
 				cluster.Shard = pointer.Int64(int64(clusterShard))

@@ -126,7 +126,7 @@ type ApplicationController struct {
 	refreshRequestedAppsMutex     *sync.Mutex
 	metricsServer                 *metrics.MetricsServer
 	kubectlSemaphore              *semaphore.Weighted
-	clusterSharding               sharding.ClusterSharding
+	clusterSharding               sharding.ClusterShardingCache
 	projByNameCache               sync.Map
 	applicationNamespaces         []string
 }
@@ -149,7 +149,7 @@ func NewApplicationController(
 	metricsApplicationLabels []string,
 	kubectlParallelismLimit int64,
 	persistResourceHealth bool,
-	clusterSharding sharding.ClusterSharding,
+	clusterSharding sharding.ClusterShardingCache,
 	applicationNamespaces []string,
 	rateLimiterConfig *ratelimiter.AppControllerRateLimiterConfig,
 	serverSideDiff bool,
