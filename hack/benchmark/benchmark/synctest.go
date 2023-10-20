@@ -1,27 +1,27 @@
 package benchmark
 
 import (
-	"fmt"
-	"os"
-	"math"
-	"time"
-	"errors"
 	"context"
+	"errors"
+	"fmt"
+	"math"
+	"os"
 	"text/tabwriter"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/hack/benchmark/util"
-	"github.com/argoproj/argo-cd/v2/util/db"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/util/db"
 
-	"k8s.io/client-go/kubernetes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 func SyncTest(clientSet *kubernetes.Clientset, argoClientSet *appclientset.Clientset, argoDB db.ArgoDB, namespace string, clusters []appv1.Cluster) (string, error) {
-	apps,_ := argoClientSet.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), metav1.ListOptions{
+	apps, _ := argoClientSet.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-benchmark",
 	})
 
@@ -29,10 +29,10 @@ func SyncTest(clientSet *kubernetes.Clientset, argoClientSet *appclientset.Clien
 		return "", errors.New("No applications found. Build the benchmark environment first before running a benchmark.")
 	}
 
-	argocdCM,_ := clientSet.CoreV1().ConfigMaps(namespace).Get(context.TODO(), "argocd-cmd-params-cm", metav1.GetOptions{})
+	argocdCM, _ := clientSet.CoreV1().ConfigMaps(namespace).Get(context.TODO(), "argocd-cmd-params-cm", metav1.GetOptions{})
 	shardingAlgorithm := argocdCM.Data["controller.sharding.algorithm"]
 
-	appControllerSTS,_ := clientSet.AppsV1().StatefulSets(namespace).Get(context.TODO(), "argocd-application-controller", metav1.GetOptions{})
+	appControllerSTS, _ := clientSet.AppsV1().StatefulSets(namespace).Get(context.TODO(), "argocd-application-controller", metav1.GetOptions{})
 	replicas := int(appControllerSTS.Status.Replicas)
 
 	//shards,_ := util.GetClusterShards(replicas, shardingAlgorithm, namespace, argoClientSet, argoDB)
@@ -56,24 +56,26 @@ func SyncTest(clientSet *kubernetes.Clientset, argoClientSet *appclientset.Clien
 	//Wait till all apps are synced
 	util.WaitAppCondition(argoClientSet, namespace, "", "Synced", true)
 
-	cmd,err := util.ForwardGit()
+	cmd, err := util.ForwardGit()
 	if err != nil {
 		return "", err
 	}
 
-	commit,err := util.PushGit()
+	commit, err := util.PushGit()
 	if err != nil {
 		return "", err
 	}
 
 	util.WaitAppCondition(argoClientSet, namespace, commit, "", false)
 	log.Print("Starting Test.")
-	testStart := time.Now() 
+	testStart := time.Now()
 	util.WaitAppCondition(argoClientSet, namespace, commit, "Synced", true)
 	log.Print("All Apps Synced.")
 	testEnd := time.Since(testStart)
 	log.Printf("Elapsed Time: %d secs.", int(math.Floor(testEnd.Seconds())))
-	cmd.Process.Kill()
+	err = cmd.Process.Kill()
+	if err != nil {
+		return "", err
+	}
 	return "", nil
 }
-

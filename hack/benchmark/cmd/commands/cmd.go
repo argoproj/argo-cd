@@ -1,8 +1,8 @@
 package commands
 
 import (
-	"os"
 	"context"
+	"os"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -11,10 +11,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/hack/benchmark/env"
 	"github.com/argoproj/argo-cd/v2/hack/benchmark/util"
 
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 )
 
 const (
@@ -59,14 +59,14 @@ func NewBenchmarkCommand() *cobra.Command {
 			argoClientSet := util.ConnectToK8sArgoClientSet()
 			settingsMgr := settings.NewSettingsManager(context.TODO(), clientSet, namespace)
 			argoDB := db.NewDB(namespace, settingsMgr, clientSet)
-			clusters,_ := util.GetClusterList(argoDB)
-			
+			clusters, _ := util.GetClusterList(argoDB)
+
 			if testtype == "synctest" {
-				_,err := benchmark.SyncTest(clientSet, argoClientSet, argoDB, namespace, clusters)
+				_, err := benchmark.SyncTest(clientSet, argoClientSet, argoDB, namespace, clusters)
 				if err != nil {
 					log.Printf("%v", err)
 				}
-			}	else {
+			} else {
 				log.Print("Invalid parameters.")
 			}
 			os.Exit(0)
@@ -90,10 +90,10 @@ func NewBuildEnvCommand() *cobra.Command {
 			argoClientSet := util.ConnectToK8sArgoClientSet()
 			settingsMgr := settings.NewSettingsManager(context.TODO(), clientSet, namespace)
 			argoDB := db.NewDB(namespace, settingsMgr, clientSet)
-			clusters,_ := util.GetClusterList(argoDB)
-			
+			clusters, _ := util.GetClusterList(argoDB)
+
 			if numapps != 0 {
-				_,err := env.BuildEnv(clientSet, argoClientSet, numapps, appdist, namespace, clusters)
+				_, err := env.BuildEnv(clientSet, argoClientSet, numapps, appdist, namespace, clusters)
 				if err != nil {
 					log.Printf("%v", err)
 				}

@@ -1,11 +1,10 @@
 package util
 
 import (
-	"time"
 	"context"
-	"math"
 	"math/rand"
 	"sort"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -13,9 +12,9 @@ import (
 	//"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	//"github.com/argoproj/argo-cd/v2/controller/sharding"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // type ShardDistribution struct {
@@ -26,46 +25,46 @@ import (
 func GetAppDistribution(numapps int, appdist string, validClusters []appv1.Cluster) (map[string]int, error) {
 	numClusters := len(validClusters)
 	appDistribution := make(map[string]int)
-	medianAppsPerCluster := int(math.Floor(float64(numapps / numClusters)))
+	medianAppsPerCluster := int(numapps / numClusters)
 	rand.Seed(time.Now().UnixNano())
-		if appdist == "equal" {
-			for _,cluster := range validClusters {
-				appDistribution[cluster.Name] = medianAppsPerCluster
-			}
-		} else if appdist == "random" {
-			totalApps := 0
-			x := make([]int,numClusters+1)
-			y := make(map[int]int)
-			x[0] = 0
-			x[numClusters] = numapps
-			for i:=1;i<numClusters;i++ {
-				for {
-					randNum := int(rand.Intn((numapps-1) + 1))
-					if _,ok := y[randNum]; !ok {
-						y[randNum] = 1
-						x[i] = randNum
-						break
-					}
+	if appdist == "equal" {
+		for _, cluster := range validClusters {
+			appDistribution[cluster.Name] = medianAppsPerCluster
+		}
+	} else if appdist == "random" {
+		totalApps := 0
+		x := make([]int, numClusters+1)
+		y := make(map[int]int)
+		x[0] = 0
+		x[numClusters] = numapps
+		for i := 1; i < numClusters; i++ {
+			for {
+				randNum := int(rand.Intn((numapps - 1) + 1))
+				if _, ok := y[randNum]; !ok {
+					y[randNum] = 1
+					x[i] = randNum
+					break
 				}
 			}
-			sort.Slice(x, func(i, j int) bool {
-				return x[i] < x[j]
-			})
-		 	i:=0
-			for _,cluster := range validClusters {
-				appDistribution[cluster.Name] = x[i+1] - x[i]
-				i++
-			}
-			for _,val := range appDistribution {
-				totalApps += val
-			}
 		}
+		sort.Slice(x, func(i, j int) bool {
+			return x[i] < x[j]
+		})
+		i := 0
+		for _, cluster := range validClusters {
+			appDistribution[cluster.Name] = x[i+1] - x[i]
+			i++
+		}
+		for _, val := range appDistribution {
+			totalApps += val
+		}
+	}
 
 	return appDistribution, nil
 }
 
 func WaitAppCondition(argoClientSet *appclientset.Clientset, namespace string, commit string, status string, allAppsFlag bool) {
-	apps,_ := argoClientSet.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), metav1.ListOptions{
+	apps, _ := argoClientSet.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-benchmark",
 	})
 	numApps := len(apps.Items)
@@ -73,10 +72,10 @@ func WaitAppCondition(argoClientSet *appclientset.Clientset, namespace string, c
 
 	for exitCondition(numApps, numAppsWithCorrectCondition, allAppsFlag) {
 		numAppsWithCorrectCondition = 0
-		apps,_ := argoClientSet.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), metav1.ListOptions{
+		apps, _ := argoClientSet.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/generated-by=argocd-benchmark",
 		})
-		for _,app := range apps.Items {
+		for _, app := range apps.Items {
 			correctStatus := true
 			correctCommit := true
 			if status != "" && string(app.Status.Sync.Status) != status {
@@ -140,7 +139,7 @@ func exitCondition(numApps int, numAppsWithCorrectCondition int, allAppsFlag boo
 // 				Apps: 0,
 // 				Clusters: 0,
 // 			}
-// 		} 
+// 		}
 // 		entry.Apps += clusterByApps[cluster]
 // 		entry.Clusters++
 // 		shardDistribution[shard] = entry
@@ -151,10 +150,10 @@ func exitCondition(numApps int, numAppsWithCorrectCondition int, allAppsFlag boo
 
 func GetEndpoint(clientSet *kubernetes.Clientset) string {
 	log.Debug("Getting Gitea endpoint.")
-	endpoints,_ := clientSet.CoreV1().Endpoints("gitea").List(context.TODO(), metav1.ListOptions{})
+	endpoints, _ := clientSet.CoreV1().Endpoints("gitea").List(context.TODO(), metav1.ListOptions{})
 	var giteaEndpoint string
 
-	for _,endpoint := range endpoints.Items {
+	for _, endpoint := range endpoints.Items {
 		if endpoint.Name == "gitea-http" {
 			giteaEndpoint = endpoint.Subsets[0].Addresses[0].IP
 		}
@@ -167,7 +166,7 @@ func GetClusterList(argoDB db.ArgoDB) ([]appv1.Cluster, error) {
 	log.Debug("Getting Cluster list.")
 	validClusters := []appv1.Cluster{}
 	clusters, _ := argoDB.ListClusters(context.TODO())
-	for _,cluster := range clusters.Items {
+	for _, cluster := range clusters.Items {
 		if cluster.Server != "https://kubernetes.default.svc" {
 			validClusters = append(validClusters, cluster)
 		}
