@@ -28,6 +28,7 @@ argocd-application-controller [flags]
       --cluster string                         The name of the kubeconfig cluster to use
       --context string                         The name of the kubeconfig context to use
       --default-cache-expiration duration      Cache expiration default (default 24h0m0s)
+      --disable-compression                    If true, opt-out of response compression for all requests to the server
       --dynamic-cluster-distribution-enabled   Enables dynamic cluster distribution.
       --gloglevel int                          Set the glog logging level
   -h, --help                                   help for argocd-application-controller
@@ -69,5 +70,11 @@ argocd-application-controller [flags]
       --token string                           Bearer token for authentication to the API server
       --user string                            The name of the kubeconfig user to use
       --username string                        Username for basic authentication to the API server
+      --wq-backoff-factor float                Set Workqueue Per Item Rate Limiter Backoff Factor, default is 1.5 (default 1.5)
+      --wq-basedelay-ns duration               Set Workqueue Per Item Rate Limiter Base Delay duration in nanoseconds, default 1000000 (1ms) (default 1ms)
+      --wq-bucket-qps int                      Set Workqueue Rate Limiter Bucket QPS, default 50 (default 50)
+      --wq-bucket-size int                     Set Workqueue Rate Limiter Bucket Size, default 500 (default 500)
+      --wq-cooldown-ns duration                Set Workqueue Per Item Rate Limiter Cooldown duration in ns, default 0(per item rate limiter disabled)
+      --wq-maxdelay-ns duration                Set Workqueue Per Item Rate Limiter Max Delay duration in nanoseconds, default 1000000000 (1s) (default 1s)
 ```
 
