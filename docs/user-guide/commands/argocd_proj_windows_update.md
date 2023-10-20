@@ -12,6 +12,15 @@ Update a project sync window. Requires ID which can be found by running "argocd 
 argocd proj windows update PROJECT ID [flags]
 ```
 
+### Examples
+
+```
+# Change a sync window's schedule
+argocd proj windows update PROJECT ID \
+    --schedule "0 20 * * *"
+
+```
+
 ### Options
 
 ```
