@@ -1377,7 +1377,6 @@ func (ctrl *ApplicationController) writeBackToInformer(app *appv1.Application) {
 		logCtx.Errorf("failed to update informer store: %v", err)
 		return
 	}
-	logCtx.Info("persisted to informer")
 }
 
 // PatchAppWithWriteBack patches an application and writes it back to the informer cache
