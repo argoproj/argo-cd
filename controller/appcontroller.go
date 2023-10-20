@@ -1319,8 +1319,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 	}
 
 	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-		patchedApp, err := appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+		_, err := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierr.IsNotFound(err) {
@@ -1331,7 +1330,6 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			logCtx.Warnf("error patching application with operation state: %v", err)
 			return fmt.Errorf("error patching application with operation state: %w", err)
 		}
-		ctrl.writeBackToInformer(patchedApp)
 		return nil
 	})
 
@@ -1369,6 +1367,16 @@ func (ctrl *ApplicationController) writeBackToInformer(app *appv1.Application) {
 		return
 	}
 	logCtx.Info("persisted to informer")
+}
+
+// PatchAppWithWriteBack patches an application and writes it back to the informer cache
+func (ctrl *ApplicationController) PatchAppWithWriteBack(ctx context.Context, name, ns string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *appv1.Application, err error) {
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ns).Patch(ctx, name, pt, data, opts, subresources...)
+	if err != nil {
+		return patchedApp, err
+	}
+	ctrl.writeBackToInformer(patchedApp)
+	return patchedApp, err
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
@@ -1644,13 +1652,11 @@ func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Applica
 	if err != nil {
 		logCtx.Errorf("error constructing app spec patch: %v", err)
 	} else if modified {
-		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-		patchedApp, err := appClient.Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+		_, err := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			logCtx.Errorf("Error persisting normalized application spec: %v", err)
 		} else {
 			logCtx.Infof("Normalized app spec: %s", string(patch))
-			ctrl.writeBackToInformer(patchedApp)
 		}
 	}
 }
@@ -1690,12 +1696,10 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	defer func() {
 		patchMs = time.Since(start)
 	}()
-	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
-	patchedApp, err := appClient.Patch(context.Background(), orig.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		logCtx.Warnf("Error updating application: %v", err)
 	} else {
-		ctrl.writeBackToInformer(patchedApp)
 		logCtx.Infof("Update successful")
 	}
 	return patchMs
