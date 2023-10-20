@@ -62,7 +62,14 @@ func NewController(
 	configMapName string,
 	selfServiceNotificationEnabled bool,
 ) *notificationController {
-	appClient := client.Resource(applications)
+	var appClient dynamic.ResourceInterface
+
+	namespaceableAppClient := client.Resource(applications)
+	appClient = namespaceableAppClient
+
+	if len(applicationNamespaces) == 0 {
+		appClient = namespaceableAppClient.Namespace(namespace)
+	}
 	appInformer := newInformer(appClient, namespace, applicationNamespaces, appLabelSelector)
 	appProjInformer := newInformer(newAppProjClient(client, namespace), namespace, []string{namespace}, "")
 	var notificationConfigNamespace string
@@ -95,12 +102,12 @@ func NewController(
 	alterDestinationsOpt := controller.WithAlterDestinations(res.alterDestinations)
 
 	if !selfServiceNotificationEnabled {
-		res.ctrl = controller.NewController(appClient, appInformer, apiFactory,
+		res.ctrl = controller.NewController(namespaceableAppClient, appInformer, apiFactory,
 			skipProcessingOpt,
 			metricsRegistryOpt,
 			alterDestinationsOpt)
 	} else {
-		res.ctrl = controller.NewControllerWithNamespaceSupport(appClient, appInformer, apiFactory,
+		res.ctrl = controller.NewControllerWithNamespaceSupport(namespaceableAppClient, appInformer, apiFactory,
 			skipProcessingOpt,
 			metricsRegistryOpt,
 			alterDestinationsOpt)
@@ -127,6 +134,7 @@ func (c *notificationController) alterDestinations(obj v1.Object, destinations s
 }
 
 func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string, applicationNamespaces []string, selector string) cache.SharedIndexInformer {
+
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
