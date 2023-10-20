@@ -2,6 +2,11 @@
 * K8s cluster with kubectl configured
 * Argo CD with remote managed clusters
 
+# Build benchmark tooling
+```
+make benchmark-cli-local
+```
+
 # Deploy benchmark environment
 1. There are two configurable parameters to building the benchmark environment:
 * appdist (random or equal): determines how the applications would be distributed to the target clusters. Currently the environment build will utilize all clusters defined in Argo CD/
