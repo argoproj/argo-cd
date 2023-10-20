@@ -42,16 +42,14 @@ func NewCommand() *cobra.Command {
 	}
 
 	command.AddCommand(NewBenchmarkCommand())
+	command.AddCommand(NewBuildEnvCommand())
 
 	return command
 }
 
 func NewBenchmarkCommand() *cobra.Command {
-	var numapps int
-	var appdist string
 	var namespace string
 	var testtype string
-	var buildenv bool
 	var command = &cobra.Command{
 		Use:   "benchmark",
 		Short: "Run a benchmark",
@@ -63,16 +61,7 @@ func NewBenchmarkCommand() *cobra.Command {
 			argoDB := db.NewDB(namespace, settingsMgr, clientSet)
 			clusters,_ := util.GetClusterList(argoDB)
 			
-			if buildenv  {
-				if numapps != 0 {
-					_,err := env.BuildEnv(clientSet, argoClientSet, numapps, appdist, namespace, clusters)
-					if err != nil {
-						log.Printf("%v", err)
-					}
-				} else {
-					log.Print("Missing required parameters for building environment.")
-				}
-			} else if testtype == "synctest" {
+			if testtype == "synctest" {
 				_,err := benchmark.SyncTest(clientSet, argoClientSet, argoDB, namespace, clusters)
 				if err != nil {
 					log.Printf("%v", err)
@@ -83,10 +72,39 @@ func NewBenchmarkCommand() *cobra.Command {
 			os.Exit(0)
 		},
 	}
+	command.Flags().StringVar(&namespace, "namespace", "argocd", "")
+	command.Flags().StringVar(&testtype, "testtype", "synctest", "")
+	return command
+}
+
+func NewBuildEnvCommand() *cobra.Command {
+	var numapps int
+	var appdist string
+	var namespace string
+	var command = &cobra.Command{
+		Use:   "buildenv",
+		Short: "Build benchmark environment",
+		Long:  "Build benchmark environment",
+		Run: func(c *cobra.Command, args []string) {
+			clientSet := util.ConnectToK8sClientSet()
+			argoClientSet := util.ConnectToK8sArgoClientSet()
+			settingsMgr := settings.NewSettingsManager(context.TODO(), clientSet, namespace)
+			argoDB := db.NewDB(namespace, settingsMgr, clientSet)
+			clusters,_ := util.GetClusterList(argoDB)
+			
+			if numapps != 0 {
+				_,err := env.BuildEnv(clientSet, argoClientSet, numapps, appdist, namespace, clusters)
+				if err != nil {
+					log.Printf("%v", err)
+				}
+			} else {
+				log.Print("Missing required parameters for building environment.")
+			}
+			os.Exit(0)
+		},
+	}
 	command.Flags().IntVar(&numapps, "numapps", 0, "")
 	command.Flags().StringVar(&appdist, "appdist", "equal", "")
 	command.Flags().StringVar(&namespace, "namespace", "argocd", "")
-	command.Flags().StringVar(&testtype, "testtype", "synctest", "")
-	command.Flags().BoolVar(&buildenv, "buildenv", false, "")
 	return command
 }
