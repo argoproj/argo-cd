@@ -393,7 +393,7 @@ func SecretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 		if val, err := strconv.Atoi(string(shardStr)); err != nil {
 			log.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
 		} else {
-			shard = pointer.Int64Ptr(int64(val))
+			shard = pointer.Int64(int64(val))
 		}
 	}
 

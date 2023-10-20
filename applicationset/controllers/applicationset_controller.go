@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -24,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -44,6 +46,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/argo-cd/v2/common"
+	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 
@@ -160,13 +163,15 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if r.EnableProgressiveSyncs {
 		if applicationSetInfo.Spec.Strategy == nil && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
+			// If appset used progressive sync but stopped, clean up the progressive sync application statuses
 			log.Infof("Removing %v unnecessary AppStatus entries from ApplicationSet %v", len(applicationSetInfo.Status.ApplicationStatus), applicationSetInfo.Name)
 
 			err := r.setAppSetApplicationStatus(ctx, &applicationSetInfo, []argov1alpha1.ApplicationSetApplicationStatus{})
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to clear previous AppSet application statuses for %v: %w", applicationSetInfo.Name, err)
 			}
-		} else {
+		} else if applicationSetInfo.Spec.Strategy != nil {
+			// appset uses progressive sync
 			applications, err := r.getCurrentApplications(ctx, applicationSetInfo)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
@@ -436,8 +441,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			errorsByIndex[i] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
 			continue
 		}
-
-		proj, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(r.ArgoCDNamespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
+		_, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(r.ArgoCDNamespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
 		if err != nil {
 			if apierr.IsNotFound(err) {
 				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
@@ -448,15 +452,6 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 
 		if err := utils.ValidateDestination(ctx, &app.Spec.Destination, r.KubeClientset, r.ArgoCDNamespace); err != nil {
 			errorsByIndex[i] = fmt.Errorf("application destination spec is invalid: %s", err.Error())
-			continue
-		}
-
-		conditions, err := argoutil.ValidatePermissions(ctx, &app.Spec, proj, r.ArgoDB)
-		if err != nil {
-			return nil, fmt.Errorf("error validating permissions: %s", err)
-		}
-		if len(conditions) > 0 {
-			errorsByIndex[i] = fmt.Errorf("application spec is invalid: %s", argoutil.FormatAppConditions(conditions))
 			continue
 		}
 
@@ -549,22 +544,24 @@ func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {
 	}
 }
 
-func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProgressiveSyncs bool, maxConcurrentReconciliations int) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &argov1alpha1.Application{}, ".metadata.controller", func(rawObj client.Object) []string {
-		// grab the job object, extract the owner...
-		app := rawObj.(*argov1alpha1.Application)
-		owner := metav1.GetControllerOf(app)
-		if owner == nil {
-			return nil
-		}
-		// ...make sure it's a application set...
-		if owner.APIVersion != argov1alpha1.SchemeGroupVersion.String() || owner.Kind != "ApplicationSet" {
-			return nil
-		}
+func appControllerIndexer(rawObj client.Object) []string {
+	// grab the job object, extract the owner...
+	app := rawObj.(*argov1alpha1.Application)
+	owner := metav1.GetControllerOf(app)
+	if owner == nil {
+		return nil
+	}
+	// ...make sure it's a application set...
+	if owner.APIVersion != argov1alpha1.SchemeGroupVersion.String() || owner.Kind != "ApplicationSet" {
+		return nil
+	}
 
-		// ...and if so, return it
-		return []string{owner.Name}
-	}); err != nil {
+	// ...and if so, return it
+	return []string{owner.Name}
+}
+
+func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProgressiveSyncs bool, maxConcurrentReconciliations int) error {
+	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &argov1alpha1.Application{}, ".metadata.controller", appControllerIndexer); err != nil {
 		return fmt.Errorf("error setting up with manager: %w", err)
 	}
 
@@ -683,6 +680,14 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 
 			found.ObjectMeta.Finalizers = generatedApp.Finalizers
 			found.ObjectMeta.Labels = generatedApp.Labels
+
+			if found != nil && len(found.Spec.IgnoreDifferences) > 0 {
+				err := applyIgnoreDifferences(applicationSet.Spec.IgnoreApplicationDifferences, found, generatedApp)
+				if err != nil {
+					return fmt.Errorf("failed to apply ignore differences: %w", err)
+				}
+			}
+
 			return controllerutil.SetControllerReference(&applicationSet, found, r.Scheme)
 		})
 
@@ -694,10 +699,66 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			continue
 		}
 		r.updateCache(ctx, found, appLog)
-		r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, fmt.Sprint(action), "%s Application %q", action, generatedApp.Name)
-		appLog.Logf(log.InfoLevel, "%s Application", action)
+
+		if action != controllerutil.OperationResultNone {
+			// Don't pollute etcd with "unchanged Application" events
+			r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, fmt.Sprint(action), "%s Application %q", action, generatedApp.Name)
+			appLog.Logf(log.InfoLevel, "%s Application", action)
+		} else {
+			// "unchanged Application" can be inferred by Reconcile Complete with no action being listed
+			// Or enable debug logging
+			appLog.Logf(log.DebugLevel, "%s Application", action)
+		}
 	}
 	return firstError
+}
+
+// applyIgnoreDifferences applies the ignore differences rules to the found application. It modifies the found application in place.
+func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.ApplicationSetIgnoreDifferences, found *argov1alpha1.Application, generatedApp argov1alpha1.Application) error {
+	diffConfig, err := argodiff.NewDiffConfigBuilder().
+		WithDiffSettings(applicationSetIgnoreDifferences.ToApplicationIgnoreDifferences(), nil, false).
+		WithNoCache().
+		Build()
+	if err != nil {
+		return fmt.Errorf("failed to build diff config: %w", err)
+	}
+	unstructuredFound, err := appToUnstructured(found)
+	if err != nil {
+		return fmt.Errorf("failed to convert found application to unstructured: %w", err)
+	}
+	unstructuredGenerated, err := appToUnstructured(&generatedApp)
+	if err != nil {
+		return fmt.Errorf("failed to convert found application to unstructured: %w", err)
+	}
+	result, err := argodiff.Normalize([]*unstructured.Unstructured{unstructuredFound}, []*unstructured.Unstructured{unstructuredGenerated}, diffConfig)
+	if err != nil {
+		return fmt.Errorf("failed to normalize application spec: %w", err)
+	}
+	if len(result.Targets) != 1 {
+		return fmt.Errorf("expected 1 normalized application, got %d", len(result.Targets))
+	}
+	jsonNormalized, err := json.Marshal(result.Targets[0].Object)
+	if err != nil {
+		return fmt.Errorf("failed to marshal normalized app to json: %w", err)
+	}
+	err = json.Unmarshal(jsonNormalized, &found)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal normalized app json to structured app: %w", err)
+	}
+	// Prohibit jq queries from mutating silly things.
+	found.TypeMeta = generatedApp.TypeMeta
+	found.Name = generatedApp.Name
+	found.Namespace = generatedApp.Namespace
+	found.Operation = generatedApp.Operation
+	return nil
+}
+
+func appToUnstructured(app *argov1alpha1.Application) (*unstructured.Unstructured, error) {
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(app)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert app object to unstructured: %w", err)
+	}
+	return &unstructured.Unstructured{Object: u}, nil
 }
 
 // createInCluster will filter from the desiredApplications only the application that needs to be created

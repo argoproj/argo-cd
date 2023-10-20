@@ -255,7 +255,6 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 		Short: "List resource of application",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
-			output, _ = c.Flags().GetString("output")
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)

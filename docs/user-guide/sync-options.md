@@ -339,51 +339,11 @@ spec:
     - CreateNamespace=true
 ```
 
-In the case where Argo CD is "adopting" an existing namespace which already has metadata set on it, we rely on using
-Server Side Apply in order not to lose metadata which has already been set. The main implication here is that it takes
-a few extra steps to get rid of an already preexisting field.
-
-Imagine we have a pre-existing namespace as below:
-
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: foobar
-  annotations:
-    foo: bar
-    abc: "123"
-```
-
-If we want to manage the `foobar` namespace with Argo CD and to then also remove the `foo: bar` annotation, in
-`managedNamespaceMetadata` we'd need to first rename the `foo` value:
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-spec:
-  syncPolicy:
-    managedNamespaceMetadata:
-      annotations:
-        abc: 123 # adding this is informational with SSA; this would be sticking around in any case until we set a new value
-        foo: remove-me
-    syncOptions:
-      - CreateNamespace=true
-```
-
-Once that has been synced, we're ok to remove `foo`
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-spec:
-  syncPolicy:
-    managedNamespaceMetadata:
-      annotations:
-        abc: 123 # adding this is informational with SSA; this would be sticking around in any case until we set a new value
-    syncOptions:
-      - CreateNamespace=true
-```
+In the case where Argo CD is "adopting" an existing namespace which already has metadata set on it, you should first
+[upgrade the resource to server-side apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/#upgrading-from-client-side-apply-to-server-side-apply)
+before enabling `managedNamespaceMetadata`. Argo CD relies on `kubectl`, which does not support managing 
+client-side-applied resources with server-side-applies. If you do not upgrade the resource to server-side apply, Argo CD
+may remove existing labels/annotations, which may or may not be the desired behavior.
 
 Another thing to keep mind of is that if you have a k8s manifest for the same namespace in your Argo CD application, that
 will take precedence and *overwrite whatever values that have been set in `managedNamespaceMetadata`*. In other words, if
