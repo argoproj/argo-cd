@@ -318,6 +318,35 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
 		Short: "Get application details",
+		Example: templates.Examples(`  
+  # Get basic details about the application "my-app" in wide format
+  argocd app get my-app -o wide
+
+  # Get detailed information about the application "my-app" in YAML format
+  argocd app get my-app -o yaml
+
+  # Get details of the application "my-app" in JSON format
+  argocd get my-app -o json
+
+  # Get application details and include information about the current operation
+  argocd app get my-app --show-operation
+
+  # Show application parameters and overrides
+  argocd app get my-app --show-params
+
+  # Refresh application data when retrieving
+  argocd app get my-app --refresh
+
+  # Perform a hard refresh, including refreshing application data and target manifests cache
+  argocd app get my-app --hard-refresh
+
+  # Get application details and display them in a tree format
+  argocd app get my-app --output tree
+  
+  # Get application details and display them in a detailed tree format
+  argocd app get my-app --output tree=detailed
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 			if len(args) == 0 {
@@ -495,8 +524,8 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					} else {
 						return
 					}
-				} //Done with receive message
-			} //Done with retry
+				} // Done with receive message
+			} // Done with retry
 		},
 	}
 
@@ -860,7 +889,7 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 			for i, item := range source.Kustomize.Images {
 				if argoappv1.KustomizeImage(kustomizeImage).Match(item) {
 					updated = true
-					//remove i
+					// remove i
 					a := source.Kustomize.Images
 					copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
 					a[len(a)-1] = ""     // Erase last element (write zero value).
@@ -1875,7 +1904,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						Backoff: &argoappv1.Backoff{
 							Duration:    retryBackoffDuration.String(),
 							MaxDuration: retryBackoffMaxDuration.String(),
-							Factor:      pointer.Int64Ptr(retryBackoffFactor),
+							Factor:      pointer.Int64(retryBackoffFactor),
 						},
 					}
 				}
@@ -2114,7 +2143,7 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	} else if watch.degraded && watch.health {
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusDegraded)
-		//below are good
+		// below are good
 	} else if watch.suspended && watch.health {
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusSuspended)
