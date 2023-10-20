@@ -5,6 +5,7 @@ CLI_NAME=argocd
 BIN_NAME=argocd
 
 GEN_RESOURCES_CLI_NAME=argocd-resources-gen
+BENCHMARK_CLI_NAME=argocd-benchmark
 
 HOST_OS:=$(shell go env GOOS)
 HOST_ARCH:=$(shell go env GOARCH)
@@ -240,6 +241,10 @@ cli-local: clean-debug
 .PHONY: gen-resources-cli-local
 gen-resources-cli-local: clean-debug
 	CGO_ENABLED=0 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${GEN_RESOURCES_CLI_NAME} ./hack/gen-resources/cmd
+
+.PHONY: benchmark-cli-local
+benchmark-cli-local: clean-debug
+	CGO_ENABLED=0 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BENCHMARK_CLI_NAME} ./hack/benchmark/cmd
 
 .PHONY: release-cli
 release-cli: clean-debug build-ui
