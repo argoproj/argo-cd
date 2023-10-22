@@ -58,7 +58,7 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 	}
 	return newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 		gitClient.On("Init").Return(nil)
-		gitClient.On("Fetch", mock.Anything).Return(nil)
+		gitClient.On("Fetch", mock.Anything, mock.Anything).Return(nil)
 		gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 		gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
 		gitClient.On("CommitSHA").Return(mock.Anything, nil)
@@ -133,7 +133,7 @@ func newServiceWithCommitSHA(root, revision string) *Service {
 
 	service, gitClient := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 		gitClient.On("Init").Return(nil)
-		gitClient.On("Fetch", mock.Anything).Return(nil)
+		gitClient.On("Fetch", mock.Anything, mock.Anything).Return(nil)
 		gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 		gitClient.On("LsRemote", revision).Return(revision, revisionErr)
 		gitClient.On("CommitSHA").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
@@ -2645,10 +2645,10 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
 	require.NoError(t, err)
 
-	err = checkoutRevision(gitClient, "does-not-exist", false)
+	err = checkoutRevision(gitClient, "does-not-exist", false, 0)
 	assert.Error(t, err)
 
-	err = checkoutRevision(gitClient, pullSha, false)
+	err = checkoutRevision(gitClient, pullSha, false, 0)
 	assert.NoError(t, err)
 }
 
@@ -2957,7 +2957,7 @@ func TestGetGitDirectories(t *testing.T) {
 	root := "./testdata/git-files-dirs"
 	s, _ := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 		gitClient.On("Init").Return(nil)
-		gitClient.On("Fetch", mock.Anything).Return(nil)
+		gitClient.On("Fetch", mock.Anything, mock.Anything).Return(nil)
 		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return(nil)
 		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.On("Root").Return(root)
@@ -3039,7 +3039,7 @@ func TestGetGitFiles(t *testing.T) {
 	root := ""
 	s, _ := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 		gitClient.On("Init").Return(nil)
-		gitClient.On("Fetch", mock.Anything).Return(nil)
+		gitClient.On("Fetch", mock.Anything, mock.Anything).Return(nil)
 		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return(nil)
 		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.On("Root").Return(root)
