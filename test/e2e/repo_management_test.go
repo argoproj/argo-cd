@@ -71,7 +71,8 @@ func TestGetRepoWithInheritedCreds(t *testing.T) {
 
 		_, err = repoClient.UpdateRepository(context.Background(), &repositorypkg.RepoUpdateRequest{
 			Repo: &v1alpha1.Repository{
-				Repo: repoUrl,
+				Repo:     repoUrl,
+				GitDepth: 2,
 			},
 		})
 		assert.NoError(t, err)

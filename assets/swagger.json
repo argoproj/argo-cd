@@ -8104,6 +8104,11 @@
           "type": "string",
           "title": "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos"
         },
+        "gitDepth": {
+          "type": "string",
+          "format": "uint64",
+          "title": "GitDepth specifies the depth of the git clone"
+        },
         "githubAppEnterpriseBaseUrl": {
           "type": "string",
           "title": "GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com"

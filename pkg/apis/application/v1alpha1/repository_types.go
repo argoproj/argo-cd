@@ -93,6 +93,8 @@ type Repository struct {
 	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,21,opt,name=gcpServiceAccountKey"`
 	// ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,22,opt,name=forceHttpBasicAuth"`
+	// GitDepth specifies the depth of the git clone
+	GitDepth uint64 `json:"gitDepth,omitempty" protobuf:"bytes,23,opt,name=gitDepth"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification

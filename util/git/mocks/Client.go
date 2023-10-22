@@ -88,17 +88,17 @@ func (_m *Client) CommitSHA() (string, error) {
 	return r0, r1
 }
 
-// Fetch provides a mock function with given fields: revision
-func (_m *Client) Fetch(revision string) error {
-	ret := _m.Called(revision)
+// Fetch provides a mock function with given fields: revision, depth
+func (_m *Client) Fetch(revision string, depth uint64) error {
+	ret := _m.Called(revision, depth)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Fetch")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(revision)
+	if rf, ok := ret.Get(0).(func(string, uint64) error); ok {
+		r0 = rf(revision, depth)
 	} else {
 		r0 = ret.Error(0)
 	}

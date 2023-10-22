@@ -45,7 +45,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	assert.NoError(t, err)
 }
 
@@ -62,7 +62,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = runCmd(tempDir, "git", "branch", "test/foo")
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	assert.NoError(t, err)
 
 	err = runCmd(tempDir, "git", "branch", "-d", "test/foo")
@@ -70,7 +70,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = runCmd(tempDir, "git", "branch", "test/foo/bar")
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	assert.NoError(t, err)
 }
 
@@ -215,7 +215,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	assert.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")

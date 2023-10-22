@@ -322,7 +322,7 @@ func TestLFSClient(t *testing.T) {
 	err = client.Init()
 	assert.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	assert.NoError(t, err)
 
 	err = client.Checkout(commitSHA, true)
@@ -357,7 +357,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	err = client.Init()
 	assert.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	assert.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -414,11 +414,11 @@ func TestNewFactory(t *testing.T) {
 		err = client.Init()
 		assert.NoError(t, err)
 
-		err = client.Fetch("")
+		err = client.Fetch("", 0)
 		assert.NoError(t, err)
 
 		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-		err = client.Fetch("")
+		err = client.Fetch("", 0)
 		assert.NoError(t, err)
 
 		err = client.Checkout(commitSHA, true)

@@ -1631,6 +1631,9 @@ message Repository {
 
   // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
   optional bool forceHttpBasicAuth = 22;
+
+  // GitDepth specifies the depth of the git clone
+  optional uint64 gitDepth = 23;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
