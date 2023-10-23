@@ -8,7 +8,7 @@ spec:
   generators:
   - list:
       elements:
-        - cluster: https://kubernetes.default.svc
+      - cluster: https://kubernetes.default.svc
   # Determines whether go templating will be used in the `template` field below.
   goTemplate: false
   # Optional list of go templating options, see https://pkg.go.dev/text/template#Template.Option
@@ -30,8 +30,8 @@ spec:
   # want to use ApplicationSets to create apps, but also want to allow users to modify those apps without having their
   # changes overwritten by the ApplicationSet.
   ignoreApplicationDifferences:
-    - jsonPointers:
-        - /spec/source/targetRevision
-    - name: some-app
-      jqExpressions:
-        - .spec.source.helm.values
+  - jsonPointers:
+      - /spec/source/targetRevision
+  - name: some-app
+    jqExpressions:
+      - .spec.source.helm.values
