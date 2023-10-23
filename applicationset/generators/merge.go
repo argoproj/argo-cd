@@ -64,7 +64,13 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 		return nil, fmt.Errorf("error getting param sets from generators: %w", err)
 	}
 
-	baseParamSetsByMergeKey, err := getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], true)
+	baseParamSetsByMergeKey := make(map[string][]map[string]interface{})
+	if appSetGenerator.Merge.AllowDuplicates {
+		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], true)
+	} else {
+		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], false)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("error getting param sets by merge key: %w", err)
 	}
@@ -78,7 +84,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 		for mergeKeyValue, baseParamSetList := range baseParamSetsByMergeKey {
 			for i, baseParamSet := range baseParamSetList {
 				if overrideParamSet, exists := paramSetsByMergeKey[mergeKeyValue]; exists {
-	
+
 					if appSet.Spec.GoTemplate {
 						if err := mergo.Merge(&baseParamSet, overrideParamSet, mergo.WithOverride); err != nil {
 							return nil, fmt.Errorf("error merging base param set with override param set: %w", err)
