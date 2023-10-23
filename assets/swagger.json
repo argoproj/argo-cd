@@ -7440,6 +7440,9 @@
       "description": "MergeGenerator merges the output of two or more generators. Where the values for all specified merge keys are equal\nbetween two sets of generated parameters, the parameter sets will be merged with the parameters from the latter\ngenerator taking precedence. Parameter sets with merge keys not present in the base generator's params will be\nignored.\nFor example, if the first generator produced [{a: '1', b: '2'}, {c: '1', d: '1'}] and the second generator produced\n[{'a': 'override'}], the united parameters for merge keys = ['a'] would be\n[{a: 'override', b: '1'}, {c: '1', d: '1'}].\n\nMergeGenerator supports template overriding. If a MergeGenerator is one of multiple top-level generators, its\ntemplate will be merged with the top-level generator before the parameters are applied.",
       "type": "object",
       "properties": {
+        "allowDuplicates": {
+          "type": "boolean"
+        },
         "generators": {
           "type": "array",
           "items": {

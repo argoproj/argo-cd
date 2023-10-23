@@ -1163,6 +1163,8 @@ message MergeGenerator {
   repeated string mergeKeys = 2;
 
   optional ApplicationSetTemplate template = 3;
+
+  optional bool allowDuplicates = 4;
 }
 
 // NestedMatrixGenerator is a MatrixGenerator nested under another combination-type generator (MatrixGenerator or

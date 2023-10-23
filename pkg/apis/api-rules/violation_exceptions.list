@@ -103,7 +103,6 @@ API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/applicat
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,JWTToken,IssuedAt
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,KustomizeOptions,BinaryPath
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,KustomizeOptions,BuildOptions
-API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,MergeGenerator,allowDuplicates
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,PullRequestGenerator,AzureDevOps
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,PullRequestGenerator,GitLab
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,RefTarget,Chart
