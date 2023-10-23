@@ -6,9 +6,9 @@ metadata:
 spec:
   # See docs for available generators and their specs.
   generators:
-    - list:
-        elements:
-          - cluster: https://kubernetes.default.svc
+  - list:
+      elements:
+        - cluster: https://kubernetes.default.svc
   # Determines whether go templating will be used in the `template` field below.
   goTemplate: false
   # Optional list of go templating options, see https://pkg.go.dev/text/template#Template.Option
