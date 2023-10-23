@@ -60,7 +60,13 @@ func NewController(
 	secretName string,
 	configMapName string,
 ) *notificationController {
-	appClient := client.Resource(applications)
+	var appClient dynamic.ResourceInterface
+	namespaceableAppClient := client.Resource(applications)
+	appClient = namespaceableAppClient
+	if len(applicationNamespaces) == 0 {
+		appClient = namespaceableAppClient.Namespace(namespace)
+	}
+
 	appInformer := newInformer(appClient, namespace, applicationNamespaces, appLabelSelector)
 	appProjInformer := newInformer(newAppProjClient(client, namespace), namespace, []string{namespace}, "")
 	secretInformer := k8s.NewSecretInformer(k8sClient, namespace, secretName)
@@ -73,7 +79,7 @@ func NewController(
 		appInformer:       appInformer,
 		appProjInformer:   appProjInformer,
 		apiFactory:        apiFactory}
-	res.ctrl = controller.NewController(appClient, appInformer, apiFactory,
+	res.ctrl = controller.NewController(namespaceableAppClient, appInformer, apiFactory,
 		controller.WithSkipProcessing(func(obj v1.Object) (bool, string) {
 			app, ok := (obj).(*unstructured.Unstructured)
 			if !ok {
