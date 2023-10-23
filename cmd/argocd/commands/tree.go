@@ -45,7 +45,64 @@ func treeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode
 		}
 		treeViewAppGet(p, uidToNodeMap, parentToChildMap, uidToNodeMap[childUid], mapNodeNameToResourceState, w)
 	}
+}
 
+func treeViewAppWaitWatch(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentToChildMap map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState, prevHealthStates map[string]healthLastChangedWithTimeStamp, w *tabwriter.Writer) {
+	healthStatus, _ := extractHealthStatusAndReason(parent)
+	healthLastChanged := ""
+	val, ok := prevHealthStates[parent.UID]
+	if ok {
+		healthLastChanged = val.time
+	}
+	if mapNodeNameToResourceState[parent.Kind+"/"+parent.Name] != nil {
+		value := mapNodeNameToResourceState[parent.Kind+"/"+parent.Name]
+		_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Kind+"/"+value.Name, value.Status, healthStatus, healthLastChanged, value.Message)
+	} else {
+		_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Kind+"/"+parent.Name, "", healthStatus, healthLastChanged, "")
+	}
+	chs := parentToChildMap[parent.UID]
+	for i, childUid := range chs {
+		var p string
+		switch i {
+		case len(chs) - 1:
+			p = prefix + lastElemPrefix
+		default:
+			p = prefix + firstElemPrefix
+		}
+		treeViewAppWaitWatch(p, uidToNodeMap, parentToChildMap, uidToNodeMap[childUid], mapNodeNameToResourceState, prevHealthStates, w)
+	}
+}
+
+func detailedTreeViewWaitWatch(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState, prevHealthStates map[string]healthLastChangedWithTimeStamp, w *tabwriter.Writer) {
+	healthStatus, reason := extractHealthStatusAndReason(parent)
+	healthLastChanged := ""
+	val, ok := prevHealthStates[parent.UID]
+	if ok {
+		healthLastChanged = val.time
+	}
+	var age = "<unknown>"
+	if parent.CreatedAt != nil {
+		age = duration.HumanDuration(time.Since(parent.CreatedAt.Time))
+	}
+
+	if mapNodeNameToResourceState[parent.Kind+"/"+parent.Name] != nil {
+		value := mapNodeNameToResourceState[parent.Kind+"/"+parent.Name]
+		_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Kind+"/"+value.Name, value.Status, healthStatus, healthLastChanged, age, value.Message, reason)
+	} else {
+		_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Kind+"/"+parent.Name, "", healthStatus, healthLastChanged, age, "", reason)
+
+	}
+	chs := parentChildMap[parent.UID]
+	for i, child := range chs {
+		var p string
+		switch i {
+		case len(chs) - 1:
+			p = prefix + lastElemPrefix
+		default:
+			p = prefix + firstElemPrefix
+		}
+		detailedTreeViewWaitWatch(p, uidToNodeMap, parentChildMap, uidToNodeMap[child], mapNodeNameToResourceState, prevHealthStates, w)
+	}
 }
 
 func detailedTreeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState, w *tabwriter.Writer) {
