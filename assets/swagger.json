@@ -5013,6 +5013,35 @@
         }
       }
     },
+    "repositoryApplicationVersions": {
+      "type": "object",
+      "properties": {
+        "appVersion": {
+          "type": "string",
+          "title": "Application version presented by single value"
+        },
+        "dependencies": {
+          "$ref": "#/definitions/repositoryDependencies"
+        }
+      }
+    },
+    "repositoryDependencies": {
+      "type": "object",
+      "properties": {
+        "deps": {
+          "type": "string",
+          "title": "Content of Cart.yaml/dependencies"
+        },
+        "lock": {
+          "type": "string",
+          "title": "Content of Chart.lock"
+        },
+        "requirements": {
+          "type": "string",
+          "title": "Content of requirements.yaml"
+        }
+      }
+    },
     "repositoryDirectoryAppSpec": {
       "type": "object",
       "title": "DirectoryAppSpec contains directory"
@@ -5113,6 +5142,9 @@
     "repositoryManifestResponse": {
       "type": "object",
       "properties": {
+        "applicationVersions": {
+          "$ref": "#/definitions/repositoryApplicationVersions"
+        },
         "commitAuthor": {
           "type": "string"
         },

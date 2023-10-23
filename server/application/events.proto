@@ -49,6 +49,8 @@ message EventPayload {
     required ObjectSource source = 3;
     // The errors of this object
     repeated ObjectError errors = 4;
+    // A version of the application and its dependencies
+    optional ApplicationVersions appVersions = 5;
 }
 
 /**
@@ -89,3 +91,20 @@ message ObjectError {
     optional string message = 3 [(gogoproto.nullable) = false];
     optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastSeen = 4 [(gogoproto.nullable) = false];
 } 
+
+message Dependencies {
+    // Content of Chart.lock
+	optional string lock = 1;
+    // Content of Cart.yaml/dependencies
+	optional string deps = 2;
+    // Content of requirements.yaml
+	optional string requirements = 3;
+}
+
+message ApplicationVersions {
+    // Application version presented by single value
+    optional string appVersion = 1;
+    // Yaml content of dependencies
+    optional Dependencies dependencies = 2;
+}
+

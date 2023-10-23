@@ -1416,6 +1416,22 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		SourceType: string(appSourceType),
 	}
 
+	if appSourceType == v1alpha1.ApplicationSourceTypeHelm {
+		appVersions, err := getAppVersions(appPath, q.VersionConfig.ResourceName, q.VersionConfig.JsonPath)
+		if err != nil {
+			log.Errorf("failed to retrieve application version, app name: %q: %s", q.AppName, err.Error())
+		} else {
+			res.ApplicationVersions = &apiclient.ApplicationVersions{
+				AppVersion: appVersions.AppVersion,
+				Dependencies: &apiclient.Dependencies{
+					Lock:         appVersions.Dependencies.Lock,
+					Deps:         appVersions.Dependencies.Deps,
+					Requirements: appVersions.Dependencies.Requirements,
+				},
+			}
+		}
+	}
+
 	if gitClient != nil {
 		m, err := gitClient.RevisionMetadata(revision)
 		if err != nil {

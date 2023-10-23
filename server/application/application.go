@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
-	"gopkg.in/yaml.v2"
 	"math"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
+	"gopkg.in/yaml.v2"
 
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
@@ -495,6 +496,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			HelmOptions:        helmOptions,
 			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			EnabledSourceTypes: enableGenerateManifests,
+			VersionConfig:      apiclient.GetVersionConfig(),
 		})
 		if err != nil {
 			return fmt.Errorf("error generating manifests: %w", err)
