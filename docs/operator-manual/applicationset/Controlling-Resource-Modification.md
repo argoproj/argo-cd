@@ -182,7 +182,7 @@ spec:
 !!! note
     [Future improvements](https://github.com/argoproj/argo-cd/issues/15975) to the ApplicationSet controller may 
     eliminate this problem. For example, the `ref` field might be made a merge key, allowing the ApplicationSet 
-    controller to generate and use a StrategigMergePatch instead of a MergePatch. You could then target a specific 
+    controller to generate and use a StrategicMergePatch instead of a MergePatch. You could then target a specific 
     source by `ref`, ignore changes to a field in that source, and changes to other sources would not cause the ignored 
     field to be overwritten.
 
