@@ -124,7 +124,9 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		log.WithFields(log.Fields{
 			"stderr":  stderr.String(),
 			"command": command,
-		}).Warn("Plugin command returned zero output")
+		}).Error("Plugin command returned zero output")
+		err := newCmdError(argsToLog, errors.New("Plugin command returned zero output"), strings.TrimSpace(stderr.String()))
+		return strings.TrimSuffix(output, "\n"), err
 	}
 
 	return strings.TrimSuffix(output, "\n"), nil
