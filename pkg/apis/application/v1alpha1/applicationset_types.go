@@ -321,7 +321,7 @@ type MergeGenerator struct {
 	Generators      []ApplicationSetNestedGenerator `json:"generators" protobuf:"bytes,1,name=generators"`
 	MergeKeys       []string                        `json:"mergeKeys" protobuf:"bytes,2,name=mergeKeys"`
 	Template        ApplicationSetTemplate          `json:"template,omitempty" protobuf:"bytes,3,name=template"`
-	allowDuplicates bool                            `json:"allowDuplicates,omitempty" protobuf:"bytes,4,name=allowDuplicates"`
+	AllowDuplicates bool                            `json:"allowDuplicates,omitempty" protobuf:"bytes,4,opt,name=allowDuplicates"`
 }
 
 // NestedMergeGenerator is a MergeGenerator nested under another combination-type generator (MatrixGenerator or
