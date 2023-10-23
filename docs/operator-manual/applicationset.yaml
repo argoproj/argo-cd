@@ -35,3 +35,4 @@ spec:
   - name: some-app
     jqExpressions:
     - .spec.source.helm.values
+
