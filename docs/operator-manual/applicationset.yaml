@@ -31,7 +31,7 @@ spec:
   # changes overwritten by the ApplicationSet.
   ignoreApplicationDifferences:
   - jsonPointers:
-      - /spec/source/targetRevision
+    - /spec/source/targetRevision
   - name: some-app
     jqExpressions:
-      - .spec.source.helm.values
+    - .spec.source.helm.values
