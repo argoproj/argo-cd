@@ -44,8 +44,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 	var command = &cobra.Command{
 		Use:   "cluster",
 		Short: "Manage clusters configuration",
-		Example: `
-# Authenticate with a Token
+		Example: `# Authenticate with a Token
 argocd admin cluster --auth-token YOUR_AUTH_TOKEN
 
 # Use a Custom Client Certificate and Key
