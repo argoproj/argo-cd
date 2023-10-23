@@ -54,6 +54,11 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+type healthLastChangedWithTimeStamp struct {
+	healthStatus health.HealthStatusCode
+	time         string
+}
+
 // NewApplicationCommand returns a new instance of an `argocd app` command
 func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
@@ -1589,6 +1594,24 @@ func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parent
 	_ = w.Flush()
 }
 
+func printTreeViewWaitWatch(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState, prevHealthStates map[string]healthLastChangedWithTimeStamp) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintf(w, "KIND/NAME\tSTATUS\tHEALTH\tHEALTH LAST CHANGED\tMESSAGE\n")
+	for uid := range parentNodes {
+		treeViewAppWaitWatch("", nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState, prevHealthStates, w)
+	}
+	_ = w.Flush()
+}
+
+func printTreeViewDetailedWaitWatch(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState, prevHealthStates map[string]healthLastChangedWithTimeStamp) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(w, "KIND/NAME\tSTATUS\tHEALTH\tHEALTH LAST CHANGED\tAGE\tMESSAGE\tREASON\n")
+	for uid := range parentNodes {
+		detailedTreeViewWaitWatch("", nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState, prevHealthStates, w)
+	}
+	_ = w.Flush()
+}
+
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -2308,6 +2331,7 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 	mapNodeNameToResourceState := make(map[string]*resourceState)
 	gitResources := make(chan v1alpha1.Application)
 	appResources := make(chan []v1alpha1.ResourceNode)
+	prevHealthStates := make(map[string]healthLastChangedWithTimeStamp)
 	var app *v1alpha1.Application
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -2339,7 +2363,6 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 					log.Printf("appResourceStream read failed: %v", err)
 					return
 				}
-				fmt.Println("")
 				appResources <- msg.Nodes
 			}
 		}
@@ -2389,13 +2412,27 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 			return
 		case appTreeNodes := <-appResources:
 			mapUidToNode, mapParentToChild, parentNodes = parentChildInfo(appTreeNodes)
-			printAppResourceStatus(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState, output, app)
+			for _, node := range appTreeNodes {
+				val, ok := prevHealthStates[node.UID]
+				if ok {
+					if node.Health != nil {
+						if val.healthStatus != node.Health.Status {
+							prevHealthStates[node.UID] = healthLastChangedWithTimeStamp{node.Health.Status, time.Now().Format("2006-01-02T15:04:05-07:00")}
+						}
+					}
+				} else {
+					if node.Health != nil {
+						prevHealthStates[node.UID] = healthLastChangedWithTimeStamp{node.Health.Status, ""}
+					}
+				}
+			}
+			printAppResourceStatus(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState, output, app, prevHealthStates)
 		case gitResourceApp := <-gitResources:
 			app = &gitResourceApp
 			for _, res := range getResourceStates(&gitResourceApp, nil) {
 				mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
 			}
-			printAppResourceStatus(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState, output, app)
+			printAppResourceStatus(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState, output, app, prevHealthStates)
 		case <-done:
 			wg.Wait()
 			once.Do(func() {
@@ -2409,7 +2446,7 @@ func resourceTreeWatch(appIf application.ApplicationServiceClient, ctx context.C
 	}
 }
 
-func printAppResourceStatus(mapUidToNode map[string]v1alpha1.ResourceNode, mapParentToChild map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState, output string, app *v1alpha1.Application) {
+func printAppResourceStatus(mapUidToNode map[string]v1alpha1.ResourceNode, mapParentToChild map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState, output string, app *v1alpha1.Application, prevHealthStates map[string]healthLastChangedWithTimeStamp) {
 	fmt.Print("\033[2J\033[H\033[3J")
 	switch output {
 	case "yaml", "json":
@@ -2425,12 +2462,13 @@ func printAppResourceStatus(mapUidToNode map[string]v1alpha1.ResourceNode, mapPa
 	case "tree":
 		if len(mapUidToNode) > 0 {
 			fmt.Println()
-			printTreeView(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState)
+			printTreeViewWaitWatch(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState, prevHealthStates)
+			//printTreeView(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState,prevHealthStates)
 		}
 	case "tree=detailed":
 		if len(mapUidToNode) > 0 {
 			fmt.Println()
-			printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState)
+			printTreeViewDetailedWaitWatch(mapUidToNode, mapParentToChild, parentNodes, mapNodeNameToResourceState, prevHealthStates)
 		}
 	default:
 		errors.CheckError(fmt.Errorf("unknown output format: %s", output))
