@@ -123,6 +123,7 @@ spec:
     - merge:
         # The following line is commented, representing the default behaviour
         # allowDuplicates: true
+
         mergeKeys:
           - env
         generators:
