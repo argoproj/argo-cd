@@ -30,9 +30,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
 
-	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
-	timeutil "github.com/argoproj/pkg/time"
-
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
@@ -41,6 +38,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/password"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
+	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
+	timeutil "github.com/argoproj/pkg/time"
 )
 
 // ArgoCDSettings holds in-memory runtime configuration options.
@@ -1325,15 +1324,8 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 	cmInformer := v1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
 	secretsInformer := v1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
-	_, err := cmInformer.AddEventHandler(eventHandler)
-	if err != nil {
-		log.Error(err)
-	}
-
-	_, err = secretsInformer.AddEventHandler(eventHandler)
-	if err != nil {
-		log.Error(err)
-	}
+	cmInformer.AddEventHandler(eventHandler)
+	secretsInformer.AddEventHandler(eventHandler)
 
 	log.Info("Starting configmap/secret informers")
 	go func() {
@@ -1376,14 +1368,8 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 			}
 		},
 	}
-	_, err = secretsInformer.AddEventHandler(handler)
-	if err != nil {
-		log.Error(err)
-	}
-	_, err = cmInformer.AddEventHandler(handler)
-	if err != nil {
-		log.Error(err)
-	}
+	secretsInformer.AddEventHandler(handler)
+	cmInformer.AddEventHandler(handler)
 	mgr.secrets = v1listers.NewSecretLister(secretsInformer.GetIndexer())
 	mgr.secretsInformer = secretsInformer
 	mgr.configmaps = v1listers.NewConfigMapLister(cmInformer.GetIndexer())

@@ -123,7 +123,6 @@ func newFakeController(data *fakeData) *ApplicationController {
 		true,
 		nil,
 		data.applicationNamespaces,
-		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -794,7 +793,7 @@ func TestNormalizeApplication(t *testing.T) {
 		// Verify we normalize the app because project is missing
 		ctrl := newFakeController(&data)
 		key, _ := cache.MetaNamespaceKeyFunc(app)
-		ctrl.appRefreshQueue.AddRateLimited(key)
+		ctrl.appRefreshQueue.Add(key)
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		fakeAppCs.ReactionChain = nil
 		normalized := false
@@ -816,7 +815,7 @@ func TestNormalizeApplication(t *testing.T) {
 		data.apps[0] = app
 		ctrl := newFakeController(&data)
 		key, _ := cache.MetaNamespaceKeyFunc(app)
-		ctrl.appRefreshQueue.AddRateLimited(key)
+		ctrl.appRefreshQueue.Add(key)
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		fakeAppCs.ReactionChain = nil
 		normalized := false
@@ -1279,7 +1278,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	t.Run("UpdatedOnFullReconciliation", func(t *testing.T) {
 		receivedPatch = map[string]interface{}{}
 		ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
-		ctrl.appRefreshQueue.AddRateLimited(key)
+		ctrl.appRefreshQueue.Add(key)
 
 		ctrl.processAppRefreshQueueItem()
 
@@ -1294,7 +1293,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 
 	t.Run("NotUpdatedOnPartialReconciliation", func(t *testing.T) {
 		receivedPatch = map[string]interface{}{}
-		ctrl.appRefreshQueue.AddRateLimited(key)
+		ctrl.appRefreshQueue.Add(key)
 		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 
 		ctrl.processAppRefreshQueueItem()
@@ -1324,7 +1323,7 @@ func TestProjectErrorToCondition(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	})
 	key, _ := cache.MetaNamespaceKeyFunc(app)
-	ctrl.appRefreshQueue.AddRateLimited(key)
+	ctrl.appRefreshQueue.Add(key)
 	ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 
 	ctrl.processAppRefreshQueueItem()

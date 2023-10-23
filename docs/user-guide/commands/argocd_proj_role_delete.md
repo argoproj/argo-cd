@@ -8,13 +8,6 @@ Delete a project role
 argocd proj role delete PROJECT ROLE-NAME [flags]
 ```
 
-### Examples
-
-```
-  # Delete a project role from the "my-project" project with the name "my-role".
-  argocd proj role delete my-project my-role
-```
-
 ### Options
 
 ```

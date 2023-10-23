@@ -3,5 +3,3 @@ kind: Kustomization
 resources:
 - argocd-server-rbac-clusterrole.yaml
 - argocd-server-rbac-clusterrolebinding.yaml
-- argocd-notifications-controller-rbac-clusterrole.yaml
-- argocd-notifications-controller-rbac-clusterrolebinding.yaml
