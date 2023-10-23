@@ -8,6 +8,26 @@ Prints information cluster statistics and inferred shard number
 argocd admin cluster stats [flags]
 ```
 
+### Examples
+
+```
+
+#Display Cluster Statistics for the Default Cluster
+argocd admin cluster stats
+
+#Display Cluster Statistics for a Specific Cluster Context
+argocd admin cluster stats --context=my-cluster-context
+
+#Display Cluster Statistics for a Cluster with Custom Configuration (Kubeconfig Path)
+argocd admin cluster stats --kubeconfig=/path/to/custom/kubeconfig.yaml
+
+#Display Cluster Statistics with a Custom Request Timeout
+argocd admin cluster stats --request-timeout=5s
+
+#Display Cluster Statistics for a Specific Shard
+argocd admin cluster stats --shard=1
+```
+
 ### Options
 
 ```

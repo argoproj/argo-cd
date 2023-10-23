@@ -8,6 +8,24 @@ Delete a sync window from a project. Requires ID which can be found by running "
 argocd proj windows delete PROJECT ID [flags]
 ```
 
+### Examples
+
+```
+
+#Deleting Project 'my-project-id' in Argo CD with Custom Configuration
+argocd proj windows delete my-project-id \
+    --auth-token "your-auth-token" \
+    --kube-context "my-kube-context" \
+    --loglevel "debug"
+
+#Deleting Project 'another-project-id' in Argo CD with Client Certificates and TLS Verification Skip
+argocd proj windows delete another-project-id \
+    --client-crt "/path/to/client.crt" \
+    --client-crt-key "/path/to/client.key" \
+    --insecure \
+    --server-crt "/path/to/server.crt"
+```
+
 ### Options
 
 ```
