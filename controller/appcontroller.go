@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	goerrors "errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -1819,6 +1820,13 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	updatedApp, err := argo.SetAppOperation(appIf, app.Name, &op)
 	setOpTime := time.Since(start)
 	if err != nil {
+		if goerrors.Is(err, argo.ErrAnotherOperationInProgress) {
+			// skipping auto-sync because another operation is in progress and was not noticed due to stale data in informer
+			// it is safe to skip auto-sync because it is already running
+			logCtx.Warnf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
+			return nil, 0
+		}
+
 		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, setOpTime
 	} else {

@@ -14,6 +14,7 @@ import (
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 // NewGPGCommand returns a new instance of an `argocd repo` command
@@ -109,6 +110,11 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "add",
 		Short: "Adds a GPG public key to the server's keyring",
+		Example: templates.Examples(`
+  # Add a GPG public key to the server's keyring from a file.
+  argocd gpg add --from /path/to/keyfile
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
