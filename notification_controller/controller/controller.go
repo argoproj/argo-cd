@@ -67,7 +67,7 @@ func NewController(
 	if len(applicationNamespaces) == 0 {
 		appClient = namespaceableAppClient.Namespace(namespace)
 	}
-	appClient = client.Resource(applications)
+
 	appInformer := newInformer(appClient, namespace, applicationNamespaces, appLabelSelector)
 	appProjInformer := newInformer(newAppProjClient(client, namespace), namespace, []string{namespace}, "")
 	secretInformer := k8s.NewSecretInformer(k8sClient, namespace, secretName)
