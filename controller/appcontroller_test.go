@@ -626,7 +626,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		})
 		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
-			return true, nil, nil
+			return true, &v1alpha1.Application{}, nil
 		})
 		_, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
@@ -676,7 +676,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		})
 		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
-			return true, nil, nil
+			return true, &v1alpha1.Application{}, nil
 		})
 		objs, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
@@ -710,7 +710,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		})
 		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
-			return true, nil, nil
+			return true, &v1alpha1.Application{}, nil
 		})
 		_, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
@@ -805,7 +805,7 @@ func TestNormalizeApplication(t *testing.T) {
 					normalized = true
 				}
 			}
-			return true, nil, nil
+			return true, &v1alpha1.Application{}, nil
 		})
 		ctrl.processAppRefreshQueueItem()
 		assert.True(t, normalized)
@@ -827,7 +827,7 @@ func TestNormalizeApplication(t *testing.T) {
 					normalized = true
 				}
 			}
-			return true, nil, nil
+			return true, &v1alpha1.Application{}, nil
 		})
 		ctrl.processAppRefreshQueueItem()
 		assert.False(t, normalized)
@@ -924,7 +924,7 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 	patched := false
 	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
-		return true, nil, apierr.NewNotFound(schema.GroupResource{}, "my-app")
+		return true, &v1alpha1.Application{}, apierr.NewNotFound(schema.GroupResource{}, "my-app")
 	})
 	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
@@ -956,9 +956,9 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if !patched {
 			patched = true
-			return true, nil, errors.New("fake error")
+			return true, &v1alpha1.Application{}, errors.New("fake error")
 		}
-		return true, nil, nil
+		return true, &v1alpha1.Application{}, nil
 	})
 	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
@@ -1274,7 +1274,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
-		return true, nil, nil
+		return true, &v1alpha1.Application{}, nil
 	})
 
 	t.Run("UpdatedOnFullReconciliation", func(t *testing.T) {
@@ -1348,7 +1348,7 @@ func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 	patched := false
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
-		return true, nil, nil
+		return true, &v1alpha1.Application{}, nil
 	})
 
 	err := ctrl.finalizeProjectDeletion(proj)
@@ -1366,7 +1366,7 @@ func TestFinalizeProjectDeletion_DoesNotHaveApplications(t *testing.T) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
-		return true, nil, nil
+		return true, &v1alpha1.AppProject{}, nil
 	})
 
 	err := ctrl.finalizeProjectDeletion(proj)
@@ -1391,7 +1391,7 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
-		return true, nil, nil
+		return true, &v1alpha1.Application{}, nil
 	})
 
 	ctrl.processRequestedAppOperation(app)
@@ -1419,7 +1419,7 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 			if patchAction, ok := action.(kubetesting.PatchAction); ok {
 				assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 			}
-			return true, nil, nil
+			return true, &v1alpha1.Application{}, nil
 		})
 	}()
 
@@ -1445,7 +1445,7 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
-		return true, nil, nil
+		return true, &v1alpha1.Application{}, nil
 	})
 
 	ctrl.processRequestedAppOperation(app)
@@ -1488,7 +1488,7 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
-		return true, nil, nil
+		return true, &v1alpha1.Application{}, nil
 	})
 
 	ctrl.processRequestedAppOperation(app)
@@ -1521,7 +1521,7 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
-		return true, nil, nil
+		return true, &v1alpha1.Application{}, nil
 	})
 
 	ctrl.processRequestedAppOperation(app)
