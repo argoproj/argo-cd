@@ -1513,8 +1513,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	now := metav1.Now()
 
-	ctrl.normalizeApplication(origApp, app)
-
 	compareResult, err := ctrl.appStateManager.CompareAppState(app, project, revisions, sources,
 		refreshType == appv1.RefreshTypeHard,
 		comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources)
@@ -1526,6 +1524,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	for k, v := range compareResult.timings {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
+
+	ctrl.normalizeApplication(origApp, app)
 
 	tree, err := ctrl.setAppManagedResources(app, compareResult)
 	if err != nil {
