@@ -136,7 +136,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     }, [applicationName, applicationNamespace, namespace, podName, group, kind, name, containerName, tail, follow, sinceSeconds, filter, previous]);
 
     const handleScroll = (event: React.WheelEvent<HTMLDivElement>) => {
-        if (event.deltaY < 0) setScrollToBottom(false)
+        if (event.deltaY < 0) setScrollToBottom(false);
     };
 
     const renderLog = (log: LogEntry, lineNum: number) =>
@@ -191,9 +191,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 <FullscreenButton {...props} />
                             </span>
                         </div>
-                        <div
-                            className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})}
-                            onWheel={handleScroll}>
+                        <div className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})} onWheel={handleScroll}>
                             <AutoSizer>{({width, height}: {width: number; height: number}) => logsContent(width, height, prefs.appDetails.wrapLines)}</AutoSizer>
                         </div>
                     </React.Fragment>
