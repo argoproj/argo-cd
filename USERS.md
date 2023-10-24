@@ -210,6 +210,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Patreon](https://www.patreon.com/)
 1. [PayPay](https://paypay.ne.jp/)
 1. [Peloton Interactive](https://www.onepeloton.com/)
+1. [Percona](https://percona.com/)
 1. [PGS](https://www.pgs.com)
 1. [Pigment](https://www.gopigment.com/)
 1. [Pipefy](https://www.pipefy.com/)
@@ -321,4 +322,3 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [ZDF](https://www.zdf.de/)
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZOZO](https://corp.zozo.com/)
-1. [Percona](https://percona.com/)
