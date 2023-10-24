@@ -116,6 +116,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		time.Minute,
 		time.Hour,
 		time.Minute,
+		time.Minute,
 		common.DefaultPortArgoCDMetrics,
 		data.metricsCacheExpiration,
 		[]string{},

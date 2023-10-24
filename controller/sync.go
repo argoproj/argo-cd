@@ -152,7 +152,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		revisions = []string{revision}
 	}
 
-	compareResult := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, app.Spec.HasMultipleSources())
+	// error does not matter as noRevisionCache is set to true
+	compareResult, _ := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, app.Spec.HasMultipleSources())
 	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
 
