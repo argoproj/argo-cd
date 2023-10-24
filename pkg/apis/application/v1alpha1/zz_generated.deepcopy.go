@@ -3012,6 +3012,11 @@ func (in *PullRequestGeneratorFilter) DeepCopyInto(out *PullRequestGeneratorFilt
 		*out = new(string)
 		**out = **in
 	}
+	if in.ExcludeDraft != nil {
+		in, out := &in.ExcludeDraft, &out.ExcludeDraft
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

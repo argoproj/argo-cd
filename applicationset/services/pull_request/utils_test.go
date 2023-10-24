@@ -11,6 +11,11 @@ import (
 func strp(s string) *string {
 	return &s
 }
+
+func boolp(b bool) *bool {
+	return &b
+}
+
 func TestFilterBranchMatchBadRegexp(t *testing.T) {
 	provider, _ := NewFakeService(
 		context.Background(),
@@ -18,6 +23,7 @@ func TestFilterBranchMatchBadRegexp(t *testing.T) {
 			{
 				Number:       1,
 				Branch:       "branch1",
+				Draft:        false,
 				TargetBranch: "master",
 				HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
@@ -40,24 +46,28 @@ func TestFilterBranchMatch(t *testing.T) {
 			{
 				Number:       1,
 				Branch:       "one",
+				Draft:        false,
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
 				Branch:       "two",
+				Draft:        false,
 				TargetBranch: "master",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       3,
 				Branch:       "three",
+				Draft:        false,
 				TargetBranch: "master",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       4,
 				Branch:       "four",
+				Draft:        false,
 				TargetBranch: "master",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
@@ -75,6 +85,52 @@ func TestFilterBranchMatch(t *testing.T) {
 	assert.Equal(t, "two", pullRequests[0].Branch)
 }
 
+func TestFilterExcludeDraft(t *testing.T) {
+	provider, _ := NewFakeService(
+		context.Background(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Branch:       "one",
+				Draft:        true,
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+			{
+				Number:       2,
+				Branch:       "two",
+				Draft:        false,
+				TargetBranch: "branch1",
+				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+			{
+				Number:       3,
+				Branch:       "three",
+				Draft:        true,
+				TargetBranch: "branch2",
+				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+			{
+				Number:       4,
+				Branch:       "four",
+				Draft:        true,
+				TargetBranch: "branch3",
+				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			ExcludeDraft: boolp(true),
+		},
+	}
+	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
+	assert.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
+	assert.Equal(t, false, pullRequests[0].Draft)
+}
+
 func TestFilterTargetBranchMatch(t *testing.T) {
 	provider, _ := NewFakeService(
 		context.Background(),
@@ -82,24 +138,28 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 			{
 				Number:       1,
 				Branch:       "one",
+				Draft:        false,
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
 				Branch:       "two",
+				Draft:        false,
 				TargetBranch: "branch1",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       3,
 				Branch:       "three",
+				Draft:        false,
 				TargetBranch: "branch2",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       4,
 				Branch:       "four",
+				Draft:        false,
 				TargetBranch: "branch3",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
@@ -124,24 +184,28 @@ func TestMultiFilterOr(t *testing.T) {
 			{
 				Number:       1,
 				Branch:       "one",
+				Draft:        false,
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
 				Branch:       "two",
+				Draft:        false,
 				TargetBranch: "master",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       3,
 				Branch:       "three",
+				Draft:        false,
 				TargetBranch: "master",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       4,
 				Branch:       "four",
+				Draft:        false,
 				TargetBranch: "master",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
@@ -171,24 +235,28 @@ func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
 			{
 				Number:       1,
 				Branch:       "one",
+				Draft:        false,
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
 				Branch:       "two",
+				Draft:        false,
 				TargetBranch: "branch1",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       3,
 				Branch:       "three",
+				Draft:        false,
 				TargetBranch: "branch2",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       4,
 				Branch:       "four",
+				Draft:        false,
 				TargetBranch: "branch3",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
@@ -219,12 +287,14 @@ func TestNoFilters(t *testing.T) {
 			{
 				Number:       1,
 				Branch:       "one",
+				Draft:        true,
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
 				Branch:       "two",
+				Draft:        false,
 				TargetBranch: "master",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},

@@ -16,6 +16,8 @@ type PullRequest struct {
 	HeadSHA string
 	// Labels of the pull request.
 	Labels []string
+	// Draft is true if the pull request is a draft.
+	Draft bool
 }
 
 type PullRequestService interface {
@@ -26,4 +28,5 @@ type PullRequestService interface {
 type Filter struct {
 	BranchMatch       *regexp.Regexp
 	TargetBranchMatch *regexp.Regexp
+	ExcludeDraft      bool
 }

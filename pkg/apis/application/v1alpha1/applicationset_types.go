@@ -723,6 +723,7 @@ type BasicAuthBitbucketServer struct {
 type PullRequestGeneratorFilter struct {
 	BranchMatch       *string `json:"branchMatch,omitempty" protobuf:"bytes,1,opt,name=branchMatch"`
 	TargetBranchMatch *string `json:"targetBranchMatch,omitempty" protobuf:"bytes,2,opt,name=targetBranchMatch"`
+	ExcludeDraft      *bool   `json:"excludeDraft,omitempty" protobuf:"varint,3,opt,name=excludeDraft"`
 }
 
 type PluginConfigMapRef struct {

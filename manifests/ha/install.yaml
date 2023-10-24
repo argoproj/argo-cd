@@ -10206,6 +10206,8 @@ spec:
                                       properties:
                                         branchMatch:
                                           type: string
+                                        excludeDraft:
+                                          type: boolean
                                         targetBranchMatch:
                                           type: string
                                       type: object
@@ -15169,6 +15171,8 @@ spec:
                                       properties:
                                         branchMatch:
                                           type: string
+                                        excludeDraft:
+                                          type: boolean
                                         targetBranchMatch:
                                           type: string
                                       type: object
@@ -17821,6 +17825,8 @@ spec:
                             properties:
                               branchMatch:
                                 type: string
+                              excludeDraft:
+                                type: boolean
                               targetBranchMatch:
                                 type: string
                             type: object

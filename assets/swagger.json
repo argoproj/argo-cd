@@ -7789,6 +7789,9 @@
         "branchMatch": {
           "type": "string"
         },
+        "excludeDraft": {
+          "type": "boolean"
+        },
         "targetBranchMatch": {
           "type": "string"
         }
