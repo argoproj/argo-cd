@@ -163,13 +163,15 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if r.EnableProgressiveSyncs {
 		if applicationSetInfo.Spec.Strategy == nil && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
+			// If appset used progressive sync but stopped, clean up the progressive sync application statuses
 			log.Infof("Removing %v unnecessary AppStatus entries from ApplicationSet %v", len(applicationSetInfo.Status.ApplicationStatus), applicationSetInfo.Name)
 
 			err := r.setAppSetApplicationStatus(ctx, &applicationSetInfo, []argov1alpha1.ApplicationSetApplicationStatus{})
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to clear previous AppSet application statuses for %v: %w", applicationSetInfo.Name, err)
 			}
-		} else {
+		} else if applicationSetInfo.Spec.Strategy != nil {
+			// appset uses progressive sync
 			applications, err := r.getCurrentApplications(ctx, applicationSetInfo)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
@@ -542,22 +544,24 @@ func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {
 	}
 }
 
-func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProgressiveSyncs bool, maxConcurrentReconciliations int) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &argov1alpha1.Application{}, ".metadata.controller", func(rawObj client.Object) []string {
-		// grab the job object, extract the owner...
-		app := rawObj.(*argov1alpha1.Application)
-		owner := metav1.GetControllerOf(app)
-		if owner == nil {
-			return nil
-		}
-		// ...make sure it's a application set...
-		if owner.APIVersion != argov1alpha1.SchemeGroupVersion.String() || owner.Kind != "ApplicationSet" {
-			return nil
-		}
+func appControllerIndexer(rawObj client.Object) []string {
+	// grab the job object, extract the owner...
+	app := rawObj.(*argov1alpha1.Application)
+	owner := metav1.GetControllerOf(app)
+	if owner == nil {
+		return nil
+	}
+	// ...make sure it's a application set...
+	if owner.APIVersion != argov1alpha1.SchemeGroupVersion.String() || owner.Kind != "ApplicationSet" {
+		return nil
+	}
 
-		// ...and if so, return it
-		return []string{owner.Name}
-	}); err != nil {
+	// ...and if so, return it
+	return []string{owner.Name}
+}
+
+func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProgressiveSyncs bool, maxConcurrentReconciliations int) error {
+	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &argov1alpha1.Application{}, ".metadata.controller", appControllerIndexer); err != nil {
 		return fmt.Errorf("error setting up with manager: %w", err)
 	}
 
@@ -695,8 +699,16 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			continue
 		}
 		r.updateCache(ctx, found, appLog)
-		r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, fmt.Sprint(action), "%s Application %q", action, generatedApp.Name)
-		appLog.Logf(log.InfoLevel, "%s Application", action)
+
+		if action != controllerutil.OperationResultNone {
+			// Don't pollute etcd with "unchanged Application" events
+			r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, fmt.Sprint(action), "%s Application %q", action, generatedApp.Name)
+			appLog.Logf(log.InfoLevel, "%s Application", action)
+		} else {
+			// "unchanged Application" can be inferred by Reconcile Complete with no action being listed
+			// Or enable debug logging
+			appLog.Logf(log.DebugLevel, "%s Application", action)
+		}
 	}
 	return firstError
 }

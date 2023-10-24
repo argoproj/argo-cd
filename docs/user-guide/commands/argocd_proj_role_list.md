@@ -8,6 +8,16 @@ List all the roles in a project
 argocd proj role list PROJECT [flags]
 ```
 
+### Examples
+
+```
+  # This command will list all the roles in argocd-project in a default table format.
+  argocd list argocd-project
+  
+  # List the roles in the project in formats like json, yaml, wide, or name.
+  argocd list argocd-project --output json
+```
+
 ### Options
 
 ```
