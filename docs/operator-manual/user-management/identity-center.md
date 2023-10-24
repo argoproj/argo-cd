@@ -22,6 +22,8 @@ data:
   url: https://argocd.example.com
 ```
 1. Configure Attribute mappings.
+   > [!NOTE]
+   > Group attribute mapping is not officially supported in the AWS docs, however the workaround is currently workin
     * ![Identity Center SAML App 4](../../assets/identity-center-4.png)
     * ![Identity Center SAML App 5](../../assets/identity-center-5.png)
 
