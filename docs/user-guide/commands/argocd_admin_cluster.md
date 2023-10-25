@@ -8,6 +8,20 @@ Manage clusters configuration
 argocd admin cluster [flags]
 ```
 
+### Examples
+
+```
+
+# Authenticate with a Token
+argocd admin cluster --auth-token YOUR_AUTH_TOKEN
+
+# Use a Custom Client Certificate and Key
+argocd admin cluster --client-crt /path/to/client.crt --client-crt-key /path/to/client.key
+
+# Set Logging Format and Level
+argocd admin cluster --logformat json --loglevel debug
+```
+
 ### Options
 
 ```

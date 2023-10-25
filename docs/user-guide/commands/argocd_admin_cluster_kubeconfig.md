@@ -8,6 +8,23 @@ Generates kubeconfig for the specified cluster
 argocd admin cluster kubeconfig CLUSTER_URL OUTPUT_PATH [flags]
 ```
 
+### Examples
+
+```
+
+#Generate a Kubeconfig for a Cluster and Save it to a File
+argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml
+
+#Generate a Kubeconfig with a Custom Cluster Name:
+argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml --cluster=my-cluster
+
+#Generate a Kubeconfig for a Cluster with TLS Verification Disabled
+argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml --insecure-skip-tls-verify
+
+#Generate a Kubeconfig with a Custom Namespace Scope
+argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml -n my-namespace
+```
+
 ### Options
 
 ```
