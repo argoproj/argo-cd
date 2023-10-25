@@ -8,6 +8,22 @@ List project sync windows
 argocd proj windows list PROJECT [flags]
 ```
 
+### Examples
+
+```
+#Listing Windows for Project 'my-project-id' in Argo CD with Custom Configuration
+argocd proj windows list my-project-id \
+    --auth-token "your-auth-token" \
+    --kube-context "my-kube-context" \
+    --loglevel "debug"
+#Listing Windows for Project 'another-project-id' in Argo CD with Client Certificates and TLS Verification Skip
+argocd proj windows list another-project-id \
+    --client-crt "/path/to/client.crt" \
+    --client-crt-key "/path/to/client.key" \
+    --insecure \
+    --server-crt "/path/to/server.crt"
+```
+
 ### Options
 
 ```
