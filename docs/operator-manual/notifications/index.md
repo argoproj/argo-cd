@@ -48,9 +48,6 @@ Try syncing an application to get notified when the sync is completed.
 
 ## Namespace based configuration
 
-!!! important
-Available since v2.9
-
 A common installation method for Argo CD Notifications is to install it in a dedicated namespace to manage a whole cluster. In this case, the administrator is the only
 person who can configure notifications in that namespace generally. However, in some cases, it is required to allow end-users to configure notifications
 for their Argo CD applications. For example, the end-user can configure notifications for their Argo CD application in the namespace where they have access to and their Argo CD application is running in.
@@ -64,6 +61,10 @@ The startup parameters for both can also be conveniently set up and kept in sync
 the `application.namespaces` and `notificationscontroller.selfservice.enabled` in the argocd-cmd-params-cm ConfigMap instead of changing the manifests for the respective workloads. For example:
 
 ```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
 data:
   application.namespaces: app-team-one, app-team-two
   notificationscontroller.selfservice.enabled: true
@@ -76,18 +77,7 @@ the configuration located in the same namespace where the Argo CD application is
 
 Example: Application team wants to receive notifications using PagerDutyV2, when the controller level configuration is only supporting Slack.
 
-Controller level configuration uses `slack` as notification service:
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-notifications-cm
-data:
-  service.slack: |
-    token: $slacktoken
-...
-```
-Application configuration to use `pagerDutyV2` as notification service:
+The following two resources are deployed in the namespace where the Argo CD application lives.
 ```yaml
 apiVersion: v1
 kind: ConfigMap
@@ -96,16 +86,28 @@ metadata:
 data:
   service.pagerdutyv2: |
     serviceKeys:
+      my-service: $pagerduty-key-my-service
 ...
 ```
-
-When an Argo CD application has the following subscriptions, user receives application sync running message and sync succeed message from both slack and pager duty.
 ```yaml
-    notifications.argoproj.io/subscribe.on-sync-running.pagerdutyv2: <pd-integration-key>
-    notifications.argoproj.io/subscribe.on-sync-running.slack: <slack-channel>
-    notifications.argoproj.io/subscribe.on-sync-succeeded.pagerdutyv2: <pd-integration-key>
-    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: <slack-channel>
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argo-cd-notification-secret
+type: Opaque
+data:
+  pagerduty-key-my-service: <pd-integration-key>
 ```
 
-Note: when the same notification service and trigger are defined in controller level configuration and application level configration,
+When an Argo CD application has the following subscriptions, user receives application sync failure message from pager duty.
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-failed.pagerdutyv2: "<serviceID for Pagerduty>"
+```
+
+!!! note
+When the same notification service and trigger are defined in controller level configuration and application level configuration,
 both notifications will be sent according to its own configuration.

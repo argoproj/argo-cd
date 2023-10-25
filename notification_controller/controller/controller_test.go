@@ -110,8 +110,8 @@ func TestInit(t *testing.T) {
 	k8sClient := k8sfake.NewSimpleClientset()
 	appLabelSelector := "app=test"
 
-	selfSserviceNotificationEnabledFlags := []bool{false, true}
-	for _, selfSserviceNotificationEnabled := range selfSserviceNotificationEnabledFlags {
+	selfServiceNotificationEnabledFlags := []bool{false, true}
+	for _, selfServiceNotificationEnabled := range selfServiceNotificationEnabledFlags {
 		nc := NewController(
 			k8sClient,
 			dynamicClient,
@@ -122,7 +122,7 @@ func TestInit(t *testing.T) {
 			nil,
 			"my-secret",
 			"my-configmap",
-			selfSserviceNotificationEnabled,
+			selfServiceNotificationEnabled,
 		)
 
 		assert.NotNil(t, nc)
