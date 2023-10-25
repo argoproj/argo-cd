@@ -1,34 +1,214 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
+data:
+  # Within Kubernetes these fields are actually encoded in Base64; they are decoded here for convenience.
+  # (They are likewise decoded when passed as parameters by the Cluster generator)
+  config: "{'tlsClientConfig':{'insecure':false}}"
+  name: "in-cluster2"
+  server: "https://kubernetes.default.svc"
 metadata:
   name: test-hello-world-appset
   namespace: argocd
 spec:
-  # See docs for available generators and their specs.
   generators:
-  - list:
-      elements:
-      - cluster: https://kubernetes.default.svc
+
+    # Using a generator plugin without combining it with Matrix or Merge
+    # Plugins allow you to provide your own generator
+    - plugin:
+      # Specify the configMap where the plugin configuration is located.
+      configMapRef:
+        name: my-plugin
+      # You can pass arbitrary parameters to the plugin. `input.parameters` is a map, but values may be any type.
+      # These parameters will also be available on the generator's output under the `generator.input.parameters` key.
+      input:
+        parameters:
+          key1: "value1"
+          key2: "value2"
+          list: ["list", "of", "values"]
+          boolean: true
+          map:
+            key1: "value1"
+            key2: "value2"
+            key3: "value3"
+        # You can also attach arbitrary values to the generator's output under the `values` key. These values will be
+        # available in templates under the `values` key.
+        values:
+          value1: something
+        # When using a Plugin generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
+        requeueAfterSeconds: 30
+
+    # to automatically discover repositories within an organization
+    - scmProvider:
+        # Which protocol to clone using.
+        cloneProtocol: ssh
+        # The GitHub mode uses the GitHub API to scan an organization in either github.com or GitHub Enterprise
+        github:
+          # The GitHub organization to scan.
+          organization: myorg
+          # For GitHub Enterprise:
+          api: https://git.example.com/
+          # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
+          allBranches: true
+          # Reference to a Secret containing an access token. (optional)
+          tokenRef:
+            secretName: github-token
+            key: token
+          # (optional) use a GitHub App to access the API instead of a PAT.
+          appSecretName: gh-app-repo-creds
+          #Pass additional key-value pairs via values field
+          values:
+            name: "{{organization}}-{{repository}}"
+
+        #The GitLab mode uses the GitLab API to scan and organization in either gitlab.com or self-hosted GitLab.  
+        gitlab:
+        #The Gitea mode uses the Gitea API to scan organizations in your instance
+        gitea:
+        #Use the Bitbucket Server API (1.0) to scan repos in a project.
+        bitbucketServer:
+        #Uses the Azure DevOps API to look up eligible repositories 
+        azureDevOps:
+        # The Bitbucket mode uses the Bitbucket API V2 to scan a workspace in bitbucket.org
+        bitbucket:
+        #Uses AWS ResourceGroupsTagging and AWS CodeCommit APIs to scan repos across AWS accounts and regionsz
+        awsCodeCommit:
+
+        #Filters allow selecting which repositories to generate for. 
+        filters:
+        # Include any repository starting with "myapp" AND including a Kustomize config AND labeled with "deploy-ok" ...
+        - repositoryMatch: ^myapp
+          pathsExist: [kubernetes/kustomization.yaml]
+          labelMatch: deploy-ok
+        # ... OR include any repository starting with "otherapp" AND a Helm folder and doesn't have file disabledrepo.txt.
+        - repositoryMatch: ^otherapp
+          pathsExist: [helm]
+          pathsDoNotExist: [disabledrepo.txt]
+    # matrix 'parent' generator
+    - matrix:
+        generators:
+
+          # cluster generator, 'child' #1
+          - clusters:
+              selector:
+                matchLabels:
+                  staging: true
+                # The cluster generator also supports matchExpressions.
+                #matchExpressions:
+                #  - key: staging
+                #    operator: In
+                #    values:
+                #      - "true"
+  
+          # cluster generator, 'child' #2
+          - clusters: {} # Automatically use all clusters defined within Argo CD
+
+          - list:
+              elements:
+              - cluster: https://kubernetes.default.svc
+                url: https://kubernetes.default.svc
+                values:
+                  additional: value
+              - staging: "true"
+                gitRepo: https://kubernetes.default.svc  
+
+          # Overriding parameters from one child generator in another child generator
+          - git:
+              repoURL: https://github.com/example/values.git
+              revision: HEAD
+              files:
+              - path: "global.values.yaml"
+              #specify a pathParamPrefix on one or both of the child generators 
+              #to avoid conflicting parameter keys in the output
+              pathParamPrefix: app 
+              
+          - git:
+              repoURL: https://github.com/argoproj/argo-cd.git
+              files:
+              - path: "apps/**/config.json"
+              directories:
+              - path: applicationset/examples/git-generator-directory/cluster-addons/*
+              - path: applicationset/examples/git-generator-directory/excludes/cluster-addons/exclude-helm-guestbook
+                exclude: true # exclude directories in the repository from being scanned by the ApplicationSet controller
+              # To exclude directories, you only need to put the name/path.Match of the directory
+              - path: '*'
+              - path: donotdeploy
+                exclude: true
+              values:  # Pass additional key-value pairs via values field
+                cluster: '{{branch}}-{{path}}'
+                base_dir: "{{path[0]}}/{{path[1]}}/{{path[2]}}"
+              pathParamPrefix: target 
+  
+    # merge 'parent' generator
+    # Use the selector set by both child generators to combine them.
+    - merge:
+        mergeKeys:
+          - server
+          # Note that this would not work with goTemplate enabled,
+          # nested merge keys are not supported there.
+          - values.selector
+        generators:
+          - clusters:
+              values:
+                kafka: 'true'
+                redis: 'false'
+          # For clusters with a specific label, enable Kafka.
+          - clusters:
+              selector:
+                matchLabels:
+                  use-kafka: 'false'
+              values:
+                kafka: 'false'
+          # For a specific cluster, enable Redis.
+          - list:
+              elements: 
+                - server: https://2.4.6.8
+                  values.redis: 'true'
+                
+              
   # Determines whether go templating will be used in the `template` field below.
   goTemplate: false
   # Optional list of go templating options, see https://pkg.go.dev/text/template#Template.Option
   # This is only relevant if `goTemplate` is true
   goTemplateOptions: ["missingkey="]
+
   # These fields are identical to the Application spec.
   template:
     metadata:
       name: test-hello-world-app
     spec:
       project: my-project
+      syncPolicy:
+        automated:
+          selfHeal: true    
+        syncOptions:
+        - CreateNamespace=true  
+      source:
+        - chart: '{{.chart}}'
+        # developers may customize app details using JSON files from above repo URL
+          repoURL: https://github.com/argoproj/argo-cd.git
+          targetRevision: HEAD
+          path: applicationset/examples/list-generator/guestbook/{{cluster}}
+          helm:
+          parameters:
+          - name: "image.tag"
+            value: "pull-{{head_sha}}"
+      destination:
+        name: production-cluster # cluster is restricted
+        server: '{{url}}'
+        namespace: dev-team-one # namespace is restricted
+
   # This sync policy pertains to the ApplicationSet, not to the Applications it creates.
   syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
     # Determines whether the controller will delete Applications when an ApplicationSet is deleted.
     preserveResourcesOnDeletion: false
   # Alpha feature to determine the order in which ApplicationSet applies changes.
+
   strategy:
   # This field lets you define fields which should be ignored when applying Application resources. This is helpful if you
   # want to use ApplicationSets to create apps, but also want to allow users to modify those apps without having their
   # changes overwritten by the ApplicationSet.
+
   ignoreApplicationDifferences:
   - jsonPointers:
     - /spec/source/targetRevision
@@ -36,3 +216,80 @@ spec:
     jqExpressions:
     - .spec.source.helm.values
 
+  # Cluster-decision-resource-based ApplicationSet generator
+  - clusterDecisionResource:
+    # ConfigMap with GVK information for the duck type resource
+    configMapRef: my-configmap  
+    name: quak           # Choose either "name" of the resource or "labelSelector"
+    labelSelector:
+      matchLabels:       # OPTIONAL
+        duck: spotted
+      matchExpressions:  # OPTIONAL
+      - key: duck
+        operator: In
+        values:
+        - "spotted"
+        - "canvasback"   
+    # OPTIONAL: Checks for changes every 60sec (default 3min)
+    requeueAfterSeconds: 60
+  
+  # The Pull Request generator uses the API of an SCMaaS provider to automatically discover open pull requests within a repository
+  - pullRequest:
+      # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
+      requeueAfterSeconds: 1800
+      # See below for provider specific options.
+      # Specify the repository from which to fetch the GitHub Pull requests.
+      github:
+        # The GitHub organization or user.
+        owner: myorg
+        # The Github repository
+        repo: myrepository
+        # For GitHub Enterprise (optional)
+        api: https://git.example.com/
+        # Reference to a Secret containing an access token. (optional)
+        tokenRef:
+          secretName: github-token
+          key: token
+        # (optional) use a GitHub App to access the API instead of a PAT.
+        appSecretName: github-app-repo-creds
+        # Labels is used to filter the PRs that you want to target. (optional)
+        labels:
+        - preview
+
+      # Filters allow selecting which pull requests to generate for
+      # Include any pull request ending with "argocd". (optional)
+      filters:
+      - branchMatch: ".*-argocd"
+
+      # Specify the project from which to fetch the GitLab merge requests.
+      gitlab:
+      # Specify the repository from which to fetch the Gitea Pull requests.
+      gitea:
+      # Fetch pull requests from a repo hosted on a Bitbucket Server (not the same as Bitbucket Cloud).
+      bitbucketServer:
+      # Fetch pull requests from a repo hosted on a Bitbucket Cloud.
+      bitbucket:
+      # Specify the organization, project and repository from which you want to fetch pull requests.
+      azuredevops:
+
+# The list generator generates a set of two application which then filter by the key value to only select the env with value staging
+  - list:
+      elements:
+        - cluster: engineering-dev
+          url: https://kubernetes.default.svc
+          env: staging
+        - cluster: engineering-prod
+          url: https://kubernetes.default.svc
+          env: prod
+    selector:
+      matchLabels:
+        env: staging
+  # It is also possible to use matchExpressions for more powerful selectors
+  - clusters: {}
+    selector:
+      matchExpressions:
+        - key: server
+          operator: In
+          values:
+            - https://kubernetes.default.svc
+            - https://some-other-cluster
