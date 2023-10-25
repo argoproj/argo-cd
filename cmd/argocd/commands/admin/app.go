@@ -45,6 +45,16 @@ func NewAppCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "app",
 		Short: "Manage applications configuration",
+		Example: `
+# Compare results of two reconciliations and print diff
+argocd admin app diff-reconcile-results APPNAME [flags]
+
+# Generate declarative config for an application
+argocd admin app generate-spec APPNAME
+
+# Reconcile all applications and store reconciliation summary in the specified file
+argocd admin app get-reconcile-results APPNAME
+`,
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
