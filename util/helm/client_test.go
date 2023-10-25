@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"testing"
@@ -71,7 +72,7 @@ func TestIndex(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
 	assert.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
@@ -79,9 +80,15 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	assert.True(t, info.IsDir())
 }
 
+func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
+	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false)
+	assert.Error(t, err, "error while iterating on tar reader: unexpected EOF")
+}
+
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{InsecureSkipVerify: true}, false, "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
 	assert.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)

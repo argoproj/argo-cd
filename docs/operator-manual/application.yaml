@@ -214,6 +214,9 @@ spec:
     kind: Deployment
     jsonPointers:
     - /spec/replicas
+  - kind: ConfigMap
+    jqPathExpressions:
+    - '.data["config.yaml"].auth'
   # for the specified managedFields managers
   - group: "*"
     kind: "*"
