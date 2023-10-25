@@ -7,7 +7,7 @@ RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 FROM docker.io/library/node:12.18.4-buster as node
 
-FROM docker.io/library/golang:1.18 as golang
+FROM docker.io/library/golang:1.20.10@sha256:077ff85b374b23916b4b41835e242e5a3ddad9fc537ea7e980f230431747d245 as golang
 
 FROM docker.io/library/registry:2.8 as registry
 

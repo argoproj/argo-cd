@@ -13,7 +13,7 @@ on:
 
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.19.10'
+  GOLANG_VERSION: '1.20.10'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
