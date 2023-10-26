@@ -341,7 +341,12 @@ argocd proj windows list another-project-id \
     --client-crt "/path/to/client.crt" \
     --client-crt-key "/path/to/client.key" \
     --insecure \
-    --server-crt "/path/to/server.crt"`,
+    --server-crt "/path/to/server.crt"
+#List project windows
+argocd proj windows list PROJECT
+
+# List project windows in yaml format
+argocd proj windows list PROJECT -o yaml`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
