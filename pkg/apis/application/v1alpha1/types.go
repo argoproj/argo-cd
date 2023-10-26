@@ -1,8 +1,10 @@
 package v1alpha1
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	io "io"
 	"math"
 	"net"
 	"net/http"
@@ -33,12 +35,12 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/client-go/transport"
 	"sigs.k8s.io/yaml"
-
-	"github.com/argoproj/argo-cd/v2/util/env"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/collections"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	"github.com/argoproj/argo-cd/v2/util/security"
 )
@@ -2853,6 +2855,67 @@ func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
 	}
 }
 
+func WithRetry(maxRetries uint64, baseRetryBackoff time.Duration) transport.WrapperFunc {
+	return func(rt http.RoundTripper) http.RoundTripper {
+		return &retryTransport{
+			inner:      rt,
+			maxRetries: maxRetries,
+			backoff:    baseRetryBackoff,
+		}
+	}
+}
+
+type retryTransport struct {
+	inner      http.RoundTripper
+	maxRetries uint64
+	backoff    time.Duration
+}
+
+func isRetriableCode(code int) bool {
+	if code == http.StatusTooManyRequests {
+		return true
+	}
+	if code == 0 || (code >= 500 && code != http.StatusNotImplemented) {
+		return true
+	}
+	return false
+}
+
+func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	var resp *http.Response
+	var err error
+	backoff := t.backoff
+	ctx := req.Context()
+	var bodyBytes []byte
+	if req.Body != nil {
+		bodyBytes, _ = io.ReadAll(req.Body)
+	}
+	for i := 0; i <= int(t.maxRetries); i++ {
+		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+		resp, err = t.inner.RoundTrip(req)
+		// if resp != nil && resp.Body != nil {
+		// 	resp.Body.Close() // Ensure the body is always closed
+		// }
+		if i < int(t.maxRetries) && (err != nil || isRetriableCode(resp.StatusCode)) {
+			fmt.Println("retry after", err, resp, "with backoff", backoff)
+			select {
+			case <-time.After(backoff):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+			backoff *= 2
+			continue
+		}
+		break
+	}
+	return resp, err
+}
+
+const (
+	ARGOCD_K8SCLIENT_MAX_RETRIES        = "ARGOCD_K8SCLIENT_MAX_RETRIES"
+	ARGOCD_K8SCLIENT_BASE_RETRY_BACKOFF = "ARGOCD_K8SCLIENT_BASE_RETRY_BACKOFF"
+)
+
 // SetK8SConfigDefaults sets Kubernetes REST config default settings
 func SetK8SConfigDefaults(config *rest.Config) error {
 	config.QPS = K8sClientConfigQPS
@@ -2891,6 +2954,23 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	config.Timeout = K8sServerSideTimeout
 
 	config.Transport = tr
+	fmt.Println("have wrap transport", config.WrapTransport)
+	if maxRetriesStr, exists := os.LookupEnv(ARGOCD_K8SCLIENT_MAX_RETRIES); exists {
+		maxRetries, err := strconv.ParseUint(maxRetriesStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse %s to uint: %w", ARGOCD_K8SCLIENT_MAX_RETRIES, err)
+		}
+		backoffDuration := time.Duration(100) * time.Millisecond
+		if backoffDurationStr, exists := os.LookupEnv(ARGOCD_K8SCLIENT_BASE_RETRY_BACKOFF); exists {
+			backoffDurationMS, err := strconv.ParseUint(backoffDurationStr, 10, 64)
+			if err != nil {
+				return fmt.Errorf("unable to parse %s to uint: %w", ARGOCD_K8SCLIENT_BASE_RETRY_BACKOFF, err)
+			}
+			backoffDuration = time.Duration(backoffDurationMS) * time.Millisecond
+		}
+
+		config.WrapTransport = WithRetry(maxRetries, backoffDuration)
+	}
 	return nil
 }
 
