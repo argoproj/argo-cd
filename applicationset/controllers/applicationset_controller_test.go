@@ -12,8 +12,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,10 +19,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kubefake "k8s.io/client-go/kubernetes/fake"
-	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -43,34 +39,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
-
-type fakeStore struct {
-	k8scache.Store
-}
-
-func (f *fakeStore) Update(obj interface{}) error {
-	return nil
-}
-
-type fakeInformer struct {
-	k8scache.SharedInformer
-}
-
-func (f *fakeInformer) AddIndexers(indexers k8scache.Indexers) error {
-	return nil
-}
-
-func (f *fakeInformer) GetStore() k8scache.Store {
-	return &fakeStore{}
-}
-
-type fakeCache struct {
-	cache.Cache
-}
-
-func (f *fakeCache) GetInformer(ctx context.Context, obj crtclient.Object) (cache.Informer, error) {
-	return &fakeInformer{}, nil
-}
 
 type generatorMock struct {
 	mock.Mock
@@ -217,7 +185,6 @@ func TestExtractApplications(t *testing.T) {
 				},
 				Renderer:      &rendererMock,
 				KubeClientset: kubefake.NewSimpleClientset(),
-				Cache:         &fakeCache{},
 			}
 
 			got, reason, err := r.generateApplications(v1alpha1.ApplicationSet{
@@ -994,13 +961,12 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				initObjs = append(initObjs, &a)
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
 				Scheme:   scheme,
 				Recorder: record.NewFakeRecorder(len(initObjs) + len(c.expected)),
-				Cache:    &fakeCache{},
 			}
 
 			err = r.createOrUpdateInCluster(context.TODO(), c.appSet, c.desiredApps)
@@ -1088,7 +1054,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 
 			initObjs := []crtclient.Object{&app, &appSet}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
@@ -1114,7 +1080,6 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
-				Cache:         &fakeCache{},
 			}
 			//settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
 			//argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
@@ -1250,7 +1215,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 
 			initObjs := []crtclient.Object{&app, &appSet}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
@@ -1276,7 +1241,6 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
-				Cache:         &fakeCache{},
 			}
 			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd")
 			// argoDB := db.NewDB("argocd", settingsMgr, r.KubeClientset)
@@ -1482,13 +1446,12 @@ func TestCreateApplications(t *testing.T) {
 				initObjs = append(initObjs, &a)
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
 				Scheme:   scheme,
 				Recorder: record.NewFakeRecorder(len(initObjs) + len(c.expected)),
-				Cache:    &fakeCache{},
 			}
 
 			err = r.createInCluster(context.TODO(), c.appSet, c.apps)
@@ -1626,7 +1589,7 @@ func TestDeleteInCluster(t *testing.T) {
 			initObjs = append(initObjs, &temp)
 		}
 
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 
 		r := ApplicationSetReconciler{
 			Client:        client,
@@ -1696,7 +1659,6 @@ func TestGetMinRequeueAfter(t *testing.T) {
 		Client:   client,
 		Scheme:   scheme,
 		Recorder: record.NewFakeRecorder(0),
-		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List":     &generatorMock10,
 			"Git":      &generatorMock1,
@@ -1910,7 +1872,6 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
-				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoCDNamespace:  "namespace",
@@ -1953,7 +1914,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 	}
 }
 
-func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
+func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
@@ -1961,8 +1922,9 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	err = v1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
-	project := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "good-project", Namespace: "argocd"},
+	defaultProject := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
+		Spec:       v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://good-cluster"}}},
 	}
 	appSet := v1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1975,22 +1937,22 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 				{
 					List: &v1alpha1.ListGenerator{
 						Elements: []apiextensionsv1.JSON{{
-							Raw: []byte(`{"project": "good-project"}`),
+							Raw: []byte(`{"cluster": "good-cluster","url": "https://good-cluster"}`),
 						}, {
-							Raw: []byte(`{"project": "bad-project"}`),
+							Raw: []byte(`{"cluster": "bad-cluster","url": "https://bad-cluster"}`),
 						}},
 					},
 				},
 			},
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-					Name:      "{{.project}}",
+					Name:      "{{.cluster}}",
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
-					Project:     "{{.project}}",
-					Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
+					Project:     "default",
+					Destination: v1alpha1.ApplicationDestination{Server: "{{.url}}"},
 				},
 			},
 		},
@@ -1998,9 +1960,9 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 
 	kubeclientset := kubefake.NewSimpleClientset()
 	argoDBMock := dbmocks.ArgoDB{}
-	argoObjs := []runtime.Object{&project}
+	argoObjs := []runtime.Object{&defaultProject}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	badCluster := v1alpha1.Cluster{Server: "https://bad-cluster", Name: "bad-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
@@ -2014,7 +1976,6 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(1),
-		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -2040,12 +2001,12 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	var app v1alpha1.Application
 
 	// make sure good app got created
-	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-project"}, &app)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
 	assert.NoError(t, err)
-	assert.Equal(t, app.Name, "good-project")
+	assert.Equal(t, app.Name, "good-cluster")
 
 	// make sure bad app was not created
-	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "bad-project"}, &app)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "bad-cluster"}, &app)
 	assert.Error(t, err)
 }
 
@@ -2084,14 +2045,13 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
 
 	r := ApplicationSetReconciler{
 		Client:   client,
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(1),
-		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -2154,7 +2114,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&defaultProject}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2166,7 +2126,6 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(recordBuffer),
-		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -2324,7 +2283,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&defaultProject}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2336,7 +2295,6 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(recordBuffer),
-		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -2517,7 +2475,6 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 				Client:   client,
 				Scheme:   scheme,
 				Recorder: record.NewFakeRecorder(1),
-				Cache:    &fakeCache{},
 				Generators: map[string]generators.Generator{
 					"PullRequest": &generatorMock,
 				},
@@ -2635,14 +2592,13 @@ func TestPolicies(t *testing.T) {
 				},
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
 				Scheme:   scheme,
 				Renderer: &utils.Render{},
 				Recorder: record.NewFakeRecorder(10),
-				Cache:    &fakeCache{},
 				Generators: map[string]generators.Generator{
 					"List": generators.NewListGenerator(),
 				},
@@ -2805,7 +2761,6 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 				Scheme:   scheme,
 				Renderer: &utils.Render{},
 				Recorder: record.NewFakeRecorder(1),
-				Cache:    &fakeCache{},
 				Generators: map[string]generators.Generator{
 					"List": generators.NewListGenerator(),
 				},
@@ -3570,7 +3525,6 @@ func TestBuildAppDependencyList(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
-				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
@@ -4164,7 +4118,6 @@ func TestBuildAppSyncMap(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
-				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
@@ -4824,7 +4777,6 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
-				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
@@ -5578,7 +5530,6 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
-				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
@@ -5724,176 +5675,6 @@ func TestOwnsHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ownsHandler = getOwnsHandlerPredicates(tt.args.enableProgressiveSyncs)
 			assert.Equalf(t, tt.want, ownsHandler.UpdateFunc(tt.args.e), "UpdateFunc(%v)", tt.args.e)
-		})
-	}
-}
-
-func Test_applyIgnoreDifferences(t *testing.T) {
-	appMeta := metav1.TypeMeta{
-		APIVersion: v1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
-		Kind:       v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
-	}
-	testCases := []struct {
-		name              string
-		ignoreDifferences v1alpha1.ApplicationSetIgnoreDifferences
-		foundApp          string
-		generatedApp      string
-		expectedApp       string
-	}{
-		{
-			name: "empty ignoreDifferences",
-			foundApp: `
-spec: {}`,
-			generatedApp: `
-spec: {}`,
-			expectedApp: `
-spec: {}`,
-		},
-		{
-			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1191138278
-			name: "ignore target revision with jq",
-			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
-				{JQPathExpressions: []string{".spec.source.targetRevision"}},
-			},
-			foundApp: `
-spec:
-  source:
-    targetRevision: foo`,
-			generatedApp: `
-spec:
-  source:
-    targetRevision: bar`,
-			expectedApp: `
-spec:
-  source:
-    targetRevision: foo`,
-		},
-		{
-			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1103593714
-			name: "ignore helm parameter with jq",
-			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
-				{JQPathExpressions: []string{`.spec.source.helm.parameters | select(.name == "image.tag")`}},
-			},
-			foundApp: `
-spec:
-  source:
-    helm:
-      parameters:
-      - name: image.tag
-        value: test
-      - name: another
-        value: value`,
-			generatedApp: `
-spec:
-  source:
-    helm:
-      parameters:
-      - name: image.tag
-        value: v1.0.0
-      - name: another
-        value: value`,
-			expectedApp: `
-spec:
-  source:
-    helm:
-      parameters:
-      - name: image.tag
-        value: test
-      - name: another
-        value: value`,
-		},
-		{
-			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1191138278
-			name: "ignore auto-sync with jq",
-			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
-				{JQPathExpressions: []string{".spec.syncPolicy.automated"}},
-			},
-			foundApp: `
-spec:
-  syncPolicy:
-    retry:
-      limit: 5`,
-			generatedApp: `
-spec:
-  syncPolicy:
-    automated:
-      selfHeal: true
-    retry:
-      limit: 5`,
-			expectedApp: `
-spec:
-  syncPolicy:
-    retry:
-      limit: 5`,
-		},
-		{
-			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1420656537
-			name: "ignore a one-off annotation with jq",
-			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
-				{JQPathExpressions: []string{`.metadata.annotations | select(.["foo.bar"] == "baz")`}},
-			},
-			foundApp: `
-metadata:
-  annotations:
-    foo.bar: baz
-    some.other: annotation`,
-			generatedApp: `
-metadata:
-  annotations:
-    some.other: annotation`,
-			expectedApp: `
-metadata:
-  annotations:
-    foo.bar: baz
-    some.other: annotation`,
-		},
-		{
-			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1515672638
-			name: "ignore the source.plugin field with a json pointer",
-			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
-				{JSONPointers: []string{"/spec/source/plugin"}},
-			},
-			foundApp: `
-spec:
-  source:
-    plugin:
-      parameters:
-      - name: url
-        string: https://example.com`,
-			generatedApp: `
-spec:
-  source:
-    plugin:
-      parameters:
-      - name: url
-        string: https://example.com/wrong`,
-			expectedApp: `
-spec:
-  source:
-    plugin:
-      parameters:
-      - name: url
-        string: https://example.com`,
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			foundApp := v1alpha1.Application{TypeMeta: appMeta}
-			err := yaml.Unmarshal([]byte(tc.foundApp), &foundApp)
-			require.NoError(t, err, tc.foundApp)
-			generatedApp := v1alpha1.Application{TypeMeta: appMeta}
-			err = yaml.Unmarshal([]byte(tc.generatedApp), &generatedApp)
-			require.NoError(t, err, tc.generatedApp)
-			err = applyIgnoreDifferences(tc.ignoreDifferences, &foundApp, generatedApp)
-			require.NoError(t, err)
-			jsonFound, err := json.Marshal(tc.foundApp)
-			require.NoError(t, err)
-			jsonExpected, err := json.Marshal(tc.expectedApp)
-			require.NoError(t, err)
-			assert.Equal(t, string(jsonExpected), string(jsonFound))
 		})
 	}
 }

@@ -173,36 +173,3 @@ To test the implemented custom health checks, run `go test -v ./util/lua/`.
 The [PR#1139](https://github.com/argoproj/argo-cd/pull/1139) is an example of Cert Manager CRDs custom health check.
 
 Please note that bundled health checks with wildcards are not supported.
-
-## Health Checks
-
-An Argo CD App's health is inferred from the health of its immediate child resources (the resources represented in 
-source control). 
-
-But the health of a resource is not inherited from child resources - it is calculated using only information about the 
-resource itself. A resource's status field may or may not contain information about the health of a child resource, and 
-the resource's health check may or may not take that information into account.
-
-The lack of inheritance is by design. A resource's health can't be inferred from its children because the health of a
-child resource may not be relevant to the health of the parent resource. For example, a Deployment's health is not
-necessarily affected by the health of its Pods. 
-
-```
-App (healthy)
-└── Deployment (healthy)
-    └── ReplicaSet (healthy)
-        └── Pod (healthy)
-    └── ReplicaSet (unhealthy)
-        └── Pod (unhealthy)
-```
-
-If you want the health of a child resource to affect the health of its parent, you need to configure the parent's health
-check to take the child's health into account. Since only the parent resource's state is available to the health check,
-the parent resource's controller needs to make the child resource's health available in the parent resource's status 
-field.
-
-```
-App (healthy)
-└── CustomResource (healthy) <- This resource's health check needs to be fixed to mark the App as unhealthy
-    └── CustomChildResource (unhealthy)
-```

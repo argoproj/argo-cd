@@ -16,7 +16,6 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -25,16 +24,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -46,7 +42,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/argo-cd/v2/common"
-	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 
@@ -84,13 +79,10 @@ type ApplicationSetReconciler struct {
 	Policy               argov1alpha1.ApplicationsSyncPolicy
 	EnablePolicyOverride bool
 	utils.Renderer
-	ArgoCDNamespace            string
-	ApplicationSetNamespaces   []string
-	EnableProgressiveSyncs     bool
-	SCMRootCAPath              string
-	GlobalPreservedAnnotations []string
-	GlobalPreservedLabels      []string
-	Cache                      cache.Cache
+	ArgoCDNamespace          string
+	ApplicationSetNamespaces []string
+	EnableProgressiveSyncs   bool
+	SCMRootCAPath            string
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -441,7 +433,8 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			errorsByIndex[i] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
 			continue
 		}
-		_, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(r.ArgoCDNamespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
+
+		proj, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(r.ArgoCDNamespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
 		if err != nil {
 			if apierr.IsNotFound(err) {
 				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
@@ -452,6 +445,15 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 
 		if err := utils.ValidateDestination(ctx, &app.Spec.Destination, r.KubeClientset, r.ArgoCDNamespace); err != nil {
 			errorsByIndex[i] = fmt.Errorf("application destination spec is invalid: %s", err.Error())
+			continue
+		}
+
+		conditions, err := argoutil.ValidatePermissions(ctx, &app.Spec, proj, r.ArgoDB)
+		if err != nil {
+			return nil, err
+		}
+		if len(conditions) > 0 {
+			errorsByIndex[i] = fmt.Errorf("application spec is invalid: %s", argoutil.FormatAppConditions(conditions))
 			continue
 		}
 
@@ -544,24 +546,22 @@ func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {
 	}
 }
 
-func appControllerIndexer(rawObj client.Object) []string {
-	// grab the job object, extract the owner...
-	app := rawObj.(*argov1alpha1.Application)
-	owner := metav1.GetControllerOf(app)
-	if owner == nil {
-		return nil
-	}
-	// ...make sure it's a application set...
-	if owner.APIVersion != argov1alpha1.SchemeGroupVersion.String() || owner.Kind != "ApplicationSet" {
-		return nil
-	}
-
-	// ...and if so, return it
-	return []string{owner.Name}
-}
-
 func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProgressiveSyncs bool, maxConcurrentReconciliations int) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &argov1alpha1.Application{}, ".metadata.controller", appControllerIndexer); err != nil {
+	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &argov1alpha1.Application{}, ".metadata.controller", func(rawObj client.Object) []string {
+		// grab the job object, extract the owner...
+		app := rawObj.(*argov1alpha1.Application)
+		owner := metav1.GetControllerOf(app)
+		if owner == nil {
+			return nil
+		}
+		// ...make sure it's a application set...
+		if owner.APIVersion != argov1alpha1.SchemeGroupVersion.String() || owner.Kind != "ApplicationSet" {
+			return nil
+		}
+
+		// ...and if so, return it
+		return []string{owner.Name}
+	}); err != nil {
 		return fmt.Errorf("error setting up with manager: %w", err)
 	}
 
@@ -580,25 +580,6 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 			}).
 		// TODO: also watch Applications and respond on changes if we own them.
 		Complete(r)
-}
-
-func (r *ApplicationSetReconciler) updateCache(ctx context.Context, obj client.Object, logger *log.Entry) {
-	informer, err := r.Cache.GetInformer(ctx, obj)
-	if err != nil {
-		logger.Errorf("failed to get informer: %v", err)
-		return
-	}
-	// The controller runtime abstract away informers creation
-	// so unfortunately could not find any other way to access informer store.
-	k8sInformer, ok := informer.(k8scache.SharedInformer)
-	if !ok {
-		logger.Error("informer is not a kubernetes informer")
-		return
-	}
-	if err := k8sInformer.GetStore().Update(obj); err != nil {
-		logger.Errorf("failed to update cache: %v", err)
-		return
-	}
 }
 
 // createOrUpdateInCluster will create / update application resources in the cluster.
@@ -638,21 +619,9 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			}
 
 			preservedAnnotations := make([]string, 0)
-			preservedLabels := make([]string, 0)
-
 			if applicationSet.Spec.PreservedFields != nil {
 				preservedAnnotations = append(preservedAnnotations, applicationSet.Spec.PreservedFields.Annotations...)
-				preservedLabels = append(preservedLabels, applicationSet.Spec.PreservedFields.Labels...)
 			}
-
-			if len(r.GlobalPreservedAnnotations) > 0 {
-				preservedAnnotations = append(preservedAnnotations, r.GlobalPreservedAnnotations...)
-			}
-
-			if len(r.GlobalPreservedLabels) > 0 {
-				preservedLabels = append(preservedLabels, r.GlobalPreservedLabels...)
-			}
-
 			// Preserve specially treated argo cd annotations:
 			// * https://github.com/argoproj/applicationset/issues/180
 			// * https://github.com/argoproj/argo-cd/issues/10500
@@ -666,28 +635,10 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 					generatedApp.Annotations[key] = state
 				}
 			}
-
-			for _, key := range preservedLabels {
-				if state, exists := found.ObjectMeta.Labels[key]; exists {
-					if generatedApp.Labels == nil {
-						generatedApp.Labels = map[string]string{}
-					}
-					generatedApp.Labels[key] = state
-				}
-			}
-
 			found.ObjectMeta.Annotations = generatedApp.Annotations
 
 			found.ObjectMeta.Finalizers = generatedApp.Finalizers
 			found.ObjectMeta.Labels = generatedApp.Labels
-
-			if found != nil && len(found.Spec.IgnoreDifferences) > 0 {
-				err := applyIgnoreDifferences(applicationSet.Spec.IgnoreApplicationDifferences, found, generatedApp)
-				if err != nil {
-					return fmt.Errorf("failed to apply ignore differences: %w", err)
-				}
-			}
-
 			return controllerutil.SetControllerReference(&applicationSet, found, r.Scheme)
 		})
 
@@ -698,67 +649,11 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			}
 			continue
 		}
-		r.updateCache(ctx, found, appLog)
 
-		if action != controllerutil.OperationResultNone {
-			// Don't pollute etcd with "unchanged Application" events
-			r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, fmt.Sprint(action), "%s Application %q", action, generatedApp.Name)
-			appLog.Logf(log.InfoLevel, "%s Application", action)
-		} else {
-			// "unchanged Application" can be inferred by Reconcile Complete with no action being listed
-			// Or enable debug logging
-			appLog.Logf(log.DebugLevel, "%s Application", action)
-		}
+		r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, fmt.Sprint(action), "%s Application %q", action, generatedApp.Name)
+		appLog.Logf(log.InfoLevel, "%s Application", action)
 	}
 	return firstError
-}
-
-// applyIgnoreDifferences applies the ignore differences rules to the found application. It modifies the found application in place.
-func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.ApplicationSetIgnoreDifferences, found *argov1alpha1.Application, generatedApp argov1alpha1.Application) error {
-	diffConfig, err := argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(applicationSetIgnoreDifferences.ToApplicationIgnoreDifferences(), nil, false).
-		WithNoCache().
-		Build()
-	if err != nil {
-		return fmt.Errorf("failed to build diff config: %w", err)
-	}
-	unstructuredFound, err := appToUnstructured(found)
-	if err != nil {
-		return fmt.Errorf("failed to convert found application to unstructured: %w", err)
-	}
-	unstructuredGenerated, err := appToUnstructured(&generatedApp)
-	if err != nil {
-		return fmt.Errorf("failed to convert found application to unstructured: %w", err)
-	}
-	result, err := argodiff.Normalize([]*unstructured.Unstructured{unstructuredFound}, []*unstructured.Unstructured{unstructuredGenerated}, diffConfig)
-	if err != nil {
-		return fmt.Errorf("failed to normalize application spec: %w", err)
-	}
-	if len(result.Targets) != 1 {
-		return fmt.Errorf("expected 1 normalized application, got %d", len(result.Targets))
-	}
-	jsonNormalized, err := json.Marshal(result.Targets[0].Object)
-	if err != nil {
-		return fmt.Errorf("failed to marshal normalized app to json: %w", err)
-	}
-	err = json.Unmarshal(jsonNormalized, &found)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal normalized app json to structured app: %w", err)
-	}
-	// Prohibit jq queries from mutating silly things.
-	found.TypeMeta = generatedApp.TypeMeta
-	found.Name = generatedApp.Name
-	found.Namespace = generatedApp.Namespace
-	found.Operation = generatedApp.Operation
-	return nil
-}
-
-func appToUnstructured(app *argov1alpha1.Application) (*unstructured.Unstructured, error) {
-	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(app)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert app object to unstructured: %w", err)
-	}
-	return &unstructured.Unstructured{Object: u}, nil
 }
 
 // createInCluster will filter from the desiredApplications only the application that needs to be created
@@ -795,7 +690,7 @@ func (r *ApplicationSetReconciler) getCurrentApplications(_ context.Context, app
 	err := r.Client.List(context.Background(), &current, client.MatchingFields{".metadata.controller": applicationSet.Name})
 
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving applications: %w", err)
+		return nil, err
 	}
 
 	return current.Items, nil
@@ -912,17 +807,15 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 
 		// If the finalizer length changed (due to filtering out an Argo finalizer), update the finalizer list on the app
 		if len(newFinalizers) != len(app.Finalizers) {
-			updated := app.DeepCopy()
-			updated.Finalizers = newFinalizers
-			if err := r.Client.Patch(ctx, updated, client.MergeFrom(app)); err != nil {
-				return fmt.Errorf("error updating finalizers: %w", err)
-			}
-			r.updateCache(ctx, updated, appLog)
-			// Application must have updated list of finalizers
-			updated.DeepCopyInto(app)
+			app.Finalizers = newFinalizers
 
 			r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, "Updated", "Updated Application %q finalizer before deletion, because application has an invalid destination", app.Name)
 			appLog.Log(log.InfoLevel, "Updating application finalizer before deletion, because application has an invalid destination")
+
+			err := r.Client.Update(ctx, app, &client.UpdateOptions{})
+			if err != nil {
+				return fmt.Errorf("error updating finalizers: %w", err)
+			}
 		}
 	}
 

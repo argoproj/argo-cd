@@ -39,7 +39,6 @@ argocd admin notifications template get app-sync-succeeded -o=yaml
       --cluster string                  The name of the kubeconfig cluster to use
       --config-map string               argocd-notifications-cm.yaml file path
       --context string                  The name of the kubeconfig context to use
-      --disable-compression             If true, opt-out of response compression for all requests to the server
       --insecure-skip-tls-verify        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string               Path to a kube config. Only required if out-of-cluster
   -n, --namespace string                If present, the namespace scope for this CLI request
@@ -96,7 +95,6 @@ argocd admin notifications template notify app-sync-succeeded guestbook
       --cluster string                  The name of the kubeconfig cluster to use
       --config-map string               argocd-notifications-cm.yaml file path
       --context string                  The name of the kubeconfig context to use
-      --disable-compression             If true, opt-out of response compression for all requests to the server
       --insecure-skip-tls-verify        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string               Path to a kube config. Only required if out-of-cluster
   -n, --namespace string                If present, the namespace scope for this CLI request
@@ -152,7 +150,6 @@ argocd admin notifications trigger get on-sync-failed -o=yaml
       --cluster string                  The name of the kubeconfig cluster to use
       --config-map string               argocd-notifications-cm.yaml file path
       --context string                  The name of the kubeconfig context to use
-      --disable-compression             If true, opt-out of response compression for all requests to the server
       --insecure-skip-tls-verify        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string               Path to a kube config. Only required if out-of-cluster
   -n, --namespace string                If present, the namespace scope for this CLI request
@@ -208,7 +205,6 @@ argocd admin notifications trigger run on-sync-status-unknown ./sample-app.yaml 
       --cluster string                  The name of the kubeconfig cluster to use
       --config-map string               argocd-notifications-cm.yaml file path
       --context string                  The name of the kubeconfig context to use
-      --disable-compression             If true, opt-out of response compression for all requests to the server
       --insecure-skip-tls-verify        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string               Path to a kube config. Only required if out-of-cluster
   -n, --namespace string                If present, the namespace scope for this CLI request

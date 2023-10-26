@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -46,11 +45,7 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f c
 		return controllerutil.OperationResultCreated, nil
 	}
 
-	existingObj := obj.DeepCopyObject()
-	existing, ok := existingObj.(client.Object)
-	if !ok {
-		panic(fmt.Errorf("existing object is not a client.Object"))
-	}
+	existing := obj.DeepCopyObject()
 	if err := mutate(f, key, obj); err != nil {
 		return controllerutil.OperationResultNone, err
 	}
@@ -79,18 +74,12 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f c
 			return a.Namespace == b.Namespace && a.Name == b.Name && a.Server == b.Server
 		},
 	)
-	// make sure updated object has the same apiVersion & kind as original object
-	if objKind, ok := obj.(schema.ObjectKind); ok {
-		if existingKind, ok := existing.(schema.ObjectKind); ok {
-			existingKind.SetGroupVersionKind(objKind.GroupVersionKind())
-		}
-	}
 
 	if equality.DeepEqual(existing, obj) {
 		return controllerutil.OperationResultNone, nil
 	}
 
-	if err := c.Patch(ctx, obj, client.MergeFrom(existing)); err != nil {
+	if err := c.Update(ctx, obj); err != nil {
 		return controllerutil.OperationResultNone, err
 	}
 	return controllerutil.OperationResultUpdated, nil
