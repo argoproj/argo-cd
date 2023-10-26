@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/glob"
+
 	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
 
 	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
@@ -53,14 +55,21 @@ func NewController(
 	client dynamic.Interface,
 	argocdService service.Service,
 	namespace string,
+	applicationNamespaces []string,
 	appLabelSelector string,
 	registry *controller.MetricsRegistry,
 	secretName string,
 	configMapName string,
 ) *notificationController {
-	appClient := client.Resource(applications)
-	appInformer := newInformer(appClient.Namespace(namespace), appLabelSelector)
-	appProjInformer := newInformer(newAppProjClient(client, namespace), "")
+	var appClient dynamic.ResourceInterface
+	namespaceableAppClient := client.Resource(applications)
+	appClient = namespaceableAppClient
+	if len(applicationNamespaces) == 0 {
+		appClient = namespaceableAppClient.Namespace(namespace)
+	}
+
+	appInformer := newInformer(appClient, namespace, applicationNamespaces, appLabelSelector)
+	appProjInformer := newInformer(newAppProjClient(client, namespace), namespace, []string{namespace}, "")
 	secretInformer := k8s.NewSecretInformer(k8sClient, namespace, secretName)
 	configMapInformer := k8s.NewConfigMapInformer(k8sClient, namespace, configMapName)
 	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, secretName, configMapName), namespace, secretInformer, configMapInformer)
@@ -71,17 +80,25 @@ func NewController(
 		appInformer:       appInformer,
 		appProjInformer:   appProjInformer,
 		apiFactory:        apiFactory}
-	res.ctrl = controller.NewController(appClient, appInformer, apiFactory,
+	res.ctrl = controller.NewController(namespaceableAppClient, appInformer, apiFactory,
 		controller.WithSkipProcessing(func(obj v1.Object) (bool, string) {
 			app, ok := (obj).(*unstructured.Unstructured)
 			if !ok {
 				return false, ""
+			}
+			if checkAppNotInAdditionalNamespaces(app, namespace, applicationNamespaces) {
+				return true, "app is not in one of the application-namespaces, nor the notification controller namespace"
 			}
 			return !isAppSyncStatusRefreshed(app, log.WithField("app", obj.GetName())), "sync status out of date"
 		}),
 		controller.WithMetricsRegistry(registry),
 		controller.WithAlterDestinations(res.alterDestinations))
 	return res
+}
+
+// Check if app is not in the namespace where the controller is in, and also app is not in one of the applicationNamespaces
+func checkAppNotInAdditionalNamespaces(app *unstructured.Unstructured, namespace string, applicationNamespaces []string) bool {
+	return namespace != app.GetNamespace() && !glob.MatchStringInList(applicationNamespaces, app.GetNamespace(), false)
 }
 
 func (c *notificationController) alterDestinations(obj v1.Object, destinations services.Destinations, cfg api.Config) services.Destinations {
@@ -97,21 +114,38 @@ func (c *notificationController) alterDestinations(obj v1.Object, destinations s
 	return destinations
 }
 
-func newInformer(resClient dynamic.ResourceInterface, selector string) cache.SharedIndexInformer {
+func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string, applicationNamespaces []string, selector string) cache.SharedIndexInformer {
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (object runtime.Object, err error) {
+			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+				// We are only interested in apps that exist in namespaces the
+				// user wants to be enabled.
 				options.LabelSelector = selector
-				return resClient.List(context.Background(), options)
+				appList, err := resClient.List(context.TODO(), options)
+				if err != nil {
+					return nil, fmt.Errorf("failed to list applications: %w", err)
+				}
+				newItems := []unstructured.Unstructured{}
+				for _, res := range appList.Items {
+					if controllerNamespace == res.GetNamespace() || glob.MatchStringInList(applicationNamespaces, res.GetNamespace(), false) {
+						newItems = append(newItems, res)
+					}
+				}
+				appList.Items = newItems
+				return appList, nil
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				options.LabelSelector = selector
-				return resClient.Watch(context.Background(), options)
+				return resClient.Watch(context.TODO(), options)
 			},
 		},
 		&unstructured.Unstructured{},
 		resyncPeriod,
-		cache.Indexers{},
+		cache.Indexers{
+			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
+				return cache.MetaNamespaceIndexFunc(obj)
+			},
+		},
 	)
 	return informer
 }
