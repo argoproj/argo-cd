@@ -1,7 +1,7 @@
 # Webhook
 
 The webhook notification service allows sending a generic HTTP request using the templatized request body and URL.
-Using Webhook you might trigger a Jenkins job, update Github commit status.
+Using Webhook you might trigger a Jenkins job, update GitHub commit status.
 
 ## Parameters
 
@@ -9,7 +9,7 @@ The Webhook notification service configuration includes following settings:
 
 - `url` - the url to send the webhook to
 - `headers` - optional, the headers to pass along with the webhook
-- `basicAuth` - optional, the basic authentication to pass along with the webook
+- `basicAuth` - optional, the basic authentication to pass along with the webhook
 - `insecureSkipVerify` - optional bool, true or false
 
 ## Configuration
@@ -67,7 +67,7 @@ metadata:
 
 ## Examples
 
-### Set Github commit status
+### Set GitHub commit status
 
 ```yaml
 apiVersion: v1
