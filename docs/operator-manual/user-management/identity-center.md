@@ -12,28 +12,31 @@ A working Single Sign-On configuration using Identity Center (AWS SSO) has been 
 1. Create a new SAML application in Identity Center and download the certificate.
     * ![Identity Center SAML App 1](../../assets/identity-center-1.png)
     * ![Identity Center SAML App 2](../../assets/identity-center-2.png)
-1. Click `Assign Users` after creating the application in Identity Center, and select the users or user groups you wish to grant access to this application.
+2. Click `Assign Users` after creating the application in Identity Center, and select the users or user groups you wish to grant access to this application.
     * ![Identity Center SAML App 3](../../assets/identity-center-3.png)
-1. Copy the Argo CD URL into the `data.url` field in the `argocd-cm` ConfigMap.
+3. Copy the Argo CD URL into the `data.url` field in the `argocd-cm` ConfigMap.
 
 <!-- markdownlint-disable MD046 -->
 ```yaml
 data:
   url: https://argocd.example.com
 ```
-1. Configure Attribute mappings.
-    !!! note
-    Group attribute mapping is not officially supported in the AWS docs, however the workaround is currently working.
+
+4. Configure Attribute mappings.
+
+    !!! note "Group attribute mapping is not officially!"
+        Group attribute mapping is not officially supported in the AWS docs, however the workaround is currently working.
+
     * ![Identity Center SAML App 4](../../assets/identity-center-4.png)
     * ![Identity Center SAML App 5](../../assets/identity-center-5.png)
 
 <!-- markdownlint-enable MD046 -->
 
-1. Download the CA certificate to use in the `argocd-cm` configuration.
+5. Download the CA certificate to use in the `argocd-cm` configuration.
     * If using the `caData` field, you'll need to base64-encode the entire certificate, including the `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----` stanzas (e.g., `base64 my_cert.pem`).
     * If using the `ca` field and storing the CA certificate separately as a secret, you will need to mount the secret onto the `dex` container in the `argocd-dex-server` Deployment.
     * ![Identity Center SAML App 6](../../assets/identity-center-6.png)
-1. Edit the `argocd-cm` and configure the `data.dex.config` section:
+6. Edit the `argocd-cm` and configure the `data.dex.config` section:
 
 <!-- markdownlint-disable MD046 -->
 ```yaml
