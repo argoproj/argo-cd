@@ -44,6 +44,15 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 	var command = &cobra.Command{
 		Use:   "cluster",
 		Short: "Manage clusters configuration",
+		Example: `
+# Authenticate with a Token
+argocd admin cluster --auth-token YOUR_AUTH_TOKEN
+
+# Use a Custom Client Certificate and Key
+argocd admin cluster --client-crt /path/to/client.crt --client-crt-key /path/to/client.key
+
+# Set Logging Format and Level
+argocd admin cluster --logformat json --loglevel debug`,
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
@@ -448,6 +457,21 @@ func NewClusterStatsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	var command = cobra.Command{
 		Use:   "stats",
 		Short: "Prints information cluster statistics and inferred shard number",
+		Example: `
+#Display Cluster Statistics for the Default Cluster
+argocd admin cluster stats
+
+#Display Cluster Statistics for a Specific Cluster Context
+argocd admin cluster stats --context=my-cluster-context
+
+#Display Cluster Statistics for a Cluster with Custom Configuration (Kubeconfig Path)
+argocd admin cluster stats --kubeconfig=/path/to/custom/kubeconfig.yaml
+
+#Display Cluster Statistics with a Custom Request Timeout
+argocd admin cluster stats --request-timeout=5s
+
+#Display Cluster Statistics for a Specific Shard
+argocd admin cluster stats --shard=1`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
 
@@ -492,6 +516,18 @@ func NewClusterConfig() *cobra.Command {
 		Use:               "kubeconfig CLUSTER_URL OUTPUT_PATH",
 		Short:             "Generates kubeconfig for the specified cluster",
 		DisableAutoGenTag: true,
+		Example: `
+#Generate a Kubeconfig for a Cluster and Save it to a File
+argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml
+
+#Generate a Kubeconfig with a Custom Cluster Name:
+argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml --cluster=my-cluster
+
+#Generate a Kubeconfig for a Cluster with TLS Verification Disabled
+argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml --insecure-skip-tls-verify
+
+#Generate a Kubeconfig with a Custom Namespace Scope
+argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml -n my-namespace`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

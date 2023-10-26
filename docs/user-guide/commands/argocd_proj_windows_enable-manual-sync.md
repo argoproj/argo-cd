@@ -12,6 +12,25 @@ Enable manual sync for a sync window. Requires ID which can be found by running 
 argocd proj windows enable-manual-sync PROJECT ID [flags]
 ```
 
+### Examples
+
+```
+#Enabling Manual Synchronization for Project 'my-project-id' in Argo CD with Custom Configuration:
+argocd proj windows enable-manual-sync my-project-id \
+    --auth-token "your-auth-token" \
+    --kube-context "my-kube-context" \
+    --grpc-web \
+    --loglevel "debug"
+
+
+#Enabling Manual Synchronization for Project 'another-project-id' in Argo CD with Client Certificates and Port Forwarding
+argocd proj windows enable-manual-sync another-project-id \
+    --client-crt "/path/to/client.crt" \
+    --client-crt-key "/path/to/client.key" \
+    --port-forward \
+    --port-forward-namespace "my-namespace"
+```
+
 ### Options
 
 ```

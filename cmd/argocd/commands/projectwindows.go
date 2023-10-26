@@ -22,6 +22,22 @@ func NewProjectWindowsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	roleCommand := &cobra.Command{
 		Use:   "windows",
 		Short: "Manage a project's sync windows",
+		Example: `#Creating "MyApp" Project in Argo CD with Custom Configuration and gRPC-Web Authentication
+argocd proj windows --auth-token "your-auth-token" \
+    --client-crt "/path/to/client.crt" \
+    --client-crt-key "/path/to/client.key" \
+    --config "/path/to/custom/config.yaml" \
+    --grpc-web \
+    --grpc-web-root-path "/custom/root/path" \
+    --server "argocd-server.example.com" \
+    "MyApp"
+
+#Configuring "Development" Project in Argo CD with HTTP, Custom kube-context, and Debug Logging.
+argocd proj windows --plaintext \
+    --kube-context "my-kube-context" \
+    --loglevel "debug" \
+    --server "argocd-server.internal.local" \
+    "Development"`,
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -42,6 +58,21 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 		Use:   "disable-manual-sync PROJECT ID",
 		Short: "Disable manual sync for a sync window",
 		Long:  "Disable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
+		Example: `#Disabling Manual Synchronization for Project "my-project-id" in Argo CD with Custom Configuration
+argocd proj windows disable-manual-sync my-project-id \
+    --auth-token "your-auth-token" \
+    --kube-context "my-kube-context" \
+    --loglevel "debug" \
+    --server "argocd-server.example.com"
+
+
+#Disabling Manual Synchronization for Project "another-project-id" in Argo CD with Client Certificates and gRPC-Web Configuration
+aargocd proj windows disable-manual-sync another-project-id \
+	--client-crt "/path/to/client.crt" \
+	--client-crt-key "/path/to/client.key" \
+	--grpc-web \
+	--grpc-web-root-path "/custom/root/path" \
+	--server "argocd-server.internal.local"`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -79,6 +110,20 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 		Use:   "enable-manual-sync PROJECT ID",
 		Short: "Enable manual sync for a sync window",
 		Long:  "Enable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
+		Example: `#Enabling Manual Synchronization for Project 'my-project-id' in Argo CD with Custom Configuration:
+argocd proj windows enable-manual-sync my-project-id \
+    --auth-token "your-auth-token" \
+    --kube-context "my-kube-context" \
+    --grpc-web \
+    --loglevel "debug"
+
+
+#Enabling Manual Synchronization for Project 'another-project-id' in Argo CD with Client Certificates and Port Forwarding
+argocd proj windows enable-manual-sync another-project-id \
+    --client-crt "/path/to/client.crt" \
+    --client-crt-key "/path/to/client.key" \
+    --port-forward \
+    --port-forward-namespace "my-namespace"`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -180,6 +225,18 @@ func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 	var command = &cobra.Command{
 		Use:   "delete PROJECT ID",
 		Short: "Delete a sync window from a project. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
+		Example: `#Deleting Project 'my-project-id' in Argo CD with Custom Configuration
+argocd proj windows delete my-project-id \
+    --auth-token "your-auth-token" \
+    --kube-context "my-kube-context" \
+    --loglevel "debug"
+
+#Deleting Project 'another-project-id' in Argo CD with Client Certificates and TLS Verification Skip
+argocd proj windows delete another-project-id \
+    --client-crt "/path/to/client.crt" \
+    --client-crt-key "/path/to/client.key" \
+    --insecure \
+    --server-crt "/path/to/server.crt"`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -274,12 +331,22 @@ func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	var command = &cobra.Command{
 		Use:   "list PROJECT",
 		Short: "List project sync windows",
-		Example: `# List project windows
+		Example: `#Listing Windows for Project 'my-project-id' in Argo CD with Custom Configuration
+argocd proj windows list my-project-id \
+    --auth-token "your-auth-token" \
+    --kube-context "my-kube-context" \
+    --loglevel "debug"
+#Listing Windows for Project 'another-project-id' in Argo CD with Client Certificates and TLS Verification Skip
+argocd proj windows list another-project-id \
+    --client-crt "/path/to/client.crt" \
+    --client-crt-key "/path/to/client.key" \
+    --insecure \
+    --server-crt "/path/to/server.crt"
+#List project windows
 argocd proj windows list PROJECT
-		
+
 # List project windows in yaml format
-argocd proj windows list PROJECT -o yaml
-`,
+argocd proj windows list PROJECT -o yaml`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -312,8 +379,8 @@ argocd proj windows list PROJECT -o yaml
 func printSyncWindows(proj *v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
-	headers := []interface{}{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC", "TIMEZONE"}
-	fmtStr = strings.Repeat("%s\t", len(headers)) + "\n"
+	headers := []interface{}{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC"}
+	fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 	fmt.Fprintf(w, fmtStr, headers...)
 	if proj.Spec.SyncWindows.HasWindows() {
 		for i, window := range proj.Spec.SyncWindows {
@@ -327,7 +394,6 @@ func printSyncWindows(proj *v1alpha1.AppProject) {
 				formatListOutput(window.Namespaces),
 				formatListOutput(window.Clusters),
 				formatManualOutput(window.ManualSync),
-				window.TimeZone,
 			}
 			fmt.Fprintf(w, fmtStr, vals...)
 		}

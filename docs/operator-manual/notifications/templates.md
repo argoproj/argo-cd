@@ -20,7 +20,6 @@ Each template has access to the following fields:
 
 - `app` holds the application object.
 - `context` is a user-defined string map and might include any string keys and values.
-- `secrets` provides access to sensitive data stored in `argocd-notifications-secret`
 - `serviceType` holds the notification service type name (such as "slack" or "email). The field can be used to conditionally
 render service-specific fields.
 - `recipient` holds the recipient name.
@@ -42,39 +41,6 @@ data:
 
   template.a-slack-template-with-context: |
     message: "Something happened in {{ .context.environmentName }} in the {{ .context.region }} data center!"
-```
-
-## Defining and using secrets within notification templates
-
-Some notification service use cases will require the use of secrets within templates. This can be achieved with the use of
-the `secrets` data variable available within the templates.
-
-Given that we have the following `argocd-notifications-secret`:
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: argocd-notifications-secret
-stringData:
-  sampleWebhookToken: secret-token 
-type: Opaque
-```
-
-We can use the defined `sampleWebhookToken` in a template as such:
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-notifications-cm
-data:
-  template.trigger-webhook: |
-      webhook:
-        sample-webhook:
-          method: POST
-          path: 'webhook/endpoint/with/auth'
-          body: 'token={{ .secrets.sampleWebhookToken }}&variables[APP_SOURCE_PATH]={{ .app.spec.source.path }}
 ```
 
 ## Notification Service Specific Fields
