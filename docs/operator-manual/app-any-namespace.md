@@ -71,6 +71,8 @@ We supply a `ClusterRole` and `ClusterRoleBinding` suitable for this purpose in 
 kubectl apply -f examples/k8s-rbac/argocd-server-applications/
 ```
 
+`argocd-notifications-controller-rbac-clusterrole.yaml` and `argocd-notifications-controller-rbac-clusterrolebinding.yaml` are used to support notifications controller to notify apps in all namespaces.
+
 !!! note
     At some later point in time, we may make this cluster role part of the default installation manifests.
 
