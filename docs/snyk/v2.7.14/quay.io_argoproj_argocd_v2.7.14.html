@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="39 known vulnerabilities found in 148 vulnerable dependency paths.">
+  <meta name="description" content="40 known vulnerabilities found in 150 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 15th 2023, 12:24:23 am (UTC+00:00)</p>
+                <p class="timestamp">October 22nd 2023, 12:24:02 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>39</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>148 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>40</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>150 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2065</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -534,6 +534,7 @@
         <li><a href="https://github.com/apache/tomcat/commit/76bb4bfbfeae827dce896f650655bbf6e251ed49">GitHub Commit</a></li>
         <li><a href="https://github.com/apache/tomcat/commit/9cdfe25bad707f34b3e5da2994f3f1952a163c3e">GitHub Commit</a></li>
         <li><a href="https://github.com/eclipse/jetty.project/commit/dbb94514dc9d3fb21fe92080f57c314e7e06a148">GitHub Commit</a></li>
+        <li><a href="https://github.com/kubernetes/apimachinery/commit/be9188050914374ee8128239e5a2e5998d7897f5">GitHub Commit</a></li>
         <li><a href="https://github.com/netty/netty/commit/58f75f665aa81a8cbcf6ffa74820042a285c5e61">GitHub Commit</a></li>
         <li><a href="https://github.com/nghttp2/nghttp2/commit/72b4af6143681f528f1d237b21a9a7aee1738832">GitHub Commit</a></li>
         <li><a href="https://snyk.io/blog/find-fix-http-2-rapid-reset-zero-day-vulnerability-cve-2023-44487/">Snyk Blog</a></li>
@@ -695,6 +696,7 @@
         <li><a href="https://github.com/apache/tomcat/commit/76bb4bfbfeae827dce896f650655bbf6e251ed49">GitHub Commit</a></li>
         <li><a href="https://github.com/apache/tomcat/commit/9cdfe25bad707f34b3e5da2994f3f1952a163c3e">GitHub Commit</a></li>
         <li><a href="https://github.com/eclipse/jetty.project/commit/dbb94514dc9d3fb21fe92080f57c314e7e06a148">GitHub Commit</a></li>
+        <li><a href="https://github.com/kubernetes/apimachinery/commit/be9188050914374ee8128239e5a2e5998d7897f5">GitHub Commit</a></li>
         <li><a href="https://github.com/netty/netty/commit/58f75f665aa81a8cbcf6ffa74820042a285c5e61">GitHub Commit</a></li>
         <li><a href="https://github.com/nghttp2/nghttp2/commit/72b4af6143681f528f1d237b21a9a7aee1738832">GitHub Commit</a></li>
         <li><a href="https://snyk.io/blog/find-fix-http-2-rapid-reset-zero-day-vulnerability-cve-2023-44487/">Snyk Blog</a></li>
@@ -877,6 +879,8 @@
         <li><a href="https://security.netapp.com/advisory/ntap-20231013-0006/">secalert@redhat.com</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2023/10/13/11">secalert@redhat.com</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2023/10/14/3">secalert@redhat.com</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/10/14/5">secalert@redhat.com</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/10/14/6">secalert@redhat.com</a></li>
         </ul>
         
               <hr/>
@@ -1035,37 +1039,25 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>curl</code> package and not the <code>curl</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
-        <p>in the <code>SOCKS5</code> proxy handshake process when the hostname is longer than the target buffer.
-        The local variable <code>socks5_resolve_local</code> could get the wrong value during a slow SOCKS5 handshake.
-        Since the code wrongly thinks it should pass on the hostname, even though the hostname is too long to fit, the memory copy can overflow the allocated target buffer. </p>
-        <p>This is only exploitable if the SOCKS5 handshake is slow enough to trigger a local variable bug and the client uses a hostname longer than the download buffer.</p>
-        <p>Exploiting this vulnerability could allow an attacker to execute arbitrary code on the target system under certain conditions.</p>
-        <p><strong>Note:</strong></p>
-        <p>An overflow is only possible in applications that don&#39;t set <code>CURLOPT_BUFFERSIZE</code> or set it smaller than 65541. 
-        Since the curl tool sets <code>CURLOPT_BUFFERSIZE</code> to 100kB by default, it is not vulnerable unless the user sets the rate limiting to a rate smaller than 65541 bytes/second.</p>
-        <p>The options that cause SOCKS5 with remote hostname to be used in <code>libcurl</code>:</p>
-        <ol>
-        <li><p><code>CURLOPT_PROXYTYPE</code> set to type <code>CURLPROXY_SOCKS5_HOSTNAME</code>, or:
-        <code>CURLOPT_PROXY</code> or <code>CURLOPT_PRE_PROXY</code> set to use the scheme <code>socks5h://</code></p>
-        </li>
-        <li><p>One of the proxy environment variables can be set to use the <code>socks5h://</code> scheme. For example, <code>http_proxy</code>, <code>HTTPS_PROXY</code> or <code>ALL_PROXY</code>.</p>
-        </li>
-        </ol>
-        <p>The options that cause SOCKS5 with remote hostname to be used in the <code>curl</code> tool:</p>
-        <ol>
-        <li><p><code>--socks5-hostname</code>, <code>--proxy</code> or <code>--preproxy</code> set to use the scheme <code>socks5h://</code></p>
-        </li>
-        <li><p>Environment variables as described in the libcurl section.</p>
-        </li>
-        </ol>
-        <p><strong>Changelog:</strong></p>
-        <p>2023-10-04: Initial publication</p>
-        <p>2023-10-11: Published updated information, including CWE, CVSS, official references and affected versions range.</p>
+        <p>This flaw makes curl overflow a heap based buffer in the SOCKS5 proxy
+        handshake.</p>
+        <p>When curl is asked to pass along the host name to the SOCKS5 proxy to allow
+        that to resolve the address instead of it getting done by curl itself, the
+        maximum length that host name can be is 255 bytes.</p>
+        <p>If the host name is detected to be longer, curl switches to local name
+        resolving and instead passes on the resolved address only. Due to this bug,
+        the local variable that means &#34;let the host resolve the name&#34; could get the
+        wrong value during a slow SOCKS5 handshake, and contrary to the intention,
+        copy the too long host name to the target buffer instead of copying just the
+        resolved address there.</p>
+        <p>The target buffer being a heap based buffer, and the host name coming from the
+        URL that curl has been told to operate with.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:22.04</code> <code>curl</code> to version 7.81.0-1ubuntu1.14 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-38545">ADVISORY</a></li>
+        <li><a href="https://curl.se/docs/CVE-2023-38545.html">support@hackerone.com</a></li>
         </ul>
         
               <hr/>
@@ -1849,6 +1841,89 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-KRB5-5838335">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Memory Leak</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            glibc/libc-bin
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v2.7.14 and glibc/libc-bin@2.35-0ubuntu3.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc-bin@2.35-0ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.7.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc6@2.35-0ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>glibc</code> package and not the <code>glibc</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
+        <p>A flaw was found in the GNU C Library. A recent fix for CVE-2023-4806 introduced the potential for a memory leak, which may result in an application crash.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>glibc</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-5156">ADVISORY</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2023-5156">secalert@redhat.com</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2240541">secalert@redhat.com</a></li>
+        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=30884">secalert@redhat.com</a></li>
+        <li><a href="https://sourceware.org/git/?p=glibc.git;a=commitdiff;h=ec6b95c3303c700eb89eebeda2d7264cc184a796">secalert@redhat.com</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/10/03/4">secalert@redhat.com</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/10/03/5">secalert@redhat.com</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/10/03/6">secalert@redhat.com</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/10/03/8">secalert@redhat.com</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-GLIBC-5919741">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -4446,12 +4521,29 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>curl</code> package and not the <code>curl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
+        <p>This flaw allows an attacker to insert cookies at will into a running program
+        using libcurl, if the specific series of conditions are met.</p>
+        <p>libcurl performs transfers. In its API, an application creates &#34;easy handles&#34;
+        that are the individual handles for single transfers.</p>
+        <p>libcurl provides a function call that duplicates en easy handle called
+        <a href="https://curl.se/libcurl/c/curl_easy_duphandle.html">curl_easy_duphandle</a>.</p>
+        <p>If a transfer has cookies enabled when the handle is duplicated, the
+        cookie-enable state is also cloned - but without cloning the actual
+        cookies. If the source handle did not read any cookies from a specific file on
+        disk, the cloned version of the handle would instead store the file name as
+        <code>none</code> (using the four ASCII letters, no quotes).</p>
+        <p>Subsequent use of the cloned handle that does not explicitly set a source to
+        load cookies from would then inadvertently load cookies from a file named
+        <code>none</code> - if such a file exists and is readable in the current directory of the
+        program using libcurl. And if using the correct file format of course.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:22.04</code> <code>curl</code> to version 7.81.0-1ubuntu1.14 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-38546">ADVISORY</a></li>
+        <li><a href="https://curl.se/docs/CVE-2023-38546.html">support@hackerone.com</a></li>
         </ul>
         
               <hr/>

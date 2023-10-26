@@ -22,6 +22,12 @@ argocd proj windows list another-project-id \
     --client-crt-key "/path/to/client.key" \
     --insecure \
     --server-crt "/path/to/server.crt"
+# List project windows
+argocd proj windows list PROJECT
+		
+# List project windows in yaml format
+argocd proj windows list PROJECT -o yaml
+
 ```
 
 ### Options
