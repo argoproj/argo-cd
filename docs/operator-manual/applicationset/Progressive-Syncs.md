@@ -53,7 +53,6 @@ Once a change is pushed, the following will happen in order.
 * 10% of all `env-prod` Applications will be updated at a time until all `env-prod` Applications have been updated.
 
 ```
----
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
