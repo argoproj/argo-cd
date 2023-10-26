@@ -8,6 +8,28 @@ Manage a project's sync windows
 argocd proj windows [flags]
 ```
 
+### Examples
+
+```
+
+#Creating "MyApp" Project in Argo CD with Custom Configuration and gRPC-Web Authentication
+argocd proj windows --auth-token "your-auth-token" \
+    --client-crt "/path/to/client.crt" \
+    --client-crt-key "/path/to/client.key" \
+    --config "/path/to/custom/config.yaml" \
+    --grpc-web \
+    --grpc-web-root-path "/custom/root/path" \
+    --server "argocd-server.example.com" \
+    "MyApp"
+
+#Configuring "Development" Project in Argo CD with HTTP, Custom kube-context, and Debug Logging.
+argocd proj windows --plaintext \
+    --kube-context "my-kube-context" \
+    --loglevel "debug" \
+    --server "argocd-server.internal.local" \
+    "Development"
+```
+
 ### Options
 
 ```
