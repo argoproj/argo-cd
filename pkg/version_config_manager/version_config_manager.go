@@ -2,6 +2,7 @@ package version_config_manager
 
 import (
 	"errors"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -78,7 +79,7 @@ func GetVersionConfig() *VersionConfig {
 
 	versionConfig, err := versionConfigManager.ObtainConfig()
 	if err != nil {
-		log.Printf("ERROR: Failed to obtain config: %v", err)
+		log.Printf("Failed to obtain config: %v", err)
 		return nil
 	}
 

@@ -60,7 +60,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			Message: "some message",
 		}
 
-		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, nil)
+		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &apiclient.ApplicationVersions{})
 		assert.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -96,7 +96,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			Message: "some message",
 		}
 
-		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, nil)
+		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &apiclient.ApplicationVersions{})
 		assert.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -375,7 +375,7 @@ func TestGetResourceEventPayloadWithoutRevision(t *testing.T) {
 	}
 	appTree := v1alpha1.ApplicationTree{}
 
-	_, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, nil, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, nil)
+	_, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, nil, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &apiclient.ApplicationVersions{})
 	assert.NoError(t, err)
 
 }

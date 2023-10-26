@@ -177,7 +177,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			return nil
 		}
 
-		logWithAppStatus(a, logCtx, ts).Info("sending root application event")
+		logWithAppStatus(a, logCtx, ts).Infof("sending root application event %v", appEvent)
 		if err := stream.Send(appEvent); err != nil {
 			return fmt.Errorf("failed to send event for root application %s/%s: %w", a.Namespace, a.Name, err)
 		}
@@ -305,7 +305,7 @@ func (s *applicationEventReporter) processResource(
 
 	appRes := appv1.Application{}
 	if isApp(rs) && actualState.Manifest != nil && json.Unmarshal([]byte(*actualState.Manifest), &appRes) == nil {
-		logWithAppStatus(&appRes, logCtx, ts).Info("streaming resource event")
+		logWithAppStatus(&appRes, logCtx, ts).Infof("streaming resource event %v", ev)
 	} else {
 		logWithResourceStatus(logCtx, rs).Info("streaming resource event")
 	}
@@ -613,6 +613,18 @@ func getResourceEventPayload(
 		AppVersions: applicationVersionsEvents,
 	}
 
+	logCtx.Infof("AppVersion before encoding: %v", safeString(payload.AppVersions.AppVersion))
+	if payload.AppVersions.Dependencies == nil {
+		logCtx.Infof("AppVersion deps before encoding. Dependencies == nil")
+	} else {
+		logCtx.Infof(
+			"AppVersion deps before encoding: %v ||| %v ||| %v",
+			safeString(payload.AppVersions.Dependencies.Lock),
+			safeString(payload.AppVersions.Dependencies.Deps),
+			safeString(payload.AppVersions.Dependencies.Requirements),
+		)
+	}
+
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal payload for resource %s/%s: %w", rs.Namespace, rs.Name, err)
@@ -720,6 +732,18 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		AppVersions: applicationVersionsEvents,
 	}
 
+	logCtx.Infof("AppVersion before encoding: %v", safeString(payload.AppVersions.AppVersion))
+	if payload.AppVersions.Dependencies == nil {
+		logCtx.Infof("AppVersion deps before encoding. Dependencies == nil")
+	} else {
+		logCtx.Infof(
+			"AppVersion deps before encoding: %v ||| %v ||| %v",
+			safeString(payload.AppVersions.Dependencies.Lock),
+			safeString(payload.AppVersions.Dependencies.Deps),
+			safeString(payload.AppVersions.Dependencies.Requirements),
+		)
+	}
+
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal payload for resource %s/%s: %w", a.Namespace, a.Name, err)
@@ -798,4 +822,11 @@ func repoAppVersionsToEvent(applicationVersions *apiclient.ApplicationVersions) 
 		return nil, err
 	}
 	return applicationVersionsEvents, nil
+}
+
+func safeString(s *string) string {
+	if s == nil {
+		return "<nil>"
+	}
+	return *s
 }
