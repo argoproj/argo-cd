@@ -142,7 +142,10 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 	}
 	defer io.Close(closer)
 	_, err = versionClient.Version(ctx, &empty.Empty{})
-	return fmt.Errorf("failed to get version: %w", err)
+	if err != nil {
+		return fmt.Errorf("failed to get version: %w", err)
+	}
+	return nil
 }
 
 // StartLocalServer allows executing command in a headless mode: on the fly starts Argo CD API server and
@@ -243,7 +246,10 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		}
 		time.Sleep(time.Second)
 	}
-	return fmt.Errorf("all retries failed: %w", err)
+	if err != nil {
+		return fmt.Errorf("all retries failed: %w", err)
+	}
+	return nil
 }
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
