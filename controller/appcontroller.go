@@ -1197,6 +1197,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	if isOperationInProgress(app) {
 		state = app.Status.OperationState.DeepCopy()
 		terminating = state.Phase == synccommon.OperationTerminating
+		// Failed  operation with retry strategy might have be in-progress and has completion time
 		if state.FinishedAt != nil && !terminating {
 			retryAt, err := app.Status.OperationState.Operation.Retry.NextRetryAt(state.FinishedAt.Time, state.RetryCount)
 			if err != nil {
@@ -1234,8 +1235,9 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		ctrl.appStateManager.SyncAppState(app, state)
 	}
 
-	// Check whether application is allowed to use project and if a sync window is currently denying sync
-	if _, err := ctrl.getAppProj(app); err != nil {
+	// Check whether application is allowed to use project
+	_, err := ctrl.getAppProj(app)
+	if err != nil {
 		state.Phase = synccommon.OperationError
 		state.Message = err.Error()
 	}
