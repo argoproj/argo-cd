@@ -8,6 +8,13 @@ Generates project allow list from the specified clusterRole file
 argocd admin proj generate-allow-list CLUSTERROLE_PATH PROJ_NAME [flags]
 ```
 
+### Examples
+
+```
+# Generates project allow list from the specified clusterRole file
+argocd admin proj generate-allow-list /path/to/clusterrole.yaml my-project
+```
+
 ### Options
 
 ```
