@@ -11,10 +11,8 @@ argocd gpg get KEYID [flags]
 ### Examples
 
 ```
-
-# Get the GPG public key with a specific ID 
-argocd gpg get <KEYID>
-		
+  # Get the GPG public key with a specific ID
+  argocd gpg get <KEYID>
 ```
 
 ### Options

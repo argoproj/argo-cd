@@ -8,6 +8,17 @@ List project sync windows
 argocd proj windows list PROJECT [flags]
 ```
 
+### Examples
+
+```
+# List project windows
+argocd proj windows list PROJECT
+		
+# List project windows in yaml format
+argocd proj windows list PROJECT -o yaml
+
+```
+
 ### Options
 
 ```

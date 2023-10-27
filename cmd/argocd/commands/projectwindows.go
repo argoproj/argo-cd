@@ -274,6 +274,12 @@ func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	var command = &cobra.Command{
 		Use:   "list PROJECT",
 		Short: "List project sync windows",
+		Example: `# List project windows
+argocd proj windows list PROJECT
+		
+# List project windows in yaml format
+argocd proj windows list PROJECT -o yaml
+`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -306,8 +312,8 @@ func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 func printSyncWindows(proj *v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
-	headers := []interface{}{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC"}
-	fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+	headers := []interface{}{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC", "TIMEZONE"}
+	fmtStr = strings.Repeat("%s\t", len(headers)) + "\n"
 	fmt.Fprintf(w, fmtStr, headers...)
 	if proj.Spec.SyncWindows.HasWindows() {
 		for i, window := range proj.Spec.SyncWindows {
@@ -321,6 +327,7 @@ func printSyncWindows(proj *v1alpha1.AppProject) {
 				formatListOutput(window.Namespaces),
 				formatListOutput(window.Clusters),
 				formatManualOutput(window.ManualSync),
+				window.TimeZone,
 			}
 			fmt.Fprintf(w, fmtStr, vals...)
 		}
