@@ -120,13 +120,12 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             <div
                                                 className='row applications-tiles__wrapper'
                                                 onClick={e =>
-                                                    ctx.navigation.goto(
-                                                        `/applications/${app.metadata.namespace}/${app.metadata.name}`,
-                                                        {view: pref.appDetails.view},
-                                                        {event: e}
-                                                    )
+                                                    ctx.navigation.goto(`/applications/${app.metadata.namespace}/${app.metadata.name}`, {view: pref.appDetails.view}, {event: e})
                                                 }>
-                                                <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(app)} applications-tiles__item`}>
+                                                <div
+                                                    className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(
+                                                        app
+                                                    )} applications-tiles__item`}>
                                                     <div className='row '>
                                                         <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11'}>
                                                             <i className={'icon argo-icon-' + (source.chart != null ? 'helm' : 'git')} />
