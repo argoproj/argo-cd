@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/jwt"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 const (
@@ -176,6 +177,11 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	var command = &cobra.Command{
 		Use:   "delete PROJECT ROLE-NAME",
 		Short: "Delete a project role",
+		Example: templates.Examples(`  
+  # Delete a project role from the "my-project" project with the name "my-role".
+  argocd proj role delete my-project my-role
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -389,6 +395,15 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var command = &cobra.Command{
 		Use:   "list PROJECT",
 		Short: "List all the roles in a project",
+		Example: templates.Examples(`  
+  # This command will list all the roles in argocd-project in a default table format.
+  argocd proj role list PROJECT
+
+  # List the roles in the project in formats like json, yaml, wide, or name.
+  argocd proj role list PROJECT --output json
+
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
