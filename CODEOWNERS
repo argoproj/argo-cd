@@ -2,10 +2,10 @@
 ** @argoproj/argocd-approvers
 
 # Docs
-/docs/**    @argoproj/argocd-approvers @argoproj/argocd-approvers-docs
-/USERS.md   @argoproj/argocd-approvers @argoproj/argocd-approvers-docs
-/mkdocs.yml @argoproj/argocd-approvers @argoproj/argocd-approvers-docs
+/docs/**    @argoproj/argocd-approvers @argoproj/argocd-approvers-docs @argoproj/argocd-approvers-ci
+/USERS.md   @argoproj/argocd-approvers @argoproj/argocd-approvers-docs @argoproj/argocd-approvers-ci
+/mkdocs.yml @argoproj/argocd-approvers @argoproj/argocd-approvers-docs @argoproj/argocd-approvers-ci
 
-# CI
+# CI - @argoproj/argocd-approvers-ci is a superset of @argoproj/argocd-approvers-docs
 /.github/**       @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
 /.goreleaser.yaml @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
