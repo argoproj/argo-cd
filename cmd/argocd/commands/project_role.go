@@ -189,6 +189,11 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	var command = &cobra.Command{
 		Use:   "create PROJECT ROLE-NAME",
 		Short: "Create a project role",
+		Example: templates.Examples(`  
+  # Create a project role in the "my-project" project with the name "my-role".
+  argocd proj role create my-project my-role --description "My project role description"
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
