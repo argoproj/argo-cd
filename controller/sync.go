@@ -139,6 +139,12 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 		return
+	} else if syncWindowPreventsSync(app, proj) {
+		// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
+		if state.Phase == common.OperationRunning {
+			state.Message = "Sync operation blocked by sync window"
+		}
+		return
 	}
 
 	if app.Spec.HasMultipleSources() {
@@ -543,4 +549,13 @@ func delayBetweenSyncWaves(phase common.SyncPhase, wave int, finalWave bool) err
 		time.Sleep(duration)
 	}
 	return nil
+}
+
+func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject) bool {
+	window := proj.Spec.SyncWindows.Matches(app)
+	isManual := false
+	if app.Status.OperationState != nil {
+		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
+	}
+	return !window.CanSync(isManual)
 }

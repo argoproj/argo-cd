@@ -1197,17 +1197,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	if isOperationInProgress(app) {
 		state = app.Status.OperationState.DeepCopy()
 		terminating = state.Phase == synccommon.OperationTerminating
-		proj, err := ctrl.getAppProj(app)
-		// Cannot use project
-		if err != nil {
-			state.Phase = synccommon.OperationError
-			state.Message = err.Error()
-			// Keeping operation in progress if the sync is denied by an active sync window
-		} else if !proj.Spec.SyncWindows.Matches(app).CanSync(!state.Operation.InitiatedBy.Automated) && !terminating { // Skip sync during sync window deny
-			logCtx.Infof("Sync window prevented sync for application %s", app.Name)
-			return
-			// Failed  operation with retry strategy might have be in-progress and has completion time
-		} else if state.FinishedAt != nil && !terminating {
+		if state.FinishedAt != nil && !terminating {
 			retryAt, err := app.Status.OperationState.Operation.Retry.NextRetryAt(state.FinishedAt.Time, state.RetryCount)
 			if err != nil {
 				state.Phase = synccommon.OperationFailed
@@ -1244,9 +1234,8 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		ctrl.appStateManager.SyncAppState(app, state)
 	}
 
-	// Check whether application is allowed to use project
-	_, err := ctrl.getAppProj(app)
-	if err != nil {
+	// Check whether application is allowed to use project and if a sync window is currently denying sync
+	if _, err := ctrl.getAppProj(app); err != nil {
 		state.Phase = synccommon.OperationError
 		state.Message = err.Error()
 	}
