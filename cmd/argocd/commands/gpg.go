@@ -43,6 +43,10 @@ func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List configured GPG public keys",
+		Example: templates.Examples(`
+		# List all configured GPG public keys
+		argocd gpg list
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -73,6 +77,10 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "get KEYID",
 		Short: "Get the GPG public key with ID <KEYID> from the server",
+		Example: templates.Examples(`
+		# Get the GPG public key with a specific ID 
+		argocd gpg get <KEYID>
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -146,6 +154,10 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	var command = &cobra.Command{
 		Use:   "rm KEYID",
 		Short: "Removes a GPG public key from the server's keyring",
+		Example: templates.Examples(`
+# Remove a GPG public key from the server's key using its key ID 
+argocd gpg rm <KEYID>
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
