@@ -217,7 +217,9 @@ export class App extends React.Component<
                 </Helmet>
                 <PageContext.Provider value={{title: 'Argo CD'}}>
                     <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
-                        {this.state.popupProps && <Popup {...this.state.popupProps} />}
+                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                            {pref => <div className={pref.theme ? 'theme-' + pref.theme : 'theme-light'}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</div>}
+                        </DataLoader>
                         <AuthSettingsCtx.Provider value={this.state.authSettings}>
                             <Router history={history}>
                                 <Switch>
