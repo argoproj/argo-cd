@@ -101,7 +101,9 @@
         }
 
         &:not(:first-child) {
-            border-left: 1px solid $argo-color-gray-3;
+            @include themify($themes) {
+                border-left: 1px solid themed('border');
+            }
         }
 
         & {
