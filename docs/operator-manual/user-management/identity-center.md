@@ -16,11 +16,8 @@ A working Single Sign-On configuration using Identity Center (AWS SSO) has been 
     * ![Identity Center SAML App 3](../../assets/identity-center-3.png)
 3. Copy the Argo CD URL into the `data.url` field in the `argocd-cm` ConfigMap.
 
-<!-- markdownlint-disable MD046 -->
-```yaml
-data:
-  url: https://argocd.example.com
-```
+        data:
+          url: https://argocd.example.com
 
 4. Configure Attribute mappings.
 
