@@ -8,6 +8,8 @@ metadata:
  name: guestbook
  namespace: argocd
 spec:
+ goTemplate: true
+ goTemplateOptions: ["missingkey=error"]
  generators:
  - clusterDecisionResource:
     # ConfigMap with GVK information for the duck type resource
@@ -26,7 +28,7 @@ spec:
     requeueAfterSeconds: 60
  template:
    metadata:
-     name: '{{name}}-guestbook'
+     name: '{{.name}}-guestbook'
    spec:
       project: "default"
       source:
@@ -34,7 +36,7 @@ spec:
         targetRevision: HEAD
         path: guestbook
       destination:
-        server: '{{clusterName}}' # 'server' field of the secret
+        server: '{{.clusterName}}' # 'server' field of the secret
         namespace: guestbook
 ```
 The `quak` resource, referenced by the ApplicationSet `clusterDecisionResource` generator:
