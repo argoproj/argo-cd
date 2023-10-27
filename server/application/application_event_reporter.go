@@ -167,6 +167,9 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		}
 	} else {
 		// will get here only for root applications (not managed as a resource by another application)
+		log.Infof("getApplicationEventPayload 1 appVersions = %v", desiredManifests.ApplicationVersions)
+		log.Infof("getApplicationEventPayload 2 desiredManifests = %v", desiredManifests)
+		log.Infof("getApplicationEventPayload 3 application = %v", a)
 		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
 			return fmt.Errorf("failed to get application event: %w", err)
@@ -297,6 +300,13 @@ func (s *applicationEventReporter) processResource(
 		originalAppRevisionMetadata, _ = s.getApplicationRevisionDetails(ctx, originalApplication, getOperationRevision(originalApplication))
 	}
 
+	log.Infof("getResourceEventPayload app = %s, appVersions = %v", parentApplicationToReport.Name, desiredManifests.ApplicationVersions)
+	log.Infof("getResourceEventPayload 1, parentApplicationToReport = %v", parentApplicationToReport)
+	log.Infof("getResourceEventPayload 2, actualState = %v", actualState)
+	log.Infof("getResourceEventPayload 3, desiredState = %v", desiredState)
+	log.Infof("getResourceEventPayload 4, originalApplication = %v", originalApplication)
+	log.Infof("getResourceEventPayload 5, revisionMetadataToReport = %v", revisionMetadataToReport)
+	log.Infof("getResourceEventPayload 6, originalAppRevisionMetadata = %v", originalAppRevisionMetadata)
 	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 	if err != nil {
 		logCtx.WithError(err).Warn("failed to get event payload, resuming")
@@ -613,7 +623,7 @@ func getResourceEventPayload(
 		AppVersions: applicationVersionsEvents,
 	}
 
-	logCtx.Infof("AppVersion before encoding: %v", safeString(payload.AppVersions.AppVersion))
+	logCtx.Infof("AppVersion before encoding 1: %v", safeString(payload.AppVersions.AppVersion))
 	if payload.AppVersions.Dependencies == nil {
 		logCtx.Infof("AppVersion deps before encoding. Dependencies == nil")
 	} else {
@@ -732,7 +742,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		AppVersions: applicationVersionsEvents,
 	}
 
-	logCtx.Infof("AppVersion before encoding: %v", safeString(payload.AppVersions.AppVersion))
+	logCtx.Infof("AppVersion before encoding 2: %v", safeString(payload.AppVersions.AppVersion))
 	if payload.AppVersions.Dependencies == nil {
 		logCtx.Infof("AppVersion deps before encoding. Dependencies == nil")
 	} else {
