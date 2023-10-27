@@ -589,6 +589,9 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	var err error
 	cacheFn := func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error) {
 		ok, resp, err := s.getManifestCacheEntry(cacheKey, q, refSourceCommitSHAs, firstInvocation)
+		if resp != nil {
+			log.Infof("appVersion from cache. App = %s, Version = %v", q.AppName, resp.ApplicationVersions)
+		}
 		res = resp
 		return ok, err
 	}
@@ -835,6 +838,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
+			log.Infof("Save App %s to cache 1. Versions: %v", q.AppName, innerRes.ManifestResponse.ApplicationVersions)
 			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs)
 			if cacheErr != nil {
 				log.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
@@ -859,6 +863,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	}
 	manifestGenResult.Revision = commitSHA
 	manifestGenResult.VerifyResult = opContext.verificationResult
+	log.Infof("Save App %s to cache 2. Versions: %v", q.AppName, manifestGenCacheEntry.ManifestResponse.ApplicationVersions)
 	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)

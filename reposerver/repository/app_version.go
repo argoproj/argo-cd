@@ -50,6 +50,8 @@ func getVersionFromYaml(appPath, jsonPathExpression string) (*string, error) {
 		return nil, err
 	}
 
+	log.Infof("AppVersion source content: %s", string(content))
+
 	var obj interface{}
 	if err := yaml.Unmarshal(content, &obj); err != nil {
 		return nil, err
@@ -74,6 +76,7 @@ func getVersionFromYaml(appPath, jsonPathExpression string) (*string, error) {
 	}
 
 	appVersion := buf.String()
+	log.Infof("AppVersion source content appVersion: %s", appVersion)
 	return &appVersion, nil
 }
 
@@ -103,7 +106,7 @@ func getAppVersions(appPath string, resourceName string, jsonPathExpression stri
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("appVersion value: %v\n", *appVersion)
+	log.Printf("appVersion value: %v (appPath=%s)", *appVersion, appPath)
 
 	result := &Result{
 		AppVersion:   *appVersion,
