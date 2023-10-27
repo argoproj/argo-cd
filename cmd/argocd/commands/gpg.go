@@ -84,6 +84,17 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "get KEYID",
 		Short: "Get the GPG public key with ID <KEYID> from the server",
+		Example: templates.Examples(`  
+  # Get a GPG public key with the specified KEYID in wide format (default).
+  argocd gpg get KEYID
+		
+  # Get a GPG public key with the specified KEYID in JSON format.
+  argocd gpg get KEYID -o json
+		
+  # Get a GPG public key with the specified KEYID in YAML format.
+  argocd gpg get KEYID -o yaml
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
