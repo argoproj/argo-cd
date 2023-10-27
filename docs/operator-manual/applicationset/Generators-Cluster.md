@@ -39,11 +39,13 @@ metadata:
   name: guestbook
   namespace: argocd
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - clusters: {} # Automatically use all clusters defined within Argo CD
   template:
     metadata:
-      name: '{{name}}-guestbook' # 'name' field of the Secret
+      name: '{{.name}}-guestbook' # 'name' field of the Secret
     spec:
       project: "my-project"
       source:
@@ -51,7 +53,7 @@ spec:
         targetRevision: HEAD
         path: guestbook
       destination:
-        server: '{{server}}' # 'server' field of the secret
+        server: '{{.server}}' # 'server' field of the secret
         namespace: guestbook
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/cluster).*)
@@ -67,6 +69,8 @@ metadata:
   name: guestbook
   namespace: argocd
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - clusters:
       selector:
@@ -105,6 +109,8 @@ The cluster generator will automatically target both local and non-local cluster
 If you wish to target only remote clusters with your Applications (e.g. you want to exclude the local cluster), then use a cluster selector with labels, for example:
 ```yaml
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - clusters:
       selector:
@@ -137,6 +143,8 @@ You may pass additional, arbitrary string key-value pairs via the `values` field
 In this example, a `revision` parameter value is passed, based on matching labels on the cluster secret:
 ```yaml
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - clusters:
       selector:
@@ -154,16 +162,16 @@ spec:
         revision: stable
   template:
     metadata:
-      name: '{{name}}-guestbook'
+      name: '{{.name}}-guestbook'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argocd-example-apps/
         # The cluster values field for each generator will be substituted here:
-        targetRevision: '{{values.revision}}'
+        targetRevision: '{{.values.revision}}'
         path: guestbook
       destination:
-        server: '{{server}}'
+        server: '{{.server}}'
         namespace: guestbook
 ```
 
@@ -184,6 +192,8 @@ Extending the example above, we could do something like this:
 
 ```yaml
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - clusters:
       selector:
@@ -192,8 +202,8 @@ spec:
       # A key-value map for arbitrary parameters
       values:
         # If `my-custom-annotation` is in your cluster secret, `revision` will be substituted with it.
-        revision: '{{metadata.annotations.my-custom-annotation}}' 
-        clusterName: '{{name}}'
+        revision: '{{index .metadata.annotations "my-custom-annotation"}}' 
+        clusterName: '{{.name}}'
   - clusters:
       selector:
         matchLabels:
@@ -201,19 +211,19 @@ spec:
       values:
         # production uses a different revision value, for 'stable' branch
         revision: stable
-        clusterName: '{{name}}'
+        clusterName: '{{.name}}'
   template:
     metadata:
-      name: '{{name}}-guestbook'
+      name: '{{.name}}-guestbook'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argocd-example-apps/
         # The cluster values field for each generator will be substituted here:
-        targetRevision: '{{values.revision}}'
+        targetRevision: '{{.values.revision}}'
         path: guestbook
       destination:
         # In this case this is equivalent to just using {{name}}
-        server: '{{values.clusterName}}'
+        server: '{{.values.clusterName}}'
         namespace: guestbook
 ```

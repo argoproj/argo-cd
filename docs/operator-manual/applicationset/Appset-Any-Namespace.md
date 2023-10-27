@@ -35,6 +35,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
       gitea:
@@ -137,17 +139,19 @@ metadata:
   name: team-one-product-one
   namespace: team-one-cd
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     list:
-    - id: infra
+    - name: infra
       project: infra-project
-    - id: team-two
+    - name: team-two
       project: team-two-project
-    template:
-      metadata:
-        name: '{{name}}-escalation'
-      spec:
-        project: "{{project}}"
+  template:
+    metadata:
+      name: '{{.name}}-escalation'
+    spec:
+      project: "{{.project}}"
 ```
   
 ### ApplicationSet names

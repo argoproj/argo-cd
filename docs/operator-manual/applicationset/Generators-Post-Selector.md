@@ -9,6 +9,8 @@ kind: ApplicationSet
 metadata:
   name: guestbook
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - list:
       elements:
@@ -23,15 +25,15 @@ spec:
         env: staging
   template:
     metadata:
-      name: '{{cluster}}-guestbook'
+      name: '{{.cluster}}-guestbook'
     spec:
       project: default
       source:
         repoURL: https://github.com/argoproj-labs/applicationset.git
         targetRevision: HEAD
-        path: examples/list-generator/guestbook/{{cluster}}
+        path: examples/list-generator/guestbook/{{.cluster}}
       destination:
-        server: '{{url}}'
+        server: '{{.url}}'
         namespace: guestbook
 ```
 

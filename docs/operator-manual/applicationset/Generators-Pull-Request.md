@@ -8,6 +8,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
@@ -33,6 +35,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       github:
@@ -75,6 +79,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       gitlab:
@@ -117,6 +123,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       gitea:
@@ -153,6 +161,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       bitbucketServer:
@@ -195,6 +205,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     - pullRequest:
         bitbucket:
@@ -251,6 +263,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       azuredevops:
@@ -292,6 +306,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       # ...
@@ -319,21 +335,23 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
     # ...
   template:
     metadata:
-      name: 'myapp-{{branch}}-{{number}}'
+      name: 'myapp-{{.branch}}-{{.number}}'
     spec:
       source:
         repoURL: 'https://github.com/myorg/myrepo.git'
-        targetRevision: '{{head_sha}}'
+        targetRevision: '{{.head_sha}}'
         path: kubernetes/
         helm:
           parameters:
           - name: "image.tag"
-            value: "pull-{{head_sha}}"
+            value: "pull-{{.head_sha}}"
       project: "my-project"
       destination:
         server: https://kubernetes.default.svc
@@ -348,23 +366,25 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
     # ...
   template:
     metadata:
-      name: 'myapp-{{branch}}-{{number}}'
+      name: 'myapp-{{.branch}}-{{.number}}'
     spec:
       source:
         repoURL: 'https://github.com/myorg/myrepo.git'
-        targetRevision: '{{head_sha}}'
+        targetRevision: '{{.head_sha}}'
         path: kubernetes/
         kustomize:
-          nameSuffix: {{branch}}
+          nameSuffix: '{{.branch}}'
           commonLabels:
-            app.kubernetes.io/instance: {{branch}}-{{number}}
+            app.kubernetes.io/instance: '{{.branch}}-{{.number}}'
           images:
-          - ghcr.io/myorg/myrepo:{{head_sha}}
+          - 'ghcr.io/myorg/myrepo:{{.head_sha}}'
       project: "my-project"
       destination:
         server: https://kubernetes.default.svc
