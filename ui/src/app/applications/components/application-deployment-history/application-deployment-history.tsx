@@ -1,5 +1,5 @@
 import {DataLoader, DropDownMenu, Duration} from 'argo-ui';
-import * as moment from 'moment';
+import moment from 'moment';
 import * as React from 'react';
 import {Revision, Timestamp} from '../../../shared/components';
 import * as models from '../../../shared/models';

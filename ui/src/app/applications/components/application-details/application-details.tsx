@@ -1,5 +1,5 @@
 import {DropDownMenu, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';

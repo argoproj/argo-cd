@@ -1,5 +1,5 @@
 import {Checkbox, DropDown, Duration, NotificationType, Ticker} from 'argo-ui';
-import * as moment from 'moment';
+import moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 

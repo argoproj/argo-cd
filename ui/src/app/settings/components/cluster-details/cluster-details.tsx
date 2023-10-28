@@ -1,5 +1,5 @@
-import * as classNames from 'classnames';
-import * as moment from 'moment';
+import classNames from 'classnames';
+import moment from 'moment';
 import * as React from 'react';
 import {FieldApi, FormField as ReactFormField, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router-dom';

@@ -1,6 +1,6 @@
 import {Checkbox, DataLoader, Tab, Tabs} from 'argo-ui';
 import classNames from 'classnames';
-import * as deepMerge from 'deepmerge';
+import deepMerge from 'deepmerge';
 import * as React from 'react';
 
 import {YamlEditor, ClipboardText} from '../../../shared/components';

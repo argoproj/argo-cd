@@ -1,5 +1,5 @@
 import {ErrorNotification, NotificationType} from 'argo-ui';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as React from 'react';
 import {Form, FormApi} from 'react-form';
 import {helpTip} from '../../../applications/components/utils';

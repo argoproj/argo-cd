@@ -1,6 +1,6 @@
 import {DropDown} from 'argo-ui';
 import * as React from 'react';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';

@@ -1,9 +1,9 @@
 import {DropDown, DropDownMenu, Tooltip} from 'argo-ui';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
 import Moment from 'react-moment';
-import * as moment from 'moment';
+import moment from 'moment';
 
 import * as models from '../../../shared/models';
 
