@@ -161,7 +161,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			logCtx.WithError(err).Warn("failed to get parent application's revision metadata, resuming")
 		}
 
-		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, stream, appTree, es, manifestGenErr, a, parentRevisionMetadata, true, appInstanceLabelKey, trackingMethod)
+		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, stream, appTree, es, manifestGenErr, a, parentRevisionMetadata, true, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
 			return err
 		}
@@ -194,7 +194,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			continue
 		}
 
-		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata, ignoreResourceCache, appInstanceLabelKey, trackingMethod)
+		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata, ignoreResourceCache, appInstanceLabelKey, trackingMethod, nil)
 		if err != nil {
 			return err
 		}
@@ -243,6 +243,7 @@ func (s *applicationEventReporter) processResource(
 	ignoreResourceCache bool,
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
+	applicationVersions *apiclient.ApplicationVersions,
 ) error {
 	logCtx = logCtx.WithFields(log.Fields{
 		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
@@ -307,7 +308,7 @@ func (s *applicationEventReporter) processResource(
 	log.Infof("getResourceEventPayload 4, originalApplication = %v", originalApplication)
 	log.Infof("getResourceEventPayload 5, revisionMetadataToReport = %v", revisionMetadataToReport)
 	log.Infof("getResourceEventPayload 6, originalAppRevisionMetadata = %v", originalAppRevisionMetadata)
-	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
+	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod, applicationVersions)
 	if err != nil {
 		logCtx.WithError(err).Warn("failed to get event payload, resuming")
 		return nil
