@@ -12,20 +12,14 @@ argocd admin cluster stats [flags]
 
 ```
 
-#Display Cluster Statistics for the Default Cluster
+#Display stats and shards for clusters 
 argocd admin cluster stats
-
-#Display Cluster Statistics for a Specific Cluster Context
-argocd admin cluster stats --context=my-cluster-context
-
-#Display Cluster Statistics for a Cluster with Custom Configuration (Kubeconfig Path)
-argocd admin cluster stats --kubeconfig=/path/to/custom/kubeconfig.yaml
-
-#Display Cluster Statistics with a Custom Request Timeout
-argocd admin cluster stats --request-timeout=5s
 
 #Display Cluster Statistics for a Specific Shard
 argocd admin cluster stats --shard=1
+
+#in a multi-cluster environment to print stats for a specific say(target-cluster)
+argocd admin cluster stats target-cluster
 ```
 
 ### Options

@@ -12,14 +12,14 @@ argocd admin cluster [flags]
 
 ```
 
-# Authenticate with a Token
-argocd admin cluster --auth-token YOUR_AUTH_TOKEN
+#Generate declarative config for a cluster
+argocd admin cluster generate-spec my-cluster -o yaml
 
-# Use a Custom Client Certificate and Key
-argocd admin cluster --client-crt /path/to/client.crt --client-crt-key /path/to/client.key
+#Generate a kubeconfig for a cluster named "my-cluster" and display it in the console
+argocd admin cluster kubeconfig my-cluster
 
-# Set Logging Format and Level
-argocd admin cluster --logformat json --loglevel debug
+#Print information namespaces which Argo CD manages in each cluster.
+argocd admin cluster namespaces my-cluster 
 ```
 
 ### Options

@@ -16,20 +16,14 @@ argocd proj windows enable-manual-sync PROJECT ID [flags]
 
 ```
 
-#Enabling Manual Synchronization for Project 'my-project-id' in Argo CD with Custom Configuration:
-argocd proj windows enable-manual-sync my-project-id \
-    --auth-token "your-auth-token" \
-    --kube-context "my-kube-context" \
-    --grpc-web \
-    --loglevel "debug"
+#enabling manual sync for a general case
+argocd proj windows enable-manual-sync PROJECT ID 
 
+#enabling manual sync for a windows set on the default project with Id 2
+agrocd proj windows enable-manual-sync default 2
 
-#Enabling Manual Synchronization for Project 'another-project-id' in Argo CD with Client Certificates and Port Forwarding
-argocd proj windows enable-manual-sync another-project-id \
-    --client-crt "/path/to/client.crt" \
-    --client-crt-key "/path/to/client.key" \
-    --port-forward \
-    --port-forward-namespace "my-namespace"
+# Enabling manual synchronization with a custom message
+argocd proj windows enable-manual-sync my-app-project --message "Manual sync initiated by admin."
 ```
 
 ### Options

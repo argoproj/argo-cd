@@ -13,22 +13,12 @@ argocd proj windows list PROJECT [flags]
 ```
 # List project windows
 argocd proj windows list PROJECT
-		
+
 # List project windows in yaml format
 argocd proj windows list PROJECT -o yaml
 
-#Listing Windows for Project 'my-project-id' in Argo CD with Custom Configuration
-argocd proj windows list my-project-id \
-    --auth-token "your-auth-token" \
-    --kube-context "my-kube-context" \
-    --loglevel "debug"
-
-#Listing Windows for Project 'another-project-id' in Argo CD with Client Certificates and TLS Verification Skip
-argocd proj windows list another-project-id \
-    --client-crt "/path/to/client.crt" \
-    --client-crt-key "/path/to/client.key" \
-    --insecure \
-    --server-crt "/path/to/server.crt"
+#List project windows info for a project name test-project
+argocd proj windows list test-project
 ```
 
 ### Options

@@ -45,14 +45,14 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 		Use:   "cluster",
 		Short: "Manage clusters configuration",
 		Example: `
-# Authenticate with a Token
-argocd admin cluster --auth-token YOUR_AUTH_TOKEN
+#Generate declarative config for a cluster
+argocd admin cluster generate-spec my-cluster -o yaml
 
-# Use a Custom Client Certificate and Key
-argocd admin cluster --client-crt /path/to/client.crt --client-crt-key /path/to/client.key
+#Generate a kubeconfig for a cluster named "my-cluster" and display it in the console
+argocd admin cluster kubeconfig my-cluster
 
-# Set Logging Format and Level
-argocd admin cluster --logformat json --loglevel debug`,
+#Print information namespaces which Argo CD manages in each cluster.
+argocd admin cluster namespaces my-cluster `,
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
@@ -458,20 +458,14 @@ func NewClusterStatsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 		Use:   "stats",
 		Short: "Prints information cluster statistics and inferred shard number",
 		Example: `
-#Display Cluster Statistics for the Default Cluster
+#Display stats and shards for clusters 
 argocd admin cluster stats
 
-#Display Cluster Statistics for a Specific Cluster Context
-argocd admin cluster stats --context=my-cluster-context
-
-#Display Cluster Statistics for a Cluster with Custom Configuration (Kubeconfig Path)
-argocd admin cluster stats --kubeconfig=/path/to/custom/kubeconfig.yaml
-
-#Display Cluster Statistics with a Custom Request Timeout
-argocd admin cluster stats --request-timeout=5s
-
 #Display Cluster Statistics for a Specific Shard
-argocd admin cluster stats --shard=1`,
+argocd admin cluster stats --shard=1
+
+#in a multi-cluster environment to print stats for a specific say(target-cluster)
+argocd admin cluster stats target-cluster`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
 
@@ -517,17 +511,18 @@ func NewClusterConfig() *cobra.Command {
 		Short:             "Generates kubeconfig for the specified cluster",
 		DisableAutoGenTag: true,
 		Example: `
-#Generate a Kubeconfig for a Cluster and Save it to a File
-argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml
 
-#Generate a Kubeconfig with a Custom Cluster Name:
-argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml --cluster=my-cluster
+#Generate a kubeconfig for a cluster named "my-cluster" on console
+argocd admin cluster kubeconfig my-cluster
+
+#listing available kubeconfigs for clusters managed by argocd
+argocd admin cluster kubeconfig
+
+#removing a specific kubeconfig file 
+argocd admin cluster kubeconfig my-cluster --delete
 
 #Generate a Kubeconfig for a Cluster with TLS Verification Disabled
-argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml --insecure-skip-tls-verify
-
-#Generate a Kubeconfig with a Custom Namespace Scope
-argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml -n my-namespace`,
+argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml --insecure-skip-tls-verify`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

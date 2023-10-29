@@ -12,18 +12,11 @@ argocd proj windows delete PROJECT ID [flags]
 
 ```
 
-#Deleting Project 'my-project-id' in Argo CD with Custom Configuration
-argocd proj windows delete my-project-id \
-    --auth-token "your-auth-token" \
-    --kube-context "my-kube-context" \
-    --loglevel "debug"
+#Delete a sync window from a project (default) with ID 0 
+argocd proj windows delete default 0
 
-#Deleting Project 'another-project-id' in Argo CD with Client Certificates and TLS Verification Skip
-argocd proj windows delete another-project-id \
-    --client-crt "/path/to/client.crt" \
-    --client-crt-key "/path/to/client.key" \
-    --insecure \
-    --server-crt "/path/to/server.crt"
+#Delete a sync window from a project (new-project) with ID 1
+argocd proj windows delete new-project 1
 ```
 
 ### Options

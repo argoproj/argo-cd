@@ -23,22 +23,17 @@ func NewProjectWindowsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		Use:   "windows",
 		Short: "Manage a project's sync windows",
 		Example: `
-#Creating "MyApp" Project in Argo CD with Custom Configuration and gRPC-Web Authentication
-argocd proj windows --auth-token "your-auth-token" \
-    --client-crt "/path/to/client.crt" \
-    --client-crt-key "/path/to/client.key" \
-    --config "/path/to/custom/config.yaml" \
-    --grpc-web \
-    --grpc-web-root-path "/custom/root/path" \
-    --server "argocd-server.example.com" \
-    "MyApp"
+#Add a sync window to a project
+argocd proj windows add my-project \
+--schedule "0 0 * * 1-5" \
+--duration 3600 \
+--prune
 
-#Configuring "Development" Project in Argo CD with HTTP, Custom kube-context, and Debug Logging.
-argocd proj windows --plaintext \
-    --kube-context "my-kube-context" \
-    --loglevel "debug" \
-    --server "argocd-server.internal.local" \
-    "Development"`,
+#- Delete a sync window from a project. 
+argocd proj windows delete <project-name> <window-id>
+
+#list project sync windows
+argocd proj windows list <project-name>`,
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -60,21 +55,11 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 		Short: "Disable manual sync for a sync window",
 		Long:  "Disable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Example: `
-#Disabling Manual Synchronization for Project "my-project-id" in Argo CD with Custom Configuration
-argocd proj windows disable-manual-sync my-project-id \
-    --auth-token "your-auth-token" \
-    --kube-context "my-kube-context" \
-    --loglevel "debug" \
-    --server "argocd-server.example.com"
+#Disable manual sync for a sync window for the Project 
+argocd proj windows disable-manual-sync PROJECT ID 
 
-
-#Disabling Manual Synchronization for Project "another-project-id" in Argo CD with Client Certificates and gRPC-Web Configuration
-aargocd proj windows disable-manual-sync another-project-id \
-	--client-crt "/path/to/client.crt" \
-	--client-crt-key "/path/to/client.key" \
-	--grpc-web \
-	--grpc-web-root-path "/custom/root/path" \
-	--server "argocd-server.internal.local"`,
+#Disbaling manual sync for a windows set on the default project with Id 0
+agrocd proj windows disable-manual-sync default 0`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -113,20 +98,14 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 		Short: "Enable manual sync for a sync window",
 		Long:  "Enable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Example: `
-#Enabling Manual Synchronization for Project 'my-project-id' in Argo CD with Custom Configuration:
-argocd proj windows enable-manual-sync my-project-id \
-    --auth-token "your-auth-token" \
-    --kube-context "my-kube-context" \
-    --grpc-web \
-    --loglevel "debug"
+#enabling manual sync for a general case
+argocd proj windows enable-manual-sync PROJECT ID 
 
+#enabling manual sync for a windows set on the default project with Id 2
+agrocd proj windows enable-manual-sync default 2
 
-#Enabling Manual Synchronization for Project 'another-project-id' in Argo CD with Client Certificates and Port Forwarding
-argocd proj windows enable-manual-sync another-project-id \
-    --client-crt "/path/to/client.crt" \
-    --client-crt-key "/path/to/client.key" \
-    --port-forward \
-    --port-forward-namespace "my-namespace"`,
+# Enabling manual synchronization with a custom message
+argocd proj windows enable-manual-sync my-app-project --message "Manual sync initiated by admin."`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -229,18 +208,11 @@ func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 		Use:   "delete PROJECT ID",
 		Short: "Delete a sync window from a project. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Example: `
-#Deleting Project 'my-project-id' in Argo CD with Custom Configuration
-argocd proj windows delete my-project-id \
-    --auth-token "your-auth-token" \
-    --kube-context "my-kube-context" \
-    --loglevel "debug"
+#Delete a sync window from a project (default) with ID 0 
+argocd proj windows delete default 0
 
-#Deleting Project 'another-project-id' in Argo CD with Client Certificates and TLS Verification Skip
-argocd proj windows delete another-project-id \
-    --client-crt "/path/to/client.crt" \
-    --client-crt-key "/path/to/client.key" \
-    --insecure \
-    --server-crt "/path/to/server.crt"`,
+#Delete a sync window from a project (new-project) with ID 1
+argocd proj windows delete new-project 1`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -337,22 +309,12 @@ func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 		Short: "List project sync windows",
 		Example: `# List project windows
 argocd proj windows list PROJECT
-		
+
 # List project windows in yaml format
 argocd proj windows list PROJECT -o yaml
 
-#Listing Windows for Project 'my-project-id' in Argo CD with Custom Configuration
-argocd proj windows list my-project-id \
-    --auth-token "your-auth-token" \
-    --kube-context "my-kube-context" \
-    --loglevel "debug"
-
-#Listing Windows for Project 'another-project-id' in Argo CD with Client Certificates and TLS Verification Skip
-argocd proj windows list another-project-id \
-    --client-crt "/path/to/client.crt" \
-    --client-crt-key "/path/to/client.key" \
-    --insecure \
-    --server-crt "/path/to/server.crt"`,
+#List project windows info for a project name test-project
+argocd proj windows list test-project`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

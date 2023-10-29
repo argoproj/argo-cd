@@ -16,21 +16,11 @@ argocd proj windows disable-manual-sync PROJECT ID [flags]
 
 ```
 
-#Disabling Manual Synchronization for Project "my-project-id" in Argo CD with Custom Configuration
-argocd proj windows disable-manual-sync my-project-id \
-    --auth-token "your-auth-token" \
-    --kube-context "my-kube-context" \
-    --loglevel "debug" \
-    --server "argocd-server.example.com"
+#Disable manual sync for a sync window for the Project 
+argocd proj windows disable-manual-sync PROJECT ID 
 
-
-#Disabling Manual Synchronization for Project "another-project-id" in Argo CD with Client Certificates and gRPC-Web Configuration
-aargocd proj windows disable-manual-sync another-project-id \
-	--client-crt "/path/to/client.crt" \
-	--client-crt-key "/path/to/client.key" \
-	--grpc-web \
-	--grpc-web-root-path "/custom/root/path" \
-	--server "argocd-server.internal.local"
+#Disbaling manual sync for a windows set on the default project with Id 0
+agrocd proj windows disable-manual-sync default 0
 ```
 
 ### Options
