@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="5 known vulnerabilities found in 18 vulnerable dependency paths.">
+  <meta name="description" content="8 known vulnerabilities found in 162 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 8th 2023, 12:21:43 am (UTC+00:00)</p>
+                <p class="timestamp">October 22nd 2023, 12:20:43 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>5</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>18 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>8</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>162 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>1851</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -476,6 +476,2718 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Denial of Service (DoS)</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            google.golang.org/grpc
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v2@0.0.0 and google.golang.org/grpc@1.56.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/health/grpc_health_v1@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/improbable-eng/grpc-web/go/grpcweb@0.15.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/health@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/reflection@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/auth@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/retry@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-prometheus@1.2.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@1.16.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc@0.42.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/auth@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@1.16.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/otlpconfig@1.16.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@1.16.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/proto/otlp/collector/trace/v1@0.19.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/improbable-eng/grpc-web/go/grpcweb@0.15.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/health/grpc_health_v1@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/reflection@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/reflection/grpc_reflection_v1alpha@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/health@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/health/grpc_health_v1@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/tags@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/tags@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/tags@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/tags@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/google.golang.org/grpc">google.golang.org/grpc</a> is a Go implementation of gRPC</p>
+        <p>Affected versions of this package are vulnerable to Denial of Service (DoS) in the implementation of the HTTP/2 protocol. An attacker can cause a denial of service (including via DDoS) by rapidly resetting many streams through request cancellation.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>google.golang.org/grpc</code> to version 1.56.3, 1.57.1, 1.58.3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/apache/tomcat/commit/76bb4bfbfeae827dce896f650655bbf6e251ed49">GitHub Commit</a></li>
+        <li><a href="https://github.com/apache/tomcat/commit/9cdfe25bad707f34b3e5da2994f3f1952a163c3e">GitHub Commit</a></li>
+        <li><a href="https://github.com/eclipse/jetty.project/commit/dbb94514dc9d3fb21fe92080f57c314e7e06a148">GitHub Commit</a></li>
+        <li><a href="https://github.com/kubernetes/apimachinery/commit/be9188050914374ee8128239e5a2e5998d7897f5">GitHub Commit</a></li>
+        <li><a href="https://github.com/netty/netty/commit/58f75f665aa81a8cbcf6ffa74820042a285c5e61">GitHub Commit</a></li>
+        <li><a href="https://github.com/nghttp2/nghttp2/commit/72b4af6143681f528f1d237b21a9a7aee1738832">GitHub Commit</a></li>
+        <li><a href="https://snyk.io/blog/find-fix-http-2-rapid-reset-zero-day-vulnerability-cve-2023-44487/">Snyk Blog</a></li>
+        <li><a href="https://blog.cloudflare.com/technical-breakdown-http2-rapid-reset-ddos-attack/">Vulnerability Discovery</a></li>
+        <li><a href="https://cloud.google.com/blog/products/identity-security/how-it-works-the-novel-http2-rapid-reset-ddos-attack">Vulnerability Explanation</a></li>
+        <li><a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog">CISA - Known Exploited Vulnerabilities</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGGRPC-5953328">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Denial of Service (DoS)</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/http2
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v2@0.0.0, k8s.io/apimachinery/pkg/util/net@0.24.2 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/soheilhy/cmux@0.1.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/improbable-eng/grpc-web/go/grpcweb@0.15.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/pkg/kubeclientmetrics@#d56162821bd1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/dynamic@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/plugin/pkg/client/auth/azure@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/plugin/pkg/client/auth/gcp@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/plugin/pkg/client/auth/oidc@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/record@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/health/grpc_health_v1@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/auth@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/retry@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-prometheus@1.2.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@1.16.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc@0.42.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/listers/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/informers@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/clientcmd@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/auth@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#3446d4ae8520
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery/fake@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/fake@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/dynamic@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/pkg/apis/clientauthentication/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/rbac/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/api/errors@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/api/equality@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/pkg/kubeclientmetrics@#d56162821bd1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/plugin/pkg/client/auth/azure@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/plugin/pkg/client/auth/gcp@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/plugin/pkg/client/auth/oidc@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/improbable-eng/grpc-web/go/grpcweb@0.15.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/health/grpc_health_v1@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/reflection@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/reflection/grpc_reflection_v1alpha@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/health@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/health/grpc_health_v1@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/cache@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#3446d4ae8520
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/listers/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/informers/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/listers/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#3446d4ae8520
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/clientcmd@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/auth@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/event@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/dynamic@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/Azure/kubelogin/pkg/token@0.0.20
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/pkg/apis/clientauthentication/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/resource@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/dynamic@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/ignore@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/syncwaves@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/testing@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/managedfields@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/pager@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/scheme@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/resource@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/health@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/util/retry@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/api/errors@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/portforward@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/api/equality@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/api/validation@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/validation@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery/fake@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/fake@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/health@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/controller/controllerutil@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client/apiutil@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/restmapper@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/predicate@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/event@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/dynamic@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/envtest@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/internal/testing/controlplane@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/clientcmd@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/auth@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/resource@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer/versioning@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/listers/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/pager@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/informers@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/pager@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#3446d4ae8520
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/pager@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/record@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/reference@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube/scheme@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/managedfields@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/dynamic@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware/tags@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/go-grpc-middleware@1.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@1.56.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/handler@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/runtime/inject@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/cache@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/cache/internal@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/typed/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/applyconfigurations/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/applyconfigurations/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/builder@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/webhook/admission@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/webhook/internal/metrics@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/metrics@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/clientcmd@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/clientcmd/api/latest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer/versioning@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#3446d4ae8520
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/listers/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/pager@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/informers/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/listers/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/pager@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/diff@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube/scheme@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/managedfields@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/event@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/dynamic@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/syncwaves@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/manager@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/webhook@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/webhook/internal/metrics@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/metrics@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/source@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/source/internal@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/predicate@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/event@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/dynamic@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/builder@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/webhook/conversion@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer/versioning@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/envtest@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/webhook/conversion@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer/versioning@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#3446d4ae8520
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/clientcmd@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/clientcmd/api/latest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/runtime/serializer/versioning@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/typed/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/predicate@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/event@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/dynamic@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/ignore@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/controller@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/source@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/source/internal@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/predicate@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/event@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/dynamic@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/rest@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/cache@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@#425d65e07695
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/handler@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/runtime/inject@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/cache@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/cache/internal@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/cache@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/pager@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/controller/controllerutil@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client/apiutil@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/restmapper@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/scheme@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/storage/v1beta1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/api/core/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/source@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/source/internal@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/predicate@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/event@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/dynamic@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/controller@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/source@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/source/internal@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/predicate@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/event@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/dynamic@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1/unstructured@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/apis/meta/v1@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/watch@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/net@0.24.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@0.11.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net@v0.0.0-20211209100829-84cba5454caf/http2#section-readme">golang.org/x/net/http2</a> is a work-in-progress HTTP/2 implementation for Go.</p>
+        <p>Affected versions of this package are vulnerable to Denial of Service (DoS) in the implementation of the HTTP/2 protocol. An attacker can cause a denial of service (including via DDoS) by rapidly resetting many streams through request cancellation.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/http2</code> to version 0.17.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/apache/tomcat/commit/76bb4bfbfeae827dce896f650655bbf6e251ed49">GitHub Commit</a></li>
+        <li><a href="https://github.com/apache/tomcat/commit/9cdfe25bad707f34b3e5da2994f3f1952a163c3e">GitHub Commit</a></li>
+        <li><a href="https://github.com/eclipse/jetty.project/commit/dbb94514dc9d3fb21fe92080f57c314e7e06a148">GitHub Commit</a></li>
+        <li><a href="https://github.com/kubernetes/apimachinery/commit/be9188050914374ee8128239e5a2e5998d7897f5">GitHub Commit</a></li>
+        <li><a href="https://github.com/netty/netty/commit/58f75f665aa81a8cbcf6ffa74820042a285c5e61">GitHub Commit</a></li>
+        <li><a href="https://github.com/nghttp2/nghttp2/commit/72b4af6143681f528f1d237b21a9a7aee1738832">GitHub Commit</a></li>
+        <li><a href="https://snyk.io/blog/find-fix-http-2-rapid-reset-zero-day-vulnerability-cve-2023-44487/">Snyk Blog</a></li>
+        <li><a href="https://blog.cloudflare.com/technical-breakdown-http2-rapid-reset-ddos-attack/">Vulnerability Discovery</a></li>
+        <li><a href="https://cloud.google.com/blog/products/identity-security/how-it-works-the-novel-http2-rapid-reset-ddos-attack">Vulnerability Explanation</a></li>
+        <li><a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog">CISA - Known Exploited Vulnerabilities</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTTP2-5953327">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">LGPL-3.0 license</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Module:
+        
+                            gopkg.in/retry.v1
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/Azure/kubelogin/pkg/token@0.0.20 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/Azure/kubelogin/pkg/token@0.0.20
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/retry.v1@1.0.3
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <p>LGPL-3.0 license</p>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/snyk:lic:golang:gopkg.in:retry.v1:LGPL-3.0">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
