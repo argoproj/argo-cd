@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -89,12 +88,6 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ign
 			return a.Namespace == b.Namespace && a.Name == b.Name && a.Server == b.Server
 		},
 	)
-	// make sure updated object has the same apiVersion & kind as original object
-	if objKind, ok := obj.(schema.ObjectKind); ok {
-		if existingKind, ok := existing.(schema.ObjectKind); ok {
-			existingKind.SetGroupVersionKind(objKind.GroupVersionKind())
-		}
-	}
 
 	if equality.DeepEqual(normalizedLive, obj) {
 		return controllerutil.OperationResultNone, nil

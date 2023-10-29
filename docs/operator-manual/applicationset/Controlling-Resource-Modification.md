@@ -116,7 +116,7 @@ spec:
   ignoreApplicationDifferences:
     - name: some-app
       jsonPointers:
-        - /spec/syncPolicy/automated
+        - /spec/syncPolicy
 ```
 
 ### Limitations of `ignoreApplicationDifferences`
