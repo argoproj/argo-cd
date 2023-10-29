@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 )
 
@@ -52,19 +53,21 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ign
 
 	normalizedLive := obj.DeepCopy()
 
-	utils.NormalizeApplicationSpec(normalizedLive)
-
 	// Mutate the live object to match the desired state.
 	if err := mutate(f, key, obj); err != nil {
 		return controllerutil.OperationResultNone, err
 	}
 
-	// Normalize both the live state and the desired state to account for ignored differences. Since they're both
-	// normalized, ignored differences will not appear in the patch.
+	// Apply ignoreApplicationDifferences rules to remove ignored fields from both the live and the desired state. This
+	// prevents those differences from appearing in the diff and therefore in the patch.
 	err := applyIgnoreDifferences(ignoreAppDifferences, normalizedLive, obj)
 	if err != nil {
 		return controllerutil.OperationResultNone, fmt.Errorf("failed to apply ignore differences: %w", err)
 	}
+
+	// Normalize to avoid diffing on unimportant differences.
+	normalizedLive.Spec = *argo.NormalizeApplicationSpec(&normalizedLive.Spec)
+	obj.Spec = *argo.NormalizeApplicationSpec(&obj.Spec)
 
 	equality := conversion.EqualitiesOrDie(
 		func(a, b resource.Quantity) bool {
