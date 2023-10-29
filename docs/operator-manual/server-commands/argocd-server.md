@@ -12,6 +12,16 @@ The API server is a gRPC/REST server which exposes the API consumed by the Web U
 argocd-server [flags]
 ```
 
+### Examples
+
+```
+# Start the Argo CD API server with default settings
+$ argocd-server
+# Start the Argo CD API server on a custom port and enable tracing
+$ argocd-server --port 8888 --otlp-address localhost:4317
+		
+```
+
 ### Options
 
 ```
