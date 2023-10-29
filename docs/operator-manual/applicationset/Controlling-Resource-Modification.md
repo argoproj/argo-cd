@@ -114,8 +114,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 spec:
   ignoreApplicationDifferences:
-    - name: some-app
-      jsonPointers:
+    - jsonPointers:
         - /spec/syncPolicy
 ```
 

@@ -52,6 +52,8 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ign
 
 	normalizedLive := obj.DeepCopy()
 
+	utils.NormalizeApplicationSpec(normalizedLive)
+
 	// Mutate the live object to match the desired state.
 	if err := mutate(f, key, obj); err != nil {
 		return controllerutil.OperationResultNone, err
