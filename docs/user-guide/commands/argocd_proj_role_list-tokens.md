@@ -8,6 +8,16 @@ List tokens for a given role.
 argocd proj role list-tokens PROJECT ROLE-NAME [flags]
 ```
 
+### Examples
+
+```
+$ argocd proj role list-tokens test-project test-role
+ID                                      ISSUED AT                    EXPIRES AT
+f316c466-40bd-4cfd-8a8c-1392e92255d4    2023-10-08T15:21:40+01:00    Never
+fa9d3517-c52d-434c-9bff-215b38508842    2023-10-08T11:08:18+01:00    Never
+
+```
+
 ### Options
 
 ```
