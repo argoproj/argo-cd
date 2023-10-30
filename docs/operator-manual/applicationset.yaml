@@ -265,7 +265,7 @@ spec:
               operator: In
               values:
                 - env-qa
-          maxUpdate: 0      # if 0, no matched applications will be updated
+          maxUpdate: 0      # if 0, no matched applications will be synced unless they're synced manually
         - matchExpressions:
             - key: envLabel
               operator: In
