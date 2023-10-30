@@ -221,14 +221,6 @@ spec:
         # Target namespace in which to deploy the manifests from source 
         namespace: dev-team-one # namespace is restricted
 
-      # To modify ApplicationSet container launch parameters
-      containers:
-      - command:
-        - entrypoint.sh
-        - argocd-applicationset-controller
-        # Insert new parameters here, for example:
-        # --policy create-only
-
   # This sync policy pertains to the ApplicationSet, not to the Applications it creates.
   syncPolicy:
     # Prevents ApplicationSet controller from modifying or deleting Applications
