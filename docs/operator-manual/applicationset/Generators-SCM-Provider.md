@@ -395,16 +395,18 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
     # ...
   template:
     metadata:
-      name: '{{ repository }}'
+      name: '{{ .repository }}'
     spec:
       source:
-        repoURL: '{{ url }}'
-        targetRevision: '{{ branch }}'
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
         path: kubernetes/
       project: default
       destination:
@@ -433,6 +435,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
       bitbucketServer:
@@ -445,15 +449,15 @@ spec:
             secretName: mypassword
             key: password
       values:
-        name: "{{organization}}-{{repository}}"
+        name: "{{.organization}}-{{.repository}}"
 
   template:
     metadata:
-      name: '{{ values.name }}'
+      name: '{{ .values.name }}'
     spec:
       source:
-        repoURL: '{{ url }}'
-        targetRevision: '{{ branch }}'
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
         path: kubernetes/
       project: default
       destination:
