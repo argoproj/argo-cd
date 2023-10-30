@@ -56,7 +56,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 // TestCompareAppStateRepoError tests the case when CompareAppState notices a repo error
 func TestCompareAppStateRepoError(t *testing.T) {
 	app := newFakeApp()
-	ctrl := newFakeController(&fakeData{}, fmt.Errorf("test repo error"))
+	ctrl := newFakeController(&fakeData{manifestResponses: make([]*apiclient.ManifestResponse, 3)}, fmt.Errorf("test repo error"))
 	sources := make([]argoappv1.ApplicationSource, 0)
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
@@ -64,6 +64,18 @@ func TestCompareAppStateRepoError(t *testing.T) {
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.Nil(t, compRes)
 	assert.EqualError(t, err, CompareStateRepoError.Error())
+
+	// expect to still get compare state error to as inside grace period
+	compRes, err = ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	assert.Nil(t, compRes)
+	assert.EqualError(t, err, CompareStateRepoError.Error())
+
+	time.Sleep(10 * time.Second)
+	// expect to not get error as outside of grace period, but status should be unknown
+	compRes, err = ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	assert.NotNil(t, compRes)
+	assert.Nil(t, err)
+	assert.Equal(t, compRes.syncStatus.Status, argoappv1.SyncStatusCodeUnknown)
 }
 
 // TestCompareAppStateNamespaceMetadataDiffers tests comparison when managed namespace metadata differs

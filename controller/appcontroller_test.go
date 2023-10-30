@@ -124,7 +124,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		time.Minute,
 		time.Hour,
 		time.Minute,
-		time.Second*30,
+		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
 		data.metricsCacheExpiration,
 		[]string{},
