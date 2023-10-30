@@ -210,7 +210,7 @@ spec:
         #  Name of the cluster (within Argo CD) to deploy to
         name: production-cluster # cluster is restricted
         #  API Server URL for the cluster
-        server: '{{url}}'
+        server: '{{.url}}'
         # Target namespace in which to deploy the manifests from source 
         namespace: dev-team-one # namespace is restricted
 
