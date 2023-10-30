@@ -16,9 +16,9 @@ argocd-server [flags]
 
 ```
 # Start the Argo CD API server with default settings
-$ argocd-server
-# Start the Argo CD API server on a custom port and enable tracing
-$ argocd-server --port 8888 --otlp-address localhost:4317
+		$ argocd-server
+		# Start the Argo CD API server on a custom port and enable tracing
+		$ argocd-server --port 8888 --otlp-address localhost:4317
 		
 ```
 
