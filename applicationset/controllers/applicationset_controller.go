@@ -16,7 +16,6 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -25,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -46,7 +44,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/argo-cd/v2/common"
-	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 
@@ -628,7 +625,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			},
 		}
 
-		action, err := utils.CreateOrUpdate(ctx, r.Client, found, func() error {
+		action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, applicationSet.Spec.IgnoreApplicationDifferences, found, func() error {
 			// Copy only the Application/ObjectMeta fields that are significant, from the generatedApp
 			found.Spec = generatedApp.Spec
 
@@ -681,13 +678,6 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			found.ObjectMeta.Finalizers = generatedApp.Finalizers
 			found.ObjectMeta.Labels = generatedApp.Labels
 
-			if found != nil && len(found.Spec.IgnoreDifferences) > 0 {
-				err := applyIgnoreDifferences(applicationSet.Spec.IgnoreApplicationDifferences, found, generatedApp)
-				if err != nil {
-					return fmt.Errorf("failed to apply ignore differences: %w", err)
-				}
-			}
-
 			return controllerutil.SetControllerReference(&applicationSet, found, r.Scheme)
 		})
 
@@ -711,54 +701,6 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 		}
 	}
 	return firstError
-}
-
-// applyIgnoreDifferences applies the ignore differences rules to the found application. It modifies the found application in place.
-func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.ApplicationSetIgnoreDifferences, found *argov1alpha1.Application, generatedApp argov1alpha1.Application) error {
-	diffConfig, err := argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(applicationSetIgnoreDifferences.ToApplicationIgnoreDifferences(), nil, false).
-		WithNoCache().
-		Build()
-	if err != nil {
-		return fmt.Errorf("failed to build diff config: %w", err)
-	}
-	unstructuredFound, err := appToUnstructured(found)
-	if err != nil {
-		return fmt.Errorf("failed to convert found application to unstructured: %w", err)
-	}
-	unstructuredGenerated, err := appToUnstructured(&generatedApp)
-	if err != nil {
-		return fmt.Errorf("failed to convert found application to unstructured: %w", err)
-	}
-	result, err := argodiff.Normalize([]*unstructured.Unstructured{unstructuredFound}, []*unstructured.Unstructured{unstructuredGenerated}, diffConfig)
-	if err != nil {
-		return fmt.Errorf("failed to normalize application spec: %w", err)
-	}
-	if len(result.Targets) != 1 {
-		return fmt.Errorf("expected 1 normalized application, got %d", len(result.Targets))
-	}
-	jsonNormalized, err := json.Marshal(result.Targets[0].Object)
-	if err != nil {
-		return fmt.Errorf("failed to marshal normalized app to json: %w", err)
-	}
-	err = json.Unmarshal(jsonNormalized, &found)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal normalized app json to structured app: %w", err)
-	}
-	// Prohibit jq queries from mutating silly things.
-	found.TypeMeta = generatedApp.TypeMeta
-	found.Name = generatedApp.Name
-	found.Namespace = generatedApp.Namespace
-	found.Operation = generatedApp.Operation
-	return nil
-}
-
-func appToUnstructured(app *argov1alpha1.Application) (*unstructured.Unstructured, error) {
-	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(app)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert app object to unstructured: %w", err)
-	}
-	return &unstructured.Unstructured{Object: u}, nil
 }
 
 // createInCluster will filter from the desiredApplications only the application that needs to be created
@@ -914,7 +856,11 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 		if len(newFinalizers) != len(app.Finalizers) {
 			updated := app.DeepCopy()
 			updated.Finalizers = newFinalizers
-			if err := r.Client.Patch(ctx, updated, client.MergeFrom(app)); err != nil {
+			patch := client.MergeFrom(app)
+			if log.IsLevelEnabled(log.DebugLevel) {
+				utils.LogPatch(appLog, patch, updated)
+			}
+			if err := r.Client.Patch(ctx, updated, patch); err != nil {
 				return fmt.Errorf("error updating finalizers: %w", err)
 			}
 			r.updateCache(ctx, updated, appLog)
