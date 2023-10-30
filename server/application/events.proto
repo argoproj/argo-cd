@@ -90,12 +90,12 @@ message ObjectError {
     optional string level = 2 [(gogoproto.nullable) = false];
     optional string message = 3 [(gogoproto.nullable) = false];
     optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastSeen = 4 [(gogoproto.nullable) = false];
-} 
+}
 
 message Dependencies {
     // Content of Chart.lock
 	optional string lock = 1;
-    // Content of Cart.yaml/dependencies
+    // Content of Chart.yaml
 	optional string deps = 2;
     // Content of requirements.yaml
 	optional string requirements = 3;

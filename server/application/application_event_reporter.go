@@ -167,9 +167,6 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		}
 	} else {
 		// will get here only for root applications (not managed as a resource by another application)
-		log.Infof("getApplicationEventPayload 1 appVersions = %v", desiredManifests.ApplicationVersions)
-		log.Infof("getApplicationEventPayload 2 desiredManifests = %v", desiredManifests)
-		log.Infof("getApplicationEventPayload 3 application = %v", a)
 		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
 			return fmt.Errorf("failed to get application event: %w", err)
@@ -180,7 +177,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			return nil
 		}
 
-		logWithAppStatus(a, logCtx, ts).Infof("sending root application event %v", appEvent)
+		logWithAppStatus(a, logCtx, ts).Info("sending root application event")
 		if err := stream.Send(appEvent); err != nil {
 			return fmt.Errorf("failed to send event for root application %s/%s: %w", a.Namespace, a.Name, err)
 		}
@@ -301,13 +298,6 @@ func (s *applicationEventReporter) processResource(
 		originalAppRevisionMetadata, _ = s.getApplicationRevisionDetails(ctx, originalApplication, getOperationRevision(originalApplication))
 	}
 
-	log.Infof("getResourceEventPayload app = %s, appVersions = %v", parentApplicationToReport.Name, desiredManifests.ApplicationVersions)
-	log.Infof("getResourceEventPayload 1, parentApplicationToReport = %v", parentApplicationToReport)
-	log.Infof("getResourceEventPayload 2, actualState = %v", actualState)
-	log.Infof("getResourceEventPayload 3, desiredState = %v", desiredState)
-	log.Infof("getResourceEventPayload 4, originalApplication = %v", originalApplication)
-	log.Infof("getResourceEventPayload 5, revisionMetadataToReport = %v", revisionMetadataToReport)
-	log.Infof("getResourceEventPayload 6, originalAppRevisionMetadata = %v", originalAppRevisionMetadata)
 	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod, applicationVersions)
 	if err != nil {
 		logCtx.WithError(err).Warn("failed to get event payload, resuming")
@@ -316,7 +306,7 @@ func (s *applicationEventReporter) processResource(
 
 	appRes := appv1.Application{}
 	if isApp(rs) && actualState.Manifest != nil && json.Unmarshal([]byte(*actualState.Manifest), &appRes) == nil {
-		logWithAppStatus(&appRes, logCtx, ts).Infof("streaming resource event %v", ev)
+		logWithAppStatus(&appRes, logCtx, ts).Info("streaming resource event")
 	} else {
 		logWithResourceStatus(logCtx, rs).Info("streaming resource event")
 	}
@@ -482,8 +472,6 @@ func getResourceEventPayload(
 
 	if originalApplication != nil {
 		logCtx = log.WithField("application", originalApplication.Name)
-	} else if parentApplication != nil {
-		logCtx = log.WithField("application", parentApplication.Name)
 	} else {
 		logCtx = log.NewEntry(log.StandardLogger())
 	}
@@ -624,17 +612,7 @@ func getResourceEventPayload(
 		AppVersions: applicationVersionsEvents,
 	}
 
-	logCtx.Infof("AppVersion before encoding 1: %v", safeString(payload.AppVersions.AppVersion))
-	if payload.AppVersions.Dependencies == nil {
-		logCtx.Infof("AppVersion deps before encoding. Dependencies == nil")
-	} else {
-		logCtx.Infof(
-			"AppVersion deps before encoding: %v ||| %v ||| %v",
-			safeString(payload.AppVersions.Dependencies.Lock),
-			safeString(payload.AppVersions.Dependencies.Deps),
-			safeString(payload.AppVersions.Dependencies.Requirements),
-		)
-	}
+	logCtx.Infof("AppVersion before encoding: %v", safeString(payload.AppVersions.AppVersion))
 
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {
@@ -743,17 +721,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		AppVersions: applicationVersionsEvents,
 	}
 
-	logCtx.Infof("AppVersion before encoding 2: %v", safeString(payload.AppVersions.AppVersion))
-	if payload.AppVersions.Dependencies == nil {
-		logCtx.Infof("AppVersion deps before encoding. Dependencies == nil")
-	} else {
-		logCtx.Infof(
-			"AppVersion deps before encoding: %v ||| %v ||| %v",
-			safeString(payload.AppVersions.Dependencies.Lock),
-			safeString(payload.AppVersions.Dependencies.Deps),
-			safeString(payload.AppVersions.Dependencies.Requirements),
-		)
-	}
+	logCtx.Infof("AppVersion before encoding: %v", safeString(payload.AppVersions.AppVersion))
 
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {

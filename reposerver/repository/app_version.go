@@ -3,6 +3,7 @@ package repository
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -19,29 +20,6 @@ type DependenciesMap struct {
 type Result struct {
 	AppVersion   string          `json:"appVersion"`
 	Dependencies DependenciesMap `json:"dependencies"`
-}
-
-func getDependenciesFromChart(appPath string) (*string, error) {
-	content, err := os.ReadFile(appPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var obj map[interface{}]interface{}
-	if err := yaml.Unmarshal(content, &obj); err != nil {
-		return nil, err
-	}
-
-	var dependenciesStr string
-	if obj["dependencies"] != nil {
-		dependencies, err := yaml.Marshal(&map[interface{}]interface{}{"dependencies": obj["dependencies"]})
-		if err != nil {
-			return nil, err
-		}
-		dependenciesStr = string(dependencies)
-	}
-
-	return &dependenciesStr, nil
 }
 
 func getVersionFromYaml(appPath, jsonPathExpression string) (*string, error) {
@@ -92,6 +70,17 @@ func convertToJSONCompatible(i interface{}) (interface{}, error) {
 	return obj, nil
 }
 
+func readFileContent(result *Result, appPath, fileName, fieldName string) {
+	content, err := os.ReadFile(filepath.Join(appPath, fileName))
+	if err == nil && content != nil {
+		v := reflect.ValueOf(result).Elem()
+		f := v.FieldByName("Dependencies").FieldByName(fieldName)
+		if f.IsValid() && f.CanSet() && f.Kind() == reflect.String {
+			f.SetString(string(content))
+		}
+	}
+}
+
 func getAppVersions(appPath string, resourceName string, jsonPathExpression string) (*Result, error) {
 	// Defaults
 	if resourceName == "" {
@@ -106,30 +95,16 @@ func getAppVersions(appPath string, resourceName string, jsonPathExpression stri
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("appVersion value: %v (appPath=%s)", *appVersion, appPath)
+	log.Infof("appVersion value: %v (appPath=%s)", *appVersion, appPath)
 
 	result := &Result{
 		AppVersion:   *appVersion,
 		Dependencies: DependenciesMap{},
 	}
 
-	// Get Chart.lock if exists
-	lock, err := os.ReadFile(filepath.Join(appPath, "Chart.lock"))
-	if err == nil && lock != nil {
-		result.Dependencies.Lock = string(lock)
-	}
-
-	// Get `dependencies` property from Chart.yaml if exists
-	deps, err := getDependenciesFromChart(filepath.Join(appPath, resourceName))
-	if err == nil && deps != nil {
-		result.Dependencies.Deps = *deps
-	}
-
-	// Get requirements.yaml if exists
-	requirements, err := os.ReadFile(filepath.Join(appPath, "requirements.yaml"))
-	if err == nil && requirements != nil {
-		result.Dependencies.Requirements = string(requirements)
-	}
+	readFileContent(result, appPath, "Chart.lock", "Lock")
+	readFileContent(result, appPath, "Chart.yaml", "Deps")
+	readFileContent(result, appPath, "requirements.yaml", "Requirements")
 
 	return result, nil
 }

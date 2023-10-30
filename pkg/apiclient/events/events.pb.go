@@ -540,7 +540,7 @@ func (m *ObjectError) GetLastSeen() v1.Time {
 type Dependencies struct {
 	// Content of Chart.lock
 	Lock *string `protobuf:"bytes,1,opt,name=lock" json:"lock,omitempty"`
-	// Content of Cart.yaml/dependencies
+	// Content of Chart.yaml
 	Deps *string `protobuf:"bytes,2,opt,name=deps" json:"deps,omitempty"`
 	// Content of requirements.yaml
 	Requirements         *string  `protobuf:"bytes,3,opt,name=requirements" json:"requirements,omitempty"`
