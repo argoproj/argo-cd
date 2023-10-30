@@ -1,3 +1,5 @@
+# `argocd cert add-tls` Command Reference
+
 ## argocd cert add-tls
 
 Add TLS certificate data for connecting to repository server SERVERNAME

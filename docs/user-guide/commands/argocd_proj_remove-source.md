@@ -1,9 +1,18 @@
+# `argocd proj remove-source` Command Reference
+
 ## argocd proj remove-source
 
 Remove project source repository
 
 ```
 argocd proj remove-source PROJECT URL [flags]
+```
+
+### Examples
+
+```
+  # Remove URL source repository to project PROJECT
+  argocd proj remove-source PROJECT URL
 ```
 
 ### Options

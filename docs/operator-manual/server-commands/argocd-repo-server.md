@@ -1,3 +1,5 @@
+# `argocd-repo-server` Command Reference
+
 ## argocd-repo-server
 
 Run ArgoCD Repository Server
@@ -16,7 +18,9 @@ argocd-repo-server [flags]
       --address string                                 Listen on given address for incoming connections (default "0.0.0.0")
       --allow-oob-symlinks                             Allow out-of-bounds symlinks in repositories (not recommended)
       --default-cache-expiration duration              Cache expiration default (default 24h0m0s)
+      --disable-helm-manifest-max-extracted-size       Disable maximum size of helm manifest archives when extracted
       --disable-tls                                    Disable TLS on the gRPC endpoint
+      --helm-manifest-max-extracted-size string        Maximum size of helm manifest archives when extracted (default "1G")
   -h, --help                                           help for argocd-repo-server
       --logformat string                               Set the logging format. One of: text|json (default "text")
       --loglevel string                                Set the logging level. One of: debug|info|warn|error (default "info")

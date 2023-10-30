@@ -1,9 +1,21 @@
+# `argocd proj create` Command Reference
+
 ## argocd proj create
 
 Create a project
 
 ```
 argocd proj create PROJECT [flags]
+```
+
+### Examples
+
+```
+  # Create a new project with name PROJECT
+  argocd proj create PROJECT
+  
+  # Create a new project with name PROJECT from a file or URL to a kubernetes manifest
+  argocd proj create PROJECT -f FILE|URL
 ```
 
 ### Options

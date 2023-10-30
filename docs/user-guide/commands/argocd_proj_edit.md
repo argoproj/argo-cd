@@ -1,9 +1,18 @@
+# `argocd proj edit` Command Reference
+
 ## argocd proj edit
 
 Edit project
 
 ```
 argocd proj edit PROJECT [flags]
+```
+
+### Examples
+
+```
+  # Edit the information on project with name PROJECT
+  argocd proj edit PROJECT
 ```
 
 ### Options

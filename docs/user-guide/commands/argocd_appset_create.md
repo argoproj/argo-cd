@@ -1,3 +1,5 @@
+# `argocd appset create` Command Reference
+
 ## argocd appset create
 
 Create one or more ApplicationSets

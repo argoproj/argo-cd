@@ -1,9 +1,25 @@
+# `argocd admin dashboard` Command Reference
+
 ## argocd admin dashboard
 
 Starts Argo CD Web UI locally
 
 ```
 argocd admin dashboard [flags]
+```
+
+### Examples
+
+```
+# Start the Argo CD Web UI locally on the default port and address
+$ argocd admin dashboard
+
+# Start the Argo CD Web UI locally on a custom port and address
+$ argocd admin dashboard --port 8080 --address 127.0.0.1
+
+# Start the Argo CD Web UI with GZip compression
+$ argocd admin dashboard --redis-compress gzip
+  
 ```
 
 ### Options
@@ -18,6 +34,7 @@ argocd admin dashboard [flags]
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
+      --disable-compression            If true, opt-out of response compression for all requests to the server
   -h, --help                           help for dashboard
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to a kube config. Only required if out-of-cluster

@@ -1,3 +1,5 @@
+# `argocd app rollback` Command Reference
+
 ## argocd app rollback
 
 Rollback application to a previous deployed version by History ID, omitted will Rollback to the previous version
@@ -9,9 +11,10 @@ argocd app rollback APPNAME [ID] [flags]
 ### Options
 
 ```
-  -h, --help           help for rollback
-      --prune          Allow deleting unexpected resources
-      --timeout uint   Time out after this many seconds
+  -h, --help            help for rollback
+  -o, --output string   Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
+      --prune           Allow deleting unexpected resources
+      --timeout uint    Time out after this many seconds
 ```
 
 ### Options inherited from parent commands
