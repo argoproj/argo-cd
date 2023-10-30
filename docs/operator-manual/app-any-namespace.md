@@ -34,7 +34,7 @@ To enable annotation based resource tracking, refer to the documentation about [
 
 In order for an application to be managed and reconciled outside the Argo CD's control plane namespace, two prerequisites must match:
 
-1. The `Application`'s namespace must be explicitly enabled using the `--application-namespaces` parameter for the `argocd-application-controller` and `argocd-server` workloads. This parameter controls the list of namespaces that Argo CD will be allowed to source `Application` resources from globally. Any namespace not configured here cannot be used from any `AppProject`.
+1. The `Application`'s namespace must be explicitly enabled using the `--application-namespaces` parameter for the `argocd-application-controller`, `argocd-server`, and `argocd-notifications-controller` workloads. This parameter controls the list of namespaces that Argo CD will be allowed to source `Application` resources from globally. Any namespace not configured here cannot be used from any `AppProject`.
 1. The `AppProject` referenced by the `.spec.project` field of the `Application` must have the namespace listed in its `.spec.sourceNamespaces` field. This setting will determine whether an `Application` may use a certain `AppProject`. If an `Application` specifies an `AppProject` that is not allowed, Argo CD refuses to process this `Application`. As stated above, any namespace configured in the `.spec.sourceNamespaces` field must also be enabled globally.
 
 `Applications` in different namespaces can be created and managed just like any other `Application` in the `argocd` namespace previously, either declaratively or through the Argo CD API (e.g. using the CLI, the web UI, the REST API, etc).
@@ -43,11 +43,11 @@ In order for an application to be managed and reconciled outside the Argo CD's c
 
 #### Change workload startup parameters
 
-In order to enable this feature, the Argo CD administrator must reconfigure the `argocd-server` and `argocd-application-controller` workloads to add the `--application-namespaces` parameter to the container's startup command.
+In order to enable this feature, the Argo CD administrator must reconfigure the `argocd-server`, `argocd-application-controller`, and `argocd-notifications-controller` workloads to add the `--application-namespaces` parameter to the container's startup command.
 
 The `--application-namespaces` parameter takes a comma-separated list of namespaces where `Applications` are to be allowed in. Each entry of the list supports shell-style wildcards such as `*`, so for example the entry `app-team-*` would match `app-team-one` and `app-team-two`. To enable all namespaces on the cluster where Argo CD is running on, you can just specify `*`, i.e. `--application-namespaces=*`.
 
-The startup parameters for both, the `argocd-server` and the `argocd-application-controller` can also be conveniently set up and kept in sync by specifying the `application.namespaces` settings in the `argocd-cmd-params-cm` ConfigMap _instead_ of changing the manifests for the respective workloads. For example:
+The startup parameters, for all of `argocd-server`, `argocd-application-controller`, and `argocd-notifications-controller`, can also be conveniently set up and kept in sync by specifying the `application.namespaces` settings in the `argocd-cmd-params-cm` ConfigMap _instead_ of changing the manifests for the respective workloads. For example:
 
 ```yaml
 data:
@@ -59,6 +59,7 @@ would allow the `app-team-one` and `app-team-two` namespaces for managing `Appli
 ```bash
 kubectl rollout restart -n argocd deployment argocd-server
 kubectl rollout restart -n argocd statefulset argocd-application-controller
+kubectl rollout restart -n argocd deployment argocd-notifications-controller
 ```
 
 #### Adapt Kubernetes RBAC
