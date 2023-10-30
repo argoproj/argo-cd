@@ -117,7 +117,6 @@ type appStateManager struct {
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
-
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
@@ -421,9 +420,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				if time.Since(firstSeen.(time.Time)) <= m.repoErrorGracePeriod && !noRevisionCache {
 					// if first seen is less than grace period and it's not a Level 3 comparison,
 					// ignore error and short circuit
+					logCtx.Debugf("Ignoring repo error %v, already encountered error in grace period", err.Error())
 					return nil, CompareStateRepoError
 				}
 			} else if !noRevisionCache {
+				logCtx.Debugf("Ignoring repo error %v, new occurrence", err.Error())
 				m.repoErrorCache.Store(app.Name, time.Now())
 				return nil, CompareStateRepoError
 			}

@@ -1518,6 +1518,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources)
 
 	if goerrors.Is(err, CompareStateRepoError) {
+		logCtx.Warnf("Ignoring temporary failed attempt to compare app state against repo: %v", err)
 		return // short circuit if git error is encountered
 	}
 

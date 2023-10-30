@@ -22057,6 +22057,12 @@ spec:
               key: timeout.hard.reconciliation
               name: argocd-cm
               optional: true
+        - name: ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.error.grace.period.seconds
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER
           valueFrom:
             configMapKeyRef:
