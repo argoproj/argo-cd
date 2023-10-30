@@ -89,7 +89,7 @@ func NewController(
 			if !ok {
 				return false, ""
 			}
-			if checkAppNotInAdditionalNamespaces(app, namespace, applicationNamespaces) {
+			if !isAppNamespaceAllowed(app, namespace, applicationNamespaces) {
 				return true, "app is not in one of the application-namespaces, nor the notification controller namespace"
 			}
 			return !isAppSyncStatusRefreshed(app, log.WithField("app", obj.GetName())), "sync status out of date"
@@ -99,9 +99,10 @@ func NewController(
 	return res
 }
 
-// Check if app is not in the namespace where the controller is in, and also app is not in one of the applicationNamespaces
-func checkAppNotInAdditionalNamespaces(app *unstructured.Unstructured, namespace string, applicationNamespaces []string) bool {
-	return namespace != app.GetNamespace() && !glob.MatchStringInList(applicationNamespaces, app.GetNamespace(), false)
+// isAppNamespaceAllowed returns whether app is in the namespace where the controller is in,
+// or app is in one of the applicationNamespaces.
+func isAppNamespaceAllowed(app *unstructured.Unstructured, namespace string, applicationNamespaces []string) bool {
+	return namespace == app.GetNamespace() || glob.MatchStringInList(applicationNamespaces, app.GetNamespace(), false)
 }
 
 func (c *notificationController) alterDestinations(obj v1.Object, destinations services.Destinations, cfg api.Config) services.Destinations {
@@ -130,7 +131,7 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 				}
 				newItems := []unstructured.Unstructured{}
 				for _, res := range appList.Items {
-					if controllerNamespace == res.GetNamespace() || glob.MatchStringInList(applicationNamespaces, res.GetNamespace(), false) {
+					if isAppNamespaceAllowed(&res, controllerNamespace, applicationNamespaces) {
 						newItems = append(newItems, res)
 					}
 				}
