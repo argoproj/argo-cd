@@ -5,14 +5,41 @@ import (
 	"os"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-
-	"github.com/argoproj/argo-cd/v2/util/assets"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
+
+type FakeClientConfig struct {
+	clientConfig clientcmd.ClientConfig
+}
+
+func NewFakeClientConfig(clientConfig clientcmd.ClientConfig) *FakeClientConfig {
+	return &FakeClientConfig{clientConfig: clientConfig}
+}
+
+func (f *FakeClientConfig) RawConfig() (clientcmdapi.Config, error) {
+	config, err := f.clientConfig.RawConfig()
+	return config, err
+}
+
+func (f *FakeClientConfig) ClientConfig() (*restclient.Config, error) {
+	return f.clientConfig.ClientConfig()
+}
+
+func (f *FakeClientConfig) Namespace() (string, bool, error) {
+	return f.clientConfig.Namespace()
+}
+
+func (f *FakeClientConfig) ConfigAccess() clientcmd.ConfigAccess {
+	return nil
+}
 
 func Test_isValidRBACAction(t *testing.T) {
 	for k := range validRBACActions {
@@ -199,4 +226,20 @@ p, role:, certificates, get, .*, allow`
 		ok := checkPolicy("role:user", "delete", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
 		require.True(t, ok)
 	})
+}
+
+func TestNewRBACCanCommand(t *testing.T) {
+	command := NewRBACCanCommand()
+
+	require.NotNil(t, command)
+	assert.Equal(t, "can", command.Name())
+	assert.Equal(t, "Check RBAC permissions for a role or subject", command.Short)
+}
+
+func TestNewRBACValidateCommand(t *testing.T) {
+	command := NewRBACValidateCommand()
+
+	require.NotNil(t, command)
+	assert.Equal(t, "validate", command.Name())
+	assert.Equal(t, "Validate RBAC policy", command.Short)
 }
