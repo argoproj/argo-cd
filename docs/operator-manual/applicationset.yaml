@@ -1,12 +1,5 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
-data:
-  # Within Kubernetes these fields are actually encoded in Base64; they are decoded here for convenience.
-  # (They are likewise decoded when passed as parameters by the Cluster generator)
-  config: "{'tlsClientConfig':{'insecure':false}}"
-  name: "in-cluster2"
-  server: "https://kubernetes.default.svc"
-
 metadata:
   name: test-hello-world-appset
   namespace: argocd
