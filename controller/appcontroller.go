@@ -68,7 +68,7 @@ import (
 
 const (
 	updateOperationStateTimeout             = 1 * time.Second
-	defaultDeploymentInformerResyncDuration = 10
+	defaultDeploymentInformerResyncDuration = 10 * time.Second
 	// orphanedIndex contains application which monitor orphaned resources by namespace
 	orphanedIndex = "orphaned"
 )
