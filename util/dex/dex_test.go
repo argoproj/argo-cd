@@ -293,9 +293,9 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 		clients, ok := dexCfg["staticClients"].([]interface{})
 		assert.True(t, ok)
-		assert.Equal(t, 3, len(clients))
+		assert.Equal(t, 4, len(clients))
 
-		customClient := clients[2].(map[string]interface{})
+		customClient := clients[3].(map[string]interface{})
 		assert.Equal(t, "argo-workflow", customClient["id"].(string))
 		assert.Equal(t, 1, len(customClient["redirectURIs"].([]interface{})))
 	})
@@ -315,9 +315,9 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 		clients, ok := dexCfg["staticClients"].([]interface{})
 		assert.True(t, ok)
-		assert.Equal(t, 3, len(clients))
+		assert.Equal(t, 4, len(clients))
 
-		customClient := clients[2].(map[string]interface{})
+		customClient := clients[3].(map[string]interface{})
 		assert.Equal(t, "barfoo", customClient["secret"])
 	})
 	t.Run("Override dex oauth2 configuration", func(t *testing.T) {
