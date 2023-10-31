@@ -9,9 +9,11 @@ These are the upcoming releases dates:
 | Release | Release Planning Meeting | Release Candidate 1   | General Availability | Release Champion                                      | Checklist                                                     |
 |---------|--------------------------|-----------------------|----------------------|-------------------------------------------------------|---------------------------------------------------------------|
 | v2.6    | Monday, Dec. 12, 2022    | Monday, Dec. 19, 2022 | Monday, Feb. 6, 2023 | [William Tam](https://github.com/wtam2018)            | [checklist](https://github.com/argoproj/argo-cd/issues/11563) |
-| v2.7    | Monday, Mar. 6, 2023     | Monday, Mar. 20, 2023 | Monday, May. 1, 2023 | [Pavel Kostohrys](https://github.com/pasha-codefresh) |
-| v2.8    | Monday, Jun. 5, 2023     | Monday, Jun. 19, 2023 | Monday, Aug. 7, 2023 | [Keith Chong](https://github.keithchong)
-| v2.9    | Monday, Sep. 4, 2023     | Monday, Sep. 18, 2023 | Monday, Nov. 6, 2023 |
+| v2.7    | Monday, Mar. 6, 2023     | Monday, Mar. 20, 2023 | Monday, May. 1, 2023 | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/12762) |
+| v2.8    | Monday, Jun. 20, 2023    | Monday, Jun. 26, 2023 | Monday, Aug. 7, 2023 | [Keith Chong](https://github.com/keithchong)          | [checklist](https://github.com/argoproj/argo-cd/issues/13742) |
+| v2.9    | Monday, Sep. 4, 2023     | Monday, Sep. 18, 2023 | Monday, Nov. 6, 2023 | [Leonardo Almeida](https://github.com/leoluz)         | [checklist](https://github.com/argoproj/argo-cd/issues/14078) |
+| v2.10   | Monday, Dec. 4, 2023     | Monday, Dec. 18, 2023 | Monday, Feb. 5, 2024 | 
+
 
 Actual release dates might differ from the plan by a few days.
 

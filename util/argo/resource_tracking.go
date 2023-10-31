@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	argokube "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
@@ -25,13 +26,13 @@ var LabelMaxLength = 63
 type ResourceTracking interface {
 	GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string
 	GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue
-	SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod)
+	SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error
 	BuildAppInstanceValue(value AppInstanceValue) string
 	ParseAppInstanceValue(value string) (*AppInstanceValue, error)
 	Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error
 }
 
-//AppInstanceValue store information about resource tracking info
+// AppInstanceValue store information about resource tracking info
 type AppInstanceValue struct {
 	ApplicationName string
 	Group           string
@@ -61,7 +62,10 @@ func IsOldTrackingMethod(trackingMethod string) bool {
 }
 
 func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue {
-	appInstanceAnnotation := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)
+	appInstanceAnnotation, err := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)
+	if err != nil {
+		return nil
+	}
 	value, err := rt.ParseAppInstanceValue(appInstanceAnnotation)
 	if err != nil {
 		return nil
@@ -80,13 +84,21 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 	}
 	switch trackingMethod {
 	case TrackingMethodLabel:
-		return argokube.GetAppInstanceLabel(un, key)
+		label, err := argokube.GetAppInstanceLabel(un, key)
+		if err != nil {
+			return ""
+		}
+		return label
 	case TrackingMethodAnnotationAndLabel:
 		return retrieveAppInstanceValue()
 	case TrackingMethodAnnotation:
 		return retrieveAppInstanceValue()
 	default:
-		return argokube.GetAppInstanceLabel(un, key)
+		label, err := argokube.GetAppInstanceLabel(un, key)
+		if err != nil {
+			return ""
+		}
+		return label
 	}
 }
 
@@ -122,36 +134,49 @@ func UnstructuredToAppInstanceValue(un *unstructured.Unstructured, appName, name
 }
 
 // SetAppInstance set label/annotation base on tracking method
-func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) {
-	setAppInstanceAnnotation := func() {
+func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error {
+	setAppInstanceAnnotation := func() error {
 		appInstanceValue := UnstructuredToAppInstanceValue(un, val, namespace)
-		argokube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
+		return argokube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
 	}
 	switch trackingMethod {
 	case TrackingMethodLabel:
-		argokube.SetAppInstanceLabel(un, key, val)
+		err := argokube.SetAppInstanceLabel(un, key, val)
+		if err != nil {
+			return fmt.Errorf("failed to set app instance label: %w", err)
+		}
 	case TrackingMethodAnnotation:
-		setAppInstanceAnnotation()
+		return setAppInstanceAnnotation()
 	case TrackingMethodAnnotationAndLabel:
-		setAppInstanceAnnotation()
+		err := setAppInstanceAnnotation()
+		if err != nil {
+			return err
+		}
 		if len(val) > LabelMaxLength {
 			val = val[:LabelMaxLength]
 		}
-		argokube.SetAppInstanceLabel(un, key, val)
+		err = argokube.SetAppInstanceLabel(un, key, val)
+		if err != nil {
+			return fmt.Errorf("failed to set app instance label: %w", err)
+		}
 	default:
-		argokube.SetAppInstanceLabel(un, key, val)
+		err := argokube.SetAppInstanceLabel(un, key, val)
+		if err != nil {
+			return fmt.Errorf("failed to set app instance label: %w", err)
+		}
 	}
+	return nil
 }
 
-//BuildAppInstanceValue build resource tracking id in format <application-name>;<group>/<kind>/<namespace>/<name>
+// BuildAppInstanceValue build resource tracking id in format <application-name>;<group>/<kind>/<namespace>/<name>
 func (rt *resourceTracking) BuildAppInstanceValue(value AppInstanceValue) string {
 	return fmt.Sprintf("%s:%s/%s:%s/%s", value.ApplicationName, value.Group, value.Kind, value.Namespace, value.Name)
 }
 
-//ParseAppInstanceValue parse resource tracking id from format <application-name>:<group>/<kind>:<namespace>/<name> to struct
+// ParseAppInstanceValue parse resource tracking id from format <application-name>:<group>/<kind>:<namespace>/<name> to struct
 func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceValue, error) {
 	var appInstanceValue AppInstanceValue
-	parts := strings.Split(value, ":")
+	parts := strings.SplitN(value, ":", 3)
 	appInstanceValue.ApplicationName = parts[0]
 	if len(parts) != 3 {
 		return nil, WrongResourceTrackingFormat
@@ -182,16 +207,32 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return nil
 	}
 
-	label := kube.GetAppInstanceLabel(live, labelKey)
+	label, err := kube.GetAppInstanceLabel(live, labelKey)
+	if err != nil {
+		return fmt.Errorf("failed to get app instance label: %w", err)
+	}
 	if label == "" {
 		return nil
 	}
 
-	annotation := argokube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
-	argokube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
+	annotation, err := argokube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
+	if err != nil {
+		return err
+	}
+	err = argokube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
+	if err != nil {
+		return err
+	}
 
-	if argokube.GetAppInstanceLabel(config, labelKey) == "" {
-		argokube.RemoveLabel(live, labelKey)
+	label, err = argokube.GetAppInstanceLabel(config, labelKey)
+	if err != nil {
+		return fmt.Errorf("failed to get app instance label: %w", err)
+	}
+	if label == "" {
+		err = argokube.RemoveLabel(live, labelKey)
+		if err != nil {
+			return fmt.Errorf("failed to remove app instance label: %w", err)
+		}
 	}
 
 	return nil

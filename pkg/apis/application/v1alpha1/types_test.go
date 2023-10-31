@@ -646,7 +646,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	err = p.ValidateProject()
 	assert.NoError(t, err)
 
-	//no duplicates allowed
+	// no duplicates allowed
 	p.Spec.Destinations = []ApplicationDestination{validDestination, validDestination}
 	err = p.ValidateProject()
 	assert.Error(t, err)
@@ -2226,6 +2226,20 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		// then
 		assert.False(t, canSync)
 	})
+	t.Run("will allow auto sync with active-allow and inactive-allow", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveAllowWindow(false).
+			withInactiveAllowWindow(false).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+
+		// then
+		assert.True(t, canSync)
+	})
 	t.Run("will deny manual sync with active-deny", func(t *testing.T) {
 		// given
 		t.Parallel()
@@ -2952,7 +2966,7 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	retry := RetryStrategy{
 		Backoff: &Backoff{
 			Duration:    "2s",
-			Factor:      pointer.Int64Ptr(3),
+			Factor:      pointer.Int64(3),
 			MaxDuration: "1m",
 		},
 	}
@@ -2973,11 +2987,31 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 }
 
 func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
-	src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
-		NameSuffix: "test",
-	}}
+	t.Run("Has NameSuffix", func(t *testing.T) {
+		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+			NameSuffix: "test",
+		}}
 
-	assert.False(t, src.AllowsConcurrentProcessing())
+		assert.False(t, src.AllowsConcurrentProcessing())
+	})
+
+	t.Run("Has CommonAnnotations", func(t *testing.T) {
+		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+			CommonAnnotations: map[string]string{"foo": "bar"},
+		}}
+
+		assert.False(t, src.AllowsConcurrentProcessing())
+	})
+
+	t.Run("Has Patches", func(t *testing.T) {
+		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+			Patches: KustomizePatches{{
+				Path: "test",
+			}},
+		}}
+
+		assert.False(t, src.AllowsConcurrentProcessing())
+	})
 }
 
 func TestUnSetCascadedDeletion(t *testing.T) {
@@ -3041,10 +3075,10 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	settings := OrphanedResourcesMonitorSettings{}
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.BoolPtr(false)
+	settings.Warn = pointer.Bool(false)
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.BoolPtr(true)
+	settings.Warn = pointer.Bool(true)
 	assert.True(t, settings.IsWarn())
 }
 
@@ -3132,7 +3166,7 @@ func TestGetCAPath(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	os.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
+	t.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
 	validcert := []string{
 		"https://foo.example.com",
 		"oci://foo.example.com",

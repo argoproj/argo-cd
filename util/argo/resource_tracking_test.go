@@ -23,7 +23,8 @@ func TestSetAppInstanceLabel(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	assert.Nil(t, err)
 	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodLabel)
 	assert.Equal(t, "my-app", app)
 }
@@ -38,7 +39,8 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	resourceTracking.SetAppInstance(&obj, common.AnnotationKeyAppInstance, "my-app", "", TrackingMethodAnnotation)
+	err = resourceTracking.SetAppInstance(&obj, common.AnnotationKeyAppInstance, "my-app", "", TrackingMethodAnnotation)
+	assert.Nil(t, err)
 
 	app := resourceTracking.GetAppName(&obj, common.AnnotationKeyAppInstance, TrackingMethodAnnotation)
 	assert.Equal(t, "my-app", app)
@@ -53,7 +55,8 @@ func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodAnnotationAndLabel)
+	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodAnnotationAndLabel)
+	assert.Nil(t, err)
 
 	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel)
 	assert.Equal(t, "my-app", app)
@@ -84,6 +87,19 @@ func TestParseAppInstanceValue(t *testing.T) {
 	assert.Equal(t, appInstanceValue.Kind, "<kind>")
 	assert.Equal(t, appInstanceValue.Namespace, "<namespace>")
 	assert.Equal(t, appInstanceValue.Name, "<name>")
+}
+
+func TestParseAppInstanceValueColon(t *testing.T) {
+	resourceTracking := NewResourceTracking()
+	appInstanceValue, err := resourceTracking.ParseAppInstanceValue("app:<group>/<kind>:<namespace>/<name>:<colon>")
+	if !assert.NoError(t, err) {
+		t.Fatal()
+	}
+	assert.Equal(t, appInstanceValue.ApplicationName, "app")
+	assert.Equal(t, appInstanceValue.Group, "<group>")
+	assert.Equal(t, appInstanceValue.Kind, "<kind>")
+	assert.Equal(t, appInstanceValue.Namespace, "<namespace>")
+	assert.Equal(t, appInstanceValue.Name, "<name>:<colon>")
 }
 
 func TestParseAppInstanceValueWrongFormat1(t *testing.T) {
@@ -122,16 +138,19 @@ func TestResourceIdNormalizer_Normalize(t *testing.T) {
 
 	// live object is a resource that has old style tracking label
 	liveObj := sampleResource()
-	rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	assert.Nil(t, err)
 
 	// config object is a resource that has new style tracking annotation
 	configObj := sampleResource()
-	rt.SetAppInstance(configObj, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation)
+	err = rt.SetAppInstance(configObj, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation)
+	assert.Nil(t, err)
 
 	_ = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
 
 	// the normalization should affect add the new style annotation and drop old tracking label from live object
-	annotation := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
+	annotation, err := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
+	assert.Nil(t, err)
 	assert.Equal(t, liveObj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
 	_, hasOldLabel := liveObj.GetLabels()[common.LabelKeyAppInstance]
 	assert.False(t, hasOldLabel)
@@ -142,17 +161,21 @@ func TestResourceIdNormalizer_Normalize_ConfigHasOldLabel(t *testing.T) {
 
 	// live object is a resource that has old style tracking label
 	liveObj := sampleResource()
-	rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	assert.Nil(t, err)
 
 	// config object is a resource that has new style tracking annotation
 	configObj := sampleResource()
-	rt.SetAppInstance(configObj, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation)
-	rt.SetAppInstance(configObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	err = rt.SetAppInstance(configObj, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation)
+	assert.Nil(t, err)
+	err = rt.SetAppInstance(configObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	assert.Nil(t, err)
 
 	_ = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
 
 	// the normalization should affect add the new style annotation and drop old tracking label from live object
-	annotation := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
+	annotation, err := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
+	assert.Nil(t, err)
 	assert.Equal(t, liveObj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
 	_, hasOldLabel := liveObj.GetLabels()[common.LabelKeyAppInstance]
 	assert.True(t, hasOldLabel)

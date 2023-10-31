@@ -9,6 +9,8 @@ kind: ApplicationSet
 metadata:
   name: guestbook
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - list:
       elements:
@@ -23,21 +25,37 @@ spec:
         env: staging
   template:
     metadata:
-      name: '{{cluster}}-guestbook'
+      name: '{{.cluster}}-guestbook'
     spec:
       project: default
       source:
         repoURL: https://github.com/argoproj-labs/applicationset.git
         targetRevision: HEAD
-        path: examples/list-generator/guestbook/{{cluster}}
+        path: examples/list-generator/guestbook/{{.cluster}}
       destination:
-        server: '{{url}}'
+        server: '{{.url}}'
         namespace: guestbook
 ```
 
 The List generator + Post Selector generates a single set of parameters:
+
 ```yaml
 - cluster: engineering-dev
   url: https://kubernetes.default.svc
   env: staging
+```
+
+It is also possible to use `matchExpressions` for more powerful selectors.
+
+```yaml
+spec:
+  generators:
+    - clusters: {}
+      selector:
+        matchExpressions:
+          - key: server
+            operator: In
+            values:
+              - https://kubernetes.default.svc
+              - https://some-other-cluster
 ```

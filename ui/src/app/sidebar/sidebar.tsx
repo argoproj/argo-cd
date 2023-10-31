@@ -1,4 +1,5 @@
 import {Tooltip} from 'argo-ui';
+import {Boundary, Placement} from 'popper.js';
 import {useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {Context} from '../shared/context';
@@ -34,11 +35,11 @@ export const Sidebar = (props: SidebarProps) => {
     const locationPath = context.history.location.pathname;
 
     const tooltipProps = {
-        placement: 'right',
+        placement: 'right' as Placement,
         popperOptions: {
             modifiers: {
                 preventOverflow: {
-                    boundariesElement: 'window'
+                    boundariesElement: 'window' as Boundary
                 }
             }
         }

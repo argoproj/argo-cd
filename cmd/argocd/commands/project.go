@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,11 +11,10 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
@@ -26,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 type policyOpts struct {
@@ -39,6 +40,19 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "proj",
 		Short: "Manage projects",
+		Example: templates.Examples(`
+			# List all available projects
+			argocd proj list
+
+			# Create a new project with name PROJECT
+			argocd proj create PROJECT
+
+			# Delete the project with name PROJECT
+			argocd proj delete PROJECT
+
+			# Edit the information on project with name PROJECT
+			argocd proj edit PROJECT
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -88,6 +102,13 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	var command = &cobra.Command{
 		Use:   "create PROJECT",
 		Short: "Create a project",
+		Example: templates.Examples(`
+			# Create a new project with name PROJECT
+			argocd proj create PROJECT
+
+			# Create a new project with name PROJECT from a file or URL to a kubernetes manifest
+			argocd proj create PROJECT -f FILE|URL
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -118,6 +139,13 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	var command = &cobra.Command{
 		Use:   "set PROJECT",
 		Short: "Set project parameters",
+		Example: templates.Examples(`
+			# Set project parameters with some allowed cluster resources [RES1,RES2,...] for project with name PROJECT
+			argocd proj set PROJECT --allow-cluster-resource [RES1,RES2,...]
+
+			# Set project parameters with some denied namespaced resources [RES1,RES2,...] for project with name PROJECT
+			argocd proj set PROJECT ---deny-namespaced-resource [RES1,RES2,...]
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -151,6 +179,10 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 	var command = &cobra.Command{
 		Use:   "add-signature-key PROJECT KEY-ID",
 		Short: "Add GnuPG signature key to project",
+		Example: templates.Examples(`
+			# Add GnuPG signature key KEY-ID to project PROJECT
+			argocd proj add-signature-key PROJECT KEY-ID
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -189,6 +221,10 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 	var command = &cobra.Command{
 		Use:   "remove-signature-key PROJECT KEY-ID",
 		Short: "Remove GnuPG signature key from project",
+		Example: templates.Examples(`
+			# Remove GnuPG signature key KEY-ID from project PROJECT
+			argocd proj remove-signature-key PROJECT KEY-ID
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -239,6 +275,13 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 	var command = &cobra.Command{
 		Use:   "add-destination PROJECT SERVER/NAME NAMESPACE",
 		Short: "Add project destination",
+		Example: templates.Examples(`
+			# Add project destination using a server URL (SERVER) in the specified namespace (NAMESPACE) on the project with name PROJECT
+			argocd proj add-destination PROJECT SERVER NAMESPACE
+
+			# Add project destination using a server name (NAME) in the specified namespace (NAMESPACE) on the project with name PROJECT
+			argocd proj add-destination PROJECT NAME NAMESPACE --name
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -276,6 +319,10 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 	var command = &cobra.Command{
 		Use:   "remove-destination PROJECT SERVER NAMESPACE",
 		Short: "Remove project destination",
+		Example: templates.Examples(`
+			# Remove the destination (SERVER) from the specified namespace (NAMESPACE) on the project with name PROJECT
+			argocd proj remove-destination PROJECT SERVER NAMESPACE
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -320,6 +367,13 @@ func NewProjectAddOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) 
 	var command = &cobra.Command{
 		Use:   "add-orphaned-ignore PROJECT GROUP KIND",
 		Short: "Add a resource to orphaned ignore list",
+		Example: templates.Examples(`
+		# Add a resource of the specified GROUP and KIND to orphaned ignore list on the project with name PROJECT
+		argocd proj add-orphaned-ignore PROJECT GROUP KIND
+
+		# Add resources of the specified GROUP and KIND using a NAME pattern to orphaned ignore list on the project with name PROJECT
+		argocd proj add-orphaned-ignore PROJECT GROUP KIND --name NAME
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -363,8 +417,15 @@ func NewProjectRemoveOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOption
 		name string
 	)
 	var command = &cobra.Command{
-		Use:   "remove-orphaned-ignore PROJECT GROUP KIND NAME",
+		Use:   "remove-orphaned-ignore PROJECT GROUP KIND",
 		Short: "Remove a resource from orphaned ignore list",
+		Example: templates.Examples(`
+		# Remove a resource of the specified GROUP and KIND from orphaned ignore list on the project with name PROJECT
+		argocd proj remove-orphaned-ignore PROJECT GROUP KIND
+
+		# Remove resources of the specified GROUP and KIND using a NAME pattern from orphaned ignore list on the project with name PROJECT
+		argocd proj remove-orphaned-ignore PROJECT GROUP KIND --name NAME
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -411,6 +472,10 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	var command = &cobra.Command{
 		Use:   "add-source PROJECT URL",
 		Short: "Add project source repository",
+		Example: templates.Examples(`
+			# Add a source repository (URL) to the project with name PROJECT
+			argocd proj add-source PROJECT URL
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -453,7 +518,7 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 			}
 		}
 		fmt.Printf("Group '%s' and kind '%s' is added to %s resources\n", group, kind, listDesc)
-		*list = append(*list, v1.GroupKind{Group: group, Kind: kind})
+		*list = append(*list, metav1.GroupKind{Group: group, Kind: kind})
 		return true
 	} else {
 		index := -1
@@ -473,7 +538,7 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 	}
 }
 
-func modifyResourceListCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.ClientOptions, allow bool, namespacedList bool) *cobra.Command {
+func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdclient.ClientOptions, allow bool, namespacedList bool) *cobra.Command {
 	var (
 		listType    string
 		defaultList string
@@ -484,8 +549,9 @@ func modifyResourceListCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.Clie
 		defaultList = "allow"
 	}
 	var command = &cobra.Command{
-		Use:   cmdUse,
-		Short: cmdDesc,
+		Use:     cmdUse,
+		Short:   cmdDesc,
+		Example: templates.Examples(examples),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -534,28 +600,44 @@ func modifyResourceListCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.Clie
 func NewProjectAllowNamespaceResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	use := "allow-namespace-resource PROJECT GROUP KIND"
 	desc := "Removes a namespaced API resource from the deny list or add a namespaced API resource to the allow list"
-	return modifyResourceListCmd(use, desc, clientOpts, true, true)
+	examples := `
+	# Removes a namespaced API resource with specified GROUP and KIND from the deny list or add a namespaced API resource to the allow list for project PROJECT
+	argocd proj allow-namespace-resource PROJECT GROUP KIND
+	`
+	return modifyResourceListCmd(use, desc, examples, clientOpts, true, true)
 }
 
 // NewProjectDenyNamespaceResourceCommand returns a new instance of an `argocd proj deny-namespace-resource` command
 func NewProjectDenyNamespaceResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	use := "deny-namespace-resource PROJECT GROUP KIND"
 	desc := "Adds a namespaced API resource to the deny list or removes a namespaced API resource from the allow list"
-	return modifyResourceListCmd(use, desc, clientOpts, false, true)
+	examples := `
+	# Adds a namespaced API resource with specified GROUP and KIND from the deny list or removes a namespaced API resource from the allow list for project PROJECT
+	argocd proj deny-namespace-resource PROJECT GROUP KIND
+	`
+	return modifyResourceListCmd(use, desc, examples, clientOpts, false, true)
 }
 
 // NewProjectDenyClusterResourceCommand returns a new instance of an `deny-cluster-resource` command
 func NewProjectDenyClusterResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	use := "deny-cluster-resource PROJECT GROUP KIND"
 	desc := "Removes a cluster-scoped API resource from the allow list and adds it to deny list"
-	return modifyResourceListCmd(use, desc, clientOpts, false, false)
+	examples := `
+	# Removes a cluster-scoped API resource with specified GROUP and KIND from the allow list and adds it to deny list for project PROJECT
+	argocd proj deny-cluster-resource PROJECT GROUP KIND
+	`
+	return modifyResourceListCmd(use, desc, examples, clientOpts, false, false)
 }
 
 // NewProjectAllowClusterResourceCommand returns a new instance of an `argocd proj allow-cluster-resource` command
 func NewProjectAllowClusterResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	use := "allow-cluster-resource PROJECT GROUP KIND"
 	desc := "Adds a cluster-scoped API resource to the allow list and removes it from deny list"
-	return modifyResourceListCmd(use, desc, clientOpts, true, false)
+	examples := `
+	# Adds a cluster-scoped API resource with specified GROUP and KIND to the allow list and removes it from deny list for project PROJECT
+	argocd proj allow-cluster-resource PROJECT GROUP KIND
+	`
+	return modifyResourceListCmd(use, desc, examples, clientOpts, true, false)
 }
 
 // NewProjectRemoveSourceCommand returns a new instance of an `argocd proj remove-src` command
@@ -563,6 +645,10 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 	var command = &cobra.Command{
 		Use:   "remove-source PROJECT URL",
 		Short: "Remove project source repository",
+		Example: templates.Examples(`
+			# Remove URL source repository to project PROJECT
+			argocd proj remove-source PROJECT URL
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -603,6 +689,10 @@ func NewProjectDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	var command = &cobra.Command{
 		Use:   "delete PROJECT",
 		Short: "Delete project",
+		Example: templates.Examples(`
+			# Delete the project with name PROJECT
+			argocd proj delete PROJECT
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -646,6 +736,13 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List projects",
+		Example: templates.Examples(`
+			# List all available projects
+			argocd proj list
+
+			# List all available projects in yaml format
+			argocd proj list -o yaml
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -811,6 +908,14 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	var command = &cobra.Command{
 		Use:   "get PROJECT",
 		Short: "Get project details",
+		Example: templates.Examples(`
+			# Get details from project PROJECT
+			argocd proj get PROJECT
+
+			# Get details from project PROJECT in yaml format
+			argocd proj get PROJECT -o yaml
+
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -819,10 +924,7 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 			projName := args[0]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer argoio.Close(conn)
-			detailedProject, err := projIf.GetDetailedProject(ctx, &projectpkg.ProjectQuery{Name: projName})
-			errors.CheckError(err)
+			detailedProject := getProject(c, clientOpts, ctx, projName)
 
 			switch output {
 			case "yaml", "json":
@@ -839,10 +941,22 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	return command
 }
 
+func getProject(c *cobra.Command, clientOpts *argocdclient.ClientOptions, ctx context.Context, projName string) *projectpkg.DetailedProjectsResponse {
+	conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+	defer argoio.Close(conn)
+	detailedProject, err := projIf.GetDetailedProject(ctx, &projectpkg.ProjectQuery{Name: projName})
+	errors.CheckError(err)
+	return detailedProject
+}
+
 func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "edit PROJECT",
 		Short: "Edit project",
+		Example: templates.Examples(`
+			# Edit the information on project with name PROJECT
+			argocd proj edit PROJECT
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

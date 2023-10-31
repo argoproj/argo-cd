@@ -234,7 +234,7 @@
           },
           {
             "type": "string",
-            "description": "forces application reconciliation if set to true.",
+            "description": "forces application reconciliation if set to 'hard'.",
             "name": "refresh",
             "in": "query"
           },
@@ -401,6 +401,11 @@
             "type": "boolean",
             "name": "validate",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -461,6 +466,11 @@
           {
             "type": "string",
             "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -523,6 +533,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -558,7 +573,7 @@
           },
           {
             "type": "string",
-            "description": "forces application reconciliation if set to true.",
+            "description": "forces application reconciliation if set to 'hard'.",
             "name": "refresh",
             "in": "query"
           },
@@ -649,6 +664,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -737,6 +757,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -772,6 +797,11 @@
           {
             "type": "string",
             "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -885,6 +915,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -935,6 +970,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -970,6 +1010,11 @@
           {
             "type": "string",
             "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -1084,6 +1129,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1153,6 +1203,11 @@
           {
             "type": "string",
             "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -1226,6 +1281,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1295,6 +1355,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1355,6 +1420,11 @@
           {
             "type": "string",
             "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -1423,6 +1493,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1484,6 +1559,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1491,6 +1571,56 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/applicationLinksResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{name}/revisions/{revision}/chartdetails": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Get the chart metadata (description, maintainers, home) for a specific revision of the application",
+        "operationId": "ApplicationService_RevisionChartDetails",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the application's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the revision of the app",
+            "name": "revision",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ChartDetails"
             }
           },
           "default": {
@@ -1528,6 +1658,11 @@
             "type": "string",
             "description": "the application's namespace.",
             "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -1617,6 +1752,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1692,6 +1832,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1732,6 +1877,12 @@
             "type": "string",
             "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
             "in": "query"
           }
         ],
@@ -1801,6 +1952,12 @@
             "name": "name",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1830,6 +1987,12 @@
             "name": "name",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3653,7 +3816,7 @@
           },
           {
             "type": "string",
-            "description": "forces application reconciliation if set to true.",
+            "description": "forces application reconciliation if set to 'hard'.",
             "name": "refresh",
             "in": "query"
           },
@@ -3770,6 +3933,11 @@
             "type": "string",
             "name": "appNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3868,7 +4036,7 @@
       "type": "object",
       "properties": {
         "expiresIn": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "expiresIn represents a duration in seconds"
         },
@@ -3895,14 +4063,14 @@
       "type": "object",
       "properties": {
         "expiresAt": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "id": {
           "type": "string"
         },
         "issuedAt": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         }
       }
@@ -3935,6 +4103,9 @@
         },
         "name": {
           "type": "string"
+        },
+        "project": {
+          "type": "string"
         }
       }
     },
@@ -3964,6 +4135,9 @@
         },
         "patchType": {
           "type": "string"
+        },
+        "project": {
+          "type": "string"
         }
       }
     },
@@ -3988,10 +4162,13 @@
           "type": "boolean"
         },
         "id": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "name": {
+          "type": "string"
+        },
+        "project": {
           "type": "string"
         },
         "prune": {
@@ -4022,6 +4199,9 @@
           }
         },
         "name": {
+          "type": "string"
+        },
+        "project": {
           "type": "string"
         },
         "prune": {
@@ -4282,6 +4462,9 @@
         "clientID": {
           "type": "string"
         },
+        "enablePKCEAuthentication": {
+          "type": "boolean"
+        },
         "idTokenClaims": {
           "type": "object",
           "additionalProperties": {
@@ -4322,6 +4505,7 @@
           "type": "boolean"
         },
         "configManagementPlugins": {
+          "description": "Deprecated: use sidecar plugins instead.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ConfigManagementPlugin"
@@ -4445,7 +4629,7 @@
           "type": "string"
         },
         "type": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         }
       }
@@ -4584,7 +4768,7 @@
           "type": "string"
         },
         "expiresIn": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "expiresIn represents a duration in seconds"
         },
@@ -4907,6 +5091,17 @@
         }
       }
     },
+    "runtimeRawExtension": {
+      "description": "RawExtension is used to hold extensions in external versions.\n\nTo use this, make a field which has RawExtension as its type in your external, versioned\nstruct, and Object in your internal struct. You also need to register your\nvarious plugin types.\n\n// Internal package:\n\n\ttype MyAPIObject struct {\n\t\truntime.TypeMeta `json:\",inline\"`\n\t\tMyPlugin runtime.Object `json:\"myPlugin\"`\n\t}\n\n\ttype PluginA struct {\n\t\tAOption string `json:\"aOption\"`\n\t}\n\n// External package:\n\n\ttype MyAPIObject struct {\n\t\truntime.TypeMeta `json:\",inline\"`\n\t\tMyPlugin runtime.RawExtension `json:\"myPlugin\"`\n\t}\n\n\ttype PluginA struct {\n\t\tAOption string `json:\"aOption\"`\n\t}\n\n// On the wire, the JSON will look something like this:\n\n\t{\n\t\t\"kind\":\"MyAPIObject\",\n\t\t\"apiVersion\":\"v1\",\n\t\t\"myPlugin\": {\n\t\t\t\"kind\":\"PluginA\",\n\t\t\t\"aOption\":\"foo\",\n\t\t},\n\t}\n\nSo what happens? Decode first uses json or yaml to unmarshal the serialized data into\nyour external MyAPIObject. That causes the raw JSON to be stored, but not unpacked.\nThe next step is to copy (using pkg/conversion) into the internal struct. The runtime\npackage's DefaultScheme has conversion functions installed which will unpack the\nJSON stored in RawExtension, turning it into the correct object type, and storing it\nin the Object. (TODO: In the case where the object is of an unknown type, a\nruntime.Unknown object will be created and stored.)\n\n+k8s:deepcopy-gen=true\n+protobuf=true\n+k8s:openapi-gen=true",
+      "type": "object",
+      "properties": {
+        "raw": {
+          "description": "Raw is the underlying serialization of this object.\n\nTODO: Determine how to detect ContentType and ContentEncoding of 'Raw' data.",
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
     "runtimeStreamError": {
       "type": "object",
       "properties": {
@@ -5164,7 +5359,7 @@
           "type": "string"
         },
         "remainingItemCount": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "remainingItemCount is the number of subsequent items in the list which are not included in this\nlist response. If the list request contained label or field selectors, then the number of\nremaining items is unknown and the field will be left unset and omitted during serialization.\nIf the list is complete (either because it is not chunking or because this is the last chunk),\nthen there are no more remaining items and this field will be left unset and omitted during\nserialization.\nServers older than v1.15 do not set this field.\nThe intended use of the remainingItemCount is *estimating* the size of a collection. Clients\nshould not rely on the remainingItemCount to be set or to be exact.\n+optional"
         },
@@ -5242,7 +5437,7 @@
         },
         "seconds": {
           "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive.",
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         }
       }
@@ -5304,15 +5499,11 @@
             "type": "string"
           }
         },
-        "clusterName": {
-          "description": "Deprecated: ClusterName is a legacy field that was always cleared by\nthe system and never used; it will be removed completely in 1.25.\n\nThe name in the go struct is changed to help clients detect\naccidental use.\n\n+optional",
-          "type": "string"
-        },
         "creationTimestamp": {
           "$ref": "#/definitions/v1Time"
         },
         "deletionGracePeriodSeconds": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "Number of seconds allowed for this object to gracefully terminate before\nit will be removed from the system. Only set when deletionTimestamp is also set.\nMay only be shortened.\nRead-only.\n+optional"
         },
@@ -5331,7 +5522,7 @@
           "type": "string"
         },
         "generation": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "A sequence number representing a specific generation of the desired state.\nPopulated by the system. Read-only.\n+optional"
         },
@@ -5379,8 +5570,8 @@
       }
     },
     "v1ObjectReference": {
+      "description": "ObjectReference contains enough information to let you inspect or modify the referred object.\n---\nNew uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.\n 1. Ignored fields.  It includes many fields which are not generally honored.  For instance, ResourceVersion and FieldPath are both very rarely valid in actual usage.\n 2. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular\n    restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".\n    Those cannot be well described when embedded.\n 3. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.\n 4. The fields are both imprecise and overly precise.  Kind is not a precise mapping to a URL. This can produce ambiguity\n    during interpretation and require a REST mapping.  In most cases, the dependency is on the group,resource tuple\n    and the version of the actual struct is irrelevant.\n 5. We cannot easily change it.  Because this type is embedded in many locations, updates to this type\n    will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.\n\nInstead of using this type, create a locally provided and used type that is well-focused on your reference.\nFor example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 .\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+structType=atomic",
       "type": "object",
-      "title": "ObjectReference contains enough information to let you inspect or modify the referred object.\n---\nNew uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.\n 1. Ignored fields.  It includes many fields which are not generally honored.  For instance, ResourceVersion and FieldPath are both very rarely valid in actual usage.\n 2. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular\n    restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".\n    Those cannot be well described when embedded.\n 3. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.\n 4. The fields are both imprecise and overly precise.  Kind is not a precise mapping to a URL. This can produce ambiguity\n    during interpretation and require a REST mapping.  In most cases, the dependency is on the group,resource tuple\n    and the version of the actual struct is irrelevant.\n 5. We cannot easily change it.  Because this type is embedded in many locations, updates to this type\n    will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.\nInstead of using this type, create a locally provided and used type that is well-focused on your reference.\nFor example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 .\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+structType=atomic",
       "properties": {
         "apiVersion": {
           "type": "string",
@@ -5462,19 +5653,8 @@
     },
     "v1Time": {
       "description": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false",
-      "type": "object",
-      "properties": {
-        "nanos": {
-          "description": "Non-negative fractions of a second at nanosecond resolution. Negative\nsecond values with fractions must still have non-negative nanos values\nthat count forward in time. Must be from 0 to 999,999,999\ninclusive. This field may be limited in precision depending on context.",
-          "type": "integer",
-          "format": "int32"
-        },
-        "seconds": {
-          "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive.",
-          "type": "string",
-          "format": "int64"
-        }
-      }
+      "type": "string",
+      "format": "date-time"
     },
     "v1alpha1AWSAuthConfig": {
       "type": "object",
@@ -5640,7 +5820,7 @@
     },
     "v1alpha1ApplicationCondition": {
       "type": "object",
-      "title": "ApplicationCondition contains details about an application condition, which is usally an error or warning",
+      "title": "ApplicationCondition contains details about an application condition, which is usually an error or warning",
       "properties": {
         "lastTransitionTime": {
           "$ref": "#/definitions/v1Time"
@@ -5660,16 +5840,16 @@
       "title": "ApplicationDestination holds information about the application's destination",
       "properties": {
         "name": {
-          "type": "string",
-          "title": "Name is an alternate way of specifying the target cluster by its symbolic name"
+          "description": "Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.",
+          "type": "string"
         },
         "namespace": {
           "type": "string",
           "title": "Namespace specifies the target namespace for the application's resources.\nThe namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace"
         },
         "server": {
-          "type": "string",
-          "title": "Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API"
+          "description": "Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.",
+          "type": "string"
         }
       }
     },
@@ -5709,6 +5889,12 @@
       "type": "object",
       "properties": {
         "annotations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "labels": {
           "type": "array",
           "items": {
             "type": "string"
@@ -5803,6 +5989,9 @@
         "merge": {
           "$ref": "#/definitions/v1alpha1MergeGenerator"
         },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1PluginGenerator"
+        },
         "pullRequest": {
           "$ref": "#/definitions/v1alpha1PullRequestGenerator"
         },
@@ -5851,6 +6040,9 @@
         "merge": {
           "$ref": "#/definitions/v1JSON"
         },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1PluginGenerator"
+        },
         "pullRequest": {
           "$ref": "#/definitions/v1alpha1PullRequestGenerator"
         },
@@ -5859,6 +6051,30 @@
         },
         "selector": {
           "$ref": "#/definitions/v1LabelSelector"
+        }
+      }
+    },
+    "v1alpha1ApplicationSetResourceIgnoreDifferences": {
+      "description": "ApplicationSetResourceIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live\napplications when applying changes from generated applications.",
+      "type": "object",
+      "properties": {
+        "jqPathExpressions": {
+          "description": "JQPathExpressions is a list of JQ path expressions to fields to ignore differences for.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "jsonPointers": {
+          "description": "JSONPointers is a list of JSON pointers to fields to ignore differences for.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.",
+          "type": "string"
         }
       }
     },
@@ -5891,6 +6107,10 @@
       "description": "ApplicationSetSpec represents a class of application set state.",
       "type": "object",
       "properties": {
+        "applyNestedSelectors": {
+          "type": "boolean",
+          "title": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators"
+        },
         "generators": {
           "type": "array",
           "items": {
@@ -5899,6 +6119,18 @@
         },
         "goTemplate": {
           "type": "boolean"
+        },
+        "goTemplateOptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ignoreApplicationDifferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSetResourceIgnoreDifferences"
+          }
         },
         "preservedFields": {
           "$ref": "#/definitions/v1alpha1ApplicationPreservedFields"
@@ -5949,6 +6181,10 @@
       "description": "ApplicationSetSyncPolicy configures how generated Applications will relate to their\nApplicationSet.",
       "type": "object",
       "properties": {
+        "applicationsSync": {
+          "type": "string",
+          "title": "ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, create-delete, sync\n+kubebuilder:validation:Optional\n+kubebuilder:validation:Enum=create-only;create-update;create-delete;sync"
+        },
         "preserveResourcesOnDeletion": {
           "description": "PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.",
           "type": "boolean"
@@ -6099,7 +6335,10 @@
         },
         "values": {
           "type": "string",
-          "title": "Values specifies Helm values to be passed to helm template, typically defined as a block"
+          "title": "Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.\n+patchStrategy=replace"
+        },
+        "valuesObject": {
+          "$ref": "#/definitions/runtimeRawExtension"
         },
         "version": {
           "type": "string",
@@ -6182,6 +6421,13 @@
         "namespace": {
           "type": "string",
           "title": "Namespace sets the namespace that Kustomize adds to all resources"
+        },
+        "patches": {
+          "type": "array",
+          "title": "Patches is a list of Kustomize patches",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KustomizePatch"
+          }
         },
         "replicas": {
           "type": "array",
@@ -6271,7 +6517,7 @@
         },
         "revisionHistoryLimit": {
           "description": "RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.\nThis should only be changed in exceptional circumstances.\nSetting to zero will store no history. This will reduce storage used.\nIncreasing will increase the space used to store the history, so we do not recommend increasing it.\nDefault is 10.",
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "source": {
@@ -6299,6 +6545,10 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationCondition"
           }
+        },
+        "controllerNamespace": {
+          "type": "string",
+          "title": "ControllerNamespace indicates the namespace in which the application controller is located"
         },
         "health": {
           "$ref": "#/definitions/v1alpha1HealthStatus"
@@ -6417,7 +6667,7 @@
           "title": "Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. \"2m\", \"1h\")"
         },
         "factor": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "Factor is a factor to multiply the base duration after each failed retry"
         },
@@ -6437,6 +6687,35 @@
         "username": {
           "type": "string",
           "title": "Username for Basic auth"
+        }
+      }
+    },
+    "v1alpha1BearerTokenBitbucketCloud": {
+      "description": "BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.",
+      "type": "object",
+      "properties": {
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
+    "v1alpha1ChartDetails": {
+      "type": "object",
+      "title": "ChartDetails contains helm chart metadata for a specific version",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "home": {
+          "type": "string",
+          "title": "The URL of this projects home page, e.g. \"http://example.com\""
+        },
+        "maintainers": {
+          "type": "array",
+          "title": "List of maintainer details, name and email, e.g. [\"John Doe <john_doe@my-company.com>\"]",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -6499,7 +6778,7 @@
         },
         "shard": {
           "description": "Shard contains optional shard number. Calculated on the fly by the application controller if not specified.",
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         }
       }
@@ -6509,7 +6788,7 @@
       "title": "ClusterCacheInfo contains information about the cluster cache",
       "properties": {
         "apisCount": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "APIsCount holds number of observed Kubernetes API count"
         },
@@ -6517,7 +6796,7 @@
           "$ref": "#/definitions/v1Time"
         },
         "resourcesCount": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "ResourcesCount holds number of observed Kubernetes resources"
         }
@@ -6580,7 +6859,7 @@
           }
         },
         "applicationsCount": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "ApplicationsCount is the number of applications managed by Argo CD on the cluster"
         },
@@ -6635,6 +6914,13 @@
       "properties": {
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
+        },
+        "ignoreDifferences": {
+          "type": "array",
+          "title": "IgnoreDifferences is a reference to the application's ignored differences used for comparison",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
+          }
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
@@ -6698,7 +6984,7 @@
           "type": "string"
         },
         "requeueAfterSeconds": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "template": {
@@ -6786,7 +7072,7 @@
           "type": "string"
         },
         "requeueAfterSeconds": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "revision": {
@@ -6794,6 +7080,13 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
@@ -6911,15 +7204,15 @@
       "title": "TODO: describe this type",
       "properties": {
         "capacity": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "requestedByApp": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "requestedByNeighbors": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "resourceName": {
@@ -6957,11 +7250,11 @@
       "title": "JWTToken holds the issuedAt and expiresAt values of a token",
       "properties": {
         "exp": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "iat": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "id": {
@@ -7008,6 +7301,20 @@
         }
       }
     },
+    "v1alpha1KustomizeGvk": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1KustomizeOptions": {
       "type": "object",
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
@@ -7022,6 +7329,26 @@
         }
       }
     },
+    "v1alpha1KustomizePatch": {
+      "type": "object",
+      "properties": {
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "patch": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/definitions/v1alpha1KustomizeSelector"
+        }
+      }
+    },
     "v1alpha1KustomizeReplica": {
       "type": "object",
       "properties": {
@@ -7031,6 +7358,34 @@
         "name": {
           "type": "string",
           "title": "Name of Deployment or StatefulSet"
+        }
+      }
+    },
+    "v1alpha1KustomizeResId": {
+      "type": "object",
+      "properties": {
+        "gvk": {
+          "$ref": "#/definitions/v1alpha1KustomizeGvk"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1KustomizeSelector": {
+      "type": "object",
+      "properties": {
+        "annotationSelector": {
+          "type": "string"
+        },
+        "labelSelector": {
+          "type": "string"
+        },
+        "resId": {
+          "$ref": "#/definitions/v1alpha1KustomizeResId"
         }
       }
     },
@@ -7160,7 +7515,7 @@
           "title": "Phase is the current phase of the operation"
         },
         "retryCount": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "RetryCount contains time of operation retries"
         },
@@ -7231,6 +7586,54 @@
         }
       }
     },
+    "v1alpha1PluginConfigMapRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name of the ConfigMap"
+        }
+      }
+    },
+    "v1alpha1PluginGenerator": {
+      "description": "PluginGenerator defines connection info specific to Plugin.",
+      "type": "object",
+      "properties": {
+        "configMapRef": {
+          "$ref": "#/definitions/v1alpha1PluginConfigMapRef"
+        },
+        "input": {
+          "$ref": "#/definitions/v1alpha1PluginInput"
+        },
+        "requeueAfterSeconds": {
+          "description": "RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.",
+          "type": "integer",
+          "format": "int64"
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "description": "Values contains key/value pairs which are passed directly as parameters to the template. These values will not be\nsent as parameters to the plugin.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1PluginInput": {
+      "type": "object",
+      "properties": {
+        "parameters": {
+          "description": "Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the\nvalues can be any type.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1JSON"
+          }
+        }
+      }
+    },
     "v1alpha1ProjectRole": {
       "type": "object",
       "title": "ProjectRole represents a role that has access to a project",
@@ -7270,6 +7673,12 @@
       "description": "PullRequestGenerator defines a generator that scrapes a PullRequest API to find candidate pull requests.",
       "type": "object",
       "properties": {
+        "azuredevops": {
+          "$ref": "#/definitions/v1alpha1PullRequestGeneratorAzureDevOps"
+        },
+        "bitbucket": {
+          "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucket"
+        },
         "bitbucketServer": {
           "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucketServer"
         },
@@ -7291,7 +7700,7 @@
         },
         "requeueAfterSeconds": {
           "description": "Standard parameters.",
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "template": {
@@ -7299,8 +7708,64 @@
         }
       }
     },
+    "v1alpha1PullRequestGeneratorAzureDevOps": {
+      "description": "PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.",
+      "type": "object",
+      "properties": {
+        "api": {
+          "description": "The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.",
+          "type": "string"
+        },
+        "labels": {
+          "type": "array",
+          "title": "Labels is used to filter the PRs that you want to target",
+          "items": {
+            "type": "string"
+          }
+        },
+        "organization": {
+          "description": "Azure DevOps org to scan. Required.",
+          "type": "string"
+        },
+        "project": {
+          "description": "Azure DevOps project name to scan. Required.",
+          "type": "string"
+        },
+        "repo": {
+          "description": "Azure DevOps repo name to scan. Required.",
+          "type": "string"
+        },
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
+    "v1alpha1PullRequestGeneratorBitbucket": {
+      "description": "PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.",
+      "type": "object",
+      "properties": {
+        "api": {
+          "description": "The Bitbucket REST API URL to talk to. If blank, uses https://api.bitbucket.org/2.0.",
+          "type": "string"
+        },
+        "basicAuth": {
+          "$ref": "#/definitions/v1alpha1BasicAuthBitbucketServer"
+        },
+        "bearerToken": {
+          "$ref": "#/definitions/v1alpha1BearerTokenBitbucketCloud"
+        },
+        "owner": {
+          "description": "Workspace to scan. Required.",
+          "type": "string"
+        },
+        "repo": {
+          "description": "Repo name to scan. Required.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1PullRequestGeneratorBitbucketServer": {
-      "description": "PullRequestGenerator defines connection info specific to BitbucketServer.",
+      "description": "PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.",
       "type": "object",
       "properties": {
         "api": {
@@ -7326,6 +7791,9 @@
       "properties": {
         "branchMatch": {
           "type": "string"
+        },
+        "targetBranchMatch": {
+          "type": "string"
         }
       }
     },
@@ -7336,6 +7804,10 @@
         "api": {
           "description": "The GitLab API URL to talk to. If blank, uses https://gitlab.com/.",
           "type": "string"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false"
         },
         "labels": {
           "type": "array",
@@ -7358,7 +7830,7 @@
       }
     },
     "v1alpha1PullRequestGeneratorGitea": {
-      "description": "PullRequestGenerator defines connection info specific to Gitea.",
+      "description": "PullRequestGeneratorGitea defines connection info specific to Gitea.",
       "type": "object",
       "properties": {
         "api": {
@@ -7435,12 +7907,12 @@
           "title": "GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com"
         },
         "githubAppID": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication"
         },
         "githubAppInstallationID": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication"
         },
@@ -7525,12 +7997,12 @@
           "title": "GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com"
         },
         "githubAppID": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "GithubAppId specifies the ID of the GitHub app used to access the repo"
         },
         "githubAppInstallationID": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo"
         },
@@ -7656,6 +8128,12 @@
       "properties": {
         "disabled": {
           "type": "boolean"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "iconClass": {
+          "type": "string"
         },
         "name": {
           "type": "string"
@@ -7838,13 +8316,15 @@
             "$ref": "#/definitions/v1alpha1ResourceRef"
           }
         },
-        "resourceRef": {
-          "$ref": "#/definitions/v1alpha1ResourceRef"
-        },
         "resourceVersion": {
           "type": "string"
         }
-      }
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/v1alpha1ResourceRef"
+        }
+      ]
     },
     "v1alpha1ResourceOverride": {
       "type": "object",
@@ -7857,6 +8337,9 @@
           "type": "string"
         },
         "ignoreDifferences": {
+          "$ref": "#/definitions/v1alpha1OverrideIgnoreDiff"
+        },
+        "ignoreResourceUpdates": {
           "$ref": "#/definitions/v1alpha1OverrideIgnoreDiff"
         },
         "knownTypeFields": {
@@ -7969,7 +8452,7 @@
           "type": "string"
         },
         "syncWave": {
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "version": {
@@ -7986,7 +8469,7 @@
         },
         "limit": {
           "description": "Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed.",
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         }
       }
@@ -8002,7 +8485,7 @@
           "$ref": "#/definitions/v1Time"
         },
         "id": {
-          "type": "string",
+          "type": "integer",
           "format": "int64",
           "title": "ID is an auto incrementing identifier of the RevisionHistory"
         },
@@ -8061,6 +8544,9 @@
       "description": "SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.",
       "type": "object",
       "properties": {
+        "awsCodeCommit": {
+          "$ref": "#/definitions/v1alpha1SCMProviderGeneratorAWSCodeCommit"
+        },
         "azureDevOps": {
           "$ref": "#/definitions/v1alpha1SCMProviderGeneratorAzureDevOps"
         },
@@ -8092,11 +8578,43 @@
         },
         "requeueAfterSeconds": {
           "description": "Standard parameters.",
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1SCMProviderGeneratorAWSCodeCommit": {
+      "description": "SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.",
+      "type": "object",
+      "properties": {
+        "allBranches": {
+          "description": "Scan all branches instead of just the default branch.",
+          "type": "boolean"
+        },
+        "region": {
+          "description": "Region provides the AWS region to discover repos.\nif not provided, AppSet controller will infer the current region from environment.",
+          "type": "string"
+        },
+        "role": {
+          "description": "Role provides the AWS IAM role to assume, for cross-account repo discovery\nif not provided, AppSet controller will use its pod/node identity to discover.",
+          "type": "string"
+        },
+        "tagFilters": {
+          "type": "array",
+          "title": "TagFilters provides the tag filter(s) for repo discovery",
+          "items": {
+            "$ref": "#/definitions/v1alpha1TagFilter"
+          }
         }
       }
     },
@@ -8265,12 +8783,24 @@
           "description": "Gitlab group to scan. Required.  You can use either the project id (recommended) or the full namespaced path.",
           "type": "string"
         },
+        "includeSharedProjects": {
+          "type": "boolean",
+          "title": "When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to \"true\""
+        },
         "includeSubgroups": {
           "type": "boolean",
           "title": "Recurse through subgroups (true) or scan only the base group (false).  Defaults to \"false\""
         },
+        "insecure": {
+          "type": "boolean",
+          "title": "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false"
+        },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
+        },
+        "topic": {
+          "description": "Filter repos list based on Gitlab Topic.",
+          "type": "string"
         }
       }
     },
@@ -8377,6 +8907,9 @@
       "type": "object",
       "title": "SyncOperationResult represent result of sync operation",
       "properties": {
+        "managedNamespaceMetadata": {
+          "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata"
+        },
         "resources": {
           "type": "array",
           "title": "Resources contains a list of sync result items for each individual resource in a sync operation",
@@ -8443,7 +8976,7 @@
         },
         "selfHeal": {
           "type": "boolean",
-          "title": "SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)"
+          "title": "SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)"
         }
       }
     },
@@ -8578,6 +9111,17 @@
         }
       }
     },
+    "v1alpha1TagFilter": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
     "versionVersionMessage": {
       "type": "object",
       "title": "VersionMessage represents version of the Argo CD API server",
@@ -8586,6 +9130,9 @@
           "type": "string"
         },
         "Compiler": {
+          "type": "string"
+        },
+        "ExtraBuildInfo": {
           "type": "string"
         },
         "GitCommit": {

@@ -6,22 +6,27 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	arogappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestPrintApplicationSetNames(t *testing.T) {
 	output, _ := captureOutput(func() error {
-		appSet := &arogappsetv1.ApplicationSet{
+		appSet := &v1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test",
 			},
 		}
-		printApplicationSetNames([]arogappsetv1.ApplicationSet{*appSet, *appSet})
+		appSet2 := &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "team-one",
+				Name:      "test",
+			},
+		}
+		printApplicationSetNames([]v1alpha1.ApplicationSet{*appSet, *appSet2})
 		return nil
 	})
-	expectation := "test\ntest\n"
+	expectation := "test\nteam-one/test\n"
 	if output != expectation {
 		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
 	}
@@ -29,108 +34,143 @@ func TestPrintApplicationSetNames(t *testing.T) {
 
 func TestPrintApplicationSetTable(t *testing.T) {
 	output, err := captureOutput(func() error {
-		app := &arogappsetv1.ApplicationSet{
+		app := &v1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "app-name",
 			},
-			Spec: arogappsetv1.ApplicationSetSpec{
-				Generators: []arogappsetv1.ApplicationSetGenerator{
-					arogappsetv1.ApplicationSetGenerator{
-						Git: &arogappsetv1.GitGenerator{
+			Spec: v1alpha1.ApplicationSetSpec{
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
 							RepoURL:  "https://github.com/argoproj/argo-cd.git",
 							Revision: "head",
-							Directories: []arogappsetv1.GitDirectoryGeneratorItem{
-								arogappsetv1.GitDirectoryGeneratorItem{
+							Directories: []v1alpha1.GitDirectoryGeneratorItem{
+								{
 									Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
 								},
 							},
 						},
 					},
 				},
-				Template: arogappsetv1.ApplicationSetTemplate{
+				Template: v1alpha1.ApplicationSetTemplate{
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 					},
 				},
 			},
-			Status: arogappsetv1.ApplicationSetStatus{
-				Conditions: []arogappsetv1.ApplicationSetCondition{
-					arogappsetv1.ApplicationSetCondition{
+			Status: v1alpha1.ApplicationSetStatus{
+				Conditions: []v1alpha1.ApplicationSetCondition{
+					{
 						Status: v1alpha1.ApplicationSetConditionStatusTrue,
-						Type:   arogappsetv1.ApplicationSetConditionResourcesUpToDate,
+						Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					},
+				},
+			},
+		}
+
+		app2 := &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "app-name",
+				Namespace: "team-two",
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL:  "https://github.com/argoproj/argo-cd.git",
+							Revision: "head",
+							Directories: []v1alpha1.GitDirectoryGeneratorItem{
+								{
+									Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
+								},
+							},
+						},
+					},
+				},
+				Template: v1alpha1.ApplicationSetTemplate{
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+					},
+				},
+			},
+			Status: v1alpha1.ApplicationSetStatus{
+				Conditions: []v1alpha1.ApplicationSetCondition{
+					{
+						Status: v1alpha1.ApplicationSetConditionStatusTrue,
+						Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
 					},
 				},
 			},
 		}
 		output := "table"
-		printApplicationSetTable([]arogappsetv1.ApplicationSet{*app, *app}, &output)
+		printApplicationSetTable([]v1alpha1.ApplicationSet{*app, *app2}, &output)
 		return nil
 	})
 	assert.NoError(t, err)
-	expectation := "NAME      NAMESPACE  PROJECT  SYNCPOLICY  CONDITIONS\napp-name             default  nil         [{ResourcesUpToDate  <nil> True }]\napp-name             default  nil         [{ResourcesUpToDate  <nil> True }]\n"
+	expectation := "NAME               PROJECT  SYNCPOLICY  CONDITIONS\napp-name           default  nil         [{ResourcesUpToDate  <nil> True }]\nteam-two/app-name  default  nil         [{ResourcesUpToDate  <nil> True }]\n"
 	assert.Equal(t, expectation, output)
 }
 
 func TestPrintAppSetSummaryTable(t *testing.T) {
-	baseAppSet := &arogappsetv1.ApplicationSet{
+	baseAppSet := &v1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "app-name",
 		},
-		Spec: arogappsetv1.ApplicationSetSpec{
-			Generators: []arogappsetv1.ApplicationSetGenerator{
-				arogappsetv1.ApplicationSetGenerator{
-					Git: &arogappsetv1.GitGenerator{
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					Git: &v1alpha1.GitGenerator{
 						RepoURL:  "https://github.com/argoproj/argo-cd.git",
 						Revision: "head",
-						Directories: []arogappsetv1.GitDirectoryGeneratorItem{
-							arogappsetv1.GitDirectoryGeneratorItem{
+						Directories: []v1alpha1.GitDirectoryGeneratorItem{
+							{
 								Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
 							},
 						},
 					},
 				},
 			},
-			Template: arogappsetv1.ApplicationSetTemplate{
+			Template: v1alpha1.ApplicationSetTemplate{
 				Spec: v1alpha1.ApplicationSpec{
 					Project: "default",
 				},
 			},
 		},
-		Status: arogappsetv1.ApplicationSetStatus{
-			Conditions: []arogappsetv1.ApplicationSetCondition{
-				arogappsetv1.ApplicationSetCondition{
+		Status: v1alpha1.ApplicationSetStatus{
+			Conditions: []v1alpha1.ApplicationSetCondition{
+				{
 					Status: v1alpha1.ApplicationSetConditionStatusTrue,
-					Type:   arogappsetv1.ApplicationSetConditionResourcesUpToDate,
+					Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
 				},
 			},
 		},
 	}
 
 	appsetSpecSyncPolicy := baseAppSet.DeepCopy()
-	appsetSpecSyncPolicy.Spec.SyncPolicy = &arogappsetv1.ApplicationSetSyncPolicy{
+	appsetSpecSyncPolicy.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
 		PreserveResourcesOnDeletion: true,
 	}
 
 	appSetTemplateSpecSyncPolicy := baseAppSet.DeepCopy()
-	appSetTemplateSpecSyncPolicy.Spec.Template.Spec.SyncPolicy = &arogappsetv1.SyncPolicy{
-		Automated: &arogappsetv1.SyncPolicyAutomated{
+	appSetTemplateSpecSyncPolicy.Spec.Template.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		Automated: &v1alpha1.SyncPolicyAutomated{
 			SelfHeal: true,
 		},
 	}
 
 	appSetBothSyncPolicies := baseAppSet.DeepCopy()
-	appSetBothSyncPolicies.Spec.SyncPolicy = &arogappsetv1.ApplicationSetSyncPolicy{
+	appSetBothSyncPolicies.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
 		PreserveResourcesOnDeletion: true,
 	}
-	appSetBothSyncPolicies.Spec.Template.Spec.SyncPolicy = &arogappsetv1.SyncPolicy{
-		Automated: &arogappsetv1.SyncPolicyAutomated{
+	appSetBothSyncPolicies.Spec.Template.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		Automated: &v1alpha1.SyncPolicyAutomated{
 			SelfHeal: true,
 		},
 	}
 
 	for _, tt := range []struct {
 		name           string
-		appSet         *arogappsetv1.ApplicationSet
+		appSet         *v1alpha1.ApplicationSet
 		expectedOutput string
 	}{
 		{
