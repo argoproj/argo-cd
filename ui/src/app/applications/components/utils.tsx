@@ -473,7 +473,7 @@ function getActionItems(
     const execAction = services.authService
         .settings()
         .then(async settings => {
-            const execAllowed = settings.execEnabled && await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
+            const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
             if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
                 return [
                     {
