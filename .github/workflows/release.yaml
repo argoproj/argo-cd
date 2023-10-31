@@ -120,7 +120,7 @@ jobs:
       contents: write #  Needed for release uploads
     if: github.repository == 'argoproj/argo-cd'
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.7.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.9.0
     with:
       base64-subjects: "${{ needs.goreleaser.outputs.hashes }}"
       provenance-name: "argocd-cli.intoto.jsonl"
@@ -204,7 +204,7 @@ jobs:
       contents: write #  Needed for release uploads
     if: github.repository == 'argoproj/argo-cd'
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.7.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.9.0
     with:
       base64-subjects: "${{ needs.generate-sbom.outputs.hashes }}"
       provenance-name: "argocd-sbom.intoto.jsonl"
