@@ -54,7 +54,7 @@ export const ApplicationResourceList = ({
             {/*Display only when the view is set to tree*/}
             {(view === 'tree' || view === 'network') && (
                 <div className='resource-details__header' style={{paddingTop: '20px'}}>
-                    <ParenRefDetails/>
+                    <ParenRefDetails />
                 </div>
             )}
             <div className='argo-table-list argo-table-list--clickable'>
