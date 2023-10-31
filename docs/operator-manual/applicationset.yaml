@@ -3,11 +3,11 @@ kind: ApplicationSet
 metadata:
   name: test-hello-world-appset
   namespace: argocd
- 
   # To preserve this annotation and label we can use the preservedFields property 
   preservedFields:
     # This annotation and label exists only on this Application, and not in 
     # the parent ApplicationSet template:
+    # ignoreApplicationDifferences is the preferred way to accomplish this now.
     annotations: 
       my-custom-annotation: some-value
     labels:
@@ -89,57 +89,7 @@ spec:
     # matrix 'parent' generator
     - matrix:
         generators:
-
-          # cluster generator, 'child' #1
-          - clusters:
-              selector:
-                matchLabels:
-                  staging: true
-                # The cluster generator also supports matchExpressions.
-                #matchExpressions:
-                #  - key: staging
-                #    operator: In
-                #    values:
-                #      - "true"
-  
-          # cluster generator, 'child' #2
-          - clusters: {} # Automatically use all clusters defined within Argo CD
-
-          - list:
-              elements:
-              - cluster: https://kubernetes.default.svc
-                url: https://kubernetes.default.svc
-                values:
-                  additional: value
-              - staging: "true"
-                gitRepo: https://kubernetes.default.svc  
-
-          # Overriding parameters from one child generator in another child generator
-          - git:
-              repoURL: https://github.com/example/values.git
-              revision: HEAD
-              files:
-              - path: "global.values.yaml"
-              #specify a pathParamPrefix on one or both of the child generators 
-              #to avoid conflicting parameter keys in the output
-              pathParamPrefix: app 
-              
-          - git:
-              repoURL: https://github.com/argoproj/argo-cd.git
-              files:
-              - path: "apps/**/config.json"
-              directories:
-              - path: applicationset/examples/git-generator-directory/cluster-addons/*
-              - path: applicationset/examples/git-generator-directory/excludes/cluster-addons/exclude-helm-guestbook
-                exclude: true # exclude directories in the repository from being scanned by the ApplicationSet controller
-              # To exclude directories, you only need to put the name/path.Match of the directory
-              - path: '*'
-              - path: donotdeploy
-                exclude: true
-              values:  # Pass additional key-value pairs via values field
-                cluster: '{{branch}}-{{path}}'
-                base_dir: "{{path[0]}}/{{path[1]}}/{{path[2]}}"
-              pathParamPrefix: target 
+        # any of the top-level generators may be used here instead.
   
     # merge 'parent' generator
     # Use the selector set by both child generators to combine them.
@@ -199,8 +149,6 @@ spec:
           parameters:
           - name: "image.tag"
             value: "pull-{{head_sha}}"
-            # Each of these fields is evaluated as an independent template, so the first one will fail with an error.
-          - name: "{{range .parameters}}"
           - name: "{{.name}}"
             value: "{{.value}}"
           - name: throw-away
@@ -252,7 +200,7 @@ spec:
               operator: In
               values:
                 - env-dev
-          #maxUpdate: 100%  # if undefined, all applications matched are updated together (default is 100%)
+        # maxUpdate: 100%  # if undefined, all applications matched are updated together (default is 100%)
         - matchExpressions:
             - key: envLabel
               operator: In
@@ -328,6 +276,8 @@ spec:
       bitbucket:
       # Specify the organization, project and repository from which you want to fetch pull requests.
       azuredevops:
+      # Fetch pull requests from AWS CodeCommit repositories.
+      awsCodeCommit:
 
 # The list generator generates a set of two application which then filter by the key value to only select the env with value staging
   - list:
