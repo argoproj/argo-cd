@@ -154,10 +154,6 @@ data:
   reposerver.streamed.manifest.max.extracted.size: "1G"
   # Enable git submodule support
   reposerver.enable.git.submodule: "true"
-  # Number of concurrent git ls-remote requests. Any value less than 1 means no limit.
-  reposerver.git.lsremote.parallelism.limit: "0"
-  # Git requests timeout.
-  reposerver.git.request.timeout: "15s"
 
   # Disable TLS on the HTTP endpoint
   dexserver.disable.tls: "false"
@@ -188,8 +184,6 @@ data:
   # sending secrets from `tokenRef`s to disallowed `api` domains.
   # The url used in the scm generator must exactly match one in the list
   applicationsetcontroller.allowed.scm.providers: "https://git.example.com/,https://gitlab.example.com/"
-  # To disable SCM providers entirely (i.e. disable the SCM and PR generators), set this to "false". Default is "true".
-  applicationsetcontroller.enable.scm.providers: "false"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")

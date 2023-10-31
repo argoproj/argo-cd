@@ -1,7 +1,7 @@
-local sep = " --- "
-local hs = {}
+sep = " --- "
+hs = {}
 if obj.status ~= nil then
-  local message = ""
+  message = ""
   if tonumber(obj.status.canaryWeight) > 0 then            
     message = "Canary Weight: " .. obj.status.canaryWeight .. " %"
   end

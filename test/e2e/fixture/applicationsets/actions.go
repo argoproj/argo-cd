@@ -4,10 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	"strings"
 	"time"
-
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -494,18 +493,5 @@ func (a *Actions) verifyAction() {
 	if !a.ignoreErrors {
 		a.Then().Expect(Success(""))
 	}
-}
 
-func (a *Actions) AppSet(appName string, flags ...string) *Actions {
-	a.context.t.Helper()
-	args := []string{"app", "set", appName}
-	args = append(args, flags...)
-	a.runCli(args...)
-	return a
-}
-
-func (a *Actions) runCli(args ...string) {
-	a.context.t.Helper()
-	a.lastOutput, a.lastError = fixture.RunCli(args...)
-	a.verifyAction()
 }

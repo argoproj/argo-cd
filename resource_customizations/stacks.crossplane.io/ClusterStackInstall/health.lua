@@ -1,4 +1,4 @@
-local hs = {
+hs = {
   status = "Progressing",
   message = "Waiting for stack to be installed"
 }

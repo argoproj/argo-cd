@@ -21,7 +21,7 @@ import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
 message ApplicationQuery {
 	// the application's name
 	optional string name = 1;
-	// forces application reconciliation if set to 'hard'
+	// forces application reconciliation if set to true
 	optional string refresh = 2;
 	// the project names to restrict returned list applications
 	repeated string projects = 3;

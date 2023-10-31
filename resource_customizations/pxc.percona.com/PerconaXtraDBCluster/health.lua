@@ -1,4 +1,4 @@
-local hs = {}
+hs = {}
 if obj.status ~= nil then
 
   if obj.status.state == "initializing" then
