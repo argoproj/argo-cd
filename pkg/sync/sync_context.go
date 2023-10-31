@@ -903,16 +903,24 @@ func (sc *syncContext) ensureCRDReady(name string) error {
 	})
 }
 
-func (sc *syncContext) applyObject(t *syncTask, dryRun, force, validate bool) (common.ResultCode, string) {
-	dryRunStrategy := cmdutil.DryRunNone
-	if dryRun {
-		dryRunStrategy = cmdutil.DryRunClient
+func getDryRunStrategy(serverSideApply, dryRun bool) cmdutil.DryRunStrategy {
+	if !dryRun {
+		return cmdutil.DryRunNone
 	}
+	if serverSideApply {
+		return cmdutil.DryRunServer
+	}
+	return cmdutil.DryRunClient
+}
+
+func (sc *syncContext) applyObject(t *syncTask, dryRun, force, validate bool) (common.ResultCode, string) {
+	serverSideApply := sc.serverSideApply || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionServerSideApply)
+
+	dryRunStrategy := getDryRunStrategy(serverSideApply, dryRun)
 
 	var err error
 	var message string
 	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace)
-	serverSideApply := sc.serverSideApply || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionServerSideApply)
 	if shouldReplace {
 		if t.liveObj != nil {
 			// Avoid using `kubectl replace` for CRDs since 'replace' might recreate resource and so delete all CRD instances.
