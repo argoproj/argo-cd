@@ -1,4 +1,4 @@
-local actions = {}
+actions = {}
 actions["restart"] = {}
 
 local paused = false

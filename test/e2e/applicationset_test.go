@@ -19,11 +19,10 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 
-	"github.com/stretchr/testify/assert"
-
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
@@ -1706,7 +1705,7 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 			// app should be listed
 			output, err := fixture.RunCli("appset", "get", "scm-provider-generator-scm-provider-not-allowed")
 			assert.NoError(t, err)
-			assert.Contains(t, output, "scm provider not allowed")
+			assert.Contains(t, output, "scm provider not allowed: http://myservice.mynamespace.svc.cluster.local")
 		})
 }
 
@@ -2113,7 +2112,7 @@ func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 			// app should be listed
 			output, err := fixture.RunCli("appset", "get", "pull-request-generator-not-allowed-scm")
 			assert.NoError(t, err)
-			assert.Contains(t, output, "scm provider not allowed")
+			assert.Contains(t, output, "failed to select pull request service provider: scm provider not allowed: http://myservice.mynamespace.svc.cluster.local")
 		})
 }
 

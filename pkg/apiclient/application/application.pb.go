@@ -44,7 +44,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 type ApplicationQuery struct {
 	// the application's name
 	Name *string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	// forces application reconciliation if set to 'hard'
+	// forces application reconciliation if set to true
 	Refresh *string `protobuf:"bytes,2,opt,name=refresh" json:"refresh,omitempty"`
 	// the project names to restrict returned list applications
 	Projects []string `protobuf:"bytes,3,rep,name=projects" json:"projects,omitempty"`

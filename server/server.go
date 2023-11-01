@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	netCtx "context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -31,6 +32,7 @@ import (
 	"github.com/argoproj/pkg/sync"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/handlers"
+	gmux "github.com/gorilla/mux"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -101,6 +103,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/dex"
 	dexutil "github.com/argoproj/argo-cd/v2/util/dex"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
@@ -192,7 +195,6 @@ type ArgoCDServer struct {
 	secretInformer    cache.SharedIndexInformer
 	configMapInformer cache.SharedIndexInformer
 	serviceSet        *ArgoCDServiceSet
-	extensionManager  *extension.Manager
 }
 
 type ArgoCDServerOpts struct {
@@ -206,7 +208,7 @@ type ArgoCDServerOpts struct {
 	MetricsHost           string
 	Namespace             string
 	DexServerAddr         string
-	DexTLSConfig          *dexutil.DexTLSConfig
+	DexTLSConfig          *dex.DexTLSConfig
 	BaseHRef              string
 	RootPath              string
 	KubeClientset         kubernetes.Interface
@@ -291,16 +293,10 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	apiFactory := api.NewFactory(settings_notif.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm"), opts.Namespace, secretInformer, configMapInformer)
 
 	dbInstance := db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset)
-	logger := log.NewEntry(log.StandardLogger())
-
-	sg := extension.NewDefaultSettingsGetter(settingsMgr)
-	ag := extension.NewDefaultApplicationGetter(appLister)
-	pg := extension.NewDefaultProjectGetter(projLister, dbInstance)
-	em := extension.NewManager(logger, sg, ag, pg, enf)
 
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:  opts,
-		log:               logger,
+		log:               log.NewEntry(log.StandardLogger()),
 		settings:          settings,
 		sessionMgr:        sessionMgr,
 		settingsMgr:       settingsMgr,
@@ -318,7 +314,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		apiFactory:        apiFactory,
 		secretInformer:    secretInformer,
 		configMapInformer: configMapInformer,
-		extensionManager:  em,
 	}
 
 	err = a.logInClusterWarnings()
@@ -616,14 +611,13 @@ func (a *ArgoCDServer) watchSettings() {
 
 	prevURL := a.settings.URL
 	prevOIDCConfig := a.settings.OIDCConfig()
-	prevDexCfgBytes, err := dexutil.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
+	prevDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
 	errorsutil.CheckError(err)
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
 	prevGitLabSecret := a.settings.WebhookGitLabSecret
 	prevBitbucketUUID := a.settings.WebhookBitbucketUUID
 	prevBitbucketServerSecret := a.settings.WebhookBitbucketServerSecret
 	prevGogsSecret := a.settings.WebhookGogsSecret
-	prevExtConfig := a.settings.ExtensionConfig
 	var prevCert, prevCertKey string
 	if a.settings.Certificate != nil && !a.ArgoCDServerOpts.Insecure {
 		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
@@ -632,7 +626,7 @@ func (a *ArgoCDServer) watchSettings() {
 	for {
 		newSettings := <-updateCh
 		a.settings = newSettings
-		newDexCfgBytes, err := dexutil.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
+		newDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
 		errorsutil.CheckError(err)
 		if string(newDexCfgBytes) != string(prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
@@ -665,16 +659,6 @@ func (a *ArgoCDServer) watchSettings() {
 		if prevGogsSecret != a.settings.WebhookGogsSecret {
 			log.Infof("gogs secret modified. restarting")
 			break
-		}
-		if prevExtConfig != a.settings.ExtensionConfig {
-			prevExtConfig = a.settings.ExtensionConfig
-			log.Infof("extensions configs modified. Updating proxy registry...")
-			err := a.extensionManager.UpdateExtensionRegistry(a.settings)
-			if err != nil {
-				log.Errorf("error updating extensions configs: %s", err)
-			} else {
-				log.Info("extensions configs updated successfully")
-			}
 		}
 		if !a.ArgoCDServerOpts.Insecure {
 			var newCert, newCertKey string
@@ -731,7 +715,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc.ConnectionTimeout(300 * time.Second),
 		grpc.KeepaliveEnforcementPolicy(
 			keepalive.EnforcementPolicy{
-				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
+				MinTime: common.GRPCKeepAliveEnforcementMinimum,
 			},
 		),
 	}
@@ -760,7 +744,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_auth.StreamServerInterceptor(a.Authenticate),
 		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
-		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
 		grpc_util.ErrorCodeK8sStreamServerInterceptor(),
@@ -774,7 +758,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc_prometheus.UnaryServerInterceptor,
 		grpc_auth.UnaryServerInterceptor(a.Authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
-		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
 		grpc_util.ErrorCodeK8sUnaryServerInterceptor(),
@@ -1060,16 +1044,21 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 // in the given mux. If any error is returned while registering
 // extensions handlers, no route will be added in the given mux.
 func registerExtensions(mux *http.ServeMux, a *ArgoCDServer) {
-	a.log.Info("Registering extensions...")
-	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
-	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth)
-	// auth middleware ensures that requests to all extensions are authenticated first
-	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), authMiddleware(extHandler))
+	sg := extension.NewDefaultSettingsGetter(a.settingsMgr)
+	ag := extension.NewDefaultApplicationGetter(a.appLister)
+	pg := extension.NewDefaultProjectGetter(a.projLister, a.db)
+	em := extension.NewManager(a.log, sg, ag, pg, a.enf)
+	r := gmux.NewRouter()
+	// register an Auth middleware to ensure all requests to
+	// extensions are authenticated first.
+	r.Use(a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth))
 
-	err := a.extensionManager.RegisterExtensions()
+	err := em.RegisterHandlers(r)
 	if err != nil {
-		a.log.Errorf("Error registering extensions: %s", err)
+		a.log.Errorf("error registering extension handlers: %s", err)
+		return
 	}
+	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), r)
 }
 
 var extensionsPattern = regexp.MustCompile(`^extension(.*)\.js$`)
@@ -1231,11 +1220,7 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 			http.ServeContent(w, r, "index.html", modTime, io.NewByteReadSeeker(data))
 		} else {
 			if isMainJsBundle(r.URL) {
-				cacheControl := "public, max-age=31536000, immutable"
-				if !fileRequest {
-					cacheControl = "no-cache"
-				}
-				w.Header().Set("Cache-Control", cacheControl)
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 			}
 			http.FileServer(server.staticAssets).ServeHTTP(w, r)
 		}
