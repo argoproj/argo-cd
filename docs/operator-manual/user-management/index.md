@@ -442,7 +442,7 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
 
 #### Example
 
-SSO `clientSecret` can thus be stored as a kubernetes secret with the following manifests
+SSO `clientSecret` can thus be stored as a Kubernetes secret with the following manifests
 
 `argocd-secret`:
 ```yaml

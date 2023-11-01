@@ -1,6 +1,6 @@
 # Post Selector all generators
 
-The Selector allows to post-filter based on generated values using the kubernetes common labelSelector format. In the example, the list generator generates a set of two application which then filter by the key value to only select the `env` with value `staging`:
+The Selector allows to post-filter based on generated values using the Kubernetes common labelSelector format. In the example, the list generator generates a set of two application which then filter by the key value to only select the `env` with value `staging`:
 
 ## Example: List generator + Post Selector
 ```yaml
